@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.compose.ui.Alignment
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.cusotailor.View.composable.AppLogo
 import com.example.cusotailor.View.composable.CardContentsLoginScreen
 import com.example.cusotailor.View.composable.LoginScreenTitle
@@ -25,7 +25,7 @@ import com.example.cusotailor.viewmodel.Authenticate
 fun LoginScreen(activity: Activity,
                 navController: NavController,
                 onloginSuccess: (String)-> Unit,
-                authViewModel: Authenticate= viewModel()
+                authViewModel: Authenticate= hiltViewModel()
 
 ) {
 
@@ -38,7 +38,7 @@ fun LoginScreen(activity: Activity,
     LaunchedEffect(authState) {
         when (val state = authState){
             is UiState.LoginSuccess ->{
-                onloginSuccess(state.username)
+                onloginSuccess("${ state.firstName } ${state.lastName}")
                 authViewModel.resetState()
             }
             is UiState.Error ->{
@@ -85,7 +85,7 @@ fun LoginScreen(activity: Activity,
                     containerColor = Color.White
                 ),
             ) {
-                CardContentsLoginScreen(navController,activity)
+                CardContentsLoginScreen(navController,activity,authViewModel)
                 Spacer(Modifier.height(10.dp))
                 SignUpText(navController)
                 Spacer(Modifier.padding(bottom = 30.dp))

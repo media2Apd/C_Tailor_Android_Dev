@@ -16,16 +16,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.cusotailor.View.composable.GstBox
 import com.example.cusotailor.View.others.PrivacyPolicy
 import com.example.cusotailor.View.others.TermsConditions
 import com.example.cusotailor.View.signup_screen.SignUpScreen
 import com.example.cusotailor.View.forgot_password.ForgotPassword
 import com.example.cusotailor.View.login.LoginOtpScreen
 import com.example.cusotailor.View.login.LoginScreen
+import com.example.cusotailor.View.others.HomeScreen
 import com.example.cusotailor.View.signup_screen.OrganizationProfile
+import dagger.hilt.android.AndroidEntryPoint
 
-
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,8 +36,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             CusoTailorTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-//                    AppNav(activity = this)
-                    OrganizationProfile()
+                    AppNav(activity = this)
+//                    OrganizationProfile()
                 }
             }
         }
@@ -60,6 +61,9 @@ fun AppNav(activity: Activity) {
                 onNavigateToLogin = { navController.popBackStack() },
                 activity = localActivity
             )
+        }
+        composable ("home"){
+            HomeScreen(navController)
         }
 
         composable("login") {

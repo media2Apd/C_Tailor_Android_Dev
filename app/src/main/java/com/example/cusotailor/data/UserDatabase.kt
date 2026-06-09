@@ -1,27 +1,38 @@
-package com.example.cusotailor.data
-
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.cusotailor.database.dao.UserDao
+import com.example.cusotailor.database.entities.TokensEntity
+import com.example.cusotailor.database.entities.OrganizationEntity
+import com.example.cusotailor.database.entities.UserEntity
 
-@Database(entities = [User::class], version = 2, exportSchema = false)
-abstract class UserDatabase : RoomDatabase() {
+@Database(
+    entities = [UserEntity::class, OrganizationEntity::class, TokensEntity::class],
+    version = 1,
+    exportSchema = false
+)
+abstract class AppDatabase : RoomDatabase() {
+
     abstract fun userDao(): UserDao
 
     companion object {
-        @Volatile
-        private var INSTANCE: UserDatabase? = null
 
-        fun getDatabase(context: Context): UserDatabase {
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+
+        fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                Room.databaseBuilder(
+                val instance = Room.databaseBuilder(
                     context.applicationContext,
-                    UserDatabase::class.java,
-                    "user_database"
+                    AppDatabase::class.java,
+                    "cusotailor_db"
                 )
-                    .fallbackToDestructiveMigration(false)
-                    .build().also { INSTANCE = it }
+                    .fallbackToDestructiveMigration() // dev stage-ku OK
+                    .build()
+
+                INSTANCE = instance
+                instance
             }
         }
     }

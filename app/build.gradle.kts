@@ -96,4 +96,6 @@ dependencies {
 
     // Phone number validation
     implementation("com.googlecode.libphonenumber:libphonenumber:8.13.47")
+
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 }

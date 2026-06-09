@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cusotailor.model.countries
 import com.example.cusotailor.model.Country
-import com.example.cusotailor.model.countries
 
 @Composable
 fun PhoneInputField(

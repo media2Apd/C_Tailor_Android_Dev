@@ -1,10 +1,16 @@
 package com.example.cusotailor.viewmodel
 
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.cusotailor.model.OtpResponse
 import com.example.cusotailor.model.SignupRequest
 import com.example.cusotailor.repository.AuthRepository
+import com.example.cusotailor.repository.LoginRepository
 import com.example.cusotailor.utils.isValidPhoneNumber
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -14,17 +20,57 @@ sealed class UiState {
     object Loading : UiState()
     data class Success(val message: String) : UiState()
     data class Error(val message: String) : UiState()
-    data class LoginSuccess(val username: String) : UiState()
+    data class LoginSuccess(val firstName: String, val lastName: String) : UiState()
     object RegisterSuccess : UiState()
+    data class EmailVerified(val message: String) : UiState()
 }
 
-class Authenticate : ViewModel() {
+@HiltViewModel
+class Authenticate @Inject constructor(
+    private val repository: AuthRepository,
+    private val loginRepository: LoginRepository
+) : ViewModel() {
 
-    private val repository = AuthRepository()
+    // private val repository = AuthRepository() ← இது delete பண்ணுங்க
 
     private val _accountState = MutableStateFlow<UiState>(UiState.Idle)
     val accountState: StateFlow<UiState> = _accountState
 
+    private val _otpResult = MutableLiveData<Result<OtpResponse>>()
+    val otpResult: LiveData<Result<OtpResponse>> = _otpResult
+
+    fun login(email: String, password: String) {
+        when {
+            !email.contains("@") -> { _accountState.value = UiState.Error("Enter a valid email"); return }
+            password.isBlank()   -> { _accountState.value = UiState.Error("Password is required"); return }
+        }
+
+        _accountState.value = UiState.Loading
+
+        viewModelScope.launch {
+            val result = repository.login(email, password)
+            if (result.isSuccess) {
+                val response = result.getOrNull()
+                if (response != null) {
+                    loginRepository.saveLoginData(response)
+                    _accountState.value = UiState.LoginSuccess(
+                        firstName = response.data.user.firstName,
+                        lastName  = response.data.user.lastName
+                    )
+                }
+            } else {
+                _accountState.value = UiState.Error(
+                    result.exceptionOrNull()?.message ?: "Invalid email or password"
+                )
+            }
+        }
+    }
+
+    fun sendOtp(email: String) {
+        viewModelScope.launch {
+            _otpResult.value = repository.sendOtp(email)
+        }
+    }
     fun signUp(
         firstName: String,
         lastName: String,
@@ -70,22 +116,20 @@ class Authenticate : ViewModel() {
         }
     }
 
-    fun login(email: String, password: String) {
-        when {
-            !email.contains("@") -> { _accountState.value = UiState.Error("Enter a valid email"); return }
-            password.isBlank()   -> { _accountState.value = UiState.Error("Password is required"); return }
+    fun verifyEmail(email: String) {
+        if (!email.contains("@")) {
+            _accountState.value = UiState.Error("Enter a valid email")
+            return
         }
 
         _accountState.value = UiState.Loading
 
         viewModelScope.launch {
-            val result = repository.login(email, password)
+            val result = repository.verifyEmail(email)
             _accountState.value = if (result.isSuccess) {
-                val response = result.getOrNull()
-                val username = "${response?.firstName ?: ""} ${response?.lastName ?: ""}".trim()
-                UiState.LoginSuccess(username.ifBlank { email })
+                UiState.EmailVerified(result.getOrNull()?.message ?: "Email verified")
             } else {
-                UiState.Error(result.exceptionOrNull()?.message ?: "Invalid email or password")
+                UiState.Error(result.exceptionOrNull()?.message ?: "Verification failed")
             }
         }
     }

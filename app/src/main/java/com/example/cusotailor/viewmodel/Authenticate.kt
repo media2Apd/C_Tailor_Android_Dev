@@ -4,8 +4,9 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.cusotailor.model.OtpResponse
 import com.example.cusotailor.model.SignupRequest
+import com.example.cusotailor.model.otpSendResponse
+import com.example.cusotailor.model.otpVerifyResponse
 import com.example.cusotailor.repository.AuthRepository
 import com.example.cusotailor.repository.LoginRepository
 import com.example.cusotailor.utils.isValidPhoneNumber
@@ -14,6 +15,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import android.util.Log
 
 sealed class UiState {
     object Idle : UiState()
@@ -23,6 +25,7 @@ sealed class UiState {
     data class LoginSuccess(val firstName: String, val lastName: String) : UiState()
     object RegisterSuccess : UiState()
     data class EmailVerified(val message: String) : UiState()
+    object EmailNotFound: UiState()
 }
 
 @HiltViewModel
@@ -36,13 +39,16 @@ class Authenticate @Inject constructor(
     private val _accountState = MutableStateFlow<UiState>(UiState.Idle)
     val accountState: StateFlow<UiState> = _accountState
 
-    private val _otpResult = MutableLiveData<Result<OtpResponse>>()
-    val otpResult: LiveData<Result<OtpResponse>> = _otpResult
+    private val _otpSendResult = MutableLiveData<Result<otpSendResponse>>()
+    private val _otpVerifyResult= MutableLiveData<Result<otpVerifyResponse>>()
+    val otpSendResult: LiveData<Result<otpSendResponse>> = _otpSendResult
+    val otpVerifyResult: LiveData<Result<otpVerifyResponse>> = _otpVerifyResult
+
 
     fun login(email: String, password: String) {
         when {
-            !email.contains("@") -> { _accountState.value = UiState.Error("Enter a valid email"); return }
-            password.isBlank()   -> { _accountState.value = UiState.Error("Password is required"); return }
+            !email.contains("@") -> { _accountState.value = UiState.Error("");  }
+            password.isBlank()   -> { _accountState.value = UiState.Error("");  }
         }
 
         _accountState.value = UiState.Loading
@@ -52,7 +58,7 @@ class Authenticate @Inject constructor(
             if (result.isSuccess) {
                 val response = result.getOrNull()
                 if (response != null) {
-                    loginRepository.saveLoginData(response)
+                    loginRepository.saveLoginData(response.data)
                     _accountState.value = UiState.LoginSuccess(
                         firstName = response.data.user.firstName,
                         lastName  = response.data.user.lastName
@@ -60,7 +66,7 @@ class Authenticate @Inject constructor(
                 }
             } else {
                 _accountState.value = UiState.Error(
-                    result.exceptionOrNull()?.message ?: "Invalid email or password"
+                    result.exceptionOrNull()?.message ?: "Invalid password"
                 )
             }
         }
@@ -68,7 +74,19 @@ class Authenticate @Inject constructor(
 
     fun sendOtp(email: String) {
         viewModelScope.launch {
-            _otpResult.value = repository.sendOtp(email)
+            _otpSendResult.value = repository.sendOtp(email)
+        }
+    }
+
+    fun verifyOtp(email: String, otp: String) {
+        viewModelScope.launch {
+            Log.d("OTP_API", "Calling API with $email $otp")
+
+            val result = repository.verifyOtp(email, otp)
+
+            Log.d("OTP_API", "Response = $result")
+
+            _otpVerifyResult.value = result
         }
     }
     fun signUp(
@@ -129,7 +147,12 @@ class Authenticate @Inject constructor(
             _accountState.value = if (result.isSuccess) {
                 UiState.EmailVerified(result.getOrNull()?.message ?: "Email verified")
             } else {
-                UiState.Error(result.exceptionOrNull()?.message ?: "Verification failed")
+                val status = result.exceptionOrNull()?.message ?: ""
+                if (status == "not_found") {
+                    UiState.EmailNotFound  // ← your custom state
+                } else {
+                    UiState.Error(status)
+                }
             }
         }
     }

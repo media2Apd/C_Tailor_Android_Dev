@@ -4,11 +4,15 @@ import android.util.Log
 import com.example.cusotailor.model.EmailResponse
 import com.example.cusotailor.model.EmailVerify
 import com.example.cusotailor.model.SignupRequest
-import com.example.cusotailor.model.OtpRequest
-import com.example.cusotailor.model.OtpResponse
+import com.example.cusotailor.model.otpSendRequest
+import com.example.cusotailor.model.otpSendResponse
 import com.example.cusotailor.model.PasswordResponse
 import com.example.cusotailor.model.PasswordVerify
 import com.example.cusotailor.model.SignupResponse
+import com.example.cusotailor.model.forgotPasswordRequest
+import com.example.cusotailor.model.forgotPasswordResponse
+import com.example.cusotailor.model.otpVerifyRequest
+import com.example.cusotailor.model.otpVerifyResponse
 import javax.inject.Inject
 
 class AuthRepository @Inject constructor() {
@@ -52,21 +56,26 @@ class AuthRepository @Inject constructor() {
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(
-                    Exception(response.errorBody()?.string() ?: "Email verification failed")
-                )
+                val errorBody = response.errorBody()?.string()
+                val status = try {
+                    val json = org.json.JSONObject(errorBody ?: "")
+                    json.getString("status")
+                } catch (e: Exception) {
+                    "unknown"
+                }
+                Result.failure(Exception(status))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Network error: ${e.message}"))
         }
     }
 
-    //otpsend
-    suspend fun sendOtp(email: String): Result<OtpResponse> {
+    //otpSend
+    suspend fun sendOtp(email: String): Result<otpSendResponse> {
         return try {
 
             val response = RetrofitClient.apiService.otpSend(
-                OtpRequest(email)
+                otpSendRequest(email)
             )
 
             if (response.isSuccessful && response.body() != null) {
@@ -81,6 +90,51 @@ class AuthRepository @Inject constructor() {
             Result.failure(e)
         }
     }
+
+    //otpVerify
+    suspend fun verifyOtp(email: String,otp:String): Result<otpVerifyResponse> {
+        return try {
+
+            val response = RetrofitClient.apiService.verifyOtp(
+                otpVerifyRequest(email, otp)
+            )
+
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception("Error ${response.code()} - ${response.message()}")
+                )
+            }
+
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun forgotPassword(email: String): Result<forgotPasswordResponse> {
+        return try {
+            val response = RetrofitClient.apiService.forgotPassword(
+                forgotPasswordRequest(email)
+            )
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errorBody = response.errorBody()?.string()
+                val message = try {
+                    org.json.JSONObject(errorBody ?: "").getString("message")
+                } catch (e: Exception) {
+                    "Something went wrong"
+                }
+                Result.failure(Exception(message))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Network error: ${e.message}"))
+        }
+    }
+
+
+
 
 //    // Login
 //    suspend fun login(email: String, password: String): Result<LoginResponse> {

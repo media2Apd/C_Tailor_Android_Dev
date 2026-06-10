@@ -2,6 +2,7 @@ package com.example.cusotailor.repository
 
 import com.example.cusotailor.database.AppDatabase
 import com.example.cusotailor.database.entities.*
+import com.example.cusotailor.model.LoginData
 
 import com.example.cusotailor.model.PasswordResponse
 import jakarta.inject.Inject
@@ -13,9 +14,8 @@ class LoginRepository @Inject constructor
     suspend fun getOrganization() = db.organizationDao().getOrganization()
     suspend fun getTokens() = db.tokensDao().getTokens()
 
-    suspend fun saveLoginData(response: PasswordResponse) {
+    suspend fun saveLoginData(loginData: LoginData) {
         clearAll()
-        val loginData = response.data
         val user = loginData.user
         val org = user.organizationId
         val tokens = loginData.tokens

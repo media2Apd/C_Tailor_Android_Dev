@@ -16,14 +16,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.cusotailor.View.others.PrivacyPolicy
-import com.example.cusotailor.View.others.TermsConditions
-import com.example.cusotailor.View.signup_screen.SignUpScreen
-import com.example.cusotailor.View.forgot_password.ForgotPassword
-import com.example.cusotailor.View.login.LoginOtpScreen
-import com.example.cusotailor.View.login.LoginScreen
-import com.example.cusotailor.View.others.HomeScreen
-import com.example.cusotailor.View.signup_screen.OrganizationProfile
+import com.example.cusotailor.view.others.PrivacyPolicy
+import com.example.cusotailor.view.others.TermsConditions
+import com.example.cusotailor.view.signup_screen.SignUpScreen
+import com.example.cusotailor.view.forgot_password.ForgotPassword
+import com.example.cusotailor.view.login.LoginOtpScreen
+import com.example.cusotailor.view.login.LoginScreen
+import com.example.cusotailor.view.others.HomeScreen
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

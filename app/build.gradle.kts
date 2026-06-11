@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.cusotailor"
+    namespace = "com.cuso.mobile"
     compileSdk = 36
     packaging {
         resources {
@@ -16,7 +16,7 @@ android {
         }
     }
     defaultConfig {
-        applicationId = "com.example.cusotailor"
+        applicationId = "com.cuso.mobile"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

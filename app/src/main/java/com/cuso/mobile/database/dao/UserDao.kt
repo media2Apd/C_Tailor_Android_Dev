@@ -1,0 +1,16 @@
+package com.cuso.mobile.database.dao
+
+import androidx.room.*
+import com.cuso.mobile.database.entities.UserEntity
+
+@Dao
+interface UserDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUser(user: UserEntity)
+
+    @Query("SELECT * FROM user LIMIT 1")
+    suspend fun getUser(): UserEntity?
+
+    @Query("DELETE FROM user")
+    suspend fun clearUser()
+}

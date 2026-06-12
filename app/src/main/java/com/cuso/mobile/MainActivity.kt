@@ -24,7 +24,7 @@ import com.cuso.mobile.view.forgot_password.forgotPassword
 import com.cuso.mobile.view.forgot_password.resetPassword
 import com.cuso.mobile.view.login.loginOtpScreen
 import com.cuso.mobile.view.login.loginScreen
-import com.cuso.mobile.view.login.verifyForgotPassword
+import com.cuso.mobile.view.forgot_password.verifyForgotPassword
 import com.cuso.mobile.view.organization.organizationProfile
 import com.cuso.mobile.view.others.homeScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -69,12 +69,31 @@ fun AppNav(activity: Activity) {
         composable ("home"){
             homeScreen(navController)
         }
-
-        composable("login") {
+        composable(
+            route = "login?message={message}",
+            arguments = listOf(navArgument("message") {
+                type = NavType.StringType
+                defaultValue = ""
+            })
+        ) {backStackEntry->
+            val message=backStackEntry.arguments?.getString("message")?:""
             loginScreen(
                 activity = localActivity,
                 navController = navController,
-                onloginSuccess = { navController.navigate("home") }
+                onloginSuccess = { navController.navigate("home")},
+                resetSuccessMessage = message
+            )
+        }
+        composable(
+            route = "login-with-email/{email}",
+            arguments = listOf(navArgument("email") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+            loginScreen(
+                activity = localActivity,
+                navController = navController,
+                onloginSuccess = { navController.navigate("home") },
+                prefilledEmail = email
             )
         }
 
@@ -93,8 +112,13 @@ fun AppNav(activity: Activity) {
         composable("terms") {
             termsConditions(navController)
         }
-        composable("reset-pass") {
-            resetPassword()
+        composable(
+            route = "reset-pass/{resetToken}",
+            arguments = listOf(navArgument("resetToken") { type = NavType.StringType })
+
+        ) {backStackEntry->
+            val resetToken = backStackEntry.arguments?.getString("resetToken") ?: ""
+            resetPassword(resetToken=resetToken,navController)
         }
         composable(
             route = "verify-forgot-pass/{email}",

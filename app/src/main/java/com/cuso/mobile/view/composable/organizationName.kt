@@ -22,7 +22,7 @@ fun Orgname(
         OutlinedTextField(
             value = organizationValue,
             onValueChange = onOrganizationChange,
-            placeholder = { Text("Organization Name", color = Color.Gray) },
+            placeholder = { Text("..", color = Color.Gray) },
             modifier = Modifier.fillMaxWidth().height(60.dp),
             singleLine = true,
             colors = customFieldColors()

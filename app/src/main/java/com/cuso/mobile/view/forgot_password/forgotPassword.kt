@@ -33,6 +33,7 @@ fun forgotPassword(activity: Activity,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             appLogo()
+            Spacer(Modifier.padding(top = 20.dp))
             forgotPasswordText()
             Spacer(modifier = Modifier.height(24.dp))
             Card(

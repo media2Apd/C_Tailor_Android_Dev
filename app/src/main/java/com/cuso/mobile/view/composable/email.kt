@@ -25,7 +25,7 @@ fun email(
         OutlinedTextField(
             value = emailValue,
             onValueChange = onEmailChange,
-            placeholder = { Text("Email", color = Color.Gray) },
+            placeholder = { Text("..", color = Color.Gray) },
             modifier = Modifier.fillMaxWidth().height(64.dp),
             shape = RoundedCornerShape(9),
             singleLine = true,

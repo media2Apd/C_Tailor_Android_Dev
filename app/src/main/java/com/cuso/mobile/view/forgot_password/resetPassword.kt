@@ -19,19 +19,28 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.appLogo
 import com.cuso.mobile.view.composable.resetPasswordText
 import com.cuso.mobile.view.composable.customFieldColors
+import com.cuso.mobile.viewmodel.Authenticate
+import com.cuso.mobile.viewmodel.UiState
 
 @Composable
 fun resetPassword(
-    onResetClick: (newPassword: String) -> Unit = {}
+    resetToken:String,
+    navController: NavController,
+//    onResetClick: (newPassword: String) -> Unit = {},
 ) {
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var newPasswordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    val authViewModel: Authenticate = hiltViewModel()
+
+    val resetPasswordState by authViewModel.resetPasswordState.collectAsState()
 
     val passwordsMatch = newPassword == confirmPassword
     val isFormValid = newPassword.isNotBlank()
@@ -100,7 +109,7 @@ fun resetPassword(
                         newPassword = it
                         errorMessage = null
                     },
-                    placeholder = { Text("New Password",color=Color.LightGray) },
+                    placeholder = { Text("..",color=Color.LightGray) },
                     trailingIcon = {
                         IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
                             Icon(
@@ -141,7 +150,7 @@ fun resetPassword(
                         confirmPassword = it
                         errorMessage = null
                     },
-                    placeholder = { Text("Confirm Password",color=Color.LightGray) },
+                    placeholder = { Text("..",color=Color.LightGray) },
                     trailingIcon = {
                         IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                             Icon(
@@ -182,10 +191,37 @@ fun resetPassword(
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
+// React to state
+                LaunchedEffect(resetPasswordState) {
+                    when (resetPasswordState) {
+                        is UiState.Success -> {
+                            navController.navigate("login?message=Password changed successfully")
+                        }
+                        is UiState.Error -> {
+                            // show error message
+                        }
+                        else -> {}
+                    }
+                }
+
+                // Show error message
+                if (resetPasswordState is UiState.Error) {
+                    Text(
+                        text = (resetPasswordState as UiState.Error).message,
+                        color = Color.Red,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 // Reset Password button
                 Button(
                     onClick = {
+                        authViewModel.resetNewPassword(
+                            token = resetToken,
+                            newPassword = newPassword,
+                            confirmPassword = confirmPassword
+                        )
                     },
                     enabled = isFormValid,
                     modifier = Modifier
@@ -197,12 +233,24 @@ fun resetPassword(
                         disabledContainerColor = Color(0xFFC7D2FE)
                     )
                 ) {
+                    if (resetPasswordState is UiState.Loading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(24.dp)
+                    )
+                        Text(
+                            text = "Resetting Password",
+                            fontSize = 20.sp,
+                            color=Color.White
+                        )
+                } else {
                     Text(
                         text = "Reset Password",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        fontSize = 20.sp,
+                        color=Color.White
                     )
+                }
                 }
             }
         }

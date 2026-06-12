@@ -58,6 +58,7 @@ fun signUpScreen(
         if (state is UiState.RegisterSuccess) {
             viewModel.resetState()
             onSignUpSuccess()
+            navController.navigate("org")
         }
     }
 
@@ -84,6 +85,7 @@ fun signUpScreen(
                 verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 appLogo()
+                Spacer(Modifier.padding(top = 20.dp))
                 signUpTitle()
             }
 

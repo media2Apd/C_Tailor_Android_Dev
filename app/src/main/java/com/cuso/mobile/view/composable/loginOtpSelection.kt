@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.navigation.NavController
 import com.cuso.mobile.viewmodel.Authenticate
 import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.LaunchedEffect
 
 
 @Composable
@@ -120,7 +121,7 @@ fun LoginOtpSelection(navController: NavController,
         Text("Enter Otp", color = Color.Black)
     }
     Spacer(Modifier.padding(top = 10.dp))
-    OtpInput(
+    loginOtpInput(
         activity = activity,
         onOtpComplete = { enteredOtp ->
             otp=enteredOtp
@@ -136,22 +137,39 @@ Row(
             "Sign in using password",
             Modifier
                 .clickable {
-                    navController.navigate("login?isSubmitted=true")
+                    navController.navigate("login-with-email/${savedEmail}"){
+                        popUpTo (0) { true }
+                    }
                 },
             color = Color.Blue, fontSize = 14.sp
         )
         Spacer(Modifier.weight(1f))
-        resendOtpSection(onResendClick = { savedEmail })
+        resendLoginOtpSection(onResendClick = { savedEmail }, email = savedEmail,authViewModel)
     }
 
     Spacer(Modifier.padding(top=10.dp))
 
+    LaunchedEffect(verifyResult) {
+        verifyResult?.let { result ->
+            if (result.isSuccess) {
+                navController.navigate("home") {
+                    popUpTo(0) { inclusive = true }
+                }
+            } else {
+                // handle error
+            }
+        }
+    }
+
     Button(
         onClick = {
-            authViewModel.verifyOtp(
-                savedEmail,otp
-            )
+            if(isOtpComplete) {
+                authViewModel.verifyOtp(
+                    savedEmail, otp
+                )
+            }
         },
+        enabled=isOtpComplete,
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp),
@@ -167,5 +185,7 @@ Row(
             fontWeight = FontWeight.SemiBold
         )
     }
+    Spacer(Modifier.padding(top=10.dp))
+    backToSignIn(navController)
 
 }

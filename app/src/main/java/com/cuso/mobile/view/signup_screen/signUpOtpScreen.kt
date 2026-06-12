@@ -31,6 +31,8 @@ fun signUpOtpScreen(navController: NavController,activity: Activity,submittedEma
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             appLogo()
+            Spacer(Modifier.padding(top = 20.dp))
+
             otpTitle()
             Spacer(modifier = Modifier.height(10.dp))
 

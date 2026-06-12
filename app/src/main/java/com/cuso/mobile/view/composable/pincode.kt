@@ -27,7 +27,7 @@ fun pincode(
                     onPincodeChange(digitsOnly)
                 }
             },
-            placeholder = { Text("Enter pincode", color = Color.Gray) },
+            placeholder = { Text("..", color = Color.Gray) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(60.dp),

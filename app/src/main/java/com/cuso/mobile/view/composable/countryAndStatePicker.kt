@@ -64,7 +64,7 @@ fun countryAndStatePicker(
                         onValueChange = {},
                         readOnly = true,
                         enabled = false,
-                        placeholder = { Text("Country/Region", color = Color.Gray) },
+                        placeholder = { Text("..", color = Color.Gray) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(60.dp),
@@ -116,7 +116,7 @@ fun countryAndStatePicker(
                         onValueChange = {},
                         readOnly = true,
                         enabled = false,
-                        placeholder = { Text("State/Province", color = Color.Gray) },
+                        placeholder = { Text("..", color = Color.Gray) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(60.dp),

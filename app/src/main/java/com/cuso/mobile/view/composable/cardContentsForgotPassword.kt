@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -53,9 +55,9 @@ fun cardContentsForgotPassword(navController: NavController,activity: Activity) 
     var isSubmitted by remember { mutableStateOf(false) }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var accountState by remember { mutableStateOf("") }
-    var authViewModel: Authenticate= hiltViewModel()
+    var authViewModel: Authenticate = hiltViewModel()
     val forgotPasswordState by authViewModel.forgotPasswordState.collectAsState()
-
+    val uiState by authViewModel.forgotPasswordState.collectAsState()
     Column(
         Modifier.padding(25.dp)
     ) {
@@ -65,12 +67,12 @@ fun cardContentsForgotPassword(navController: NavController,activity: Activity) 
             else "",
             visible = accountState is UiState.Error
         )
-        if(!isSubmitted) {
-            Text("Forgot Password",fontSize=20.sp,color=Color.Black)
+        if (!isSubmitted) {
+            Text("Forgot Password", fontSize = 20.sp, color = Color.Black)
             Spacer(Modifier.padding(top = 10.dp))
-            Text("Enter your email to receive a password code",color=Color.DarkGray)
+            Text("Enter your email to receive a password code", color = Color.DarkGray)
             Spacer(Modifier.padding(top = 20.dp))
-            Text("Email",fontSize=20.sp,color=Color.Black)
+            Text("Email", fontSize = 20.sp, color = Color.Black)
             Spacer(Modifier.padding(top = 10.dp))
 
 
@@ -113,105 +115,112 @@ fun cardContentsForgotPassword(navController: NavController,activity: Activity) 
 
             Button(
                 onClick = {
-                   if(email.isNotBlank()){
-                       submittedEmail=email
-                       authViewModel.forgotPassword(email)
-                   }
+                    if (email.isNotBlank()) {
+                        submittedEmail = email
+                        authViewModel.forgotPasswordOtp(email)
+                    }
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Blue,
                     contentColor = Color.White,
                 ),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    "Send Reset Code", Modifier
-                        .padding(bottom = 0.dp), color = Color.White, fontSize = 20.sp
-                )
-            }
-            Spacer(Modifier.padding(top = 20.dp))
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.ArrowBack,null,tint=Color.Blue
-                )
-                Text("Back to Sign In",
-                    Modifier
-                        .clickable{
-                            navController.navigate("login")
-                        },
-                    fontSize=17.sp,
-                    color=Color.Blue)
-            }
-
-
-        }
-        if (isSubmitted) {
-            Text("",fontSize=20.sp,color=Color.Black)
-            Spacer(Modifier.padding(top = 10.dp))
-            Text("Enter your email to receive a password code",color=Color.DarkGray)
-            Spacer(Modifier.padding(top = 20.dp))
-            Text("Email",fontSize=20.sp,color=Color.Black)
-            Spacer(Modifier.padding(top = 10.dp))
-            OtpInput(
-                activity = activity,
-                onOtpComplete = { otp ->
-                    Log.d("OTP", otp)
-                }
-            )
-
-        }
-
-        Spacer(Modifier.padding(top=10.dp))
-        if (isSubmitted){
-            Row() {
-                Column() {
-                    Row(
-                        Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Password",color=Color.Black)
-                        Spacer(Modifier.weight(1f))
-                        Text("Forgot Password?", Modifier, color = Color.Blue, fontSize = 14.sp)
-                    }
-
-
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        placeholder = { Text("Password",color=Color.LightGray) },
-                        visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        trailingIcon = {
-                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                                Icon(
-                                    imageVector = if (isPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                    contentDescription = if (isPasswordVisible) "Hide password" else "Show password", tint = Color.LightGray
-                                )
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =customFieldColors()
+                if (uiState is UiState.Loading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.padding(horizontal = 10.dp))
+                    Text(
+                        "Sending Reset Code", Modifier
+                            .padding(bottom = 0.dp), color = Color.White, fontSize = 20.sp
                     )
                 }
+                else{
+                    Text(
+                        "Send Reset Code", Modifier
+                            .padding(bottom = 0.dp), color = Color.White, fontSize = 20.sp
+                    )
+                }
+            }
+                Spacer(Modifier.padding(top = 20.dp))
+                backToSignIn(navController)
+
+
+            }
+            if (isSubmitted) {
+                Text("", fontSize = 20.sp, color = Color.Black)
+                Spacer(Modifier.padding(top = 10.dp))
+                Text("Enter your email to receive a password code", color = Color.DarkGray)
+                Spacer(Modifier.padding(top = 20.dp))
+                Text("Email", fontSize = 20.sp, color = Color.Black)
+                Spacer(Modifier.padding(top = 10.dp))
+                forgotOtpInput(
+                    activity = activity,
+                    onOtpComplete = { otp ->
+                        Log.d("OTP", otp)
+                    }
+                )
 
             }
 
-            Spacer(Modifier.padding(top=10.dp))
+            Spacer(Modifier.padding(top = 10.dp))
+            if (isSubmitted) {
+                Row() {
+                    Column() {
+                        Row(
+                            Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Password", color = Color.Black)
+                            Spacer(Modifier.weight(1f))
+                            Text("Forgot Password?", Modifier, color = Color.Blue, fontSize = 14.sp)
+                        }
 
-            Text("Sign in with OTP",
-                Modifier
-                    .clickable {
-                        navController.navigate("otp/${submittedEmail}")
 
-                    },color=Color.Blue, fontSize = 14.sp)
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            placeholder = { Text("..", color = Color.LightGray) },
+                            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            trailingIcon = {
+                                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                                    Icon(
+                                        imageVector = if (isPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                        contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
+                                        tint = Color.LightGray
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = customFieldColors()
+                        )
+                    }
+
+                }
+
+                Spacer(Modifier.padding(top = 5.dp))
+
+                Text(
+                    "Sign in with OTP",
+                    Modifier
+                        .clickable {
+                            navController.navigate("login-otp/${submittedEmail}")
+
+                        }, color = Color.Blue, fontSize = 14.sp
+                )
+                Spacer(Modifier.padding(top = 10.dp))
+
+
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+
         }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-
     }
-}
+
 

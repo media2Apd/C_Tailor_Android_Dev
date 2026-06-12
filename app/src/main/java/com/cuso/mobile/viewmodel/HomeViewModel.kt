@@ -27,6 +27,9 @@ class HomeViewModel @Inject constructor(
     private val _tokens = MutableStateFlow<TokensEntity?>(null)
     val tokens: StateFlow<TokensEntity?> = _tokens
 
+    private val _isLoggedOut = MutableStateFlow(false)
+    val isLoggedOut: StateFlow<Boolean> = _isLoggedOut
+
     init {
         loadData()
     }
@@ -36,6 +39,12 @@ class HomeViewModel @Inject constructor(
             _user.value = loginRepository.getUser()
             _org.value = loginRepository.getOrganization()
             _tokens.value = loginRepository.getTokens()
+        }
+    }
+    fun logout() {
+        viewModelScope.launch {
+            loginRepository.clearAll()
+            _isLoggedOut.value = true
         }
     }
 }

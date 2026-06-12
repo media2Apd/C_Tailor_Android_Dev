@@ -68,7 +68,8 @@ class Authenticate @Inject constructor(
 
     private val _forgotPasswordState = MutableStateFlow<UiState>(UiState.Idle)
     val forgotPasswordState: StateFlow<UiState> = _forgotPasswordState
-
+    private val _resetPasswordState = MutableStateFlow<UiState>(UiState.Idle)
+    val resetPasswordState: StateFlow<UiState> = _resetPasswordState
     fun login(email: String, password: String) {
         when {
             !email.contains("@") -> { _accountState.value = UiState.Error("") }
@@ -96,6 +97,28 @@ class Authenticate @Inject constructor(
         }
     }
 
+
+
+    fun resetNewPassword(token: String, newPassword: String, confirmPassword: String) {
+        if (newPassword.isBlank()) {
+            _resetPasswordState.value = UiState.Error("Password cannot be empty")
+            return
+        }
+        if (newPassword != confirmPassword) {
+            _resetPasswordState.value = UiState.Error("Passwords do not match")
+            return
+        }
+
+        viewModelScope.launch {
+            _resetPasswordState.value = UiState.Loading
+            val result = repository.resetNewPassword(token, newPassword, confirmPassword)
+            _resetPasswordState.value = if (result.isSuccess) {
+                UiState.Success(result.getOrNull()?.message ?: "Password reset successful")
+            } else {
+                UiState.Error(result.exceptionOrNull()?.message ?: "Something went wrong")
+            }
+        }
+    }
     fun googleLogin(idToken: String) {
         viewModelScope.launch {
             _accountState.value = UiState.Loading
@@ -210,10 +233,18 @@ class Authenticate @Inject constructor(
             val result = repository.verifyOtp(email, otp)
             Log.d("OTP_API", "Response = $result")
             _otpVerifyResult.value = result
+
+            // 👇 Save to Room DB if success
+            if (result.isSuccess) {
+                val loginData = result.getOrNull()?.data
+                if (loginData != null) {
+                    loginRepository.saveLoginData(loginData)
+                }
+            }
         }
     }
 
-    fun forgotPassword(email: String) {
+    fun forgotPasswordOtp(email: String) {
         viewModelScope.launch {
             _forgotPasswordState.value = UiState.Loading
             val result = repository.forgotPassword(email)

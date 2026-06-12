@@ -50,7 +50,7 @@ fun gstBox(
         OutlinedTextField(
             value = GstValue,
             onValueChange = onGstChange,
-            placeholder = { Text("City", color = Color.Gray) },
+            placeholder = { Text("..", color = Color.Gray) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(60.dp),

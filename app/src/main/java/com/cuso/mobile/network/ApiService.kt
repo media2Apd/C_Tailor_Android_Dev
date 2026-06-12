@@ -18,6 +18,8 @@ import com.cuso.mobile.model.otpVerifyRequest
 import com.cuso.mobile.model.otpVerifyResponse
 import com.cuso.mobile.model.forgotPasswordVerifyRequest
 import com.cuso.mobile.model.forgotPasswordVerifyResponse
+import com.cuso.mobile.model.resetNewPasswordRequest
+import com.cuso.mobile.model.resetNewPasswordResponse
 import com.google.gson.JsonObject
 import retrofit2.Response
 import retrofit2.http.Body
@@ -65,6 +67,11 @@ interface ApiService {
     suspend fun forgotPasswordVerify(
         @Body request: forgotPasswordVerifyRequest
     ): Response<forgotPasswordVerifyResponse>
+
+    @POST("api/forgot-password/reset-password")
+    suspend fun resetNewPassword(
+        @Body request: resetNewPasswordRequest
+    ): Response<resetNewPasswordResponse>
     @POST("/api/auth/google/login")
     suspend fun googleLogin(
         @Body request: GoogleLoginRequest

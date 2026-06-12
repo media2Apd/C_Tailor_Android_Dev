@@ -21,7 +21,7 @@ fun address(
         OutlinedTextField(
             value = addressValue,
             onValueChange = onAddressChange,
-            placeholder = { Text("Address", color = Color.Gray) },
+            placeholder = { Text("..", color = Color.Gray) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(60.dp),

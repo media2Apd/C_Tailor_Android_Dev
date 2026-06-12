@@ -24,6 +24,7 @@
     import androidx.compose.material.icons.filled.VisibilityOff
     import androidx.compose.material3.Button
     import androidx.compose.material3.ButtonDefaults
+    import androidx.compose.material3.CircularProgressIndicator
     import androidx.compose.material3.DividerDefaults
     import androidx.compose.material3.HorizontalDivider
     import androidx.compose.material3.Icon
@@ -59,20 +60,22 @@
     @Composable
     fun cardContentsLoginScreen(navController: NavController,
                                 activity: Activity,
-                                authViewModel: Authenticate)
+                                authViewModel: Authenticate,
+                                prefilledEmail:String="")
     {
 
         val accountState by authViewModel.accountState.collectAsState()
-        var email by rememberSaveable { mutableStateOf("") }
+        var email by rememberSaveable { mutableStateOf(prefilledEmail) }
         var password by remember { mutableStateOf("") }
-        var submittedEmail by rememberSaveable { mutableStateOf("") }
-        var isSubmitted by remember { mutableStateOf(false) }
+        var submittedEmail by rememberSaveable { mutableStateOf(prefilledEmail) }
+        var isSubmitted by remember { mutableStateOf(prefilledEmail.isNotBlank()) }
         var isPasswordVisible by remember { mutableStateOf(false) }
         var showEmailNotFound by remember { mutableStateOf(false) }
 
         Column(
             Modifier.padding(25.dp)
         ) {
+            Text("Email", fontSize = 16.sp,color=Color.Black)
             if(!isSubmitted) {
                 OutlinedTextField(
                     singleLine = true,
@@ -80,7 +83,7 @@
                     onValueChange = { email = it
                                     authViewModel.resetState()
                                     showEmailNotFound=false},
-                    placeholder = { Text("your@email.com", color = Color.Gray) },
+                    placeholder = { Text("..", color = Color.Gray) },
                     textStyle = TextStyle(
                         color = Color.Black
                     ),
@@ -236,7 +239,7 @@
                             onValueChange = { password = it
                                 authViewModel.resetState() },
                             textStyle=TextStyle(color=Color.Black),
-                            placeholder = { Text("Password",color=Color.Black) },
+                            placeholder = { Text("..",color=Color.Black) },
                             visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             trailingIcon = {
@@ -319,10 +322,20 @@
                     ), shape = RoundedCornerShape(8.dp)
 
             ) {
-                Text(
-                    "Continue", Modifier
-                        .padding(bottom = 0.dp), color = Color.White, fontSize = 20.sp
-                )
+                if (accountState is UiState.Loading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Text(
+                        "Continue",
+                        Modifier.padding(bottom = 0.dp),
+                        color = Color.White,
+                        fontSize = 20.sp
+                    )
+                }
             }
             Spacer(Modifier.height(20.dp))
 

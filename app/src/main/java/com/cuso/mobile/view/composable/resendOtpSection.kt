@@ -12,12 +12,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.cuso.mobile.viewmodel.Authenticate
 import kotlinx.coroutines.delay
 
 
 @Composable
-fun resendOtpSection(
-    onResendClick: () -> Unit
+fun resendLoginOtpSection(
+    onResendClick: () -> Unit,
+    email:String,
+    authViewModel: Authenticate
 ) {
     var timer by rememberSaveable { mutableIntStateOf(60) }
 
@@ -34,14 +37,13 @@ fun resendOtpSection(
             onClick = {
                 onResendClick()
                 timer = 60
+                authViewModel.sendOtp(email)
             },
             enabled = timer == 0
         ) {
             Text(
-                if (timer == 0)
-                    "Resend"
-                else
-                    "Resend in ${timer}s",Modifier, color = Color.DarkGray
+                text = if (timer == 0) "Resend OTP" else "Resend in ${timer}s",
+                color = if (timer == 0) Color.Blue else Color.DarkGray
             )
         }
     }

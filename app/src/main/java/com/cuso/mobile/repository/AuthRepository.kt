@@ -19,6 +19,8 @@ import com.cuso.mobile.model.GoogleLoginResult
 import com.cuso.mobile.model.GoogleLoginSuccess
 import com.cuso.mobile.model.forgotPasswordVerifyRequest
 import com.cuso.mobile.model.forgotPasswordVerifyResponse
+import com.cuso.mobile.model.resetNewPasswordRequest
+import com.cuso.mobile.model.resetNewPasswordResponse
 import com.google.gson.Gson
 import org.json.JSONObject
 import javax.inject.Inject
@@ -145,6 +147,29 @@ class AuthRepository @Inject constructor() {
         return try {
             val response = RetrofitClient.apiService.forgotPasswordVerify(
                 forgotPasswordVerifyRequest(email, otp)
+            )
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errorBody = response.errorBody()?.string()
+                val message = try {
+                    org.json.JSONObject(errorBody ?: "").getString("message")
+                } catch (e: Exception) { "Something went wrong" }
+                Result.failure(Exception(message))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Network error: ${e.message}"))
+        }
+    }
+
+    suspend fun resetNewPassword(token: String, newPassword: String, confirmPassword: String): Result<resetNewPasswordResponse> {
+        return try {
+            val response = RetrofitClient.apiService.resetNewPassword(
+                resetNewPasswordRequest(
+                    token = token,
+                    newPassword = newPassword,
+                    confirmPassword = confirmPassword
+                )
             )
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)

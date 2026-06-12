@@ -28,7 +28,7 @@ fun firstNameLastName(
             value = firstName,
             onValueChange = onFirstNameChange,
 
-            placeholder = { Text("First Name",color=Color.Gray) },
+            placeholder = { Text("..",color=Color.Gray) },
             modifier = Modifier
                 .width(200.dp)
                 .height(60.dp),
@@ -49,7 +49,7 @@ fun firstNameLastName(
             value = lastName,
             onValueChange = onLastNameChange,
 
-            placeholder = { Text("Last Name",color=Color.Gray) },
+            placeholder = { Text("..",color=Color.Gray) },
             modifier = Modifier
                 .width(200.dp)
                 .height(60.dp),

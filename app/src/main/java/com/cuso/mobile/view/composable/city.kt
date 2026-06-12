@@ -20,7 +20,7 @@ fun city(
         OutlinedTextField(
             value = cityValue,
             onValueChange = onCityChange,
-            placeholder = { Text("City", color = Color.Gray) },
+            placeholder = { Text("..", color = Color.Gray) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(60.dp),

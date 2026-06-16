@@ -104,11 +104,12 @@
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Filled.Email,
-                            contentDescription = "Email Icon", tint = Color.Gray
+                            contentDescription = "Email Icon", tint = Color.LightGray
                         )
                     },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(48.dp)
                 )
 
                 if (accountState is UiState.Error) {

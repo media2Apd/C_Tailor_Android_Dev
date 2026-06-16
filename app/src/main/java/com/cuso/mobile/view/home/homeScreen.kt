@@ -1,156 +1,304 @@
 package com.cuso.mobile.view.others
 
-import android.graphics.drawable.Icon
+import android.view.RoundedCorner
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.lightGray
+import com.cuso.mobile.view.home.SettingsScreen
 import com.cuso.mobile.viewmodel.HomeViewModel
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.IconButton
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.zIndex
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.ui.zIndex
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.VerticalDivider
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.People
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.ui.layout.layout
 
 @Composable
 fun homeScreen(navController: NavController) {
-
     val viewModel: HomeViewModel = hiltViewModel()
-    val user by viewModel.user.collectAsState()
-    val org by viewModel.org.collectAsState()
-    val tokens by viewModel.tokens.collectAsState()
-
     val isLoggedOut by viewModel.isLoggedOut.collectAsState()
+    var currentScreen by remember { mutableStateOf("home") }
 
-//
-//
-//    Column(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            .background(Color.White)
-//            .padding(16.dp)
-//            .verticalScroll(rememberScrollState())
-//    ) {
-//
-//
-//
-//        // User Info
-//        Text("👤 User Info", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
-//        Spacer(Modifier.height(8.dp))
-//        user?.let {
-//            Text("Name: ${it.firstName} ${it.lastName}", color = Color.Black)
-//            Text("Email: ${it.email}", color = Color.Black)
-//            Text("Role: ${it.role}", color = Color.Black)
-//            Text("Member ID: ${it.memberId}", color = Color.Black)
-//        } ?: Text("User data இல்ல", color = Color.Red)
-//
-//        Spacer(Modifier.height(16.dp))
-//
-//        // Organization Info
-//        Text("🏢 Organization Info", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
-//        Spacer(Modifier.height(8.dp))
-//        org?.let {
-//            Text("Name: ${it.name}", color = Color.Black)
-//            Text("Industry: ${it.industry}", color = Color.Black)
-//            Text("Email: ${it.email}", color = Color.Black)
-//            Text("Status: ${it.status}", color = Color.Black)
-//            Text("Business Type: ${it.businessType}", color = Color.Black)
-//        } ?: Text("Org data இல்ல", color = Color.Red)
-//
-//        Spacer(Modifier.height(16.dp))
-//
-//        // Token Info
-//        Text("🔑 Tokens", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
-//        Spacer(Modifier.height(8.dp))
-//        tokens?.let {
-//            Text("Access Token: ${it.accessToken.take(30)}...", color = Color.Black)
-//            Text("Refresh Token: ${it.refreshToken.take(30)}...", color = Color.Black)
-//        } ?: Text("Token data இல்ல", color = Color.Red)
-//
-//        // Navigate to login when logged out
-//        LaunchedEffect(isLoggedOut) {
-//            if (isLoggedOut) {
-//                navController.navigate("login") {
-//                    popUpTo(0) { inclusive = true }
-//                }
-//            }
-//        }
-
-        TopNavBar(navController)
-        Button(
-            onClick = { viewModel.logout() },
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Logout", color = Color.White, fontSize = 16.sp)
+    LaunchedEffect(isLoggedOut) {
+        if (isLoggedOut) {
+            navController.navigate("login") {
+                popUpTo(0) { inclusive = true }
+            }
         }
-//    }
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .padding(top = 50.dp)
+    ) {
+        TopNavBar(
+            navController = navController,
+            isSettingsOpen = currentScreen == "settings",
+            onSettingsClick = {
+                currentScreen = if (currentScreen == "settings") "home" else "settings"
+            },
+            onMenuItemClick = { screen ->  // ✅ handle menu navigation
+                currentScreen = screen
+            }
+        )
+
+        when (currentScreen) {
+            "settings" -> SettingsScreen(navController)
+            "home" -> {
+                Column(
+                    Modifier.fillMaxSize()
+                        .background(lightGray)
+                ) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(lightGray),
+                            contentPadding=PaddingValues(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    )
+                    {
+                        item {
+                            Row(
+                                modifier = Modifier,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .size(200.dp)
+                                        .background(
+                                            Color.White,
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                )
+                                {
+                                    Box(
+                                        Modifier.padding(10.dp)
+                                            .width(50.dp)
+                                            .height(50.dp)
+                                            .background(Color.Green,shape=RoundedCornerShape(4.dp))
+                                    ){
+                                        Icon(
+                                            Icons.Filled.Money,null, tint = Color(0xFF006400)
+                                        )
+                                    }
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .size(200.dp)
+                                        .background(
+                                            Color.White,
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+
+                        item {
+                            Row(
+                                modifier = Modifier,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .size(200.dp)
+                                        .background(
+                                            Color.White,
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .size(200.dp)
+                                        .background(
+                                            Color.White,
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+                        item {
+                            Row(
+                                modifier = Modifier,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(400.dp)
+                                        .background(
+                                            Color.White,
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                )
+
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+                        item {
+                            Row(
+                                modifier = Modifier,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(400.dp)
+                                        .background(
+                                            Color.White,
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                )
+
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+                        item {
+                            Row(
+                                modifier = Modifier,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(400.dp)
+                                        .background(
+                                            Color.White,
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                )
+
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+                        item {
+                            Row(
+                                modifier = Modifier,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(400.dp)
+                                        .background(
+                                            Color.White,
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                )
+
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+                        item {
+                            Row(
+                                modifier = Modifier,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(400.dp)
+                                        .background(
+                                            Color.White,
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                )
+
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+                        item {
+                            Row(
+                                modifier = Modifier,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(400.dp)
+                                        .background(
+                                            Color.White,
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+
+                            }
+                        }
+                    }
+                }
+            }
+            "sales" -> { /* sales content */ }
+            "marketing" -> { /* marketing content */ }
+            else -> { /* default */ }
+        }
+    }
 }
 
 @Composable
-fun TopNavBar(navController: NavController) {
+fun TopNavBar(
+    navController: NavController,
+    isSettingsOpen: Boolean = false,
+    onSettingsClick: () -> Unit = {},
+    onMenuItemClick: (String) -> Unit = {}  // ✅ new param
+) {
     var isDrawerOpen by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var selectedMenu by remember { mutableStateOf("Home") }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    val menuItems = listOf(
+        Pair(Icons.Default.Home, "Home"),
+        Pair(Icons.Default.TrendingUp, "Sales"),
+        Pair(Icons.Default.Campaign, "Marketing"),
+        Pair(Icons.Default.AccountBalance, "Finance"),
+        Pair(Icons.Default.Inventory, "Inventory"),
+        Pair(Icons.Default.LocalShipping, "Logistics"),
+        Pair(Icons.Default.MiscellaneousServices, "Services"),
+        Pair(Icons.Default.People, "HR"),
+        Pair(Icons.Filled.Monitor, "IT"),
+        Pair(Icons.Default.Gavel, "Legal"),
+        Pair(Icons.Default.Security, "Security"),
+        Pair(Icons.Filled.BarChart, "Reports"),
+    )
 
-        // Overlay
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .wrapContentHeight()) {
+
+        // ── Drawer Overlay ──
         if (isDrawerOpen) {
             Box(
                 modifier = Modifier
@@ -161,7 +309,7 @@ fun TopNavBar(navController: NavController) {
             )
         }
 
-        // Drawer
+        // ── Side Drawer ──
         AnimatedVisibility(
             visible = isDrawerOpen,
             enter = slideInHorizontally(initialOffsetX = { -it }),
@@ -170,125 +318,246 @@ fun TopNavBar(navController: NavController) {
         ) {
             Column(
                 modifier = Modifier
-                    .width(260.dp)
+                    .width(280.dp)
                     .fillMaxHeight()
                     .background(Color.White)
-                    .border(0.5.dp, Color.LightGray, RoundedCornerShape(0.dp))
+                    .border(0.5.dp, Color(0xFFE0E0E0), RoundedCornerShape(0.dp))
             ) {
-                // Drawer header
+                // ── Logo ──
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                        .padding(horizontal = 16.dp, vertical = 20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Menu", fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                    IconButton(onClick = { isDrawerOpen = false }) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    Image(
+                        painter = painterResource(id = R.drawable.cuso_logo),
+                        contentDescription = "Logo",
+                        modifier = Modifier.size(55.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            "CUSO",
+                            fontSize = 14.sp,
+                            color = Color(0xFF3B3BF9),
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            "Tailor",
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
                     }
                 }
-                HorizontalDivider()
 
-                // Drawer items
-                listOf(
-                    Pair(Icons.Default.Home, "Home"),
-                    Pair(Icons.Default.Dashboard, "Dashboard"),
-                    Pair(Icons.Default.People, "Members"),
-                    Pair(Icons.Default.CalendarMonth, "Calendar"),
-                    Pair(Icons.Default.BarChart, "Reports"),
-                ).forEach { (icon, label) ->
+                HorizontalDivider(color = Color(0xFFF0F0F0))
+                Spacer(Modifier.height(8.dp))
+
+                // ── Menu Items ──
+                menuItems.forEach { (icon, label) ->
+                    val isSelected = selectedMenu == label
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { }
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isSelected) Color(0xFF3B3BF9) else Color.Transparent)
+                            .clickable {
+                                selectedMenu = label
+                                isDrawerOpen = false
+                                onMenuItemClick(label.lowercase())  // ✅ notify parent
+                            }
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Icon(icon, contentDescription = null, tint = Color.Gray)
-                        Text(label, fontSize = 14.sp)
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            tint = if (isSelected) Color.White else Color.Gray,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Text(
+                            text = label,
+                            fontSize = 15.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isSelected) Color.White else Color.Black
+                        )
                     }
                 }
 
                 Spacer(Modifier.weight(1f))
-                HorizontalDivider()
+                HorizontalDivider(color = Color(0xFFF0F0F0))
 
+                // ── User Profile ──
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
-                            navController.navigate("login") {
-                                popUpTo(0) { inclusive = true }
-                            }
-                        }
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(Icons.Default.Logout, contentDescription = null, tint = Color.Gray)
-                    Text("Logout", fontSize = 14.sp)
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF3B3BF9)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "AD",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                    Column {
+                        Text(
+                            "Admin",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+                        Text(
+                            "admin@cuso.com",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                    }
                 }
             }
         }
 
-        // Main content
+        // ── Top Navbar ──
         Column {
-            // Top navbar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.White)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(start = 30.dp, end = 30.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 // Burger menu
-                IconButton(onClick = { isDrawerOpen = true }) {
-                    Icon(Icons.Default.Menu, contentDescription = "Menu")
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(lightGray, RoundedCornerShape(8.dp))
+                        .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
+                        .clickable { isDrawerOpen = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Menu,
+                        contentDescription = "Menu",
+                        modifier = Modifier.size(22.dp),
+                        tint = Color.Black
+                    )
                 }
 
                 // Search bar
                 Row(
                     modifier = Modifier
                         .weight(1f)
-                        .height(36.dp)
+                        .height(44.dp)
                         .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
                         .border(0.5.dp, Color.LightGray, RoundedCornerShape(8.dp))
                         .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = null,
-                        tint = Color.Gray, modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(24.dp)
+                    )
                     BasicTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        modifier = Modifier.weight(1f).padding(horizontal = 6.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp),
+                        singleLine = true,
                         decorationBox = { inner ->
-                            if (searchQuery.isEmpty()) Text("Search...",
-                                color = Color.Gray, fontSize = 14.sp)
-                            inner()
+                            Box(
+                                Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        "Search anything",
+                                        color = Color.Gray,
+                                        fontSize = 14.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                inner()
+                            }
                         }
                     )
-                    VerticalDivider(modifier = Modifier.height(18.dp).width(0.5.dp))
-                    IconButton(onClick = {}, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Add, contentDescription = "Add",
-                            modifier = Modifier.size(18.dp))
-                    }
                 }
 
-                // Right icons
-                IconButton(onClick = {}) {
-                    Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                // Add button
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(lightGray, RoundedCornerShape(8.dp))
+                        .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
+                        .clickable { },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Add",
+                        modifier = Modifier.size(24.dp),
+                        tint = Color.Black
+                    )
                 }
-                IconButton(onClick = {}) {
-                    Icon(Icons.Default.CalendarMonth, contentDescription = "Calendar")
+
+                IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        Icons.Default.Notifications,
+                        contentDescription = "Notifications",
+                        modifier = Modifier.size(30.dp),
+                        tint = Color.DarkGray
+                    )
                 }
-                IconButton(onClick = {}) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        Icons.Default.CalendarMonth,
+                        contentDescription = "Calendar",
+                        modifier = Modifier.size(30.dp),
+                        tint = Color.DarkGray
+                    )
+                }
+
+                // ✅ Settings / Close toggle
+                IconButton(
+                    onClick = { onSettingsClick() },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isSettingsOpen) Icons.Default.Close
+                        else Icons.Filled.Settings,
+                        contentDescription = if (isSettingsOpen) "Close" else "Settings",
+                        modifier = Modifier.size(30.dp),
+                        tint = if (isSettingsOpen) Color.Red else Color.DarkGray
+                    )
                 }
             }
-            HorizontalDivider()
+
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(color = Color(0xFFF2F2F2))
         }
     }
+}
+
+sealed class DrawerItem {
+    data class Logo(val imageRes: Int) : DrawerItem()
+    data class Menu(val icon: ImageVector, val label: String) : DrawerItem()
 }

@@ -25,6 +25,7 @@ import com.cuso.mobile.view.forgot_password.resetPassword
 import com.cuso.mobile.view.login.loginOtpScreen
 import com.cuso.mobile.view.login.loginScreen
 import com.cuso.mobile.view.forgot_password.verifyForgotPassword
+import com.cuso.mobile.view.home.SettingsScreen
 import com.cuso.mobile.view.organization.organizationProfile
 import com.cuso.mobile.view.others.homeScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -39,9 +40,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             CusoTailorTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    AppNav(activity = this)
-//                    OrganizationProfile()
+//                    AppNav(activity = this)
+//                    organizationProfile()
 //                    ResetPassword()
+                    val navController = rememberNavController()
+
+                    homeScreen(navController)
                 }
             }
         }

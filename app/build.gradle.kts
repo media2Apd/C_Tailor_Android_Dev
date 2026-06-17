@@ -69,6 +69,7 @@ dependencies {
 
     // Google auth
     implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation(libs.firebase.ai)
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
@@ -83,7 +84,7 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-auth")
 
@@ -102,4 +103,10 @@ dependencies {
     implementation("com.googlecode.libphonenumber:libphonenumber:8.13.47")
 
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+
+//  bar/line chart
+    implementation("com.patrykandpatrick.vico:compose:2.0.0")
+    implementation("com.patrykandpatrick.vico:core:2.0.0")
+    implementation("com.patrykandpatrick.vico:compose-m3:2.0.0")
+
 }

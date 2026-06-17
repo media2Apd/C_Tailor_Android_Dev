@@ -28,6 +28,7 @@ import com.cuso.mobile.view.forgot_password.verifyForgotPassword
 import com.cuso.mobile.view.home.SettingsScreen
 import com.cuso.mobile.view.organization.organizationProfile
 import com.cuso.mobile.view.others.homeScreen
+import com.cuso.mobile.view.signup_screen.signUpOtpScreen
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -40,12 +41,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             CusoTailorTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-//                    AppNav(activity = this)
+                    AppNav(activity = this)
 //                    organizationProfile()
 //                    ResetPassword()
                     val navController = rememberNavController()
 
-                    homeScreen(navController)
+//                    homeScreen(navController)
                 }
             }
         }
@@ -61,6 +62,18 @@ fun AppNav(activity: Activity) {
         navController = navController,
         startDestination = "login"
     ) {
+        composable(
+            route = "signup_otp/{email}"
+        ) { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+
+            signUpOtpScreen(
+                navController = navController,
+                activity = activity,
+                submittedEmail = email
+            )
+        }
+
 
         composable("signup") {
             signUpScreen(

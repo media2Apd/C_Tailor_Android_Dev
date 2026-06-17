@@ -28,7 +28,7 @@ import retrofit2.http.POST
 interface ApiService {
 //  Sign up
 
-    @POST("/api/auth/complete-registration")
+    @POST("/api/auth/register/send-otp")
     suspend fun signup(
         @Body request: SignupRequest
     ): Response<SignupResponse>

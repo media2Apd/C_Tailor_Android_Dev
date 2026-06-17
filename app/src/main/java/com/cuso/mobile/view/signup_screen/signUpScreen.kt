@@ -18,20 +18,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 
-import com.cuso.mobile.view.composable.Orgname
-
-import com.cuso.mobile.view.composable.appLogo
-import com.cuso.mobile.view.composable.continueGoogle
-import com.cuso.mobile.view.composable.countryAndStatePicker
-import com.cuso.mobile.view.composable.email
-import com.cuso.mobile.view.composable.firstNameLastName
-import com.cuso.mobile.view.composable.passwordInputField
-import com.cuso.mobile.view.composable.phoneInputField
-import com.cuso.mobile.view.composable.signUpTitle
-import com.cuso.mobile.view.composable.termsCheckbox
+import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
-
 
 @Composable
 fun signUpScreen(
@@ -42,6 +31,7 @@ fun signUpScreen(
     navController: NavController
 ) {
     val state by viewModel.accountState.collectAsState()
+
     var firstName by rememberSaveable { mutableStateOf("") }
     var lastName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
@@ -53,12 +43,16 @@ fun signUpScreen(
     var isTermsAccepted by remember { mutableStateOf(false) }
     var selectedIso by remember { mutableStateOf("IN") }
 
+    // ✅ SAFE: capture stable email for navigation
+    val currentEmail = email
 
     LaunchedEffect(state) {
         if (state is UiState.RegisterSuccess) {
             viewModel.resetState()
             onSignUpSuccess()
-            navController.navigate("org")
+
+            // ✅ FIX: use stable email instead of raw state email
+            navController.navigate("signup_otp/$currentEmail")
         }
     }
 
@@ -70,8 +64,6 @@ fun signUpScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-
-
         Card(
             modifier = Modifier
                 .fillMaxSize()
@@ -80,9 +72,11 @@ fun signUpScreen(
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
+
             Column(
                 Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 appLogo()
                 Spacer(Modifier.padding(top = 20.dp))
@@ -93,112 +87,94 @@ fun signUpScreen(
                 modifier = Modifier.padding(25.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row() {
-                    firstNameLastName(
-                        firstName = firstName,
-                        lastName = lastName,
-                        onFirstNameChange = { firstName = it },
-                        onLastNameChange = { lastName = it }
+
+                firstNameLastName(
+                    firstName = firstName,
+                    lastName = lastName,
+                    onFirstNameChange = { firstName = it },
+                    onLastNameChange = { lastName = it }
+                )
+
+                email(
+                    emailValue = email,
+                    onEmailChange = { email = it }
+                )
+
+                phoneInputField(
+                    phoneValue = phone,
+                    onPhoneChange = { phone = it },
+                    onCountryChange = { selectedIso = it.iso }
+                )
+
+                countryAndStatePicker(
+                    selectedCountry = country,
+                    selectedState = stateField,
+                    onCountryChange = { country = it },
+                    onStateChange = { stateField = it }
+                )
+
+                Orgname(
+                    organizationValue = organization,
+                    onOrganizationChange = { organization = it }
+                )
+
+                passwordInputField(
+                    passwordValue = password,
+                    onPasswordChange = { password = it }
+                )
+
+                if (state is UiState.Error) {
+                    Text(
+                        text = (state as UiState.Error).message,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 13.sp
                     )
                 }
-                Row() {
-                    email(
-                        emailValue = email,
-                        onEmailChange = { email = it }
-                    )
 
-                }
-                Row() {
+                termsCheckbox(
+                    navController,
+                    onCheckedChange = { isTermsAccepted = it }
+                )
 
-                    phoneInputField(
-                        phoneValue = phone,
-                        onPhoneChange = { phone = it },
-                        onCountryChange = { selectedIso=it.iso }
-                    )
-                }
-                Row() {
-                    countryAndStatePicker(
-                        selectedCountry = country,
-                        selectedState = stateField,
-                        onCountryChange = { country = it },
-                        onStateChange = { stateField = it }
-                    )
-                }
-                Row() {
-                    Orgname(
-                        organizationValue = organization,
-                        onOrganizationChange = { organization = it }
-                    )
-
-
-                }
-                Row() {
-                    passwordInputField(
-                        passwordValue = password,
-                        onPasswordChange = { password = it }
-                    )
-                }
-
-                    if (state is UiState.Error) {
-                        Text(
-                            text = (state as UiState.Error).message,
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 13.sp
-                        )
-                    }
-                    termsCheckbox(navController,
-                        onCheckedChange = {isTermsAccepted=it})
-                    if(isTermsAccepted)
-                    {
-                        Button(
-                            onClick = {
-                                viewModel.signUp(
-                                    firstName = firstName,
-                                    lastName = lastName,
-                                    email = email,
-                                    phone = phone,
-                                    countryIso = selectedIso,
-                                    country = country,
-                                    state = stateField,
-                                    organization = organization,
-                                    password = password
-                                )
-                            },
-                            modifier = Modifier
-
-                                .fillMaxWidth(),
-
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Blue,
-                                contentColor = Color.White,
-
-
-                                ), shape = RoundedCornerShape(10.dp),
-                            enabled = state !is UiState.Loading
-                        ) {
-                            if (state is UiState.Loading) {
-                                Row(
-                                    Modifier
-                                        .background(Color.Blue)
-                                        .border(1.dp,Color.Blue,RoundedCornerShape(8)),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(22.dp),
-                                        strokeWidth = 2.dp,
-                                        color = Color.White
-                                    )
-                                }
-                            } else {
-                                Text(
-                                    "Create Account",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                if (isTermsAccepted) {
+                    Button(
+                        onClick = {
+                            viewModel.signUp(
+                                firstName = firstName,
+                                lastName = lastName,
+                                email = email,
+                                mobile = phone,
+                                countryIso = selectedIso,
+                                country = country,
+                                state = stateField,
+                                organizationName = organization,
+                                password = password,
+                                termsAccepted = true
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Blue,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        enabled = state !is UiState.Loading
+                    ) {
+                        if (state is UiState.Loading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
+                        } else {
+                            Text(
+                                "Create Account",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
-
+                }
 
                 Row(
                     Modifier.fillMaxWidth(),
@@ -212,21 +188,19 @@ fun signUpScreen(
                     )
 
                     Text("Or", Modifier, color = Color.Gray)
+
                     HorizontalDivider(
                         Modifier.width(190.dp),
                         DividerDefaults.Thickness,
                         color = Color.Gray
                     )
                 }
-                Row() {
-                    continueGoogle(activity,navController)
 
-                }
-
+                continueGoogle(activity, navController)
             }
+
             Row(
-                Modifier
-                    .fillMaxWidth(),
+                Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {

@@ -274,22 +274,41 @@ class Authenticate @Inject constructor(
         firstName: String,
         lastName: String,
         email: String,
-        phone: String,
+        mobile: String,
         countryIso: String,
         country: String,
         state: String,
-        organization: String,
-        password: String
+        organizationName: String,
+        password: String,
+        termsAccepted: Boolean
     ) {
         when {
-            firstName.isBlank()                    -> { _accountState.value = UiState.Error("First name is required");         return }
-            lastName.isBlank()                     -> { _accountState.value = UiState.Error("Last name is required");          return }
-            !email.contains("@")                   -> { _accountState.value = UiState.Error("Enter a valid email");            return }
-            !isValidPhoneNumber(phone, countryIso) -> { _accountState.value = UiState.Error("Enter a valid phone number for selected country"); return }
-            country.isBlank()                      -> { _accountState.value = UiState.Error("Country is required");            return }
-            state.isBlank()                        -> { _accountState.value = UiState.Error("State is required");              return }
-            organization.isBlank()                 -> { _accountState.value = UiState.Error("Organization name is required");  return }
-            password.length < 6                    -> { _accountState.value = UiState.Error("Password must be 6+ characters"); return }
+            firstName.isBlank() ->
+            { _accountState.value = UiState.Error("First name is required"); return }
+
+            lastName.isBlank() ->
+            { _accountState.value = UiState.Error("Last name is required"); return }
+
+            !email.contains("@") ->
+            { _accountState.value = UiState.Error("Enter a valid email"); return }
+
+            !isValidPhoneNumber(mobile, countryIso) ->
+            { _accountState.value = UiState.Error("Enter a valid phone number for selected country"); return }
+
+            country.isBlank() ->
+            { _accountState.value = UiState.Error("Country is required"); return }
+
+            state.isBlank() ->
+            { _accountState.value = UiState.Error("State is required"); return }
+
+            organizationName.isBlank() ->
+            { _accountState.value = UiState.Error("Organization name is required"); return }
+
+            password.length < 6 ->
+            { _accountState.value = UiState.Error("Password must be 6+ characters"); return }
+
+            !termsAccepted ->
+            { _accountState.value = UiState.Error("Please accept terms and conditions"); return }
         }
 
         _accountState.value = UiState.Loading
@@ -297,20 +316,24 @@ class Authenticate @Inject constructor(
         viewModelScope.launch {
             val result = repository.createAccount(
                 SignupRequest(
-                    firstName    = firstName,
-                    lastName     = lastName,
-                    email        = email,
-                    phone        = phone,
-                    country      = country,
-                    state        = state,
-                    organization = organization,
-                    password     = password
+                    country = country,
+                    email = email,
+                    firstName = firstName,
+                    lastName = lastName,
+                    mobile = mobile,
+                    organizationName = organizationName,
+                    password = password,
+                    state = state,
+                    termsAccepted = termsAccepted
                 )
             )
+
             _accountState.value = if (result.isSuccess) {
                 UiState.RegisterSuccess
             } else {
-                UiState.Error(result.exceptionOrNull()?.message ?: "Something went wrong")
+                UiState.Error(
+                    result.exceptionOrNull()?.message ?: "Something went wrong"
+                )
             }
         }
     }

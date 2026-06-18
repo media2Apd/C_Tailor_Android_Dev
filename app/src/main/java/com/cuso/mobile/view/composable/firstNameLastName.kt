@@ -1,9 +1,10 @@
 package com.cuso.mobile.view.composable
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
@@ -16,47 +17,44 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun firstNameLastName(
-    firstName:String,
-    lastName:String,
-    onFirstNameChange:(String)->Unit,
-    onLastNameChange:(String)->Unit,
+    firstName: String,
+    lastName: String,
+    onFirstNameChange: (String) -> Unit,
+    onLastNameChange: (String) -> Unit,
 ) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("First Name", color = Color.Black)
+            OutlinedTextField(
+                value = firstName,
+                onValueChange = onFirstNameChange,
+                placeholder = { Text("..", color = Color.Gray) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp),
+                shape = RoundedCornerShape(5.dp),
+                singleLine = true,
+                colors = customFieldColors()
+            )
+        }
 
-    Column() {
-        Text("First Name", Modifier, color = Color.Black)
-        OutlinedTextField(
-            value = firstName,
-            onValueChange = onFirstNameChange,
+        Spacer(modifier = Modifier.width(10.dp))
 
-            placeholder = { Text("..",color=Color.Gray) },
-            modifier = Modifier
-                .width(200.dp)
-                .height(60.dp),
-            shape=RoundedCornerShape(5.dp),
-
-            singleLine = true,
-
-
-            colors = customFieldColors()
-        )
-    }
-    Spacer(Modifier.padding(horizontal = 10.dp))
-
-    Column() {
-        Text("Last Name", Modifier, color = Color.Black)
-
-        OutlinedTextField(
-            value = lastName,
-            onValueChange = onLastNameChange,
-
-            placeholder = { Text("..",color=Color.Gray) },
-            modifier = Modifier
-                .width(200.dp)
-                .height(60.dp),
-
-            singleLine = true,
-
-            colors = customFieldColors()
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text("Last Name", color = Color.Black)
+            OutlinedTextField(
+                value = lastName,
+                onValueChange = onLastNameChange,
+                placeholder = { Text("..", color = Color.Gray) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp),
+                shape = RoundedCornerShape(5.dp),
+                singleLine = true,
+                colors = customFieldColors()
+            )
+        }
     }
 }

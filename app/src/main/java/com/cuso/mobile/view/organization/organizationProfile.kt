@@ -28,8 +28,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.view.composable.appLogo
 import com.cuso.mobile.view.composable.countryAndStatePicker
+import com.cuso.mobile.viewmodel.Authenticate
 import java.util.Currency
 import java.util.Locale
 import java.util.TimeZone
@@ -37,7 +40,13 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun organizationProfile() {
+fun organizationProfile(
+    authViewModel: Authenticate = hiltViewModel()
+) {
+    val organization by authViewModel.organization.collectAsStateWithLifecycle()
+
+    var country by remember { mutableStateOf("") }
+    var state by remember { mutableStateOf("") }
 
     var organizationName by rememberSaveable { mutableStateOf("") }
     var organizationType by rememberSaveable { mutableStateOf("") }
@@ -56,6 +65,17 @@ fun organizationProfile() {
     var gst by rememberSaveable { mutableStateOf("") }
     var showCheckbox by remember { mutableStateOf(false) }
     var isChecked by remember { mutableStateOf(false) }
+
+    // Auto-fill from Room once the saved organization loads.
+    // rememberSaveable means this only overwrites the field on first load
+    // (organizationName stays empty until then), not on every recomposition.
+    LaunchedEffect(organization) {
+        organization?.let { org ->
+            if (organizationName.isEmpty()) {
+                organizationName = org.name
+            }
+        }
+    }
 
     val orgTypes = listOf(
         "Sole Proprietorship", "Partnership Firm",
@@ -473,5 +493,6 @@ fun OrganizationDropdown(
                 searchQuery = ""
             }
         }
+
     }
 }

@@ -17,13 +17,14 @@ fun PasswordResponse.toEntities(): Triple<UserEntity, OrganizationEntity, Tokens
         profilePicture = data.user.profilePicture,
         role = data.user.role,
         memberId = data.user.memberId,
-        organizationId = org._id
+        organizationId = org._id,
+        companySize = ""
     )
 
     val orgEntity = OrganizationEntity(
         orgId = org._id,                                          // _id → orgId
-        businessId = org.businessId,
-        name = org.name,
+        businessId = org.businessId?:"",
+        name = org.name?:"",
         industry = org.industry,
         orgType = org.orgType,
         organizationPicture = org.organizationPicture,
@@ -38,7 +39,7 @@ fun PasswordResponse.toEntities(): Triple<UserEntity, OrganizationEntity, Tokens
         createdAt = org.createdAt,
         updatedAt = org.updatedAt,
         slug = org.slug,
-        v = org.__v,
+        v = org.__v?:0,
         defaultBranch = org.defaultBranch,
         ownerId = org.ownerId,
         ownerMemberId = org.ownerMemberId,

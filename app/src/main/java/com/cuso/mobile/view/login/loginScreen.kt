@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.cuso.mobile.model.Organization
 import com.cuso.mobile.view.composable.cardContentsLoginScreen
 import com.cuso.mobile.view.composable.signUpText
 import com.cuso.mobile.view.composable.appLogo
@@ -83,12 +84,23 @@ fun loginScreen(activity: Activity,
     }
 
     LaunchedEffect(authState) {
-        when (val state = authState){
-            is UiState.LoginSuccess ->{
-                onloginSuccess("${ state.firstName } ${state.lastName}")
+        when (val state = authState) {
+            is UiState.LoginSuccess -> {
+
+                val orgToken = state.orgToken
+                val org = state.organization        // ✅ fixed
+                val isOrgRegistered = org != null && org.orgSetupComplete
+
+                if (orgToken.isNullOrEmpty() || !isOrgRegistered) {
+                    navController.navigate("org") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                } else {
+                    onloginSuccess("${state.firstName} ${state.lastName}")
+                }
                 authViewModel.resetState()
             }
-            is UiState.Error ->{
+            is UiState.Error -> {
 
             }
             is UiState.RegisterSuccess -> {
@@ -98,8 +110,7 @@ fun loginScreen(activity: Activity,
                 password = ""
                 authViewModel.resetState()
             }
-
-            else->{}
+            else -> {}
         }
     }
 

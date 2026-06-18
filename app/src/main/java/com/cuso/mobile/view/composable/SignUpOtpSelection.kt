@@ -1,7 +1,6 @@
 package com.cuso.mobile.view.composable
 
 import android.app.Activity
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,7 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 
 
 @Composable
-fun LoginOtpSelection(
+fun SignUpOtpSelection(
     navController: NavController,
     activity: Activity,
     submittedEmail: String
@@ -55,7 +54,7 @@ fun LoginOtpSelection(
     val authViewModel: Authenticate = hiltViewModel()
 
     var otp by remember { mutableStateOf("") }
-    val verifyResult by authViewModel.otpVerifyResult.observeAsState()
+    val verifyResult by authViewModel.registerOtpVerifyResult.observeAsState()
     var isOtpComplete by remember { mutableStateOf(false) }
     var savedEmail by rememberSaveable { mutableStateOf(submittedEmail) }
 
@@ -70,6 +69,7 @@ fun LoginOtpSelection(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Circular icon
             Box(
                 modifier = Modifier
                     .size(50.dp)
@@ -87,6 +87,7 @@ fun LoginOtpSelection(
 
             Spacer(modifier = Modifier.width(12.dp))
 
+            // Text block takes remaining space
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "OTP sent to",
@@ -101,10 +102,11 @@ fun LoginOtpSelection(
                 )
             }
 
+            // Change button pinned to end
             Text(
                 text = "Change",
                 modifier = Modifier.clickable {
-                    navController.navigate("login")
+                    navController.navigate("register") // adjust to your signup entry route
                 },
                 color = Color.Blue,
                 fontSize = 16.sp
@@ -123,45 +125,25 @@ fun LoginOtpSelection(
             isOtpComplete = true
         }
     )
+
     Row(
         Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Alignment.End.let { androidx.compose.foundation.layout.Arrangement.End }
     ) {
-        Text(
-            "Sign in using password",
-            Modifier
-                .clickable {
-                    navController.navigate("login-with-email/${savedEmail}") {
-                        popUpTo(0) { true }
-                    }
-                },
-            color = Color.Blue, fontSize = 14.sp
-        )
-        Spacer(Modifier.weight(1f))
         resendLoginOtpSection(onResendClick = { savedEmail }, email = savedEmail, authViewModel)
     }
 
     Spacer(Modifier.padding(top = 10.dp))
 
-    // ⬇️ replaced block
     LaunchedEffect(verifyResult) {
         verifyResult?.let { result ->
-            result.onSuccess { response ->
-
-                val org = response.data.user.organizationId
-
-                if (org.orgSetupComplete) {
-                    navController.navigate("home") {
-                        popUpTo(0) { inclusive = true }
-                    }
-                } else {
-                    navController.navigate("org") {
-                        popUpTo(0) { inclusive = true }
-                    }
+            if (result.isSuccess) {
+                navController.navigate("org") {
+                    popUpTo(0) { inclusive = true }
                 }
-
-            }.onFailure { error ->
-                Log.e("OTP_API", "Login OTP verification failed", error)
+            } else {
+                // handle error
             }
         }
     }
@@ -169,7 +151,7 @@ fun LoginOtpSelection(
     Button(
         onClick = {
             if (isOtpComplete) {
-                authViewModel.verifyOtp(
+                authViewModel.registerVerifyOtp(
                     savedEmail, otp
                 )
             }

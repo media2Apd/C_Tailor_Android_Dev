@@ -33,10 +33,11 @@ import com.cuso.mobile.database.entities.WorkingDayEntity
         WorkingDayEntity::class,
         FeatureEnabledEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
+
     abstract fun userDao(): UserDao
     abstract fun organizationDao(): OrganizationDao
     abstract fun subscriptionDao(): SubscriptionDao
@@ -44,16 +45,21 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun tokensDao(): TokensDao
 
     companion object {
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
+
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "cusotailor_db"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
+
                 INSTANCE = instance
                 instance
             }

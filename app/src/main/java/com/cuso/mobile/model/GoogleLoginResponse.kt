@@ -78,7 +78,7 @@ data class GoogleOrgSettings(
     val termsAccepted: Boolean,
     val marketingEmails: Boolean,
     val workingDays: List<String>,
-    val companySize: String,
+//    val companySize: String,
     val currency: String,
     val language: String,
     val address: String,

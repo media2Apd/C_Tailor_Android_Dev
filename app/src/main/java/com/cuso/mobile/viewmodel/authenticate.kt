@@ -22,15 +22,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import android.util.Log
+import com.cuso.mobile.database.dao.OrganizationDao
+import com.cuso.mobile.database.entities.OrganizationEntity
 import com.cuso.mobile.model.GoogleLoginResult
+import com.cuso.mobile.model.RegisterVerifyOtpResponse
+import kotlinx.coroutines.flow.asStateFlow
 
 sealed class UiState {
     object Idle : UiState()
     object Loading : UiState()
     data class Success(val message: String) : UiState()
     data class Error(val message: String) : UiState()
-    data class LoginSuccess(val firstName: String, val lastName: String) : UiState()
-    object RegisterSuccess : UiState()
+    data class LoginSuccess(
+        val firstName: String,
+        val lastName: String,
+        val orgToken: String?,
+        val organization: Organization?
+    ) : UiState()    object RegisterSuccess : UiState()
     data class EmailVerified(val message: String) : UiState()
     object EmailNotFound : UiState()
     data class GoogleLoginExisting(
@@ -50,16 +58,26 @@ sealed class UiState {
         val resetToken: String,
         val message: String
     ) : UiState()
+
 }
 
 @HiltViewModel
 class Authenticate @Inject constructor(
     private val repository: AuthRepository,
-    private val loginRepository: LoginRepository
+    private val loginRepository: LoginRepository,
+    private val organizationDao: OrganizationDao   // ← add this
+
 ) : ViewModel() {
+
+
+    private val _organization = MutableStateFlow<OrganizationEntity?>(null)
+    val organization: StateFlow<OrganizationEntity?> = _organization.asStateFlow()
 
     private val _accountState = MutableStateFlow<UiState>(UiState.Idle)
     val accountState: StateFlow<UiState> = _accountState
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading
 
     private val _otpSendResult = MutableLiveData<Result<otpSendResponse>>()
     private val _otpVerifyResult = MutableLiveData<Result<otpVerifyResponse>>()
@@ -70,6 +88,9 @@ class Authenticate @Inject constructor(
     val forgotPasswordState: StateFlow<UiState> = _forgotPasswordState
     private val _resetPasswordState = MutableStateFlow<UiState>(UiState.Idle)
     val resetPasswordState: StateFlow<UiState> = _resetPasswordState
+
+    private val _registerOtpVerifyResult = MutableLiveData<Result<RegisterVerifyOtpResponse>?>()
+    val registerOtpVerifyResult: LiveData<Result<RegisterVerifyOtpResponse>?> = _registerOtpVerifyResult
     fun login(email: String, password: String) {
         when {
             !email.contains("@") -> { _accountState.value = UiState.Error("") }
@@ -86,7 +107,9 @@ class Authenticate @Inject constructor(
                     loginRepository.saveLoginData(response.data)
                     _accountState.value = UiState.LoginSuccess(
                         firstName = response.data.user.firstName,
-                        lastName  = response.data.user.lastName
+                        lastName  = response.data.user.lastName,
+                        orgToken  = response.data.tokens.orgToken,
+                        organization = response.data.user.organizationId
                     )
                 }
             } else {
@@ -133,7 +156,7 @@ class Authenticate @Inject constructor(
                             firstName = googleData.user.firstName,
                             lastName = googleData.user.lastName,
                             email = googleData.user.email,
-                            profilePicture = googleData.user.profilePicture,
+                            profilePicture = googleData.user.profilePicture?:"",
                             organizationId = Organization(
                                 _id = googleData.user.organizationId.id,
                                 businessId = googleData.user.organizationId.businessId,
@@ -176,7 +199,7 @@ class Authenticate @Inject constructor(
                                     termsAccepted = googleData.user.organizationId.settings.termsAccepted,
                                     marketingEmails = googleData.user.organizationId.settings.marketingEmails,
                                     workingDays = googleData.user.organizationId.settings.workingDays,
-                                    companySize = googleData.user.organizationId.settings.companySize,
+//                                    companySize = googleData.user.organizationId.settings.companySize,
                                     timezone = googleData.user.organizationId.settings.timezone,
                                     currency = googleData.user.organizationId.settings.currency,
                                     language = googleData.user.organizationId.settings.language,
@@ -221,6 +244,18 @@ class Authenticate @Inject constructor(
         }
     }
 
+
+
+    init {
+        loadOrganization()
+    }
+
+    private fun loadOrganization() {
+        viewModelScope.launch {
+            _organization.value = organizationDao.getOrganization()
+        }
+    }
+
     fun sendOtp(email: String) {
         viewModelScope.launch {
             _otpSendResult.value = repository.sendOtp(email)
@@ -240,6 +275,21 @@ class Authenticate @Inject constructor(
                 if (loginData != null) {
                     loginRepository.saveLoginData(loginData)
                 }
+            }
+        }
+    }
+    fun registerVerifyOtp(email: String, otp: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            Log.d("OTP_API", "Calling API with $email $otp")
+
+            val result = repository.registerVerifyOtp(email, otp)
+
+            _isLoading.value = false
+            _registerOtpVerifyResult.value = result   // ✅ correct LiveData for signup
+
+            result.onFailure { error ->
+                Log.e("OTP_API", "OTP verification failed", error)
             }
         }
     }

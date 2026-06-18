@@ -7,18 +7,18 @@ import androidx.room.PrimaryKey
 data class SettingsEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val orgId: String,        // Foreign key to OrganizationEntity
-    val country: String,
-    val state: String,
-    val portalName: String,
+    val orgId: String?,        // Foreign key to OrganizationEntity
+    val country: String?,
+    val state: String?,
+    val portalName: String?,
     val termsAccepted: Boolean,
     val marketingEmails: Boolean,
-    val companySize: String,
-    val timezone: String,
-    val currency: String,
-    val language: String,
-    val address: String,
-    val city: String,
-    val pincode: String,
+    val companySize: String?="",
+    val timezone: String?,
+    val currency: String?,
+    val language: String?,
+    val address: String?,
+    val city: String?,
+    val pincode: String?,
     // workingDays - separate table
 )

@@ -14,5 +14,6 @@ data class UserEntity(
     val profilePicture: String?,
     val role: String,
     val memberId: String,
-    val organizationId:String
+    val organizationId:String,
+    val companySize: String?
 )

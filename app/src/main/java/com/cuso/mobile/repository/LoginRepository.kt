@@ -32,22 +32,27 @@ class LoginRepository @Inject constructor
                 profilePicture = user.profilePicture,
                 role = user.role,
                 memberId = user.memberId,
-                organizationId = org._id
+                organizationId = org._id,
+                companySize = ""
             )
         )
 
         // 2. Save Organization
+        // NOTE: orgType (and a few other org metadata fields) can come back null
+        // from the API for users who haven't finished org setup yet. The entity
+        // column is non-null, so we fall back to a safe default instead of
+        // crashing with a NullPointerException at construction time.
         db.organizationDao().insertOrganization(
             OrganizationEntity(
                 orgId = org._id,
-                businessId = org.businessId,
-                name = org.name,
+                businessId = org.businessId?:"",
+                name = org.name?:"",
                 industry = org.industry,
-                orgType = org.orgType,
-                organizationPicture = org.organizationPicture,
-                organizationPictureId = org.organizationPictureId,
+                orgType = org.orgType ?: "",
+                organizationPicture = org.organizationPicture ?: "",
+                organizationPictureId = org.organizationPictureId ?: "",
                 email = org.email,
-                mobile = org.mobile,
+                mobile = org.mobile ?: "",
                 orgSetupComplete = org.orgSetupComplete,
                 totalMembers = org.totalMembers,
                 activeMembers = org.activeMembers,
@@ -55,13 +60,13 @@ class LoginRepository @Inject constructor
                 status = org.status,
                 createdAt = org.createdAt,
                 updatedAt = org.updatedAt,
-                slug = org.slug,
-                v = org.__v,
-                defaultBranch = org.defaultBranch,
-                ownerId = org.ownerId,
-                ownerMemberId = org.ownerMemberId,
-                businessType = org.businessType,
-                taxId = org.taxId,
+                slug = org.slug ?: "",
+                v = org.__v?:0,
+                defaultBranch = org.defaultBranch ?: "",
+                ownerId = org.ownerId ?: "",
+                ownerMemberId = org.ownerMemberId ?: "",
+                businessType = org.businessType ?: "",
+                taxId = org.taxId ?: "",
                 isInternalOrganization = org.isInternalOrganization
             )
         )
@@ -94,11 +99,11 @@ class LoginRepository @Inject constructor
                 startDate = sub.startDate,
                 endDate = sub.endDate,
                 status = sub.status,
-                memberLimit = sub.memberLimit
+                memberLimit = sub.memberLimit?:0
             )
         )
         db.subscriptionDao().insertFeatures(
-            sub.featuresEnabled.map { FeatureEnabledEntity(orgId = org._id, feature = it) }
+            sub.featuresEnabled.map { FeatureEnabledEntity(orgId = org._id, feature = it?:"") }
         )
 
         // 5. Save Settings
@@ -111,7 +116,7 @@ class LoginRepository @Inject constructor
                 portalName = settings.portalName,
                 termsAccepted = settings.termsAccepted,
                 marketingEmails = settings.marketingEmails,
-                companySize = settings.companySize,
+//                companySize = settings.companySize,
                 timezone = settings.timezone,
                 currency = settings.currency,
                 language = settings.language,
@@ -149,6 +154,7 @@ class LoginRepository @Inject constructor
         db.settingsDao().clearWorkingDays()
         db.tokensDao().clearTokens()
     }
+
     suspend fun saveGoogleLoginData(loginData: GoogleLoginData) {
         clearAll()
         val user = loginData.user
@@ -166,7 +172,8 @@ class LoginRepository @Inject constructor
                 profilePicture = user.profilePicture,
                 role = user.role,
                 memberId = user.memberId,
-                organizationId = org.id   // ← org.id not org._id
+                organizationId = org.id,   // ← org.id not org._id
+                companySize=""
             )
         )
 
@@ -177,11 +184,11 @@ class LoginRepository @Inject constructor
                 businessId = org.businessId,
                 name = org.name,
                 industry = org.industry,
-                orgType = org.orgType,
-                organizationPicture = org.organizationPicture,
-                organizationPictureId = org.organizationPictureId,
+                orgType = org.orgType ?: "",
+                organizationPicture = org.organizationPicture ?: "",
+                organizationPictureId = org.organizationPictureId ?: "",
                 email = org.email,
-                mobile = org.mobile,
+                mobile = org.mobile ?: "",
                 orgSetupComplete = org.orgSetupComplete,
                 totalMembers = org.totalMembers,
                 activeMembers = org.activeMembers,
@@ -189,13 +196,13 @@ class LoginRepository @Inject constructor
                 status = org.status,
                 createdAt = org.createdAt,
                 updatedAt = org.updatedAt,
-                slug = org.slug,
+                slug = org.slug ?: "",
                 v = org.version,          // ← org.version not org.__v
-                defaultBranch = org.defaultBranch,
-                ownerId = org.ownerId,
-                ownerMemberId = org.ownerMemberId,
-                businessType = org.businessType,
-                taxId = org.taxId,
+                defaultBranch = org.defaultBranch ?: "",
+                ownerId = org.ownerId ?: "",
+                ownerMemberId = org.ownerMemberId ?: "",
+                businessType = org.businessType ?: "",
+                taxId = org.taxId ?: "",
                 isInternalOrganization = org.isInternalOrganization
             )
         )
@@ -238,7 +245,7 @@ class LoginRepository @Inject constructor
                 portalName = settings.portalName,
                 termsAccepted = settings.termsAccepted,
                 marketingEmails = settings.marketingEmails,
-                companySize = settings.companySize,
+//                companySize = settings.companySize,
                 timezone = settings.timezone,
                 currency = settings.currency,
                 language = settings.language,

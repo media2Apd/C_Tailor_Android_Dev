@@ -6,6 +6,7 @@ import com.cuso.mobile.repository.LoginRepository
 import android.content.Context
 import androidx.room.Room
 import com.cuso.mobile.database.AppDatabase
+import com.cuso.mobile.database.dao.OrganizationDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -26,7 +27,8 @@ object DatabaseModule {
             "cusotailor_db"
         ).build()
     }
-
+    @Provides
+    fun provideOrganizationDao(db: AppDatabase): OrganizationDao = db.organizationDao()
     @Provides
     fun provideLoginRepository(db: AppDatabase): LoginRepository {
         return LoginRepository(db)

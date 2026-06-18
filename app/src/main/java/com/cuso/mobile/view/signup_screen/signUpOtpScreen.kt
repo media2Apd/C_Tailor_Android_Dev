@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.LoginOtpSelection
+import com.cuso.mobile.view.composable.SignUpOtpSelection
 import com.cuso.mobile.view.composable.otpTitle
 import com.cuso.mobile.view.composable.appLogo
 
@@ -46,7 +47,7 @@ fun signUpOtpScreen(navController: NavController,activity: Activity,submittedEma
                 Column(
                     Modifier.padding(30.dp)
                 ) {
-                    LoginOtpSelection(navController, activity = activity,submittedEmail)
+                    SignUpOtpSelection(navController, activity = activity,submittedEmail)
                 }
 
 

@@ -17,6 +17,8 @@ import com.cuso.mobile.model.otpVerifyRequest
 import com.cuso.mobile.model.otpVerifyResponse
 import com.cuso.mobile.model.GoogleLoginResult
 import com.cuso.mobile.model.GoogleLoginSuccess
+import com.cuso.mobile.model.RegisterVerifyOtp
+import com.cuso.mobile.model.RegisterVerifyOtpResponse
 import com.cuso.mobile.model.forgotPasswordVerifyRequest
 import com.cuso.mobile.model.forgotPasswordVerifyResponse
 import com.cuso.mobile.model.resetNewPasswordRequest
@@ -117,6 +119,24 @@ class AuthRepository @Inject constructor() {
                 )
             }
 
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    //otp verify for register
+    suspend fun registerVerifyOtp(email: String, otp: String): Result<RegisterVerifyOtpResponse> {
+        return try {
+            val response = RetrofitClient.apiService.signupVerifyOtp(
+                RegisterVerifyOtp(email, otp)
+            )
+
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception("Error ${response.code()} - ${response.message()}")
+                )
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }

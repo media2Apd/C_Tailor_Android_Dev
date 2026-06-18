@@ -8,6 +8,8 @@ import com.cuso.mobile.model.GoogleLoginRequest
 
 import com.cuso.mobile.model.PasswordResponse
 import com.cuso.mobile.model.PasswordVerify
+import com.cuso.mobile.model.RegisterVerifyOtp
+import com.cuso.mobile.model.RegisterVerifyOtpResponse
 import com.cuso.mobile.model.SignupRequest
 import com.cuso.mobile.model.SignupResponse
 import com.cuso.mobile.model.forgotPasswordRequest
@@ -32,6 +34,13 @@ interface ApiService {
     suspend fun signup(
         @Body request: SignupRequest
     ): Response<SignupResponse>
+
+     @POST("/api/auth/register/verify-otp")
+    suspend fun signupVerifyOtp(
+        @Body request: RegisterVerifyOtp
+    ): Response<RegisterVerifyOtpResponse>
+
+
 
 //  Check email id
     @POST("/api/auth/check-email")

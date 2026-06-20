@@ -136,45 +136,44 @@ fun signUpScreen(
                     onCheckedChange = { isTermsAccepted = it }
                 )
 
-                if (isTermsAccepted) {
-                    Button(
-                        onClick = {
-                            viewModel.signUp(
-                                firstName = firstName,
-                                lastName = lastName,
-                                email = email,
-                                mobile = phone,
-                                countryIso = selectedIso,
-                                country = country,
-                                state = stateField,
-                                organizationName = organization,
-                                password = password,
-                                termsAccepted = true
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Blue,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        enabled = state !is UiState.Loading
-                    ) {
-                        if (state is UiState.Loading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                strokeWidth = 2.dp,
-                                color = Color.White
-                            )
-                        } else {
-                            Text(
+
+                Button(
+                    onClick = {
+                        viewModel.signUp(
+                            firstName = firstName,
+                            lastName = lastName,
+                            email = email,
+                            mobile = phone,
+                            countryIso = selectedIso,
+                            country = country,
+                            state = stateField,
+                            organizationName = organization,
+                            password = password,
+                            termsAccepted = true
+                        ) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Blue,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    enabled = state !is UiState.Loading
+                ) {
+                    if (state is UiState.Loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                    } else {
+                        Text(
                                 "Create Account",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
+
 
                 Row(
                     Modifier.fillMaxWidth(),

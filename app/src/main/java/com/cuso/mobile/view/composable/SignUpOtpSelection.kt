@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,6 +58,10 @@ fun SignUpOtpSelection(
     val verifyResult by authViewModel.registerOtpVerifyResult.observeAsState()
     var isOtpComplete by remember { mutableStateOf(false) }
     var savedEmail by rememberSaveable { mutableStateOf(submittedEmail) }
+
+    // New state: tracks an in-flight verify call and any error to show the user
+    var isVerifying by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = Modifier
@@ -123,6 +128,8 @@ fun SignUpOtpSelection(
         onOtpComplete = { enteredOtp ->
             otp = enteredOtp
             isOtpComplete = true
+            // Clear any stale error once the user starts a fresh OTP entry
+            errorMessage = null
         }
     )
 
@@ -136,27 +143,46 @@ fun SignUpOtpSelection(
 
     Spacer(Modifier.padding(top = 10.dp))
 
+    // Inline error feedback, shown after a failed verify attempt
+    errorMessage?.let { message ->
+        Text(
+            text = message,
+            color = Color.Red,
+            fontSize = 14.sp
+        )
+        Spacer(Modifier.padding(top = 8.dp))
+    }
+
     LaunchedEffect(verifyResult) {
         verifyResult?.let { result ->
+            isVerifying = false
             if (result.isSuccess) {
+                errorMessage = null
                 navController.navigate("org") {
                     popUpTo(0) { inclusive = true }
                 }
             } else {
-                // handle error
+                // Surface the failure and force a fresh OTP, since a once-rejected
+                // code is typically invalidated server-side and retrying it again
+                // will just fail the same way.
+                errorMessage = "Invalid or expired OTP. Please request a new one."
+                otp = ""
+                isOtpComplete = false
             }
         }
     }
 
     Button(
         onClick = {
-            if (isOtpComplete) {
-                authViewModel.registerVerifyOtp(
+            if (isOtpComplete && !isVerifying) {
+                isVerifying = true
+                errorMessage = null
+                authViewModel.RegisterVerifyOtp(
                     savedEmail, otp
                 )
             }
         },
-        enabled = isOtpComplete,
+        enabled = isOtpComplete && !isVerifying,
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp),
@@ -166,11 +192,19 @@ fun SignUpOtpSelection(
         ),
         shape = RoundedCornerShape(8.dp)
     ) {
-        Text(
-            text = "Verify and continue",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.SemiBold
-        )
+        if (isVerifying) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                color = Color.White,
+                strokeWidth = 2.dp
+            )
+        } else {
+            Text(
+                text = "Verify and continue",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
     Spacer(Modifier.padding(top = 10.dp))
     backToSignIn(navController)

@@ -1,5 +1,6 @@
 package com.cuso.mobile.repository
 
+import RetrofitClient.apiService
 import android.util.Log
 import com.cuso.mobile.model.EmailResponse
 import com.cuso.mobile.model.EmailVerify
@@ -21,6 +22,11 @@ import com.cuso.mobile.model.RegisterVerifyOtp
 import com.cuso.mobile.model.RegisterVerifyOtpResponse
 import com.cuso.mobile.model.forgotPasswordVerifyRequest
 import com.cuso.mobile.model.forgotPasswordVerifyResponse
+import com.cuso.mobile.model.meResponse
+import com.cuso.mobile.model.myLayoutResponse
+import com.cuso.mobile.model.myOrganizationResponse
+import com.cuso.mobile.model.organizationSetUpRequest
+import com.cuso.mobile.model.organizationSetUpResponse
 import com.cuso.mobile.model.resetNewPasswordRequest
 import com.cuso.mobile.model.resetNewPasswordResponse
 import com.google.gson.Gson
@@ -31,7 +37,7 @@ class AuthRepository @Inject constructor() {
 
     suspend fun login(email: String, password: String): Result<PasswordResponse> {
         return try {
-            val response = RetrofitClient.apiService.verifyPassword(
+            val response =apiService.verifyPassword(
                 PasswordVerify(email, password)
             )
             if (response.isSuccessful && response.body() != null) {
@@ -43,10 +49,28 @@ class AuthRepository @Inject constructor() {
             Result.failure(Exception("Network error: ${e.message}"))
         }
     }
+
+    suspend fun getMe(token: String): Result<meResponse> = try {
+        val res = apiService.getMe(token)
+        if (res.isSuccessful && res.body() != null) Result.success(res.body()!!)
+        else Result.failure(Exception(res.message()))
+    } catch (e: Exception) { Result.failure(e) }
+
+    suspend fun getMyOrganization(token: String): Result<myOrganizationResponse> = try {
+        val res = apiService.getMyOrganization(token)
+        if (res.isSuccessful && res.body() != null) Result.success(res.body()!!)
+        else Result.failure(Exception(res.message()))
+    } catch (e: Exception) { Result.failure(e) }
+
+    suspend fun getMyLayout(token: String): Result<myLayoutResponse> = try {
+        val res = apiService.getMyLayout(token)
+        if (res.isSuccessful && res.body() != null) Result.success(res.body()!!)
+        else Result.failure(Exception(res.message()))
+    } catch (e: Exception) { Result.failure(e) }
     // Create Account
     suspend fun createAccount(request: SignupRequest): Result<SignupResponse> {
         return try {
-            val response = RetrofitClient.apiService.signup(request)
+            val response = apiService.signup(request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
@@ -61,7 +85,7 @@ class AuthRepository @Inject constructor() {
 
     suspend fun verifyEmail(email: String): Result<EmailResponse> {
         return try {
-            val response = RetrofitClient.apiService.verifyEmail(
+            val response = apiService.verifyEmail(
                 EmailVerify(email)
             )
 
@@ -70,9 +94,9 @@ class AuthRepository @Inject constructor() {
             } else {
                 val errorBody = response.errorBody()?.string()
                 val status = try {
-                    val json = org.json.JSONObject(errorBody ?: "")
+                    val json = JSONObject(errorBody ?: "")
                     json.getString("status")
-                } catch (e: Exception) {
+                } catch (e:Exception) {
                     "unknown"
                 }
                 Result.failure(Exception(status))
@@ -82,11 +106,28 @@ class AuthRepository @Inject constructor() {
         }
     }
 
+    suspend fun organizationSetup(
+        token: String,
+        request: organizationSetUpRequest
+    ): Result<organizationSetUpResponse> {
+        return try {
+            val response = apiService.organizationSetUp(request)
+
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Organization setup failed"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     //otpSend
     suspend fun sendOtp(email: String): Result<otpSendResponse> {
         return try {
 
-            val response = RetrofitClient.apiService.otpSend(
+            val response = apiService.otpSend(
                 otpSendRequest(email)
             )
 
@@ -107,7 +148,7 @@ class AuthRepository @Inject constructor() {
     suspend fun verifyOtp(email: String,otp:String): Result<otpVerifyResponse> {
         return try {
 
-            val response = RetrofitClient.apiService.verifyOtp(
+            val response = apiService.verifyOtp(
                 otpVerifyRequest(email, otp)
             )
 
@@ -126,16 +167,16 @@ class AuthRepository @Inject constructor() {
     //otp verify for register
     suspend fun registerVerifyOtp(email: String, otp: String): Result<RegisterVerifyOtpResponse> {
         return try {
-            val response = RetrofitClient.apiService.signupVerifyOtp(
+            val response = apiService.signupVerifyOtp(
                 RegisterVerifyOtp(email, otp)
             )
 
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+            val body = response.body()
+            if (response.isSuccessful && body != null && body.success) {
+                Result.success(body)
             } else {
-                Result.failure(
-                    Exception("Error ${response.code()} - ${response.message()}")
-                )
+                val errorMsg = body?.message ?: "Error ${response.code()} - ${response.message()}"
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -144,7 +185,7 @@ class AuthRepository @Inject constructor() {
 
     suspend fun forgotPassword(email: String): Result<forgotPasswordResponse> {
         return try {
-            val response = RetrofitClient.apiService.forgotPassword(
+            val response = apiService.forgotPassword(
                 forgotPasswordRequest(email)
             )
             if (response.isSuccessful && response.body() != null) {
@@ -152,7 +193,7 @@ class AuthRepository @Inject constructor() {
             } else {
                 val errorBody = response.errorBody()?.string()
                 val message = try {
-                    org.json.JSONObject(errorBody ?: "").getString("message")
+                    JSONObject(errorBody ?: "").getString("message")
                 } catch (e: Exception) {
                     "Something went wrong"
                 }
@@ -165,7 +206,7 @@ class AuthRepository @Inject constructor() {
 
     suspend fun verifyForgotPasswordOtp(email: String, otp: String): Result<forgotPasswordVerifyResponse> {
         return try {
-            val response = RetrofitClient.apiService.forgotPasswordVerify(
+            val response = apiService.forgotPasswordVerify(
                 forgotPasswordVerifyRequest(email, otp)
             )
             if (response.isSuccessful && response.body() != null) {
@@ -173,7 +214,7 @@ class AuthRepository @Inject constructor() {
             } else {
                 val errorBody = response.errorBody()?.string()
                 val message = try {
-                    org.json.JSONObject(errorBody ?: "").getString("message")
+                    JSONObject(errorBody ?: "").getString("message")
                 } catch (e: Exception) { "Something went wrong" }
                 Result.failure(Exception(message))
             }
@@ -184,7 +225,7 @@ class AuthRepository @Inject constructor() {
 
     suspend fun resetNewPassword(token: String, newPassword: String, confirmPassword: String): Result<resetNewPasswordResponse> {
         return try {
-            val response = RetrofitClient.apiService.resetNewPassword(
+            val response = apiService.resetNewPassword(
                 resetNewPasswordRequest(
                     token = token,
                     newPassword = newPassword,
@@ -196,7 +237,7 @@ class AuthRepository @Inject constructor() {
             } else {
                 val errorBody = response.errorBody()?.string()
                 val message = try {
-                    org.json.JSONObject(errorBody ?: "").getString("message")
+                    JSONObject(errorBody ?: "").getString("message")
                 } catch (e: Exception) { "Something went wrong" }
                 Result.failure(Exception(message))
             }
@@ -207,7 +248,7 @@ class AuthRepository @Inject constructor() {
 
     suspend fun googleLogin(idToken: String): GoogleLoginResult {
         return try {
-            val response = RetrofitClient.apiService.googleLogin(GoogleLoginRequest(idToken))
+            val response = apiService.googleLogin(GoogleLoginRequest(idToken))
             if (response.isSuccessful && response.body() != null) {
                 val json = response.body()!!
                 if (json.has("requiresRegistration")) {

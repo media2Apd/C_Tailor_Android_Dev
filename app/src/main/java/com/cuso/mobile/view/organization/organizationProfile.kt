@@ -30,7 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.model.organizationSetUpRequest
 import com.cuso.mobile.view.composable.appLogo
+import com.cuso.mobile.view.composable.city
 import com.cuso.mobile.view.composable.countryAndStatePicker
 import com.cuso.mobile.viewmodel.Authenticate
 import java.util.Currency
@@ -44,6 +46,7 @@ fun organizationProfile(
     authViewModel: Authenticate = hiltViewModel()
 ) {
     val organization by authViewModel.organization.collectAsStateWithLifecycle()
+    val settings by authViewModel.settings.collectAsStateWithLifecycle()
 
     var country by remember { mutableStateOf("") }
     var state by remember { mutableStateOf("") }
@@ -75,6 +78,21 @@ fun organizationProfile(
                 organizationName = org.name
             }
         }
+        settings?.let{setting->
+            if (selectedCountry.isEmpty()) {
+                selectedCountry = setting.country ?: ""
+            }
+            if (selectedState.isEmpty()) {
+                selectedState = setting.state ?: ""
+            }
+            if (currency.isEmpty()) {
+                currency = setting.currency ?: ""
+            }
+            if (timezone.isEmpty()) {
+                timezone = setting.timezone ?: ""
+            }
+        }
+
     }
 
     val orgTypes = listOf(
@@ -266,6 +284,38 @@ fun organizationProfile(
 
             TermsScreen()
             Spacer(modifier = Modifier.height(30.dp))
+            Button(
+                onClick = {
+//                    val request = organizationSetUpRequest(
+//                        organizationType = organizationType,
+//                        businessType = businessType,
+//                        segment = segment,
+//                        country = selectedCountry,
+//                        state = selectedState,
+//                        address = address,
+//                        city = city,
+//                        pincode = pincode,
+//                        currency = currency,
+//                        language = language,
+//                        timezone = timezone,
+//                        taxEnabled = taxEnabled,
+//                        gst = gst
+//                    )
+//
+//                    authViewModel.organizationSetup(
+//                        token = "Bearer ${loginData.tokens.accessToken}",
+//                        request = request
+//                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Blue,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Get Started")
+            }
         }
     }
 }
@@ -297,19 +347,7 @@ fun TermsScreen() {
         }
         Spacer(modifier = Modifier.height(12.dp))
 
-        Button(
-            onClick = {
-                // Navigate or perform action
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Blue,
-                contentColor = Color.White
-            ),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text("Get Started")
-        }
+
     }
 }
 // ── Label ──

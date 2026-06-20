@@ -20,11 +20,18 @@ import com.cuso.mobile.model.otpVerifyRequest
 import com.cuso.mobile.model.otpVerifyResponse
 import com.cuso.mobile.model.forgotPasswordVerifyRequest
 import com.cuso.mobile.model.forgotPasswordVerifyResponse
+import com.cuso.mobile.model.meResponse
+import com.cuso.mobile.model.myLayoutResponse
+import com.cuso.mobile.model.myOrganizationResponse
+import com.cuso.mobile.model.organizationSetUpRequest
+import com.cuso.mobile.model.organizationSetUpResponse
 import com.cuso.mobile.model.resetNewPasswordRequest
 import com.cuso.mobile.model.resetNewPasswordResponse
 import com.google.gson.JsonObject
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
 
 interface ApiService {
@@ -85,4 +92,23 @@ interface ApiService {
     suspend fun googleLogin(
         @Body request: GoogleLoginRequest
     ): Response<JsonObject>
+
+    @GET("/api/members/me")
+    suspend fun getMe(
+        @Header("Authorization") token: String
+    ): Response<meResponse>
+
+    @GET("/api/auth/complete-registration")
+    suspend fun organizationSetUp(
+        @Body request: organizationSetUpRequest
+    ): Response<organizationSetUpResponse>
+    @GET("/api/organizations/my-organization")
+    suspend fun getMyOrganization(
+        @Header("Authorization") token: String
+    ): Response<myOrganizationResponse>
+
+    @GET("/api/dashboard-preference/my-layout")
+    suspend fun getMyLayout(
+        @Header("Authorization") token: String
+    ): Response<myLayoutResponse>
 }

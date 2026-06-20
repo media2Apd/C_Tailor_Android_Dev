@@ -7,6 +7,7 @@ import android.content.Context
 import androidx.room.Room
 import com.cuso.mobile.database.AppDatabase
 import com.cuso.mobile.database.dao.OrganizationDao
+import com.cuso.mobile.database.dao.SettingsDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -29,6 +30,12 @@ object DatabaseModule {
     }
     @Provides
     fun provideOrganizationDao(db: AppDatabase): OrganizationDao = db.organizationDao()
+    // ADD THIS:
+    @Provides
+    @Singleton
+    fun provideSettingsDao(database: AppDatabase): SettingsDao {
+        return database.settingsDao()
+    }
     @Provides
     fun provideLoginRepository(db: AppDatabase): LoginRepository {
         return LoginRepository(db)

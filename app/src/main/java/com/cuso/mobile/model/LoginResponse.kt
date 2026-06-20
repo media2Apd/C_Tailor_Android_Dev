@@ -55,19 +55,19 @@ data class Subscription(
     val featuresEnabled: List<String?>
 )
 data class Settings(
-    val country: String="",
-    val state: String="",
+    val country: String,
+    val state: String,
     val portalName: String,
     val termsAccepted: Boolean,
     val marketingEmails: Boolean,
     val workingDays: List<String>,
 //    val companySize: String="",
-    val timezone: String="",
-    val currency: String="",
-    val language: String="",
-    val address: String="",
-    val city: String="",
-    val pincode: String=""
+    val timezone: String,
+    val currency: String,
+    val language: String,
+    val address: String,
+    val city: String,
+    val pincode: String
 )
 data class Tokens(
     val accessToken: String,

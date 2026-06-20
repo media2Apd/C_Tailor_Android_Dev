@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 @Composable
-fun gstBox(
+fun GstBox(
     GstValue: String,
     onGstChange: (String) -> Unit
 ) {

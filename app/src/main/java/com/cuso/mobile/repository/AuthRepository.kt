@@ -106,20 +106,25 @@ class AuthRepository @Inject constructor() {
         }
     }
 
+    // AuthRepository.kt
     suspend fun organizationSetup(
         token: String,
+        csrfToken: String,
         request: organizationSetUpRequest
     ): Result<organizationSetUpResponse> {
         return try {
-            val response = apiService.organizationSetUp(request)
-
+            val response = apiService.organizationSetUp(token, csrfToken, request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(Exception("Organization setup failed"))
+                val errorBody = response.errorBody()?.string()
+                val message = try {
+                    JSONObject(errorBody ?: "").getString("message")
+                } catch (e: Exception) { "Organization setup failed" }
+                Result.failure(Exception(message))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("Network error: ${e.message}"))
         }
     }
 

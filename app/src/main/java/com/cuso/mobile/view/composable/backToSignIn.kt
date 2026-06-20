@@ -1,8 +1,6 @@
 package com.cuso.mobile.view.composable
 
 import androidx.compose.foundation.clickable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,6 +10,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.Alignment
 import androidx.navigation.NavController
 
@@ -23,7 +23,7 @@ fun backToSignIn(navController: NavController) {
         horizontalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Filled.ArrowBack, null, tint = Color.Blue
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.Blue
         )
         Text(
             "Back to Sign In",

@@ -4,7 +4,9 @@ import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -13,44 +15,48 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
+import com.cuso.mobile.view.composable.CardContentsForgotPassword
+import com.cuso.mobile.view.composable.ForgotPasswordText
 import com.cuso.mobile.view.composable.appLogo
-import com.cuso.mobile.view.composable.cardContentsForgotPassword
-import com.cuso.mobile.view.composable.forgotPasswordText
 
 
 @Composable
-fun forgotPassword(activity: Activity,
-                navController: NavController
+fun ForgotPassword(activity: Activity,
+                   navController: NavController
 
 ) {
 
-
-        Column(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            // ✅ This screen can show an email field, then expand into an
+            // OTP input plus a password field once submitted — without
+            // scroll + imePadding that extra content pushed past the
+            // bottom of shorter screens or got covered by the keyboard.
+            .verticalScroll(rememberScrollState())
+            .imePadding(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        appLogo()
+        Spacer(Modifier.padding(top = 20.dp))
+        ForgotPasswordText()
+        Spacer(modifier = Modifier.height(24.dp))
+        Card(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            appLogo()
-            Spacer(Modifier.padding(top = 20.dp))
-            forgotPasswordText()
-            Spacer(modifier = Modifier.height(24.dp))
-            Card(
-                modifier = Modifier
-                    .padding(20.dp)
-                    .border(
-                        width = 2.dp,
-                        color = Color.White,
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
+                .fillMaxWidth()
+                .padding(20.dp)
+                .border(
+                    width = 2.dp,
+                    color = Color.White,
+                    shape = RoundedCornerShape(12.dp)
                 ),
-            ) {
-                cardContentsForgotPassword(navController,activity)
-            }
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White
+            ),
+        ) {
+            CardContentsForgotPassword(navController,activity)
         }
     }
-
-
+}

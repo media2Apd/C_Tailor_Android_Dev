@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 
 
 @Composable
-fun passwordInputField(
+fun PasswordInputField(
     passwordValue: String,
     onPasswordChange: (String) -> Unit
 ) {

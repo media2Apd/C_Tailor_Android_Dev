@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.others
+package com.cuso.mobile.view.home
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
@@ -34,24 +34,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.lightGray
-import com.cuso.mobile.view.home.SettingsScreen
+
 import com.cuso.mobile.viewmodel.HomeViewModel
+import com.cuso.mobile.viewmodel.Authenticate
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
 import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
-import com.patrykandpatrick.vico.compose.common.fill
-import com.patrykandpatrick.vico.compose.common.insets
-import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.core.common.Dimensions
+import com.patrykandpatrick.vico.core.common.shape.Shape as VicoShape
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.ColumnCartesianLayerModel
@@ -59,13 +60,15 @@ import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
 import com.patrykandpatrick.vico.core.common.component.LineComponent
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
-import com.patrykandpatrick.vico.core.common.shape.CorneredShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.unit.DpOffset
 
 
 @Composable
-fun homeScreen(navController: NavController) {
+fun HomeScreen(navController: NavController) {
     val viewModel: HomeViewModel = hiltViewModel()
-    val isLoggedOut by viewModel.isLoggedOut.collectAsState()
+    val isLoggedOut: Boolean by viewModel.isLoggedOut.collectAsStateWithLifecycle(initialValue = false)
     var currentScreen by remember { mutableStateOf("home") }
 
     LaunchedEffect(isLoggedOut) {
@@ -88,7 +91,12 @@ fun homeScreen(navController: NavController) {
             onSettingsClick = {
                 currentScreen = if (currentScreen == "settings") "home" else "settings"
             },
-            onMenuItemClick = { screen -> currentScreen = screen }
+            onMenuItemClick = { screen -> currentScreen = screen },
+            onLogout = {
+                navController.navigate("login") {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
         )
 
         when (currentScreen) {
@@ -106,11 +114,16 @@ fun TopNavBar(
     navController: NavController,
     isSettingsOpen: Boolean = false,
     onSettingsClick: () -> Unit = {},
-    onMenuItemClick: (String) -> Unit = {}
+    onMenuItemClick: (String) -> Unit = {},
+    onLogout: () -> Unit
 ) {
+    val authViewModel:Authenticate=hiltViewModel()
     var isDrawerOpen by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedMenu by remember { mutableStateOf("Home") }
+
+    val user by authViewModel.user.collectAsStateWithLifecycle()
+    var menuExpanded by remember { mutableStateOf(false) }
 
     val menuItems = listOf(
         Pair(R.drawable.home, "Home"),
@@ -151,6 +164,7 @@ fun TopNavBar(
                     .fillMaxHeight()
                     .background(Color.White)
                     .border(0.5.dp, Color(0xFFE0E0E0), RoundedCornerShape(0.dp))
+
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp),
@@ -207,21 +221,67 @@ fun TopNavBar(
                 HorizontalDivider(color = Color(0xFFF0F0F0))
 
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                        .clickable{
+                            menuExpanded=true
+                        },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Box(
-                        modifier = Modifier.size(42.dp).clip(CircleShape).background(Color(0xFF3B3BF9)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("AD", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    if (!user?.profilePicture.isNullOrBlank()) {
+                        AsyncImage(
+                            model = user!!.profilePicture,
+                            contentDescription = "Profile picture",
+                            modifier = Modifier.size(42.dp).clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        val initials = buildString {
+                            user?.firstName?.firstOrNull()?.let { append(it.uppercaseChar()) }
+                            user?.lastName?.firstOrNull()?.let { append(it.uppercaseChar()) }
+                        }
+                        Box(
+                            modifier = Modifier.size(42.dp).clip(CircleShape).background(Color(0xFF3B3BF9)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(initials, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+
                     }
+
                     Column {
-                        Text("Admin", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                        Text("admin@cuso.com", fontSize = 12.sp, color = Color.Gray)
+                        Text(
+                            "${user?.firstName.orEmpty()} ${user?.lastName.orEmpty()}".trim().ifBlank { "—" },
+                            fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black
+                        )
+                        Text(
+                            user?.email.orEmpty(),
+                            fontSize = 12.sp, color = Color.Gray
+                        )
                     }
                 }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    offset = DpOffset(x = 10.dp, y = (-90).dp),
+                    shape= RoundedCornerShape(8.dp),
+                    containerColor = Color.White,
+                    tonalElevation = 8.dp,
+                    shadowElevation = 12.dp
+
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Logout", color = Color.Red) },
+                        onClick = {
+                            menuExpanded = false
+                            authViewModel.logout {
+                                onLogout()
+                            }
+                        }
+                    )
+                }
+
             }
         }
 
@@ -334,7 +394,7 @@ fun HomeScreenContent() {
     val values = leadItems.map { it.value }
 
     // ✅ Correct Vico 2.0 stable: CartesianValueFormatter
-    val bottomAxisFormatter = CartesianValueFormatter { _, value, _ ->
+    val bottomAxisFormatter = CartesianValueFormatter { value, _, _ ->
         labels.getOrNull(value.toInt()) ?: ""
     }
 
@@ -348,9 +408,9 @@ fun HomeScreenContent() {
     // ✅ Build one LineComponent per color (each bar gets its own component)
     val columnComponents = barColors.map { color ->
         rememberLineComponent(
-            fill = fill(color),
+            color = color,
             thickness = 24.dp,
-            shape = CorneredShape.rounded(allPercent = 20)
+            shape = VicoShape.rounded(allPercent = 20)
         )
     }
 
@@ -378,10 +438,10 @@ fun HomeScreenContent() {
     val markerLabel = rememberTextComponent(
         color = Color.White,
         background = rememberShapeComponent(
-            fill = fill(Color(0xFF1E293B)),
-            shape = CorneredShape.rounded(allPercent = 8)
+            color = Color(0xFF1E293B),
+            shape = VicoShape.rounded(allPercent = 8)
         ),
-        padding = insets(8.dp, 4.dp)
+        padding = Dimensions(8f, 4f, 8f, 4f)
     )
 
     val marker = rememberDefaultCartesianMarker(
@@ -509,10 +569,10 @@ fun HomeScreenContent() {
                                 rememberColumnCartesianLayer(
                                     columnProvider = columnProvider
                                 ),
-                                startAxis = VerticalAxis.rememberStart(
+                                startAxis = rememberStartAxis(
                                     guideline = null // ❌ removes dashed horizontal gridlines
                                 ),
-                                bottomAxis = HorizontalAxis.rememberBottom(
+                                bottomAxis = rememberBottomAxis(
                                     valueFormatter = bottomAxisFormatter,
                                     guideline = null // ❌ removes dashed vertical gridlines
                                 ),
@@ -683,7 +743,7 @@ fun HomeScreenContent() {
 
 // ✅ Reusable stat card to eliminate repetition
 @Composable
-fun RowScope.StatCard(
+fun StatCard(
     modifier: Modifier = Modifier,
     iconBg: Color,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -760,7 +820,7 @@ fun HorizontalScrollbar(
             .height(height)
             .background(trackColor, RoundedCornerShape(height / 2))
     ) {
-        val trackWidth = maxWidth
+        val trackWidth = this@BoxWithConstraints.maxWidth
         val thumbWidth = trackWidth * thumbSizeFraction
         val thumbOffset = (trackWidth - thumbWidth) * scrollFraction
 

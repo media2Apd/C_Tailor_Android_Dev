@@ -93,15 +93,20 @@ interface ApiService {
         @Body request: GoogleLoginRequest
     ): Response<JsonObject>
 
+    @POST("/api/auth/complete-registration")
+    suspend fun organizationSetUp(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: organizationSetUpRequest
+    ): Response<organizationSetUpResponse>
+
+
     @GET("/api/members/me")
     suspend fun getMe(
         @Header("Authorization") token: String
     ): Response<meResponse>
 
-    @GET("/api/auth/complete-registration")
-    suspend fun organizationSetUp(
-        @Body request: organizationSetUpRequest
-    ): Response<organizationSetUpResponse>
+
     @GET("/api/organizations/my-organization")
     suspend fun getMyOrganization(
         @Header("Authorization") token: String

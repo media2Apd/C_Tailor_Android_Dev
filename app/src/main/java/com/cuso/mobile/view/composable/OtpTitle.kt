@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.cuso.mobile.R
 
 @Composable
-fun otpTitle(){
+fun OtpTitle(){
     Row(
         Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,

@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun signUpTitle(){
+fun SignUpTitle(){
     Spacer(Modifier.height(10.dp))
     Text(
         "Create Account",

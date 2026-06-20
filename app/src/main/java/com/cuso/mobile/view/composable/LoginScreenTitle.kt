@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.sp
 import com.cuso.mobile.R
 
 @Composable
-fun loginScreenTitle(){
+fun LoginScreenTitle(){
     Text(
         "Welcome Back",
         style = MaterialTheme.typography.headlineLarge,

@@ -30,26 +30,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.model.OrgSettingsRequest
 import com.cuso.mobile.model.organizationSetUpRequest
 import com.cuso.mobile.view.composable.appLogo
-import com.cuso.mobile.view.composable.city
 import com.cuso.mobile.view.composable.countryAndStatePicker
 import com.cuso.mobile.viewmodel.Authenticate
+import com.cuso.mobile.viewmodel.UiState
 import java.util.Currency
 import java.util.Locale
 import java.util.TimeZone
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun organizationProfile(
-    authViewModel: Authenticate = hiltViewModel()
+fun OrganizationProfile(
+    authViewModel: Authenticate = hiltViewModel(),
+    onSetupComplete: () -> Unit   // ← navigates to home on success
 ) {
     val organization by authViewModel.organization.collectAsStateWithLifecycle()
     val settings by authViewModel.settings.collectAsStateWithLifecycle()
-
-    var country by remember { mutableStateOf("") }
-    var state by remember { mutableStateOf("") }
+    val accountState by authViewModel.accountState.collectAsStateWithLifecycle()
 
     var organizationName by rememberSaveable { mutableStateOf("") }
     var organizationType by rememberSaveable { mutableStateOf("") }
@@ -66,8 +67,24 @@ fun organizationProfile(
     var timezone by rememberSaveable { mutableStateOf("") }
     var taxEnabled by rememberSaveable { mutableStateOf(false) }
     var gst by rememberSaveable { mutableStateOf("") }
-    var showCheckbox by remember { mutableStateOf(false) }
-    var isChecked by remember { mutableStateOf(false) }
+    var isChecked by remember { mutableStateOf(false) }   // marketing emails checkbox — now actually wired below
+
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val isSubmitting = accountState is UiState.Loading
+
+    // React to the API result from authViewModel.organizationSetup(...)
+    LaunchedEffect(accountState) {
+        when (val state = accountState) {
+            is UiState.Success -> {
+                authViewModel.resetState()
+                onSetupComplete()
+            }
+            is UiState.Error -> {
+                errorMessage = state.message
+            }
+            else -> Unit
+        }
+    }
 
     // Auto-fill from Room once the saved organization loads.
     // rememberSaveable means this only overwrites the field on first load
@@ -78,7 +95,7 @@ fun organizationProfile(
                 organizationName = org.name
             }
         }
-        settings?.let{setting->
+        settings?.let { setting ->
             if (selectedCountry.isEmpty()) {
                 selectedCountry = setting.country ?: ""
             }
@@ -92,7 +109,6 @@ fun organizationProfile(
                 timezone = setting.timezone ?: ""
             }
         }
-
     }
 
     val orgTypes = listOf(
@@ -261,7 +277,7 @@ fun organizationProfile(
                 Switch(
                     checked = taxEnabled,
                     onCheckedChange = { taxEnabled = it },
-                    modifier=Modifier.scale(0.8f),
+                    modifier = Modifier.scale(0.8f),
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = Color.Green
@@ -276,37 +292,68 @@ fun organizationProfile(
 
                 HorizontalDivider(color = Color(0xFFF2F2F2))
                 Spacer(modifier = Modifier.height(15.dp))
-
-
             }
             HorizontalDivider(color = Color(0xFFF2F2F2))
             Spacer(modifier = Modifier.height(12.dp))
 
-            TermsScreen()
+            // ← now driven by the outer isChecked, not its own private copy
+            TermsScreen(
+                isChecked = isChecked,
+                onCheckedChange = { isChecked = it }
+            )
+
+            errorMessage?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(it, color = Color.Red, fontSize = 13.sp)
+            }
+
             Spacer(modifier = Modifier.height(30.dp))
             Button(
                 onClick = {
-//                    val request = organizationSetUpRequest(
-//                        organizationType = organizationType,
-//                        businessType = businessType,
-//                        segment = segment,
-//                        country = selectedCountry,
-//                        state = selectedState,
-//                        address = address,
-//                        city = city,
-//                        pincode = pincode,
-//                        currency = currency,
-//                        language = language,
-//                        timezone = timezone,
-//                        taxEnabled = taxEnabled,
-//                        gst = gst
-//                    )
-//
-//                    authViewModel.organizationSetup(
-//                        token = "Bearer ${loginData.tokens.accessToken}",
-//                        request = request
-//                    )
+                    errorMessage = null
+                    when {
+                        organizationType.isBlank() -> errorMessage = "Select organization type"
+                        businessType.isBlank()     -> errorMessage = "Select business type"
+                        companySize.isBlank()      -> errorMessage = "Select company size"
+                        segment.isBlank()          -> errorMessage = "Select segment"
+                        selectedCountry.isBlank()  -> errorMessage = "Select country"
+                        selectedState.isBlank()    -> errorMessage = "Select state"
+                        address.isBlank()          -> errorMessage = "Enter address"
+                        city.isBlank()             -> errorMessage = "Enter city"
+                        pincode.isBlank()          -> errorMessage = "Enter pincode"
+                        currency.isBlank()         -> errorMessage = "Select currency"
+                        language.isBlank()         -> errorMessage = "Select language"
+                        timezone.isBlank()         -> errorMessage = "Select timezone"
+                        taxEnabled && gst.isBlank() -> errorMessage = "Enter your tax ID"
+                        else -> {
+                            val currencyCode = currency.substringBefore(" - ")
+                            val timezoneId = timezone.substringBefore(" (")
+
+                            authViewModel.organizationSetup(
+                                organizationSetUpRequest(
+                                    orgType = organizationType,
+                                    businessType = businessType,
+                                    settings = OrgSettingsRequest(
+                                        companySize = companySize,
+                                        country = selectedCountry,
+                                        state = selectedState,
+                                        timezone = timezoneId,
+                                        currency = currencyCode,
+                                        language = language,
+                                        marketingEmails = isChecked,
+                                        address = address,
+                                        city = city,
+                                        pincode = pincode
+                                    ),
+                                    segments = listOf(segment),
+                                    isTaxId = taxEnabled,
+                                    taxId = if (taxEnabled) gst else ""
+                                )
+                            )
+                        }
+                    }
                 },
+                enabled = !isSubmitting,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Blue,
@@ -314,23 +361,32 @@ fun organizationProfile(
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Get Started")
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Get Started")
+                }
             }
         }
     }
 }
+
 @Composable
-fun TermsScreen() {
-    var isChecked by remember { mutableStateOf(false) }
-
+fun TermsScreen(
+    isChecked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
     Column {
-
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
                 checked = isChecked,
-                onCheckedChange = { isChecked = it },
+                onCheckedChange = onCheckedChange,
                 colors = CheckboxDefaults.colors(
                     checkedColor = Color.Blue,
                     uncheckedColor = Color.Gray,
@@ -346,10 +402,9 @@ fun TermsScreen() {
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
-
-
     }
 }
+
 // ── Label ──
 @Composable
 fun OrgLabel(text: String) {
@@ -525,12 +580,11 @@ fun OrganizationDropdown(
         // Auto focus search when opened
         LaunchedEffect(expanded) {
             if (expanded) {
-                delay(150)
+                delay(150.milliseconds)
                 focusRequester.requestFocus()
             } else {
                 searchQuery = ""
             }
         }
-
     }
 }

@@ -15,7 +15,7 @@ import androidx.navigation.NavController
 
 
 @Composable
-fun signUpText(navController: NavController){
+fun SignUpText(navController: NavController){
     Row(
         Modifier
             .fillMaxWidth(),

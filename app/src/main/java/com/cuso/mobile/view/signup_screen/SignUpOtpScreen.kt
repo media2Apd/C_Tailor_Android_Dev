@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.login
+package com.cuso.mobile.view.signup_screen
 
 import android.app.Activity
 import androidx.compose.foundation.background
@@ -20,12 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.cuso.mobile.view.composable.LoginOtpSelection
+import com.cuso.mobile.view.composable.SignUpOtpSelection
 import com.cuso.mobile.view.composable.OtpTitle
 import com.cuso.mobile.view.composable.appLogo
 
 @Composable
-fun LoginOtpScreen(navController: NavController, activity: Activity, submittedEmail: String) {
+fun SignUpOtpScreen(navController: NavController, activity: Activity, submittedEmail: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -38,15 +38,15 @@ fun LoginOtpScreen(navController: NavController, activity: Activity, submittedEm
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         appLogo()
+        Spacer(Modifier.padding(top = 20.dp))
+
         OtpTitle()
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Card(
             modifier = Modifier
-                // ❌ was height(500.dp) — a fixed height card has no idea
-                // how tall the device screen actually is, so on a shorter
-                // screen it just ran off the bottom. fillMaxWidth() lets it
-                // size to its actual content instead.
+                // ❌ was height(500.dp) — see loginOtpScreen for why this
+                // overflowed on shorter screens.
                 .fillMaxWidth()
                 .padding(20.dp),
             colors = CardDefaults.cardColors(
@@ -56,7 +56,7 @@ fun LoginOtpScreen(navController: NavController, activity: Activity, submittedEm
             Column(
                 Modifier.padding(30.dp)
             ) {
-                LoginOtpSelection(navController, activity = activity, submittedEmail)
+                SignUpOtpSelection(navController, activity = activity, submittedEmail)
             }
 
 

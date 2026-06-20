@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.composable
+    package com.cuso.mobile.view.composable
 
 import android.app.Activity
 import androidx.compose.foundation.background
@@ -44,7 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Popup
 @Composable
-fun loginOtpInput(
+fun LoginOtpInput(
     otpLength: Int = 6,
     activity: Activity,
     onOtpComplete: (String) -> Unit

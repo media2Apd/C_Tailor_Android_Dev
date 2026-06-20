@@ -14,21 +14,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.cuso.mobile.viewmodel.Authenticate
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 
 @Composable
-fun resendForgotOtpSection(
+fun ResendLoginOtpSection(
     onResendClick: () -> Unit,
     email:String,
-    authViewModel: Authenticate,
-    savedEmail:String,
-    otp:String
+    authViewModel: Authenticate
 ) {
     var timer by rememberSaveable { mutableIntStateOf(60) }
 
     LaunchedEffect(timer) {
         if (timer > 0) {
-            delay(1000)
+            delay(1000.milliseconds)
             timer--
         }
     }
@@ -39,7 +38,7 @@ fun resendForgotOtpSection(
             onClick = {
                 onResendClick()
                 timer = 60
-                authViewModel.forgotPasswordOtp(savedEmail)
+                authViewModel.sendOtp(email)
             },
             enabled = timer == 0
         ) {

@@ -123,7 +123,7 @@ fun SignUpOtpSelection(
         Text("Enter Otp", color = Color.Black)
     }
     Spacer(Modifier.padding(top = 10.dp))
-    loginOtpInput(
+    LoginOtpInput(
         activity = activity,
         onOtpComplete = { enteredOtp ->
             otp = enteredOtp
@@ -138,7 +138,7 @@ fun SignUpOtpSelection(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Alignment.End.let { androidx.compose.foundation.layout.Arrangement.End }
     ) {
-        resendLoginOtpSection(onResendClick = { savedEmail }, email = savedEmail, authViewModel)
+        ResendLoginOtpSection(onResendClick = { savedEmail }, email = savedEmail, authViewModel)
     }
 
     Spacer(Modifier.padding(top = 10.dp))

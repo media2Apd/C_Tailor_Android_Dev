@@ -3,8 +3,10 @@ package com.cuso.mobile.view.forgot_password
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -22,13 +24,13 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.appLogo
-import com.cuso.mobile.view.composable.resetPasswordText
+import com.cuso.mobile.view.composable.ResetPasswordText
 import com.cuso.mobile.view.composable.customFieldColors
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
 
 @Composable
-fun resetPassword(
+fun ResetPassword(
     resetToken:String,
     navController: NavController,
 //    onResetClick: (newPassword: String) -> Unit = {},
@@ -48,11 +50,19 @@ fun resetPassword(
             && passwordsMatch
             && newPassword.length >= 8
 
-    Box(
+    // ✅ Box(contentAlignment = Center) had no scroll path at all — on a
+    // shorter screen, or once the keyboard opened, the card could overflow
+    // both the top and bottom of the screen with no way to reach the
+    // clipped fields. A Column with verticalScroll + imePadding fixes both:
+    // it centers when content fits, and scrolls when it doesn't.
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
-        contentAlignment = Alignment.Center
+            .background(Color.White)
+            .verticalScroll(rememberScrollState())
+            .imePadding(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
         Card(
@@ -70,7 +80,7 @@ fun resetPassword(
             ) {
                 appLogo()
                 Spacer(Modifier.padding(top=10.dp))
-                resetPasswordText()
+                ResetPasswordText()
             }
             Column(
                 modifier = Modifier
@@ -99,7 +109,7 @@ fun resetPassword(
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
-               }
+                }
 
 
                 // New Password field
@@ -234,23 +244,23 @@ fun resetPassword(
                     )
                 ) {
                     if (resetPasswordState is UiState.Loading) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(24.dp)
-                    )
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(24.dp)
+                        )
                         Text(
                             text = "Resetting Password",
                             fontSize = 20.sp,
                             color=Color.White
                         )
-                } else {
-                    Text(
-                        text = "Reset Password",
-                        fontSize = 20.sp,
-                        color=Color.White
-                    )
-                }
+                    } else {
+                        Text(
+                            text = "Reset Password",
+                            fontSize = 20.sp,
+                            color=Color.White
+                        )
+                    }
                 }
             }
         }

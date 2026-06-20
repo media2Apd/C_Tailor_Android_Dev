@@ -10,7 +10,9 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
@@ -24,20 +26,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.cuso.mobile.model.Organization
-import com.cuso.mobile.view.composable.cardContentsLoginScreen
-import com.cuso.mobile.view.composable.signUpText
+import com.cuso.mobile.view.composable.CardContentsLoginScreen
+import com.cuso.mobile.view.composable.SignUpText
 import com.cuso.mobile.view.composable.appLogo
-import com.cuso.mobile.view.composable.cardContentsLoginScreen
-import com.cuso.mobile.view.composable.loginScreenTitle
-import com.cuso.mobile.view.composable.signUpText
+import com.cuso.mobile.view.composable.LoginScreenTitle
 import com.cuso.mobile.viewmodel.UiState
 import com.cuso.mobile.viewmodel.Authenticate
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 
 @Composable
-fun loginScreen(activity: Activity,
+fun LoginScreen(activity: Activity,
                 navController: NavController,
                 onloginSuccess: (String)-> Unit,
                 authViewModel: Authenticate= hiltViewModel(),
@@ -116,55 +116,61 @@ fun loginScreen(activity: Activity,
 
 
     Box(modifier = Modifier.fillMaxSize()) {
-    Scaffold(
-        snackbarHost={SnackbarHost(snackbarState)}
-    )
-    { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            appLogo()
-            Spacer(modifier = Modifier.height(10.dp))
-            loginScreenTitle()
-            Spacer(modifier = Modifier.height(10.dp))
-            Card(
+        Scaffold(
+            snackbarHost={SnackbarHost(snackbarState)}
+        )
+        { padding ->
+            Column(
                 modifier = Modifier
-                    .padding(20.dp)
-                    .border(
-                        width = 2.dp,
-                        color = Color.White,
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                ),
+                    .fillMaxSize()
+                    .background(Color.White)
+                    .padding(padding)
+                    // ✅ Scrolls instead of clipping fields on short screens, and
+                    // pushes content above the keyboard instead of letting it
+                    // cover the password field.
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                cardContentsLoginScreen(
-                    navController,
-                    activity,
-                    authViewModel,
-                    prefilledEmail=prefilledEmail
-                )
-                Spacer(Modifier.height(10.dp))
-                signUpText(navController)
-                Spacer(Modifier.padding(bottom = 30.dp))
+                appLogo()
+                Spacer(modifier = Modifier.height(10.dp))
+                LoginScreenTitle()
+                Spacer(modifier = Modifier.height(10.dp))
+                Card(
+                    modifier = Modifier
+                        .padding(20.dp)
+                        .border(
+                            width = 2.dp,
+                            color = Color.White,
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                ) {
+                    CardContentsLoginScreen(
+                        navController,
+                        activity,
+                        authViewModel,
+                        prefilledEmail=prefilledEmail
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    SignUpText(navController)
+                    Spacer(Modifier.padding(bottom = 30.dp))
 
+                }
             }
         }
-    }
 
-    LaunchedEffect(resetSuccessMessage) {
-        if (resetSuccessMessage.isNotBlank()) {
-            showBanner = true
-            delay(3000) // auto hide after 3 seconds
-            showBanner = false
+        LaunchedEffect(resetSuccessMessage) {
+            if (resetSuccessMessage.isNotBlank()) {
+                showBanner = true
+                delay(3000.milliseconds) // auto hide after 3 seconds
+                showBanner = false
+            }
         }
-    }
 
         AnimatedVisibility(
             visible = showBanner,
@@ -206,4 +212,3 @@ fun loginScreen(activity: Activity,
     }
 
 }
-

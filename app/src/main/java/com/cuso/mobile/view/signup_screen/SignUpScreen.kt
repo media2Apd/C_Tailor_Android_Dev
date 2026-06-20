@@ -5,7 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,7 +25,7 @@ import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
 
 @Composable
-fun signUpScreen(
+fun SignUpScreen(
     onSignUpSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit,
     viewModel: Authenticate = hiltViewModel(),
@@ -59,14 +61,23 @@ fun signUpScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
+            .background(Color.White)
+            // ✅ This long form (10+ fields, dropdowns, a picker) now scrolls
+            // instead of relying on a Card that force-fills the screen, and
+            // imePadding keeps whichever field is focused above the keyboard.
+            .verticalScroll(rememberScrollState())
+            .imePadding(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
         Card(
             modifier = Modifier
-                .fillMaxSize()
+                // ❌ was fillMaxSize() — that forced the card (and everything
+                // inside it) to always be exactly the screen's height, which
+                // is what clipped fields on shorter screens / with the
+                // keyboard open. fillMaxWidth() lets it size to its content.
+                .fillMaxWidth()
                 .padding(20.dp)
                 .border(2.dp, Color.White, RoundedCornerShape(12.dp)),
             shape = RoundedCornerShape(12.dp),
@@ -80,7 +91,7 @@ fun signUpScreen(
             ) {
                 appLogo()
                 Spacer(Modifier.padding(top = 20.dp))
-                signUpTitle()
+                SignUpTitle()
             }
 
             Column(
@@ -100,7 +111,7 @@ fun signUpScreen(
                     onEmailChange = { email = it }
                 )
 
-                phoneInputField(
+                PhoneInputField(
                     phoneValue = phone,
                     onPhoneChange = { phone = it },
                     onCountryChange = { selectedIso = it.iso }
@@ -118,7 +129,7 @@ fun signUpScreen(
                     onOrganizationChange = { organization = it }
                 )
 
-                passwordInputField(
+                PasswordInputField(
                     passwordValue = password,
                     onPasswordChange = { password = it }
                 )
@@ -131,7 +142,7 @@ fun signUpScreen(
                     )
                 }
 
-                termsCheckbox(
+                TermsCheckbox(
                     navController,
                     onCheckedChange = { isTermsAccepted = it }
                 )
@@ -167,7 +178,7 @@ fun signUpScreen(
                         )
                     } else {
                         Text(
-                                "Create Account",
+                            "Create Account",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -195,7 +206,7 @@ fun signUpScreen(
                     )
                 }
 
-                continueGoogle(activity, navController)
+                ContinueGoogle(activity, navController)
             }
 
             Row(

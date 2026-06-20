@@ -21,7 +21,7 @@ val client = OkHttpClient.Builder()
 // then pass `client` into your Retrofit.Builder().client(client)...
 object RetrofitClient {
 
-    private const val BASE_URL = "http://10.33.173.65:5000"
+    private const val BASE_URL = "http://192.168.0.19:5000"
 
     val apiService: ApiService by lazy {
         Retrofit.Builder()

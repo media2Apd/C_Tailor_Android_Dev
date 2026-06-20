@@ -22,7 +22,7 @@ import androidx.navigation.NavController
 
 @Composable
 fun SettingsScreen(navController: NavController) {
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf(
         Pair(Icons.Outlined.Badge, "Profile"),
         Pair(Icons.Outlined.Business, "Localization")

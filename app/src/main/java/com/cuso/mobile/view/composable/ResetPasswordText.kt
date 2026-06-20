@@ -10,13 +10,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun forgotPasswordText(){
+fun ResetPasswordText(){
     Column(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            " Forgot your password ?",
+            " Reset your password ",
             style = MaterialTheme.typography.headlineLarge,
             fontSize = 30.sp,
             color = Color.Black

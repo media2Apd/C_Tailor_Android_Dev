@@ -116,7 +116,7 @@ fun LoginOtpSelection(
         Text("Enter Otp", color = Color.Black)
     }
     Spacer(Modifier.padding(top = 10.dp))
-    loginOtpInput(
+    LoginOtpInput(
         activity = activity,
         onOtpComplete = { enteredOtp ->
             otp = enteredOtp
@@ -138,7 +138,7 @@ fun LoginOtpSelection(
             color = Color.Blue, fontSize = 14.sp
         )
         Spacer(Modifier.weight(1f))
-        resendLoginOtpSection(onResendClick = { savedEmail }, email = savedEmail, authViewModel)
+        ResendLoginOtpSection(onResendClick = { savedEmail }, email = savedEmail, authViewModel)
     }
 
     Spacer(Modifier.padding(top = 10.dp))

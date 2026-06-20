@@ -3,7 +3,6 @@ package com.cuso.mobile.view.composable
 import android.app.Activity
 import android.util.Log
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -48,24 +46,26 @@ import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
 
 @Composable
-fun cardContentsForgotPassword(navController: NavController,activity: Activity) {
+fun CardContentsForgotPassword(navController: NavController,activity: Activity) {
+    val authViewModel: Authenticate = hiltViewModel()
+
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var submittedEmail by remember { mutableStateOf("") }
     var isSubmitted by remember { mutableStateOf(false) }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var accountState by remember { mutableStateOf("") }
-    var authViewModel: Authenticate = hiltViewModel()
     val forgotPasswordState by authViewModel.forgotPasswordState.collectAsState()
     val uiState by authViewModel.forgotPasswordState.collectAsState()
     Column(
         Modifier.padding(25.dp)
     ) {
         animatedErrorBanner(
-            message = if (accountState is UiState.Error)
+            message = if (false)
                 (accountState as UiState.Error).message
             else "",
-            visible = accountState is UiState.Error
+            visible = false
         )
         if (!isSubmitted) {
             Text("Forgot Password", fontSize = 20.sp, color = Color.Black)

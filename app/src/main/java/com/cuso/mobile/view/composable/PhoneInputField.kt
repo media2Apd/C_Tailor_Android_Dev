@@ -37,7 +37,7 @@ import com.cuso.mobile.model.countries
 import com.cuso.mobile.model.Country
 
 @Composable
-fun phoneInputField(
+fun PhoneInputField(
     phoneValue: String,
     onPhoneChange: (String) -> Unit,
     onCountryChange: (Country) -> Unit

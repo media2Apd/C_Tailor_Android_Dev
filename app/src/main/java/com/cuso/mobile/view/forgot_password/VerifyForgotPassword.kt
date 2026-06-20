@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.login
+package com.cuso.mobile.view.forgot_password
 
 import android.app.Activity
 import androidx.compose.foundation.background
@@ -15,17 +15,24 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.cuso.mobile.view.composable.LoginOtpSelection
 import com.cuso.mobile.view.composable.OtpTitle
 import com.cuso.mobile.view.composable.appLogo
+import com.cuso.mobile.viewmodel.Authenticate
+import com.cuso.mobile.view.composable.forgotOtpSelection
 
 @Composable
-fun LoginOtpScreen(navController: NavController, activity: Activity, submittedEmail: String) {
+fun VerifyForgotPassword(navController: NavController, activity: Activity, submittedEmail: String) {
+    val authViewModel: Authenticate = hiltViewModel()
+    val accountState by authViewModel.accountState.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -38,15 +45,14 @@ fun LoginOtpScreen(navController: NavController, activity: Activity, submittedEm
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         appLogo()
+        Spacer(Modifier.padding(top = 20.dp))
         OtpTitle()
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Card(
             modifier = Modifier
-                // ❌ was height(500.dp) — a fixed height card has no idea
-                // how tall the device screen actually is, so on a shorter
-                // screen it just ran off the bottom. fillMaxWidth() lets it
-                // size to its actual content instead.
+                // ❌ was height(500.dp) — see loginOtpScreen for why this
+                // overflowed on shorter screens.
                 .fillMaxWidth()
                 .padding(20.dp),
             colors = CardDefaults.cardColors(
@@ -56,7 +62,7 @@ fun LoginOtpScreen(navController: NavController, activity: Activity, submittedEm
             Column(
                 Modifier.padding(30.dp)
             ) {
-                LoginOtpSelection(navController, activity = activity, submittedEmail)
+                forgotOtpSelection(navController, activity = activity, submittedEmail)
             }
 
 

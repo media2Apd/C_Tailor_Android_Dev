@@ -24,11 +24,12 @@ import kotlinx.coroutines.launch
 import android.util.Log
 import com.cuso.mobile.database.dao.OrganizationDao
 import com.cuso.mobile.database.dao.SettingsDao
+import com.cuso.mobile.database.dao.TokensDao
 import com.cuso.mobile.database.entities.OrganizationEntity
 import com.cuso.mobile.database.entities.SettingsEntity
+import com.cuso.mobile.database.entities.UserEntity
 import com.cuso.mobile.model.GoogleLoginResult
 import com.cuso.mobile.model.RegisterVerifyOtpResponse
-import com.cuso.mobile.model.data
 import com.cuso.mobile.model.organizationSetUpRequest
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.async
@@ -71,7 +72,8 @@ class Authenticate @Inject constructor(
     private val repository: AuthRepository,
     private val loginRepository: LoginRepository,
     private val organizationDao: OrganizationDao,   // ← add this
-    private val settingsDao: SettingsDao   // ← add this
+    private val settingsDao: SettingsDao,
+    private val tokensDao: TokensDao
 
 
 ) : ViewModel() {
@@ -82,15 +84,19 @@ class Authenticate @Inject constructor(
 
     val organization: StateFlow<OrganizationEntity?> = _organization.asStateFlow()
     val settings: StateFlow<SettingsEntity?> = _settings.asStateFlow()
+
+    private val _user = MutableStateFlow<UserEntity?>(null)
+    val user: StateFlow<UserEntity?> = _user.asStateFlow()
+
     private val _accountState = MutableStateFlow<UiState>(UiState.Idle)
     val accountState: StateFlow<UiState> = _accountState
 
     private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading
+//    val isLoading: StateFlow<Boolean> = _isLoading
 
     private val _otpSendResult = MutableLiveData<Result<otpSendResponse>>()
     private val _otpVerifyResult = MutableLiveData<Result<otpVerifyResponse>>()
-    val otpSendResult: LiveData<Result<otpSendResponse>> = _otpSendResult
+//    val otpSendResult: LiveData<Result<otpSendResponse>> = _otpSendResult
     val otpVerifyResult: LiveData<Result<otpVerifyResponse>> = _otpVerifyResult
 
     private val _forgotPasswordState = MutableStateFlow<UiState>(UiState.Idle)
@@ -134,7 +140,7 @@ class Authenticate @Inject constructor(
                     // saveOrganizationData() expects an Organization, so unwrap .data here —
                     // NOT response.data (that's the LoginData from the login call above).
                     orgResult.getOrNull()?.let { response ->
-                        loginRepository.saveOrganizationData(response.data)
+                        loginRepository.saveOrganizationData(response.data.organization)
                         loadOrganization()
                         loadSettings()
                     }
@@ -153,6 +159,17 @@ class Authenticate @Inject constructor(
                     result.exceptionOrNull()?.message ?: "Invalid password"
                 )
             }
+        }
+    }
+
+    fun logout(onLoggedOut: () -> Unit) {
+        viewModelScope.launch {
+            loginRepository.clearAll()
+            _user.value = null
+            _organization.value = null
+            _settings.value = null
+            _accountState.value = UiState.Idle
+            onLoggedOut()
         }
     }
 
@@ -282,11 +299,18 @@ class Authenticate @Inject constructor(
     init {
         loadSettings()
         loadOrganization()
+        loadUser()
     }
 
     private fun loadSettings() {
         viewModelScope.launch {
             _settings.value = settingsDao.getSettings()
+        }
+    }
+
+    private fun loadUser() {
+        viewModelScope.launch {
+            _user.value = loginRepository.getUser()
         }
     }
 
@@ -362,7 +386,28 @@ class Authenticate @Inject constructor(
             }
         }
     }
+    fun organizationSetup(request: organizationSetUpRequest) {
+        viewModelScope.launch {
+            _accountState.value = UiState.Loading
 
+            val tokens = tokensDao.getTokens()
+            val accessToken = tokens?.accessToken
+            val csrfToken = tokens?.csrfToken
+
+            if (accessToken.isNullOrBlank() || csrfToken.isNullOrBlank()) {
+                _accountState.value = UiState.Error("Session expired. Please log in again.")
+                return@launch
+            }
+
+            val result = repository.organizationSetup("Bearer $accessToken", csrfToken, request)
+
+            _accountState.value = if (result.isSuccess) {
+                UiState.Success(result.getOrNull()?.message ?: "Organization setup completed")
+            } else {
+                UiState.Error(result.exceptionOrNull()?.message ?: "Something went wrong")
+            }
+        }
+    }
     fun signUp(
         firstName: String,
         lastName: String,
@@ -455,27 +500,28 @@ class Authenticate @Inject constructor(
         }
     }
 
-    fun organizationSetup(
-        token: String,
-        request: organizationSetUpRequest
-    ) {
-        viewModelScope.launch {
-            _accountState.value = UiState.Loading
-
-            val result = repository.organizationSetup(token, request)
-
-            _accountState.value =
-                if (result.isSuccess) {
-                    UiState.Success(
-                        result.getOrNull()?.message ?: "Organization setup completed"
-                    )
-                } else {
-                    UiState.Error(
-                        result.exceptionOrNull()?.message ?: "Something went wrong"
-                    )
-                }
-        }
-    }
+//    fun organizationSetup(
+//        token: String,
+//        csrfToken: String,
+//        request: organizationSetUpRequest
+//    ) {
+//        viewModelScope.launch {
+//            _accountState.value = UiState.Loading
+//
+//            val result = repository.organizationSetup(token, csrfToken,request)
+//
+//            _accountState.value =
+//                if (result.isSuccess) {
+//                    UiState.Success(
+//                        result.getOrNull()?.message ?: "Organization setup completed"
+//                    )
+//                } else {
+//                    UiState.Error(
+//                        result.exceptionOrNull()?.message ?: "Something went wrong"
+//                    )
+//                }
+//        }
+//    }
 
     fun resetState() {
         _accountState.value = UiState.Idle

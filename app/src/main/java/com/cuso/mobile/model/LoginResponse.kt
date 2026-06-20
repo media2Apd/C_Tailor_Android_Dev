@@ -21,8 +21,8 @@ data class Organization(
     val settings: Settings,
     val isInternalOrganization: Boolean,
     val _id: String,
-    val businessId: String?,
-    val name: String?,
+    val businessId: String,
+    val name: String,
     val industry: String,
     val orgType: String,
     val organizationPicture: String?,
@@ -40,7 +40,7 @@ data class Organization(
     val createdAt: String,
     val updatedAt: String,
     val slug: String,
-    val __v: Int?,
+    val __v: Int,
     val defaultBranch: String,
     val ownerId: String,
     val ownerMemberId: String,
@@ -51,8 +51,8 @@ data class Subscription(
     val startDate: String="",
     val endDate: String="",
     val status: String="",
-    val memberLimit: Int?,
-    val featuresEnabled: List<String?>
+    val memberLimit: Int,
+    val featuresEnabled: List<String>
 )
 data class Settings(
     val country: String,

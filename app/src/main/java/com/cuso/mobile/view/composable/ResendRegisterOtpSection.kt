@@ -17,9 +17,9 @@ import kotlinx.coroutines.delay
 
 
 @Composable
-fun resendLoginOtpSection(
+fun ResendRegisterOtpSection(
     onResendClick: () -> Unit,
-    email:String,
+    email: String,
     authViewModel: Authenticate
 ) {
     var timer by rememberSaveable { mutableIntStateOf(60) }
@@ -30,14 +30,14 @@ fun resendLoginOtpSection(
             timer--
         }
     }
-    Row() {
+    Row {
         Text("")
         Spacer(modifier = Modifier.weight(1f))
         TextButton(
             onClick = {
                 onResendClick()
                 timer = 60
-                authViewModel.sendOtp(email)
+//                authViewModel.signUp()
             },
             enabled = timer == 0
         ) {
@@ -47,5 +47,4 @@ fun resendLoginOtpSection(
             )
         }
     }
-
 }

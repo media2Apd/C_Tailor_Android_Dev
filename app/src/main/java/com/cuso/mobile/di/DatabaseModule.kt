@@ -8,6 +8,7 @@ import androidx.room.Room
 import com.cuso.mobile.database.AppDatabase
 import com.cuso.mobile.database.dao.OrganizationDao
 import com.cuso.mobile.database.dao.SettingsDao
+import com.cuso.mobile.database.dao.TokensDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -40,4 +41,6 @@ object DatabaseModule {
     fun provideLoginRepository(db: AppDatabase): LoginRepository {
         return LoginRepository(db)
     }
+    @Provides
+    fun provideTokensDao(db: AppDatabase): TokensDao = db.tokensDao()
 }

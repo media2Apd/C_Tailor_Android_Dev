@@ -58,7 +58,7 @@
 
 
     @Composable
-    fun cardContentsLoginScreen(navController: NavController,
+    fun CardContentsLoginScreen(navController: NavController,
                                 activity: Activity,
                                 authViewModel: Authenticate,
                                 prefilledEmail:String="")
@@ -362,7 +362,7 @@
             Spacer(Modifier.height(20.dp))
 
             Row() {
-                continueGoogle(activity,navController)
+                ContinueGoogle(activity,navController)
             }
         }
     }

@@ -1,8 +1,10 @@
 package com.cuso.mobile.view.composable
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Checkbox
@@ -19,9 +21,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 
-
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun termsCheckbox(navController: NavController,
+fun TermsCheckbox(navController: NavController,
                   onCheckedChange:(Boolean)->Unit
 ) {
 
@@ -29,8 +31,10 @@ fun termsCheckbox(navController: NavController,
     var checked by remember { mutableStateOf(false) }
 
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(8.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
 
         Checkbox(

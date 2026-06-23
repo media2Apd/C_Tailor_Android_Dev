@@ -1,7 +1,6 @@
 // LeadModels.kt
 package com.cuso.mobile.model
 
-import com.google.gson.annotations.SerializedName
 
 // In CreateLeadFormRequest.kt - Add occasion field
 

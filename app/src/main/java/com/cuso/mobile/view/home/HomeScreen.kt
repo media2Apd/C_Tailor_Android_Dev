@@ -96,17 +96,17 @@ data class LeadItem(
     val value: Float
 )
 
-data class LeadListItem(
-    val id: String,
-    val customerName: String,
-    val enquiryType: String,
-    val garments: String,
-    val qty: String,
-    val budgetRange: String,
-    val requiredDate: String,
-    val source: String,
-    val status: String
-)
+//data class LeadListItem(
+//    val id: String,
+//    val customerName: String,
+//    val enquiryType: String,
+//    val garments: String,
+//    val qty: String,
+//    val budgetRange: String,
+//    val requiredDate: String,
+//    val source: String,
+//    val status: String
+//)
 
 data class ControlItem(
     val controls: String
@@ -727,7 +727,7 @@ fun LeadScreenContent(
     val isLoading by salesViewModel.isLoadingTableLeads.collectAsStateWithLifecycle()
     val tableError by salesViewModel.tableError.collectAsStateWithLifecycle()
 
-    val salesStatuses by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
+//    val salesStatuses by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
     val deleteState by salesViewModel.deleteState.collectAsStateWithLifecycle()
     val updateState by salesViewModel.updateState.collectAsStateWithLifecycle()
 
@@ -2114,15 +2114,15 @@ fun EditLeadScreen(onBack: () -> Unit) {
         }
     }
 }
-@Composable
-fun ViewField(label: String, value: String) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Text(label, fontSize = 12.sp, color = Color(0xFF9CA3AF), fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(2.dp))
-        Text(value, fontSize = 14.sp, color = Color(0xFF111827), fontWeight = FontWeight.Medium)
-    }
-    HorizontalDivider(color = Color(0xFFF5F5F5), modifier = Modifier.padding(top = 6.dp))
-}
+//@Composable
+//fun ViewField(label: String, value: String) {
+//    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+//        Text(label, fontSize = 12.sp, color = Color(0xFF9CA3AF), fontWeight = FontWeight.Medium)
+//        Spacer(Modifier.height(2.dp))
+//        Text(value, fontSize = 14.sp, color = Color(0xFF111827), fontWeight = FontWeight.Medium)
+//    }
+//    HorizontalDivider(color = Color(0xFFF5F5F5), modifier = Modifier.padding(top = 6.dp))
+//}
 
 // "2026-03-31T00:00:00.000Z" or "2026-03-31" → "31-03-2026"
 fun formatLeadDate(raw: String): String {
@@ -2866,14 +2866,14 @@ fun String.toIsoDate(): String {
     } catch (e: Exception) { "" }
 }
 
-// Add this helper at the bottom of the file
-fun mapLeadStatusToApiCode(displayStatus: String): String {
-    return when (displayStatus) {
-        "New Enquiry"        -> "NEW"
-        "Quoted"             -> "QUOTED"
-        "Follow-up Pending"  -> "FOLLOW_UP"
-        "Converted to Order" -> "CONVERTED"
-        "Lost Enquiry"       -> "LOST"
-        else                 -> displayStatus
-    }
-}
+//// Add this helper at the bottom of the file
+//fun mapLeadStatusToApiCode(displayStatus: String): String {
+//    return when (displayStatus) {
+//        "New Enquiry"        -> "NEW"
+//        "Quoted"             -> "QUOTED"
+//        "Follow-up Pending"  -> "FOLLOW_UP"
+//        "Converted to Order" -> "CONVERTED"
+//        "Lost Enquiry"       -> "LOST"
+//        else                 -> displayStatus
+//    }
+//}

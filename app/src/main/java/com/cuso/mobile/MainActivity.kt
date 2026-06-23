@@ -19,14 +19,12 @@ import com.cuso.mobile.ui.theme.CusoTailorTheme
 import com.cuso.mobile.view.forgot_password.ForgotPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
 import com.cuso.mobile.view.forgot_password.VerifyForgotPassword
-import com.cuso.mobile.view.home.CreateLeadScreen
 import com.cuso.mobile.view.login.LoginOtpScreen
 import com.cuso.mobile.view.login.LoginScreen
 import com.cuso.mobile.view.organization.OrganizationProfile
 import com.cuso.mobile.view.others.privacyPolicy
 import com.cuso.mobile.view.others.termsConditions
 import com.cuso.mobile.view.home.HomeScreen
-import com.cuso.mobile.view.home.LeadScreenContent
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
 import dagger.hilt.android.AndroidEntryPoint

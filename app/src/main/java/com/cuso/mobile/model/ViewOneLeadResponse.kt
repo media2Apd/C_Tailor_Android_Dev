@@ -49,12 +49,12 @@ data class PersonData(
     val dob: String
 )
 
-data class ContactData(
-    val address: String,
-    val area: String,
-    val city: String,
-    val preferredContactMethod: String
-)
+//data class ContactData(
+//    val address: String,
+//    val area: String,
+//    val city: String,
+//    val preferredContactMethod: String
+//)
 
 data class BudgetRangeData(
     val min: Int,

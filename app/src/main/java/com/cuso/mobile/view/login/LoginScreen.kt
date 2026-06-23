@@ -55,7 +55,7 @@ fun LoginScreen(activity: Activity,
     var showExitDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     var showBanner by remember { mutableStateOf(false) }
-    var snackbarMessage by remember { mutableStateOf<String?>(null) }
+//    var snackbarMessage by remember { mutableStateOf<String?>(null) }
 
 
 

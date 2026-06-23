@@ -124,12 +124,11 @@ fun LoginScreen(activity: Activity,
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.White)
-                    .padding(padding)
+
                     // ✅ Scrolls instead of clipping fields on short screens, and
                     // pushes content above the keyboard instead of letting it
                     // cover the password field.
-                    .verticalScroll(rememberScrollState())
-                    .imePadding(),
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -139,7 +138,6 @@ fun LoginScreen(activity: Activity,
                 Spacer(modifier = Modifier.height(10.dp))
                 Card(
                     modifier = Modifier
-                        .padding(20.dp)
                         .border(
                             width = 2.dp,
                             color = Color.White,

@@ -1,6 +1,5 @@
 package com.cuso.mobile.repository
 
-import RetrofitClient.apiService
 import android.util.Log
 import com.cuso.mobile.model.EmailResponse
 import com.cuso.mobile.model.EmailVerify
@@ -29,15 +28,18 @@ import com.cuso.mobile.model.organizationSetUpRequest
 import com.cuso.mobile.model.organizationSetUpResponse
 import com.cuso.mobile.model.resetNewPasswordRequest
 import com.cuso.mobile.model.resetNewPasswordResponse
+import com.cuso.mobile.network.ApiService
 import com.google.gson.Gson
 import org.json.JSONObject
 import javax.inject.Inject
 
-class AuthRepository @Inject constructor() {
+class AuthRepository @Inject constructor(
+    private val api: ApiService,
+) {
 
     suspend fun login(email: String, password: String): Result<PasswordResponse> {
         return try {
-            val response =apiService.verifyPassword(
+            val response =api.verifyPassword(
                 PasswordVerify(email, password)
             )
             if (response.isSuccessful && response.body() != null) {
@@ -51,26 +53,26 @@ class AuthRepository @Inject constructor() {
     }
 
     suspend fun getMe(token: String): Result<meResponse> = try {
-        val res = apiService.getMe(token)
+        val res = api.getMe(token)
         if (res.isSuccessful && res.body() != null) Result.success(res.body()!!)
         else Result.failure(Exception(res.message()))
     } catch (e: Exception) { Result.failure(e) }
 
     suspend fun getMyOrganization(token: String): Result<myOrganizationResponse> = try {
-        val res = apiService.getMyOrganization(token)
+        val res = api.getMyOrganization(token)
         if (res.isSuccessful && res.body() != null) Result.success(res.body()!!)
         else Result.failure(Exception(res.message()))
     } catch (e: Exception) { Result.failure(e) }
 
     suspend fun getMyLayout(token: String): Result<myLayoutResponse> = try {
-        val res = apiService.getMyLayout(token)
+        val res = api.getMyLayout(token)
         if (res.isSuccessful && res.body() != null) Result.success(res.body()!!)
         else Result.failure(Exception(res.message()))
     } catch (e: Exception) { Result.failure(e) }
     // Create Account
     suspend fun createAccount(request: SignupRequest): Result<SignupResponse> {
         return try {
-            val response = apiService.signup(request)
+            val response = api.signup(request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
@@ -85,7 +87,7 @@ class AuthRepository @Inject constructor() {
 
     suspend fun verifyEmail(email: String): Result<EmailResponse> {
         return try {
-            val response = apiService.verifyEmail(
+            val response = api.verifyEmail(
                 EmailVerify(email)
             )
 
@@ -113,7 +115,7 @@ class AuthRepository @Inject constructor() {
         request: organizationSetUpRequest
     ): Result<organizationSetUpResponse> {
         return try {
-            val response = apiService.organizationSetUp(token, csrfToken, request)
+            val response = api.organizationSetUp(token, csrfToken, request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
@@ -132,7 +134,7 @@ class AuthRepository @Inject constructor() {
     suspend fun sendOtp(email: String): Result<otpSendResponse> {
         return try {
 
-            val response = apiService.otpSend(
+            val response = api.otpSend(
                 otpSendRequest(email)
             )
 
@@ -153,7 +155,7 @@ class AuthRepository @Inject constructor() {
     suspend fun verifyOtp(email: String,otp:String): Result<otpVerifyResponse> {
         return try {
 
-            val response = apiService.verifyOtp(
+            val response = api.verifyOtp(
                 otpVerifyRequest(email, otp)
             )
 
@@ -172,7 +174,7 @@ class AuthRepository @Inject constructor() {
     //otp verify for register
     suspend fun registerVerifyOtp(email: String, otp: String): Result<RegisterVerifyOtpResponse> {
         return try {
-            val response = apiService.signupVerifyOtp(
+            val response = api.signupVerifyOtp(
                 RegisterVerifyOtp(email, otp)
             )
 
@@ -190,7 +192,7 @@ class AuthRepository @Inject constructor() {
 
     suspend fun forgotPassword(email: String): Result<forgotPasswordResponse> {
         return try {
-            val response = apiService.forgotPassword(
+            val response = api.forgotPassword(
                 forgotPasswordRequest(email)
             )
             if (response.isSuccessful && response.body() != null) {
@@ -211,7 +213,7 @@ class AuthRepository @Inject constructor() {
 
     suspend fun verifyForgotPasswordOtp(email: String, otp: String): Result<forgotPasswordVerifyResponse> {
         return try {
-            val response = apiService.forgotPasswordVerify(
+            val response = api.forgotPasswordVerify(
                 forgotPasswordVerifyRequest(email, otp)
             )
             if (response.isSuccessful && response.body() != null) {
@@ -230,7 +232,7 @@ class AuthRepository @Inject constructor() {
 
     suspend fun resetNewPassword(token: String, newPassword: String, confirmPassword: String): Result<resetNewPasswordResponse> {
         return try {
-            val response = apiService.resetNewPassword(
+            val response = api.resetNewPassword(
                 resetNewPasswordRequest(
                     token = token,
                     newPassword = newPassword,
@@ -253,7 +255,7 @@ class AuthRepository @Inject constructor() {
 
     suspend fun googleLogin(idToken: String): GoogleLoginResult {
         return try {
-            val response = apiService.googleLogin(GoogleLoginRequest(idToken))
+            val response = api.googleLogin(GoogleLoginRequest(idToken))
             if (response.isSuccessful && response.body() != null) {
                 val json = response.body()!!
                 if (json.has("requiresRegistration")) {

@@ -2,6 +2,7 @@ package com.cuso.mobile.view.composable
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,11 +24,10 @@ import androidx.navigation.NavController
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun TermsCheckbox(navController: NavController,
-                  onCheckedChange:(Boolean)->Unit
+fun TermsCheckbox(
+    navController: NavController,
+    onCheckedChange: (Boolean) -> Unit
 ) {
-
-
     var checked by remember { mutableStateOf(false) }
 
     Row(
@@ -36,11 +36,12 @@ fun TermsCheckbox(navController: NavController,
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-
         Checkbox(
             checked = checked,
-            onCheckedChange = { checked = it
-                              onCheckedChange(it)},
+            onCheckedChange = {
+                checked = it
+                onCheckedChange(it)
+            },
             colors = CheckboxDefaults.colors(
                 checkedColor = Color.Blue,
                 uncheckedColor = Color.Gray,
@@ -52,30 +53,21 @@ fun TermsCheckbox(navController: NavController,
 
         Spacer(modifier = Modifier.width(6.dp))
 
-        Text(
-            text = "I agree to ",
-            color = Color.Black
-        )
-
-        Text(
-            text = "Terms of Service",
-            color = Color.Blue,
-            modifier = Modifier.clickable {
-                navController.navigate("terms")
-            }
-        )
-
-        Text(
-            text = " and ",
-            color = Color.Black
-        )
-
-        Text(
-            text = "Privacy Policy",
-            color = Color.Blue,
-            modifier = Modifier.clickable {
-                navController.navigate("privacy")
-            }
-        )
+        // FlowRow wraps its children onto the next line when they don't fit,
+        // so "Privacy Policy" won't get clipped on narrow screens.
+        FlowRow(modifier = Modifier.weight(1f)) {
+            Text(text = "I agree to ", color = Color.Black)
+            Text(
+                text = "Terms of Service",
+                color = Color.Blue,
+                modifier = Modifier.clickable { navController.navigate("terms") }
+            )
+            Text(text = " and ", color = Color.Black)
+            Text(
+                text = "Privacy Policy",
+                color = Color.Blue,
+                modifier = Modifier.clickable { navController.navigate("privacy") }
+            )
+        }
     }
 }

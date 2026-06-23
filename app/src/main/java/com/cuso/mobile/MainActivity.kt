@@ -5,9 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -21,19 +19,21 @@ import com.cuso.mobile.ui.theme.CusoTailorTheme
 import com.cuso.mobile.view.forgot_password.ForgotPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
 import com.cuso.mobile.view.forgot_password.VerifyForgotPassword
+import com.cuso.mobile.view.home.CreateLeadScreen
 import com.cuso.mobile.view.login.LoginOtpScreen
 import com.cuso.mobile.view.login.LoginScreen
 import com.cuso.mobile.view.organization.OrganizationProfile
 import com.cuso.mobile.view.others.privacyPolicy
 import com.cuso.mobile.view.others.termsConditions
 import com.cuso.mobile.view.home.HomeScreen
+import com.cuso.mobile.view.home.LeadScreenContent
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-
+    @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -41,14 +41,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CusoTailorTheme {
+                // ✅ No innerPadding applied anywhere — each screen (HomeScreen, login, etc.)
+                // is responsible for its own .statusBarsPadding() / .navigationBarsPadding()
+                // where needed, since we're edge-to-edge.
                 Scaffold(
                     modifier = Modifier.fillMaxSize()
-                ) { innerPadding ->
+                ) { _ ->
+                    val navController=rememberNavController()
+                    AppNav(activity = this)
+//                    CreateLeadScreen(onBack = {
+//                    })
 
-                    AppNav(
-                        activity = this,
-                        innerPadding = innerPadding
-                    )
                 }
             }
         }
@@ -57,8 +60,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppNav(
-    activity: Activity,
-    innerPadding: PaddingValues
+    activity: Activity
 ) {
 
     val navController = rememberNavController()
@@ -67,7 +69,7 @@ fun AppNav(
     NavHost(
         navController = navController,
         startDestination = "login",
-        modifier = Modifier.padding(innerPadding)
+        modifier = Modifier.fillMaxSize()
     ) {
 
         composable(

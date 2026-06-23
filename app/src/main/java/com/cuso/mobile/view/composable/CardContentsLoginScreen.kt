@@ -50,6 +50,7 @@
     import androidx.compose.ui.text.input.PasswordVisualTransformation
     import androidx.compose.ui.text.input.VisualTransformation
     import androidx.compose.ui.text.style.TextDecoration
+    import androidx.compose.ui.text.style.TextOverflow
     import androidx.compose.ui.unit.dp
     import androidx.compose.ui.unit.sp
     import androidx.navigation.NavController
@@ -201,7 +202,9 @@
                                 text = submittedEmail,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.Black
+                                color = Color.Black,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
@@ -341,23 +344,27 @@
             Spacer(Modifier.height(20.dp))
 
             Row(
-                Modifier,
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 HorizontalDivider(
-                    Modifier.width(200.dp),
-                    DividerDefaults.Thickness,
+                    modifier = Modifier.weight(1f),  // takes equal remaining space
+                    thickness = DividerDefaults.Thickness,
                     color = Color.Gray
                 )
 
-                Text("Or", Modifier, color = Color.Gray)
+                Text(
+                    text = "Or",
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    color = Color.Gray
+                )
+
                 HorizontalDivider(
-                    Modifier.width(200.dp),
-                    DividerDefaults.Thickness,
+                    modifier = Modifier.weight(1f),  // takes equal remaining space
+                    thickness = DividerDefaults.Thickness,
                     color = Color.Gray
                 )
-
             }
             Spacer(Modifier.height(20.dp))
 

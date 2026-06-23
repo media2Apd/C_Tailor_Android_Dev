@@ -39,141 +39,172 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Popup
-@Composable
-fun LoginOtpInput(
-    otpLength: Int = 6,
-    activity: Activity,
-    onOtpComplete: (String) -> Unit
-) {
-    var textFieldValue by remember { mutableStateOf(TextFieldValue("")) }
-    val focusRequester = remember { FocusRequester() }
-    var showPastePopup by remember { mutableStateOf(false) }
-    var longPressOffset by remember { mutableStateOf(Offset.Zero) }
-    val context = LocalContext.current
-    val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.platform.LocalClipboardManager
+    import androidx.compose.ui.unit.DpOffset
 
-    Box(
-        modifier = Modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
+
+
+    @Composable
+    fun LoginOtpInput(
+        otpLength: Int = 6,
+        activity: Activity,
+        onOtpComplete: (String) -> Unit
     ) {
-        BasicTextField(
-            value = textFieldValue,
-            onValueChange = { newValue ->
-                val digits = newValue.text.filter { it.isDigit() }.take(otpLength)
-                textFieldValue = TextFieldValue(
-                    text = digits,
-                    selection = TextRange(digits.length)
-                )
-                if (digits.length == otpLength) onOtpComplete(digits)
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            modifier = Modifier
-                .focusRequester(focusRequester)
-                .fillMaxWidth()
-                .height(55.dp)
-                .alpha(0f),
-            decorationBox = { it() }
-        )
+        var textFieldValue by remember { mutableStateOf(TextFieldValue("")) }
+        val focusRequester = remember { FocusRequester() }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            repeat(otpLength) { index ->
-                val char = textFieldValue.text.getOrNull(index)?.toString() ?: ""
-                val isFocused = textFieldValue.text.length == index
+        // ✅ Use Compose's ClipboardManager — works across all API levels
+        val clipboardManager = LocalClipboardManager.current
 
-                Box(
+        // ✅ Controls the native-style DropdownMenu (closest to system toolbar)
+        var showPasteMenu by remember { mutableStateOf(false) }
+
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            BasicTextField(
+                value = textFieldValue,
+                onValueChange = { newValue ->
+                    val digits = newValue.text.filter { it.isDigit() }.take(otpLength)
+                    textFieldValue = TextFieldValue(
+                        text = digits,
+                        selection = TextRange(digits.length)
+                    )
+                    if (digits.length == otpLength) onOtpComplete(digits)
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                modifier = Modifier
+                    .focusRequester(focusRequester)
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .alpha(0.0001f),
+                decorationBox = { it() }
+            )
+
+            // ✅ Anchor Box — DropdownMenu is attached here so it appears
+            // above the OTP row, just like the system toolbar would.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentSize(Alignment.TopStart)
+            ) {
+                Row(
                     modifier = Modifier
-                        .width(55.dp)
-                        .height(55.dp)
-                        .border(
-                            width = if (isFocused) 2.dp else 1.5.dp,
-                            color = when {
-                                isFocused -> Color.Blue
-                                char.isNotEmpty() -> Color(0xFF4CAF50)
-                                else -> Color.Gray
-                            },
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .background(Color.White, RoundedCornerShape(8.dp))
+                        .fillMaxWidth()
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onTap = {
-                                    showPastePopup = false
+                                    showPasteMenu = false
                                     focusRequester.requestFocus()
                                 },
-                                onLongPress = { offset ->
-                                    longPressOffset = offset
-                                    showPastePopup = true
+                                onLongPress = {
                                     focusRequester.requestFocus()
+                                    // Only show paste menu if clipboard has content
+                                    if (clipboardManager.getText() != null) {
+                                        showPasteMenu = true
+                                    }
                                 }
                             )
                         },
-                    contentAlignment = Alignment.Center
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    Text(
-                        text = char,
-                        style = TextStyle(
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black,
-                            textAlign = TextAlign.Center
-                        )
-                    )
+                    repeat(otpLength) { index ->
+                        val char = textFieldValue.text.getOrNull(index)?.toString() ?: ""
+                        val isFocused = textFieldValue.text.length == index
 
-                    // paste popup on first box only
-                    if (index == 0 && showPastePopup) {
-                        Box(modifier = Modifier.align(Alignment.TopCenter)) {
-                            Popup(
-                                alignment = Alignment.TopCenter,
-                                offset = IntOffset(0, -110),
-                                onDismissRequest = { showPastePopup = false }
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .background(
-                                            Color.White,
-                                            RoundedCornerShape(6.dp)
-                                        )
-                                        .clickable {
-                                            val clip = clipboardManager.primaryClip
-                                                ?.getItemAt(0)?.text?.toString() ?: ""
-                                            val digits = clip
-                                                .filter { it.isDigit() }
-                                                .take(otpLength)
-                                            if (digits.isNotEmpty()) {
-                                                textFieldValue = TextFieldValue(
-                                                    text = digits,
-                                                    selection = TextRange(digits.length)
-                                                )
-                                                if (digits.length == otpLength) {
-                                                    onOtpComplete(digits)
-                                                }
-                                            }
-                                            showPastePopup = false
-                                        }
-                                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                                ) {
-                                    Text(
-                                        text = " Paste | Select All",
-                                        color = Color.Black,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .border(
+                                    width = if (isFocused) 2.dp else 1.5.dp,
+                                    color = when {
+                                        isFocused -> Color.Blue
+                                        char.isNotEmpty() -> Color(0xFF4CAF50)
+                                        else -> Color.Gray
+                                    },
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .background(Color.White, RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = char,
+                                style = TextStyle(
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black,
+                                    textAlign = TextAlign.Center
+                                )
+                            )
                         }
                     }
                 }
+
+                // ✅ Material3 DropdownMenu — renders as a floating card above
+                // the row, visually identical to the system paste toolbar.
+                DropdownMenu(
+                    expanded = showPasteMenu,
+                    onDismissRequest = { showPasteMenu = false },
+                    // Negative Y offset pops it ABOVE the row instead of below
+                    offset = DpOffset(x = 0.dp, y = (-56).dp),
+                    containerColor = Color.White,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Paste",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.Black
+                            )
+                        },
+                        onClick = {
+                            val clip = clipboardManager.getText()?.text ?: ""
+                            val digits = clip.filter { it.isDigit() }.take(otpLength)
+                            if (digits.isNotEmpty()) {
+                                textFieldValue = TextFieldValue(
+                                    text = digits,
+                                    selection = TextRange(digits.length)
+                                )
+                                if (digits.length == otpLength) onOtpComplete(digits)
+                            }
+                            showPasteMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Select All",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.Black
+                            )
+                        },
+                        onClick = {
+                            // Select all = highlight all filled boxes visually
+                            textFieldValue = textFieldValue.copy(
+                                selection = TextRange(0, textFieldValue.text.length)
+                            )
+                            showPasteMenu = false
+                        }
+                    )
+                }
             }
         }
+
+        LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
+        }
     }
-
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-    }
-
-
-}

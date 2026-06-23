@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.model.countries
 import com.cuso.mobile.model.Country
-
+import com.cuso.mobile.view.home.FormLabel
 @Composable
 fun PhoneInputField(
     phoneValue: String,
@@ -45,24 +45,21 @@ fun PhoneInputField(
     var expanded by remember { mutableStateOf(false) }
     var selectedCountry by remember {
         mutableStateOf(
-            countries.firstOrNull {
-                it.iso == "IN"
-            } ?: countries.first()
+            countries.firstOrNull { it.iso == "IN" } ?: countries.first()
         )
     }
 
     Column {
-        Text("Phone Number", Modifier, color = Color.Black)
+        FormLabel("Mobile Number")
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
-                .border(1.dp, Color.Gray, RoundedCornerShape(5.dp))
-                .background(Color.White, RoundedCornerShape(8.dp))
-                .padding(horizontal = 12.dp),
+                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))  // same as FormTextField
+                .padding(horizontal = 12.dp, vertical = 14.dp),           // same as FormTextField
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // ── Country picker ──
             Box {
                 Row(
                     modifier = Modifier
@@ -70,29 +67,46 @@ fun PhoneInputField(
                         .padding(end = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = selectedCountry.flag, fontSize = 18.sp)
-                    Icon(Icons.Default.ArrowDropDown, null, tint = Color.Gray)
-                    Box(modifier = Modifier.width(1.dp).height(50.dp).background(Color.Gray))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = selectedCountry.code, color = Color.Gray)
+                    Text(text = selectedCountry.flag, fontSize = 16.sp)
+                    Icon(
+                        Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = Color.Gray
+                    )
+                    // Thin vertical divider
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(18.dp)
+                            .background(Color(0xFFD1D5DB))
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = selectedCountry.code,
+                        color = Color(0xFF374151),
+                        fontSize = 14.sp
+                    )
                 }
 
                 DropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
-                    modifier = Modifier.height(400.dp).fillMaxWidth().background(Color.White)
+                    modifier = Modifier
+                        .height(400.dp)
+                        .background(Color.White)
                 ) {
                     countries.forEach { country ->
                         DropdownMenuItem(
                             text = {
                                 Text(
                                     "${country.flag} ${country.name} (${country.code})",
-                                    color = Color.Black
+                                    color = Color.Black,
+                                    fontSize = 14.sp
                                 )
                             },
                             onClick = {
                                 selectedCountry = country
-                                onCountryChange(country)  // ← send country to parent
+                                onCountryChange(country)
                                 expanded = false
                             }
                         )
@@ -102,21 +116,34 @@ fun PhoneInputField(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Box(modifier = Modifier.weight(1f)) {
-                BasicTextField(
-                    value = phoneValue,
-                    onValueChange = { input ->
-                        val digitsOnly = input.filter { it.isDigit() }
-                        if (digitsOnly.length <= 15) {  // ← 15 is max international length
-                            onPhoneChange(digitsOnly)
+            // ── Phone number input ──
+            BasicTextField(
+                value = phoneValue,
+                onValueChange = { input ->
+                    val digitsOnly = input.filter { it.isDigit() }
+                    if (digitsOnly.length <= 15) onPhoneChange(digitsOnly)
+                },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    color = Color(0xFF374151),
+                    fontSize = 14.sp
+                ),
+                cursorBrush = SolidColor(Color(0xFF374151)),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (phoneValue.isEmpty()) {
+                            Text(
+                                "Enter phone number",
+                                color = Color(0xFF9CA3AF),  // same placeholder gray as FormTextField
+                                fontSize = 14.sp
+                            )
                         }
-                    },
-                    singleLine = true,
-                    textStyle = LocalTextStyle.current.copy(color = Color.Black),
-                    cursorBrush = SolidColor(Color.Black),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-            }
+                        inner()
+                    }
+                }
+            )
         }
     }
 }

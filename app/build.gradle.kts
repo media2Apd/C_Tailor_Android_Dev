@@ -75,6 +75,7 @@ dependencies {
 
     // Splash (UPDATED)
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.room3.common.jvm)
 
     // Google Auth (UPDATED)
     implementation(libs.play.services.auth)

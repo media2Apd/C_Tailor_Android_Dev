@@ -65,20 +65,15 @@ fun SignUpScreen(
             // ✅ This long form (10+ fields, dropdowns, a picker) now scrolls
             // instead of relying on a Card that force-fills the screen, and
             // imePadding keeps whichever field is focused above the keyboard.
-            .verticalScroll(rememberScrollState())
-            .imePadding(),
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
         Card(
             modifier = Modifier
-                // ❌ was fillMaxSize() — that forced the card (and everything
-                // inside it) to always be exactly the screen's height, which
-                // is what clipped fields on shorter screens / with the
-                // keyboard open. fillMaxWidth() lets it size to its content.
                 .fillMaxWidth()
-                .padding(20.dp)
+                .padding()
                 .border(2.dp, Color.White, RoundedCornerShape(12.dp)),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -187,21 +182,25 @@ fun SignUpScreen(
 
 
                 Row(
-                    Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
                     HorizontalDivider(
-                        Modifier.width(190.dp),
-                        DividerDefaults.Thickness,
+                        modifier = Modifier.weight(1f),  // takes equal remaining space
+                        thickness = DividerDefaults.Thickness,
                         color = Color.Gray
                     )
 
-                    Text("Or", Modifier, color = Color.Gray)
+                    Text(
+                        text = "Or",
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        color = Color.Gray
+                    )
 
                     HorizontalDivider(
-                        Modifier.width(190.dp),
-                        DividerDefaults.Thickness,
+                        modifier = Modifier.weight(1f),  // takes equal remaining space
+                        thickness = DividerDefaults.Thickness,
                         color = Color.Gray
                     )
                 }

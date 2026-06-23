@@ -41,6 +41,7 @@ import androidx.navigation.NavController
 import com.cuso.mobile.viewmodel.Authenticate
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.text.style.TextOverflow
 
 
 @Composable
@@ -97,7 +98,9 @@ fun LoginOtpSelection(
                     text = savedEmail,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.Black
+                    color = Color.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 

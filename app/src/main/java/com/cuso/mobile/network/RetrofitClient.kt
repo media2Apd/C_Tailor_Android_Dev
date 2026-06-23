@@ -1,34 +1,55 @@
+package com.cuso.mobile.network
 
 import android.util.Log
-import com.cuso.mobile.network.ApiService
-//import com.google.firebase.appdistribution.gradle.ApiService
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import javax.inject.Singleton
 
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
 
-private val loggingInterceptor = HttpLoggingInterceptor { message ->
-    Log.d("OkHttp", message)
-}.apply {
-    level = HttpLoggingInterceptor.Level.BODY
-}
+    private const val BASE_URL = "http://192.168.0.7:5000/"
 
-val client = OkHttpClient.Builder()
-    .addInterceptor(loggingInterceptor)
-    .build()
+    @Provides
+    @Singleton
+    fun provideLoggingInterceptor(): HttpLoggingInterceptor {
+        return HttpLoggingInterceptor { message ->
+            Log.d("OkHttp", message)
+        }.apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+    }
 
-// then pass `client` into your Retrofit.Builder().client(client)...
-object RetrofitClient {
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        loggingInterceptor: HttpLoggingInterceptor
+    ): OkHttpClient {
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .build()
+    }
 
-    private const val BASE_URL = "http://192.168.0.19:5000"
-
-    val apiService: ApiService by lazy {
-        Retrofit.Builder()
+    @Provides
+    @Singleton
+    fun provideRetrofit(client: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(ApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideApiService(retrofit: Retrofit): ApiService {
+        return retrofit.create(ApiService::class.java)
     }
 }

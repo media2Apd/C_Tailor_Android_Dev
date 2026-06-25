@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Allow cleartext traffic for development -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">YOUR_API_DOMAIN</domain>
+    </domain-config>
+
+    <!-- OR for all domains during development -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

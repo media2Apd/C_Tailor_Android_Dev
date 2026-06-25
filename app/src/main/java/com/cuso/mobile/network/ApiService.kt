@@ -1,8 +1,13 @@
 package com.cuso.mobile.network
 
+import AddGarmentRequest
+import AddOrgGarmentResponse
 import GarmentCategoriesResponse
+import OrgGarmentResponse
+import RemoveOrgGarmentResponse
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
+import com.cuso.mobile.model.DeleteLeadResponse
 import com.cuso.mobile.model.EmailResponse
 import com.cuso.mobile.model.EmailVerify
 import com.cuso.mobile.model.GoogleLoginRequest
@@ -40,12 +45,14 @@ import com.google.gson.JsonObject
 import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
+import retrofit2.http.PartMap
 import retrofit2.http.Path
 
 interface ApiService {
@@ -138,11 +145,7 @@ interface ApiService {
     ): Response<SalesResponse>
 
     // Rename the function to reflect what it actually does
-    @GET("/api/org-garments/view-all")
-    suspend fun getOrgGarments(
-        @Header("Authorization") token: String,
-        @Header("X-CSRF-Token") csrfToken: String
-    ): Response<GarmentCategoriesResponse>  // ← Correct response type
+
 
     @GET("/api/sales-leads/view-all?page=1&limit=10")  // Use the correct path
     suspend fun getSalesLeads(
@@ -163,6 +166,7 @@ interface ApiService {
         @Header("X-CSRF-Token")  csrfToken: String,
         @Path("id") id: String
     ): Response<ViewOneLeadResponse>
+
 
     @Multipart
     @PUT("/api/sales-leads/update-one/{id}")
@@ -185,22 +189,30 @@ interface ApiService {
         @Part("appointment[isRequired]") appointmentIsRequired: RequestBody,
         @Part("notes[0][message]") noteMessage: RequestBody,
         @Part("notes[0][type]") noteType: RequestBody,
-        // ✅ Add missing fields
         @Part("person[gender]") personGender: RequestBody,
         @Part("person[dob]") personDob: RequestBody,
         @Part("contact[address]") contactAddress: RequestBody,
         @Part("contact[area]") contactArea: RequestBody,
         @Part("contact[city]") contactCity: RequestBody,
         @Part("contact[preferredContactMethod]") contactPreferredContactMethod: RequestBody,
-        // ✅ Multiple garment categories as separate parts
+        // ✅ All garment categories are nullable - skip if not present
         @Part("garmentCategory[0]") garmentCategory0: RequestBody? = null,
         @Part("garmentCategory[1]") garmentCategory1: RequestBody? = null,
-        // ✅ Add notes fields for internal and customer notes
+        @Part("garmentCategory[2]") garmentCategory2: RequestBody? = null,
+        @Part("garmentCategory[3]") garmentCategory3: RequestBody? = null,
+        @Part("garmentCategory[4]") garmentCategory4: RequestBody? = null,
         @Part("notes[1][message]") noteMessage1: RequestBody? = null,
         @Part("notes[1][type]") noteType1: RequestBody? = null,
     ): Response<UpdateLeadResponse>
 
+    // In ApiService.kt
 
+    @DELETE("/api/sales-leads/delete-one/{id}")
+    suspend fun deleteLead(
+        @Header("Authorization") accessToken: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<DeleteLeadResponse>
 
 
     @GET("/api/members/dropdown-filter")    // your actual endpoint
@@ -214,4 +226,32 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<LeadsTableResponse>
+
+    // In your API service interface
+    @GET("/api/org-garments/view-all")
+    suspend fun getOrgGarments(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<GarmentCategoriesResponse>  // ← Correct response type
+
+    @GET("/api/common/categories/view-all") // Update with your actual endpoint
+    suspend fun getOrgGarmentCommonCategories(
+        @Header("Authorization") accessToken: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<OrgGarmentResponse>
+
+    @POST("/api/org-garments/add") // Update with your actual endpoint
+    suspend fun addOrgGarmentCategory(
+        @Header("Authorization") accessToken: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: AddGarmentRequest
+    ): Response<AddOrgGarmentResponse>
+
+    @DELETE("/api/org-garments/remove/{categoryId}") // Update with your actual endpoint
+    suspend fun removeOrgGarmentCategory(
+        @Header("Authorization") accessToken: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("categoryId") categoryId: String
+    ): Response<RemoveOrgGarmentResponse>
+
 }

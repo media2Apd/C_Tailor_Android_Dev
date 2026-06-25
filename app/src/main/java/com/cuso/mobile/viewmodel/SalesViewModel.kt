@@ -2,6 +2,9 @@
 
 package com.cuso.mobile.viewmodel
 
+import AddOrgGarmentResponse
+import OrgGarmentCategory
+import RemoveOrgGarmentResponse
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.database.entities.LeadEntity
@@ -32,6 +35,30 @@ private const val TAG = "SalesViewModel"
 class SalesViewModel @Inject constructor(
     private val repository: SalesRepository
 ) : ViewModel() {
+
+    // ── Org Garment Categories ──
+    private val _orgGarmentCategories = MutableStateFlow<List<OrgGarmentCategory>>(emptyList())
+    val orgGarmentCategories: StateFlow<List<OrgGarmentCategory>> = _orgGarmentCategories.asStateFlow()
+
+    private val _isLoadingOrgGarments = MutableStateFlow(false)
+    val isLoadingOrgGarments: StateFlow<Boolean> = _isLoadingOrgGarments.asStateFlow()
+
+    private val _orgGarmentError = MutableStateFlow<String?>(null)
+    val orgGarmentError: StateFlow<String?> = _orgGarmentError.asStateFlow()
+
+    // ── Add Garment State ──
+    private val _addGarmentState = MutableStateFlow<SaleState<AddOrgGarmentResponse>>(SaleState.Idle)
+    val addGarmentState: StateFlow<SaleState<AddOrgGarmentResponse>> = _addGarmentState.asStateFlow()
+
+    private val _isAddingGarment = MutableStateFlow(false)
+    val isAddingGarment: StateFlow<Boolean> = _isAddingGarment.asStateFlow()
+
+    // ── Remove Garment State ──
+    private val _removeGarmentState = MutableStateFlow<SaleState<RemoveOrgGarmentResponse>>(SaleState.Idle)
+    val removeGarmentState: StateFlow<SaleState<RemoveOrgGarmentResponse>> = _removeGarmentState.asStateFlow()
+
+    private val _isRemovingGarment = MutableStateFlow(false)
+    val isRemovingGarment: StateFlow<Boolean> = _isRemovingGarment.asStateFlow()
 
     // ── Fetch state ──
     private val _fetchState = MutableStateFlow<SaleState<Unit>>(SaleState.Idle)
@@ -193,10 +220,6 @@ class SalesViewModel @Inject constructor(
         _selectedLead.value = null
     }
 
-    /**
-     * Fetch full lead details from API using getViewOne endpoint
-     * Called when user clicks Edit or View - data stays in memory, not saved to Room
-     */
     fun fetchLeadDetails(leadId: String, onComplete: (Boolean) -> Unit) {
         if (isFetchingLeadDetails) {
             Log.d(TAG, "⏳ Already fetching lead details, skipping duplicate call for ID: $leadId")
@@ -232,9 +255,6 @@ class SalesViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Convert API response to LeadEntity for UI - NO Room save
-     */
     private fun convertToLeadEntity(data: ViewOneLeadData): LeadEntity {
         fun extractGarmentIds(garments: List<String>?): String {
             return garments?.joinToString(",") ?: ""
@@ -254,7 +274,7 @@ class SalesViewModel @Inject constructor(
             email = data.person?.email ?: "",
             gender = data.person?.gender ?: "",
             dob = data.person?.dob ?: "",
-            address = "",  // Not in ViewOne response - will be empty
+            address = "",
             area = "",
             city = "",
             preferredContactMethod = "",
@@ -263,7 +283,7 @@ class SalesViewModel @Inject constructor(
             budgetMin = data.budgetRange?.min ?: 0,
             budgetMax = data.budgetRange?.max ?: 0,
             occasion = data.occasion ?: "",
-            garments = extractGarmentIds(data.garmentCategory), // Store as comma-separated IDs
+            garments = extractGarmentIds(data.garmentCategory),
             enquiryDate = data.enquiryDate,
             requiredDate = data.requiredDate ?: "",
             source = data.source,
@@ -300,9 +320,6 @@ class SalesViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Update lead directly using the ID from getViewOne response
-     */
     fun updateLeadById(leadId: String, request: CreateLeadFormRequest) {
         viewModelScope.launch {
             _updateState.value = SaleState.Loading
@@ -330,13 +347,90 @@ class SalesViewModel @Inject constructor(
         viewModelScope.launch {
             _deleteState.value = SaleState.Loading
             try {
-                repository.deleteLead(id)
-                _deleteState.value = SaleState.Success(Unit)
-                fetchTableLeads()
+                val result = repository.deleteLead(id)
+                result.onSuccess {
+                    _deleteState.value = SaleState.Success(Unit)
+                    fetchTableLeads()
+                }.onFailure { error ->
+                    _deleteState.value = SaleState.Error(error.message ?: "Delete failed")
+                }
             } catch (e: Exception) {
                 _deleteState.value = SaleState.Error(e.message ?: "Delete failed")
             }
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Org Garment Categories Functions
+    // ─────────────────────────────────────────────────────────────
+
+    fun fetchOrgGarmentCategories() {
+        viewModelScope.launch {
+            _isLoadingOrgGarments.value = true
+            _orgGarmentError.value = null
+
+            val result = repository.fetchOrgGarmentCategories()
+            result.onSuccess { categories ->
+                _orgGarmentCategories.value = categories
+            }.onFailure { error ->
+                _orgGarmentError.value = error.message
+                Log.e(TAG, "Error fetching org garment categories: ${error.message}")
+            }
+
+            _isLoadingOrgGarments.value = false
+        }
+    }
+
+    fun addOrgGarmentCategory(categoryId: String) {
+        viewModelScope.launch {
+            _isAddingGarment.value = true
+            _addGarmentState.value = SaleState.Loading
+
+            val result = repository.addOrgGarmentCategory(categoryId)
+            result.onSuccess { response ->
+                if (response.success) {
+                    _addGarmentState.value = SaleState.Success(response)
+                    fetchOrgGarmentCategories()
+                } else {
+                    _addGarmentState.value = SaleState.Error("Failed to add category")
+                }
+            }.onFailure { error ->
+                _addGarmentState.value = SaleState.Error(error.message ?: "Unknown error")
+                Log.e(TAG, "Error adding garment category: ${error.message}")
+            }
+
+            _isAddingGarment.value = false
+        }
+    }
+
+    fun removeOrgGarmentCategory(categoryId: String) {
+        viewModelScope.launch {
+            _isRemovingGarment.value = true
+            _removeGarmentState.value = SaleState.Loading
+
+            val result = repository.removeOrgGarmentCategory(categoryId)
+            result.onSuccess { response ->
+                if (response.success) {
+                    _removeGarmentState.value = SaleState.Success(response)
+                    fetchOrgGarmentCategories()
+                } else {
+                    _removeGarmentState.value = SaleState.Error("Failed to remove category")
+                }
+            }.onFailure { error ->
+                _removeGarmentState.value = SaleState.Error(error.message ?: "Unknown error")
+                Log.e(TAG, "Error removing garment category: ${error.message}")
+            }
+
+            _isRemovingGarment.value = false
+        }
+    }
+
+    fun resetAddGarmentState() {
+        _addGarmentState.value = SaleState.Idle
+    }
+
+    fun resetRemoveGarmentState() {
+        _removeGarmentState.value = SaleState.Idle
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -345,13 +439,12 @@ class SalesViewModel @Inject constructor(
 
     fun fetchGarmentCategories() {
         viewModelScope.launch {
-            repository.fetchGarmentCategories()
-                .onSuccess { categories ->
-                    _garmentCategories.value = categories
-                }
-                .onFailure { error ->
-                    Log.e(TAG, "Error fetching garment categories: ${error.message}")
-                }
+            val result = repository.fetchGarmentCategories()
+            result.onSuccess { categories ->
+                _garmentCategories.value = categories
+            }.onFailure { error ->
+                Log.e(TAG, "Error fetching garment categories: ${error.message}")
+            }
         }
     }
 

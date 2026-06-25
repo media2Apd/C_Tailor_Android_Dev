@@ -2,6 +2,10 @@
 
 package com.cuso.mobile.repository
 
+import AddGarmentRequest
+import AddOrgGarmentResponse
+import OrgGarmentCategory
+import RemoveOrgGarmentResponse
 import com.cuso.mobile.database.dao.LeadDao
 import com.cuso.mobile.database.dao.SalesStatusDao
 import com.cuso.mobile.database.dao.SalesSummaryDao
@@ -133,7 +137,7 @@ class SalesRepository @Inject constructor(
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = api.getViewOne(accessToken, csrfToken, id)
             if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!.data._id)  // ✅ FIXED: Use _id
+                Result.success(response.body()!!.data._id)
             } else {
                 Result.failure(Exception("Failed to get lead ID: ${response.code()}"))
             }
@@ -160,12 +164,31 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    suspend fun deleteLead(id: String) {
-        leadDao.deleteById(id)
-    }
+    // ✅ Updated deleteLead with API call
+    suspend fun deleteLead(id: String): Result<Unit> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.deleteLead(accessToken, csrfToken, id)
 
-    // ✅ Updated updateLead to handle multiple garment categories
-// In SalesRepository.kt
+            // Check if response is successful and body indicates success
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && body.success) {
+                    // Also delete from local Room database
+                    leadDao.deleteById(id)
+                    Result.success(Unit)
+                } else {
+                    val errorMsg = body?.message ?: "Delete operation failed"
+                    Result.failure(Exception(errorMsg))
+                }
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Result.failure(Exception(errorBody ?: "Failed to delete lead: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     suspend fun updateLead(id: String, request: CreateLeadFormRequest): Response<UpdateLeadResponse> {
         val (accessToken, csrfToken) = getAuthHeaders()
@@ -173,10 +196,10 @@ class SalesRepository @Inject constructor(
         fun String.asRequestBody(): RequestBody =
             this.toRequestBody("text/plain".toMediaTypeOrNull())
 
-        // ✅ Filter out empty strings
+        // ✅ Filter out empty garment IDs
         val validGarments = request.garments.filter { it.isNotBlank() }
 
-        // ✅ Prepare notes - internal and customer
+        // ✅ Get notes
         val internalNote = request.notes.find { it.type == "internal" }
         val customerNote = request.notes.find { it.type == "customer" }
 
@@ -197,23 +220,25 @@ class SalesRepository @Inject constructor(
             personPhone = request.person.phone.asRequestBody(),
             personEmail = request.person.email.asRequestBody(),
             appointmentIsRequired = request.appointment.isRequired.toString().asRequestBody(),
-            // ✅ Add the missing fields
             personGender = request.person.gender.asRequestBody(),
             personDob = request.person.dob.asRequestBody(),
             contactAddress = request.contact.address.asRequestBody(),
             contactArea = request.contact.area.asRequestBody(),
             contactCity = request.contact.city.asRequestBody(),
             contactPreferredContactMethod = request.contact.preferredContactMethod.asRequestBody(),
-            // ✅ Garment categories
-            garmentCategory0 = validGarments.getOrNull(0)?.asRequestBody() ?: "".asRequestBody(),
-            garmentCategory1 = validGarments.getOrNull(1)?.asRequestBody() ?: "".asRequestBody(),
-            // ✅ Add notes - internal and customer
+            // ✅ Pass null for garment categories that don't exist
+            garmentCategory0 = validGarments.getOrNull(0)?.asRequestBody(),
+            garmentCategory1 = validGarments.getOrNull(1)?.asRequestBody(),
+            garmentCategory2 = validGarments.getOrNull(2)?.asRequestBody(),
+            garmentCategory3 = validGarments.getOrNull(3)?.asRequestBody(),
+            garmentCategory4 = validGarments.getOrNull(4)?.asRequestBody(),
             noteMessage = (internalNote?.message ?: "-").asRequestBody(),
             noteType = (internalNote?.type ?: "internal").asRequestBody(),
-            noteMessage1 = (customerNote?.message ?: "-").asRequestBody(),
-            noteType1 = (customerNote?.type ?: "customer").asRequestBody()
+            noteMessage1 = customerNote?.message?.asRequestBody(),
+            noteType1 = customerNote?.type?.asRequestBody()
         )
     }
+
     suspend fun getStaff(): Result<List<StaffDto>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -224,6 +249,64 @@ class SalesRepository @Inject constructor(
                 Result.success(data)
             } else {
                 Result.failure(Exception("Failed to fetch staff: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // In SalesRepository.kt
+
+
+
+    // In SalesRepository.kt
+
+    // com/cuso/mobile/repository/SalesRepository.kt
+
+// ──── ORG GARMENT CATEGORIES ────
+
+    // com/cuso/mobile/repository/SalesRepository.kt
+
+// ──── ORG GARMENT CATEGORIES ────
+
+    suspend fun fetchOrgGarmentCategories(): Result<List<OrgGarmentCategory>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getOrgGarmentCommonCategories(accessToken, csrfToken)
+            if (response.isSuccessful && response.body()?.success == true) {
+                val categories = response.body()?.data ?: emptyList()
+                Result.success(categories)
+            } else {
+                Result.failure(Exception("Failed to fetch categories: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addOrgGarmentCategory(categoryId: String): Result<AddOrgGarmentResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val request = AddGarmentRequest(categoryId)
+            val response = api.addOrgGarmentCategory(accessToken, csrfToken, request)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Failed to add category: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun removeOrgGarmentCategory(categoryId: String): Result<RemoveOrgGarmentResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.removeOrgGarmentCategory(accessToken, csrfToken, categoryId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Failed to remove category: ${response.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

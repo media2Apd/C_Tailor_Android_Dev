@@ -8,8 +8,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -39,16 +42,13 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CusoTailorTheme {
-                // ✅ No innerPadding applied anywhere — each screen (HomeScreen, login, etc.)
-                // is responsible for its own .statusBarsPadding() / .navigationBarsPadding()
-                // where needed, since we're edge-to-edge.
                 Scaffold(
                     modifier = Modifier.fillMaxSize()
                 ) { _ ->
-                    val navController=rememberNavController()
                     AppNav(activity = this)
-//                    CreateLeadScreen(onBack = {
-//                    })
+                    val navController = rememberNavController()
+
+//                    HomeScreen(navController)
 
                 }
             }
@@ -60,9 +60,9 @@ class MainActivity : ComponentActivity() {
 fun AppNav(
     activity: Activity
 ) {
-
     val navController = rememberNavController()
-    val localActivity = LocalContext.current as Activity
+    // ✅ Use the activity parameter directly - no LocalContext needed
+    val localActivity = activity
 
     NavHost(
         navController = navController,

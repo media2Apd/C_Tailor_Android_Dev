@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "com.cuso.mobile"
-        minSdk = 24
+        minSdk = 25
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -59,6 +59,7 @@ dependencies {
 
     implementation(libs.androidx.compose.animation)
     implementation(libs.androidx.compose.foundation.layout)
+    implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.compose.runtime.livedata)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.foundation)
@@ -76,6 +77,7 @@ dependencies {
     // Splash (UPDATED)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.room3.common.jvm)
+    implementation(libs.compose.material3)
 
     // Google Auth (UPDATED)
     implementation(libs.play.services.auth)

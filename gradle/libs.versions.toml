@@ -42,6 +42,8 @@ libphonenumber = "8.13.48"
 coil = "2.7.0"
 vico = "2.0.0-alpha.27"
 room3CommonJvm = "3.0.0-rc01"
+composeMaterial3 = "1.6.2"
+runtime = "1.11.3"
 
 [libraries]
 #androidx-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "uiVersion" }
@@ -88,6 +90,8 @@ vico-core = { group = "com.patrykandpatrick.vico", name = "core", version.ref = 
 vico-compose = { group = "com.patrykandpatrick.vico", name = "compose", version.ref = "vico" }
 vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }
 androidx-room3-common-jvm = { group = "androidx.room3", name = "room3-common-jvm", version.ref = "room3CommonJvm" }
+compose-material3 = { group = "androidx.wear.compose", name = "compose-material3", version.ref = "composeMaterial3" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

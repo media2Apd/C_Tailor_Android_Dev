@@ -1,18 +1,12 @@
+// com/cuso/mobile/viewmodel/Authenticate.kt
+
 package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cuso.mobile.model.LoginData
-import com.cuso.mobile.model.Organization
-import com.cuso.mobile.model.Settings
-import com.cuso.mobile.model.SignupRequest
-import com.cuso.mobile.model.Subscription
-import com.cuso.mobile.model.Tokens
-import com.cuso.mobile.model.User
-import com.cuso.mobile.model.otpSendResponse
-import com.cuso.mobile.model.otpVerifyResponse
+import com.cuso.mobile.model.*
 import com.cuso.mobile.repository.AuthRepository
 import com.cuso.mobile.repository.LoginRepository
 import com.cuso.mobile.utils.isValidPhoneNumber
@@ -27,10 +21,8 @@ import com.cuso.mobile.database.dao.SettingsDao
 import com.cuso.mobile.database.dao.TokensDao
 import com.cuso.mobile.database.entities.OrganizationEntity
 import com.cuso.mobile.database.entities.SettingsEntity
+import com.cuso.mobile.database.entities.TokensEntity
 import com.cuso.mobile.database.entities.UserEntity
-import com.cuso.mobile.model.GoogleLoginResult
-import com.cuso.mobile.model.RegisterVerifyOtpResponse
-import com.cuso.mobile.model.organizationSetUpRequest
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.async
 
@@ -44,7 +36,8 @@ sealed class UiState {
         val lastName: String,
         val orgToken: String?,
         val organization: Organization?
-    ) : UiState()    object RegisterSuccess : UiState()
+    ) : UiState()
+    object RegisterSuccess : UiState()
     data class EmailVerified(val message: String) : UiState()
     object EmailNotFound : UiState()
     data class GoogleLoginExisting(
@@ -64,53 +57,120 @@ sealed class UiState {
         val resetToken: String,
         val message: String
     ) : UiState()
-
 }
 
 @HiltViewModel
 class Authenticate @Inject constructor(
     private val repository: AuthRepository,
     private val loginRepository: LoginRepository,
-    private val organizationDao: OrganizationDao,   // ← add this
+    private val organizationDao: OrganizationDao,
     private val settingsDao: SettingsDao,
     private val tokensDao: TokensDao
-
-
 ) : ViewModel() {
 
+    // ── Login Data State ──
+    private val _loginData = MutableStateFlow<LoginData?>(null)
+    val loginData: StateFlow<LoginData?> = _loginData.asStateFlow()
 
-    private val _organization = MutableStateFlow<OrganizationEntity?>(null)
-    private val _settings = MutableStateFlow<SettingsEntity?>(null)
-
-    val organization: StateFlow<OrganizationEntity?> = _organization.asStateFlow()
-    val settings: StateFlow<SettingsEntity?> = _settings.asStateFlow()
-
+    // ── User State ──
     private val _user = MutableStateFlow<UserEntity?>(null)
     val user: StateFlow<UserEntity?> = _user.asStateFlow()
 
+    // ── Organization State ──
+    private val _organization = MutableStateFlow<OrganizationEntity?>(null)
+    val organization: StateFlow<OrganizationEntity?> = _organization.asStateFlow()
+
+    // ── Settings State ──
+    private val _settings = MutableStateFlow<SettingsEntity?>(null)
+    val settings: StateFlow<SettingsEntity?> = _settings.asStateFlow()
+
+    // ── Tokens State ──
+    private val _tokens = MutableStateFlow<TokensEntity?>(null)
+    val tokens: StateFlow<TokensEntity?> = _tokens.asStateFlow()
+
+    // ── Account State ──
     private val _accountState = MutableStateFlow<UiState>(UiState.Idle)
     val accountState: StateFlow<UiState> = _accountState
 
+    // ── Loading State ──
     private val _isLoading = MutableStateFlow(false)
-//    val isLoading: StateFlow<Boolean> = _isLoading
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    // ── OTP States ──
     private val _otpSendResult = MutableLiveData<Result<otpSendResponse>>()
+    val otpSendResult: LiveData<Result<otpSendResponse>> = _otpSendResult
+
     private val _otpVerifyResult = MutableLiveData<Result<otpVerifyResponse>>()
-//    val otpSendResult: LiveData<Result<otpSendResponse>> = _otpSendResult
     val otpVerifyResult: LiveData<Result<otpVerifyResponse>> = _otpVerifyResult
 
-    private val _forgotPasswordState = MutableStateFlow<UiState>(UiState.Idle)
-    val forgotPasswordState: StateFlow<UiState> = _forgotPasswordState
-    private val _resetPasswordState = MutableStateFlow<UiState>(UiState.Idle)
-    val resetPasswordState: StateFlow<UiState> = _resetPasswordState
-
+    // ── Register OTP State ──
     private val _registerOtpVerifyResult = MutableLiveData<Result<RegisterVerifyOtpResponse>?>()
     val registerOtpVerifyResult: LiveData<Result<RegisterVerifyOtpResponse>?> = _registerOtpVerifyResult
 
+    // ── Forgot Password State ──
+    private val _forgotPasswordState = MutableStateFlow<UiState>(UiState.Idle)
+    val forgotPasswordState: StateFlow<UiState> = _forgotPasswordState
+
+    private val _resetPasswordState = MutableStateFlow<UiState>(UiState.Idle)
+    val resetPasswordState: StateFlow<UiState> = _resetPasswordState
+
+    // ─────────────────────────────────────────────────────────────
+    // INIT - Load all data from Room DB
+    // ─────────────────────────────────────────────────────────────
+
+    init {
+        loadAllData()
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Load Data Functions
+    // ─────────────────────────────────────────────────────────────
+
+    fun loadAllData() {
+        viewModelScope.launch {
+            loadUser()
+            loadOrganization()
+            loadSettings()
+            loadTokens()
+        }
+    }
+
+    private suspend fun loadUser() {
+        _user.value = loginRepository.getUser()
+    }
+
+    private suspend fun loadOrganization() {
+        _organization.value = organizationDao.getOrganization()
+    }
+
+    private suspend fun loadSettings() {
+        _settings.value = settingsDao.getSettings()
+    }
+
+    private suspend fun loadTokens() {
+        _tokens.value = loginRepository.getTokens()
+    }
+
+    fun loadTokensFromDb() {
+        viewModelScope.launch {
+            _tokens.value = loginRepository.getTokens()
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Login Function
+    // ─────────────────────────────────────────────────────────────
+
     fun login(email: String, password: String) {
         when {
-            !email.contains("@") -> { _accountState.value = UiState.Error(""); return }
-            password.isBlank()   -> { _accountState.value = UiState.Error(""); return }
+            !email.contains("@") -> {
+                _accountState.value = UiState.Error("")
+                return
+            }
+            password.isBlank() -> {
+                _accountState.value = UiState.Error("")
+                return
+            }
         }
 
         _accountState.value = UiState.Loading
@@ -121,8 +181,8 @@ class Authenticate @Inject constructor(
                 val response = result.getOrNull()
                 if (response != null) {
                     loginRepository.saveLoginData(response.data)
+                    _loginData.value = response.data
 
-                    // 🔽 Fire the 3 extra calls in parallel using the access token
                     val token = "Bearer ${response.data.tokens.accessToken}"
 
                     val meDeferred = async { repository.getMe(token) }
@@ -133,12 +193,8 @@ class Authenticate @Inject constructor(
                     val orgResult = orgDeferred.await()
                     val layoutResult = layoutDeferred.await()
 
-                    // handle/save each result as needed
                     meResult.getOrNull()?.let { /* TODO: save or use */ }
 
-                    // orgResult is a morganizationSetUpResponse (success, message, data: Organization)
-                    // saveOrganizationData() expects an Organization, so unwrap .data here —
-                    // NOT response.data (that's the LoginData from the login call above).
                     orgResult.getOrNull()?.let { response ->
                         loginRepository.saveOrganizationData(response.data.organization)
                         loadOrganization()
@@ -147,10 +203,12 @@ class Authenticate @Inject constructor(
 
                     layoutResult.getOrNull()?.let { /* TODO: save or use */ }
 
+                    loadTokens()
+
                     _accountState.value = UiState.LoginSuccess(
                         firstName = response.data.user.firstName,
-                        lastName  = response.data.user.lastName,
-                        orgToken  = response.data.tokens.orgToken,
+                        lastName = response.data.user.lastName,
+                        orgToken = response.data.tokens.orgToken,
                         organization = response.data.user.organizationId
                     )
                 }
@@ -162,37 +220,11 @@ class Authenticate @Inject constructor(
         }
     }
 
-    fun logout(onLoggedOut: () -> Unit) {
-        viewModelScope.launch {
-            loginRepository.clearAll()
-            _user.value = null
-            _organization.value = null
-            _settings.value = null
-            _accountState.value = UiState.Idle
-            onLoggedOut()
-        }
-    }
+    // ─────────────────────────────────────────────────────────────
+    // Google Login - FIXED
+    // ─────────────────────────────────────────────────────────────
 
-    fun resetNewPassword(token: String, newPassword: String, confirmPassword: String) {
-        if (newPassword.isBlank()) {
-            _resetPasswordState.value = UiState.Error("Password cannot be empty")
-            return
-        }
-        if (newPassword != confirmPassword) {
-            _resetPasswordState.value = UiState.Error("Passwords do not match")
-            return
-        }
-
-        viewModelScope.launch {
-            _resetPasswordState.value = UiState.Loading
-            val result = repository.resetNewPassword(token, newPassword, confirmPassword)
-            _resetPasswordState.value = if (result.isSuccess) {
-                UiState.Success(result.getOrNull()?.message ?: "Password reset successful")
-            } else {
-                UiState.Error(result.exceptionOrNull()?.message ?: "Something went wrong")
-            }
-        }
-    }
+// In the googleLogin function, remove the Branch conversion since Organization expects List<String>
 
     fun googleLogin(idToken: String) {
         viewModelScope.launch {
@@ -201,6 +233,8 @@ class Authenticate @Inject constructor(
                 is GoogleLoginResult.ExistingUser -> {
                     val googleData = result.response.data
 
+                    // ✅ Google already returns branches as List<String>
+                    // No conversion needed - Organization expects List<String>
                     val loginData = LoginData(
                         user = User(
                             id = googleData.user.id,
@@ -224,7 +258,7 @@ class Authenticate @Inject constructor(
                                 totalMembers = googleData.user.organizationId.totalMembers,
                                 activeMembers = googleData.user.organizationId.activeMembers,
                                 segments = googleData.user.organizationId.segments,
-                                branches = googleData.user.organizationId.branches,
+                                branches = googleData.user.organizationId.branches, // ✅ Already List<String>
                                 isTaxId = googleData.user.organizationId.isTaxId,
                                 status = googleData.user.organizationId.status,
                                 isInternalOrganization = googleData.user.organizationId.isInternalOrganization,
@@ -251,7 +285,6 @@ class Authenticate @Inject constructor(
                                     termsAccepted = googleData.user.organizationId.settings.termsAccepted,
                                     marketingEmails = googleData.user.organizationId.settings.marketingEmails,
                                     workingDays = googleData.user.organizationId.settings.workingDays,
-//                                    companySize = googleData.user.organizationId.settings.companySize,
                                     timezone = googleData.user.organizationId.settings.timezone,
                                     currency = googleData.user.organizationId.settings.currency,
                                     language = googleData.user.organizationId.settings.language,
@@ -273,6 +306,9 @@ class Authenticate @Inject constructor(
                     )
 
                     loginRepository.saveLoginData(loginData)
+                    _loginData.value = loginData
+                    loadTokens()
+
                     _accountState.value = UiState.GoogleLoginExisting(
                         firstName = googleData.user.firstName,
                         lastName = googleData.user.lastName,
@@ -295,30 +331,9 @@ class Authenticate @Inject constructor(
             }
         }
     }
-
-    init {
-        loadSettings()
-        loadOrganization()
-        loadUser()
-    }
-
-    private fun loadSettings() {
-        viewModelScope.launch {
-            _settings.value = settingsDao.getSettings()
-        }
-    }
-
-    private fun loadUser() {
-        viewModelScope.launch {
-            _user.value = loginRepository.getUser()
-        }
-    }
-
-    private fun loadOrganization() {
-        viewModelScope.launch {
-            _organization.value = organizationDao.getOrganization()
-        }
-    }
+    // ─────────────────────────────────────────────────────────────
+    // OTP Functions
+    // ─────────────────────────────────────────────────────────────
 
     fun sendOtp(email: String) {
         viewModelScope.launch {
@@ -333,11 +348,12 @@ class Authenticate @Inject constructor(
             Log.d("OTP_API", "Response = $result")
             _otpVerifyResult.value = result
 
-            // 👇 Save to Room DB if success
             if (result.isSuccess) {
                 val loginData = result.getOrNull()?.data
                 if (loginData != null) {
                     loginRepository.saveLoginData(loginData)
+                    _loginData.value = loginData
+                    loadTokens()
                 }
             }
         }
@@ -351,13 +367,17 @@ class Authenticate @Inject constructor(
             val result = repository.registerVerifyOtp(email, otp)
 
             _isLoading.value = false
-            _registerOtpVerifyResult.value = result   // ✅ correct LiveData for signup
+            _registerOtpVerifyResult.value = result
 
             result.onFailure { error ->
                 Log.e("OTP_API", "OTP verification failed", error)
             }
         }
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // Forgot Password Functions
+    // ─────────────────────────────────────────────────────────────
 
     fun forgotPasswordOtp(email: String) {
         viewModelScope.launch {
@@ -386,6 +406,32 @@ class Authenticate @Inject constructor(
             }
         }
     }
+
+    fun resetNewPassword(token: String, newPassword: String, confirmPassword: String) {
+        if (newPassword.isBlank()) {
+            _resetPasswordState.value = UiState.Error("Password cannot be empty")
+            return
+        }
+        if (newPassword != confirmPassword) {
+            _resetPasswordState.value = UiState.Error("Passwords do not match")
+            return
+        }
+
+        viewModelScope.launch {
+            _resetPasswordState.value = UiState.Loading
+            val result = repository.resetNewPassword(token, newPassword, confirmPassword)
+            _resetPasswordState.value = if (result.isSuccess) {
+                UiState.Success(result.getOrNull()?.message ?: "Password reset successful")
+            } else {
+                UiState.Error(result.exceptionOrNull()?.message ?: "Something went wrong")
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Organization Setup
+    // ─────────────────────────────────────────────────────────────
+
     fun organizationSetup(request: organizationSetUpRequest) {
         viewModelScope.launch {
             _accountState.value = UiState.Loading
@@ -408,6 +454,11 @@ class Authenticate @Inject constructor(
             }
         }
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // Sign Up
+    // ─────────────────────────────────────────────────────────────
+
     fun signUp(
         firstName: String,
         lastName: String,
@@ -422,31 +473,40 @@ class Authenticate @Inject constructor(
     ) {
         when {
             firstName.isBlank() -> {
-                _accountState.value = UiState.Error("First name is required"); return
+                _accountState.value = UiState.Error("First name is required")
+                return
             }
             lastName.isBlank() -> {
-                _accountState.value = UiState.Error("Last name is required"); return
+                _accountState.value = UiState.Error("Last name is required")
+                return
             }
             !email.contains("@") -> {
-                _accountState.value = UiState.Error("Enter a valid email"); return
+                _accountState.value = UiState.Error("Enter a valid email")
+                return
             }
             !isValidPhoneNumber(mobile, countryIso) -> {
-                _accountState.value = UiState.Error("Enter a valid phone number for selected country"); return
+                _accountState.value = UiState.Error("Enter a valid phone number for selected country")
+                return
             }
             country.isBlank() -> {
-                _accountState.value = UiState.Error("Country is required"); return
+                _accountState.value = UiState.Error("Country is required")
+                return
             }
             state.isBlank() -> {
-                _accountState.value = UiState.Error("State is required"); return
+                _accountState.value = UiState.Error("State is required")
+                return
             }
             organizationName.isBlank() -> {
-                _accountState.value = UiState.Error("Organization name is required"); return
+                _accountState.value = UiState.Error("Organization name is required")
+                return
             }
             password.length < 6 -> {
-                _accountState.value = UiState.Error("Password must be 6+ characters"); return
+                _accountState.value = UiState.Error("Password must be 6+ characters")
+                return
             }
             !termsAccepted -> {
-                _accountState.value = UiState.Error("Please accept terms and conditions"); return
+                _accountState.value = UiState.Error("Please accept terms and conditions")
+                return
             }
         }
 
@@ -477,6 +537,10 @@ class Authenticate @Inject constructor(
         }
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // Email Verification
+    // ─────────────────────────────────────────────────────────────
+
     fun verifyEmail(email: String) {
         if (!email.contains("@")) {
             _accountState.value = UiState.Error("Enter a valid email")
@@ -500,30 +564,39 @@ class Authenticate @Inject constructor(
         }
     }
 
-//    fun organizationSetup(
-//        token: String,
-//        csrfToken: String,
-//        request: organizationSetUpRequest
-//    ) {
-//        viewModelScope.launch {
-//            _accountState.value = UiState.Loading
-//
-//            val result = repository.organizationSetup(token, csrfToken,request)
-//
-//            _accountState.value =
-//                if (result.isSuccess) {
-//                    UiState.Success(
-//                        result.getOrNull()?.message ?: "Organization setup completed"
-//                    )
-//                } else {
-//                    UiState.Error(
-//                        result.exceptionOrNull()?.message ?: "Something went wrong"
-//                    )
-//                }
-//        }
-//    }
+    // ─────────────────────────────────────────────────────────────
+    // Logout
+    // ─────────────────────────────────────────────────────────────
+
+    fun logout(onLoggedOut: () -> Unit) {
+        viewModelScope.launch {
+            loginRepository.clearAll()
+            _user.value = null
+            _organization.value = null
+            _settings.value = null
+            _tokens.value = null
+            _loginData.value = null
+            _accountState.value = UiState.Idle
+            onLoggedOut()
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Reset State
+    // ─────────────────────────────────────────────────────────────
 
     fun resetState() {
         _accountState.value = UiState.Idle
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Set Login Data (for external use)
+    // ─────────────────────────────────────────────────────────────
+
+    fun setLoginData(data: LoginData) {
+        _loginData.value = data
+        viewModelScope.launch {
+            loadTokens()
+        }
     }
 }

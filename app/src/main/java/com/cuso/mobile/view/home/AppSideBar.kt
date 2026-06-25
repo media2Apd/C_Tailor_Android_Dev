@@ -1,3 +1,5 @@
+// com/cuso/mobile/view/home/AppSidebar.kt
+
 package com.cuso.mobile.view.home
 
 import com.cuso.mobile.model.User
@@ -53,238 +55,352 @@ data class MenuItem(
     val subItems: Map<String, List<String>> = emptyMap()
 )
 
-data class SidebarState(
-    val isOpen: Boolean = false,
-    val selectedMenu: String = "Home",
-    val expandedCategory: String? = null,
-    val selectedSubItem: String? = null,
-    val isPanelMode: Boolean = false
-)
-
 // ─────────────────────────────────────────────────────────────
 // Sidebar Configuration
 // ─────────────────────────────────────────────────────────────
 
-class SidebarConfig {
-    companion object {
-        fun getMenuItems(showHomePanel: Boolean = false): List<MenuItem> {
-            return listOf(
-                MenuItem(
-                    R.drawable.home,
-                    "Home",
-                    isPanel = showHomePanel, // ✅ Only show panel when in Garment Type
-                    categories = if (showHomePanel) listOf(
-                        "Organization Profile",
-                        "Settings",
-                        "Preferences"
-                    ) else emptyList(),
-                    subItems = if (showHomePanel) mapOf(
-                        "Organization Profile" to listOf("Organization Profile"),
-                        "Settings" to listOf("General Settings", "User Settings"),
-                        "Preferences" to listOf("App Preferences", "Notification Settings")
-                    ) else emptyMap()
+object SidebarConfig {
+
+    // 🏠 FULL MENU ITEMS - Home has NO categories (like the image)
+    fun getFullMenuItems(): List<MenuItem> {
+        return listOf(
+            MenuItem(
+                R.drawable.home,
+                "Home",
+                isPanel = false,  // ✅ No panel mode for Home - just a simple menu item
+                categories = emptyList(),
+                subItems = emptyMap()
+            ),
+            MenuItem(
+                R.drawable.sales,
+                "Sales",
+                isPanel = true,
+                categories = listOf(
+                    "Lead Management",
+                    "Customer",
+                    "Measurements",
+                    "Sales & Orders",
+                    "Order Management",
+                    "Pricing & Quotations",
+                    "Targets vs Achievements",
+                    "Salesperson Analytics"
                 ),
-                MenuItem(
-                    R.drawable.sales,
-                    "Sales",
-                    isPanel = true,
-                    categories = listOf(
-                        "Lead Management",
-                        "Customer",
-                        "Measurements",
-                        "Sales & Orders",
-                        "Order Management",
-                        "Pricing & Quotations",
-                        "Targets vs Achievements",
-                        "Salesperson Analytics"
-                    ),
-                    subItems = mapOf(
-                        "Lead Management" to listOf("Lead"),
-                        "Customer" to listOf("Customers"),
-                        "Measurements" to listOf("Measurements"),
-                        "Sales & Orders" to listOf("Sales & Orders"),
-                        "Order Management" to listOf("Orders"),
-                        "Pricing & Quotations" to listOf("Overview", "Pricing & Quotations"),
-                        "Targets vs Achievements" to listOf("Targets vs Achievements"),
-                        "Salesperson Analytics" to listOf("Salesperson Analytics")
-                    )
-                ),
-                MenuItem(
-                    R.drawable.marketing,
-                    "Marketing",
-                    isPanel = true,
-                    categories = listOf("Website", "Campaigns", "Leads & Audience", "Engagement", "Growth", "Pages", "Budget", "Team"),
-                    subItems = mapOf(
-                        "Campaigns" to listOf("Campaigns", "Promotions", "Marketing & Calendar"),
-                        "Leads & Audience" to listOf("Lead Generation", "Customer Segmentation"),
-                        "Engagement" to listOf("Customer Engagement", "WhatsApp", "Social Media", "Review & Feedback"),
-                        "Growth" to listOf("Referral Program", "Influencer"),
-                        "Pages" to listOf("Landing Page"),
-                        "Budget" to listOf("Marketing Budget"),
-                        "Team" to listOf("Marketing Tasks", "Team Management")
-                    )
-                ),
-                MenuItem(
-                    R.drawable.finance,
-                    "Finance",
-                    isPanel = true,
-                    categories = listOf("Accounts Receivable", "Accounts Payable", "Expenses", "Finance Core"),
-                    subItems = mapOf(
-                        "Accounts Receivable" to listOf("Customers", "Sales Invoices", "Payments Received"),
-                        "Accounts Payable" to listOf("Suppliers", "Purchase Invoices", "Payments Mode"),
-                        "Expenses" to listOf("Expenses"),
-                        "Finance Core" to listOf("Chart of Accounts", "Journal Entries", "Trial Balance")
-                    )
-                ),
-                MenuItem(
-                    R.drawable.inventory,
-                    "Inventory",
-                    isPanel = true,
-                    categories = listOf("Items", "Procurement", "Payables"),
-                    subItems = mapOf(
-                        "Items" to listOf("All Items", "Item Groups"),
-                        "Procurement" to listOf("Suppliers", "Requisitions", "Orders", "Goods Receipt"),
-                        "Payables" to listOf("Invoices", "Payments", "Credits")
-                    )
-                ),
-                MenuItem(
-                    R.drawable.logistics,
-                    "Logistics",
-                    isPanel = true,
-                    categories = listOf("Delivery", "Returns"),
-                    subItems = mapOf(
-                        "Delivery" to listOf("Delivery"),
-                        "Returns" to listOf("Returns")
-                    )
-                ),
-                MenuItem(
-                    R.drawable.services,
-                    "Services",
-                    isPanel = true,
-                    categories = listOf("Service Request", "Alteration Management", "Return", "Damaged Goods", "Customer Feedback"),
-                    subItems = mapOf(
-                        "Service Request" to listOf("Service Request"),
-                        "Alteration Management" to listOf("Alteration Management"),
-                        "Return" to listOf("Return"),
-                        "Damaged Goods" to listOf("Damaged Goods"),
-                        "Customer Feedback" to listOf("Customer Feedback")
-                    )
-                ),
-                MenuItem(
-                    R.drawable.hr,
-                    "HR",
-                    isPanel = true,
-                    categories = listOf("Employees"),
-                    subItems = mapOf("Employees" to listOf("All Employees"))
-                ),
-                MenuItem(
-                    R.drawable.it,
-                    "IT",
-                    isPanel = true,
-                    categories = listOf("Integrations"),
-                    subItems = mapOf("Integrations" to listOf("API Integration"))
-                ),
-                MenuItem(
-                    R.drawable.legal,
-                    "Legal",
-                    isPanel = true,
-                    categories = listOf("Legal Management"),
-                    subItems = mapOf("Legal Management" to listOf("Legal Documents"))
-                ),
-                MenuItem(
-                    R.drawable.security,
-                    "Security",
-                    isPanel = true,
-                    categories = listOf("Access Control", "Auth & Verification", "Monitoring & Audit"),
-                    subItems = mapOf(
-                        "Access Control" to listOf("User Accounts", "Roles & Permissions"),
-                        "Auth & Verification" to listOf("Multi Factor (MFA)", "SSO Settings"),
-                        "Monitoring & Audit" to listOf("Login Logs", "Activity Logs")
-                    )
-                ),
-                MenuItem(
-                    R.drawable.reports,
-                    "Reports",
-                    isPanel = true,
-                    categories = listOf("Sales Reports", "Finance Reports"),
-                    subItems = mapOf(
-                        "Sales Reports" to listOf("Sales Reports"),
-                        "Finance Reports" to listOf("Finance Reports")
-                    )
+                subItems = mapOf(
+                    "Lead Management" to listOf("Lead"),
+                    "Customer" to listOf("Customers"),
+                    "Measurements" to listOf("Measurements"),
+                    "Sales & Orders" to listOf("Sales & Orders"),
+                    "Order Management" to listOf("Orders"),
+                    "Pricing & Quotations" to listOf("Overview", "Pricing & Quotations"),
+                    "Targets vs Achievements" to listOf("Targets vs Achievements"),
+                    "Salesperson Analytics" to listOf("Salesperson Analytics")
+                )
+            ),
+            MenuItem(
+                R.drawable.marketing,
+                "Marketing",
+                isPanel = true,
+                categories = listOf("Website", "Campaigns", "Leads & Audience", "Engagement", "Growth", "Pages", "Budget", "Team"),
+                subItems = mapOf(
+                    "Campaigns" to listOf("Campaigns", "Promotions", "Marketing & Calendar"),
+                    "Leads & Audience" to listOf("Lead Generation", "Customer Segmentation"),
+                    "Engagement" to listOf("Customer Engagement", "WhatsApp", "Social Media", "Review & Feedback"),
+                    "Growth" to listOf("Referral Program", "Influencer"),
+                    "Pages" to listOf("Landing Page"),
+                    "Budget" to listOf("Marketing Budget"),
+                    "Team" to listOf("Marketing Tasks", "Team Management")
+                )
+            ),
+            MenuItem(
+                R.drawable.finance,
+                "Finance",
+                isPanel = true,
+                categories = listOf("Accounts Receivable", "Accounts Payable", "Expenses", "Finance Core"),
+                subItems = mapOf(
+                    "Accounts Receivable" to listOf("Customers", "Sales Invoices", "Payments Received"),
+                    "Accounts Payable" to listOf("Suppliers", "Purchase Invoices", "Payments Mode"),
+                    "Expenses" to listOf("Expenses"),
+                    "Finance Core" to listOf("Chart of Accounts", "Journal Entries", "Trial Balance")
+                )
+            ),
+            MenuItem(
+                R.drawable.inventory,
+                "Inventory",
+                isPanel = true,
+                categories = listOf("Items", "Procurement", "Payables"),
+                subItems = mapOf(
+                    "Items" to listOf("All Items", "Item Groups"),
+                    "Procurement" to listOf("Suppliers", "Requisitions", "Orders", "Goods Receipt"),
+                    "Payables" to listOf("Invoices", "Payments", "Credits")
+                )
+            ),
+            MenuItem(
+                R.drawable.logistics,
+                "Logistics",
+                isPanel = true,
+                categories = listOf("Delivery", "Returns"),
+                subItems = mapOf(
+                    "Delivery" to listOf("Delivery"),
+                    "Returns" to listOf("Returns")
+                )
+            ),
+            MenuItem(
+                R.drawable.services,
+                "Services",
+                isPanel = true,
+                categories = listOf("Service Request", "Alteration Management", "Return", "Damaged Goods", "Customer Feedback"),
+                subItems = mapOf(
+                    "Service Request" to listOf("Service Request"),
+                    "Alteration Management" to listOf("Alteration Management"),
+                    "Return" to listOf("Return"),
+                    "Damaged Goods" to listOf("Damaged Goods"),
+                    "Customer Feedback" to listOf("Customer Feedback")
+                )
+            ),
+            MenuItem(
+                R.drawable.hr,
+                "HR",
+                isPanel = true,
+                categories = listOf("Employees"),
+                subItems = mapOf("Employees" to listOf("All Employees"))
+            ),
+            MenuItem(
+                R.drawable.it,
+                "IT",
+                isPanel = true,
+                categories = listOf("Integrations"),
+                subItems = mapOf("Integrations" to listOf("API Integration"))
+            ),
+            MenuItem(
+                R.drawable.legal,
+                "Legal",
+                isPanel = true,
+                categories = listOf("Legal Management"),
+                subItems = mapOf("Legal Management" to listOf("Legal Documents"))
+            ),
+            MenuItem(
+                R.drawable.security,
+                "Security",
+                isPanel = true,
+                categories = listOf("Access Control", "Auth & Verification", "Monitoring & Audit"),
+                subItems = mapOf(
+                    "Access Control" to listOf("User Accounts", "Roles & Permissions"),
+                    "Auth & Verification" to listOf("Multi Factor (MFA)", "SSO Settings"),
+                    "Monitoring & Audit" to listOf("Login Logs", "Activity Logs")
+                )
+            ),
+            MenuItem(
+                R.drawable.reports,
+                "Reports",
+                isPanel = true,
+                categories = listOf("Sales Reports", "Finance Reports"),
+                subItems = mapOf(
+                    "Sales Reports" to listOf("Sales Reports"),
+                    "Finance Reports" to listOf("Finance Reports")
                 )
             )
-        }
+        )
+    }
 
-        val panelMenus = setOf("Sales", "Marketing", "Finance", "Inventory", "Logistics", "Services", "HR", "IT", "Legal", "Security", "Reports")
-
-        // ✅ Add Home panel menus that should show categories
-        val homePanelMenus = setOf("Home")
+    // 📊 SALES ONLY MENU ITEMS - Only Home & Sales enabled
+    fun getSalesMenuItems(): List<MenuItem> {
+        return listOf(
+            MenuItem(
+                R.drawable.home,
+                "Home",
+                enabled = true,
+                isPanel = true,
+                categories = listOf(
+                    "Organization Profile",
+                    "Branch Management",
+                    "Department & Teams",
+                    "Designation"
+                ),
+                subItems = mapOf(
+                    "Organization Profile" to listOf("Organization Profile"),
+                    "Branch Management" to listOf("Branch Management"),
+                    "Department & Teams" to listOf("Department & Teams"),
+                    "Designation" to listOf("Designation")
+                )
+            ),
+            MenuItem(
+                R.drawable.sales,
+                "Sales",
+                enabled = true,
+                isPanel = true,
+                categories = listOf("Garment Type"),
+                subItems = mapOf(
+                    "Garment Type" to listOf("Garment Type")
+                )
+            ),
+            MenuItem(
+                R.drawable.marketing,
+                "Marketing",
+                enabled = false,
+                isPanel = true,
+                categories = emptyList(),
+                subItems = emptyMap()
+            ),
+            MenuItem(
+                R.drawable.finance,
+                "Finance",
+                enabled = false,
+                isPanel = true,
+                categories = emptyList(),
+                subItems = emptyMap()
+            ),
+            MenuItem(
+                R.drawable.inventory,
+                "Inventory",
+                enabled = false,
+                isPanel = true,
+                categories = emptyList(),
+                subItems = emptyMap()
+            ),
+            MenuItem(
+                R.drawable.logistics,
+                "Logistics",
+                enabled = false,
+                isPanel = true,
+                categories = emptyList(),
+                subItems = emptyMap()
+            ),
+            MenuItem(
+                R.drawable.services,
+                "Services",
+                enabled = false,
+                isPanel = true,
+                categories = emptyList(),
+                subItems = emptyMap()
+            ),
+            MenuItem(
+                R.drawable.hr,
+                "HR",
+                enabled = false,
+                isPanel = true,
+                categories = emptyList(),
+                subItems = emptyMap()
+            ),
+            MenuItem(
+                R.drawable.it,
+                "IT",
+                enabled = false,
+                isPanel = true,
+                categories = emptyList(),
+                subItems = emptyMap()
+            ),
+            MenuItem(
+                R.drawable.legal,
+                "Legal",
+                enabled = false,
+                isPanel = true,
+                categories = emptyList(),
+                subItems = emptyMap()
+            ),
+            MenuItem(
+                R.drawable.security,
+                "Security",
+                enabled = false,
+                isPanel = true,
+                categories = emptyList(),
+                subItems = emptyMap()
+            ),
+            MenuItem(
+                R.drawable.reports,
+                "Reports",
+                enabled = false,
+                isPanel = true,
+                categories = emptyList(),
+                subItems = emptyMap()
+            )
+        )
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// AppSidebar - Reusable Sidebar Component
+// 🏠 FULL NAV BAR - All menus enabled
 // ─────────────────────────────────────────────────────────────
 
 @Composable
-fun AppSidebar(
-    modifier: Modifier = Modifier,
+fun FullSideBar(
     isOpen: Boolean,
     onClose: () -> Unit,
     onMenuItemClick: (String) -> Unit,
     onLogout: () -> Unit,
     user: User? = null,
-    enabledMenus: List<String>? = null,
-    defaultSelectedMenu: String = "Home",
-    defaultExpandedCategory: String? = null,
-    extraCategories: Map<String, List<String>>? = null,
-    replaceCategories: Boolean = false,
-    showHomePanel: Boolean = false // ✅ New parameter to control Home panel visibility
+    defaultSelectedMenu: String = "Home"
+) {
+    val menuItems = SidebarConfig.getFullMenuItems()
+
+    AppSidebarContent(
+        isOpen = isOpen,
+        onClose = onClose,
+        onMenuItemClick = onMenuItemClick,
+        onLogout = onLogout,
+        user = user,
+        menuItems = menuItems,
+        defaultSelectedMenu = defaultSelectedMenu,
+        isSalesMode = false
+    )
+}
+
+// ─────────────────────────────────────────────────────────────
+// 📊 SALES NAV BAR - Only Home & Sales enabled
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun SalesSideBar(
+    isOpen: Boolean,
+    onClose: () -> Unit,
+    onMenuItemClick: (String) -> Unit,
+    onLogout: () -> Unit,
+    user: User? = null,
+    defaultSelectedMenu: String = "Sales"
+) {
+    val menuItems = SidebarConfig.getSalesMenuItems()
+
+    AppSidebarContent(
+        isOpen = isOpen,
+        onClose = onClose,
+        onMenuItemClick = onMenuItemClick,
+        onLogout = onLogout,
+        user = user,
+        menuItems = menuItems,
+        defaultSelectedMenu = defaultSelectedMenu,
+        isSalesMode = true
+    )
+}
+
+// ─────────────────────────────────────────────────────────────
+// 🧩 Reusable Sidebar Content
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun AppSidebarContent(
+    isOpen: Boolean,
+    onClose: () -> Unit,
+    onMenuItemClick: (String) -> Unit,
+    onLogout: () -> Unit,
+    user: User?,
+    menuItems: List<MenuItem>,
+    defaultSelectedMenu: String,
+    isSalesMode: Boolean
 ) {
     var selectedMenu by remember { mutableStateOf(defaultSelectedMenu) }
-    var expandedCategory by remember { mutableStateOf<String?>(defaultExpandedCategory) }
+    var expandedCategory by remember { mutableStateOf<String?>(null) }
     var selectedSubItem by remember { mutableStateOf<String?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
     var burgerMenuExpanded by remember { mutableStateOf(false) }
 
-    val allMenuItems = SidebarConfig.getMenuItems(showHomePanel)
-
-    val menuItems = if (enabledMenus != null) {
-        allMenuItems.map { item ->
-            if (item.label in enabledMenus) {
-                var updatedCategories = item.categories.toMutableList()
-                var updatedSubItems = item.subItems.toMutableMap()
-
-                if (item.label == "Sales" && replaceCategories) {
-                    val extra = extraCategories?.get(item.label) ?: emptyList()
-                    updatedCategories = extra.toMutableList()
-                    updatedSubItems = extra.associateWith { listOf(it) }.toMutableMap()
-                } else if (item.label == "Sales") {
-                    val extra = extraCategories?.get(item.label) ?: emptyList()
-                    updatedCategories.addAll(extra)
-                    extra.forEach { category ->
-                        updatedSubItems[category] = listOf(category)
-                    }
-                }
-
-                item.copy(
-                    enabled = true,
-                    categories = updatedCategories,
-                    subItems = updatedSubItems
-                )
-            } else {
-                item.copy(enabled = false)
-            }
-        }
+    // ✅ Determine if panel mode is active
+    // For FullNavBar: Only show panel for menus with isPanel = true (Sales, Marketing, etc.)
+    // For SalesNavBar: Always show panel mode
+    val isPanelMode = if (isSalesMode) {
+        true  // Sales mode always shows panel
     } else {
-        allMenuItems
-    }
-
-    // ✅ Check if current menu should show panel
-    val isPanelMode = if (selectedMenu == "Home") {
-        showHomePanel // ✅ Home shows panel only when in Garment Type
-    } else {
-        selectedMenu in SidebarConfig.panelMenus
+        // Full mode: Only show panel if selected menu has categories
+        val selectedMenuItem = menuItems.find { it.label == selectedMenu }
+        selectedMenuItem?.isPanel == true && selectedMenuItem.categories.isNotEmpty()
     }
 
     val activeMenuItem = menuItems.find { it.label == selectedMenu }
@@ -299,11 +415,12 @@ fun AppSidebar(
         expandedCategory = null
         burgerMenuExpanded = false
 
-        // ✅ For Home, only show panel if showHomePanel is true
-        val shouldShowPanel = if (label == "Home") {
-            showHomePanel
+        // ✅ Check if this menu should show a panel
+        val shouldShowPanel = if (isSalesMode) {
+            true  // Sales mode always shows panel
         } else {
-            menuItem?.isPanel == true
+            // Full mode: Only show panel if menu has categories
+            menuItem?.isPanel == true && menuItem.categories.isNotEmpty()
         }
 
         if (shouldShowPanel) {
@@ -314,31 +431,46 @@ fun AppSidebar(
                 selectedSubItem = "$firstCategory::$firstSubItem"
 
                 val navigationKey = if (label == "Home") {
-                    "home_organization_profile"
+                    when (firstSubItem) {
+                        "Organization Profile" -> "home_organization_profile"
+                        "Branch Management" -> "home_branch_management"
+                        "Department & Teams" -> "home_department_teams"
+                        "Designation" -> "home_designation"
+                        else -> "home_${firstSubItem.lowercase().replace(" ", "_")}"
+                    }
                 } else {
                     "${label.lowercase()}_${firstSubItem.lowercase().replace(" ", "_")}"
                 }
                 onMenuItemClick(navigationKey)
             }
         } else {
+            // Simple navigation (like Home in FullNavBar)
             onMenuItemClick(label.lowercase())
         }
     }
 
     fun handleCategoryClick(category: String) {
-        if (category == "Settings") {
-            burgerMenuExpanded = !burgerMenuExpanded
-        }
         expandedCategory = if (expandedCategory == category) null else category
     }
 
     fun handleSubItemClick(category: String, subItem: String) {
         selectedSubItem = "$category::$subItem"
-        val navigationKey = if (selectedMenu == "Home") {
-            "home_${subItem.lowercase().replace(" ", "_")}"
-        } else {
-            "${selectedMenu.lowercase()}_${subItem.lowercase().replace(" ", "_")}"
+
+        val navigationKey = when {
+            selectedMenu == "Home" -> {
+                when (subItem) {
+                    "Organization Profile" -> "home_organization_profile"
+                    "Branch Management" -> "home_branch_management"
+                    "Department & Teams" -> "home_department_teams"
+                    "Designation" -> "home_designation"
+                    else -> "home_${subItem.lowercase().replace(" ", "_")}"
+                }
+            }
+            else -> {
+                "${selectedMenu.lowercase()}_${subItem.lowercase().replace(" ", "_")}"
+            }
         }
+
         onMenuItemClick(navigationKey)
         onClose()
     }
@@ -357,13 +489,14 @@ fun AppSidebar(
         visible = isOpen,
         enter = slideInHorizontally(initialOffsetX = { -it }),
         exit = slideOutHorizontally(targetOffsetX = { -it }),
-        modifier = modifier.zIndex(2f)
+        modifier = Modifier.zIndex(2f)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxHeight()
                 .width(IntrinsicSize.Max)
         ) {
+            // ─── Icon Rail ───
             SidebarIconRail(
                 modifier = Modifier
                     .width(if (isPanelMode) 86.dp else 280.dp)
@@ -380,6 +513,7 @@ fun AppSidebar(
                 onLogout = onLogout
             )
 
+            // ─── Accordion Panel (only shown when panel mode is active) ───
             if (isPanelMode) {
                 SidebarAccordionPanel(
                     modifier = Modifier
@@ -392,6 +526,8 @@ fun AppSidebar(
                     expandedCategory = expandedCategory,
                     selectedSubItem = selectedSubItem,
                     burgerMenuExpanded = burgerMenuExpanded,
+                    isHomeMenu = selectedMenu == "Home",
+                    isSalesMode = isSalesMode,
                     onCategoryClick = { handleCategoryClick(it) },
                     onSubItemClick = { category, subItem -> handleSubItemClick(category, subItem) },
                     onClose = onClose
@@ -418,6 +554,7 @@ private fun SidebarIconRail(
     onLogout: () -> Unit
 ) {
     Column(modifier = modifier) {
+        // ─── Logo ───
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -443,6 +580,7 @@ private fun SidebarIconRail(
         HorizontalDivider(color = Color(0xFFF0F0F0))
         Spacer(Modifier.height(8.dp))
 
+        // ─── Menu Items ───
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -452,6 +590,7 @@ private fun SidebarIconRail(
                 val isSelected = selectedMenu == item.label
 
                 if (isPanelMode) {
+                    // Panel Mode (Icons only - like the image)
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -498,16 +637,17 @@ private fun SidebarIconRail(
                         )
                     }
                 } else {
+                    // Expanded Mode (Text + Icon - like the image when Home is clicked)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                            .padding(horizontal = 12.dp, vertical = 2.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(if (isSelected) Color(0xFF3B3BF9) else Color.Transparent)
                             .clickable(enabled = item.enabled) {
                                 onMenuItemClick(item.label)
                             }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
@@ -517,7 +657,7 @@ private fun SidebarIconRail(
                             tint = when {
                                 !item.enabled -> Color(0xFFD1D5DB)
                                 isSelected -> Color.White
-                                else -> Color.Gray
+                                else -> Color(0xFF6B7280)
                             },
                             modifier = Modifier.size(22.dp)
                         )
@@ -528,7 +668,7 @@ private fun SidebarIconRail(
                             color = when {
                                 !item.enabled -> Color(0xFFD1D5DB)
                                 isSelected -> Color.White
-                                else -> Color.Black
+                                else -> Color(0xFF111827)
                             }
                         )
                     }
@@ -538,6 +678,7 @@ private fun SidebarIconRail(
 
         HorizontalDivider(color = Color(0xFFF0F0F0))
 
+        // ─── User Profile ───
         SidebarUserProfile(
             user = user,
             isPanelMode = isPanelMode,
@@ -650,11 +791,14 @@ private fun SidebarAccordionPanel(
     expandedCategory: String?,
     selectedSubItem: String?,
     burgerMenuExpanded: Boolean,
+    isHomeMenu: Boolean,
+    isSalesMode: Boolean,
     onCategoryClick: (String) -> Unit,
     onSubItemClick: (String, String) -> Unit,
     onClose: () -> Unit
 ) {
     Column(modifier = modifier) {
+        // ─── Header ───
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -663,7 +807,7 @@ private fun SidebarAccordionPanel(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (selectedMenu == "Home") {
+                if (isHomeMenu && activeCategories.isNotEmpty()) {
                     Icon(
                         imageVector = Icons.Default.Menu,
                         contentDescription = "Menu",
@@ -671,7 +815,6 @@ private fun SidebarAccordionPanel(
                         modifier = Modifier
                             .size(24.dp)
                             .clickable {
-                                // Toggle Settings category when burger is clicked
                                 onCategoryClick("Settings")
                             }
                     )
@@ -694,6 +837,7 @@ private fun SidebarAccordionPanel(
             )
         }
 
+        // ─── Categories ───
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -703,13 +847,11 @@ private fun SidebarAccordionPanel(
             activeCategories.forEach { category ->
                 val isExpanded = expandedCategory == category
                 val isSettingsCategory = category == "Settings"
+                val hasSubItems = activeSubItems[category]?.isNotEmpty() == true
 
-                // Check if this category should be visible
                 val shouldShowCategory = if (isSettingsCategory) {
-                    // Show Settings category only when burger menu is expanded
                     burgerMenuExpanded
                 } else {
-                    // Show other categories always
                     true
                 }
 
@@ -725,11 +867,26 @@ private fun SidebarAccordionPanel(
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(if (isExpanded) Color(0xFFE9E7FC) else Color.Transparent)
                                 .clickable {
-                                    if (category == "Settings" && !burgerMenuExpanded) {
-                                        // If Settings is not expanded, expand it
-                                        onCategoryClick(category)
+                                    if (isHomeMenu) {
+                                        // 🏠 Direct navigation for Home menu items
+                                        val navigationKey = when (category) {
+                                            "Organization Profile" -> "home_organization_profile"
+                                            "Branch Management" -> "home_branch_management"
+                                            "Department & Teams" -> "home_department_teams"
+                                            "Designation" -> "home_designation"
+                                            else -> "home_${category.lowercase().replace(" ", "_")}"
+                                        }
+                                        onSubItemClick(category, category)
+                                        onClose()
                                     } else {
-                                        onCategoryClick(category)
+                                        // 📂 For other menus, toggle expansion if has sub-items
+                                        if (hasSubItems) {
+                                            onCategoryClick(category)
+                                        } else {
+                                            val navKey = "${selectedMenu.lowercase()}_${category.lowercase().replace(" ", "_")}"
+                                            onSubItemClick(category, category)
+                                            onClose()
+                                        }
                                     }
                                 }
                                 .padding(horizontal = 14.dp, vertical = 13.dp),
@@ -742,25 +899,30 @@ private fun SidebarAccordionPanel(
                                 fontWeight = if (isExpanded) FontWeight.SemiBold else FontWeight.Medium,
                                 color = if (isExpanded) Color(0xFF4338CA) else Color(0xFF374151)
                             )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (isSettingsCategory && !isExpanded) {
-                                    Text(
-                                        text = "Click to expand",
-                                        fontSize = 10.sp,
-                                        color = Color(0xFF9CA3AF),
-                                        modifier = Modifier.padding(end = 8.dp)
+
+                            // 🔽 Show arrow only for non-Home menus with sub-items
+                            if (hasSubItems && !isHomeMenu) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (isSettingsCategory && !isExpanded) {
+                                        Text(
+                                            text = "Click to expand",
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF9CA3AF),
+                                            modifier = Modifier.padding(end = 8.dp)
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp
+                                        else Icons.Filled.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        tint = if (isExpanded) Color(0xFF4338CA) else Color(0xFF9CA3AF)
                                     )
                                 }
-                                Icon(
-                                    imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp
-                                    else Icons.Filled.KeyboardArrowDown,
-                                    contentDescription = null,
-                                    tint = if (isExpanded) Color(0xFF4338CA) else Color(0xFF9CA3AF)
-                                )
                             }
                         }
 
-                        if (isExpanded) {
+                        // 📋 Show sub-items only for non-Home menus when expanded
+                        if (isExpanded && !isHomeMenu) {
                             val subItems = activeSubItems[category].orEmpty()
                             Column(
                                 modifier = Modifier

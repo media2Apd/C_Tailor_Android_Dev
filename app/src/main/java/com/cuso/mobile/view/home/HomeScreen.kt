@@ -1,13 +1,7 @@
 package com.cuso.mobile.view.home
 
-import android.app.TimePickerDialog
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Assignment
@@ -35,19 +28,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
-import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.lightGray
 import com.cuso.mobile.viewmodel.HomeViewModel
 import com.cuso.mobile.viewmodel.Authenticate
@@ -72,11 +60,6 @@ import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.remember
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.unit.DpOffset
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import com.cuso.mobile.model.BudgetRange
@@ -92,33 +75,18 @@ import com.cuso.mobile.viewmodel.SaleState
 import com.cuso.mobile.viewmodel.SalesViewModel
 
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.verticalScroll
-import androidx.wear.compose.material3.TextButtonDefaults
 import com.cuso.mobile.model.Organization
 import com.cuso.mobile.model.Settings
 import com.cuso.mobile.model.Subscription
 import com.cuso.mobile.model.User
 
+
 // ── Data classes ──
+
 data class LeadItem(
     val header: String,
     val value: Float
 )
-
-//data class LeadListItem(
-//    val id: String,
-//    val customerName: String,
-//    val enquiryType: String,
-//    val garments: String,
-//    val qty: String,
-//    val budgetRange: String,
-//    val requiredDate: String,
-//    val source: String,
-//    val status: String
-//)
 
 data class ControlItem(
     val controls: String
@@ -127,18 +95,16 @@ data class ControlItem(
 // ─────────────────────────────────────────────────────────────
 // HomeScreen
 // ─────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────
-// HomeScreen - Updated with Sales Settings integration
-// ─────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────
-// HomeScreen - Updated with shared sidebar state
-// ─────────────────────────────────────────────────────────────
+
 @Composable
 fun HomeScreen(navController: NavController) {
     val viewModel: HomeViewModel = hiltViewModel()
     val isLoggedOut: Boolean by viewModel.isLoggedOut.collectAsStateWithLifecycle(initialValue = false)
     var currentScreen by remember { mutableStateOf("home") }
     var isDrawerOpen by remember { mutableStateOf(false) }
+
+    // ✅ Track if we're in Sales Settings mode
+    var isSalesSettingsMode by remember { mutableStateOf(false) }
 
     LaunchedEffect(isLoggedOut) {
         if (isLoggedOut) {
@@ -148,6 +114,15 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
+    // ✅ Determine which panel to show
+    val showHomePanel = currentScreen == "settings" ||
+            currentScreen == "home_organization_profile" ||
+            currentScreen == "home_branch_management" ||
+            currentScreen == "home_department_teams" ||
+            currentScreen == "home_designation"
+
+    val showSalesPanel = isSalesSettingsMode
+
     Column(
         Modifier
             .fillMaxSize()
@@ -156,63 +131,206 @@ fun HomeScreen(navController: NavController) {
     ) {
         TopNavBar(
             navController = navController,
-            isSettingsOpen = currentScreen == "settings" || currentScreen == "sales_settings",
+            isSettingsOpen = showHomePanel || showSalesPanel,
+            currentScreen = currentScreen,
             isDrawerOpen = isDrawerOpen,
             onDrawerToggle = { isDrawerOpen = !isDrawerOpen },
             onDrawerClose = { isDrawerOpen = false },
             onSettingsClick = {
                 if (currentScreen == "sales_lead" || currentScreen == "create_lead" ||
                     currentScreen == "view_lead" || currentScreen == "edit_lead") {
+                    // ✅ Enter Sales Settings mode
+                    isSalesSettingsMode = true
                     currentScreen = "sales_settings"
                 } else {
-                    currentScreen = if (currentScreen == "settings") "home" else "settings"
+                    if (showHomePanel || showSalesPanel) {
+                        // ✅ Close settings - go back to home
+                        isSalesSettingsMode = false
+                        currentScreen = "home"
+                    } else {
+                        // ✅ Open settings
+                        currentScreen = "settings"
+                    }
                 }
             },
-            onMenuItemClick = { screen -> currentScreen = screen },
+            onMenuItemClick = { route ->
+                when {
+                    // Home panel routes - show SettingsScreen
+                    route == "home_organization_profile" -> {
+                        currentScreen = "home_organization_profile"
+                        isDrawerOpen = false
+                    }
+                    route == "home_branch_management" -> {
+                        currentScreen = "home_branch_management"
+                        isDrawerOpen = false
+                    }
+                    route == "home_department_teams" -> {
+                        currentScreen = "home_department_teams"
+                        isDrawerOpen = false
+                    }
+                    route == "home_designation" -> {
+                        currentScreen = "home_designation"
+                        isDrawerOpen = false
+                    }
+                    // Sales routes
+                    route == "sales_lead" -> {
+                        isSalesSettingsMode = false
+                        currentScreen = "sales_lead"
+                        isDrawerOpen = false
+                    }
+                    route == "sales_customers" -> {
+                        isSalesSettingsMode = false
+                        currentScreen = "sales_customers"
+                        isDrawerOpen = false
+                    }
+                    route == "sales_measurements" -> {
+                        isSalesSettingsMode = false
+                        currentScreen = "sales_measurements"
+                        isDrawerOpen = false
+                    }
+                    route == "sales_sales_orders" -> {
+                        isSalesSettingsMode = false
+                        currentScreen = "sales_sales_orders"
+                        isDrawerOpen = false
+                    }
+                    route == "sales_orders" -> {
+                        isSalesSettingsMode = false
+                        currentScreen = "sales_orders"
+                        isDrawerOpen = false
+                    }
+                    // ✅ Handle garment type from settings
+                    route == "sales_garment_type" -> {
+                        currentScreen = "sales_garment_type"
+                        isDrawerOpen = false
+                    }
+                    // ✅ Home click - go to home or settings
+                    route == "home" -> {
+                        isSalesSettingsMode = false
+                        if (showHomePanel) {
+                            currentScreen = "settings"
+                        } else {
+                            currentScreen = "home"
+                        }
+                        isDrawerOpen = false
+                    }
+                    route == "settings" -> {
+                        currentScreen = "settings"
+                        isDrawerOpen = false
+                    }
+                    // ✅ For other routes
+                    else -> {
+                        try {
+                            navController.navigate(route)
+                        } catch (e: Exception) {
+                            // Handle internally if not in navigation graph
+                            when {
+                                route.startsWith("sales_") -> {
+                                    currentScreen = route
+                                }
+                            }
+                        }
+                        isDrawerOpen = false
+                    }
+                }
+            },
             onLogout = {
                 navController.navigate("login") {
                     popUpTo(0) { inclusive = true }
                 }
             },
-            currentScreen = currentScreen
+            showHomePanel = showHomePanel,
+            showSalesPanel = showSalesPanel,
+            isSalesSettingsMode = isSalesSettingsMode
         )
 
         when (currentScreen) {
-            "settings"    -> SettingsScreen(navController)
-            "sales_settings" -> SalesSettingsScreen(
+            // ✅ Settings Screen (your existing SettingsScreen)
+            "settings" -> SettingsScreen(
                 navController = navController,
-                onClose = { currentScreen = "sales_lead" },
                 onMenuClick = { isDrawerOpen = true }
             )
-            "home"        -> HomeScreenContent()
-            "sales_lead"  -> LeadScreenContent(
+            "home_organization_profile" -> SettingsScreen(
+                navController = navController,
+                onMenuClick = { isDrawerOpen = true }
+            )
+            "home_branch_management" -> SettingsScreen(
+                navController = navController,
+                onMenuClick = { isDrawerOpen = true }
+            )
+            "home_department_teams" -> SettingsScreen(
+                navController = navController,
+                onMenuClick = { isDrawerOpen = true }
+            )
+            "home_designation" -> SettingsScreen(
+                navController = navController,
+                onMenuClick = { isDrawerOpen = true }
+            )
+            // ✅ Sales Settings Screen (your existing SalesSettingsScreen)
+            "sales_settings" -> SalesSettingsScreen(
+                navController = navController,
+                onClose = {
+                    isSalesSettingsMode = false
+                    currentScreen = "sales_lead"
+                },
+                onMenuClick = { isDrawerOpen = true }
+            )
+            // ✅ Garment Type Screen (your existing GarmentTypeContent)
+            "sales_garment_type" -> GarmentTypeContent(
+                onClose = {
+                    currentScreen = "sales_settings"
+                    isSalesSettingsMode = true
+                },
+                onMenuClick = { isDrawerOpen = true }
+            )
+            "home" -> HomeScreenContent()
+            "sales_lead" -> LeadScreenContent(
                 onCreateLead = { currentScreen = "create_lead" },
-                onViewLead   = { currentScreen = "view_lead" },
-                onEditLead   = { currentScreen = "edit_lead" }
+                onViewLead = { currentScreen = "view_lead" },
+                onEditLead = { currentScreen = "edit_lead" }
             )
             "create_lead" -> CreateLeadScreen(
                 onBack = { currentScreen = "sales_lead" }
             )
-            "view_lead"   -> ViewLeadScreen(
-                onBack     = { currentScreen = "sales_lead" },
+            "view_lead" -> ViewLeadScreen(
+                onBack = { currentScreen = "sales_lead" },
                 onEditLead = { currentScreen = "edit_lead" }
             )
-            "edit_lead"   -> EditLeadScreen(
+            "edit_lead" -> EditLeadScreen(
                 onBack = { currentScreen = "sales_lead" }
             )
-            "sales"       -> { }
-            "marketing"   -> { }
-            else          -> { }
+            "sales_customers" -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Customers Screen", fontSize = 18.sp, color = Color.Gray)
+                }
+            }
+            "sales_measurements" -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Measurements Screen", fontSize = 18.sp, color = Color.Gray)
+                }
+            }
+            "sales_sales_orders" -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Sales Orders Screen", fontSize = 18.sp, color = Color.Gray)
+                }
+            }
+            "sales_orders" -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Orders Screen", fontSize = 18.sp, color = Color.Gray)
+                }
+            }
+            else -> { }
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// TopNavBar - Updated with shared state and AppSidebar
+// TopNavBar
 // ─────────────────────────────────────────────────────────────
+
 // ─────────────────────────────────────────────────────────────
-// TopNavBar - Updated with showHomePanel parameter
+// TopNavBar - Updated to show SalesNavBar when settings is open
 // ─────────────────────────────────────────────────────────────
+
 @Composable
 fun TopNavBar(
     navController: NavController,
@@ -223,7 +341,10 @@ fun TopNavBar(
     onDrawerClose: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onMenuItemClick: (String) -> Unit = {},
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    showHomePanel: Boolean = false,
+    showSalesPanel: Boolean = false,
+    isSalesSettingsMode: Boolean = false
 ) {
     val authViewModel: Authenticate = hiltViewModel()
     val userEntity by authViewModel.user.collectAsStateWithLifecycle()
@@ -231,9 +352,9 @@ fun TopNavBar(
 
     val user: User? = userEntity?.let {
         User(
-            firstName      = it.firstName.orEmpty(),
-            lastName       = it.lastName.orEmpty(),
-            email          = it.email.orEmpty(),
+            firstName = it.firstName,
+            lastName = it.lastName,
+            email = it.email,
             profilePicture = it.profilePicture.orEmpty(),
             organizationId = Organization(
                 _id = it.organizationId,
@@ -282,47 +403,40 @@ fun TopNavBar(
                     pincode = ""
                 )
             ),
-            role = it.role.orEmpty()
+            role = it.role
         )
     }
 
     Box(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
 
-        // ── SIDEBAR ──
-        AppSidebar(
-            isOpen = isDrawerOpen,
-            onClose = onDrawerClose,
-            onMenuItemClick = { route ->
-                if (currentScreen == "sales_settings") {
-                    when (route) {
-                        "home" -> {
-                            onDrawerClose()
-                            onSettingsClick()
-                        }
-                        "sales_garment_type" -> {
-                            onDrawerClose()
-                        }
-                        else -> {
-                            onDrawerClose()
-                        }
-                    }
-                } else {
+        // ✅ Show SalesNavBar when settings is open OR sales panel mode
+        if (isSettingsOpen || showSalesPanel) {
+            // 📊 Sales Nav Bar - Only Home & Sales enabled
+            SalesSideBar(
+                isOpen = isDrawerOpen,
+                onClose = onDrawerClose,
+                onMenuItemClick = { route ->
                     onMenuItemClick(route)
                     onDrawerClose()
-                }
-            },
-            onLogout = onLogout,
-            user = user,
-            // ✅ Only Home and Sales enabled in Sales Settings
-            enabledMenus = if (currentScreen == "sales_settings") listOf("Home", "Sales") else null,
-            // ✅ Add Garment Type and REPLACE all other categories
-            extraCategories = if (currentScreen == "sales_settings") mapOf("Sales" to listOf("Garment Type")) else null,
-            replaceCategories = if (currentScreen == "sales_settings") true else false,
-            defaultSelectedMenu = if (currentScreen == "sales_settings") "Sales" else "Home",
-            defaultExpandedCategory = if (currentScreen == "sales_settings") "Garment Type" else null,
-            // ✅ NEW: Show Home panel only when in sales_settings (Garment Type screen)
-            showHomePanel = (currentScreen == "sales_settings")
-        )
+                },
+                onLogout = onLogout,
+                user = user,
+                defaultSelectedMenu = if (currentScreen == "sales_settings" || currentScreen == "sales_garment_type") "Sales" else "Home"
+            )
+        } else {
+            // 🏠 Full Nav Bar - All menus enabled
+            FullSideBar(
+                isOpen = isDrawerOpen,
+                onClose = onDrawerClose,
+                onMenuItemClick = { route ->
+                    onMenuItemClick(route)
+                    onDrawerClose()
+                },
+                onLogout = onLogout,
+                user = user,
+                defaultSelectedMenu = if (showHomePanel) "Home" else "Home"
+            )
+        }
 
         // ── TOP APP BAR ──
         Column {
@@ -334,7 +448,7 @@ fun TopNavBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                // Menu Button
+                // ── Menu Button ──
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -351,7 +465,7 @@ fun TopNavBar(
                     )
                 }
 
-                // Search Bar
+                // ── Search Bar ──
                 Row(
                     modifier = Modifier
                         .weight(1f)
@@ -394,7 +508,7 @@ fun TopNavBar(
                     )
                 }
 
-                // Add Button
+                // ── Add Button ──
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -411,7 +525,7 @@ fun TopNavBar(
                     )
                 }
 
-                // Action Buttons
+                // ── Notifications ──
                 IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
                     Icon(
                         Icons.Default.Notifications,
@@ -420,6 +534,8 @@ fun TopNavBar(
                         tint = Color.DarkGray
                     )
                 }
+
+                // ── Calendar ──
                 IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
                     Icon(
                         Icons.Default.CalendarMonth,
@@ -429,11 +545,14 @@ fun TopNavBar(
                     )
                 }
 
-                // Settings Button
-                IconButton(onClick = onSettingsClick, modifier = Modifier.size(36.dp)) {
+                // ── Settings/Close Button ──
+                IconButton(
+                    onClick = onSettingsClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = if (isSettingsOpen) Icons.Default.Close else Icons.Filled.Settings,
-                        contentDescription = if (isSettingsOpen) "Close" else "Settings",
+                        contentDescription = if (isSettingsOpen) "Close Settings" else "Settings",
                         modifier = Modifier.size(30.dp),
                         tint = if (isSettingsOpen) Color.Red else Color.DarkGray
                     )
@@ -444,6 +563,367 @@ fun TopNavBar(
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────
+// NOTE: All other composable functions (LeadScreenContent,
+// ViewLeadScreen, EditLeadScreen, CreateLeadScreen,
+// HomeScreenContent, and all helper functions) remain EXACTLY
+// as they were in your original code.
+//
+// They are omitted here for brevity but should be kept unchanged.
+// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// TopNavBar
+// ─────────────────────────────────────────────────────────────
+
+
+// ─────────────────────────────────────────────────────────────
+// SettingsScreen
+// ─────────────────────────────────────────────────────────────
+//@Composable
+//fun SettingsScreen(
+//    navController: NavController,
+//    onMenuClick: () -> Unit = {}
+//) {
+//    Column(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .background(Color.White)
+//            .padding(16.dp)
+//    ) {
+//        Text(
+//            text = "Settings",
+//            fontSize = 24.sp,
+//            fontWeight = FontWeight.Bold,
+//            color = Color(0xFF111827)
+//        )
+//
+//        Spacer(Modifier.height(16.dp))
+//
+//        SettingsOption(
+//            icon = Icons.Default.Person,
+//            title = "Organization Profile",
+//            subtitle = "Manage your organization details"
+//        )
+//        SettingsOption(
+//            icon = Icons.Default.Business,
+//            title = "Branch Management",
+//            subtitle = "Manage branches"
+//        )
+//        SettingsOption(
+//            icon = Icons.Default.Group,
+//            title = "Department & Teams",
+//            subtitle = "Manage departments and teams"
+//        )
+//        SettingsOption(
+//            icon = Icons.Default.Work,
+//            title = "Designation",
+//            subtitle = "Manage designations"
+//        )
+//        SettingsOption(
+//            icon = Icons.Default.Lock,
+//            title = "Security",
+//            subtitle = "Password, 2FA, and security settings"
+//        )
+//        SettingsOption(
+//            icon = Icons.Default.Notifications,
+//            title = "Notifications",
+//            subtitle = "Manage notification preferences"
+//        )
+//        SettingsOption(
+//            icon = Icons.Default.Info,
+//            title = "About",
+//            subtitle = "App version and information"
+//        )
+//    }
+//}
+//
+//// ─────────────────────────────────────────────────────────────
+//// SettingsOption
+//// ─────────────────────────────────────────────────────────────
+//@Composable
+//fun SettingsOption(
+//    icon: androidx.compose.ui.graphics.vector.ImageVector,
+//    title: String,
+//    subtitle: String
+//) {
+//    Card(
+//        modifier = Modifier
+//            .fillMaxWidth()
+//            .padding(vertical = 4.dp)
+//            .clickable { },
+//        colors = CardDefaults.cardColors(
+//            containerColor = Color.White
+//        ),
+//        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+//    ) {
+//        Row(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(horizontal = 16.dp, vertical = 14.dp),
+//            verticalAlignment = Alignment.CenterVertically
+//        ) {
+//            Box(
+//                modifier = Modifier
+//                    .size(40.dp)
+//                    .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp)),
+//                contentAlignment = Alignment.Center
+//            ) {
+//                Icon(
+//                    imageVector = icon,
+//                    contentDescription = null,
+//                    tint = Color(0xFF3B3BF9),
+//                    modifier = Modifier.size(20.dp)
+//                )
+//            }
+//
+//            Spacer(Modifier.width(14.dp))
+//
+//            Column {
+//                Text(
+//                    text = title,
+//                    fontSize = 15.sp,
+//                    fontWeight = FontWeight.Medium,
+//                    color = Color(0xFF111827)
+//                )
+//                Text(
+//                    text = subtitle,
+//                    fontSize = 13.sp,
+//                    color = Color(0xFF6B7280)
+//                )
+//            }
+//
+//            Spacer(modifier = Modifier.weight(1f))
+//
+//            Icon(
+//                Icons.Default.KeyboardArrowRight,
+//                contentDescription = null,
+//                tint = Color(0xFF9CA3AF)
+//            )
+//        }
+//    }
+//}
+//
+//// ─────────────────────────────────────────────────────────────
+//// SalesSettingsScreen - Placeholder
+//// ─────────────────────────────────────────────────────────────
+//@Composable
+//fun SalesSettingsScreen(
+//    navController: NavController,
+//    onClose: () -> Unit,
+//    onMenuClick: () -> Unit = {}
+//) {
+//    Column(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .background(Color.White)
+//            .padding(16.dp)
+//    ) {
+//        Row(
+//            modifier = Modifier.fillMaxWidth(),
+//            verticalAlignment = Alignment.CenterVertically,
+//            horizontalArrangement = Arrangement.SpaceBetween
+//        ) {
+//            Text(
+//                text = "Sales Settings",
+//                fontSize = 24.sp,
+//                fontWeight = FontWeight.Bold,
+//                color = Color(0xFF111827)
+//            )
+//            IconButton(onClick = onClose) {
+//                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Red)
+//            }
+//        }
+//
+//        Spacer(Modifier.height(16.dp))
+//
+//        Text(
+//            text = "Garment Types",
+//            fontSize = 18.sp,
+//            fontWeight = FontWeight.SemiBold,
+//            color = Color(0xFF374151)
+//        )
+//        Spacer(Modifier.height(8.dp))
+//
+//        // Garment Type options
+//        Row(
+//            modifier = Modifier.fillMaxWidth(),
+//            horizontalArrangement = Arrangement.spacedBy(8.dp)
+//        ) {
+//            listOf("Pant", "Shirt", "Kurta", "Blazer", "Sherwani").forEach { garment ->
+//                Box(
+//                    modifier = Modifier
+//                        .border(1.dp, Color(0xFF3B3BF9), RoundedCornerShape(50.dp))
+//                        .background(Color(0xFFEEEEFE), RoundedCornerShape(50.dp))
+//                        .padding(horizontal = 16.dp, vertical = 8.dp)
+//                ) {
+//                    Text(
+//                        garment,
+//                        fontSize = 13.sp,
+//                        color = Color(0xFF3B3BF9),
+//                        fontWeight = FontWeight.SemiBold
+//                    )
+//                }
+//            }
+//        }
+//
+//        Spacer(Modifier.height(24.dp))
+//
+//        Button(
+//            onClick = onClose,
+//            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
+//            shape = RoundedCornerShape(8.dp)
+//        ) {
+//            Text("Save", color = Color.White)
+//        }
+//    }
+//}
+
+// ─────────────────────────────────────────────────────────────
+// NOTE: All other composable functions (LeadScreenContent,
+// ViewLeadScreen, EditLeadScreen, CreateLeadScreen,
+// HomeScreenContent, and all helper functions) remain EXACTLY
+// as they were in your original code.
+//
+// They are omitted here for brevity but should be kept unchanged.
+// ─────────────────────────────────────────────────────────────
+
+// ... (Keep all your existing code for LeadScreenContent, ViewLeadScreen,
+// EditLeadScreen, CreateLeadScreen, HomeScreenContent, and all helper
+// composables like FormCard, FormLabel, FormTextField, DatePickerField,
+// TimePickerField, FormDropdown, StatCard, HorizontalScrollbar,
+// StatusLegend, etc.)
+
+// ─────────────────────────────────────────────────────────────
+// SettingsScreen - Updated with burger menu support
+// ─────────────────────────────────────────────────────────────
+//@Composable
+//fun SettingsScreen(
+//    navController: NavController,
+//    onMenuClick: () -> Unit = {}
+//) {
+//    Column(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .background(Color.White)
+//            .padding(16.dp)
+//    ) {
+//        Text(
+//            text = "Settings",
+//            fontSize = 24.sp,
+//            fontWeight = FontWeight.Bold,
+//            color = Color(0xFF111827)
+//        )
+//
+//        Spacer(Modifier.height(16.dp))
+//
+//        // ✅ Settings options
+//        SettingsOption(
+//            icon = Icons.Default.Person,
+//            title = "Organization Profile",
+//            subtitle = "Manage your organization details"
+//        )
+//        SettingsOption(
+//            icon = Icons.Default.Business,
+//            title = "Branch Management",
+//            subtitle = "Manage branches"
+//        )
+//        SettingsOption(
+//            icon = Icons.Default.Group,
+//            title = "Department & Teams",
+//            subtitle = "Manage departments and teams"
+//        )
+//        SettingsOption(
+//            icon = Icons.Default.Work,
+//            title = "Designation",
+//            subtitle = "Manage designations"
+//        )
+//        SettingsOption(
+//            icon = Icons.Default.Lock,
+//            title = "Security",
+//            subtitle = "Password, 2FA, and security settings"
+//        )
+//        SettingsOption(
+//            icon = Icons.Default.Notifications,
+//            title = "Notifications",
+//            subtitle = "Manage notification preferences"
+//        )
+//        SettingsOption(
+//            icon = Icons.Default.Info,
+//            title = "About",
+//            subtitle = "App version and information"
+//        )
+//    }
+//}
+
+// ─────────────────────────────────────────────────────────────
+// SettingsOption - Reusable settings item
+// ─────────────────────────────────────────────────────────────
+@Composable
+fun SettingsOption(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable { },
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color(0xFF3B3BF9),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(Modifier.width(14.dp))
+
+            Column {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF111827)
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 13.sp,
+                    color = Color(0xFF6B7280)
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Icon(
+                Icons.Default.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color(0xFF9CA3AF)
+            )
+        }
+    }
+}
+
+// ... rest of your existing code (LeadScreenContent, ViewLeadScreen,
+// EditLeadScreen, CreateLeadScreen, HomeScreenContent, etc.) remains the same ...
 // ─────────────────────────────────────────────────────────────
 // LeadScreenContent
 // ─────────────────────────────────────────────────────────────
@@ -1660,10 +2140,10 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
     // Set default garment category if empty and categories are loaded
     LaunchedEffect(garmentCategories) {
-        if (garmentCategories.isNotEmpty() && selectedGarmentCategories.isEmpty() && l.garments.isBlank()) {
-            // Only set default if no garments are selected and none exist in the data
-            // Don't auto-select - let user choose
-        }
+//        if (garmentCategories.isNotEmpty() && selectedGarmentCategories.isEmpty() && l.garments.isBlank()) {
+//            // Only set default if no garments are selected and none exist in the data
+//            // Don't auto-select - let user choose
+//        }
     }
 
     // ✅ Handle update success/failure
@@ -2692,19 +3172,6 @@ fun CustomTimePicker(
     }
 }
 // ── Table cell helpers ──
-@Composable
-fun LeadTableHeaderCell(text: String, modifier: Modifier, isAction: Boolean = false) {
-    Text(
-        text = text,
-        modifier = modifier,
-        fontSize = 12.sp,
-        fontWeight = if (isAction) FontWeight.Bold else FontWeight.Normal,
-        color = if (isAction) Color(0xFF111827) else Color(0xFF6B7280),
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis
-    )
-}
-
 @Composable
 fun LeadTableCell(text: String, modifier: Modifier, bold: Boolean = false, color: Color = Color(0xFF374151)) {
     Text(

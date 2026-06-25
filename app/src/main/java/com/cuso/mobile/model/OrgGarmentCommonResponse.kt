@@ -35,8 +35,8 @@ data class OrgGarmentCategory(
     val _id: String,
     val categoryName: String,
     val organizationId: String,
-    val categoryId: OrgCategoryDetail,
-    val isActive: Boolean,
+    val categoryId: OrgCategoryDetail?,
+    val isActive: Boolean=false,
     val __v: Int,
     val createdAt: String,
     val updatedAt: String
@@ -65,4 +65,18 @@ data class OrgModel(
     val pieceRate: Int,
     val modelIcon: String,
     val _id: String
+)
+
+// GET /api/org-garments/view-all response
+data class ActiveOrgGarmentResponse(
+    val success: Boolean,
+    val data: ActiveOrgGarmentData
+)
+
+data class ActiveOrgGarmentData(
+    val totalAssigned: Int,
+    val active: Int,
+    val inactive: Int,
+    val availableSlots: Int?,
+    val categories: List<OrgGarmentCategory>  // ← இதுதான் நமக்கு வேணும்
 )

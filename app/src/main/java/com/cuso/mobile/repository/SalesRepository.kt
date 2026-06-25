@@ -41,16 +41,15 @@ class SalesRepository @Inject constructor(
     private val leadDao: LeadDao
 ) {
 
-    // helper to get tokens or throw early
     private suspend fun getAuthHeaders(): Pair<String, String> {
         val tokens = tokensDao.getTokens()
             ?: throw Exception("No tokens found, please login again")
         return Pair("Bearer ${tokens.accessToken}", tokens.csrfToken)
     }
 
-    // Sales statuses
-    fun getSalesStatuses(): Flow<List<SalesStatusEntity>> =
-        salesStatusDao.getAll()
+    // ── Sales Statuses ────────────────────────────────────────────
+
+    fun getSalesStatuses(): Flow<List<SalesStatusEntity>> = salesStatusDao.getAll()
 
     suspend fun fetchAndSaveSalesStatuses() {
         val (accessToken, csrfToken) = getAuthHeaders()
@@ -64,9 +63,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // Sales summary
-    fun getSalesSummary(): Flow<SalesSummaryEntity?> =
-        salesSummaryDao.getSummary()
+    // ── Sales Summary ─────────────────────────────────────────────
+
+    fun getSalesSummary(): Flow<SalesSummaryEntity?> = salesSummaryDao.getSummary()
 
     suspend fun fetchAndSaveSummary() {
         val (accessToken, csrfToken) = getAuthHeaders()
@@ -87,6 +86,8 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    // ── Garment Categories (old - used elsewhere) ─────────────────
+
     suspend fun fetchGarmentCategories(): Result<List<CategoryItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -101,7 +102,8 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // ✅ Fetch table data directly from API - no Room save
+    // ── Table Leads ───────────────────────────────────────────────
+
     suspend fun fetchTableData(): Result<List<LeadTableItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -116,7 +118,8 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // ✅ Fetch full lead details using getViewOne API
+    // ── Lead Details ──────────────────────────────────────────────
+
     suspend fun fetchFullLeadDetails(leadId: String): Result<ViewOneLeadData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -131,7 +134,6 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // ✅ Get Lead ID from API
     suspend fun getLeadId(id: String): Result<String> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -146,15 +148,15 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    // ── Lead CRUD ─────────────────────────────────────────────────
+
     suspend fun createLead(request: CreateLeadFormRequest): Result<CreateLeadFormResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = api.createLead(accessToken, csrfToken, request)
             if (response.isSuccessful && response.body() != null) {
                 val body = response.body()!!
-                if (body.data != null) {
-                    leadDao.upsert(body.toEntity(request))
-                }
+                if (body.data != null) leadDao.upsert(body.toEntity(request))
                 Result.success(body)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed to create lead"))
@@ -164,26 +166,22 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // ✅ Updated deleteLead with API call
     suspend fun deleteLead(id: String): Result<Unit> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = api.deleteLead(accessToken, csrfToken, id)
-
-            // Check if response is successful and body indicates success
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null && body.success) {
-                    // Also delete from local Room database
                     leadDao.deleteById(id)
                     Result.success(Unit)
                 } else {
-                    val errorMsg = body?.message ?: "Delete operation failed"
-                    Result.failure(Exception(errorMsg))
+                    Result.failure(Exception(body?.message ?: "Delete operation failed"))
                 }
             } else {
-                val errorBody = response.errorBody()?.string()
-                Result.failure(Exception(errorBody ?: "Failed to delete lead: ${response.code()}"))
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to delete: ${response.code()}")
+                )
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -192,16 +190,12 @@ class SalesRepository @Inject constructor(
 
     suspend fun updateLead(id: String, request: CreateLeadFormRequest): Response<UpdateLeadResponse> {
         val (accessToken, csrfToken) = getAuthHeaders()
-
         fun String.asRequestBody(): RequestBody =
             this.toRequestBody("text/plain".toMediaTypeOrNull())
 
-        // ✅ Filter out empty garment IDs
         val validGarments = request.garments.filter { it.isNotBlank() }
-
-        // ✅ Get notes
-        val internalNote = request.notes.find { it.type == "internal" }
-        val customerNote = request.notes.find { it.type == "customer" }
+        val internalNote  = request.notes.find { it.type == "internal" }
+        val customerNote  = request.notes.find { it.type == "customer" }
 
         return api.updateLead(
             accessToken = accessToken,
@@ -226,27 +220,26 @@ class SalesRepository @Inject constructor(
             contactArea = request.contact.area.asRequestBody(),
             contactCity = request.contact.city.asRequestBody(),
             contactPreferredContactMethod = request.contact.preferredContactMethod.asRequestBody(),
-            // ✅ Pass null for garment categories that don't exist
             garmentCategory0 = validGarments.getOrNull(0)?.asRequestBody(),
             garmentCategory1 = validGarments.getOrNull(1)?.asRequestBody(),
             garmentCategory2 = validGarments.getOrNull(2)?.asRequestBody(),
             garmentCategory3 = validGarments.getOrNull(3)?.asRequestBody(),
             garmentCategory4 = validGarments.getOrNull(4)?.asRequestBody(),
-            noteMessage = (internalNote?.message ?: "-").asRequestBody(),
-            noteType = (internalNote?.type ?: "internal").asRequestBody(),
+            noteMessage  = (internalNote?.message ?: "-").asRequestBody(),
+            noteType     = (internalNote?.type ?: "internal").asRequestBody(),
             noteMessage1 = customerNote?.message?.asRequestBody(),
-            noteType1 = customerNote?.type?.asRequestBody()
+            noteType1    = customerNote?.type?.asRequestBody()
         )
     }
+
+    // ── Staff ─────────────────────────────────────────────────────
 
     suspend fun getStaff(): Result<List<StaffDto>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = api.getMembersDropdownFilter(accessToken, csrfToken)
-
             if (response.isSuccessful && response.body()?.success == true) {
-                val data = response.body()!!.data
-                Result.success(data)
+                Result.success(response.body()!!.data)
             } else {
                 Result.failure(Exception("Failed to fetch staff: ${response.code()}"))
             }
@@ -255,27 +248,19 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // In SalesRepository.kt
+    // ── Org Garment Categories ────────────────────────────────────
 
-
-
-    // In SalesRepository.kt
-
-    // com/cuso/mobile/repository/SalesRepository.kt
-
-// ──── ORG GARMENT CATEGORIES ────
-
-    // com/cuso/mobile/repository/SalesRepository.kt
-
-// ──── ORG GARMENT CATEGORIES ────
-
+    /**
+     * GET /api/common/categories/view-all
+     * React: SummaryApi.getCommonCategories
+     * Returns all common categories → shown in display grid
+     */
     suspend fun fetchOrgGarmentCategories(): Result<List<OrgGarmentCategory>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = api.getOrgGarmentCommonCategories(accessToken, csrfToken)
             if (response.isSuccessful && response.body()?.success == true) {
-                val categories = response.body()?.data ?: emptyList()
-                Result.success(categories)
+                Result.success(response.body()?.data ?: emptyList())
             } else {
                 Result.failure(Exception("Failed to fetch categories: ${response.code()}"))
             }
@@ -284,6 +269,45 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * GET /api/org-garments/view-all  (OrgGarmentResponse return type)
+     * React: SummaryApi.getAllCategories
+     *   → res.data.data.categories.filter(c => c.isActive).map(c => c.categoryId._id)
+     *
+     * Each OrgGarmentCategory has:
+     *   isActive   : Boolean
+     *   categoryId : OrgCategoryDetail?  ← nested object
+     *     └── _id  : String              ← this matches common category _id
+     *
+     * We return only the active ones' categoryId._id
+     * These IDs are used to highlight matching tiles in the grid
+     */
+    suspend fun fetchActiveOrgGarmentIds(): Result<List<String>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+
+            // ✅ getActiveOrgGarments → OrgGarmentResponse (data: List<OrgGarmentCategory>)
+            val response = api.getActiveOrgGarments(accessToken, csrfToken)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val activeIds = response.body()!!
+                    .data.categories          // ← data.categories எடுக்கிறோம்
+                    .filter { it.isActive }
+                    .mapNotNull { it.categoryId?._id }
+
+                Result.success(activeIds)
+            } else {
+                Result.failure(Exception("Failed: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * POST /api/org-garments/add
+     * React: SummaryApi.addCategories → data: { categoryIds: added }
+     */
     suspend fun addOrgGarmentCategory(categoryId: String): Result<AddOrgGarmentResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -299,6 +323,10 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * DELETE /api/org-garments/remove/{categoryId}
+     * React: SummaryApi.removeOneCategory → removed.map(id => api({ url: url(id) }))
+     */
     suspend fun removeOrgGarmentCategory(categoryId: String): Result<RemoveOrgGarmentResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -313,6 +341,7 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    fun getLeads(): Flow<List<LeadEntity>> =
-        leadDao.getAll()
+    // ── Leads (Room) ──────────────────────────────────────────────
+
+    fun getLeads(): Flow<List<LeadEntity>> = leadDao.getAll()
 }

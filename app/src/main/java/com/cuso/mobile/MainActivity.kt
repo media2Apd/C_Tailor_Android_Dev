@@ -28,6 +28,8 @@ import com.cuso.mobile.view.organization.OrganizationProfile
 import com.cuso.mobile.view.others.privacyPolicy
 import com.cuso.mobile.view.others.termsConditions
 import com.cuso.mobile.view.home.HomeScreen
+import com.cuso.mobile.view.home.SalesSettingsScreen
+import com.cuso.mobile.view.home.SettingsScreen
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -49,6 +51,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
 
 //                    HomeScreen(navController)
+//                    SettingsScreen(navController)
 
                 }
             }

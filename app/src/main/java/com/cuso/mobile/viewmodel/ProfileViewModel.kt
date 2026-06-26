@@ -26,9 +26,10 @@ class ProfileViewModel @Inject constructor(
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     fun loadOrganization(token: String) {
+        if (_uiState.value is ProfileUiState.Success) return // ← add this guard
         viewModelScope.launch {
             _uiState.value = ProfileUiState.Loading
-            val result = authRepository.getMyOrganization(token)
+            val result = authRepository.getMyOrganization("Bearer $token")
             result.fold(
                 onSuccess = { response ->
                     if (response.success) {
@@ -42,5 +43,4 @@ class ProfileViewModel @Inject constructor(
                 }
             )
         }
-    }
-}
+    }}

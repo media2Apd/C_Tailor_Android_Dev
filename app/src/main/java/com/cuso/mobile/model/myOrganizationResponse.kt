@@ -6,7 +6,7 @@ data class myOrganizationResponse(
 )
 
 data class OrganizationDataWrapper(
-    val organization: Organization,
+    val organization: OrganizationDetails,
     val stats: OrgStats?
 )
 

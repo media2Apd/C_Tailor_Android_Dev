@@ -8,9 +8,17 @@ import AddOrgGarmentResponse
 import GarmentCategoriesResponse
 import OrgGarmentResponse
 import RemoveOrgGarmentResponse
+import com.cuso.mobile.model.BranchListResponse
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
 import com.cuso.mobile.model.DeleteLeadResponse
+import com.cuso.mobile.model.DepartmentResponse
+import com.cuso.mobile.model.DesignationCreateRequest
+import com.cuso.mobile.model.DesignationCreateResponse
+import com.cuso.mobile.model.DesignationDeleteResponse
+import com.cuso.mobile.model.DesignationListResponse
+import com.cuso.mobile.model.DesignationUpdateRequest
+import com.cuso.mobile.model.DesignationUpdateResponse
 import com.cuso.mobile.model.EmailResponse
 import com.cuso.mobile.model.EmailVerify
 import com.cuso.mobile.model.GoogleLoginRequest
@@ -24,6 +32,8 @@ import com.cuso.mobile.model.SalesSummaryResponse
 import com.cuso.mobile.model.SignupRequest
 import com.cuso.mobile.model.SignupResponse
 import com.cuso.mobile.model.StaffResponse
+import com.cuso.mobile.model.UpdateBranchRequest
+import com.cuso.mobile.model.UpdateBranchResponse
 import com.cuso.mobile.model.UpdateLeadResponse
 import com.cuso.mobile.model.ViewOneLeadResponse
 import com.cuso.mobile.model.forgotPasswordRequest
@@ -210,6 +220,8 @@ interface ApiService {
         @Part("notes[1][type]") noteType1: RequestBody? = null,
     ): Response<UpdateLeadResponse>
 
+
+
     @DELETE("/api/sales-leads/delete-one/{id}")
     suspend fun deleteLead(
         @Header("Authorization") accessToken: String,
@@ -260,4 +272,61 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("categoryId") categoryId: String
     ): Response<RemoveOrgGarmentResponse>
+
+    // ── Branches ──────────────────────────────────────────────────
+
+    @GET("/api/branches/view-all")
+    suspend fun getBranches(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): BranchListResponse
+
+    @PUT("/api/branches/update-one/{id}")
+    suspend fun updateBranch(
+        @Header("Authorization") accessToken: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: UpdateBranchRequest
+    ): Response<UpdateBranchResponse>
+
+    // ── Departments ───────────────────────────────────────────────
+
+    // ✅ NEW - Department list (path guessed to match "view-all" convention — confirm with backend)
+    @GET("/api/departments/view-all")
+    suspend fun getDepartments(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): DepartmentResponse
+
+    // ── Designations ──────────────────────────────────────────────
+
+    @GET("/api/designations/view-all")
+    suspend fun getDesignations(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<DesignationListResponse>
+
+    @POST("/api/designations/create")
+    suspend fun createDesignation(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: DesignationCreateRequest
+    ): Response<DesignationCreateResponse>
+
+    // ✅ ADD THIS - Update Designation
+    @PUT("/api/designations/update-one/{id}")
+    suspend fun updateDesignation(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: DesignationUpdateRequest
+    ): Response<DesignationUpdateResponse>
+
+    // ✅ ADD THIS - Delete Designation (Soft Delete)
+    @DELETE("/api/designations/delete-one/{id}")
+    suspend fun deleteDesignation(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<DesignationDeleteResponse>
 }

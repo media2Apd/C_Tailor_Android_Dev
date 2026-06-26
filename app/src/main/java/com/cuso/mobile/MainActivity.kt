@@ -22,6 +22,8 @@ import com.cuso.mobile.ui.theme.CusoTailorTheme
 import com.cuso.mobile.view.forgot_password.ForgotPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
 import com.cuso.mobile.view.forgot_password.VerifyForgotPassword
+import com.cuso.mobile.view.home.BranchSettingsScreen
+import com.cuso.mobile.view.home.DepartmentSettingsScreen
 import com.cuso.mobile.view.login.LoginOtpScreen
 import com.cuso.mobile.view.login.LoginScreen
 import com.cuso.mobile.view.organization.OrganizationProfile
@@ -51,7 +53,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
 
 //                    HomeScreen(navController)
-//                    SettingsScreen(navController)
+//                    DepartmentSettingsScreen(navController)
 
                 }
             }

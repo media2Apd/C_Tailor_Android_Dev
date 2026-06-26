@@ -196,7 +196,7 @@ class Authenticate @Inject constructor(
                     meResult.getOrNull()?.let { /* TODO: save or use */ }
 
                     orgResult.getOrNull()?.let { response ->
-                        loginRepository.saveOrganizationData(response.data.organization)
+                        loginRepository.saveOrganizationData(response.data.organization.toOrganization())
                         loadOrganization()
                         loadSettings()
                     }
@@ -599,4 +599,39 @@ class Authenticate @Inject constructor(
             loadTokens()
         }
     }
+
+    // Organization.kt — add this extension function at the bottom
+
+    fun OrganizationDetails.toOrganization(): Organization = Organization(
+        subscription = this.subscription,
+        settings = this.settings,
+        isInternalOrganization = this.isInternalOrganization,
+        _id = this._id,
+        businessId = this.businessId,
+        name = this.name,
+        industry = this.industry,
+        orgType = this.orgType,
+        organizationPicture = this.organizationPicture,
+        organizationPictureId = this.organizationPictureId,
+        domains = this.domains,
+        email = this.email,
+        mobile = this.mobile,
+        orgSetupComplete = this.orgSetupComplete,
+        totalMembers = this.totalMembers,
+        activeMembers = this.activeMembers,
+        segments = this.segments,
+        branches = this.branches.map { it._id },  // ← List<Branch> → List<String>
+        isTaxId = this.isTaxId,
+        status = this.status,
+        createdAt = this.createdAt,
+        updatedAt = this.updatedAt,
+        slug = this.slug,
+        __v = this.__v,
+        defaultBranch = this.defaultBranch?._id?:"",
+        ownerId = this.ownerId,
+        ownerMemberId = this.ownerMemberId,
+        businessType = this.businessType,
+        taxId = this.taxId,
+        plan = this.plan?._id  // ← Plan object → String ID
+    )
 }

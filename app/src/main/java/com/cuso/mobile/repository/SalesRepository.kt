@@ -1,5 +1,3 @@
-// com/cuso/mobile/repository/SalesRepository.kt
-
 package com.cuso.mobile.repository
 
 import AddGarmentRequest
@@ -14,11 +12,15 @@ import com.cuso.mobile.database.entities.LeadEntity
 import com.cuso.mobile.database.entities.SalesStatusEntity
 import com.cuso.mobile.database.entities.SalesSummaryEntity
 import com.cuso.mobile.database.entities.toEntity
+import com.cuso.mobile.model.BranchItem
+import com.cuso.mobile.model.BranchListResponse
 import com.cuso.mobile.model.CategoryItem
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
+import com.cuso.mobile.model.DepartmentResponse
 import com.cuso.mobile.model.LeadTableItem
 import com.cuso.mobile.model.StaffDto
+import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.model.UpdateLeadResponse
 import com.cuso.mobile.model.ViewOneLeadData
 import com.cuso.mobile.model.toEntity
@@ -30,6 +32,14 @@ import javax.inject.Singleton
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+
+// ✅ Import designation models
+import com.cuso.mobile.model.DesignationItem
+import com.cuso.mobile.model.DesignationCreateRequest
+import com.cuso.mobile.model.DesignationCreateResponse
+import com.cuso.mobile.model.DesignationUpdateRequest
+import com.cuso.mobile.model.DesignationUpdateResponse
+import com.cuso.mobile.model.DesignationDeleteResponse
 
 @Singleton
 @Suppress("unused")
@@ -304,6 +314,38 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    // ── Branches ──────────────────────────────────────────────────
+
+    suspend fun getBranches(): Result<BranchListResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getBranches(accessToken, csrfToken)
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * PUT /api/branches/update-one/{id}
+     * id must be the branch's real Mongo _id (BranchItem._id), not the display branchId string.
+     */
+    suspend fun updateBranch(id: String, request: UpdateBranchRequest): Result<BranchItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.updateBranch(accessToken, csrfToken, id, request)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to update branch: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     /**
      * POST /api/org-garments/add
      * React: SummaryApi.addCategories → data: { categoryIds: added }
@@ -335,6 +377,99 @@ class SalesRepository @Inject constructor(
                 Result.success(response.body()!!)
             } else {
                 Result.failure(Exception("Failed to remove category: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getDepartments(): Result<DepartmentResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getDepartments(accessToken, csrfToken)
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Designations ──────────────────────────────────────────────
+
+    /**
+     * GET /api/designations/view-all
+     * Fetch all designations
+     */
+    suspend fun getDesignations(): Result<List<DesignationItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getDesignations(accessToken, csrfToken)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception("Failed to load designations: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * POST /api/designations/create
+     * Create a new designation
+     */
+    suspend fun createDesignation(request: DesignationCreateRequest): Result<DesignationCreateResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.createDesignation(accessToken, csrfToken, request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to create designation: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ✅ ADD THIS - Update Designation
+    /**
+     * PUT /api/designations/update-one/{id}
+     * Update an existing designation
+     */
+    suspend fun updateDesignation(
+        id: String,
+        request: DesignationUpdateRequest
+    ): Result<DesignationUpdateResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.updateDesignation(accessToken, csrfToken, id, request)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to update designation: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ✅ ADD THIS - Delete Designation
+    /**
+     * DELETE /api/designations/delete-one/{id}
+     * Soft delete a designation
+     */
+    suspend fun deleteDesignation(id: String): Result<DesignationDeleteResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.deleteDesignation(accessToken, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to delete designation: ${response.code()}")
+                )
             }
         } catch (e: Exception) {
             Result.failure(e)

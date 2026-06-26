@@ -79,12 +79,21 @@ data class OrganizationDetails(
     val updatedAt: String,
     val slug: String,
     val __v: Int,
-    val defaultBranch: String,
+    val defaultBranch: DefaultBranch?=null,
     val ownerId: String,
     val ownerMemberId: String,
     val businessType: String,
     val taxId: String,
     val plan: Plan? = null  // Organization API returns Plan object
+)
+
+data class DefaultBranch(
+    val _id: String? = null,
+    val name: String? = null,
+    val branchId: String? = null,
+    val isMainBranch: Boolean? = null,
+    val status: String? = null,
+    val slug: String? = null
 )
 
 // ✅ Branch data class (for Organization API)

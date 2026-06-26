@@ -2,10 +2,12 @@
 
 package com.cuso.mobile.view.home
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,7 +18,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,6 +34,7 @@ import coil.compose.AsyncImage
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.ProfileUiState
 import com.cuso.mobile.viewmodel.ProfileViewModel
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
@@ -225,26 +232,114 @@ fun ProfileTab(
                                 }
                             }
 
-                            Text(
-                                "Subscription Usage",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.Black
-                            )
                             Spacer(Modifier.height(8.dp))
 
                             if (stats == null) {
                                 Text("No active subscription", fontSize = 14.sp, color = Color.Gray)
                             } else {
-                                Text("Branches: ${stats.totalBranches}", fontSize = 14.sp, color = Color.Gray)
-                                Text("Departments: ${stats.totalDepartments}", fontSize = 14.sp, color = Color.Gray)
-                                Text("Employees: ${stats.totalEmployees}", fontSize = 14.sp, color = Color.Gray)
+                                val plan = (uiState as? ProfileUiState.Success)?.data?.organization?.plan
+
+                                Text(
+                                    "Subscription Usage",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.Black
+                                )
+                                Spacer(Modifier.height(16.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+
+                                ) {
+                                    SubscriptionRing(
+                                        modifier=Modifier.weight(1f),
+                                        label = "Orders",
+                                        used = 0,
+                                        limit = plan?.orderLimit ?: 100
+                                    )
+                                    SubscriptionRing(
+                                        modifier=Modifier.weight(1f),
+                                        label = "Employees",
+                                        used = org.activeMembers,
+                                        limit = plan?.employeeLimit ?: org.totalMembers.coerceAtLeast(1)
+                                    )
+                                    SubscriptionRing(
+                                        modifier=Modifier.weight(1f),
+                                        label = "Branches",
+                                        used = stats.totalBranches,
+                                        limit = plan?.branchLimit ?: stats.totalBranches.coerceAtLeast(1)
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SubscriptionRing(
+    modifier: Modifier,
+    label: String,
+    used: Int,
+    limit: Int
+) {
+    val pct = if (limit > 0) (used.toFloat() / limit) else 0f
+    val remaining = (limit - used).coerceAtLeast(0)
+    val ringColor = when {
+        pct >= 1f    -> Color(0xFFE24B4A)
+        pct >= 0.75f -> Color(0xFFEDA100)
+        else         -> Color(0xFF2A78D6)
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+        // ← no modifier here
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(90.dp)
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val stroke = 10.dp.toPx()
+                val radius = (size.minDimension - stroke) / 2
+                val topLeft = Offset(stroke / 2, stroke / 2)
+                val arcSize = Size(radius * 2, radius * 2)
+                drawArc(
+                    color = Color(0xFFE1E0D9),
+                    startAngle = 0f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = Stroke(width = stroke, cap = StrokeCap.Round)
+                )
+                if (pct > 0f) {
+                    drawArc(
+                        color = ringColor,
+                        startAngle = -90f,
+                        sweepAngle = 360f * pct.coerceAtMost(1f),
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = stroke, cap = StrokeCap.Round)
+                    )
+                }
+            }
+            Text(
+                text = "${(pct * 100).roundToInt()}%",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF111827)
+            )
+        }
+        Text(text = label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
+        Text(text = "$used / $limit", fontSize = 12.sp, color = Color(0xFF6B7280))
+        Text(text = "$remaining remaining", fontSize = 12.sp, color = Color(0xFF9CA3AF))
     }
 }
 

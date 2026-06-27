@@ -1,5 +1,6 @@
 package com.cuso.mobile.viewmodel
 
+import CreateBranchRequest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.BranchItem
@@ -27,17 +28,32 @@ sealed class UpdateBranchUiState {
     data class Error(val message: String) : UpdateBranchUiState()
 }
 
+// ── Create state (createBranch) ──
+sealed class CreateBranchUiState {
+    object Idle : CreateBranchUiState()
+    object Loading : CreateBranchUiState()
+    object Success : CreateBranchUiState()
+    data class Error(val message: String) : CreateBranchUiState()
+}
+
 @HiltViewModel
 class BranchViewModel @Inject constructor(
     private val salesRepository: SalesRepository
 ) : ViewModel() {
 
+    // ── UI State for listing branches ──
     private val _uiState = MutableStateFlow<BranchUiState>(BranchUiState.Loading)
     val uiState: StateFlow<BranchUiState> = _uiState.asStateFlow()
 
+    // ── Update State ──
     private val _updateState = MutableStateFlow<UpdateBranchUiState>(UpdateBranchUiState.Idle)
     val updateState: StateFlow<UpdateBranchUiState> = _updateState.asStateFlow()
 
+    // ── Create State ──
+    private val _createState = MutableStateFlow<CreateBranchUiState>(CreateBranchUiState.Idle)
+    val createState: StateFlow<CreateBranchUiState> = _createState.asStateFlow()
+
+    // ── Load Branches ──
     fun loadBranches() {
         if (_uiState.value is BranchUiState.Success) return
         viewModelScope.launch {
@@ -57,9 +73,23 @@ class BranchViewModel @Inject constructor(
         }
     }
 
+    // ── Refresh Branches ──
     fun refresh() {
-        _uiState.value = BranchUiState.Loading
-        loadBranches()
+        viewModelScope.launch {
+            _uiState.value = BranchUiState.Loading
+            salesRepository.getBranches().fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        _uiState.value = BranchUiState.Success(response.data)
+                    } else {
+                        _uiState.value = BranchUiState.Error("Failed to load branches")
+                    }
+                },
+                onFailure = { e ->
+                    _uiState.value = BranchUiState.Error(e.message ?: "Something went wrong")
+                }
+            )
+        }
     }
 
     // ── Update Branch ──
@@ -87,5 +117,41 @@ class BranchViewModel @Inject constructor(
 
     fun resetUpdateState() {
         _updateState.value = UpdateBranchUiState.Idle
+    }
+
+    // ── Create Branch ──
+    fun createBranch(request: CreateBranchRequest) {
+        viewModelScope.launch {
+            _createState.value = CreateBranchUiState.Loading
+            salesRepository.createBranch(request).fold(
+                onSuccess = { response ->
+                    if (response.success && response.data != null) {
+                        _createState.value = CreateBranchUiState.Success
+                        // Add the new branch to the list
+                        val current = _uiState.value
+                        if (current is BranchUiState.Success) {
+                            val newList = current.branches + response.data
+                            _uiState.value = BranchUiState.Success(newList)
+                        } else {
+                            // If list wasn't loaded, reload it
+                            refresh()
+                        }
+                    } else {
+                        _createState.value = CreateBranchUiState.Error(
+                            response.message ?: "Failed to create branch"
+                        )
+                    }
+                },
+                onFailure = { e ->
+                    _createState.value = CreateBranchUiState.Error(
+                        e.message ?: "Something went wrong"
+                    )
+                }
+            )
+        }
+    }
+
+    fun resetCreateState() {
+        _createState.value = CreateBranchUiState.Idle
     }
 }

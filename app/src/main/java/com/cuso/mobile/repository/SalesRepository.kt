@@ -2,6 +2,8 @@ package com.cuso.mobile.repository
 
 import AddGarmentRequest
 import AddOrgGarmentResponse
+import CreateBranchRequest
+import CreateBranchResponse
 import OrgGarmentCategory
 import RemoveOrgGarmentResponse
 import com.cuso.mobile.database.dao.LeadDao
@@ -17,7 +19,12 @@ import com.cuso.mobile.model.BranchListResponse
 import com.cuso.mobile.model.CategoryItem
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
+import com.cuso.mobile.model.CreateOrderRequest
+import com.cuso.mobile.model.DepartmentCreateRequest
+import com.cuso.mobile.model.DepartmentCreateResponse
 import com.cuso.mobile.model.DepartmentResponse
+import com.cuso.mobile.model.DepartmentUpdateRequest
+import com.cuso.mobile.model.DepartmentUpdateResponse
 import com.cuso.mobile.model.LeadTableItem
 import com.cuso.mobile.model.StaffDto
 import com.cuso.mobile.model.UpdateBranchRequest
@@ -40,6 +47,13 @@ import com.cuso.mobile.model.DesignationCreateResponse
 import com.cuso.mobile.model.DesignationUpdateRequest
 import com.cuso.mobile.model.DesignationUpdateResponse
 import com.cuso.mobile.model.DesignationDeleteResponse
+import com.cuso.mobile.model.OrderApiResponse
+import com.cuso.mobile.model.OrderItem
+import com.cuso.mobile.model.OrderResponse
+import com.cuso.mobile.model.UpdateOrderRequest
+import com.cuso.mobile.model.UpdateOrganizationRequest
+import com.cuso.mobile.model.UpdateOrganizationResponse
+import com.cuso.mobile.model.toOrderItem
 
 @Singleton
 @Suppress("unused")
@@ -301,7 +315,7 @@ class SalesRepository @Inject constructor(
 
             if (response.isSuccessful && response.body()?.success == true) {
                 val activeIds = response.body()!!
-                    .data.categories          // ← data.categories எடுக்கிறோம்
+                    .data.categories
                     .filter { it.isActive }
                     .mapNotNull { it.categoryId?._id }
 
@@ -347,6 +361,24 @@ class SalesRepository @Inject constructor(
     }
 
     /**
+     * POST /api/branches/create
+     * Create a new branch
+     */
+    suspend fun createBranch(request: CreateBranchRequest): Result<CreateBranchResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.createBranch(accessToken, csrfToken, request)
+            if (response.success) {
+                Result.success(response)
+            } else {
+                Result.failure(Exception(response.message ?: "Failed to create branch"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * POST /api/org-garments/add
      * React: SummaryApi.addCategories → data: { categoryIds: added }
      */
@@ -383,11 +415,62 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    // ── Departments ──────────────────────────────────────────────
+
+    // ── Departments ──────────────────────────────────────────────
+
+    /**
+     * GET /api/departments/view-all
+     * Fetch all departments
+     */
     suspend fun getDepartments(): Result<DepartmentResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = api.getDepartments(accessToken, csrfToken)
-            Result.success(response)
+            if (response.success) {
+                Result.success(response)
+            } else {
+                Result.failure(Exception("Failed to load departments"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * POST /api/departments/create
+     * Create a new department
+     */
+    suspend fun createDepartment(request: DepartmentCreateRequest): Result<DepartmentCreateResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.createDepartment(accessToken, csrfToken, request)
+            if (response.success) {
+                Result.success(response)
+            } else {
+                Result.failure(Exception(response.message ?: "Failed to create department"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * PUT /api/departments/update-one/{id}
+     * Update an existing department
+     */
+    suspend fun updateDepartment(
+        id: String,
+        request: DepartmentUpdateRequest
+    ): Result<DepartmentUpdateResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.updateDepartment(accessToken, csrfToken, id, request)
+            if (response.success) {
+                Result.success(response)
+            } else {
+                Result.failure(Exception(response.message ?: "Failed to update department"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -431,7 +514,6 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // ✅ ADD THIS - Update Designation
     /**
      * PUT /api/designations/update-one/{id}
      * Update an existing designation
@@ -455,7 +537,6 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // ✅ ADD THIS - Delete Designation
     /**
      * DELETE /api/designations/delete-one/{id}
      * Soft delete a designation
@@ -476,7 +557,196 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // ── Leads (Room) ──────────────────────────────────────────────
+    // ── Organization ──────────────────────────────────────────────────
+
+    // In SalesRepository.kt - Add this method
+
+// ── Organization ──────────────────────────────────────────────────
+
+    /**
+     * PUT /api/organizations/update-one
+     * Update organization details
+     */
+    suspend fun updateOrganization(
+        token: String,
+        request: UpdateOrganizationRequest
+    ): Result<UpdateOrganizationResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.updateOrganization(
+                token = token,
+                csrfToken = csrfToken,
+                request = request
+            )
+            if (response.success) {
+                Result.success(response)
+            } else {
+                Result.failure(Exception(response.message ?: "Failed to update organization"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    // get sales order ──────────────────────────────────────────────
+    // ── Sales/Orders API Methods ─────────────────────────────────
+
+    // ── Paste these methods into SalesRepository.kt, replacing the existing order section ──
+// They fix the Result.Success / Result.Error compile errors (those are not Kotlin stdlib Result)
+
+    /**
+     * GET /api/sales-leads/view-all
+     */
+    suspend fun getOrders(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ): Result<OrderResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getOrders(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search,
+                status = status
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(response.message() ?: "Failed to fetch orders"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * GET /api/sales-leads/{orderId}
+     */
+
+
+    // ── getOrderById ──────────────────────────────────────────────
+    suspend fun getOrderById(orderId: String): Result<OrderItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getOrderById(
+                token = accessToken,
+                csrfToken = csrfToken,
+                orderId = orderId
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                val apiResponse = response.body()?.data
+                    ?: return Result.failure(Exception("Order not found"))
+                Result.success(apiResponse.toOrderItem())   // ← map here
+            } else {
+                Result.failure(Exception(response.message() ?: "Failed to fetch order"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── updateOrderStatus ─────────────────────────────────────────
+    suspend fun updateOrderStatus(
+        orderId: String,
+        status: String
+    ): Result<OrderItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.updateOrderStatus(
+                token = accessToken,
+                csrfToken = csrfToken,
+                orderId = orderId,
+                status = status
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                val apiResponse = response.body()?.data
+                    ?: return Result.failure(Exception("Failed to update status"))
+                Result.success(apiResponse.toOrderItem())   // ← map here
+            } else {
+                Result.failure(Exception(response.message() ?: "Failed to update status"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+//    /**
+//     * POST /api/sales-leads
+//     */
+//    suspend fun createOrder(request: CreateOrderRequest): Result<OrderItem> {
+//        return try {
+//            val (accessToken, csrfToken) = getAuthHeaders()
+//            val response = api.createOrder(
+//                token = accessToken,
+//                csrfToken = csrfToken,
+//                request = request
+//            )
+//            if (response.isSuccessful && response.body()?.success == true) {
+//                val item = response.body()?.data
+//                    ?: return Result.failure(Exception("Failed to create order"))
+//                Result.success(item)
+//            } else {
+//                Result.failure(Exception(response.message() ?: "Failed to create order"))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
+//
+//    /**
+//     * PUT /api/sales-leads/{orderId}
+//     */
+//    suspend fun updateOrder(
+//        orderId: String,
+//        request: UpdateOrderRequest
+//    ): Result<OrderItem> {
+//        return try {
+//            val (accessToken, csrfToken) = getAuthHeaders()
+//            val response = api.updateOrder(
+//                token = accessToken,
+//                csrfToken = csrfToken,
+//                orderId = orderId,
+//                request = request
+//            )
+//            if (response.isSuccessful && response.body()?.success == true) {
+//                val item = response.body()?.data
+//                    ?: return Result.failure(Exception("Failed to update order"))
+//                Result.success(item)
+//            } else {
+//                Result.failure(Exception(response.message() ?: "Failed to update order"))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
+//
+//    /**
+//     * DELETE /api/sales-leads/{orderId}
+//     */
+//    suspend fun deleteOrder(orderId: String): Result<Boolean> {
+//        return try {
+//            val (accessToken, csrfToken) = getAuthHeaders()
+//            val response = api.deleteOrder(
+//                token = accessToken,
+//                csrfToken = csrfToken,
+//                orderId = orderId
+//            )
+//            if (response.isSuccessful && response.body()?.success == true) {
+//                Result.success(true)
+//            } else {
+//                Result.failure(Exception(response.message() ?: "Failed to delete order"))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
+
+
+
 
     fun getLeads(): Flow<List<LeadEntity>> = leadDao.getAll()
 }
+

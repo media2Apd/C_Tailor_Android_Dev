@@ -1,5 +1,7 @@
 package com.cuso.mobile.view.home
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,9 +20,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
@@ -30,15 +34,20 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.cuso.mobile.model.BranchItem
 import com.cuso.mobile.model.DepartmentItem
 import com.cuso.mobile.model.StaffDto
 import com.cuso.mobile.viewmodel.DepartmentUiState
 import com.cuso.mobile.viewmodel.DepartmentViewModel
+import com.cuso.mobile.viewmodel.DesignationCreateState
+import com.cuso.mobile.viewmodel.DepartmentUpdateUiState
+import com.cuso.mobile.viewmodel.ProfileUiState
+import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun DepartmentSettingsScreen(
@@ -48,123 +57,484 @@ fun DepartmentSettingsScreen(
 ) {
     val departmentViewModel: DepartmentViewModel = hiltViewModel()
     val salesViewModel: SalesViewModel = hiltViewModel()
+    val profileViewModel: ProfileViewModel = hiltViewModel()
+
+    var showAddDialog by remember { mutableStateOf(false) }
+    var editingDepartment by remember { mutableStateOf<DepartmentItem?>(null) }
+    var showPlanLimitDialog by remember { mutableStateOf(false) }
 
     val uiState by departmentViewModel.uiState.collectAsStateWithLifecycle()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
+    val createState by departmentViewModel.createState.collectAsStateWithLifecycle()
+    val updateState by departmentViewModel.updateState.collectAsStateWithLifecycle()
+    val profileUiState by profileViewModel.uiState.collectAsStateWithLifecycle()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         departmentViewModel.loadDepartments()
         salesViewModel.fetchStaff()
+        profileViewModel.loadOrganization("")
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        // ── Top Bar ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clickable { onBack() },
-                    tint = Color(0xFF111827)
-                )
-                Text(
-                    "Department",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
-                )
-            }
-
-            Button(
-                onClick = { /* TODO: Add Department */ },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = Color.White
-                )
-                Spacer(Modifier.width(4.dp))
-                Text("Add", color = Color.White, fontSize = 14.sp)
-            }
+    // Get plan limits from organization
+    val planLimits = (profileUiState as? ProfileUiState.Success)?.data?.organization?.let { org ->
+        org.plan?.let { plan ->
+            PlanLimits(
+                branchLimit = plan.branchLimit ?: Int.MAX_VALUE,
+                departmentLimit = plan.departmentLimit ?: Int.MAX_VALUE,
+                employeeLimit = plan.employeeLimit ?: Int.MAX_VALUE,
+                orderLimit = plan.orderLimit ?: Int.MAX_VALUE,
+                categoryLimit = plan.categoryLimit ?: Int.MAX_VALUE
+            )
         }
+    }
 
-        HorizontalDivider(color = Color(0xFFF0F0F0))
-
-        when (val state = uiState) {
-            is DepartmentUiState.Loading -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+    // ── React to create result ──
+    LaunchedEffect(createState) {
+        when (val state = createState) {
+            is DesignationCreateState.Success -> {
+                showAddDialog = false
+                departmentViewModel.resetCreateState()
+                departmentViewModel.loadDepartments()
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Department created successfully")
                 }
             }
+            is DesignationCreateState.Error -> {
+                departmentViewModel.resetCreateState()
+                if (state.message.contains("limit", ignoreCase = true) ||
+                    state.message.contains("exceed", ignoreCase = true)) {
+                    showPlanLimitDialog = true
+                } else {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(state.message)
+                    }
+                }
+            }
+            else -> Unit
+        }
+    }
 
-            is DepartmentUiState.Error -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = Color.Red,
-                            modifier = Modifier.size(48.dp)
+    // ── React to update result ──
+    LaunchedEffect(updateState) {
+        when (val state = updateState) {
+            is DepartmentUpdateUiState.Success -> {
+                editingDepartment = null
+                departmentViewModel.resetUpdateState()
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Department updated successfully")
+                }
+            }
+            is DepartmentUpdateUiState.Error -> {
+                departmentViewModel.resetUpdateState()
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(state.message)
+                }
+            }
+            else -> Unit
+        }
+    }
+
+    val isCreating = createState is DesignationCreateState.Loading
+    val isUpdating = updateState is DepartmentUpdateUiState.Loading
+
+    // Check if department limit is reached
+    val currentDepartments = (uiState as? DepartmentUiState.Success)?.departments?.size ?: 0
+    val isDepartmentLimitReached = planLimits?.let { currentDepartments >= it.departmentLimit } ?: false
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White)
+        ) {
+            // ── Top Bar ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clickable { onBack() },
+                        tint = Color(0xFF111827)
+                    )
+                    Text(
+                        "Department",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
+                }
+
+                // Show limit info and add button
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (planLimits != null) {
+                        Text(
+                            text = "${currentDepartments}/${planLimits.departmentLimit}",
+                            fontSize = 13.sp,
+                            color = if (isDepartmentLimitReached) Color.Red else Color(0xFF6B7280),
+                            modifier = Modifier.padding(end = 12.dp)
                         )
-                        Spacer(Modifier.height(8.dp))
-                        Text(state.message, color = Color.Red)
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = { departmentViewModel.refresh() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) { Text("Retry", color = Color.White) }
+                    }
+
+                    Button(
+                        onClick = {
+                            if (isDepartmentLimitReached) {
+                                showPlanLimitDialog = true
+                            } else {
+                                showAddDialog = true
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isDepartmentLimitReached) Color.Gray else Color(0xFF3B3BF9)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.White
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("Add", color = Color.White, fontSize = 14.sp)
                     }
                 }
             }
 
-            is DepartmentUiState.Success -> {
-                if (state.departments.isEmpty()) {
+            HorizontalDivider(color = Color(0xFFF0F0F0))
+
+            when (val state = uiState) {
+                is DepartmentUiState.Loading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+                is DepartmentUiState.Error -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                Icons.Default.Groups,
+                                Icons.Default.Warning,
                                 contentDescription = null,
-                                tint = Color.LightGray,
+                                tint = Color.Red,
                                 modifier = Modifier.size(48.dp)
                             )
                             Spacer(Modifier.height(8.dp))
-                            Text("No departments found", color = Color.Gray, fontSize = 15.sp)
+                            Text(state.message, color = Color.Red)
+                            Spacer(Modifier.height(12.dp))
+                            Button(
+                                onClick = { departmentViewModel.refresh() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) { Text("Retry", color = Color.White) }
                         }
                     }
-                } else {
-                    DepartmentTable(
-                        departments = state.departments,
-                        staffList = staffList,
-                        onEditClick = { /* TODO: open edit dialog */ },
-                        onDeleteClick = { /* TODO: call delete */ },
-                        onViewClick = { /* TODO: navigate to detail */ }
+                }
+
+                is DepartmentUiState.Success -> {
+                    if (state.departments.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Default.Groups,
+                                    contentDescription = null,
+                                    tint = Color.LightGray,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text("No departments found", color = Color.Gray, fontSize = 15.sp)
+                            }
+                        }
+                    } else {
+                        DepartmentTable(
+                            departments = state.departments,
+                            staffList = staffList,
+                            onEditClick = { department -> editingDepartment = department },
+                            onDeleteClick = { /* TODO: call delete */ },
+                            onViewClick = { /* TODO: navigate to detail */ }
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── Plan Limit Dialog (Slides from Top) ──
+        if (showPlanLimitDialog) {
+            DepartmentPlanLimitDialog(
+                title = "Plan Limit Reached",
+                message = "Department limit exceeded (${currentDepartments}/${planLimits?.departmentLimit ?: 0}). Upgrade your plan to add more departments.",
+                currentCount = currentDepartments,
+                maxLimit = planLimits?.departmentLimit ?: 0,
+                onDismiss = { showPlanLimitDialog = false },
+                onUpgrade = {
+                    showPlanLimitDialog = false
+                    // Navigate to upgrade plan screen
+                    navController.navigate("subscription") // or your upgrade route
+                }
+            )
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        )
+    }
+
+    // ── Add Department Dialog ──
+    if (showAddDialog) {
+        AddDepartmentDialog(
+            isLoading = isCreating,
+            staffList = staffList,
+            onDismiss = {
+                showAddDialog = false
+                departmentViewModel.resetCreateState()
+            },
+            onCreate = { request ->
+                if (isDepartmentLimitReached) {
+                    showPlanLimitDialog = true
+                    return@AddDepartmentDialog
+                }
+                departmentViewModel.createDepartment(
+                    name = request.name,
+                    description = request.description,
+                    departmentHead = request.departmentHead
+                )
+            }
+        )
+    }
+
+    // ── Edit Department Dialog ──
+    editingDepartment?.let { department ->
+        EditDepartmentDialog(
+            department = department,
+            staffList = staffList,
+            isLoading = isUpdating,
+            onDismiss = {
+                editingDepartment = null
+                departmentViewModel.resetUpdateState()
+            },
+            onUpdate = { name, description, departmentHead, status ->
+                departmentViewModel.updateDepartment(
+                    id = department._id,
+                    name = name,
+                    description = description,
+                    departmentHead = departmentHead,
+                    status = status
+                )
+            }
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Plan Limit Dialog - Slides from Top like Notification
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun DepartmentPlanLimitDialog(
+    title: String,
+    message: String,
+    currentCount: Int,
+    maxLimit: Int,
+    onDismiss: () -> Unit,
+    onUpgrade: () -> Unit
+) {
+    // Animation state for sliding from top
+    var isVisible by remember { mutableStateOf(false) }
+
+    // Trigger animation when dialog appears
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.3f))
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.TopCenter
+        ) {
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = slideInVertically(
+                    initialOffsetY = { -it },
+                    animationSpec = tween(
+                        durationMillis = 400,
+                        easing = FastOutSlowInEasing
                     )
+                ) + fadeIn(
+                    animationSpec = tween(durationMillis = 300)
+                ),
+                exit = slideOutVertically(
+                    targetOffsetY = { -it },
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        easing = FastOutSlowInEasing
+                    )
+                ) + fadeOut(
+                    animationSpec = tween(durationMillis = 200)
+                )
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 40.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { /* Prevent click through */ },
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 8.dp
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+
+
+                        // ── Title ──
+                        Text(
+                            text = title,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF111827),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // ── Message ──
+                        Text(
+                            text = message,
+                            fontSize = 14.sp,
+                            color = Color(0xFF6B7280),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+//                        // ── Progress Indicator ──
+//                        Row(
+//                            verticalAlignment = Alignment.CenterVertically,
+//                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+//                        ) {
+//                            Text(
+//                                text = "$currentCount",
+//                                fontSize = 16.sp,
+//                                fontWeight = FontWeight.Bold,
+//                                color = Color(0xFF111827)
+//                            )
+//                            Box(
+//                                modifier = Modifier
+//                                    .width(120.dp)
+//                                    .height(8.dp)
+//                                    .background(Color(0xFFE5E7EB), RoundedCornerShape(4.dp))
+//                            ) {
+//                                val progress = if (maxLimit > 0) currentCount.toFloat() / maxLimit else 0f
+//                                Box(
+//                                    modifier = Modifier
+//                                        .fillMaxWidth(progress.coerceAtMost(1f))
+//                                        .fillMaxHeight()
+//                                        .background(
+//                                            if (progress >= 1f) Color(0xFFEF4444) else Color(0xFF3B3BF9),
+//                                            RoundedCornerShape(4.dp)
+//                                        )
+//                                )
+//                            }
+//                            Text(
+//                                text = "$maxLimit",
+//                                fontSize = 16.sp,
+//                                fontWeight = FontWeight.Bold,
+//                                color = Color(0xFF111827)
+//                            )
+//                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Limit reached",
+                            fontSize = 12.sp,
+                            color = Color(0xFFEF4444),
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // ── Action Buttons ──
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onDismiss,
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color(0xFF374151)
+                                ),
+                                modifier = Modifier.weight(0.4f)
+                            ) {
+                                Text(
+                                    "Close",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF374151)
+                                )
+                            }
+
+                            Button(
+                                onClick = onUpgrade,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF3B3BF9),
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(0.6f)
+                            ) {
+                                Text(
+                                    "Upgrade Plan",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
+
 
 // ─────────────────────────────────────────────────────────────
 // DepartmentTable
@@ -254,7 +624,6 @@ fun DepartmentTableRow(
 ) {
     var actionMenuExpanded by remember { mutableStateOf(false) }
 
-    // departmentHeadId is just an id in the response — resolve a display name from staffList
     val headName = remember(department.departmentHeadId, staffList) {
         department.departmentHeadId
             ?.let { headId -> staffList.firstOrNull { it.id == headId } }
@@ -355,7 +724,7 @@ fun DepartmentTableRow(
             )
         }
 
-        // ── Teams ── (not in API response yet; static placeholder like Branch's Employees/Active Orders)
+        // ── Teams ──
         Text(
             "0 Teams",
             modifier = Modifier.width(teamsWidth),
@@ -396,7 +765,6 @@ fun DepartmentTableRow(
                     containerColor = Color.White,
                     shape = RoundedCornerShape(10.dp)
                 ) {
-
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -408,6 +776,7 @@ fun DepartmentTableRow(
                             onEditClick(department)
                         }
                     )
+
                     Spacer(Modifier.padding(top = 5.dp))
                     DropdownMenuItem(
                         text = {
@@ -420,7 +789,6 @@ fun DepartmentTableRow(
                             onViewClick(department)
                         }
                     )
-
                 }
             }
         }
@@ -428,7 +796,263 @@ fun DepartmentTableRow(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Add Department Dialog - UI Design from image
+// Edit Department Dialog
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun EditDepartmentDialog(
+    department: DepartmentItem,
+    staffList: List<StaffDto>,
+    isLoading: Boolean = false,
+    onDismiss: () -> Unit,
+    onUpdate: (name: String, description: String?, departmentHead: String?, status: Boolean?) -> Unit
+) {
+    var departmentName by remember { mutableStateOf(department.name) }
+    var description by remember { mutableStateOf(department.description ?: "") }
+    var selectedStaff by remember { mutableStateOf(department.departmentHeadId ?: "") }
+    var status by remember { mutableStateOf(department.status) }
+    var staffExpanded by remember { mutableStateOf(false) }
+
+    val staffDisplayList = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
+    val staffIdMap = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
+    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: ""
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // ── Header ──
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "Edit Department",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
+                    Text(
+                        "Update department information",
+                        fontSize = 13.sp,
+                        color = Color(0xFF6B7280)
+                    )
+                }
+
+                // ── Department Name ──
+                DepartmentField(
+                    label = "Department Name",
+                    value = departmentName,
+                    onValueChange = { departmentName = it },
+                    placeholder = "Enter department name"
+                )
+
+                // ── Description ──
+                DepartmentField(
+                    label = "Description",
+                    value = description,
+                    onValueChange = { description = it },
+                    placeholder = "Enter description",
+                    isDescription = true
+                )
+
+                // ── Department Head Dropdown ──
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Department Head",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF374151)
+                    )
+
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                                .clickable {
+                                    if (staffList.isNotEmpty()) {
+                                        staffExpanded = true
+                                    }
+                                }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = selectedStaffLabel.ifEmpty {
+                                    if (staffList.isEmpty()) "Loading..." else "Select department head"
+                                },
+                                fontSize = 14.sp,
+                                color = if (selectedStaffLabel.isNotEmpty()) {
+                                    Color(0xFF111827)
+                                } else {
+                                    Color(0xFF9CA3AF)
+                                }
+                            )
+                            Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color(0xFF9CA3AF),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = staffExpanded,
+                            onDismissRequest = { staffExpanded = false },
+                            containerColor = Color.White,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(0.9f)
+                        ) {
+                            if (staffList.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("No staff available", color = Color(0xFF9CA3AF)) },
+                                    onClick = { staffExpanded = false }
+                                )
+                            } else {
+                                staffDisplayList.forEach { label ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                label,
+                                                color = Color(0xFF111827),
+                                                fontSize = 14.sp
+                                            )
+                                        },
+                                        onClick = {
+                                            selectedStaff = staffIdMap[label] ?: ""
+                                            staffExpanded = false
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(
+                                                if (selectedStaff == staffIdMap[label]) {
+                                                    Color(0xFFF3F4F6)
+                                                } else {
+                                                    Color.White
+                                                }
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Status Toggle ──
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Switch(
+                        checked = status,
+                        onCheckedChange = { status = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Color(0xFF3B3BF9),
+                            uncheckedThumbColor = Color.White,
+                            uncheckedTrackColor = Color(0xFFD1D5DB)
+                        )
+                    )
+                    Column {
+                        Text(
+                            if (status) "Active" else "Inactive",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF374151)
+                        )
+                        Text(
+                            if (status) "Department is active" else "Department is inactive",
+                            fontSize = 12.sp,
+                            color = Color(0xFF9CA3AF)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // ── Action Buttons ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.White,
+                            contentColor = Color(0xFF374151)
+                        ),
+                        modifier = Modifier
+                            .weight(0.4f)
+                            .height(48.dp)
+                    ) {
+                        Text(
+                            "Cancel",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF374151)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Button(
+                        onClick = {
+                            onUpdate(
+                                departmentName,
+                                description.ifEmpty { null },
+                                selectedStaff.ifEmpty { null },
+                                status
+                            )
+                        },
+                        enabled = !isLoading && departmentName.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF3B3BF9),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFFD1D5DB)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(0.6f)
+                            .height(48.dp)
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                "Update",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Add Department Dialog
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -444,6 +1068,7 @@ fun AddDepartmentDialog(
     var selectedStaff by remember { mutableStateOf("") }
     var staffExpanded by remember { mutableStateOf(false) }
     var departmentHeadError by remember { mutableStateOf(false) }
+    var nameError by remember { mutableStateOf(false) }
 
     // Staff dropdown data
     val staffDisplayList = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
@@ -458,12 +1083,12 @@ fun AddDepartmentDialog(
                 .fillMaxWidth()
                 .wrapContentHeight()
                 .padding(horizontal = 20.dp),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = Color.White
             ),
             elevation = CardDefaults.cardElevation(
-                defaultElevation = 4.dp
+                defaultElevation = 8.dp
             )
         ) {
             Column(
@@ -471,7 +1096,7 @@ fun AddDepartmentDialog(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // ── Header ──
                 Column(
@@ -484,9 +1109,9 @@ fun AddDepartmentDialog(
                         color = Color(0xFF111827)
                     )
                     Text(
-                        "v1.0",
-                        fontSize = 12.sp,
-                        color = Color(0xFF9CA3AF)
+                        "Create a new department in your organization",
+                        fontSize = 13.sp,
+                        color = Color(0xFF6B7280)
                     )
                 }
 
@@ -496,8 +1121,13 @@ fun AddDepartmentDialog(
                 DepartmentField(
                     label = "Department Name",
                     value = departmentName,
-                    onValueChange = { departmentName = it },
-                    placeholder = "Enter department name"
+                    onValueChange = {
+                        departmentName = it
+                        nameError = false
+                    },
+                    placeholder = "Enter department name",
+                    isError = nameError,
+                    errorMessage = "Department name is required"
                 )
 
                 // Description
@@ -525,7 +1155,7 @@ fun AddDepartmentDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    Color(0xFFF3F4F6),
+                                    if (departmentHeadError) Color(0xFFFFF3F3) else Color(0xFFF3F4F6),
                                     RoundedCornerShape(8.dp)
                                 )
                                 .border(
@@ -544,7 +1174,7 @@ fun AddDepartmentDialog(
                         ) {
                             Text(
                                 text = selectedStaffLabel.ifEmpty {
-                                    if (staffList.isEmpty()) "Loading..." else "Select an option"
+                                    if (staffList.isEmpty()) "Loading..." else "Select department head"
                                 },
                                 fontSize = 14.sp,
                                 color = if (selectedStaffLabel.isNotEmpty()) {
@@ -657,14 +1287,16 @@ fun AddDepartmentDialog(
                     Button(
                         onClick = {
                             // Validate
+                            var hasError = false
+                            if (departmentName.isBlank()) {
+                                nameError = true
+                                hasError = true
+                            }
                             if (selectedStaff.isEmpty()) {
                                 departmentHeadError = true
-                                return@Button
+                                hasError = true
                             }
-                            if (departmentName.isBlank()) {
-                                // You can add similar validation for department name
-                                return@Button
-                            }
+                            if (hasError) return@Button
 
                             onCreate(
                                 DepartmentRequest(
@@ -707,7 +1339,7 @@ fun AddDepartmentDialog(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Department Field Component - FIXED
+// Department Field Component
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -717,6 +1349,8 @@ fun DepartmentField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     isDescription: Boolean = false,
+    isError: Boolean = false,
+    errorMessage: String = "",
     keyboardType: KeyboardType = KeyboardType.Text
 ) {
     Column(
@@ -726,20 +1360,28 @@ fun DepartmentField(
             label,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF374151)
+            color = if (isError) Color.Red else Color(0xFF374151)
         )
 
-        // Use Box with BasicTextField for placeholder support
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                .height(if (isDescription) 100.dp else 48.dp)
+                .background(
+                    if (isError) Color(0xFFFFF3F3) else Color(0xFFF3F4F6),
+                    RoundedCornerShape(8.dp)
+                )
+                .border(
+                    width = if (isError) 1.dp else 0.dp,
+                    color = Color.Red,
+                    shape = RoundedCornerShape(8.dp)
+                )
         ) {
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 singleLine = !isDescription,
                 maxLines = if (isDescription) 3 else 1,
@@ -758,9 +1400,19 @@ fun DepartmentField(
                     fontSize = 14.sp,
                     color = Color(0xFF9CA3AF),
                     modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                        .align(Alignment.CenterStart)
+                        .padding(horizontal = 16.dp)
                 )
             }
+        }
+
+        if (isError && errorMessage.isNotEmpty()) {
+            Text(
+                text = errorMessage,
+                fontSize = 12.sp,
+                color = Color.Red,
+                modifier = Modifier.padding(start = 4.dp)
+            )
         }
     }
 }

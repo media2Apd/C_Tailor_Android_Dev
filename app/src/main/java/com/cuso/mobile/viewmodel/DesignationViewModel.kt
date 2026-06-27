@@ -19,13 +19,6 @@ sealed class DesignationUiState {
     data class Error(val message: String) : DesignationUiState()
 }
 
-sealed class DesignationCreateState {
-    object Idle : DesignationCreateState()
-    object Loading : DesignationCreateState()
-    object Success : DesignationCreateState()
-    data class Error(val message: String) : DesignationCreateState()
-}
-
 // ✅ ADD THIS - Update State
 sealed class DesignationUpdateState {
     object Idle : DesignationUpdateState()

@@ -79,6 +79,8 @@ import com.cuso.mobile.model.Organization
 import com.cuso.mobile.model.Settings
 import com.cuso.mobile.model.Subscription
 import com.cuso.mobile.model.User
+import com.cuso.mobile.view.sales.CreateOrderScreen
+import com.cuso.mobile.view.sales.SalesOrderScreen
 
 
 // ── Data classes ──
@@ -155,7 +157,6 @@ fun HomeScreen(navController: NavController) {
             },
             onMenuItemClick = { route ->
                 when {
-                    // Home panel routes - show SettingsScreen
                     route == "home_organization_profile" -> {
                         currentScreen = "home_organization_profile"
                         isDrawerOpen = false
@@ -172,7 +173,6 @@ fun HomeScreen(navController: NavController) {
                         currentScreen = "home_designation"
                         isDrawerOpen = false
                     }
-                    // Sales routes
                     route == "sales_lead" -> {
                         isSalesSettingsMode = false
                         currentScreen = "sales_lead"
@@ -188,7 +188,8 @@ fun HomeScreen(navController: NavController) {
                         currentScreen = "sales_measurements"
                         isDrawerOpen = false
                     }
-                    route == "sales_sales_orders" -> {
+                    // ✅ Fix: catch both possible route keys
+                    route == "sales_sales_orders" || route == "sales_sales_&_orders" -> {
                         isSalesSettingsMode = false
                         currentScreen = "sales_sales_orders"
                         isDrawerOpen = false
@@ -198,12 +199,10 @@ fun HomeScreen(navController: NavController) {
                         currentScreen = "sales_orders"
                         isDrawerOpen = false
                     }
-                    // ✅ Handle garment type from settings
                     route == "sales_garment_type" -> {
                         currentScreen = "sales_garment_type"
                         isDrawerOpen = false
                     }
-                    // ✅ Home click - go to home or settings
                     route == "home" -> {
                         isSalesSettingsMode = false
                         if (showHomePanel) {
@@ -217,12 +216,11 @@ fun HomeScreen(navController: NavController) {
                         currentScreen = "settings"
                         isDrawerOpen = false
                     }
-                    // ✅ For other routes
                     else -> {
+                        android.util.Log.d("NAV_DEBUG", "Unhandled route: $route")
                         try {
                             navController.navigate(route)
                         } catch (e: Exception) {
-                            // Handle internally if not in navigation graph
                             when {
                                 route.startsWith("sales_") -> {
                                     currentScreen = route
@@ -255,15 +253,18 @@ fun HomeScreen(navController: NavController) {
             )
             "home_branch_management" -> BranchSettingsScreen(
                 navController = navController,
-                onMenuClick = { isDrawerOpen = true }
+                onMenuClick = { isDrawerOpen = true },
+                onBack = { currentScreen = "settings" }
             )
             "home_department_teams" -> DepartmentSettingsScreen(
                 navController = navController,
-                onMenuClick = { isDrawerOpen = true }
+                onMenuClick = { isDrawerOpen = true},
+                onBack = { currentScreen = "settings" }
             )
             "home_designation" -> DesignationScreen(
                 navController = navController,
-                onMenuClick = { isDrawerOpen = true }
+                onMenuClick = { isDrawerOpen = true },
+                onBack = { currentScreen = "settings" }
             )
             // ✅ Sales Settings Screen (your existing SalesSettingsScreen)
             "sales_settings" -> SalesSettingsScreen(
@@ -295,6 +296,7 @@ fun HomeScreen(navController: NavController) {
                 onBack = { currentScreen = "sales_lead" },
                 onEditLead = { currentScreen = "edit_lead" }
             )
+
             "edit_lead" -> EditLeadScreen(
                 onBack = { currentScreen = "sales_lead" }
             )
@@ -309,9 +311,19 @@ fun HomeScreen(navController: NavController) {
                 }
             }
             "sales_sales_orders" -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Sales Orders Screen", fontSize = 18.sp, color = Color.Gray)
-                }
+                SalesOrderScreen(
+                    navController = navController,
+                    onCreateOrder = { currentScreen = "create_order" },
+                    onBack = { currentScreen = "home" }
+                )
+            }
+
+            "create_order" -> {
+                CreateOrderScreen(
+                    onBack = { currentScreen = "sales_sales_orders" },
+                    onCancel = { currentScreen = "sales_sales_orders" },
+                    onNextStep = { /* TODO */ }
+                )
             }
             "sales_orders" -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -404,7 +416,9 @@ fun TopNavBar(
         )
     }
 
-    Box(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .wrapContentHeight()) {
 
         // ✅ Show SalesNavBar when settings is open OR sales panel mode
         if (isSettingsOpen || showSalesPanel) {
@@ -605,9 +619,13 @@ fun HomeScreenContent() {
     val legendScrollState     = rememberLazyListState()
     val operationsScrollState = rememberLazyListState()
 
-    Column(Modifier.fillMaxSize().background(lightGray)) {
+    Column(Modifier
+        .fillMaxSize()
+        .background(lightGray)) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().background(lightGray),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(lightGray),
             contentPadding = PaddingValues(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -626,7 +644,10 @@ fun HomeScreenContent() {
 
             // Collection Efficiency
             item {
-                Box(modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(16.dp)) {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White, RoundedCornerShape(12.dp))
+                    .padding(16.dp)) {
                     Column {
                         Text("Collection Efficiency", color = Color.Gray, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
@@ -643,10 +664,14 @@ fun HomeScreenContent() {
                             }
                         }
                         Spacer(Modifier.height(12.dp))
-                        Box(Modifier.fillMaxWidth().background(Color(0xFFE0E0FC), RoundedCornerShape(12.dp))) { Text(" ") }
+                        Box(Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFE0E0FC), RoundedCornerShape(12.dp))) { Text(" ") }
                         Spacer(Modifier.height(8.dp))
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(10.dp).background(Color(0xFFF97316), CircleShape))
+                            Box(Modifier
+                                .size(10.dp)
+                                .background(Color(0xFFF97316), CircleShape))
                             Spacer(Modifier.width(8.dp))
                             Text("Pending Collection :", fontSize = 16.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                             Text("₹0", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -659,7 +684,10 @@ fun HomeScreenContent() {
 
             // Lead Management Chart
             item {
-                Box(modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(16.dp)) {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White, RoundedCornerShape(12.dp))
+                    .padding(16.dp)) {
                     Column(Modifier.fillMaxWidth()) {
                         Text("Lead Management", color = Color.Gray, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(16.dp))
@@ -671,14 +699,18 @@ fun HomeScreenContent() {
                                 marker = marker
                             ),
                             modelProducer = modelProducer,
-                            modifier = Modifier.fillMaxWidth().height(220.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp)
                         )
                         Spacer(Modifier.height(16.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             leadItems.forEachIndexed { index, item ->
                                 val color = barColors[index % barColors.size]
                                 Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Box(Modifier.size(12.dp).background(color, CircleShape))
+                                    Box(Modifier
+                                        .size(12.dp)
+                                        .background(color, CircleShape))
                                     Spacer(Modifier.height(4.dp))
                                     Text(text = item.header, color = Color.DarkGray, fontSize = 14.sp, maxLines = 1, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                                     Spacer(Modifier.height(4.dp))
@@ -694,34 +726,51 @@ fun HomeScreenContent() {
 
             // Invoicing vs Collection
             item {
-                Box(modifier = Modifier.fillMaxWidth().height(420.dp).background(Color.White, RoundedCornerShape(16.dp)).padding(16.dp)) {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(420.dp)
+                    .background(Color.White, RoundedCornerShape(16.dp))
+                    .padding(16.dp)) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text("Invoicing vs. Collection", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = Color(0xFF2D3748))
                             Spacer(Modifier.weight(1f))
                             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-                                Box(Modifier.size(10.dp).background(Color(0xFF6C63FF), CircleShape))
+                                Box(Modifier
+                                    .size(10.dp)
+                                    .background(Color(0xFF6C63FF), CircleShape))
                                 Spacer(Modifier.width(6.dp))
                                 Text("Invoiced", fontSize = 12.sp, color = Color.Black, maxLines = 1)
                                 Spacer(Modifier.width(12.dp))
-                                Box(Modifier.size(10.dp).background(Color(0xFF34C759), CircleShape))
+                                Box(Modifier
+                                    .size(10.dp)
+                                    .background(Color(0xFF34C759), CircleShape))
                                 Spacer(Modifier.width(6.dp))
                                 Text("Collected", fontSize = 12.sp, color = Color.Black, maxLines = 1)
                             }
                         }
-                        Box(modifier = Modifier.weight(1f).fillMaxWidth())
+                        Box(modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth())
                         Row(
-                            modifier = Modifier.fillMaxWidth().background(Color(0xFFF5F5F5), RoundedCornerShape(16.dp)).padding(horizontal = 20.dp, vertical = 18.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFF5F5F5), RoundedCornerShape(16.dp))
+                                .padding(horizontal = 20.dp, vertical = 18.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(12.dp).background(Color(0xFF6C63FF), CircleShape))
+                                Box(Modifier
+                                    .size(12.dp)
+                                    .background(Color(0xFF6C63FF), CircleShape))
                                 Spacer(Modifier.width(12.dp))
                                 Text("Total 7d: ₹0", fontSize = 18.sp, color = Color(0xFF4A5568))
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(12.dp).background(Color(0xFF34C759), CircleShape))
+                                Box(Modifier
+                                    .size(12.dp)
+                                    .background(Color(0xFF34C759), CircleShape))
                                 Spacer(Modifier.width(12.dp))
                                 Text("Collected: ₹0", fontSize = 18.sp, color = Color(0xFF34C759))
                             }
@@ -732,14 +781,20 @@ fun HomeScreenContent() {
 
             // Operations Control
             item {
-                Box(modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(16.dp)) {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White, RoundedCornerShape(12.dp))
+                    .padding(16.dp)) {
                     Column(Modifier.fillMaxWidth()) {
                         Text("Operations Control", fontSize = 25.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(16.dp))
                         LazyRow(state = operationsScrollState, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             items(operationControls) { item ->
                                 Column(
-                                    modifier = Modifier.width(200.dp).background(Color(0xFFF8FAFC)).padding(20.dp),
+                                    modifier = Modifier
+                                        .width(200.dp)
+                                        .background(Color(0xFFF8FAFC))
+                                        .padding(20.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(text = item.controls, color = Color.DarkGray, maxLines = 1, fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -754,12 +809,18 @@ fun HomeScreenContent() {
 
             // Order Status Distribution
             item {
-                Box(modifier = Modifier.fillMaxWidth().height(450.dp).background(Color.White, RoundedCornerShape(12.dp)).padding(16.dp)) {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(450.dp)
+                    .background(Color.White, RoundedCornerShape(12.dp))
+                    .padding(16.dp)) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         Text("Order Status Distribution", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                         Spacer(modifier = Modifier.height(50.dp))
                         Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(modifier = Modifier.size(30.dp).background(Color(0xFF3F3CCF), CircleShape))
+                            Box(modifier = Modifier
+                                .size(30.dp)
+                                .background(Color(0xFF3F3CCF), CircleShape))
                             Spacer(modifier = Modifier.height(30.dp))
                             Text("0", fontSize = 64.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
                             Text("TOTAL", fontSize = 28.sp, color = Color.Gray)
@@ -864,7 +925,10 @@ fun CreateLeadScreen(onBack: () -> Unit) {
             Column {
                 HorizontalDivider(color = Color(0xFFF0F0F0))
                 Row(
-                    modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -936,9 +1000,15 @@ fun CreateLeadScreen(onBack: () -> Unit) {
             }
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7)).padding(padding)) {
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F5F7))
+            .padding(padding)) {
             Row(
-                modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 16.dp, vertical = 14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -946,7 +1016,9 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", modifier = Modifier.clickable { onBack() }, tint = Color(0xFF111827))
                     Text("Create Lead", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                 }
-                Box(modifier = Modifier.border(1.dp, Color(0xFF3B3BF9), RoundedCornerShape(6.dp)).padding(horizontal = 10.dp, vertical = 4.dp)) {
+                Box(modifier = Modifier
+                    .border(1.dp, Color(0xFF3B3BF9), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)) {
                     Text("New Enquiry", fontSize = 12.sp, color = Color(0xFF3B3BF9))
                 }
             }
@@ -970,7 +1042,10 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                     FormCard {
                         SectionHeader(icon = Icons.Default.Person, title = "Customer Identity", subtitle = "Who is this lead for?")
                         Spacer(Modifier.padding(top = 10.dp))
-                        Row(modifier = Modifier.fillMaxWidth().background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp)).padding(4.dp)) {
+                        Row(modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                            .padding(4.dp)) {
                             listOf("Individual", "Corporate").forEach { type ->
                                 val isSelected = customerType == type
                                 Row(
@@ -1045,9 +1120,19 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                 val isSelected = garmentCategory == option
                                 Box(
                                     modifier = Modifier
-                                        .border(1.dp, if (isSelected) Color(0xFF3B3BF9) else Color(0xFFE5E7EB), RoundedCornerShape(50.dp))
-                                        .background(if (isSelected) Color(0xFFEEEEFE) else Color.White, RoundedCornerShape(50.dp))
-                                        .clickable { garmentCategory = if (garmentCategory == option) "" else option }
+                                        .border(
+                                            1.dp,
+                                            if (isSelected) Color(0xFF3B3BF9) else Color(0xFFE5E7EB),
+                                            RoundedCornerShape(50.dp)
+                                        )
+                                        .background(
+                                            if (isSelected) Color(0xFFEEEEFE) else Color.White,
+                                            RoundedCornerShape(50.dp)
+                                        )
+                                        .clickable {
+                                            garmentCategory =
+                                                if (garmentCategory == option) "" else option
+                                        }
                                         .padding(horizontal = 16.dp, vertical = 8.dp)
                                 ) {
                                     Text(option, fontSize = 13.sp, color = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF374151), fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
@@ -1101,10 +1186,14 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                     FormCard {
                         SectionHeader(icon = Icons.Default.Description, title = "Notes & References", subtitle = "Additional information and attachments")
                         FormLabel("Internal Notes")
-                        OutlinedTextField(value = internalNotes, onValueChange = { internalNotes = it }, modifier = Modifier.fillMaxWidth().height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = Color(0xFF3B3BF9), unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
+                        OutlinedTextField(value = internalNotes, onValueChange = { internalNotes = it }, modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = Color(0xFF3B3BF9), unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
                         Spacer(Modifier.height(14.dp))
                         FormLabel("Customer Notes")
-                        OutlinedTextField(value = customerNotes, onValueChange = { customerNotes = it }, modifier = Modifier.fillMaxWidth().height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = Color(0xFF3B3BF9), unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
+                        OutlinedTextField(value = customerNotes, onValueChange = { customerNotes = it }, modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = Color(0xFF3B3BF9), unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
                     }
                 }
             }
@@ -1544,7 +1633,11 @@ fun LeadScreenContent(
                                             }
                                             Box(
                                                 modifier = Modifier
-                                                    .border(1.dp, badgeColor, RoundedCornerShape(20.dp))
+                                                    .border(
+                                                        1.dp,
+                                                        badgeColor,
+                                                        RoundedCornerShape(20.dp)
+                                                    )
                                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                                             ) {
                                                 Text(badgeText, fontSize = 11.sp, color = badgeColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -1558,7 +1651,9 @@ fun LeadScreenContent(
                                                     imageVector = Icons.Default.MoreVert,
                                                     contentDescription = "More",
                                                     tint = Color(0xFF9CA3AF),
-                                                    modifier = Modifier.size(20.dp).clickable { actionMenuLeadId = lead.id }
+                                                    modifier = Modifier
+                                                        .size(20.dp)
+                                                        .clickable { actionMenuLeadId = lead.id }
                                                 )
                                                 DropdownMenu(
                                                     expanded = actionMenuLeadId == lead.id,
@@ -2032,7 +2127,9 @@ fun ViewLeadScreen(
                         ViewFieldValue("Estimated Quantity", if (l.estimatedQuantity == 0) "—" else l.estimatedQuantity.toString())
 
                         // ── Garment Category ── ✅ Shows names, not IDs
-                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                        Column(modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)) {
                             Text(
                                 "Garment Category",
                                 fontSize = 12.sp,
@@ -2083,7 +2180,9 @@ fun ViewLeadScreen(
                         }
 
                         // ── Budget Range ──
-                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                        Column(modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)) {
                             Text(
                                 "Budget Range",
                                 fontSize = 12.sp,
@@ -2189,7 +2288,9 @@ fun ViewLeadScreen(
 // ── Custom ViewFieldValue Component for Read-Only Display ──
 @Composable
 fun ViewFieldValue(label: String, value: String) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+    Column(modifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 6.dp)) {
         Text(
             label,
             fontSize = 12.sp,
@@ -2722,7 +2823,9 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                             modifier = Modifier
                                                 .border(
                                                     1.dp,
-                                                    if (isSelected) Color(0xFF3B3BF9) else Color(0xFFE5E7EB),
+                                                    if (isSelected) Color(0xFF3B3BF9) else Color(
+                                                        0xFFE5E7EB
+                                                    ),
                                                     RoundedCornerShape(50.dp)
                                                 )
                                                 .background(
@@ -3379,7 +3482,9 @@ fun LeadTableCell(text: String, modifier: Modifier, bold: Boolean = false, color
 @Composable
 fun SectionHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(modifier = Modifier.size(40.dp).background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier
+            .size(40.dp)
+            .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
             Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF374151), modifier = Modifier.size(20.dp))
         }
         Column {
@@ -3391,7 +3496,10 @@ fun SectionHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, title: 
 
 @Composable
 fun FormCard(content: @Composable ColumnScope.() -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(16.dp), content = content)
+    Column(modifier = Modifier
+        .fillMaxWidth()
+        .background(Color.White, RoundedCornerShape(12.dp))
+        .padding(16.dp), content = content)
 }
 
 @Composable
@@ -3404,7 +3512,10 @@ fun FormLabel(text: String, isRequired: Boolean = false) {
 fun FormTextField(value: String, onValueChange: (String) -> Unit, keyboardType: KeyboardType = KeyboardType.Text) {
     BasicTextField(
         value = value, onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth().background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp, vertical = 14.dp),
         singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
     )
 }
@@ -3412,7 +3523,11 @@ fun FormTextField(value: String, onValueChange: (String) -> Unit, keyboardType: 
 @Composable
 fun FormDateField(value: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp)).clickable { onClick() }.padding(horizontal = 12.dp, vertical = 14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(value, fontSize = 14.sp, color = if (value == "Select Date") Color(0xFF9CA3AF) else Color(0xFF374151))
@@ -3454,7 +3569,11 @@ fun FormDropdown(label: String, value: String, expanded: Boolean, onExpandChange
     FormLabel(label, isRequired)
     Box {
         Row(
-            modifier = Modifier.fillMaxWidth().background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp)).clickable { onExpandChange(true) }.padding(horizontal = 12.dp, vertical = 14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                .clickable { onExpandChange(true) }
+                .padding(horizontal = 12.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(value, fontSize = 14.sp, color = if (value == "Select an option") Color(0xFF9CA3AF) else Color(0xFF374151))
@@ -3470,14 +3589,21 @@ fun FormDropdown(label: String, value: String, expanded: Boolean, onExpandChange
 
 @Composable
 fun StatCard(modifier: Modifier = Modifier, iconBg: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, iconTint: Color, title: String, value: String) {
-    Box(modifier = modifier.background(Color.White, RoundedCornerShape(12.dp)).padding(16.dp)) {
+    Box(modifier = modifier
+        .background(Color.White, RoundedCornerShape(12.dp))
+        .padding(16.dp)) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(48.dp).background(iconBg, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier
+                    .size(48.dp)
+                    .background(iconBg, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                     Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(26.dp))
                 }
                 Spacer(Modifier.weight(1f))
-                Text(text = "0%", modifier = Modifier.background(Color(0xFFDCFCE7), RoundedCornerShape(18.dp)).padding(horizontal = 12.dp, vertical = 6.dp), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF16A34A))
+                Text(text = "0%", modifier = Modifier
+                    .background(Color(0xFFDCFCE7), RoundedCornerShape(18.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF16A34A))
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(text = title, color = Color.DarkGray, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -3495,7 +3621,9 @@ fun HorizontalScrollbar(state: LazyListState, modifier: Modifier = Modifier, tra
     val canScroll        = state.canScrollForward || state.canScrollBackward
 
     if (totalItems == 0 || visibleItemsInfo.isEmpty() || !canScroll) {
-        Box(modifier = modifier.fillMaxWidth().height(height))
+        Box(modifier = modifier
+            .fillMaxWidth()
+            .height(height))
         return
     }
 
@@ -3507,18 +3635,27 @@ fun HorizontalScrollbar(state: LazyListState, modifier: Modifier = Modifier, tra
     val maxScrollPixels           = (estimatedTotalContentSize - viewportSize).coerceAtLeast(1f)
     val scrollFraction            = (scrolledPixels / maxScrollPixels).coerceIn(0f, 1f)
 
-    BoxWithConstraints(modifier = modifier.fillMaxWidth().height(height).background(trackColor, RoundedCornerShape(height / 2))) {
+    BoxWithConstraints(modifier = modifier
+        .fillMaxWidth()
+        .height(height)
+        .background(trackColor, RoundedCornerShape(height / 2))) {
         val trackWidth  = this@BoxWithConstraints.maxWidth
         val thumbWidth  = trackWidth * thumbSizeFraction
         val thumbOffset = (trackWidth - thumbWidth) * scrollFraction
-        Box(modifier = Modifier.offset(x = thumbOffset).width(thumbWidth).height(height).background(thumbColor, RoundedCornerShape(height / 2)))
+        Box(modifier = Modifier
+            .offset(x = thumbOffset)
+            .width(thumbWidth)
+            .height(height)
+            .background(thumbColor, RoundedCornerShape(height / 2)))
     }
 }
 
 @Composable
 fun StatusLegend(color: Color, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(18.dp).background(color = color, shape = CircleShape))
+        Box(modifier = Modifier
+            .size(18.dp)
+            .background(color = color, shape = CircleShape))
         Spacer(modifier = Modifier.width(12.dp))
         Text(text = text, fontSize = 18.sp, color = Color.Black)
     }

@@ -1,5 +1,9 @@
 package com.cuso.mobile.view.home
 
+import CreateBranchAddress
+import CreateBranchRequest
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -20,7 +25,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,6 +35,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -37,8 +45,12 @@ import com.cuso.mobile.model.UpdateBranchAddress
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.viewmodel.BranchUiState
 import com.cuso.mobile.viewmodel.BranchViewModel
+import com.cuso.mobile.viewmodel.CreateBranchUiState
+import com.cuso.mobile.viewmodel.ProfileUiState
+import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
 import com.cuso.mobile.viewmodel.UpdateBranchUiState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -49,12 +61,17 @@ fun BranchSettingsScreen(
 ) {
     val branchViewModel: BranchViewModel = hiltViewModel()
     val salesViewModel: SalesViewModel = hiltViewModel()
+    val profileViewModel: ProfileViewModel = hiltViewModel()
 
-    val uiState by branchViewModel.uiState.collectAsState()
+    val uiState by branchViewModel.uiState.collectAsStateWithLifecycle()
     val updateState by branchViewModel.updateState.collectAsStateWithLifecycle()
+    val createState by branchViewModel.createState.collectAsStateWithLifecycle()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
+    val profileUiState by profileViewModel.uiState.collectAsStateWithLifecycle()
 
     var editingBranch by remember { mutableStateOf<BranchItem?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
+    var showPlanLimitDialog by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -62,6 +79,46 @@ fun BranchSettingsScreen(
     LaunchedEffect(Unit) {
         branchViewModel.loadBranches()
         salesViewModel.fetchStaff()
+        profileViewModel.loadOrganization("")
+    }
+
+    // Get plan limits from organization
+    val planLimits = (profileUiState as? ProfileUiState.Success)?.data?.organization?.let { org ->
+        org.plan?.let { plan ->
+            PlanLimits(
+                branchLimit = plan.branchLimit ?: Int.MAX_VALUE,
+                departmentLimit = plan.departmentLimit ?: Int.MAX_VALUE,
+                employeeLimit = plan.employeeLimit ?: Int.MAX_VALUE,
+                orderLimit = plan.orderLimit ?: Int.MAX_VALUE,
+                categoryLimit = plan.categoryLimit ?: Int.MAX_VALUE
+            )
+        }
+    }
+
+    // ── React to create result ──
+    LaunchedEffect(createState) {
+        when (val state = createState) {
+            is CreateBranchUiState.Success -> {
+                showAddDialog = false
+                branchViewModel.resetCreateState()
+                branchViewModel.loadBranches()
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Branch created successfully")
+                }
+            }
+            is CreateBranchUiState.Error -> {
+                branchViewModel.resetCreateState()
+                if (state.message.contains("limit", ignoreCase = true) ||
+                    state.message.contains("exceed", ignoreCase = true)) {
+                    showPlanLimitDialog = true
+                } else {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(state.message)
+                    }
+                }
+            }
+            else -> Unit
+        }
     }
 
     // ── React to update result ──
@@ -69,7 +126,7 @@ fun BranchSettingsScreen(
         when (val state = updateState) {
             is UpdateBranchUiState.Success -> {
                 editingBranch = null
-                branchViewModel.refresh()
+                branchViewModel.loadBranches()
                 branchViewModel.resetUpdateState()
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar("Branch updated successfully")
@@ -86,6 +143,11 @@ fun BranchSettingsScreen(
     }
 
     val isUpdating = updateState is UpdateBranchUiState.Loading
+    val isCreating = createState is CreateBranchUiState.Loading
+
+    // Check if branch limit is reached
+    val currentBranches = (uiState as? BranchUiState.Success)?.branches?.size ?: 0
+    val isBranchLimitReached = planLimits?.let { currentBranches >= it.branchLimit } ?: false
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -122,20 +184,40 @@ fun BranchSettingsScreen(
                     )
                 }
 
-                Button(
-                    onClick = { /* TODO: Add Branch */ },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = Color.White
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text("Add", color = Color.White, fontSize = 14.sp)
+                // Show limit info and add button
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (planLimits != null) {
+                        Text(
+                            text = "${currentBranches}/${planLimits.branchLimit}",
+                            fontSize = 13.sp,
+                            color = if (isBranchLimitReached) Color.Red else Color(0xFF6B7280),
+                            modifier = Modifier.padding(end = 12.dp)
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            if (isBranchLimitReached) {
+                                showPlanLimitDialog = true
+                            } else {
+                                showAddDialog = true
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF3B3BF9)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.White
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("Add", color = Color.White, fontSize = 14.sp)
+                    }
                 }
             }
 
@@ -193,11 +275,47 @@ fun BranchSettingsScreen(
             }
         }
 
+        // ── Plan Limit Dialog (Slides from Top) ──
+        if (showPlanLimitDialog) {
+            BranchPlanLimitDialog(
+                title = "Plan Limit Reached",
+                message = "Branch limit exceeded (${currentBranches}/${planLimits?.branchLimit ?: 0}). Upgrade your plan to add more branches.",
+                currentCount = currentBranches,
+                maxLimit = planLimits?.branchLimit ?: 0,
+                onDismiss = { showPlanLimitDialog = false },
+                onUpgrade = {
+                    // Navigate to upgrade plan screen or open subscription
+                    showPlanLimitDialog = false
+                    // TODO: Navigate to upgrade plan screen
+//                    navController.navigate("") // or your upgrade route
+                }
+            )
+        }
+
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(16.dp)
+        )
+    }
+
+    // ── Add Branch Dialog ──
+    if (showAddDialog) {
+        AddBranchDialog(
+            staffList = staffList,
+            isLoading = isCreating,
+            onDismiss = {
+                showAddDialog = false
+                branchViewModel.resetCreateState()
+            },
+            onCreate = { request ->
+                if (isBranchLimitReached) {
+                    showPlanLimitDialog = true
+                    return@AddBranchDialog
+                }
+                branchViewModel.createBranch(request)
+            }
         )
     }
 
@@ -210,7 +328,7 @@ fun BranchSettingsScreen(
             onDismiss = { editingBranch = null },
             onUpdate = { request ->
                 branchViewModel.updateBranch(
-                    branchId = branch.id, // ← real Mongo _id, NOT branch.branchId
+                    branchId = branch.id,
                     request = UpdateBranchRequest(
                         name = request.name,
                         address = UpdateBranchAddress(
@@ -220,7 +338,7 @@ fun BranchSettingsScreen(
                         ),
                         contactEmail = request.contactEmail,
                         contactMobile = request.contactMobile,
-                        status = branch.status, // not editable in this dialog yet
+                        status = branch.status,
                         branchHead = request.branchHead
                     )
                 )
@@ -228,6 +346,206 @@ fun BranchSettingsScreen(
         )
     }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Plan Limit Dialog - Slides from Top like Notification
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun BranchPlanLimitDialog(
+    title: String,
+    message: String,
+    currentCount: Int,
+    maxLimit: Int,
+    onDismiss: () -> Unit,
+    onUpgrade: () -> Unit
+) {
+    // Animation state for sliding from top
+    var isVisible by remember { mutableStateOf(false) }
+
+    // Trigger animation when dialog appears
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.3f))
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.TopCenter
+        ) {
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = slideInVertically(
+                    initialOffsetY = { -it },
+                    animationSpec = tween(
+                        durationMillis = 400,
+                        easing = FastOutSlowInEasing
+                    )
+                ) + fadeIn(
+                    animationSpec = tween(durationMillis = 300)
+                ),
+                exit = slideOutVertically(
+                    targetOffsetY = { -it },
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        easing = FastOutSlowInEasing
+                    )
+                ) + fadeOut(
+                    animationSpec = tween(durationMillis = 200)
+                )
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 40.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { /* Prevent click through */ },
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 8.dp
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+
+                        // ── Title ──
+                        Text(
+                            text = title,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFEF4444),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // ── Message ──
+                        Text(
+                            text = message,
+                            fontSize = 14.sp,
+                            color = Color(0xFF6B7280),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // ── Progress Indicator ──
+//                        Row(
+//                            verticalAlignment = Alignment.CenterVertically,
+//                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+//                        ) {
+//                            Text(
+//                                text = "$currentCount",
+//                                fontSize = 16.sp,
+//                                fontWeight = FontWeight.Bold,
+//                                color = Color(0xFF111827)
+//                            )
+//                            Box(
+//                                modifier = Modifier
+//                                    .width(120.dp)
+//                                    .height(8.dp)
+//                                    .background(Color(0xFFE5E7EB), RoundedCornerShape(4.dp))
+//                            ) {
+//                                val progress = if (maxLimit > 0) currentCount.toFloat() / maxLimit else 0f
+//                                Box(
+//                                    modifier = Modifier
+//                                        .fillMaxWidth(progress.coerceAtMost(1f))
+//                                        .fillMaxHeight()
+//                                        .background(
+//                                            if (progress >= 1f) Color(0xFFEF4444) else Color(0xFF3B3BF9),
+//                                            RoundedCornerShape(4.dp)
+//                                        )
+//                                )
+//                            }
+//                            Text(
+//                                text = "$maxLimit",
+//                                fontSize = 16.sp,
+//                                fontWeight = FontWeight.Bold,
+//                                color = Color(0xFF111827)
+//                            )
+//                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+//                        Text(
+//                            text = "Limit reached",
+//                            fontSize = 12.sp,
+//                            color = Color(0xFFEF4444),
+//                            fontWeight = FontWeight.Medium
+//                        )
+//
+//                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // ── Action Buttons ──
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onDismiss,
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color(0xFF374151)
+                                ),
+                                modifier = Modifier.weight(0.4f)
+                            ) {
+                                Text(
+                                    "Close",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF374151)
+                                )
+                            }
+
+                            Button(
+                                onClick = onUpgrade,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF3B3BF9),
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(0.6f)
+                            ) {
+                                Text(
+                                    "Upgrade Plan",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Plan Limits Data Class ──
+data class PlanLimits(
+    val branchLimit: Int,
+    val departmentLimit: Int,
+    val employeeLimit: Int,
+    val orderLimit: Int,
+    val categoryLimit: Int
+)
 
 // ─────────────────────────────────────────────────────────────
 // BranchTable
@@ -320,7 +638,7 @@ fun BranchTableRow(
     ) {
         // ── Branch ID ──
         Text(
-            branch.branchId,
+            text = branch.branchId ?: "-",
             modifier = Modifier.width(branchIdWidth),
             fontSize = 13.sp,
             color = Color(0xFF3B3BF9),
@@ -336,7 +654,7 @@ fun BranchTableRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
-                branch.name,
+                text = branch.name ?: "Unnamed",
                 fontSize = 13.sp,
                 color = Color(0xFF3B3BF9),
                 fontWeight = FontWeight.Medium,
@@ -350,12 +668,15 @@ fun BranchTableRow(
         }
 
         // ── Location ──
-        val locationText = listOfNotNull(branch.address.city, branch.address.state)
-            .filter { it.isNotBlank() }
+        val locationText = listOf(
+            branch.address.city ?: "",
+            branch.address.state ?: "",
+            branch.address.street ?: ""
+        ).filter { it.isNotBlank() }
             .joinToString(", ")
             .ifEmpty { "—" }
         Text(
-            locationText,
+            text = locationText,
             modifier = Modifier.width(locationWidth),
             fontSize = 13.sp,
             color = Color(0xFF374151),
@@ -393,7 +714,7 @@ fun BranchTableRow(
         // ── Managers (Branch Head) ──
         val branchHeadName = branch.branchHead?.let { "${it.firstName} ${it.lastName}" } ?: "-"
         Text(
-            branchHeadName,
+            text = branchHeadName,
             modifier = Modifier.width(managersWidth),
             fontSize = 13.sp,
             color = Color(0xFF374151),
@@ -403,10 +724,11 @@ fun BranchTableRow(
 
         // ── Status Badge ──
         Box(modifier = Modifier.width(statusWidth)) {
-            val (badgeText, badgeColor) = when (branch.status.lowercase()) {
+            val statusText = branch.status ?: "inactive"
+            val (badgeText, badgeColor) = when (statusText.lowercase()) {
                 "active"   -> "Active"   to Color(0xFF16A34A)
                 "inactive" -> "Inactive" to Color(0xFF6B7280)
-                else       -> branch.status to Color(0xFF9CA3AF)
+                else       -> "Unknown" to Color(0xFF9CA3AF)
             }
             Box(
                 modifier = Modifier
@@ -434,7 +756,6 @@ fun BranchTableRow(
                     containerColor = Color.White,
                     shape = RoundedCornerShape(10.dp)
                 ) {
-
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -446,7 +767,6 @@ fun BranchTableRow(
                             onEditClick(branch)
                         }
                     )
-
                 }
             }
         }
@@ -454,7 +774,424 @@ fun BranchTableRow(
 }
 
 // ─────────────────────────────────────────────────────────────
-// EditBranchDialog - FIXED with null safety for ALL fields
+// AddBranchDialog
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun AddBranchDialog(
+    staffList: List<StaffDto>,
+    isLoading: Boolean = false,
+    onDismiss: () -> Unit,
+    onCreate: (CreateBranchRequest) -> Unit
+) {
+    // Form states
+    var branchName by remember { mutableStateOf("") }
+    var street by remember { mutableStateOf("") }
+    var city by remember { mutableStateOf("") }
+    var postalCode by remember { mutableStateOf("") }
+    var contactEmail by remember { mutableStateOf("") }
+    var contactMobile by remember { mutableStateOf("") }
+    var selectedStaff by remember { mutableStateOf("") }
+    var staffExpanded by remember { mutableStateOf(false) }
+    var isMainBranch by remember { mutableStateOf(false) }
+
+    // Validation errors
+    var nameError by remember { mutableStateOf(false) }
+    var staffError by remember { mutableStateOf(false) }
+
+    // Staff dropdown data
+    val staffDisplayList = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
+    val staffIdMap = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
+    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: ""
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .padding(horizontal = 5.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // ── Header ──
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "Add New Branch",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
+                    Text(
+                        "Create a new branch in your organization",
+                        fontSize = 13.sp,
+                        color = Color(0xFF6B7280)
+                    )
+                }
+
+                // ── Form Fields ──
+
+                // Branch Name
+                BranchField(
+                    label = "Branch Name",
+                    value = branchName,
+                    onValueChange = {
+                        branchName = it
+                        nameError = false
+                    },
+                    placeholder = "Enter branch name",
+                    isError = nameError,
+                    errorMessage = "Branch name is required"
+                )
+
+                // Street Address
+                BranchField(
+                    label = "Street Address",
+                    value = street,
+                    onValueChange = { street = it },
+                    placeholder = "Enter street address"
+                )
+
+                // City
+                BranchField(
+                    label = "City",
+                    value = city,
+                    onValueChange = { city = it },
+                    placeholder = "Enter city"
+                )
+
+                // Postal Code
+                BranchField(
+                    label = "Postal Code",
+                    value = postalCode,
+                    onValueChange = { postalCode = it },
+                    placeholder = "Enter postal code",
+                    keyboardType = KeyboardType.Number
+                )
+
+                // Contact Email
+                BranchField(
+                    label = "Contact Email",
+                    value = contactEmail,
+                    onValueChange = { contactEmail = it },
+                    placeholder = "Enter contact email",
+                    keyboardType = KeyboardType.Email
+                )
+
+                // Contact Mobile
+                BranchField(
+                    label = "Contact Mobile",
+                    value = contactMobile,
+                    onValueChange = { contactMobile = it },
+                    placeholder = "Enter contact mobile",
+                    keyboardType = KeyboardType.Phone
+                )
+
+                // ── Branch Head Dropdown ──
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        "Branch Head",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF374151)
+                    )
+
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (staffError) Color(0xFFFFF3F3) else Color(0xFFF3F4F6),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .border(
+                                    width = if (staffError) 1.dp else 0.dp,
+                                    color = Color.Red,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable {
+                                    if (staffList.isNotEmpty()) {
+                                        staffExpanded = true
+                                    }
+                                }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = selectedStaffLabel.ifEmpty {
+                                    if (staffList.isEmpty()) "Loading..." else "Select branch head"
+                                },
+                                fontSize = 14.sp,
+                                color = if (selectedStaffLabel.isNotEmpty()) {
+                                    Color(0xFF111827)
+                                } else {
+                                    Color(0xFF9CA3AF)
+                                }
+                            )
+                            Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color(0xFF9CA3AF),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = staffExpanded,
+                            onDismissRequest = { staffExpanded = false },
+                            containerColor = Color.White,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(0.9f)
+                        ) {
+                            if (staffList.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("No staff available", color = Color(0xFF9CA3AF)) },
+                                    onClick = { staffExpanded = false }
+                                )
+                            } else {
+                                staffDisplayList.forEach { label ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                label,
+                                                color = Color(0xFF111827),
+                                                fontSize = 14.sp
+                                            )
+                                        },
+                                        onClick = {
+                                            selectedStaff = staffIdMap[label] ?: ""
+                                            staffError = false
+                                            staffExpanded = false
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(
+                                                if (selectedStaff == staffIdMap[label]) {
+                                                    Color(0xFFF3F4F6)
+                                                } else {
+                                                    Color.White
+                                                }
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (staffError) {
+                        Text(
+                            "Please select a branch head",
+                            fontSize = 12.sp,
+                            color = Color.Red,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                }
+
+                // ── Is Main Branch Toggle ──
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Switch(
+                        checked = isMainBranch,
+                        onCheckedChange = { isMainBranch = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Color(0xFF3B3BF9),
+                            uncheckedThumbColor = Color.White,
+                            uncheckedTrackColor = Color(0xFFD1D5DB)
+                        )
+                    )
+                    Column {
+                        Text(
+                            "Set as Main Branch",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF374151)
+                        )
+                        Text(
+                            "The main branch will be the primary location",
+                            fontSize = 12.sp,
+                            color = Color(0xFF9CA3AF)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // ── Action Buttons ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.White,
+                            contentColor = Color(0xFF374151)
+                        ),
+                        modifier = Modifier                            .weight(0.4f)
+                            .height(48.dp)
+                    ) {
+                        Text(
+                            "Cancel",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF374151)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Button(
+                        onClick = {
+                            // Validate
+                            var hasError = false
+                            if (branchName.isBlank()) {
+                                nameError = true
+                                hasError = true
+                            }
+                            if (selectedStaff.isEmpty()) {
+                                staffError = true
+                                hasError = true
+                            }
+                            if (hasError) return@Button
+
+                            onCreate(
+                                CreateBranchRequest(
+                                    name = branchName,
+                                    address = CreateBranchAddress(
+                                        street = street,
+                                        city = city,
+                                        postalCode = postalCode
+                                    ),
+                                    branchHead = selectedStaff,
+                                    contactEmail = contactEmail,
+                                    contactMobile = contactMobile,
+                                    isMainBranch = isMainBranch
+                                )
+                            )
+                        },
+                        enabled = !isLoading,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF3B3BF9),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFFD1D5DB)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(0.6f)
+                            .height(48.dp)
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                "Create",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// BranchField Component
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun BranchField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    isError: Boolean = false,
+    errorMessage: String = ""
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (isError) Color.Red else Color(0xFF374151)
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .background(
+                    if (isError) Color(0xFFFFF3F3) else Color(0xFFF3F4F6),
+                    RoundedCornerShape(8.dp)
+                )
+                .border(
+                    width = if (isError) 1.dp else 0.dp,
+                    color = Color.Red,
+                    shape = RoundedCornerShape(8.dp)
+                )
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    fontSize = 14.sp,
+                    color = Color(0xFF111827)
+                ),
+                cursorBrush = SolidColor(Color(0xFF3B3BF9))
+            )
+
+            if (value.isEmpty()) {
+                Text(
+                    text = placeholder,
+                    fontSize = 14.sp,
+                    color = Color(0xFF9CA3AF),
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(horizontal = 16.dp)
+                )
+            }
+        }
+
+        if (isError && errorMessage.isNotEmpty()) {
+            Text(
+                text = errorMessage,
+                fontSize = 12.sp,
+                color = Color.Red,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// EditBranchDialog
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -465,14 +1202,13 @@ fun EditBranchDialog(
     onUpdate: (EditBranchRequest) -> Unit,
     isLoading: Boolean = false
 ) {
-    // Initialize with branch data - using null safety for all fields
-    var branchName by remember { mutableStateOf(branch.name ) }
-    var street by remember { mutableStateOf(branch.address.street ) }
-    var city by remember { mutableStateOf(branch.address.city ) }
-    var state by remember { mutableStateOf(branch.address.state ) }
-    var postalCode by remember { mutableStateOf(branch.address.postalCode ) }
-    var contactEmail by remember { mutableStateOf(branch.contactEmail ) }
-    var contactMobile by remember { mutableStateOf(branch.contactMobile ) }
+    var branchName by remember { mutableStateOf(branch.name ?: "") }
+    var street by remember { mutableStateOf(branch.address.street ?: "") }
+    var city by remember { mutableStateOf(branch.address.city ?: "") }
+    var state by remember { mutableStateOf(branch.address.state ?: "") }
+    var postalCode by remember { mutableStateOf(branch.address.postalCode ?: "") }
+    var contactEmail by remember { mutableStateOf(branch.contactEmail ?: "") }
+    var contactMobile by remember { mutableStateOf(branch.contactMobile ?: "") }
     var selectedStaff by remember { mutableStateOf(branch.branchHead?.id ?: "") }
     var staffExpanded by remember { mutableStateOf(false) }
 
@@ -482,7 +1218,10 @@ fun EditBranchDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier.fillMaxWidth().wrapContentHeight(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
@@ -491,10 +1230,15 @@ fun EditBranchDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
+                    .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Edit Branch", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                Text(
+                    "Edit Branch",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
 
                 EditBranchField("Branch Name", branchName, { branchName = it })
                 EditBranchField("Street Address", street, { street = it })
@@ -506,14 +1250,19 @@ fun EditBranchDialog(
 
                 // ── Branch Head Dropdown ──
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Branch Head", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF3B3BF9))
+                    Text(
+                        "Branch Head",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF374151)
+                    )
                     Box {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
                                 .clickable { staffExpanded = true }
-                                .padding(horizontal = 12.dp, vertical = 14.dp),
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -522,20 +1271,35 @@ fun EditBranchDialog(
                                     if (staffList.isEmpty()) "Loading..." else "Select Branch Head"
                                 },
                                 fontSize = 14.sp,
-                                color = if (selectedStaffLabel.isEmpty()) Color(0xFF9CA3AF) else Color(0xFF374151),
-                                fontWeight = if (selectedStaffLabel.isNotEmpty()) FontWeight.SemiBold else FontWeight.Normal
+                                color = if (selectedStaffLabel.isNotEmpty()) {
+                                    Color(0xFF111827)
+                                } else {
+                                    Color(0xFF9CA3AF)
+                                }
                             )
-                            Icon(Icons.Default.KeyboardArrowDown, null, tint = Color.Gray)
+                            Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color(0xFF9CA3AF),
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                         DropdownMenu(
                             expanded = staffExpanded,
                             onDismissRequest = { staffExpanded = false },
                             containerColor = Color.White,
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(0.9f)
                         ) {
                             staffDisplayList.forEach { label ->
                                 DropdownMenuItem(
-                                    text = { Text(label, color = Color(0xFF374151)) },
+                                    text = {
+                                        Text(
+                                            label,
+                                            color = Color(0xFF111827),
+                                            fontSize = 14.sp
+                                        )
+                                    },
                                     onClick = {
                                         selectedStaff = staffIdMap[label] ?: ""
                                         staffExpanded = false
@@ -546,7 +1310,7 @@ fun EditBranchDialog(
                     }
                 }
 
-                Spacer(Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // ── Buttons ──
                 Row(
@@ -557,20 +1321,34 @@ fun EditBranchDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFD1D5DB))
+                        border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.White,
+                            contentColor = Color(0xFF374151)
+                        ),
+                        modifier = Modifier
+                            .weight(0.4f)
+                            .height(48.dp)
                     ) {
-                        Text("Cancel", color = Color(0xFF374151))
+                        Text(
+                            "Cancel",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF374151)
+                        )
                     }
-                    Spacer(Modifier.width(12.dp))
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
                     Button(
                         onClick = {
                             onUpdate(
                                 EditBranchRequest(
                                     name = branchName,
-                                    street = street?:"",
-                                    city = city?:"",
-                                    state = state?:"",
-                                    postalCode = postalCode?:"",
+                                    street = street,
+                                    city = city,
+                                    state = state,
+                                    postalCode = postalCode,
                                     contactEmail = contactEmail,
                                     contactMobile = contactMobile,
                                     branchHead = selectedStaff
@@ -578,13 +1356,29 @@ fun EditBranchDialog(
                             )
                         },
                         enabled = !isLoading,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                        shape = RoundedCornerShape(8.dp)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF3B3BF9),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFFD1D5DB)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(0.6f)
+                            .height(48.dp)
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
                         } else {
-                            Text("Update", color = Color.White)
+                            Text(
+                                "Update",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White
+                            )
                         }
                     }
                 }
@@ -594,33 +1388,42 @@ fun EditBranchDialog(
 }
 
 // ─────────────────────────────────────────────────────────────
-// EditBranchField - FIXED to accept nullable values
+// EditBranchField
 // ─────────────────────────────────────────────────────────────
 
 @Composable
 fun EditBranchField(
     label: String,
-    value: String?,  // ← Made nullable
+    value: String,
     onValueChange: (String) -> Unit,
     keyboardType: KeyboardType = KeyboardType.Text
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF3B3BF9))
+        Text(
+            label,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF374151)
+        )
         BasicTextField(
-            value = value ?: "",  // ← Null safety with default
+            value = value,
             onValueChange = onValueChange,
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                .padding(horizontal = 12.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color(0xFF374151))
+            textStyle = androidx.compose.ui.text.TextStyle(
+                fontSize = 14.sp,
+                color = Color(0xFF111827)
+            ),
+            cursorBrush = SolidColor(Color(0xFF3B3BF9))
         )
     }
 }
 
-// ── Request model ──
+// ── Request models ──
 data class EditBranchRequest(
     val name: String,
     val street: String,

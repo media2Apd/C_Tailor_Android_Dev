@@ -17,8 +17,8 @@ data class BranchItem(
     @SerializedName("_id") val id: String,
     @JsonAdapter(FlexibleOrganizationDeserializer::class)
     val organizationId: BranchOrganization? = null,
-    val branchId: String = "",
-    val name: String = "",
+    val branchId: String? = null,
+    val name: String?= null,
     val address: BranchListAddress = BranchListAddress(),
     val contactEmail: String = "",
     val contactMobile: String = "",

@@ -5,14 +5,21 @@ package com.cuso.mobile.network
 import ActiveOrgGarmentResponse
 import AddGarmentRequest
 import AddOrgGarmentResponse
+import CreateBranchRequest
+import CreateBranchResponse
 import GarmentCategoriesResponse
 import OrgGarmentResponse
 import RemoveOrgGarmentResponse
+//import com.cuso.mobile.model.BaseResponse
 import com.cuso.mobile.model.BranchListResponse
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
 import com.cuso.mobile.model.DeleteLeadResponse
+import com.cuso.mobile.model.DepartmentCreateRequest
+import com.cuso.mobile.model.DepartmentCreateResponse
 import com.cuso.mobile.model.DepartmentResponse
+import com.cuso.mobile.model.DepartmentUpdateRequest
+import com.cuso.mobile.model.DepartmentUpdateResponse
 import com.cuso.mobile.model.DesignationCreateRequest
 import com.cuso.mobile.model.DesignationCreateResponse
 import com.cuso.mobile.model.DesignationDeleteResponse
@@ -23,6 +30,8 @@ import com.cuso.mobile.model.EmailResponse
 import com.cuso.mobile.model.EmailVerify
 import com.cuso.mobile.model.GoogleLoginRequest
 import com.cuso.mobile.model.LeadsTableResponse
+import com.cuso.mobile.model.OrderDetailResponse
+import com.cuso.mobile.model.OrderResponse
 import com.cuso.mobile.model.PasswordResponse
 import com.cuso.mobile.model.PasswordVerify
 import com.cuso.mobile.model.RegisterVerifyOtp
@@ -35,6 +44,8 @@ import com.cuso.mobile.model.StaffResponse
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.model.UpdateBranchResponse
 import com.cuso.mobile.model.UpdateLeadResponse
+import com.cuso.mobile.model.UpdateOrganizationRequest
+import com.cuso.mobile.model.UpdateOrganizationResponse
 import com.cuso.mobile.model.ViewOneLeadResponse
 import com.cuso.mobile.model.forgotPasswordRequest
 import com.cuso.mobile.model.forgotPasswordResponse
@@ -59,10 +70,12 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Multipart
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ApiService {
 
@@ -281,6 +294,13 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String
     ): BranchListResponse
 
+    @POST("api/branches/create")
+    suspend fun createBranch(
+        @Header("Authorization") authorization: String,
+        @Header("X-CSRF-TOKEN") csrfToken: String,
+        @Body request: CreateBranchRequest
+    ): CreateBranchResponse
+
     @PUT("/api/branches/update-one/{id}")
     suspend fun updateBranch(
         @Header("Authorization") accessToken: String,
@@ -291,12 +311,30 @@ interface ApiService {
 
     // ── Departments ───────────────────────────────────────────────
 
-    // ✅ NEW - Department list (path guessed to match "view-all" convention — confirm with backend)
+    // ── Departments ───────────────────────────────────────────────
+
+    // Option 1: All unwrapped (recommended)
     @GET("/api/departments/view-all")
     suspend fun getDepartments(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): DepartmentResponse
+
+    @POST("api/departments/create")
+    suspend fun createDepartment(
+        @Header("Authorization") authorization: String,
+        @Header("X-CSRF-TOKEN") csrfToken: String,
+        @Body request: DepartmentCreateRequest
+    ): DepartmentCreateResponse  // ← Remove Response wrapper
+
+    @PUT("api/departments/update-one/{id}")
+    suspend fun updateDepartment(
+        @Header("Authorization") authorization: String,
+        @Header("X-CSRF-TOKEN") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: DepartmentUpdateRequest
+    ): DepartmentUpdateResponse  // ← Remove Response wrapper
+
 
     // ── Designations ──────────────────────────────────────────────
 
@@ -329,4 +367,68 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<DesignationDeleteResponse>
+
+    // In ApiService.kt
+    @PUT("/api/organizations/update-one")
+    suspend fun updateOrganization(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: UpdateOrganizationRequest
+    ): UpdateOrganizationResponse
+
+    // ── Sales/Order Endpoints ──
+
+    @GET("/api/sales-orders/view-all")
+    suspend fun getOrders(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null,
+        @Query("fromDate") fromDate: String? = null,
+        @Query("toDate") toDate: String? = null
+    ): Response<OrderResponse>
+
+    // ── Add these to your ApiService.kt after the getOrders() method ──
+
+    // ── Add these to your ApiService.kt ──
+
+    @GET("api/sales-leads/{orderId}")
+    suspend fun getOrderById(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("orderId") orderId: String
+    ): Response<OrderDetailResponse>
+
+//    @POST("api/sales-leads")
+//    suspend fun createOrder(
+//        @Header("Authorization") token: String,
+//        @Header("X-CSRF-Token") csrfToken: String,
+//        @Body request: CreateOrderRequest
+//    ): Response<OrderDetailResponse>
+//
+//    @PUT("api/sales-leads/{orderId}")
+//    suspend fun updateOrder(
+//        @Header("Authorization") token: String,
+//        @Header("X-CSRF-Token") csrfToken: String,
+//        @Path("orderId") orderId: String,
+//        @Body request: UpdateOrderRequest
+//    ): Response<OrderDetailResponse>
+//
+//    @DELETE("api/sales-leads/{orderId}")
+//    suspend fun deleteOrder(
+//        @Header("Authorization") token: String,
+//        @Header("X-CSRF-Token") csrfToken: String,
+//        @Path("orderId") orderId: String
+//    ): Response<BaseResponse<Boolean>>
+
+    @PATCH("api/sales-leads/{orderId}/status")
+    suspend fun updateOrderStatus(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("orderId") orderId: String,
+        @Query("status") status: String
+    ): Response<OrderDetailResponse>
+
 }

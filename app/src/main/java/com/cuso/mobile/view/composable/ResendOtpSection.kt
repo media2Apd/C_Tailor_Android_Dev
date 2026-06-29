@@ -31,7 +31,7 @@ fun ResendLoginOtpSection(
             timer--
         }
     }
-    Row() {
+    Row {
         Text("")
         Spacer(modifier = Modifier.weight(1f))
         TextButton(

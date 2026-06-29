@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.cuso.mobile.view.composable.CardContentsLoginScreen
 import com.cuso.mobile.view.composable.SignUpText
-import com.cuso.mobile.view.composable.appLogo
+import com.cuso.mobile.view.composable.AppLogo
 import com.cuso.mobile.view.composable.LoginScreenTitle
 import com.cuso.mobile.viewmodel.UiState
 import com.cuso.mobile.viewmodel.Authenticate
@@ -132,7 +132,7 @@ fun LoginScreen(activity: Activity,
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                appLogo()
+                AppLogo()
                 Spacer(modifier = Modifier.height(10.dp))
                 LoginScreenTitle()
                 Spacer(modifier = Modifier.height(10.dp))

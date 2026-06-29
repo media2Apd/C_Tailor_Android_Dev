@@ -32,7 +32,7 @@ data class DepartmentItem(
     val createdBy: CreatedByDto?
         get() = when (createdByRaw) {
             is Map<*, *> -> {
-                val map = createdByRaw as Map<*, *>
+                val map = createdByRaw
                 CreatedByDto(
                     _id = map["_id"] as? String ?: "",
                     firstName = map["firstName"] as? String ?: "",

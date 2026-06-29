@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 
 @Composable
-fun cardContentsResetPassword(navController: NavController,activity: Activity) {
+fun CardContentsResetPassword(navController: NavController,activity: Activity) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
@@ -74,7 +74,7 @@ fun cardContentsResetPassword(navController: NavController,activity: Activity) {
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            colors = customFieldColors()
+            colors = CustomFieldColors()
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -104,7 +104,7 @@ fun cardContentsResetPassword(navController: NavController,activity: Activity) {
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            colors = customFieldColors()
+            colors = CustomFieldColors()
         )
 
         Spacer(modifier = Modifier.height(20.dp))

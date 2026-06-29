@@ -21,16 +21,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 @Composable
-fun GstBox(
+fun GstBoxValue(
     GstValue: String,
     onGstChange: (String) -> Unit
 ) {
     var checked by remember { mutableStateOf(false) }
 
-    Row() {
+    Row {
         Text("Tax Information", color = Color.Black)
         Spacer(Modifier.padding(top=10.dp))
-        Row() {
+        Row {
             Text("Is this bussiness registered for GST/vat/TRN/Local Tax?", color = Color.Black)
             Spacer(Modifier.weight(1f))
 
@@ -55,7 +55,7 @@ fun GstBox(
                 .fillMaxWidth()
                 .height(60.dp),
             singleLine = true,
-            colors = customFieldColors()
+            colors = CustomFieldColors()
         )
     }
 }

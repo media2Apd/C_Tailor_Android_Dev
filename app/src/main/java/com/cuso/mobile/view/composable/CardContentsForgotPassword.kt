@@ -61,7 +61,7 @@ fun CardContentsForgotPassword(navController: NavController,activity: Activity) 
     Column(
         Modifier.padding(25.dp)
     ) {
-        animatedErrorBanner(
+        AnimatedErrorBanner(
             message = if (false)
                 (accountState as UiState.Error).message
             else "",
@@ -147,7 +147,7 @@ fun CardContentsForgotPassword(navController: NavController,activity: Activity) 
                 }
             }
                 Spacer(Modifier.padding(top = 20.dp))
-                backToSignIn(navController)
+                BackToSignIn(navController)
 
 
             }
@@ -158,7 +158,7 @@ fun CardContentsForgotPassword(navController: NavController,activity: Activity) 
                 Spacer(Modifier.padding(top = 20.dp))
                 Text("Email", fontSize = 20.sp, color = Color.Black)
                 Spacer(Modifier.padding(top = 10.dp))
-                forgotOtpInput(
+                ForgotOtpInput(
                     activity = activity,
                     onOtpComplete = { otp ->
                         Log.d("OTP", otp)
@@ -196,7 +196,7 @@ fun CardContentsForgotPassword(navController: NavController,activity: Activity) 
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = customFieldColors()
+                            colors = CustomFieldColors()
                         )
                     }
 

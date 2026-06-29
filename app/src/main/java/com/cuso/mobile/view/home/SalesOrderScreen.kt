@@ -6,12 +6,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -62,6 +60,10 @@ fun SalesOrderScreen(
     var itemsPerPage by remember { mutableStateOf(10) }
     var showStatusDropdown by remember { mutableStateOf(false) }
     var showItemsPerPageDropdown by remember { mutableStateOf(false) }
+    var showViewModeDropdown by remember { mutableStateOf(false) } // ✅ Add this
+
+    // ✅ New: View mode toggle (table or card)
+    var viewMode by remember { mutableStateOf("table") } // "table" or "card"
 
     LaunchedEffect(page, itemsPerPage, statusFilter, searchQuery) {
         viewModel.fetchOrders(
@@ -161,6 +163,9 @@ fun SalesOrderScreen(
                             )
                         }
                     }
+
+
+
                     Button(
                         onClick = { onCreateOrder() },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
@@ -216,7 +221,7 @@ fun SalesOrderScreen(
                             decorationBox = { innerTextField ->
                                 Box {
                                     if (searchQuery.isEmpty()) {
-                                        Text("Search orders…", fontSize = 14.sp, color = Color(0xFF9CA3AF))
+                                        Text("", fontSize = 14.sp, color = Color(0xFF9CA3AF))
                                     }
                                     innerTextField()
                                 }
@@ -224,6 +229,7 @@ fun SalesOrderScreen(
                         )
                     }
                 }
+
 
                 // Status filter dropdown
                 Box {
@@ -269,20 +275,114 @@ fun SalesOrderScreen(
                         }
                     }
                 }
+                // ✅ View Mode Toggle Dropdown
+                Box {
+                    Row(
+                        modifier = Modifier
+                            .height(36.dp)
+                            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                            .clickable { showViewModeDropdown = true }
+                            .padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            if (viewMode == "table") Icons.Default.TableRows else Icons.Default.GridView,
+                            null,
+                            tint = Color(0xFF3B3BF9),
+                            modifier = Modifier.size(16.dp)
+                        )
+
+                        Icon(
+                            Icons.Default.KeyboardArrowDown,
+                            null,
+                            tint = Color(0xFF6B7280),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showViewModeDropdown,
+                        onDismissRequest = { showViewModeDropdown = false },
+                        containerColor = Color.White,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Default.TableRows,
+                                            null,
+                                            tint = if (viewMode == "table") Color(0xFF3B3BF9) else Color(0xFF6B7280),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Table View", color = Color(0xFF111827))
+                                    }
+                                    if (viewMode == "table") {
+                                        Icon(Icons.Default.Check, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            },
+                            onClick = {
+                                viewMode = "table"
+                                showViewModeDropdown = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Default.GridView,
+                                            null,
+                                            tint = if (viewMode == "card") Color(0xFF3B3BF9) else Color(0xFF6B7280),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Card View", color = Color(0xFF111827))
+                                    }
+                                    if (viewMode == "card") {
+                                        Icon(Icons.Default.Check, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            },
+                            onClick = {
+                                viewMode = "card"
+                                showViewModeDropdown = false
+                            }
+                        )
+                    }
+                }
             }
+
 
             HorizontalDivider(color = Color(0xFFF0F0F0))
 
             // ── Content ──────────────────────────────────────────
             when {
                 isLoading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator(color = Color(0xFF3B3BF9))
                     }
                 }
 
                 orderState is OrderUiState.Error -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
                             Spacer(Modifier.height(8.dp))
@@ -310,7 +410,10 @@ fun SalesOrderScreen(
 
                 orderState is OrderUiState.Success -> {
                     if (orders.isEmpty()) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(Icons.Default.Receipt, null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
                                 Spacer(Modifier.height(8.dp))
@@ -318,27 +421,66 @@ fun SalesOrderScreen(
                             }
                         }
                     } else {
-                        Column {
-                            SalesOrderTable(
-                                orders = orders,
-                                onStatusChange = { orderId, status ->
-                                    viewModel.updateOrderStatus(
-                                        orderId = orderId,
-                                        status = status,
-                                        currentPage = page,
-                                        limit = itemsPerPage,
-                                        search = searchQuery.takeIf { it.isNotBlank() },
-                                        statusFilter = statusFilter.takeIf { it != "all" }
+                        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+
+                            // ── Scrollable area ──
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                // ✅ Show Table or Card based on viewMode
+                                if (viewMode == "table") {
+                                    // Table view
+                                    SalesOrderTable(
+                                        orders = orders,
+                                        onStatusChange = { orderId, status ->
+                                            viewModel.updateOrderStatus(
+                                                orderId = orderId,
+                                                status = status,
+                                                currentPage = page,
+                                                limit = itemsPerPage,
+                                                search = searchQuery.takeIf { it.isNotBlank() },
+                                                statusFilter = statusFilter.takeIf { it != "all" }
+                                            )
+                                        }
                                     )
                                 }
-                            )
 
-                            // ── Pagination ──────────────────────────────
+                                // Card view (always shown, but only one mode visible)
+                                if (viewMode == "card") {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        orders.forEach { order ->
+                                            SalesOrderCard(
+                                                order = order,
+                                                onStatusChange = { newStatus ->
+                                                    viewModel.updateOrderStatus(
+                                                        orderId = order.id,
+                                                        status = newStatus,
+                                                        currentPage = page,
+                                                        limit = itemsPerPage,
+                                                        search = searchQuery.takeIf { it.isNotBlank() },
+                                                        statusFilter = statusFilter.takeIf { it != "all" }
+                                                    )
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ── Pagination ──
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(Color.White)
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    .padding(horizontal = 16.dp, vertical = 1.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -367,6 +509,7 @@ fun SalesOrderScreen(
                                             onDismissRequest = { showItemsPerPageDropdown = false },
                                             containerColor = Color.White,
                                             shape = RoundedCornerShape(8.dp)
+
                                         ) {
                                             listOf(10, 25, 50, 100).forEach { count ->
                                                 DropdownMenuItem(
@@ -446,8 +589,10 @@ fun SalesOrderScreen(
     }
 }
 
+// ... rest of the composables remain the same (SalesOrderTable, SalesOrderRow, SalesOrderCard, helpers) ...
+
 // ─────────────────────────────────────────────────────────────
-// Table
+// Table (top section)
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -456,20 +601,19 @@ fun SalesOrderTable(
     onStatusChange: (String, String) -> Unit = { _, _ -> }
 ) {
     val horizontalScrollState = rememberScrollState()
-    val lazyListState = rememberLazyListState()
 
     // Column widths matching screenshot
-    val checkWidth   = 40.dp
-    val orderIdWidth = 110.dp
-    val statusWidth  = 120.dp
-    val customerWidth= 150.dp
-    val priorityWidth= 90.dp
-    val garmentWidth = 120.dp
-    val paymentWidth = 110.dp
-    val dateWidth    = 110.dp
-    val deliveryWidth= 110.dp
-    val totalWidth   = 90.dp
-    val actionWidth  = 70.dp
+    val checkWidth    = 40.dp
+    val orderIdWidth  = 110.dp
+    val statusWidth   = 120.dp
+    val customerWidth = 150.dp
+    val priorityWidth = 90.dp
+    val garmentWidth  = 120.dp
+    val paymentWidth  = 110.dp
+    val dateWidth     = 110.dp
+    val deliveryWidth = 110.dp
+    val totalWidth    = 90.dp
+    val actionWidth   = 70.dp
 
     Column(
         modifier = Modifier
@@ -492,23 +636,26 @@ fun SalesOrderTable(
                         .border(1.dp, Color(0xFF9CA3AF), RoundedCornerShape(3.dp))
                 )
             }
-            SalesHeaderCell("Order Id",    orderIdWidth,  Color(0xFF3B3BF9))
-            SalesHeaderCell("Status",      statusWidth)
-            SalesHeaderCell("Customer",    customerWidth, Color(0xFF3B3BF9))
-            SalesHeaderCell("Priority",    priorityWidth, Color(0xFF3B3BF9))
-            SalesHeaderCell("Garments",    garmentWidth,  Color(0xFF3B3BF9))
-            SalesHeaderCell("Payment",     paymentWidth,  Color(0xFF3B3BF9))
-            SalesHeaderCell("Order Date",  dateWidth,     Color(0xFF3B3BF9))
-            SalesHeaderCell("Delivery",    deliveryWidth, Color(0xFF3B3BF9))
-            SalesHeaderCell("Total",       totalWidth,    Color(0xFF3B3BF9))
-            SalesHeaderCell("Action",      actionWidth)
+            SalesHeaderCell("Order Id",   orderIdWidth,  Color(0xFF3B3BF9))
+            SalesHeaderCell("Status",     statusWidth)
+            SalesHeaderCell("Customer",   customerWidth, Color(0xFF3B3BF9))
+            SalesHeaderCell("Priority",   priorityWidth, Color(0xFF3B3BF9))
+            SalesHeaderCell("Garments",   garmentWidth,  Color(0xFF3B3BF9))
+            SalesHeaderCell("Payment",    paymentWidth,  Color(0xFF3B3BF9))
+            SalesHeaderCell("Order Date", dateWidth,     Color(0xFF3B3BF9))
+            SalesHeaderCell("Delivery",   deliveryWidth, Color(0xFF3B3BF9))
+            SalesHeaderCell("Total",      totalWidth,    Color(0xFF3B3BF9))
+            SalesHeaderCell("Action",     actionWidth)
         }
 
         HorizontalDivider(color = Color(0xFFE5E7EB))
 
         // ── Rows ─────────────────────────────────────────────────
-        LazyColumn(state = lazyListState, modifier = Modifier.heightIn(max = 600.dp)) {
-            items(orders, key = { it.id }) { order ->
+        // Plain Column (not LazyColumn) — this table now lives inside the
+        // screen's own vertical scroll, so it must not introduce a second
+        // independently-scrolling vertical list.
+        Column {
+            orders.forEach { order ->
                 SalesOrderRow(
                     order = order,
                     checkWidth    = checkWidth,
@@ -546,7 +693,7 @@ private fun SalesHeaderCell(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Row
+// Table Row
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -568,7 +715,6 @@ fun SalesOrderRow(
     var actionMenuExpanded by remember { mutableStateOf(false) }
     var checked by remember { mutableStateOf(false) }
 
-    // Format epoch millis → dd/MM/yyyy
     fun Long?.toDisplayDate(): String {
         if (this == null) return "—"
         return runCatching {
@@ -576,18 +722,13 @@ fun SalesOrderRow(
         }.getOrDefault("—")
     }
 
-    // Garments: join all categoryName values
     val garmentNames = remember(order.garments) {
         order.garments.joinToString(", ") { it.categoryName }.ifEmpty { "—" }
     }
 
-    // Total
-    val totalText = order.totalAmount?.let { "₹${formatAmount(it)}" } ?: "—"
+    val totalText = order.totalAmount?.let { "₹${it}" } ?: "—"
 
-    // Status chip colors
     val (statusBg, statusTextColor) = orderStatusColors(order.status)
-
-    // Payment chip
     val paymentStatus = order.paymentStatus ?: "unpaid"
     val (paymentBg, paymentTextColor) = paymentStatusColors(paymentStatus)
 
@@ -657,7 +798,7 @@ fun SalesOrderRow(
             )
         }
 
-        // ── Priority (source field used as priority) ──
+        // ── Priority ──
         Text(
             text = order.source?.replaceFirstChar { it.uppercase() } ?: "Normal",
             modifier = Modifier.width(priorityWidth),
@@ -769,14 +910,252 @@ fun SalesOrderRow(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Helpers
+// Card (bottom section, stacked under the table)
 // ─────────────────────────────────────────────────────────────
 
-fun formatAmount(amount: Int): String = when {
-    amount >= 100_000 -> String.format("%.1fL", amount / 100_000.0)
-    amount >= 1_000   -> String.format("%.1fK", amount / 1_000.0)
-    else              -> amount.toString()
+@Composable
+fun SalesOrderCard(
+    order: OrderItem,
+    onStatusChange: (String) -> Unit = {}
+) {
+    var actionMenuExpanded by remember { mutableStateOf(false) }
+
+    fun Long?.toDisplayDate(): String {
+        if (this == null) return "—"
+        return runCatching {
+            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(this))
+        }.getOrDefault("—")
+    }
+
+    val garmentNames = order.garments
+        .joinToString(", ") { it.categoryName }
+        .ifEmpty { "—" }
+
+    val (statusBg, statusTextColor) = orderStatusColors(order.status)
+    val paymentStatus = order.paymentStatus ?: "unpaid"
+    val (paymentBg, paymentTextColor) = paymentStatusColors(paymentStatus)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+
+            // ── Top Row: Order ID + Status + Menu ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(4.dp)
+                            .height(20.dp)
+                            .background(statusTextColor, RoundedCornerShape(2.dp))
+                    )
+                    Text(
+                        order.orderNumber,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .background(statusBg, RoundedCornerShape(20.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(statusTextColor, RoundedCornerShape(3.dp))
+                            )
+                            Text(
+                                order.status?.replaceFirstChar { it.uppercase() } ?: "—",
+                                fontSize = 12.sp,
+                                color = statusTextColor,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Box {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "Actions",
+                            tint = Color(0xFF9CA3AF),
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clickable { actionMenuExpanded = true }
+                        )
+                        DropdownMenu(
+                            expanded = actionMenuExpanded,
+                            onDismissRequest = { actionMenuExpanded = false },
+                            containerColor = Color.White,
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Visibility,
+                                            null,
+                                            tint = Color(0xFF6B7280),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text("View", color = Color(0xFF111827))
+                                    }
+                                },
+                                onClick = { actionMenuExpanded = false }
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            null,
+                                            tint = Color(0xFF6B7280),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text("Edit", color = Color(0xFF111827))
+                                    }
+                                },
+                                onClick = { actionMenuExpanded = false }
+                            )
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(color = Color(0xFFF3F4F6))
+
+            // ── Middle: Avatar + Customer + Garments + Payment ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(Color(0xFFEEF2FF), RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        order.customerId?.name?.firstOrNull()?.uppercase() ?: "?",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF3B3BF9)
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        order.customerId?.name ?: "Unknown",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF111827),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        garmentNames,
+                        fontSize = 12.sp,
+                        color = Color(0xFF6B7280),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .background(paymentBg, RoundedCornerShape(20.dp))
+                        .border(
+                            1.dp,
+                            paymentTextColor.copy(alpha = 0.3f),
+                            RoundedCornerShape(20.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        paymentStatus.replaceFirstChar { it.uppercase() },
+                        fontSize = 11.sp,
+                        color = paymentTextColor,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            HorizontalDivider(color = Color(0xFFF3F4F6))
+
+            // ── Bottom: Order Date + Delivery + Total ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Order Date", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                    Text(
+                        order.orderDate.toDisplayDate(),
+                        fontSize = 13.sp,
+                        color = Color(0xFF374151),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Delivery", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                    Text(
+                        order.deliveryDate.toDisplayDate(),
+                        fontSize = 13.sp,
+                        color = Color(0xFF374151),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Total", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                    Text(
+                        order.totalAmount?.let { "₹$it" } ?: "—",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
+                }
+            }
+        }
+    }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
 
 fun orderStatusColors(status: String?): Pair<Color, Color> = when (status?.lowercase()) {
     "confirmed"  -> Color(0xFFE8F5E9) to Color(0xFF388E3C)
@@ -788,8 +1167,8 @@ fun orderStatusColors(status: String?): Pair<Color, Color> = when (status?.lower
 }
 
 fun paymentStatusColors(status: String): Pair<Color, Color> = when (status.lowercase()) {
-    "paid"         -> Color(0xFFE8F5E9) to Color(0xFF388E3C)
-    "partial"      -> Color(0xFFFFF3E0) to Color(0xFFFF9800)
-    "unpaid"       -> Color(0xFFFFF8E6) to Color(0xFFD97706)
-    else           -> Color(0xFFF3F4F6) to Color(0xFF6B7280)
+    "paid"    -> Color(0xFFE8F5E9) to Color(0xFF388E3C)
+    "partial" -> Color(0xFFFFF3E0) to Color(0xFFFF9800)
+    "unpaid"  -> Color(0xFFFFF8E6) to Color(0xFFD97706)
+    else      -> Color(0xFFF3F4F6) to Color(0xFF6B7280)
 }

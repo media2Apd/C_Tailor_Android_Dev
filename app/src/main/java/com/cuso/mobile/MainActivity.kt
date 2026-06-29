@@ -15,7 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.cuso.mobile.ui.theme.CusoTailorTheme
-import com.cuso.mobile.view.forgot_password.ForgotPassword
+import com.cuso.mobile.view.forgot_password.ForgotUserPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
 import com.cuso.mobile.view.forgot_password.VerifyForgotPassword
 import com.cuso.mobile.view.home.BranchSettingsScreen
@@ -32,6 +32,7 @@ import com.cuso.mobile.view.sales.CreateOrderScreen
 import com.cuso.mobile.view.sales.SalesOrderScreen
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
+import com.example.tailorapp.ui.screens.CreateOrderNextStep
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -43,7 +44,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             CusoTailorTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
-                    AppNav(activity = this)
+//                    AppNav(activity = this)
+                    CreateOrderNextStep()
                 }
             }
         }
@@ -124,7 +126,7 @@ fun AppNav(activity: Activity) {
         }
 
         composable("new-pass") {
-            ForgotPassword(activity = localActivity, navController = navController)
+            ForgotUserPassword(activity = localActivity, navController = navController)
         }
 
         composable("verify-forgot-pass/{email}",

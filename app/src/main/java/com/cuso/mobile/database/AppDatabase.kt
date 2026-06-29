@@ -1,13 +1,13 @@
 package com.cuso.mobile.database
 
-import android.content.Context
 import androidx.room.Database
-import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.database.dao.LeadDao
 import com.cuso.mobile.database.dao.OrganizationDao
 import com.cuso.mobile.database.dao.SalesStatusDao
 import com.cuso.mobile.database.dao.SalesSummaryDao
+import com.cuso.mobile.database.dao.SelectedGarmentDao
 import com.cuso.mobile.database.dao.SettingsDao
 import com.cuso.mobile.database.dao.SubscriptionDao
 import com.cuso.mobile.database.dao.TokensDao
@@ -40,9 +40,10 @@ import com.cuso.mobile.database.entities.WorkingDayEntity
         FeatureEnabledEntity::class,
         SalesStatusEntity::class,
         SalesSummaryEntity::class,
-        LeadEntity::class
+        LeadEntity::class,
+        SelectedGarment::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -55,6 +56,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun salesStatusDao(): SalesStatusDao
     abstract fun salesSummaryDao(): SalesSummaryDao
     abstract fun leadDao(): LeadDao
+    abstract fun selectedGarmentDao():  SelectedGarmentDao
 
     // ⚠️ NOTE: This companion getDatabase() creates a database instance
     // OUTSIDE of Hilt's singleton graph. If any code calls
@@ -66,22 +68,22 @@ abstract class AppDatabase : RoomDatabase() {
     // Search your codebase for `AppDatabase.getDatabase(` — if anything
     // outside of this file calls it, replace that usage with @Inject
     // of AppDatabase instead, then delete this companion object.
-    companion object {
-        @Volatile
-        private var INSTANCE: AppDatabase? = null
-
-//        fun getDatabase(context: Context): AppDatabase {
-//            return INSTANCE ?: synchronized(this) {
-//                val instance = Room.databaseBuilder(
-//                    context.applicationContext,
-//                    AppDatabase::class.java,
-//                    "cusotailor_db"
-//                )
-//                    .fallbackToDestructiveMigration()
-//                    .build()
-//                INSTANCE = instance
-//                instance
-//            }
-//        }
-    }
+//    companion object {
+//        @Volatile
+//        private var INSTANCE: AppDatabase? = null
+//
+////        fun getDatabase(context: Context): AppDatabase {
+////            return INSTANCE ?: synchronized(this) {
+////                val instance = Room.databaseBuilder(
+////                    context.applicationContext,
+////                    AppDatabase::class.java,
+////                    "cusotailor_db"
+////                )
+////                    .fallbackToDestructiveMigration()
+////                    .build()
+////                INSTANCE = instance
+////                instance
+////            }
+////        }
+//    }
 }

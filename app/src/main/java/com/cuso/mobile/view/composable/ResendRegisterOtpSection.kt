@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.cuso.mobile.viewmodel.Authenticate
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 
 @Composable
@@ -26,7 +27,7 @@ fun ResendRegisterOtpSection(
 
     LaunchedEffect(timer) {
         if (timer > 0) {
-            delay(1000)
+            delay(1000.milliseconds)
             timer--
         }
     }

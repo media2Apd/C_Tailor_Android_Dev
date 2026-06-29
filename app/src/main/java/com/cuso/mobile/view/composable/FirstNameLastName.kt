@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 
 
 @Composable
-fun firstNameLastName(
+fun FirstNameLastName(
     firstName: String,
     lastName: String,
     onFirstNameChange: (String) -> Unit,
@@ -36,7 +36,7 @@ fun firstNameLastName(
                     .height(60.dp),
                 shape = RoundedCornerShape(5.dp),
                 singleLine = true,
-                colors = customFieldColors()
+                colors = CustomFieldColors()
             )
         }
 
@@ -53,7 +53,7 @@ fun firstNameLastName(
                     .height(60.dp),
                 shape = RoundedCornerShape(5.dp),
                 singleLine = true,
-                colors = customFieldColors()
+                colors = CustomFieldColors()
             )
         }
     }

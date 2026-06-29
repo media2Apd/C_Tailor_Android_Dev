@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.SignUpOtpSelection
 import com.cuso.mobile.view.composable.OtpTitle
-import com.cuso.mobile.view.composable.appLogo
+import com.cuso.mobile.view.composable.AppLogo
 
 @Composable
 fun SignUpOtpScreen(navController: NavController, activity: Activity, submittedEmail: String) {
@@ -37,7 +37,7 @@ fun SignUpOtpScreen(navController: NavController, activity: Activity, submittedE
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        appLogo()
+        AppLogo()
         Spacer(Modifier.padding(top = 20.dp))
 
         OtpTitle()

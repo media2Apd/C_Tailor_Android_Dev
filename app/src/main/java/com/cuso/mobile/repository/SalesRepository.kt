@@ -20,6 +20,7 @@ import com.cuso.mobile.model.CategoryItem
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
 import com.cuso.mobile.model.CreateOrderRequest
+import com.cuso.mobile.model.CustomerSearchResponse
 import com.cuso.mobile.model.DepartmentCreateRequest
 import com.cuso.mobile.model.DepartmentCreateResponse
 import com.cuso.mobile.model.DepartmentResponse
@@ -109,6 +110,7 @@ class SalesRepository @Inject constructor(
             throw Exception("Failed: ${response.code()}")
         }
     }
+
 
     // ── Garment Categories (old - used elsewhere) ─────────────────
 
@@ -268,6 +270,21 @@ class SalesRepository @Inject constructor(
                 Result.failure(Exception("Failed to fetch staff: ${response.code()}"))
             }
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun searchCustomerByMobile(mobile: String): Result<CustomerSearchResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.searchCustomerByMobile(accessToken, csrfToken, mobile)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Failed to search customer: ${response.code()}"))
+            }
+        }
+        catch (e: Exception) {
             Result.failure(e)
         }
     }

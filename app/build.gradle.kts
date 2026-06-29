@@ -125,4 +125,14 @@ dependencies {
     implementation(libs.vico.core)
     implementation(libs.vico.compose)
     implementation(libs.vico.compose.m3)
+
+    // Unit tests
+    testImplementation(libs.junit)
+
+    // Instrumented tests
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+
+    implementation("com.google.accompanist:accompanist-permissions:0.37.3")
 }

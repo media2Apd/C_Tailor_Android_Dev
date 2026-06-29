@@ -256,7 +256,7 @@
                             },
                             modifier = Modifier.fillMaxWidth(),
                             isError = accountState is UiState.Error,
-                            colors =customFieldColors()
+                            colors =CustomFieldColors()
                         )
                         if (accountState is UiState.Error) {
                             Text(
@@ -368,8 +368,8 @@
             }
             Spacer(Modifier.height(20.dp))
 
-            Row() {
-                ContinueGoogle(activity,navController)
+            Row {
+                ContinueWithGoogle(activity,navController)
             }
         }
     }

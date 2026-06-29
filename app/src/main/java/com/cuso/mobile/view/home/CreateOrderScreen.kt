@@ -1,5 +1,13 @@
 package com.cuso.mobile.view.sales
 
+import android.Manifest
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,31 +27,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.FileProvider
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.rememberImagePainter
+import com.cuso.mobile.database.entities.SelectedGarment
+import com.cuso.mobile.model.CustomerGarment
+import com.cuso.mobile.model.CustomerOrder
 import com.cuso.mobile.view.composable.PhoneInputField
+import com.cuso.mobile.viewmodel.BranchViewModel
+import com.cuso.mobile.viewmodel.SalesViewModel
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import java.io.File
 
 // ─────────────────────────────────────────────────────────────
 // Data Models
 // ─────────────────────────────────────────────────────────────
-
-data class SelectedGarment(
-    val category: String,
-    val categoryName: String,
-    val quantity: Int = 1,
-    val price: Double = 0.0,
-    val priority: String = "Low",
-    val trialRequired: Boolean = false,
-    val fabricSource: String = "In-House",
-    val fabricType: String = "",
-    val colorTone: String = "",
-    val pattern: String = "Solid",
-    val models: List<String> = emptyList()
-)
 
 data class GarmentModel(
     val id: String,
@@ -51,17 +60,28 @@ data class GarmentModel(
     val isSelected: Boolean = false
 )
 
+data class MeasurementField(
+    val id: String,
+    val label: String,
+    val value: String = "",
+    val unit: String = "inch"
+)
+
 // ─────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun CreateOrderScreen(
     onBack: () -> Unit = {},
     onCancel: () -> Unit = {},
-    onNextStep: () -> Unit = {}
+    onNextStep: () -> Unit = {},
+    salesViewModel: SalesViewModel = hiltViewModel(),
+    branchViewModel: BranchViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
 
     // ── Customer state ──
     var phone by remember { mutableStateOf("") }
@@ -72,22 +92,234 @@ fun CreateOrderScreen(
     var source by remember { mutableStateOf("Walk-in") }
     var showDressDropdown by remember { mutableStateOf(false) }
     var showSourceDropdown by remember { mutableStateOf(false) }
+    var countryCode by remember { mutableStateOf("+91") }
 
-    // ── Garment state ──
-    val quickCategories = listOf(
-        "Pant" to "👔",
-        "Shirt" to "👕",
-        "Jacket" to "🧥",
-        "Blazer" to "👔",
-        "Kurta" to "👕"
+    // ── Design Reference - Photo Upload States ──
+    var selectedDesignImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var showImagePickerOptions by remember { mutableStateOf(false) }
+    var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    // ── Permission state ──
+    val cameraPermissionState = rememberPermissionState(
+        Manifest.permission.CAMERA
     )
-    val selectedGarments = remember { mutableStateListOf<SelectedGarment>() }
+
+    // ── Gallery Launcher ──
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            selectedDesignImages = selectedDesignImages + it
+            // Upload logic here
+            // salesViewModel.uploadDesignImage(it)
+        }
+    }
+
+    // ── Camera Launcher ──
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success) {
+            capturedImageUri?.let { uri ->
+                selectedDesignImages = selectedDesignImages + uri
+                // Upload logic here
+                // salesViewModel.uploadDesignImage(uri)
+                capturedImageUri = null
+            }
+        }
+    }
+
+    // ── Function to handle camera capture ──
+    fun captureDesignImage() {
+        if (cameraPermissionState.status.isGranted) {
+            val tempFile = File.createTempFile("design_image_", ".jpg", context.cacheDir)
+            capturedImageUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                tempFile
+            )
+            capturedImageUri?.let { cameraLauncher.launch(it) }
+        } else {
+            cameraPermissionState.launchPermissionRequest()
+        }
+    }
+
+    // ── Image picker options dialog ──
+    if (showImagePickerOptions) {
+        AlertDialog(
+            onDismissRequest = { showImagePickerOptions = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Text(
+                    "Add Design Reference",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Gallery option
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                            .clickable {
+                                showImagePickerOptions = false
+                                galleryLauncher.launch("image/*")
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.PhotoLibrary,
+                            null,
+                            tint = Color(0xFF3B3BF9),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column {
+                            Text(
+                                "Browser",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF111827)
+                            )
+
+                        }
+                    }
+
+                    // Camera option
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                            .clickable {
+                                showImagePickerOptions = false
+                                captureDesignImage()
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            null,
+                            tint = Color(0xFF3B3BF9),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column {
+                            Text(
+                                "Take Photo",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF111827)
+                            )
+                            Text(
+                                "Capture with camera",
+                                fontSize = 12.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                    }
+
+                    // Remove all photos option
+                    if (selectedDesignImages.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFFEE2E2), RoundedCornerShape(8.dp))
+                                .clickable {
+                                    showImagePickerOptions = false
+                                    selectedDesignImages = emptyList()
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                null,
+                                tint = Color(0xFFEF4444),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column {
+                                Text(
+                                    "Remove All Photos",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFFEF4444)
+                                )
+                                Text(
+                                    "Remove all selected images",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFFCA5A5)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showImagePickerOptions = false },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = Color(0xFF6B7280)
+                    )
+                ) {
+                    Text("Cancel")
+                }
+            },
+            dismissButton = null
+        )
+    }
+
+    // ── Customer search states ──
+    val customerSearchResult by salesViewModel.customerSearchResult.collectAsStateWithLifecycle()
+    val isSearchingCustomer by salesViewModel.isSearchingCustomer.collectAsStateWithLifecycle()
+    var showImportDialog by remember { mutableStateOf(false) }
+
+    // ── Garment categories ──
+    val activeOrgCategoryIds by salesViewModel.activeOrgCategoryIds.collectAsStateWithLifecycle()
+    val commonCategories by salesViewModel.orgGarmentCategories.collectAsStateWithLifecycle()
+    val isLoadingCategories by salesViewModel.isLoadingOrgGarments.collectAsStateWithLifecycle()
+
+    // ── Selected garments ──
+    val selectedGarments by salesViewModel.selectedGarments.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        branchViewModel.loadBranches()
+        salesViewModel.fetchOrgGarmentCategories()
+        salesViewModel.fetchActiveOrgGarments()
+        salesViewModel.loadSelectedGarments()
+    }
+
+    // ── Trigger search on phone change ──
+    LaunchedEffect(phone) {
+        if (phone.length >= 4) {
+            salesViewModel.searchCustomerByMobile(
+                mobile = phone,
+                countryCode = countryCode
+            )
+        } else {
+            salesViewModel.clearCustomerSearch()
+        }
+    }
+
+    val quickCategories: List<Pair<String, String>> = remember(commonCategories, activeOrgCategoryIds) {
+        commonCategories
+            .filter { it._id in activeOrgCategoryIds }
+            .map { it.categoryName to it._id }
+    }
 
     // ── Dialog state ──
     var showGarmentDialog by remember { mutableStateOf(false) }
-    var editingGarmentIndex by remember { mutableStateOf<Int?>(null) }
+    var editingGarmentId by remember { mutableStateOf<String?>(null) }
 
-    // ── Temporary garment for dialog ──
     var tempGarment by remember {
         mutableStateOf(
             SelectedGarment(
@@ -107,7 +339,7 @@ fun CreateOrderScreen(
     }
 
     // ── Delivery state ──
-    var orderDate by remember { mutableStateOf("27-06-2026") }
+    var orderDate by remember { mutableStateOf("") }
     var trialDate by remember { mutableStateOf("") }
     var deliveryDate by remember { mutableStateOf("") }
     var branch by remember { mutableStateOf("") }
@@ -117,7 +349,6 @@ fun CreateOrderScreen(
     var stylingNotes by remember { mutableStateOf("") }
     var isRecording by remember { mutableStateOf(false) }
 
-    // ── Open dialog for new garment ──
     fun openGarmentDialog(categoryName: String, category: String) {
         tempGarment = SelectedGarment(
             category = category,
@@ -132,25 +363,42 @@ fun CreateOrderScreen(
             pattern = "Solid",
             models = emptyList()
         )
-        editingGarmentIndex = null
+        editingGarmentId = null
         showGarmentDialog = true
     }
 
-    // ── Open dialog for editing existing garment ──
-    fun editGarmentDialog(index: Int) {
-        tempGarment = selectedGarments[index]
-        editingGarmentIndex = index
+    fun editGarmentDialog(garment: SelectedGarment) {
+        tempGarment = garment
+        editingGarmentId = garment.id
         showGarmentDialog = true
     }
 
-    // ── Save garment from dialog ──
     fun saveGarment() {
-        if (editingGarmentIndex != null) {
-            selectedGarments[editingGarmentIndex!!] = tempGarment
-        } else {
-            selectedGarments.add(tempGarment)
-        }
+        salesViewModel.addOrUpdateGarment(tempGarment)
         showGarmentDialog = false
+    }
+
+    fun deleteGarment(garmentId: String) {
+        salesViewModel.deleteSelectedGarment(garmentId)
+    }
+
+    // ── Import garments from previous order ──
+    fun importGarments(garments: List<CustomerGarment>) {
+        garments.forEach { cg ->
+            val garment = SelectedGarment(
+                category = cg.category,
+                categoryName = cg.categoryName,
+                quantity = cg.quantity,
+                priority = cg.priority,
+                trialRequired = cg.trialRequired,
+                fabricSource = cg.fabricDetails?.fabricSource ?: "In-House",
+                fabricType = cg.fabricDetails?.fabricType ?: "",
+                colorTone = cg.fabricDetails?.color ?: "",
+                pattern = cg.fabricDetails?.pattern ?: "Solid",
+                models = cg.models
+            )
+            salesViewModel.addOrUpdateGarment(garment)
+        }
     }
 
     Scaffold(
@@ -188,22 +436,35 @@ fun CreateOrderScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedButton(
-                    onClick = onCancel,
-                    modifier = Modifier.weight(1f).height(48.dp),
+                    onClick = {
+                        salesViewModel.clearAllSelectedGarments()
+                        salesViewModel.clearCustomerSearch()
+                        onCancel()
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
                     shape = RoundedCornerShape(10.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB))
                 ) {
                     Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.Medium)
                 }
                 Button(
-                    onClick = onNextStep,
-                    modifier = Modifier.weight(2f).height(48.dp),
+                    onClick = { onNextStep() },
+                    modifier = Modifier
+                        .weight(2f)
+                        .height(48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Text("Next Step", color = Color.White, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.width(6.dp))
-                    Icon(Icons.Default.ChevronRight, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         },
@@ -218,22 +479,185 @@ fun CreateOrderScreen(
                     .padding(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+
                 // ══════════════════════════════════════════════
                 // 1. CUSTOMER DETAILS
                 // ══════════════════════════════════════════════
                 SectionCard(title = "CUSTOMER DETAILS") {
 
-                    // Phone
                     FormLabel("Phone")
-                    PhoneInputField(
-                        phoneValue = phone,
-                        onPhoneChange = { phone = it },
-                        onCountryChange = { /* TODO: handle country change */ }
-                    )
+
+                    // ── Phone field ──
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        PhoneInputField(
+                            phoneValue = phone,
+                            onPhoneChange = { newPhone ->
+                                phone = newPhone
+                                if (newPhone.isEmpty()) salesViewModel.clearCustomerSearch()
+                            },
+                            onCountryChange = { country ->
+                                countryCode = country.code
+                            }
+                        )
+                        if (isSearchingCustomer) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .align(Alignment.CenterEnd)
+                                    .padding(end = 8.dp),
+                                strokeWidth = 2.dp,
+                                color = Color(0xFF3B3BF9)
+                            )
+                        }
+                    }
+
+                    // ── Found Customer Card ──
+                    AnimatedVisibility(
+                        visible = customerSearchResult?.customer != null,
+                        enter = expandVertically(),
+                        exit = shrinkVertically()
+                    ) {
+                        customerSearchResult?.customer?.let { customer ->
+                            Spacer(Modifier.height(8.dp))
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                elevation = CardDefaults.cardElevation(3.dp)
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    // Header
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color(0xFFF0FDF4))
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.CheckCircle,
+                                                null,
+                                                tint = Color(0xFF16A34A),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                "FOUND CUSTOMER",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF16A34A),
+                                                letterSpacing = 0.5.sp
+                                            )
+                                        }
+                                        Icon(
+                                            Icons.Default.Close,
+                                            null,
+                                            tint = Color(0xFF6B7280),
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .clickable { salesViewModel.clearCustomerSearch() }
+                                        )
+                                    }
+
+                                    // Customer info + Import button
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                customer.name,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF111827)
+                                            )
+                                            val orderCount = customerSearchResult?.orders?.size ?: 0
+                                            Text(
+                                                "Found $orderCount previous order${if (orderCount != 1) "s" else ""}",
+                                                fontSize = 12.sp,
+                                                color = Color(0xFF6B7280)
+                                            )
+                                        }
+
+                                        // Import Data button
+                                        if ((customerSearchResult?.orders?.size ?: 0) > 0) {
+                                            OutlinedButton(
+                                                onClick = {
+                                                    fullName = customer.name
+                                                    address = customer.address?.addressLine ?: ""
+                                                    showImportDialog = true
+                                                },
+                                                shape = RoundedCornerShape(8.dp),
+                                                border = androidx.compose.foundation.BorderStroke(
+                                                    1.dp,
+                                                    Color(0xFF3B3BF9)
+                                                ),
+                                                colors = ButtonDefaults.outlinedButtonColors(
+                                                    containerColor = Color(0xFFEEF2FF)
+                                                ),
+                                                contentPadding = PaddingValues(
+                                                    horizontal = 12.dp,
+                                                    vertical = 6.dp
+                                                )
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Download,
+                                                    null,
+                                                    tint = Color(0xFF3B3BF9),
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    "Import Data",
+                                                    fontSize = 13.sp,
+                                                    color = Color(0xFF3B3BF9),
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+                                        } else {
+                                            // Just auto-fill name
+                                            OutlinedButton(
+                                                onClick = {
+                                                    fullName = customer.name
+                                                    address = customer.address?.addressLine ?: ""
+                                                    salesViewModel.clearCustomerSearch()
+                                                },
+                                                shape = RoundedCornerShape(8.dp),
+                                                border = androidx.compose.foundation.BorderStroke(
+                                                    1.dp,
+                                                    Color(0xFF3B3BF9)
+                                                ),
+                                                colors = ButtonDefaults.outlinedButtonColors(
+                                                    containerColor = Color(0xFFEEF2FF)
+                                                ),
+                                                contentPadding = PaddingValues(
+                                                    horizontal = 12.dp,
+                                                    vertical = 6.dp
+                                                )
+                                            ) {
+                                                Text(
+                                                    "Use Details",
+                                                    fontSize = 13.sp,
+                                                    color = Color(0xFF3B3BF9),
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     Spacer(Modifier.height(4.dp))
 
-                    // Full Name
                     FormLabel("Full Name")
                     FormTextField(
                         value = fullName,
@@ -243,7 +667,6 @@ fun CreateOrderScreen(
 
                     Spacer(Modifier.height(4.dp))
 
-                    // Address
                     FormLabel("Address")
                     OutlinedTextField(
                         value = address,
@@ -252,7 +675,11 @@ fun CreateOrderScreen(
                             .fillMaxWidth()
                             .height(100.dp),
                         placeholder = {
-                            Text("Enter full billing/shipping address...", color = Color(0xFF9CA3AF), fontSize = 14.sp)
+                            Text(
+                                "Enter full billing/shipping address...",
+                                color = Color(0xFF9CA3AF),
+                                fontSize = 14.sp
+                            )
                         },
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = Color(0xFFE5E7EB),
@@ -266,7 +693,6 @@ fun CreateOrderScreen(
 
                     Spacer(Modifier.height(4.dp))
 
-                    // Gender
                     FormLabel("Gender")
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         listOf("Male", "Female", "Other").forEach { option ->
@@ -278,9 +704,7 @@ fun CreateOrderScreen(
                                 RadioButton(
                                     selected = gender == option,
                                     onClick = { gender = option },
-                                    colors = RadioButtonDefaults.colors(
-                                        selectedColor = Color(0xFF3B3BF9)
-                                    )
+                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF3B3BF9))
                                 )
                                 Text(option, fontSize = 14.sp, color = Color(0xFF374151))
                             }
@@ -289,7 +713,6 @@ fun CreateOrderScreen(
 
                     Spacer(Modifier.height(4.dp))
 
-                    // Dress For
                     FormLabel("Dress For")
                     Box {
                         Row(
@@ -321,7 +744,6 @@ fun CreateOrderScreen(
 
                     Spacer(Modifier.height(4.dp))
 
-                    // Source
                     FormLabel("Source")
                     Box {
                         Row(
@@ -359,19 +781,25 @@ fun CreateOrderScreen(
                     title = "GARMENT DETAILS",
                     action = {
                         Row(
-                            modifier = Modifier.clickable {
-                                // Open a category picker or just add a new garment
-                                openGarmentDialog("", "")
-                            },
+                            modifier = Modifier.clickable { openGarmentDialog("", "") },
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            Icon(Icons.Default.Add, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
-                            Text("Add Category", fontSize = 13.sp, color = Color(0xFF3B3BF9), fontWeight = FontWeight.SemiBold)
+                            Icon(
+                                Icons.Default.Add,
+                                null,
+                                tint = Color(0xFF3B3BF9),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                "Add Category",
+                                fontSize = 13.sp,
+                                color = Color(0xFF3B3BF9),
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
                 ) {
-                    // Quick Add
                     Text(
                         "QUICK ADD CATEGORY",
                         fontSize = 11.sp,
@@ -380,41 +808,76 @@ fun CreateOrderScreen(
                         letterSpacing = 0.5.sp
                     )
                     Spacer(Modifier.height(8.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        items(quickCategories) { (name, _) ->
-                            Column(
+
+                    when {
+                        isLoadingCategories -> {
+                            Box(
                                 modifier = Modifier
-                                    .width(90.dp)
-                                    .background(Color.White, RoundedCornerShape(10.dp))
-                                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
-                                    .clickable {
-                                        openGarmentDialog(name, name.lowercase())
-                                    }
-                                    .padding(12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    .fillMaxWidth()
+                                    .height(80.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(44.dp)
-                                        .background(Color(0xFFEEF2FF), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.Checkroom,
-                                        contentDescription = name,
-                                        tint = Color(0xFF3B3BF9),
-                                        modifier = Modifier.size(22.dp)
-                                    )
+                                CircularProgressIndicator(modifier = Modifier.size(22.dp))
+                            }
+                        }
+
+                        quickCategories.isEmpty() -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(70.dp)
+                                    .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
+                                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No garment categories configured. Add them in Settings.",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF9CA3AF)
+                                )
+                            }
+                        }
+
+                        else -> {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                items(quickCategories) { (name, categoryId) ->
+                                    Column(
+                                        modifier = Modifier
+                                            .width(90.dp)
+                                            .background(Color.White, RoundedCornerShape(10.dp))
+                                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
+                                            .clickable { openGarmentDialog(name, categoryId) }
+                                            .padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(44.dp)
+                                                .background(Color(0xFFEEF2FF), CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Checkroom,
+                                                contentDescription = name,
+                                                tint = Color(0xFF3B3BF9),
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
+                                        Text(
+                                            name,
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF374151),
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
                                 }
-                                Text(name, fontSize = 12.sp, color = Color(0xFF374151), fontWeight = FontWeight.Medium)
                             }
                         }
                     }
 
                     Spacer(Modifier.height(16.dp))
 
-                    // Selected Garments
                     Text(
                         "SELECTED GARMENTS",
                         fontSize = 11.sp,
@@ -433,24 +896,29 @@ fun CreateOrderScreen(
                                 .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("No garments added yet.", fontSize = 14.sp, color = Color(0xFF9CA3AF))
+                            Text(
+                                "No garments added yet.",
+                                fontSize = 14.sp,
+                                color = Color(0xFF9CA3AF)
+                            )
                         }
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            selectedGarments.forEachIndexed { index, garment ->
+                            selectedGarments.forEach { garment ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
                                         .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                                        .clickable { editGarmentDialog(index) }
+                                        .clickable { editGarmentDialog(garment) }
                                         .padding(12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.weight(1f)
                                     ) {
                                         Box(
                                             modifier = Modifier
@@ -458,28 +926,67 @@ fun CreateOrderScreen(
                                                 .background(Color(0xFFEEF2FF), CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(Icons.Default.Checkroom, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(18.dp))
+                                            Icon(
+                                                Icons.Default.Checkroom,
+                                                null,
+                                                tint = Color(0xFF3B3BF9),
+                                                modifier = Modifier.size(18.dp)
+                                            )
                                         }
                                         Column {
                                             Text(
                                                 garment.categoryName,
                                                 fontSize = 14.sp,
-                                                fontWeight = FontWeight.Medium,
+                                                fontWeight = FontWeight.Bold,
                                                 color = Color(0xFF111827)
                                             )
+                                            val subtitleParts = mutableListOf<String>()
+                                            subtitleParts.add("Qty: ${garment.quantity}")
+                                            if (garment.fabricType.isNotBlank()) subtitleParts.add(garment.fabricType)
+                                            if (garment.colorTone.isNotBlank()) subtitleParts.add(garment.colorTone)
+                                            if (garment.pattern.isNotBlank() && garment.pattern != "Solid") subtitleParts.add(
+                                                garment.pattern
+                                            )
                                             Text(
-                                                "Qty: ${garment.quantity}",
+                                                subtitleParts.joinToString(" | "),
                                                 fontSize = 12.sp,
                                                 color = Color(0xFF6B7280)
                                             )
                                         }
                                     }
-                                    Icon(
-                                        Icons.Default.Edit,
-                                        null,
-                                        tint = Color(0xFF3B3BF9),
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        IconButton(
+                                            onClick = { editGarmentDialog(garment) },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Edit,
+                                                null,
+                                                tint = Color(0xFF3B3BF9),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { deleteGarment(garment.id) },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                null,
+                                                tint = Color(0xFFEF4444),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        Icon(
+                                            Icons.Default.ChevronRight,
+                                            null,
+                                            tint = Color(0xFF9CA3AF),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -490,17 +997,16 @@ fun CreateOrderScreen(
                 // 3. DELIVERY DETAILS
                 // ══════════════════════════════════════════════
                 SectionCard(title = "DELIVERY DETAILS") {
-
                     FormLabel("Order Date")
-                    DateField(value = orderDate, placeholder = "dd-mm-yyyy", onClick = { /* date picker */ })
+                    DateField(value = orderDate, placeholder = "dd-mm-yyyy", onClick = {})
 
                     Spacer(Modifier.height(4.dp))
                     FormLabel("Trial Date")
-                    DateField(value = trialDate, placeholder = "Select Trial Date", onClick = { /* date picker */ })
+                    DateField(value = trialDate, placeholder = "Select Trial Date", onClick = {})
 
                     Spacer(Modifier.height(4.dp))
                     FormLabel("Target Delivery Date")
-                    DateField(value = deliveryDate, placeholder = "Select Delivery Date", onClick = { /* date picker */ })
+                    DateField(value = deliveryDate, placeholder = "Select Delivery Date", onClick = {})
 
                     Spacer(Modifier.height(4.dp))
                     FormLabel("Assigned Branch")
@@ -538,42 +1044,142 @@ fun CreateOrderScreen(
                 }
 
                 // ══════════════════════════════════════════════
-                // 4. DESIGN REFERENCE
+                // 4. DESIGN REFERENCE (with Photo Upload)
                 // ══════════════════════════════════════════════
                 SectionCard(title = "DESIGN REFERENCE") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp)
-                            .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
-                            .border(
-                                width = 1.dp,
-                                color = Color(0xFFD1D5DB),
-                                shape = RoundedCornerShape(8.dp)
-                            ),
-                        contentAlignment = Alignment.Center
+                    // ── Upload buttons ──
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // Browse Files button
+                        OutlinedButton(
+                            onClick = { showImagePickerOptions = true },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                Color(0xFFD1D5DB)
+                            ),
+                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
                         ) {
-                            OutlinedButton(
-                                onClick = { /* browse files */ },
-                                shape = RoundedCornerShape(8.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD1D5DB)),
-                                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
-                            ) {
-                                Text("Browse Files", fontSize = 13.sp, color = Color(0xFF374151))
+                            Icon(
+                                Icons.Default.FileUpload,
+                                null,
+                                tint = Color(0xFF3B3BF9),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text("Browse Files", fontSize = 13.sp, color = Color(0xFF374151))
+                        }
+
+                        // Camera button
+                        OutlinedButton(
+                            onClick = {
+                                if (cameraPermissionState.status.isGranted) {
+                                    captureDesignImage()
+                                } else {
+                                    cameraPermissionState.launchPermissionRequest()
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                Color(0xFFD1D5DB)
+                            ),
+                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+                        ) {
+                            Icon(
+                                Icons.Default.CameraAlt,
+                                null,
+                                tint = Color(0xFF3B3BF9),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text("Camera", fontSize = 13.sp, color = Color(0xFF374151))
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // ── Selected Images Preview ──
+                    if (selectedDesignImages.isNotEmpty()) {
+                        Text(
+                            "SELECTED IMAGES (${selectedDesignImages.size})",
+                            fontSize = 11.sp,
+                            color = Color(0xFF9CA3AF),
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(Modifier.height(8.dp))
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(selectedDesignImages) { uri ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFF3F4F6))
+                                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                                ) {
+                                    Image(
+                                        painter = rememberImagePainter(uri),
+                                        contentDescription = "Design Reference",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    // Remove individual image button
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .size(20.dp)
+                                            .background(Color(0xFFEF4444), CircleShape)
+                                            .clickable {
+                                                selectedDesignImages = selectedDesignImages.filter { it != uri }
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                }
                             }
-                            OutlinedButton(
-                                onClick = { /* camera */ },
-                                shape = RoundedCornerShape(8.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD1D5DB)),
-                                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
-                            ) {
-                                Icon(Icons.Default.CameraAlt, null, modifier = Modifier.size(14.dp), tint = Color(0xFF374151))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Camera", fontSize = 13.sp, color = Color(0xFF374151))
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(80.dp)
+                                .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFD1D5DB), RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Default.Image,
+                                    null,
+                                    tint = Color(0xFFD1D5DB),
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "No images added",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF9CA3AF)
+                                )
+                                Text(
+                                    "Tap Browse or Camera to add design references",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFBDBDBD)
+                                )
                             }
                         }
                     }
@@ -583,7 +1189,6 @@ fun CreateOrderScreen(
                 // 5. INSTRUCTIONS
                 // ══════════════════════════════════════════════
                 SectionCard(title = "INSTRUCTIONS") {
-
                     FormLabel("Styling Notes")
                     OutlinedTextField(
                         value = stylingNotes,
@@ -592,7 +1197,11 @@ fun CreateOrderScreen(
                             .fillMaxWidth()
                             .height(100.dp),
                         placeholder = {
-                            Text("Special requirements, cutting instructions...", color = Color(0xFF9CA3AF), fontSize = 14.sp)
+                            Text(
+                                "Special requirements, cutting instructions...",
+                                color = Color(0xFF9CA3AF),
+                                fontSize = 14.sp
+                            )
                         },
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = Color(0xFFE5E7EB),
@@ -643,16 +1252,341 @@ fun CreateOrderScreen(
                 }
             }
 
-            // ─────────────────────────────────────────────────────────
-            // GARMENT DETAIL DIALOG
-            // ─────────────────────────────────────────────────────────
+            // ── Garment Detail Dialog ──
             if (showGarmentDialog) {
                 GarmentDetailDialog(
                     garment = tempGarment,
+                    categories = quickCategories,
                     onGarmentChange = { tempGarment = it },
                     onSave = { saveGarment() },
                     onDismiss = { showGarmentDialog = false }
                 )
+            }
+
+            // ── Previous Measurements Import Dialog ──
+            if (showImportDialog) {
+                customerSearchResult?.let { result ->
+                    PreviousMeasurementsDialog(
+                        orders = result.orders,
+                        onImport = { selectedGarmentsList ->
+                            importGarments(selectedGarmentsList)
+                            showImportDialog = false
+                            salesViewModel.clearCustomerSearch()
+                        },
+                        onDismiss = { showImportDialog = false }
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// Previous Measurements Import Dialog
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun PreviousMeasurementsDialog(
+    orders: List<CustomerOrder>,
+    onImport: (List<CustomerGarment>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    // Track which orders are expanded
+    val expandedOrders = remember { mutableStateOf(setOf<String>()) }
+    // Track selected garments: orderId -> set of garment ids
+    val selectedGarments = remember { mutableStateOf(mapOf<String, Set<String>>()) }
+
+    val totalSelected = selectedGarments.value.values.sumOf { it.size }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .padding(horizontal = 16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // ── Header ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            "Previous Measurements",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF111827)
+                        )
+                        Text(
+                            "Select garments to copy",
+                            fontSize = 13.sp,
+                            color = Color(0xFF6B7280)
+                        )
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Close, null, tint = Color(0xFF9CA3AF))
+                    }
+                }
+
+                HorizontalDivider(color = Color(0xFFE5E7EB))
+
+                // ── Orders List ──
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .heightIn(max = 400.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    orders.forEach { order ->
+                        val isExpanded = expandedOrders.value.contains(order.id)
+                        val orderSelectedGarments = selectedGarments.value[order.id] ?: emptySet()
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
+                            elevation = CardDefaults.cardElevation(0.dp),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                Color(0xFFE5E7EB)
+                            )
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                // ── Order Header ──
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            expandedOrders.value =
+                                                if (isExpanded)
+                                                    expandedOrders.value - order.id
+                                                else
+                                                    expandedOrders.value + order.id
+                                        }
+                                        .padding(14.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                "Order #${order.orderNumber}",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF111827)
+                                            )
+                                            // Status chip
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(
+                                                        when (order.status.lowercase()) {
+                                                            "confirmed" -> Color(0xFFDCFCE7)
+                                                            "completed" -> Color(0xFFDCFCE7)
+                                                            "pending" -> Color(0xFFFEF3C7)
+                                                            "cancelled" -> Color(0xFFFFEBEE)
+                                                            else -> Color(0xFFE0E7FF)
+                                                        },
+                                                        RoundedCornerShape(20.dp)
+                                                    )
+                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                            ) {
+                                                Text(
+                                                    order.status,
+                                                    fontSize = 11.sp,
+                                                    color = when (order.status.lowercase()) {
+                                                        "confirmed" -> Color(0xFF16A34A)
+                                                        "completed" -> Color(0xFF16A34A)
+                                                        "pending" -> Color(0xFFD97706)
+                                                        "cancelled" -> Color(0xFFDC2626)
+                                                        else -> Color(0xFF4338CA)
+                                                    },
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            "${order.orderDate.take(10)} • ${order.garments.size} Garment${if (order.garments.size != 1) "s" else ""}",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF6B7280)
+                                        )
+                                    }
+                                    Icon(
+                                        if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        null,
+                                        tint = Color(0xFF6B7280),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                // ── Garments List (expanded) ──
+                                AnimatedVisibility(
+                                    visible = isExpanded,
+                                    enter = expandVertically(),
+                                    exit = shrinkVertically()
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color.White)
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        order.garments.forEach { garment ->
+                                            val isSelected =
+                                                orderSelectedGarments.contains(garment.id)
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        val current =
+                                                            selectedGarments.value.toMutableMap()
+                                                        val currentSet =
+                                                            (current[order.id] ?: emptySet()).toMutableSet()
+                                                        if (isSelected) currentSet.remove(garment.id)
+                                                        else currentSet.add(garment.id)
+                                                        current[order.id] = currentSet
+                                                        selectedGarments.value = current
+                                                    }
+                                                    .padding(vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            ) {
+                                                // Checkbox
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(20.dp)
+                                                        .background(
+                                                            if (isSelected) Color(0xFF3B3BF9) else Color.White,
+                                                            RoundedCornerShape(4.dp)
+                                                        )
+                                                        .border(
+                                                            1.dp,
+                                                            if (isSelected) Color(0xFF3B3BF9) else Color(0xFFD1D5DB),
+                                                            RoundedCornerShape(4.dp)
+                                                        ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    if (isSelected) {
+                                                        Icon(
+                                                            Icons.Default.Check,
+                                                            null,
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(12.dp)
+                                                        )
+                                                    }
+                                                }
+
+                                                // Garment info
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        garment.categoryName,
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = Color(0xFF111827)
+                                                    )
+                                                    // Measurements preview
+                                                    val measurementText =
+                                                        garment.measurementSnapshot
+                                                            ?.entries
+                                                            ?.take(3)
+                                                            ?.joinToString(", ") { it.key }
+                                                            ?: ""
+                                                    if (measurementText.isNotBlank()) {
+                                                        Text(
+                                                            "$measurementText...",
+                                                            fontSize = 12.sp,
+                                                            color = Color(0xFF6B7280)
+                                                        )
+                                                    }
+                                                }
+
+                                                // Select text
+                                                Text(
+                                                    if (isSelected) "Selected" else "Select",
+                                                    fontSize = 13.sp,
+                                                    color = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF9CA3AF),
+                                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = Color(0xFFE5E7EB))
+
+                // ── Action Buttons ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            Color(0xFFE5E7EB)
+                        )
+                    ) {
+                        Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.Medium)
+                    }
+                    Button(
+                        onClick = {
+                            // Collect all selected garments from all orders
+                            val garmentsToImport = orders.flatMap { order ->
+                                val selectedIds = selectedGarments.value[order.id] ?: emptySet()
+                                order.garments.filter { it.id in selectedIds }
+                            }
+                            onImport(garmentsToImport)
+                        },
+                        modifier = Modifier
+                            .weight(2f)
+                            .height(48.dp),
+                        enabled = totalSelected > 0,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF3B3BF9),
+                            disabledContainerColor = Color(0xFFBDBDBD)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Download,
+                            null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "Import Selected ($totalSelected)",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
         }
     }
@@ -662,13 +1596,10 @@ fun CreateOrderScreen(
 // GARMENT DETAIL DIALOG
 // ─────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────
-// GARMENT DETAIL DIALOG - FIXED FilterChip usage
-// ─────────────────────────────────────────────────────────────
-
 @Composable
 fun GarmentDetailDialog(
     garment: SelectedGarment,
+    categories: List<Pair<String, String>>,
     onGarmentChange: (SelectedGarment) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit
@@ -679,22 +1610,21 @@ fun GarmentDetailDialog(
 
     val availableModels = listOf(
         GarmentModel("1", "Ankle Fit"),
-        GarmentModel("2", "Mom Fit"),
-        GarmentModel("3", "Slim Fit"),
-        GarmentModel("4", "Regular Fit"),
-        GarmentModel("5", "Relaxed Fit"),
-        GarmentModel("6", "Skinny Fit")
+        GarmentModel("2", "Mom Fit")
     )
 
-    var selectedModels by remember {
+    var selectedModels by remember(garment.id) {
         mutableStateOf(garment.models.toMutableList())
+    }
+
+    // ── Measurements state (driven by selected models) ──
+    var measurements by remember(garment.id) {
+        mutableStateOf(defaultMeasurementsFor(selectedModels))
     }
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false
-        )
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Card(
             modifier = Modifier
@@ -712,7 +1642,6 @@ fun GarmentDetailDialog(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // ── Header ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -733,17 +1662,12 @@ fun GarmentDetailDialog(
                             letterSpacing = 0.8.sp
                         )
                     }
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(32.dp)
-                    ) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Close, null, tint = Color(0xFF9CA3AF))
                     }
                 }
 
                 HorizontalDivider(color = Color(0xFFE5E7EB))
-
-                // ── BASIC INFORMATION ──
                 Text(
                     "BASIC INFORMATION",
                     fontSize = 12.sp,
@@ -752,25 +1676,21 @@ fun GarmentDetailDialog(
                     letterSpacing = 0.5.sp
                 )
 
-                // Garment Type
                 FormLabel("Garment Type")
                 GarmentTypeSelector(
-                    garmentName = garment.categoryName,
-                    onGarmentTypeChange = { newName ->
-                        onGarmentChange(garment.copy(categoryName = newName))
+                    selectedCategoryId = garment.categoryName,
+                    categories = categories,
+                    onGarmentTypeChange = { newName, newId ->
+                        onGarmentChange(garment.copy(categoryName = newName, category = newId))
                     }
                 )
 
-                // Quantity
                 FormLabel("Quantity")
                 QuantitySelector(
                     quantity = garment.quantity,
-                    onQuantityChange = { newQty ->
-                        onGarmentChange(garment.copy(quantity = newQty))
-                    }
+                    onQuantityChange = { newQty -> onGarmentChange(garment.copy(quantity = newQty)) }
                 )
 
-                // Priority
                 FormLabel("Priority")
                 PrioritySelector(
                     selectedPriority = garment.priority,
@@ -780,7 +1700,6 @@ fun GarmentDetailDialog(
                     }
                 )
 
-                // Trial Required
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -804,17 +1723,11 @@ fun GarmentDetailDialog(
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF374151)
                         )
-                        Text(
-                            "Schedule fitting?",
-                            fontSize = 12.sp,
-                            color = Color(0xFF9CA3AF)
-                        )
+                        Text("Schedule fitting?", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                     }
                 }
 
                 HorizontalDivider(color = Color(0xFFE5E7EB))
-
-                // ── FABRIC DETAILS ──
                 Text(
                     "FABRIC DETAILS",
                     fontSize = 12.sp,
@@ -823,15 +1736,12 @@ fun GarmentDetailDialog(
                     letterSpacing = 0.5.sp
                 )
 
-                // Fabric Source
                 FormLabel("Fabric Source")
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     fabricSourceOptions.forEach { option ->
                         FilterChip(
                             selected = garment.fabricSource == option,
-                            onClick = {
-                                onGarmentChange(garment.copy(fabricSource = option))
-                            },
+                            onClick = { onGarmentChange(garment.copy(fabricSource = option)) },
                             label = { Text(option, fontSize = 13.sp) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFFEEF2FF),
@@ -847,39 +1757,28 @@ fun GarmentDetailDialog(
                     }
                 }
 
-                // Fabric Type
                 FormLabel("Fabric Type")
                 FormTextField(
                     value = garment.fabricType,
-                    onValueChange = { newValue ->
-                        onGarmentChange(garment.copy(fabricType = newValue))
-                    },
+                    onValueChange = { newValue -> onGarmentChange(garment.copy(fabricType = newValue)) },
                     placeholder = "e.g. Cotton"
                 )
 
-                // Color / Tone
                 FormLabel("Color / Tone")
                 FormTextField(
                     value = garment.colorTone,
-                    onValueChange = { newValue ->
-                        onGarmentChange(garment.copy(colorTone = newValue))
-                    },
+                    onValueChange = { newValue -> onGarmentChange(garment.copy(colorTone = newValue)) },
                     placeholder = "Color name"
                 )
 
-                // Pattern
                 FormLabel("Pattern")
                 PatternSelector(
                     selectedPattern = garment.pattern,
                     options = patternOptions,
-                    onPatternChange = { newPattern ->
-                        onGarmentChange(garment.copy(pattern = newPattern))
-                    }
+                    onPatternChange = { newPattern -> onGarmentChange(garment.copy(pattern = newPattern)) }
                 )
 
                 HorizontalDivider(color = Color(0xFFE5E7EB))
-
-                // ── MODELS ──
                 Text(
                     "MODELS",
                     fontSize = 12.sp,
@@ -888,47 +1787,53 @@ fun GarmentDetailDialog(
                     letterSpacing = 0.5.sp
                 )
 
-                // Model Chips
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(availableModels) { model ->
-                        FilterChip(
-                            selected = selectedModels.contains(model.name),
-                            onClick = {
-                                if (selectedModels.contains(model.name)) {
-                                    selectedModels.remove(model.name)
-                                } else {
-                                    selectedModels.add(model.name)
-                                }
-                                onGarmentChange(garment.copy(models = selectedModels.toList()))
-                            },
-                            label = { Text(model.name, fontSize = 13.sp) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFEEF2FF),
-                                selectedLabelColor = Color(0xFF3B3BF9)
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = selectedModels.contains(model.name),
-                                borderColor = Color(0xFFE5E7EB),
-                                selectedBorderColor = Color(0xFF3B3BF9)
-                            )
-                        )
+                ModelGridSelector(
+                    models = availableModels,
+                    selectedModels = selectedModels,
+                    onModelToggle = { modelName ->
+                        val wasEmpty = selectedModels.isEmpty()
+                        if (selectedModels.contains(modelName)) {
+                            selectedModels.remove(modelName)
+                        } else {
+                            selectedModels.add(modelName)
+                        }
+                        // Auto-populate measurement fields the first time a model is picked
+                        if (wasEmpty && selectedModels.isNotEmpty() && measurements.isEmpty()) {
+                            measurements = defaultMeasurementsFor(selectedModels)
+                        }
+                        // Clear measurements if no model is selected anymore
+                        if (selectedModels.isEmpty()) {
+                            measurements = emptyList()
+                        }
+                        onGarmentChange(garment.copy(models = selectedModels.toList()))
                     }
+                )
+
+                // ── MEASUREMENTS SECTION (shows only after a model is selected) ──
+                if (selectedModels.isNotEmpty()) {
+                    HorizontalDivider(color = Color(0xFFE5E7EB))
+                    MeasurementsSection(
+                        measurements = measurements,
+                        onMeasurementsChange = { updated ->
+                            measurements = updated
+                            // NOTE: persist `updated` against the garment here once
+                            // SelectedGarment exposes a `measurements` field, e.g.:
+                            // onGarmentChange(garment.copy(measurements = updated))
+                        }
+                    )
                 }
 
                 Spacer(Modifier.height(8.dp))
 
-                // ── Action Buttons ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f).height(48.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
                         shape = RoundedCornerShape(8.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB))
                     ) {
@@ -936,7 +1841,9 @@ fun GarmentDetailDialog(
                     }
                     Button(
                         onClick = onSave,
-                        modifier = Modifier.weight(2f).height(48.dp),
+                        modifier = Modifier
+                            .weight(2f)
+                            .height(48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
@@ -948,9 +1855,269 @@ fun GarmentDetailDialog(
     }
 }
 
+// ── Default measurement fields per selected model(s) ──
+// Customize this if different models need different measurement sets.
+private fun defaultMeasurementsFor(modelNames: List<String>): List<MeasurementField> {
+    if (modelNames.isEmpty()) return emptyList()
+    return listOf(
+        MeasurementField(id = "chest", label = "Chest"),
+        MeasurementField(id = "sleeve_length", label = "Sleeve Length")
+    )
+}
+
 // ─────────────────────────────────────────────────────────────
-// FIXED Pattern Selector
+// Reusable Components
 // ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun ModelGridSelector(
+    models: List<GarmentModel>,
+    selectedModels: List<String>,
+    onModelToggle: (String) -> Unit
+) {
+    val rows = models.chunked(2)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        rows.forEach { rowModels ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                rowModels.forEach { model ->
+                    val isSelected = selectedModels.contains(model.name)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(
+                                if (isSelected) Color(0xFFEEF2FF) else Color.White,
+                                RoundedCornerShape(10.dp)
+                            )
+                            .border(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) Color(0xFF3B3BF9) else Color(0xFFE5E7EB),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .clickable { onModelToggle(model.name) }
+                            .padding(vertical = 16.dp, horizontal = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Checkroom,
+                            contentDescription = model.name,
+                            tint = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF374151),
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Text(
+                            model.name,
+                            fontSize = 13.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                            color = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF374151),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+                // pad odd-count last row so card width stays consistent
+                if (rowModels.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MeasurementsSection(
+    measurements: List<MeasurementField>,
+    onMeasurementsChange: (List<MeasurementField>) -> Unit
+) {
+    val unitOptions = listOf("inch", "cm")
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(
+            "MEASUREMENTS",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF3B3BF9),
+            letterSpacing = 0.5.sp
+        )
+
+        measurements.forEachIndexed { index, field ->
+            MeasurementRow(
+                field = field,
+                unitOptions = unitOptions,
+                onValueChange = { newValue ->
+                    val updated = measurements.toMutableList()
+                    updated[index] = field.copy(value = newValue)
+                    onMeasurementsChange(updated)
+                },
+                onLabelChange = { newLabel ->
+                    val updated = measurements.toMutableList()
+                    updated[index] = field.copy(label = newLabel)
+                    onMeasurementsChange(updated)
+                },
+                onUnitChange = { newUnit ->
+                    val updated = measurements.toMutableList()
+                    updated[index] = field.copy(unit = newUnit)
+                    onMeasurementsChange(updated)
+                },
+                onRemove = {
+                    val updated = measurements.toMutableList()
+                    updated.removeAt(index)
+                    onMeasurementsChange(updated)
+                },
+                removable = index >= 2 // keep first two (Chest, Sleeve Length) non-removable
+            )
+
+            if (index != measurements.lastIndex) {
+                HorizontalDivider(color = Color(0xFFE5E7EB))
+            }
+        }
+
+        Text(
+            "+ Add Custom Field",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF3B3BF9),
+            modifier = Modifier.clickable {
+                val updated = measurements + MeasurementField(
+                    id = "custom_${System.currentTimeMillis()}",
+                    label = "New Field"
+                )
+                onMeasurementsChange(updated)
+            }
+        )
+    }
+}
+
+@Composable
+private fun MeasurementRow(
+    field: MeasurementField,
+    unitOptions: List<String>,
+    onValueChange: (String) -> Unit,
+    onLabelChange: (String) -> Unit,
+    onUnitChange: (String) -> Unit,
+    onRemove: () -> Unit,
+    removable: Boolean
+) {
+    var showUnitDropdown by remember { mutableStateOf(false) }
+    var isEditingLabel by remember { mutableStateOf(false) }
+    var labelDraft by remember(field.id) { mutableStateOf(field.label) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isEditingLabel) {
+                OutlinedTextField(
+                    value = labelDraft,
+                    onValueChange = { labelDraft = it },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color(0xFFE5E7EB),
+                        focusedBorderColor = Color(0xFF3B3BF9)
+                    )
+                )
+                Icon(
+                    Icons.Default.Check,
+                    null,
+                    tint = Color(0xFF16A34A),
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clickable {
+                            onLabelChange(labelDraft)
+                            isEditingLabel = false
+                        }
+                )
+            } else {
+                Text(
+                    field.label,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827),
+                    modifier = Modifier.clickable { isEditingLabel = true }
+                )
+                if (removable) {
+                    Icon(
+                        Icons.Default.Close,
+                        null,
+                        tint = Color(0xFF9CA3AF),
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { onRemove() }
+                    )
+                }
+            }
+        }
+
+        Text("Number", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = field.value,
+                onValueChange = { newVal ->
+                    if (newVal.isEmpty() || newVal.matches(Regex("^\\d*\\.?\\d*$"))) {
+                        onValueChange(newVal)
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("0.0", color = Color(0xFF9CA3AF), fontSize = 14.sp) },
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color(0xFFE5E7EB),
+                    focusedBorderColor = Color(0xFF3B3BF9),
+                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp),
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+            )
+
+            Box {
+                Row(
+                    modifier = Modifier
+                        .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                        .clickable { showUnitDropdown = true }
+                        .padding(horizontal = 12.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(field.unit, fontSize = 14.sp, color = Color(0xFF111827))
+                    Icon(
+                        Icons.Default.KeyboardArrowDown,
+                        null,
+                        tint = Color(0xFF6B7280),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showUnitDropdown,
+                    onDismissRequest = { showUnitDropdown = false },
+                    containerColor = Color.White
+                ) {
+                    unitOptions.forEach { opt ->
+                        DropdownMenuItem(
+                            text = { Text(opt) },
+                            onClick = { onUnitChange(opt); showUnitDropdown = false }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun PatternSelector(
@@ -979,10 +2146,6 @@ private fun PatternSelector(
         }
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// Reusable Components
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 private fun SectionCard(
@@ -1070,27 +2233,86 @@ private fun DateField(
             fontSize = 14.sp,
             color = if (value.isEmpty()) Color(0xFF9CA3AF) else Color(0xFF111827)
         )
-        Icon(Icons.Default.CalendarMonth, null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(18.dp))
+        Icon(
+            Icons.Default.CalendarMonth,
+            null,
+            tint = Color(0xFF9CA3AF),
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 
 @Composable
 private fun GarmentTypeSelector(
-    garmentName: String,
-    onGarmentTypeChange: (String) -> Unit
+    selectedCategoryId: String,
+    categories: List<Pair<String, String>>,
+    onGarmentTypeChange: (name: String, id: String) -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-            .padding(horizontal = 14.dp, vertical = 14.dp)
+    if (categories.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
+                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                .padding(14.dp)
+        ) {
+            Text(
+                "No garment categories configured. Add them in Settings.",
+                fontSize = 13.sp,
+                color = Color(0xFF9CA3AF)
+            )
+        }
+        return
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text(
-            if (garmentName.isNotEmpty()) garmentName else "Select Garment Type",
-            fontSize = 14.sp,
-            color = if (garmentName.isNotEmpty()) Color(0xFF111827) else Color(0xFF9CA3AF)
-        )
+        categories.forEach { (name, id) ->
+            val isSelected = selectedCategoryId == id
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(
+                        if (isSelected) Color(0xFFEEF2FF) else Color.White,
+                        RoundedCornerShape(10.dp)
+                    )
+                    .border(
+                        width = if (isSelected) 2.dp else 1.dp,
+                        color = if (isSelected) Color(0xFF3B3BF9) else Color(0xFFE5E7EB),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    .clickable { onGarmentTypeChange(name, id) }
+                    .padding(vertical = 14.dp, horizontal = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            if (isSelected) Color(0xFF3B3BF9) else Color(0xFFEEF2FF),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Checkroom,
+                        contentDescription = name,
+                        tint = if (isSelected) Color.White else Color(0xFF3B3BF9),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Text(
+                    name,
+                    fontSize = 12.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF374151),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
     }
 }
 
@@ -1166,4 +2388,3 @@ private fun PrioritySelector(
         }
     }
 }
-

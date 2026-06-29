@@ -34,7 +34,7 @@ import com.google.android.gms.common.api.ApiException
 import androidx.compose.runtime.setValue
 
 @Composable
-fun ContinueGoogle(activity: Activity, navController: NavController) {
+fun ContinueWithGoogle(activity: Activity, navController: NavController) {
     val authViewModel: Authenticate = hiltViewModel()
     val accountState by authViewModel.accountState.collectAsState()
     var errorMessage by remember { mutableStateOf<String?>(null) }

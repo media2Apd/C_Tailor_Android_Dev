@@ -33,7 +33,7 @@ fun Pincode(
                 .height(60.dp),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), // ← numbers only
-            colors = customFieldColors()
+            colors = CustomFieldColors()
         )
     }
 }

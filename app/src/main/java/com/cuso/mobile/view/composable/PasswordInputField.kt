@@ -42,7 +42,7 @@ fun PasswordInputField(
                 .fillMaxWidth()
                 .height(60.dp),
             singleLine = true,
-            colors = customFieldColors(),
+            colors = CustomFieldColors(),
             trailingIcon = {
                 val iconImage = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
                 val iconDescription = if (isPasswordVisible) "Hide password" else "Show password"

@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.Color
 
 
 @Composable
-fun customFieldColors() = TextFieldDefaults.colors(
+fun CustomFieldColors() = TextFieldDefaults.colors(
     disabledTextColor = Color.Black,
     disabledContainerColor = Color.White,
     disabledIndicatorColor = Color.Gray,

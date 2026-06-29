@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.LoginOtpSelection
 import com.cuso.mobile.view.composable.OtpTitle
-import com.cuso.mobile.view.composable.appLogo
+import com.cuso.mobile.view.composable.AppLogo
 
 @Composable
 fun LoginOtpScreen(navController: NavController, activity: Activity, submittedEmail: String) {
@@ -37,7 +37,7 @@ fun LoginOtpScreen(navController: NavController, activity: Activity, submittedEm
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        appLogo()
+        AppLogo()
         OtpTitle()
         Spacer(modifier = Modifier.height(24.dp))
 

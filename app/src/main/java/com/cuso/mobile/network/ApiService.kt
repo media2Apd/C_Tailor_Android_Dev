@@ -14,6 +14,7 @@ import RemoveOrgGarmentResponse
 import com.cuso.mobile.model.BranchListResponse
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
+import com.cuso.mobile.model.CustomerSearchResponse
 import com.cuso.mobile.model.DeleteLeadResponse
 import com.cuso.mobile.model.DepartmentCreateRequest
 import com.cuso.mobile.model.DepartmentCreateResponse
@@ -430,5 +431,12 @@ interface ApiService {
         @Path("orderId") orderId: String,
         @Query("status") status: String
     ): Response<OrderDetailResponse>
+
+    @GET("/api/sales-orders/search-by-mobile")
+    suspend fun searchCustomerByMobile(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("mobile") mobile: String
+    ): Response<CustomerSearchResponse>
 
 }

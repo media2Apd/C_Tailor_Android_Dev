@@ -23,10 +23,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.cuso.mobile.view.composable.ForgotOtpSelection
 import com.cuso.mobile.view.composable.OtpTitle
-import com.cuso.mobile.view.composable.appLogo
+import com.cuso.mobile.view.composable.AppLogo
 import com.cuso.mobile.viewmodel.Authenticate
-import com.cuso.mobile.view.composable.forgotOtpSelection
 
 @Composable
 fun VerifyForgotPassword(navController: NavController, activity: Activity, submittedEmail: String) {
@@ -44,7 +44,7 @@ fun VerifyForgotPassword(navController: NavController, activity: Activity, submi
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        appLogo()
+        AppLogo()
         Spacer(Modifier.padding(top = 20.dp))
         OtpTitle()
         Spacer(modifier = Modifier.height(10.dp))
@@ -62,7 +62,7 @@ fun VerifyForgotPassword(navController: NavController, activity: Activity, submi
             Column(
                 Modifier.padding(30.dp)
             ) {
-                forgotOtpSelection(navController, activity = activity, submittedEmail)
+                ForgotOtpSelection(navController, activity = activity, submittedEmail)
             }
 
 

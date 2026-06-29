@@ -44,7 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Popup
 @Composable
-fun forgotOtpInput(
+fun ForgotOtpInput(
     otpLength: Int = 6,
     activity: Activity,
     onOtpComplete: (String) -> Unit

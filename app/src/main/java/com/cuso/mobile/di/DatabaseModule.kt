@@ -7,8 +7,11 @@ import com.cuso.mobile.database.dao.LeadDao
 import com.cuso.mobile.database.dao.OrganizationDao
 import com.cuso.mobile.database.dao.SalesStatusDao
 import com.cuso.mobile.database.dao.SalesSummaryDao
+import com.cuso.mobile.database.dao.SelectedGarmentDao
 import com.cuso.mobile.database.dao.SettingsDao
+import com.cuso.mobile.database.dao.SubscriptionDao
 import com.cuso.mobile.database.dao.TokensDao
+import com.cuso.mobile.database.dao.UserDao
 import com.cuso.mobile.repository.LoginRepository
 import dagger.Module
 import dagger.Provides
@@ -60,4 +63,13 @@ object DatabaseModule {
 
     @Provides
     fun provideSalesSummaryDao(db: AppDatabase): SalesSummaryDao = db.salesSummaryDao()
+
+    @Provides
+    fun provideUserDao(db: AppDatabase): UserDao = db.userDao()
+
+    @Provides
+    fun provideSubscriptionDao(db: AppDatabase): SubscriptionDao = db.subscriptionDao()
+
+    @Provides
+    fun provideSelectedGarmentDao(db: AppDatabase): SelectedGarmentDao = db.selectedGarmentDao()
 }

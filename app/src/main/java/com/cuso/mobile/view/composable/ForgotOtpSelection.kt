@@ -34,7 +34,7 @@ import androidx.compose.ui.Alignment
 import com.cuso.mobile.viewmodel.UiState
 
 @Composable
-fun forgotOtpSelection(
+fun ForgotOtpSelection(
     navController: NavController,
     activity: Activity,
     submittedEmail: String
@@ -69,7 +69,7 @@ fun forgotOtpSelection(
             else -> {}
         }
     }
-    forgotOtpInput(
+    ForgotOtpInput(
         activity = activity,
         onOtpComplete = { enteredOtp ->
             otp=enteredOtp
@@ -111,5 +111,5 @@ fun forgotOtpSelection(
         }
 
     }
-    backToSignIn(navController)
+    BackToSignIn(navController)
 }

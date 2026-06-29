@@ -210,5 +210,5 @@ fun SignUpOtpSelection(
         }
     }
     Spacer(Modifier.padding(top = 10.dp))
-    backToSignIn(navController)
+    BackToSignIn(navController)
 }

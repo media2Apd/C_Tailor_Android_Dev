@@ -16,7 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.navigation.NavController
 
 @Composable
-fun backToSignIn(navController: NavController) {
+fun BackToSignIn(navController: NavController) {
     Row(
         Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,

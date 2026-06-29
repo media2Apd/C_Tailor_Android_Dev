@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -50,7 +49,6 @@ import com.cuso.mobile.viewmodel.ProfileUiState
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
 import com.cuso.mobile.viewmodel.UpdateBranchUiState
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -86,11 +84,11 @@ fun BranchSettingsScreen(
     val planLimits = (profileUiState as? ProfileUiState.Success)?.data?.organization?.let { org ->
         org.plan?.let { plan ->
             PlanLimits(
-                branchLimit = plan.branchLimit ?: Int.MAX_VALUE,
-                departmentLimit = plan.departmentLimit ?: Int.MAX_VALUE,
-                employeeLimit = plan.employeeLimit ?: Int.MAX_VALUE,
-                orderLimit = plan.orderLimit ?: Int.MAX_VALUE,
-                categoryLimit = plan.categoryLimit ?: Int.MAX_VALUE
+                branchLimit = plan.branchLimit ,
+                departmentLimit = plan.departmentLimit ,
+                employeeLimit = plan.employeeLimit,
+                orderLimit = plan.orderLimit ,
+                categoryLimit = plan.categoryLimit
             )
         }
     }
@@ -724,7 +722,7 @@ fun BranchTableRow(
 
         // ── Status Badge ──
         Box(modifier = Modifier.width(statusWidth)) {
-            val statusText = branch.status ?: "inactive"
+            val statusText = branch.status
             val (badgeText, badgeColor) = when (statusText.lowercase()) {
                 "active"   -> "Active"   to Color(0xFF16A34A)
                 "inactive" -> "Inactive" to Color(0xFF6B7280)
@@ -1207,8 +1205,8 @@ fun EditBranchDialog(
     var city by remember { mutableStateOf(branch.address.city ?: "") }
     var state by remember { mutableStateOf(branch.address.state ?: "") }
     var postalCode by remember { mutableStateOf(branch.address.postalCode ?: "") }
-    var contactEmail by remember { mutableStateOf(branch.contactEmail ?: "") }
-    var contactMobile by remember { mutableStateOf(branch.contactMobile ?: "") }
+    var contactEmail by remember { mutableStateOf(branch.contactEmail ) }
+    var contactMobile by remember { mutableStateOf(branch.contactMobile ) }
     var selectedStaff by remember { mutableStateOf(branch.branchHead?.id ?: "") }
     var staffExpanded by remember { mutableStateOf(false) }
 

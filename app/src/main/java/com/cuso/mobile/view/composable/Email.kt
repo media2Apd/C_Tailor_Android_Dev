@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun email(
+fun Email(
     emailValue: String,
     onEmailChange: (String) -> Unit,
 

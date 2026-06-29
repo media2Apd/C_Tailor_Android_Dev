@@ -9,7 +9,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.R
 @Composable
-fun appLogo(){
+fun AppLogo(){
     Column {
         Image(
             painter = painterResource(id = R.drawable.cuso_logo),

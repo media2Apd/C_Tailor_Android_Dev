@@ -25,7 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun animatedErrorBanner(message: String, visible: Boolean) {
+fun AnimatedErrorBanner(message: String, visible: Boolean) {
     val offsetY by animateDpAsState(
         targetValue = if (visible) 0.dp else (-80).dp,
         animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),

@@ -98,7 +98,7 @@ class AuthRepository @Inject constructor(
                 val status = try {
                     val json = JSONObject(errorBody ?: "")
                     json.getString("status")
-                } catch (e:Exception) {
+                } catch (_:Exception) {
                     "unknown"
                 }
                 Result.failure(Exception(status))
@@ -122,7 +122,7 @@ class AuthRepository @Inject constructor(
                 val errorBody = response.errorBody()?.string()
                 val message = try {
                     JSONObject(errorBody ?: "").getString("message")
-                } catch (e: Exception) { "Organization setup failed" }
+                } catch (_: Exception) { "Organization setup failed" }
                 Result.failure(Exception(message))
             }
         } catch (e: Exception) {
@@ -201,7 +201,7 @@ class AuthRepository @Inject constructor(
                 val errorBody = response.errorBody()?.string()
                 val message = try {
                     JSONObject(errorBody ?: "").getString("message")
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     "Something went wrong"
                 }
                 Result.failure(Exception(message))
@@ -222,7 +222,7 @@ class AuthRepository @Inject constructor(
                 val errorBody = response.errorBody()?.string()
                 val message = try {
                     JSONObject(errorBody ?: "").getString("message")
-                } catch (e: Exception) { "Something went wrong" }
+                } catch (_: Exception) { "Something went wrong" }
                 Result.failure(Exception(message))
             }
         } catch (e: Exception) {
@@ -245,7 +245,7 @@ class AuthRepository @Inject constructor(
                 val errorBody = response.errorBody()?.string()
                 val message = try {
                     JSONObject(errorBody ?: "").getString("message")
-                } catch (e: Exception) { "Something went wrong" }
+                } catch (_: Exception) { "Something went wrong" }
                 Result.failure(Exception(message))
             }
         } catch (e: Exception) {
@@ -270,7 +270,7 @@ class AuthRepository @Inject constructor(
             } else {
                 val message = try {
                     JSONObject(response.errorBody()?.string() ?: "").getString("message")
-                } catch (e: Exception) { "Something went wrong" }
+                } catch (_: Exception) { "Something went wrong" }
                 GoogleLoginResult.Failure(message)
             }
         } catch (e: Exception) {

@@ -220,7 +220,7 @@ fun HomeScreen(navController: NavController) {
                         android.util.Log.d("NAV_DEBUG", "Unhandled route: $route")
                         try {
                             navController.navigate(route)
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             when {
                                 route.startsWith("sales_") -> {
                                     currentScreen = route
@@ -366,7 +366,7 @@ fun TopNavBar(
             email = it.email,
             profilePicture = it.profilePicture.orEmpty(),
             organizationId = Organization(
-                _id = it.organizationId?:"",
+                _id = it.organizationId,
                 businessId = "",
                 name = "",
                 industry = "",
@@ -1019,7 +1019,7 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                 Box(modifier = Modifier
                     .border(1.dp, Color(0xFF3B3BF9), RoundedCornerShape(6.dp))
                     .padding(horizontal = 10.dp, vertical = 4.dp)) {
-                    Text("New Enquiry", fontSize = 12.sp, color = Color(0xFF3B3BF9))
+                    Text(text=leadStatus.ifEmpty { "New Enquiry" }, fontSize = 12.sp, color = Color(0xFF3B3BF9))
                 }
             }
             HorizontalDivider(color = Color(0xFFF0F0F0))
@@ -3048,7 +3048,7 @@ fun formatLeadDate(raw: String): String {
         val datePart = raw.take(10)          // "2026-03-31"
         val parts = datePart.split("-")      // [2026, 03, 31]
         if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else raw
-    } catch (e: Exception) { raw }
+    } catch (_: Exception) { raw }
 }
 
 // 250000 → "2,50,000"  (Indian numbering)
@@ -3082,7 +3082,7 @@ fun TimePickerField(
                     if (value.contains("PM", ignoreCase = true) && hour != 12) hour + 12
                     else if (value.contains("AM", ignoreCase = true) && hour == 12) 0
                     else hour
-                } catch (e: Exception) { 10 }
+                } catch (_: Exception) { 10 }
             } else 10
         )
     }
@@ -3095,7 +3095,7 @@ fun TimePickerField(
                     if (parts.size >= 2) {
                         parts[1].take(2).toInt()
                     } else 0
-                } catch (e: Exception) { 53 }
+                } catch (_: Exception) { 53 }
             } else 53
         )
     }
@@ -3666,7 +3666,7 @@ fun String.toIsoDate(): String {
     return try {
         val parts = this.split("-")
         if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}T00:00:00.000Z" else ""
-    } catch (e: Exception) { "" }
+    } catch (_: Exception) { "" }
 }
 
 //// Add this helper at the bottom of the file

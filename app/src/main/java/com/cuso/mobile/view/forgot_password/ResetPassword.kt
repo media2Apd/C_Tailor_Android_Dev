@@ -23,9 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.cuso.mobile.view.composable.appLogo
+import com.cuso.mobile.view.composable.AppLogo
+import com.cuso.mobile.view.composable.CustomFieldColors
 import com.cuso.mobile.view.composable.ResetPasswordText
-import com.cuso.mobile.view.composable.customFieldColors
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
 
@@ -33,7 +33,7 @@ import com.cuso.mobile.viewmodel.UiState
 fun ResetPassword(
     resetToken:String,
     navController: NavController,
-//    onResetClick: (newPassword: String) -> Unit = {},
+    onResetClick: (newPassword: String) -> Unit = {},
 ) {
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -78,7 +78,7 @@ fun ResetPassword(
                 verticalArrangement = Arrangement.Center
 
             ) {
-                appLogo()
+                AppLogo()
                 Spacer(Modifier.padding(top=10.dp))
                 ResetPasswordText()
             }
@@ -137,7 +137,7 @@ fun ResetPassword(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    colors = customFieldColors()
+                    colors = CustomFieldColors()
                 )
                 Column(verticalArrangement = Arrangement.Center)
                 {
@@ -188,7 +188,7 @@ fun ResetPassword(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = customFieldColors()
+                    colors = CustomFieldColors()
                 )
 
                 // Error message (e.g. from API)

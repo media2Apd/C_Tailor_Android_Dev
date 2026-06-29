@@ -32,8 +32,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.OrgSettingsRequest
 import com.cuso.mobile.model.organizationSetUpRequest
-import com.cuso.mobile.view.composable.appLogo
-import com.cuso.mobile.view.composable.countryAndStatePicker
+import com.cuso.mobile.view.composable.AppLogo
+import com.cuso.mobile.view.composable.CountryAndStatePicker
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
 import java.util.Currency
@@ -160,7 +160,7 @@ fun OrganizationProfile(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        appLogo()
+        AppLogo()
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -205,7 +205,7 @@ fun OrganizationProfile(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            countryAndStatePicker(
+            CountryAndStatePicker(
                 selectedCountry = selectedCountry,
                 selectedState = selectedState,
                 onCountryChange = { selectedCountry = it },

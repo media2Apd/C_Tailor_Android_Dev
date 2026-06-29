@@ -84,7 +84,7 @@ fun SignUpScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                appLogo()
+                AppLogo()
                 Spacer(Modifier.padding(top = 20.dp))
                 SignUpTitle()
             }
@@ -94,14 +94,14 @@ fun SignUpScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
 
-                firstNameLastName(
+                FirstNameLastName(
                     firstName = firstName,
                     lastName = lastName,
                     onFirstNameChange = { firstName = it },
                     onLastNameChange = { lastName = it }
                 )
 
-                email(
+                Email(
                     emailValue = email,
                     onEmailChange = { email = it }
                 )
@@ -112,7 +112,7 @@ fun SignUpScreen(
                     onCountryChange = { selectedIso = it.iso }
                 )
 
-                countryAndStatePicker(
+                CountryAndStatePicker(
                     selectedCountry = country,
                     selectedState = stateField,
                     onCountryChange = { country = it },
@@ -205,7 +205,7 @@ fun SignUpScreen(
                     )
                 }
 
-                ContinueGoogle(activity, navController)
+                ContinueWithGoogle(activity, navController)
             }
 
             Row(

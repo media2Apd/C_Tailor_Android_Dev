@@ -24,9 +24,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.utils.loadJsonFromAssets
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
-fun countryAndStatePicker(
+fun CountryAndStatePicker(
     selectedCountry: String,
     selectedState: String,
     onCountryChange: (String) -> Unit,
@@ -56,7 +57,7 @@ fun countryAndStatePicker(
             fontSize = 14.sp,
             modifier = Modifier.padding(bottom = 4.dp)
         )
-        SearchableDropdown(
+        SearchableDropdownContents(
             items = countryList,
             selected = selectedCountry,
             placeholder = "Select Country",
@@ -75,7 +76,7 @@ fun countryAndStatePicker(
             fontSize = 14.sp,
             modifier = Modifier.padding(bottom = 4.dp)
         )
-        SearchableDropdown(
+        SearchableDropdownContents(
             items = stateList,
             selected = selectedState,
             placeholder = if (selectedCountry.isEmpty()) "Select Country First" else "Select State",
@@ -86,7 +87,7 @@ fun countryAndStatePicker(
 }
 
 @Composable
-fun SearchableDropdown(
+fun SearchableDropdownContents(
     items: List<String>,
     selected: String,
     placeholder: String = "Select",
@@ -224,7 +225,7 @@ fun SearchableDropdown(
         // ── Auto Focus Search When Opened ──
         LaunchedEffect(expanded) {
             if (expanded) {
-                delay(10)
+                delay(10.milliseconds)
                 focusRequester.requestFocus()
             } else {
                 searchQuery = ""

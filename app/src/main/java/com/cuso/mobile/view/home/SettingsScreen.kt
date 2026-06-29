@@ -36,7 +36,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationSettings
-import com.cuso.mobile.view.composable.countryAndStatePicker
+import com.cuso.mobile.view.composable.CountryAndStatePicker
 import com.cuso.mobile.view.organization.OrgLabel
 import com.cuso.mobile.view.organization.OrgOptions
 import com.cuso.mobile.view.organization.OrgOptions.companySizes
@@ -614,7 +614,7 @@ fun LocalizationTab(
                             }
                             settings != null -> {
                                 if (isEditing) {
-                                    countryAndStatePicker(
+                                    CountryAndStatePicker(
                                         selectedCountry = country,
                                         selectedState = state,
                                         onCountryChange = { country = it },

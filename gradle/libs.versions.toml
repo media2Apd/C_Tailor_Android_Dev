@@ -8,6 +8,7 @@
 #ui = "1.7.5"
 #runtimeSaveable = "1.7.5"
 #uiText = "1.7.5"
+junit = "4.13.2"
 uiVersion = "1.7.5"
 appcompat = "1.7.1"
 #mediationTestSuite = "3.0.0"
@@ -16,7 +17,7 @@ foundationLayout = "1.7.5"
 foundation = "1.7.5"
 animation = "1.7.5"
 
-agp = "8.7.3"
+agp = "8.13.2"
 kotlin = "2.0.21"
 ksp = "2.0.21-1.0.27"
 
@@ -72,6 +73,7 @@ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = 
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
+junit = { module = "junit:junit", version.ref = "junit" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }

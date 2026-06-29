@@ -15,13 +15,13 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
+import com.cuso.mobile.view.composable.AppLogo
 import com.cuso.mobile.view.composable.CardContentsForgotPassword
 import com.cuso.mobile.view.composable.ForgotPasswordText
-import com.cuso.mobile.view.composable.appLogo
 
 
 @Composable
-fun ForgotPassword(activity: Activity,
+fun ForgotUserPassword(activity: Activity,
                    navController: NavController
 
 ) {
@@ -39,7 +39,7 @@ fun ForgotPassword(activity: Activity,
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        appLogo()
+        AppLogo()
         Spacer(Modifier.padding(top = 20.dp))
         ForgotPasswordText()
         Spacer(modifier = Modifier.height(24.dp))

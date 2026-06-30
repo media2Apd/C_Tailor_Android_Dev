@@ -1,9 +1,11 @@
-package com.cuso.mobile.view.home
+package com.cuso.mobile.view.home.sidebar
 
 import com.cuso.mobile.model.User
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -357,8 +359,8 @@ private fun AppSidebarContent(
     // ── Drawer ────────────────────────────────────────────────
     AnimatedVisibility(
         visible = isOpen,
-        enter = slideInHorizontally(initialOffsetX = { -it }),
-        exit  = slideOutHorizontally(targetOffsetX = { -it }),
+        enter = slideInVertically(initialOffsetY = { fullHeight -> fullHeight }),
+        exit  = slideOutVertically(targetOffsetY = { fullHeight -> fullHeight }),
         modifier = Modifier.zIndex(2f)
     ) {
         Row(

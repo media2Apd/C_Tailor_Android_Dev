@@ -14,6 +14,8 @@ import RemoveOrgGarmentResponse
 import com.cuso.mobile.model.BranchListResponse
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
+import com.cuso.mobile.model.CreateOrderRequest
+import com.cuso.mobile.model.CreateOrderResponse
 import com.cuso.mobile.model.CustomerSearchResponse
 import com.cuso.mobile.model.DeleteLeadResponse
 import com.cuso.mobile.model.DepartmentCreateRequest
@@ -438,5 +440,14 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Query("mobile") mobile: String
     ): Response<CustomerSearchResponse>
+
+
+    //create order when save order clicks
+    @POST("/api/sales-orders/create-direct")
+    suspend fun createOrder(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Body request: CreateOrderRequest
+    ): Response<CreateOrderResponse>
 
 }

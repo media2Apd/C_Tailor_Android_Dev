@@ -75,12 +75,23 @@ import com.cuso.mobile.viewmodel.SaleState
 import com.cuso.mobile.viewmodel.SalesViewModel
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.draw.shadow
 import com.cuso.mobile.model.Organization
 import com.cuso.mobile.model.Settings
 import com.cuso.mobile.model.Subscription
 import com.cuso.mobile.model.User
+import com.cuso.mobile.view.home.branch.BranchSettingsScreen
+import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
+import com.cuso.mobile.view.home.designation.DesignationScreen
+import com.cuso.mobile.view.home.sales.GarmentTypeContent
+import com.cuso.mobile.view.home.sales.SalesSettingsScreen
+import com.cuso.mobile.view.home.sidebar.FullSideBar
+import com.cuso.mobile.view.home.sidebar.SalesSideBar
 import com.cuso.mobile.view.sales.CreateOrderScreen
 import com.cuso.mobile.view.sales.SalesOrderScreen
+import com.example.tailorapp.ui.screens.CreateOrderNextStep
+import com.example.tailorapp.ui.screens.OrderReviewData
 
 
 // ── Data classes ──
@@ -97,13 +108,14 @@ data class ControlItem(
 // ─────────────────────────────────────────────────────────────
 // HomeScreen
 // ─────────────────────────────────────────────────────────────
-
+@Suppress("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun HomeScreen(navController: NavController) {
     val viewModel: HomeViewModel = hiltViewModel()
     val isLoggedOut: Boolean by viewModel.isLoggedOut.collectAsStateWithLifecycle(initialValue = false)
     var currentScreen by remember { mutableStateOf("home") }
     var isDrawerOpen by remember { mutableStateOf(false) }
+    var pendingOrderReviewData by remember { mutableStateOf<OrderReviewData?>(null) }
 
     // ✅ Track if we're in Sales Settings mode
     var isSalesSettingsMode by remember { mutableStateOf(false) }
@@ -125,220 +137,246 @@ fun HomeScreen(navController: NavController) {
 
     val showSalesPanel = isSalesSettingsMode
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .statusBarsPadding()
-    ) {
-        TopNavBar(
-            navController = navController,
-            isSettingsOpen = showHomePanel || showSalesPanel,
-            currentScreen = currentScreen,
-            isDrawerOpen = isDrawerOpen,
-            onDrawerToggle = { isDrawerOpen = !isDrawerOpen },
-            onDrawerClose = { isDrawerOpen = false },
-            onSettingsClick = {
-                if (currentScreen == "sales_lead" || currentScreen == "create_lead" ||
-                    currentScreen == "view_lead" || currentScreen == "edit_lead") {
-                    // ✅ Enter Sales Settings mode
-                    isSalesSettingsMode = true
-                    currentScreen = "sales_settings"
-                } else {
-                    if (showHomePanel || showSalesPanel) {
-                        // ✅ Close settings - go back to home
-                        isSalesSettingsMode = false
-                        currentScreen = "home"
-                    } else {
-                        // ✅ Open settings
-                        currentScreen = "settings"
-                    }
-                }
-            },
-            onMenuItemClick = { route ->
-                when {
-                    route == "home_organization_profile" -> {
-                        currentScreen = "home_organization_profile"
-                        isDrawerOpen = false
-                    }
-                    route == "home_branch_management" -> {
-                        currentScreen = "home_branch_management"
-                        isDrawerOpen = false
-                    }
-                    route == "home_department_teams" -> {
-                        currentScreen = "home_department_teams"
-                        isDrawerOpen = false
-                    }
-                    route == "home_designation" -> {
-                        currentScreen = "home_designation"
-                        isDrawerOpen = false
-                    }
-                    route == "sales_lead" -> {
-                        isSalesSettingsMode = false
-                        currentScreen = "sales_lead"
-                        isDrawerOpen = false
-                    }
-                    route == "sales_customers" -> {
-                        isSalesSettingsMode = false
-                        currentScreen = "sales_customers"
-                        isDrawerOpen = false
-                    }
-                    route == "sales_measurements" -> {
-                        isSalesSettingsMode = false
-                        currentScreen = "sales_measurements"
-                        isDrawerOpen = false
-                    }
-                    // ✅ Fix: catch both possible route keys
-                    route == "sales_sales_orders" || route == "sales_sales_&_orders" -> {
-                        isSalesSettingsMode = false
-                        currentScreen = "sales_sales_orders"
-                        isDrawerOpen = false
-                    }
-                    route == "sales_orders" -> {
-                        isSalesSettingsMode = false
-                        currentScreen = "sales_orders"
-                        isDrawerOpen = false
-                    }
-                    route == "sales_garment_type" -> {
-                        currentScreen = "sales_garment_type"
-                        isDrawerOpen = false
-                    }
-                    route == "home" -> {
-                        isSalesSettingsMode = false
-                        if (showHomePanel) {
-                            currentScreen = "settings"
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = Color.White,
+        bottomBar = {
+            // ✅ Fixed top nav bar - behaves like bottomBar, stays pinned while content scrolls
+            Box(modifier = Modifier.background(Color.Transparent)) {
+                TopNavBar(
+                    navController = navController,
+                    isSettingsOpen = showHomePanel || showSalesPanel,
+                    currentScreen = currentScreen,
+                    isDrawerOpen = isDrawerOpen,
+                    onDrawerToggle = { isDrawerOpen = !isDrawerOpen },
+                    onDrawerClose = { isDrawerOpen = false },
+                    onSettingsClick = {
+                        if (currentScreen == "sales_lead" || currentScreen == "create_lead" ||
+                            currentScreen == "view_lead" || currentScreen == "edit_lead") {
+                            // ✅ Enter Sales Settings mode
+                            isSalesSettingsMode = true
+                            currentScreen = "sales_settings"
                         } else {
-                            currentScreen = "home"
-                        }
-                        isDrawerOpen = false
-                    }
-                    route == "settings" -> {
-                        currentScreen = "settings"
-                        isDrawerOpen = false
-                    }
-                    else -> {
-                        android.util.Log.d("NAV_DEBUG", "Unhandled route: $route")
-                        try {
-                            navController.navigate(route)
-                        } catch (_: Exception) {
-                            when {
-                                route.startsWith("sales_") -> {
-                                    currentScreen = route
-                                }
+                            if (showHomePanel || showSalesPanel) {
+                                // ✅ Close settings - go back to home
+                                isSalesSettingsMode = false
+                                currentScreen = "home"
+                            } else {
+                                // ✅ Open settings
+                                currentScreen = "settings"
                             }
                         }
-                        isDrawerOpen = false
+                    },
+                    onMenuItemClick = { route ->
+                        when {
+                            route == "home_organization_profile" -> {
+                                currentScreen = "home_organization_profile"
+                                isDrawerOpen = false
+                            }
+                            route == "home_branch_management" -> {
+                                currentScreen = "home_branch_management"
+                                isDrawerOpen = false
+                            }
+                            route == "home_department_teams" -> {
+                                currentScreen = "home_department_teams"
+                                isDrawerOpen = false
+                            }
+                            route == "home_designation" -> {
+                                currentScreen = "home_designation"
+                                isDrawerOpen = false
+                            }
+                            route == "sales_lead" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "sales_lead"
+                                isDrawerOpen = false
+                            }
+                            route == "sales_customers" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "sales_customers"
+                                isDrawerOpen = false
+                            }
+                            route == "sales_measurements" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "sales_measurements"
+                                isDrawerOpen = false
+                            }
+                            // ✅ Fix: catch both possible route keys
+                            route == "sales_sales_orders" || route == "sales_sales_&_orders" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "sales_sales_orders"
+                                isDrawerOpen = false
+                            }
+                            route == "sales_orders" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "sales_orders"
+                                isDrawerOpen = false
+                            }
+                            route == "sales_garment_type" -> {
+                                currentScreen = "sales_garment_type"
+                                isDrawerOpen = false
+                            }
+                            route == "home" -> {
+                                isSalesSettingsMode = false
+                                if (showHomePanel) {
+                                    currentScreen = "settings"
+                                } else {
+                                    currentScreen = "home"
+                                }
+                                isDrawerOpen = false
+                            }
+                            route == "settings" -> {
+                                currentScreen = "settings"
+                                isDrawerOpen = false
+                            }
+                            else -> {
+                                android.util.Log.d("NAV_DEBUG", "Unhandled route: $route")
+                                try {
+                                    navController.navigate(route)
+                                } catch (_: Exception) {
+                                    when {
+                                        route.startsWith("sales_") -> {
+                                            currentScreen = route
+                                        }
+                                    }
+                                }
+                                isDrawerOpen = false
+                            }
+                        }
+                    },
+                    onLogout = {
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    showHomePanel = showHomePanel,
+                    showSalesPanel = showSalesPanel,
+                    isSalesSettingsMode = isSalesSettingsMode
+                )
+            }
+        }
+    ) { innerPadding->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White)
+//                .padding(innerPadding)
+        ) {
+            when (currentScreen) {
+                // ✅ Settings Screen (your existing SettingsScreen)
+                "settings" -> SettingsScreen(
+                    navController = navController,
+                    onMenuClick = { isDrawerOpen = true }
+                )
+                "home_organization_profile" -> SettingsScreen(
+                    navController = navController,
+                    onMenuClick = { isDrawerOpen = true }
+                )
+                "home_branch_management" -> BranchSettingsScreen(
+                    navController = navController,
+                    onMenuClick = { isDrawerOpen = true },
+                    onBack = { currentScreen = "settings" }
+                )
+                "home_department_teams" -> DepartmentSettingsScreen(
+                    navController = navController,
+                    onMenuClick = { isDrawerOpen = true },
+                    onBack = { currentScreen = "settings" }
+                )
+                "home_designation" -> DesignationScreen(
+                    navController = navController,
+                    onMenuClick = { isDrawerOpen = true },
+                    onBack = { currentScreen = "settings" }
+                )
+                // ✅ Sales Settings Screen (your existing SalesSettingsScreen)
+                "sales_settings" -> SalesSettingsScreen(
+                    navController = navController,
+                    onClose = {
+                        isSalesSettingsMode = false
+                        currentScreen = "sales_lead"
+                    },
+                    onMenuClick = { isDrawerOpen = true }
+                )
+                // ✅ Garment Type Screen (your existing GarmentTypeContent)
+                "sales_garment_type" -> GarmentTypeContent(
+                    onClose = {
+                        currentScreen = "sales_settings"
+                        isSalesSettingsMode = true
+                    },
+                    onMenuClick = { isDrawerOpen = true }
+                )
+                "home" -> HomeScreenContent()
+                "sales_lead" -> LeadScreenContent(
+                    onCreateLead = { currentScreen = "create_lead" },
+                    onViewLead = { currentScreen = "view_lead" },
+                    onEditLead = { currentScreen = "edit_lead" }
+                )
+                "create_lead" -> CreateLeadScreen(
+                    onBack = { currentScreen = "sales_lead" }
+                )
+                "view_lead" -> ViewLeadScreen(
+                    onBack = { currentScreen = "sales_lead" },
+                    onEditLead = { currentScreen = "edit_lead" }
+                )
+
+                "edit_lead" -> EditLeadScreen(
+                    onBack = { currentScreen = "sales_lead" }
+                )
+                "sales_customers" -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Customers Screen", fontSize = 18.sp, color = Color.Gray)
                     }
                 }
-            },
-            onLogout = {
-                navController.navigate("login") {
-                    popUpTo(0) { inclusive = true }
+                "sales_measurements" -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Measurements Screen", fontSize = 18.sp, color = Color.Gray)
+                    }
                 }
-            },
-            showHomePanel = showHomePanel,
-            showSalesPanel = showSalesPanel,
-            isSalesSettingsMode = isSalesSettingsMode
-        )
+                "sales_sales_orders" -> {
+                    SalesOrderScreen(
+                        navController = navController,
+                        onCreateOrder = { currentScreen = "create_order" },
+                        onBack = { currentScreen = "home" }
+                    )
+                }
 
-        when (currentScreen) {
-            // ✅ Settings Screen (your existing SettingsScreen)
-            "settings" -> SettingsScreen(
-                navController = navController,
-                onMenuClick = { isDrawerOpen = true }
-            )
-            "home_organization_profile" -> SettingsScreen(
-                navController = navController,
-                onMenuClick = { isDrawerOpen = true }
-            )
-            "home_branch_management" -> BranchSettingsScreen(
-                navController = navController,
-                onMenuClick = { isDrawerOpen = true },
-                onBack = { currentScreen = "settings" }
-            )
-            "home_department_teams" -> DepartmentSettingsScreen(
-                navController = navController,
-                onMenuClick = { isDrawerOpen = true},
-                onBack = { currentScreen = "settings" }
-            )
-            "home_designation" -> DesignationScreen(
-                navController = navController,
-                onMenuClick = { isDrawerOpen = true },
-                onBack = { currentScreen = "settings" }
-            )
-            // ✅ Sales Settings Screen (your existing SalesSettingsScreen)
-            "sales_settings" -> SalesSettingsScreen(
-                navController = navController,
-                onClose = {
-                    isSalesSettingsMode = false
-                    currentScreen = "sales_lead"
-                },
-                onMenuClick = { isDrawerOpen = true }
-            )
-            // ✅ Garment Type Screen (your existing GarmentTypeContent)
-            "sales_garment_type" -> GarmentTypeContent(
-                onClose = {
-                    currentScreen = "sales_settings"
-                    isSalesSettingsMode = true
-                },
-                onMenuClick = { isDrawerOpen = true }
-            )
-            "home" -> HomeScreenContent()
-            "sales_lead" -> LeadScreenContent(
-                onCreateLead = { currentScreen = "create_lead" },
-                onViewLead = { currentScreen = "view_lead" },
-                onEditLead = { currentScreen = "edit_lead" }
-            )
-            "create_lead" -> CreateLeadScreen(
-                onBack = { currentScreen = "sales_lead" }
-            )
-            "view_lead" -> ViewLeadScreen(
-                onBack = { currentScreen = "sales_lead" },
-                onEditLead = { currentScreen = "edit_lead" }
-            )
-
-            "edit_lead" -> EditLeadScreen(
-                onBack = { currentScreen = "sales_lead" }
-            )
-            "sales_customers" -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Customers Screen", fontSize = 18.sp, color = Color.Gray)
+                "create_order" -> {
+                    CreateOrderScreen(
+                        onBack = { currentScreen = "sales_sales_orders" },
+                        onCancel = { currentScreen = "sales_sales_orders" },
+                        onNextStep = { orderReviewData ->
+                            pendingOrderReviewData = orderReviewData
+                            currentScreen = "create_order_review"
+                        }
+                    )
                 }
-            }
-            "sales_measurements" -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Measurements Screen", fontSize = 18.sp, color = Color.Gray)
+                "sales_orders" -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Orders Screen", fontSize = 18.sp, color = Color.Gray)
+                    }
                 }
-            }
-            "sales_sales_orders" -> {
-                SalesOrderScreen(
-                    navController = navController,
-                    onCreateOrder = { currentScreen = "create_order" },
-                    onBack = { currentScreen = "home" }
-                )
-            }
-
-            "create_order" -> {
-                CreateOrderScreen(
-                    onBack = { currentScreen = "sales_sales_orders" },
-                    onCancel = { currentScreen = "sales_sales_orders" },
-                    onNextStep = { /* TODO */ }
-                )
-            }
-            "sales_orders" -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Orders Screen", fontSize = 18.sp, color = Color.Gray)
+                "create_order_review" -> {
+                    pendingOrderReviewData?.let { data ->
+                        CreateOrderNextStep(
+                            orderData = data,
+                            onBack = { currentScreen = "create_order" },
+                            onSaveOrder = {
+                                // unga save-order API call inga pannunga
+                                pendingOrderReviewData = null
+                                currentScreen = "sales_sales_orders"
+                            }
+                        )
+                    } ?: run {
+                        // safety fallback — data illana create_order-ku thirumba pogalam
+                        currentScreen = "create_order"
+                    }
                 }
+                else -> { }
             }
-            else -> { }
         }
     }
 }
-
 // ─────────────────────────────────────────────────────────────
 // TopNavBar
 // ─────────────────────────────────────────────────────────────
-
 
 @Composable
 fun TopNavBar(
@@ -357,7 +395,6 @@ fun TopNavBar(
 ) {
     val authViewModel: Authenticate = hiltViewModel()
     val userEntity by authViewModel.user.collectAsStateWithLifecycle()
-    var searchQuery by remember { mutableStateOf("") }
 
     val user: User? = userEntity?.let {
         User(
@@ -416,13 +453,11 @@ fun TopNavBar(
         )
     }
 
-    Box(modifier = Modifier
-        .fillMaxWidth()
-        .wrapContentHeight()) {
+    // ✅ Root Box -> full screen (sidebar full-screen overlay ஆவதுக்கு)
+    Box(modifier = Modifier) {
 
-        // ✅ Show SalesNavBar when settings is open OR sales panel mode
+        // ✅ Sidebar — burger (center FAB) click ஆனா இது open ஆகும். Logic மாறல.
         if (isSettingsOpen || showSalesPanel) {
-            // 📊 Sales Nav Bar - Only Home & Sales enabled
             SalesSideBar(
                 isOpen = isDrawerOpen,
                 onClose = onDrawerClose,
@@ -435,7 +470,6 @@ fun TopNavBar(
                 defaultSelectedMenu = if (currentScreen == "sales_settings" || currentScreen == "sales_garment_type") "Sales" else "Home"
             )
         } else {
-            // 🏠 Full Nav Bar - All menus enabled
             FullSideBar(
                 isOpen = isDrawerOpen,
                 onClose = onDrawerClose,
@@ -449,129 +483,117 @@ fun TopNavBar(
             )
         }
 
-        // ── TOP APP BAR ──
-        Column {
+        // ── BOTTOM NAV BAR ── ✅ image மாதிரி design, screen கீழ fixed
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 14.dp)
+        ) {
+            // Pill-shaped bottom bar background
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(start = 30.dp, end = 30.dp, top = 8.dp, bottom = 8.dp),
+                    .height(64.dp)
+                    .shadow(elevation = 12.dp, shape = RoundedCornerShape(32.dp), clip = false)
+                    .background(Color.White, RoundedCornerShape(32.dp))
+                    .padding(horizontal = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // ── Menu Button ──
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(lightGray, RoundedCornerShape(8.dp))
-                        .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
-                        .clickable { onDrawerToggle() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Menu,
-                        contentDescription = "Menu",
-                        modifier = Modifier.size(22.dp),
-                        tint = Color.Black
-                    )
-                }
+                // ── Notifications (Home spot) ──
+                BottomNavItem(
+                    icon = Icons.Default.Notifications,
+                    label = "Notifications",
+                    isSelected = false,
+                    onClick = { /* TODO: notifications action */ }
+                )
 
-                // ── Search Bar ──
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
-                        .border(0.5.dp, Color.LightGray, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    BasicTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp),
-                        singleLine = true,
-                        decorationBox = { inner ->
-                            Box(
-                                Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                if (searchQuery.isEmpty()) {
-                                    Text(
-                                        "Search anything",
-                                        color = Color.Gray,
-                                        fontSize = 14.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                inner()
-                            }
-                        }
-                    )
-                }
+                // ── Search ──
+                BottomNavItem(
+                    icon = Icons.Default.Search,
+                    label = "Search",
+                    isSelected = false,
+                    onClick = { /* TODO: search action */ }
+                )
 
-                // ── Add Button ──
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(lightGray, RoundedCornerShape(8.dp))
-                        .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
-                        .clickable { },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "Add",
-                        modifier = Modifier.size(24.dp),
-                        tint = Color.Black
-                    )
-                }
+                // ── Center spacer for floating button ──
+                Spacer(modifier = Modifier.width(64.dp))
 
-                // ── Notifications ──
-                IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        Icons.Default.Notifications,
-                        contentDescription = "Notifications",
-                        modifier = Modifier.size(30.dp),
-                        tint = Color.DarkGray
-                    )
-                }
+                // ── Settings (History spot) ──
+                BottomNavItem(
+                    icon = if (isSettingsOpen) Icons.Default.Close else Icons.Filled.Settings,
+                    label = if (isSettingsOpen) "Close" else "Settings",
+                    isSelected = isSettingsOpen,
+                    selectedColor = if (isSettingsOpen) Color.Red else Color(0xFF6C4FF6),
+                    onClick = onSettingsClick
+                )
 
-                // ── Calendar ──
-                IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        Icons.Default.CalendarMonth,
-                        contentDescription = "Calendar",
-                        modifier = Modifier.size(30.dp),
-                        tint = Color.DarkGray
-                    )
-                }
-
-                // ── Settings/Close Button ──
-                IconButton(
-                    onClick = onSettingsClick,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isSettingsOpen) Icons.Default.Close else Icons.Filled.Settings,
-                        contentDescription = if (isSettingsOpen) "Close Settings" else "Settings",
-                        modifier = Modifier.size(30.dp),
-                        tint = if (isSettingsOpen) Color.Red else Color.DarkGray
-                    )
-                }
+                // ── Profile spot ──
+                BottomNavItem(
+                    icon = Icons.Default.Person,
+                    label = "Profile",
+                    isSelected = false,
+                    onClick = { /* TODO: profile action */ }
+                )
             }
-            Spacer(Modifier.height(8.dp))
-            HorizontalDivider(color = Color(0xFFF2F2F2))
+
+            // ── Floating center Burger Menu button (+ spot in image) ──
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = (-14).dp)
+                    .size(56.dp)
+                    .shadow(elevation = 8.dp, shape = CircleShape, clip = false)
+                    .background(Color(0xFF6C4FF6), CircleShape)
+                    .clickable { onDrawerToggle() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Menu",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Bottom Nav Item (icon + label, image style)
+// ─────────────────────────────────────────────────────────────
+@Composable
+private fun BottomNavItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    isSelected: Boolean,
+    selectedColor: Color = Color(0xFF6C4FF6),
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
+            .padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = if (isSelected) selectedColor else Color(0xFF9CA3AF),
+            modifier = Modifier.size(22.dp)
+        )
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (isSelected) selectedColor else Color(0xFF9CA3AF)
+        )
     }
 }
 // ─────────────────────────────────────────────────────────────
@@ -1205,6 +1227,11 @@ fun CreateLeadScreen(onBack: () -> Unit) {
 // LeadScreenContent
 // ─────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────
+// LeadScreenContent  (FULL UPDATED FUNCTION)
+// Replace your existing fun LeadScreenContent(...) { ... } completely with this.
+// ─────────────────────────────────────────────────────────────
+
 @Composable
 fun LeadScreenContent(
     onCreateLead: () -> Unit = {},
@@ -1237,9 +1264,8 @@ fun LeadScreenContent(
         salesViewModel.fetchGarmentCategories()
     }
 
-    // ✅ Handle delete success with loading state - FIXED
+    // ✅ Handle delete success with loading state
     LaunchedEffect(deleteState) {
-        // Capture the current state in a local variable to enable smart casting
         val currentState = deleteState
         when (currentState) {
             is SaleState.Loading -> {
@@ -1272,7 +1298,11 @@ fun LeadScreenContent(
 
     var filterExpanded by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf("All Leads") }
+
+    // ✅ View toggle state — true = Table View, false = Card View
     var isListView by remember { mutableStateOf(true) }
+    var viewMenuExpanded by remember { mutableStateOf(false) }
+
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
     val filterOptions = listOf("All Leads", "New Enquiry", "Quoted", "Follow-up", "Converted")
 
@@ -1307,6 +1337,79 @@ fun LeadScreenContent(
     val sourceWidth = 120.dp
     val statusWidth = 140.dp
     val actionWidth = 80.dp
+
+    // Helper to resolve status name + badge text/color (shared by table + card view)
+    fun resolveStatusBadge(lead: LeadTableItem): Pair<String, Color> {
+        val statusName = when (lead.status) {
+            is String -> lead.status
+            is Map<*, *> -> (lead.status["name"] as? String) ?: ""
+            else -> ""
+        }
+        return when {
+            statusName.contains("Convert", ignoreCase = true) || statusName.equals("CONVERTED", ignoreCase = true) || statusName.equals("converted_to_order", ignoreCase = true) ->
+                "Converted to Order" to Color(0xFF34C759)
+            statusName.contains("New", ignoreCase = true) || statusName.equals("NEW", ignoreCase = true) || statusName.equals("new_enquiry", ignoreCase = true) ->
+                "New Enquiry" to Color(0xFF3B3BF9)
+            statusName.contains("Quot", ignoreCase = true) || statusName.equals("QUOTED", ignoreCase = true) ->
+                "Quoted" to Color(0xFFF59E0B)
+            statusName.contains("Follow", ignoreCase = true) || statusName.equals("FOLLOW_UP", ignoreCase = true) || statusName.contains("Pending", ignoreCase = true) ->
+                "Follow-up" to Color(0xFFEF4444)
+            statusName.contains("Lost", ignoreCase = true) ->
+                "Lost" to Color(0xFF6B7280)
+            else -> statusName to Color(0xFF9CA3AF)
+        }
+    }
+
+    fun resolveGarmentName(lead: LeadTableItem): String {
+        val garment = lead.garmentCategory?.firstOrNull()
+        return if (garment == null) {
+            "—"
+        } else {
+            when (garment) {
+                is Map<*, *> -> {
+                    val categoryId = garment["categoryId"] as? Map<*, *>
+                    categoryId?.get("categoryName") as? String ?: "—"
+                }
+                is String -> {
+                    lead.occasion?.takeIf { it.isNotBlank() } ?: "—"
+                }
+                else -> "—"
+            }
+        }
+    }
+
+    // ✅ shared action handler used by table row + card menu
+    fun onViewClicked(lead: LeadTableItem) {
+        actionMenuLeadId = null
+        isLoadingView = true
+        salesViewModel.fetchLeadDetails(lead.id) { success ->
+            isLoadingView = false
+            if (success) {
+                onViewLead()
+            } else {
+                Toast.makeText(context, "Failed to load lead details", Toast.LENGTH_SHORT).show()
+                val leadEntity = lead.toLeadEntity()
+                salesViewModel.selectLead(leadEntity)
+                onViewLead()
+            }
+        }
+    }
+
+    fun onEditClicked(lead: LeadTableItem) {
+        actionMenuLeadId = null
+        isLoadingEdit = true
+        salesViewModel.fetchLeadDetails(lead.id) { success ->
+            isLoadingEdit = false
+            if (success) {
+                onEditLead()
+            } else {
+                Toast.makeText(context, "Failed to load lead details for editing", Toast.LENGTH_SHORT).show()
+                val leadEntity = lead.toLeadEntity()
+                salesViewModel.selectLead(leadEntity)
+                onEditLead()
+            }
+        }
+    }
 
     Column(
         Modifier
@@ -1383,49 +1486,92 @@ fun LeadScreenContent(
                 }
             }
 
-            // RIGHT SIDE: List/Grid (tablet only) + Create Lead
+            // RIGHT SIDE: View toggle (Table/Card dropdown) + Create Lead
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // List/Grid Toggle - Shows only on tablet (width > 600dp)
-                androidx.compose.ui.platform.LocalConfiguration.current.run {
-                    val isTablet = screenWidthDp > 600
-                    if (isTablet) {
-                        Row(
-                            modifier = Modifier
-                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                                .clip(RoundedCornerShape(8.dp))
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .background(if (isListView) Color(0xFFEEEEFE) else Color.White)
-                                    .clickable { isListView = true }
-                                    .padding(8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.List,
-                                    contentDescription = "List View",
-                                    tint = if (isListView) Color(0xFF3B3BF9) else Color(0xFF9CA3AF),
-                                    modifier = Modifier.size(20.dp)
-                                )
+                // ✅ View Toggle Dropdown — works on all screen sizes (mobile + tablet)
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                            .background(Color.White, RoundedCornerShape(8.dp))
+                            .clickable { viewMenuExpanded = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isListView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
+                            contentDescription = "View Toggle",
+                            tint = Color(0xFF3B3BF9),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = viewMenuExpanded,
+                        onDismissRequest = { viewMenuExpanded = false },
+                        containerColor = Color.White,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.List,
+                                        contentDescription = null,
+                                        tint = Color(0xFF374151),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text("Table View", color = Color(0xFF374151))
+                                    if (isListView) {
+                                        Spacer(Modifier.width(4.dp))
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color(0xFF3B3BF9),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                isListView = true
+                                viewMenuExpanded = false
                             }
-                            Box(
-                                modifier = Modifier
-                                    .background(if (!isListView) Color(0xFFEEEEFE) else Color.White)
-                                    .clickable { isListView = false }
-                                    .padding(8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.GridView,
-                                    contentDescription = "Grid View",
-                                    tint = if (!isListView) Color(0xFF3B3BF9) else Color(0xFF9CA3AF),
-                                    modifier = Modifier.size(20.dp)
-                                )
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.GridView,
+                                        contentDescription = null,
+                                        tint = Color(0xFF374151),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text("Card View", color = Color(0xFF374151))
+                                    if (!isListView) {
+                                        Spacer(Modifier.width(4.dp))
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color(0xFF3B3BF9),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                isListView = false
+                                viewMenuExpanded = false
                             }
-                        }
+                        )
                     }
                 }
 
@@ -1448,87 +1594,93 @@ fun LeadScreenContent(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── Table container ──
+        // ── Content container (Table or Card) ──
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.White, RoundedCornerShape(12.dp))
-            ) {
-                when {
-                    isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator()
-                                Spacer(Modifier.height(8.dp))
-                                Text("Loading leads...", color = Color.Gray)
+            when {
+                isLoading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator()
+                            Spacer(Modifier.height(8.dp))
+                            Text("Loading leads...", color = Color.Gray)
+                        }
+                    }
+                }
+                tableError != null -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color.Red,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text("Error loading leads", color = Color.Red, fontWeight = FontWeight.Bold)
+                            Text(tableError ?: "Unknown error", color = Color.Gray, fontSize = 14.sp)
+                            Spacer(Modifier.height(12.dp))
+                            Button(onClick = { salesViewModel.fetchTableLeads() }) {
+                                Text("Retry")
                             }
                         }
                     }
-                    tableError != null -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                }
+                leads.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            Modifier.padding(40.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = Color.Red,
-                                    modifier = Modifier.size(48.dp)
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Text("Error loading leads", color = Color.Red, fontWeight = FontWeight.Bold)
-                                Text(tableError ?: "Unknown error", color = Color.Gray, fontSize = 14.sp)
-                                Spacer(Modifier.height(12.dp))
-                                Button(onClick = { salesViewModel.fetchTableLeads() }) {
-                                    Text("Retry")
-                                }
-                            }
-                        }
-                    }
-                    leads.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                Modifier.padding(40.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                            Text(
+                                "No Leads Yet",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Start by creating your first lead",
+                                fontSize = 14.sp,
+                                color = Color(0xFF9CA3AF)
+                            )
+                            Spacer(Modifier.height(20.dp))
+                            Button(
+                                onClick = onCreateLead,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
+                                shape = RoundedCornerShape(5.dp),
+                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                             ) {
-                                Text(
-                                    "No Leads Yet",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF111827)
-                                )
-                                Spacer(Modifier.height(6.dp))
-                                Text(
-                                    "Start by creating your first lead",
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF9CA3AF)
-                                )
-                                Spacer(Modifier.height(20.dp))
-                                Button(
-                                    onClick = onCreateLead,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
-                                    shape = RoundedCornerShape(5.dp),
-                                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
-                                ) {
-                                    Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                }
+                                Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                             }
                         }
                     }
-                    else -> {
-                        // ── Table with horizontal scroll ──
+                }
+                isListView -> {
+                    // ✅ TABLE VIEW
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White, RoundedCornerShape(12.dp))
+                    ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -1569,29 +1721,8 @@ fun LeadScreenContent(
                             Column {
                                 pagedLeads.forEach { lead ->
                                     val isChecked = lead.id in selectedIds
-                                    val statusName = when (lead.status) {
-                                        is String -> lead.status
-                                        is Map<*, *> -> (lead.status["name"] as? String) ?: ""
-                                        else -> ""
-                                    }
-
-                                    val garmentName = run {
-                                        val garment = lead.garmentCategory?.firstOrNull()
-                                        if (garment == null) {
-                                            "—"
-                                        } else {
-                                            when (garment) {
-                                                is Map<*, *> -> {
-                                                    val categoryId = garment["categoryId"] as? Map<*, *>
-                                                    categoryId?.get("categoryName") as? String ?: "—"
-                                                }
-                                                is String -> {
-                                                    lead.occasion?.takeIf { it.isNotBlank() } ?: "—"
-                                                }
-                                                else -> "—"
-                                            }
-                                        }
-                                    }
+                                    val (badgeText, badgeColor) = resolveStatusBadge(lead)
+                                    val garmentName = resolveGarmentName(lead)
 
                                     Row(
                                         modifier = Modifier
@@ -1618,26 +1749,9 @@ fun LeadScreenContent(
                                         Text(lead.source.ifEmpty { "—" }, modifier = Modifier.width(sourceWidth), fontSize = 13.sp, color = Color(0xFF374151), maxLines = 1, overflow = TextOverflow.Ellipsis)
 
                                         Box(modifier = Modifier.width(statusWidth)) {
-                                            val (badgeText, badgeColor) = when {
-                                                statusName.contains("Convert", ignoreCase = true) || statusName.equals("CONVERTED", ignoreCase = true) || statusName.equals("converted_to_order", ignoreCase = true) ->
-                                                    "Converted to Order" to Color(0xFF34C759)
-                                                statusName.contains("New", ignoreCase = true) || statusName.equals("NEW", ignoreCase = true) || statusName.equals("new_enquiry", ignoreCase = true) ->
-                                                    "New Enquiry" to Color(0xFF3B3BF9)
-                                                statusName.contains("Quot", ignoreCase = true) || statusName.equals("QUOTED", ignoreCase = true) ->
-                                                    "Quoted" to Color(0xFFF59E0B)
-                                                statusName.contains("Follow", ignoreCase = true) || statusName.equals("FOLLOW_UP", ignoreCase = true) || statusName.contains("Pending", ignoreCase = true) ->
-                                                    "Follow-up" to Color(0xFFEF4444)
-                                                statusName.contains("Lost", ignoreCase = true) ->
-                                                    "Lost" to Color(0xFF6B7280)
-                                                else -> statusName to Color(0xFF9CA3AF)
-                                            }
                                             Box(
                                                 modifier = Modifier
-                                                    .border(
-                                                        1.dp,
-                                                        badgeColor,
-                                                        RoundedCornerShape(20.dp)
-                                                    )
+                                                    .border(1.dp, badgeColor, RoundedCornerShape(20.dp))
                                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                                             ) {
                                                 Text(badgeText, fontSize = 11.sp, color = badgeColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -1661,7 +1775,6 @@ fun LeadScreenContent(
                                                     containerColor = Color.White,
                                                     shape = RoundedCornerShape(10.dp)
                                                 ) {
-                                                    // View
                                                     DropdownMenuItem(
                                                         text = {
                                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1673,24 +1786,8 @@ fun LeadScreenContent(
                                                             }
                                                         },
                                                         enabled = !isLoadingView,
-                                                        onClick = {
-                                                            actionMenuLeadId = null
-                                                            isLoadingView = true
-                                                            salesViewModel.fetchLeadDetails(lead.id) { success ->
-                                                                isLoadingView = false
-                                                                if (success) {
-                                                                    onViewLead()
-                                                                } else {
-                                                                    Toast.makeText(context, "Failed to load lead details", Toast.LENGTH_SHORT).show()
-                                                                    val leadEntity = lead.toLeadEntity()
-                                                                    salesViewModel.selectLead(leadEntity)
-                                                                    onViewLead()
-                                                                }
-                                                            }
-                                                        }
+                                                        onClick = { onViewClicked(lead) }
                                                     )
-
-                                                    // Edit
                                                     DropdownMenuItem(
                                                         text = {
                                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1702,25 +1799,8 @@ fun LeadScreenContent(
                                                             }
                                                         },
                                                         enabled = !isLoadingEdit,
-                                                        onClick = {
-                                                            actionMenuLeadId = null
-                                                            isLoadingEdit = true
-                                                            salesViewModel.fetchLeadDetails(lead.id) { success ->
-                                                                isLoadingEdit = false
-                                                                if (success) {
-                                                                    onEditLead()
-                                                                } else {
-                                                                    Toast.makeText(context, "Failed to load lead details for editing", Toast.LENGTH_SHORT).show()
-                                                                    val leadEntity = lead.toLeadEntity()
-                                                                    salesViewModel.selectLead(leadEntity)
-                                                                    onEditLead()
-                                                                }
-                                                            }
-                                                        }
+                                                        onClick = { onEditClicked(lead) }
                                                     )
-
-
-                                                    // ✅ Delete - with loading state
                                                     DropdownMenuItem(
                                                         text = {
                                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1789,6 +1869,81 @@ fun LeadScreenContent(
                         }
                     }
                 }
+                else -> {
+                    // ✅ CARD VIEW
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(bottom = 4.dp)
+                        ) {
+                            items(pagedLeads) { lead ->
+                                LeadCardItem(
+                                    lead = lead,
+                                    badge = resolveStatusBadge(lead),
+                                    garmentName = resolveGarmentName(lead),
+                                    isMenuOpen = actionMenuLeadId == lead.id,
+                                    isLoadingView = isLoadingView,
+                                    isLoadingEdit = isLoadingEdit,
+                                    isDeleting = isDeleting,
+                                    onMenuOpenChange = { open -> actionMenuLeadId = if (open) lead.id else null },
+                                    onViewClick = { onViewClicked(lead) },
+                                    onEditClick = { onEditClicked(lead) },
+                                    onDeleteClick = {
+                                        actionMenuLeadId = null
+                                        leadToDelete = lead
+                                    }
+                                )
+                            }
+                        }
+
+                        // ── Pagination Footer (Card View) ──
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White, RoundedCornerShape(12.dp))
+                        ) {
+                            Column {
+                                HorizontalDivider(color = Color(0xFFF0F0F0))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Showing ${if (filteredLeads.isEmpty()) 0 else (currentPage - 1) * itemsPerPage + 1} - ${minOf(currentPage * itemsPerPage, filteredLeads.size)} of ${filteredLeads.size}",
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF6B7280)
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        IconButton(
+                                            onClick = { if (currentPage > 1) currentPage-- },
+                                            enabled = currentPage > 1,
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(Icons.Default.ChevronLeft, contentDescription = "Previous", tint = if (currentPage > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
+                                        }
+                                        Text("$currentPage - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
+                                        IconButton(
+                                            onClick = { if (currentPage < totalPages) currentPage++ },
+                                            enabled = currentPage < totalPages,
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = if (currentPage < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -1833,6 +1988,207 @@ fun LeadScreenContent(
                     }
                 }
             )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// LeadCardItem  (NEW COMPOSABLE — add this anywhere below LeadScreenContent)
+// Renders one lead as a card, matching the "Sales Orders" card-view style
+// from your screenshot (Id + status badge + menu, name + chip, dates row).
+// ─────────────────────────────────────────────────────────────
+@Composable
+fun LeadCardItem(
+    lead: LeadTableItem,
+    badge: Pair<String, Color>,
+    garmentName: String,
+    isMenuOpen: Boolean,
+    isLoadingView: Boolean,
+    isLoadingEdit: Boolean,
+    isDeleting: Boolean,
+    onMenuOpenChange: (Boolean) -> Unit,
+    onViewClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    val (badgeText, badgeColor) = badge
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White, RoundedCornerShape(12.dp))
+    ) {
+        // ── Top row: a small colored bar + id-like label + status + menu ──
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .width(4.dp)
+                        .height(18.dp)
+                        .background(Color(0xFF3B3BF9), RoundedCornerShape(2.dp))
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = lead.enquiryType.ifEmpty { "Lead" },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    modifier = Modifier
+                        .background(badgeColor.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(badgeText, fontSize = 11.sp, color = badgeColor, fontWeight = FontWeight.Medium)
+                }
+                Box {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More",
+                        tint = Color(0xFF9CA3AF),
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clickable { onMenuOpenChange(true) }
+                    )
+                    DropdownMenu(
+                        expanded = isMenuOpen,
+                        onDismissRequest = { onMenuOpenChange(false) },
+                        containerColor = Color.White,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    if (isLoadingView) {
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Text("View", color = Color(0xFF374151))
+                                    }
+                                }
+                            },
+                            enabled = !isLoadingView,
+                            onClick = onViewClick
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    if (isLoadingEdit) {
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Text("Edit", color = Color(0xFF374151))
+                                    }
+                                }
+                            },
+                            enabled = !isLoadingEdit,
+                            onClick = onEditClick
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    if (isDeleting) {
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Text("Delete", color = Color(0xFF374151))
+                                    }
+                                }
+                            },
+                            enabled = !isDeleting,
+                            onClick = onDeleteClick
+                        )
+                    }
+                }
+            }
+        }
+
+        HorizontalDivider(color = Color(0xFFF5F5F5))
+
+        // ── Middle row: avatar initial + name + garment chip ──
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(Color(0xFFEEEEFE), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = lead.person.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                    color = Color(0xFF3B3BF9),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = lead.person.name.ifEmpty { "—" },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF111827),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = garmentName,
+                    fontSize = 13.sp,
+                    color = Color(0xFF6B7280),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .background(Color(0xFFFFF7E6), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = "Qty: ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
+                    fontSize = 11.sp,
+                    color = Color(0xFFB45309)
+                )
+            }
+        }
+
+        // ── Bottom row: source / required date / budget ──
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFF8F9FB), RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("Source", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                Spacer(Modifier.height(2.dp))
+                Text(lead.source.ifEmpty { "—" }, fontSize = 13.sp, color = Color(0xFF374151), fontWeight = FontWeight.Medium)
+            }
+            Column {
+                Text("Required Date", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                Spacer(Modifier.height(2.dp))
+                Text(formatLeadDate(lead.requiredDate ?: ""), fontSize = 13.sp, color = Color(0xFF374151), fontWeight = FontWeight.Medium)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("Budget", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}",
+                    fontSize = 13.sp,
+                    color = Color(0xFF3B3BF9),
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
@@ -2358,6 +2714,11 @@ fun EditLeadScreen(onBack: () -> Unit) {
         }
         if (garmentCategories.isEmpty()) {
             salesViewModel.fetchGarmentCategories()
+        }
+        if (salesStatuses.isEmpty()) {
+            salesViewModel.fetchSalesData()   // use whatever method name your
+            // SalesViewModel already exposes for loading salesStatuses
+            // (it's probably already called somewhere like fetchSalesData())
         }
     }
 

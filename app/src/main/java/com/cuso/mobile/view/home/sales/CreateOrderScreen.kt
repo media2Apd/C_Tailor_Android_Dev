@@ -41,6 +41,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberImagePainter
 import com.cuso.mobile.database.entities.SelectedGarment
+import com.cuso.mobile.model.Customer
 import com.cuso.mobile.model.CustomerGarment
 import com.cuso.mobile.model.CustomerOrder
 import com.cuso.mobile.view.composable.PhoneInputField
@@ -295,7 +296,7 @@ fun CreateOrderScreen(
     val customerSearchResult by salesViewModel.customerSearchResult.collectAsStateWithLifecycle()
     val isSearchingCustomer by salesViewModel.isSearchingCustomer.collectAsStateWithLifecycle()
     var showImportDialog by remember { mutableStateOf(false) }
-
+    var selectedCustomer by remember { mutableStateOf<Customer?>(null) }
     // ── Garment categories ──
     val activeOrgCategoryIds by salesViewModel.activeOrgCategoryIds.collectAsStateWithLifecycle()
     val commonCategories by salesViewModel.orgGarmentCategories.collectAsStateWithLifecycle()
@@ -465,6 +466,7 @@ fun CreateOrderScreen(
                 Button(
                     onClick = {
                         val data = OrderReviewData(
+                            customerId = selectedCustomer?.id ?: "",
                             fullName = fullName,
                             countryCode = countryCode,
                             phone = phone,

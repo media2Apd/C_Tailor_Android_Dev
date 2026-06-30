@@ -192,6 +192,35 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    //---create order-------------------------------------------
+    // In SalesRepository.kt, update the createOrder method:
+
+    suspend fun createOrder(request: CreateOrderRequest): Result<OrderItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.createOrder(
+                token = accessToken,
+                csrfToken = csrfToken,
+                request = request
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                val apiResponse = response.body()?.data
+                    ?: return Result.failure(Exception("Order data is null"))
+
+                // Map OrderApiResponse to OrderItem using your existing mapper
+                val orderItem = apiResponse.toOrderItem()
+                Result.success(orderItem)
+            } else {
+                val errorMsg = response.errorBody()?.string()
+                    ?: response.message()
+                    ?: "Failed to create order"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun deleteLead(id: String): Result<Unit> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()

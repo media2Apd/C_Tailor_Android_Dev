@@ -18,8 +18,8 @@ import com.cuso.mobile.ui.theme.CusoTailorTheme
 import com.cuso.mobile.view.forgot_password.ForgotUserPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
 import com.cuso.mobile.view.forgot_password.VerifyForgotPassword
-import com.cuso.mobile.view.home.BranchSettingsScreen
-import com.cuso.mobile.view.home.DepartmentSettingsScreen
+import com.cuso.mobile.view.home.branch.BranchSettingsScreen
+import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
 import com.cuso.mobile.view.login.LoginOtpScreen
 import com.cuso.mobile.view.login.LoginScreen
 import com.cuso.mobile.view.organization.OrganizationProfile
@@ -27,9 +27,7 @@ import com.cuso.mobile.view.others.privacyPolicy
 import com.cuso.mobile.view.others.termsConditions
 import com.cuso.mobile.view.home.HomeScreen
 import com.cuso.mobile.view.home.OrderFlowNavigator
-import com.cuso.mobile.view.home.SalesSettingsScreen
 import com.cuso.mobile.view.home.SettingsScreen
-import com.cuso.mobile.view.sales.CreateOrderScreen
 import com.cuso.mobile.view.sales.SalesOrderScreen
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen

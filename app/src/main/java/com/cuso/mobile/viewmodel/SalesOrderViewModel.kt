@@ -2,6 +2,7 @@ package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.mobile.model.CreateOrderRequest
 import com.cuso.mobile.model.OrderItem
 import com.cuso.mobile.model.toOrderItem
 import com.cuso.mobile.repository.SalesRepository
@@ -148,6 +149,25 @@ class SalesOrderViewModel @Inject constructor(
             } else {
                 _actionState.value = OrderActionState.Error(
                     result.exceptionOrNull()?.message ?: "Failed to update status"
+                )
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Create order
+    // ─────────────────────────────────────────────────────────
+
+    fun createOrder(request: CreateOrderRequest, onSuccess: (OrderItem) -> Unit) {
+        viewModelScope.launch {
+            _actionState.value = OrderActionState.Loading
+            val result = repository.createOrder(request)
+            if (result.isSuccess) {
+                _actionState.value = OrderActionState.Success("Order created successfully")
+                result.getOrNull()?.let { onSuccess(it) }
+            } else {
+                _actionState.value = OrderActionState.Error(
+                    result.exceptionOrNull()?.message ?: "Failed to create order"
                 )
             }
         }

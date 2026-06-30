@@ -128,24 +128,24 @@ data class Garment(
 // Request Models
 // ─────────────────────────────────────────────────────────────
 
-data class CreateOrderRequest(
-    @SerializedName("customerId")
-    val customerId: String,
-    @SerializedName("garments")
-    val garments: List<CreateGarmentRequest>,
-    @SerializedName("totalAmount")
-    val totalAmount: Int,
-    @SerializedName("totalPaid")
-    val totalPaid: Int? = null,
-    @SerializedName("orderDate")
-    val orderDate: String,
-    @SerializedName("deliveryDate")
-    val deliveryDate: String? = null,
-    @SerializedName("source")
-    val source: String? = null,
-    @SerializedName("notes")
-    val notes: String? = null
-)
+//data class CreateOrderRequest(
+//    @SerializedName("customerId")
+//    val customerId: String,
+//    @SerializedName("garments")
+//    val garments: List<CreateGarmentRequest>,
+//    @SerializedName("totalAmount")
+//    val totalAmount: Int,
+//    @SerializedName("totalPaid")
+//    val totalPaid: Int? = null,
+//    @SerializedName("orderDate")
+//    val orderDate: String,
+//    @SerializedName("deliveryDate")
+//    val deliveryDate: String? = null,
+//    @SerializedName("source")
+//    val source: String? = null,
+//    @SerializedName("notes")
+//    val notes: String? = null
+//)
 
 data class CreateGarmentRequest(
     @SerializedName("category")
@@ -231,3 +231,71 @@ private fun String.toEpochMillis(): Long? {
     }
     return null
 }
+
+
+
+data class CreateOrderRequest(
+    @SerializedName("customerId")
+    val customerId: String,
+    @SerializedName("branch")
+    val branch: String? = null,
+    @SerializedName("wearerType")
+    val wearerType: String? = null,
+    @SerializedName("garments")
+    val garments: List<CreateGarmentRequestForCreateOrder>,   // ✅ changed type here
+    @SerializedName("summaryAdditionalCharges")
+    val summaryAdditionalCharges: List<ChargeRequest> = emptyList(),
+    @SerializedName("discount")
+    val discount: Double = 0.0,
+    @SerializedName("totalAmount")
+    val totalAmount: Double,
+    @SerializedName("totalPaid")
+    val totalPaid: Double? = null,
+    @SerializedName("paymentStatus")
+    val paymentStatus: String? = null,
+    @SerializedName("source")
+    val source: String? = null,
+    @SerializedName("orderDate")
+    val orderDate: String,
+    @SerializedName("trialDate")
+    val trialDate: String? = null,
+    @SerializedName("deliveryDate")
+    val deliveryDate: String? = null,
+    @SerializedName("status")
+    val status: String? = null,
+    @SerializedName("notes")
+    val notes: String? = null
+)
+
+data class CreateGarmentRequestForCreateOrder(
+    @SerializedName("category")
+    val category: String,
+    @SerializedName("categoryName")
+    val categoryName: String? = null,
+    @SerializedName("models")
+    val models: List<String> = emptyList(),
+    @SerializedName("quantity")
+    val quantity: Int,
+    @SerializedName("price")
+    val price: Double,
+    @SerializedName("total")
+    val total: Double,
+    @SerializedName("additionalCharges")
+    val additionalCharges: List<ChargeRequest> = emptyList()
+)
+
+data class ChargeRequest(
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("amount")
+    val amount: Double
+)
+
+data class CreateOrderResponse(
+    @SerializedName("success")
+    val success: Boolean,
+    @SerializedName("data")
+    val data: OrderApiResponse?,
+    @SerializedName("message")
+    val message: String? = null
+)

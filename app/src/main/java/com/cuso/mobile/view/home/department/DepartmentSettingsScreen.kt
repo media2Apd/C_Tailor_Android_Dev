@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.home
+package com.cuso.mobile.view.home.department
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.HorizontalDivider
@@ -27,8 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -40,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.model.DepartmentItem
 import com.cuso.mobile.model.StaffDto
+import com.cuso.mobile.view.home.branch.PlanLimits
 import com.cuso.mobile.viewmodel.DepartmentUiState
 import com.cuso.mobile.viewmodel.DepartmentViewModel
 import com.cuso.mobile.viewmodel.DesignationCreateState
@@ -48,6 +52,14 @@ import com.cuso.mobile.viewmodel.ProfileUiState
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
 import kotlinx.coroutines.launch
+
+// ─────────────────────────────────────────────────────────────
+// REPLACE in DepartmentSettingsScreen.kt:
+//  1) fun DepartmentSettingsScreen(...)  -> replace fully with version below
+//  2) fun DepartmentTable(...)           -> replace fully with version below
+//  3) ADD new composable: DepartmentCardItem (new, paste anywhere below DepartmentTableRow)
+// Everything else in that file (DepartmentTableRow, dialogs, fields, data classes) stays unchanged.
+// ─────────────────────────────────────────────────────────────
 
 @Composable
 fun DepartmentSettingsScreen(
@@ -62,6 +74,10 @@ fun DepartmentSettingsScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var editingDepartment by remember { mutableStateOf<DepartmentItem?>(null) }
     var showPlanLimitDialog by remember { mutableStateOf(false) }
+
+    // ✅ View toggle state — true = Table View, false = Card View
+    var isListView by remember { mutableStateOf(true) }
+    var viewMenuExpanded by remember { mutableStateOf(false) }
 
     val uiState by departmentViewModel.uiState.collectAsStateWithLifecycle()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
@@ -187,7 +203,7 @@ fun DepartmentSettingsScreen(
                     )
                 }
 
-                // ✅ Show limit info and add button
+                // ✅ Show limit info, view toggle, and add button
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (planLimits != null) {
                         Text(
@@ -197,6 +213,60 @@ fun DepartmentSettingsScreen(
                             modifier = Modifier.padding(end = 12.dp)
                         )
                     }
+
+                    // ✅ View Toggle Dropdown
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                                .background(Color.White, RoundedCornerShape(8.dp))
+                                .clickable { viewMenuExpanded = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isListView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
+                                contentDescription = "View Toggle",
+                                tint = Color(0xFF3B3BF9),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = viewMenuExpanded,
+                            onDismissRequest = { viewMenuExpanded = false },
+                            containerColor = Color.White,
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Icon(Icons.AutoMirrored.Filled.List, null, tint = Color(0xFF374151), modifier = Modifier.size(16.dp))
+                                        Text("Table View", color = Color(0xFF374151))
+                                        if (isListView) {
+                                            Spacer(Modifier.width(4.dp))
+                                            Icon(Icons.Default.Check, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                },
+                                onClick = { isListView = true; viewMenuExpanded = false }
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Icon(Icons.Default.GridView, null, tint = Color(0xFF374151), modifier = Modifier.size(16.dp))
+                                        Text("Card View", color = Color(0xFF374151))
+                                        if (!isListView) {
+                                            Spacer(Modifier.width(4.dp))
+                                            Icon(Icons.Default.Check, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                },
+                                onClick = { isListView = false; viewMenuExpanded = false }
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.width(12.dp))
 
                     Button(
                         onClick = {
@@ -273,7 +343,7 @@ fun DepartmentSettingsScreen(
                                 Text("No departments found", color = Color.Gray, fontSize = 15.sp)
                             }
                         }
-                    } else {
+                    } else if (isListView) {
                         DepartmentTable(
                             departments = state.departments,
                             staffList = staffList,
@@ -281,6 +351,23 @@ fun DepartmentSettingsScreen(
                             onDeleteClick = { /* TODO: call delete */ },
                             onViewClick = { /* TODO: navigate to detail */ }
                         )
+                    } else {
+                        // ✅ CARD VIEW
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(state.departments) { department ->
+                                DepartmentCardItem(
+                                    department = department,
+                                    staffList = staffList,
+                                    onEditClick = { editingDepartment = department },
+                                    onViewClick = { /* TODO: navigate to detail */ }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -357,6 +444,141 @@ fun DepartmentSettingsScreen(
     }
 }
 
+
+// ─────────────────────────────────────────────────────────────
+// DepartmentCardItem  (NEW — add anywhere below DepartmentTableRow)
+// ─────────────────────────────────────────────────────────────
+@Composable
+fun DepartmentCardItem(
+    department: DepartmentItem,
+    staffList: List<StaffDto>,
+    onEditClick: (DepartmentItem) -> Unit,
+    onViewClick: (DepartmentItem) -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    val headName = remember(department.departmentHeadId, staffList) {
+        department.departmentHeadId
+            ?.let { headId -> staffList.firstOrNull { it.id == headId } }
+            ?.let { "${it.firstName} ${it.lastName}" }
+            ?: "-"
+    }
+
+    val (badgeText, bgColor, textColor) = if (department.status) {
+        Triple("Active", Color(0xFFD1FAE5), Color(0xFF059669))
+    } else {
+        Triple("Inactive", Color(0xFFF3F4F6), Color(0xFF6B7280))
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White, RoundedCornerShape(12.dp))
+            .border(1.dp, Color(0xFFF0F0F0), RoundedCornerShape(12.dp))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Groups, null, tint = Color(0xFF6B7280), modifier = Modifier.size(16.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(department.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    modifier = Modifier
+                        .background(bgColor, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(badgeText, fontSize = 11.sp, color = textColor, fontWeight = FontWeight.Medium)
+                }
+                Box {
+                    Icon(
+                        Icons.Default.MoreHoriz,
+                        contentDescription = "More",
+                        tint = Color(0xFF9CA3AF),
+                        modifier = Modifier.size(20.dp).clickable { menuExpanded = true }
+                    )
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        containerColor = Color.White,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Edit", color = Color.Black) },
+                            onClick = { menuExpanded = false; onEditClick(department) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("View Teams", color = Color.Black) },
+                            onClick = { menuExpanded = false; onViewClick(department) }
+                        )
+                    }
+                }
+            }
+        }
+
+        HorizontalDivider(color = Color(0xFFF5F5F5))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .background(Color(0xFFF3F4F6), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Person, null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(14.dp))
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(headName, fontSize = 13.sp, color = Color(0xFF374151), fontWeight = FontWeight.Medium)
+                Text(
+                    department.description ?: "—",
+                    fontSize = 12.sp,
+                    color = Color(0xFF9CA3AF),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFF8F9FB), RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("Employees", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                Spacer(Modifier.height(2.dp))
+                Text(department.totalEmployees.toString(), fontSize = 13.sp, color = Color(0xFFD97706), fontWeight = FontWeight.Bold)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("Teams", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                Spacer(Modifier.height(2.dp))
+                Text("0", fontSize = 13.sp, color = Color(0xFF374151), fontWeight = FontWeight.Medium)
+            }
+        }
+    }
+}
+
 // ─────────────────────────────────────────────────────────────
 // Plan Limit Dialog - Slides from Top
 // ─────────────────────────────────────────────────────────────
@@ -421,7 +643,7 @@ fun DepartmentPlanLimitDialog(
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF111827),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            textAlign = TextAlign.Center
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -430,7 +652,7 @@ fun DepartmentPlanLimitDialog(
                             text = message,
                             fontSize = 14.sp,
                             color = Color(0xFF6B7280),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
@@ -1016,7 +1238,7 @@ fun DepartmentField(
                 singleLine = !isDescription,
                 maxLines = if (isDescription) 3 else 1,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color(0xFF111827)),
+                textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF111827)),
                 cursorBrush = SolidColor(Color(0xFF3B3BF9))
             )
             if (value.isEmpty()) {

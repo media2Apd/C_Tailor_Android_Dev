@@ -135,4 +135,6 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 
     implementation("com.google.accompanist:accompanist-permissions:0.37.3")
+
+    implementation("com.github.skydoves:colorpicker-compose:1.1.2")
 }

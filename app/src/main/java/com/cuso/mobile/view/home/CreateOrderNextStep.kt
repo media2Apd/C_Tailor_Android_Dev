@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.database.entities.SelectedGarment
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 private val AccentBlue   = Color(0xFF3B82F6)
@@ -29,13 +30,33 @@ private val LabelGray    = Color(0xFF9CA3AF)
 private val TextPrimary  = Color(0xFF111827)
 private val TextSecond   = Color(0xFF6B7280)
 
+// ─── Data holder passed in from CreateOrderScreen ──────────────────────────────
+// Fill this from the state you already collect in CreateOrderScreen.kt and pass
+// it down when navigating to this "next step" screen. No more static text.
+data class OrderReviewData(
+    val fullName: String,
+    val countryCode: String,
+    val phone: String,
+    val gender: String,
+    val dressFor: String,
+    val address: String,
+    val garments: List<SelectedGarment>,
+    val trialDate: String,      // empty string => "Not Scheduled"
+    val deliveryDate: String,   // empty string => "Not Scheduled"
+    val discount: Double = 0.0,
+    val paidSoFar: Double = 0.0
+)
+
 // ─── Entry Point ──────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateOrderNextStep(onBack: () -> Unit = {}) {
+fun CreateOrderNextStep(
+    orderData: OrderReviewData,
+    onBack: () -> Unit = {},
+    onSaveOrder: () -> Unit = {}
+) {
     Scaffold(
         topBar = { CreateOrderTopBar(onBack) },
-        bottomBar = { CreateOrderBottomBar() },
         containerColor = PageBg
     ) { padding ->
         Column(
@@ -46,12 +67,12 @@ fun CreateOrderNextStep(onBack: () -> Unit = {}) {
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            CustomerDetailsSection()
-            GarmentsSection()
-            BillingDetailsSection()
-            DeliveryScheduleSection()
-            PaymentSummarySection()
-            ActionButtons(onBack)
+            CustomerDetailsSection(orderData)
+            GarmentsSection(orderData.garments)
+            BillingDetailsSection(orderData.garments, orderData.discount)
+            DeliveryScheduleSection(orderData.trialDate, orderData.deliveryDate)
+            PaymentSummarySection(orderData.garments, orderData.discount, orderData.paidSoFar)
+            ActionButtons(onBack, onSaveOrder)
         }
     }
 }
@@ -61,43 +82,7 @@ fun CreateOrderNextStep(onBack: () -> Unit = {}) {
 @Composable
 private fun CreateOrderTopBar(onBack: () -> Unit) {
     Column {
-        // Search toolbar
-        TopAppBar(
-            title = {
-                OutlinedTextField(
-                    value = "",
-                    onValueChange = {},
-                    placeholder = { Text("Search anything...", fontSize = 13.sp, color = LabelGray) },
-                    leadingIcon = { Icon(Icons.Default.Search, null, tint = LabelGray) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = BorderColor,
-                        unfocusedBorderColor = BorderColor,
-                        focusedContainerColor = PageBg,
-                        unfocusedContainerColor = PageBg
-                    )
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = {}) {
-                    Icon(Icons.Default.Menu, contentDescription = "Menu", tint = TextSecond)
-                }
-            },
-            actions = {
-                IconButton(onClick = {}) { Icon(Icons.Default.Add, null, tint = TextSecond) }
-                IconButton(onClick = {}) { Icon(Icons.Default.Notifications, null, tint = TextSecond) }
-                IconButton(onClick = {}) { Icon(Icons.Default.CalendarMonth, null, tint = TextSecond) }
-                IconButton(onClick = {}) { Icon(Icons.Default.Settings, null, tint = TextSecond) }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = SectionBg)
-        )
         HorizontalDivider(color = BorderColor)
-
-        // Page header
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
@@ -117,17 +102,19 @@ private fun CreateOrderTopBar(onBack: () -> Unit) {
 
 // ─── Customer Details ─────────────────────────────────────────────────────────
 @Composable
-private fun CustomerDetailsSection() {
+private fun CustomerDetailsSection(data: OrderReviewData) {
     SectionCard {
         SectionHeader(icon = Icons.Default.Info, title = "Customer Details")
-        LabelValue(label = "FULL NAME", value = "nithishkumar")
+        LabelValue(label = "FULL NAME", value = data.fullName.ifBlank { "—" })
         Spacer(Modifier.height(8.dp))
-        LabelValue(label = "CONTACT INFO", value = "+91 919345483369")
+        LabelValue(label = "CONTACT INFO", value = "${data.countryCode} ${data.phone}".trim().ifBlank { "—" })
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.weight(1f)) { LabelValue(label = "GENDER / PROFILE", value = "Male / Men") }
             Box(Modifier.weight(1f)) {
-                LabelValue(label = "SHIPPING ADDRESS", value = "chennai", bold = false)
+                LabelValue(label = "GENDER / PROFILE", value = "${data.gender} / ${data.dressFor}")
+            }
+            Box(Modifier.weight(1f)) {
+                LabelValue(label = "SHIPPING ADDRESS", value = data.address.ifBlank { "—" }, bold = false)
             }
         }
     }
@@ -135,25 +122,56 @@ private fun CustomerDetailsSection() {
 
 // ─── Garments ─────────────────────────────────────────────────────────────────
 @Composable
-private fun GarmentsSection() {
+private fun GarmentsSection(garments: List<SelectedGarment>) {
     SectionCard {
         SectionHeader(icon = Icons.Default.Checkroom, title = "Garments")
-        Text("Pant", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
-        Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.weight(1f)) { MeasurementField(label = "CHEST", value = "12", unit = "inch") }
-            Box(Modifier.weight(1f)) { MeasurementField(label = "SLEEVE LENGTH", value = "12", unit = "inch") }
+        if (garments.isEmpty()) {
+            Text("No garments added", fontSize = 14.sp, color = LabelGray)
+            return@SectionCard
+        }
+        garments.forEachIndexed { index, garment ->
+            Text(garment.categoryName, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+            Spacer(Modifier.height(12.dp))
+            // NOTE: SelectedGarment doesn't currently expose chest/sleeve length fields.
+            // Once you add a `measurements: List<MeasurementField>` (or similar) to
+            // SelectedGarment, swap the placeholders below for the real values, e.g.:
+            // val chest = garment.measurements.find { it.id == "chest" }?.value ?: "-"
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.weight(1f)) {
+                    MeasurementField(
+                        label = "QTY",
+                        value = garment.quantity.toString(),
+                        unit = ""
+                    )
+                }
+                Box(Modifier.weight(1f)) {
+                    MeasurementField(
+                        label = "FABRIC / COLOR",
+                        value = listOf(garment.fabricType, garment.colorTone)
+                            .filter { it.isNotBlank() }
+                            .joinToString(" / ")
+                            .ifBlank { "-" },
+                        unit = ""
+                    )
+                }
+            }
+            if (index != garments.lastIndex) {
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = BorderColor)
+                Spacer(Modifier.height(12.dp))
+            }
         }
     }
 }
 
 // ─── Billing Details ──────────────────────────────────────────────────────────
 @Composable
-private fun BillingDetailsSection() {
+private fun BillingDetailsSection(garments: List<SelectedGarment>, discount: Double) {
+    val subtotal = garments.sumOf { it.price * it.quantity }
+
     SectionCard {
         SectionHeader(icon = Icons.Default.Description, title = "Billing Details")
 
-        // Column headers
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("ITEM", fontSize = 10.sp, color = LabelGray, modifier = Modifier.weight(1f))
             Text("QTY", fontSize = 10.sp, color = LabelGray, modifier = Modifier.width(48.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
@@ -161,65 +179,63 @@ private fun BillingDetailsSection() {
         }
         HorizontalDivider(color = BorderColor, modifier = Modifier.padding(vertical = 6.dp))
 
-        // Billing row
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Pant", fontSize = 14.sp, color = TextPrimary, modifier = Modifier.weight(1f))
-            Box(
-                modifier = Modifier
-                    .width(48.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .border(0.5.dp, BorderColor, RoundedCornerShape(6.dp))
-                    .background(PageBg)
-                    .padding(vertical = 4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("04", fontSize = 13.sp, color = TextPrimary)
+        if (garments.isEmpty()) {
+            Text("No items added", fontSize = 13.sp, color = LabelGray)
+        } else {
+            garments.forEach { garment ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(garment.categoryName, fontSize = 14.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+                    Box(
+                        modifier = Modifier
+                            .width(48.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .border(0.5.dp, BorderColor, RoundedCornerShape(6.dp))
+                            .background(PageBg)
+                            .padding(vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(garment.quantity.toString().padStart(2, '0'), fontSize = 13.sp, color = TextPrimary)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .width(90.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .border(0.5.dp, BorderColor, RoundedCornerShape(6.dp))
+                            .background(PageBg)
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("₹", fontSize = 13.sp, color = LabelGray)
+                        Spacer(Modifier.width(4.dp))
+                        Text(garment.price.toInt().toString(), fontSize = 13.sp, color = TextPrimary)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
             }
-            Spacer(Modifier.width(8.dp))
-            Row(
-                modifier = Modifier
-                    .width(90.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .border(0.5.dp, BorderColor, RoundedCornerShape(6.dp))
-                    .background(PageBg)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("₹", fontSize = 13.sp, color = LabelGray)
-                Spacer(Modifier.width(4.dp))
-                Text("0", fontSize = 13.sp, color = TextPrimary)
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = {}, contentPadding = PaddingValues(0.dp)) {
-            Text("+ Add Item Charge", color = AccentBlue, fontSize = 13.sp)
-        }
-
-        Spacer(Modifier.height(4.dp))
-        Text("GLOBAL / ADDITIONAL CHARGES", fontSize = 10.sp, color = LabelGray, letterSpacing = 0.06.sp)
-        Spacer(Modifier.height(4.dp))
-        TextButton(onClick = {}, contentPadding = PaddingValues(0.dp)) {
-            Text("+ Add Global Charge", color = AccentBlue, fontSize = 13.sp)
         }
 
         HorizontalDivider(color = BorderColor, modifier = Modifier.padding(vertical = 8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Total Items: 1", fontSize = 13.sp, color = TextSecond)
-            Text("Subtotal   ₹0", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+            Text("Total Items: ${garments.size}", fontSize = 13.sp, color = TextSecond)
+            Text("Subtotal   ₹${"%.2f".format(subtotal)}", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
         }
     }
 }
 
 // ─── Delivery Schedule ────────────────────────────────────────────────────────
 @Composable
-private fun DeliveryScheduleSection() {
+private fun DeliveryScheduleSection(trialDate: String, deliveryDate: String) {
     SectionCard {
         SectionHeader(icon = Icons.Default.CalendarMonth, title = "Delivery Schedule")
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Trial Date", fontSize = 14.sp, color = TextSecond)
-            Text("Not Scheduled", fontSize = 14.sp, color = LabelGray)
+            Text(
+                trialDate.ifBlank { "Not Scheduled" },
+                fontSize = 14.sp,
+                color = if (trialDate.isBlank()) LabelGray else TextPrimary
+            )
         }
         Spacer(Modifier.height(8.dp))
         Row(
@@ -232,18 +248,27 @@ private fun DeliveryScheduleSection() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Final Delivery", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AccentBlue)
-            Text("2026-06-30", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AccentBlue)
+            Text(
+                deliveryDate.ifBlank { "Not Scheduled" },
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = AccentBlue
+            )
         }
     }
 }
 
 // ─── Payment Summary ──────────────────────────────────────────────────────────
 @Composable
-private fun PaymentSummarySection() {
+private fun PaymentSummarySection(garments: List<SelectedGarment>, discount: Double, paidSoFar: Double) {
+    val subtotal = garments.sumOf { it.price * it.quantity }
+    val grandTotal = (subtotal - discount).coerceAtLeast(0.0)
+    val balanceDue = (grandTotal - paidSoFar).coerceAtLeast(0.0)
+
     SectionCard {
         SectionHeader(icon = Icons.Default.CurrencyRupee, title = "Payment Summary")
 
-        PaymentRow(label = "Subtotal", value = "₹0.00")
+        PaymentRow(label = "Subtotal", value = "₹${"%.2f".format(subtotal)}")
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Discount", fontSize = 14.sp, color = TextSecond, modifier = Modifier.weight(1f))
             Row(
@@ -256,31 +281,31 @@ private fun PaymentSummarySection() {
             ) {
                 Text("- ₹", fontSize = 13.sp, color = LabelGray)
                 Spacer(Modifier.width(4.dp))
-                Text("0", fontSize = 13.sp, color = TextPrimary)
+                Text(discount.toInt().toString(), fontSize = 13.sp, color = TextPrimary)
             }
         }
 
         HorizontalDivider(color = BorderColor, modifier = Modifier.padding(vertical = 8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Grand Total", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
-            Text("₹0.00", fontSize = 17.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+            Text("₹${"%.2f".format(grandTotal)}", fontSize = 17.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
         }
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Paid So Far", fontSize = 13.sp, color = TextSecond)
-            Text("₹0", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = SuccessGreen)
+            Text("₹${"%.2f".format(paidSoFar)}", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = SuccessGreen)
         }
         Spacer(Modifier.height(4.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Balance Due", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextSecond)
-            Text("₹0", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = SuccessGreen)
+            Text("₹${"%.2f".format(balanceDue)}", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = SuccessGreen)
         }
     }
 }
 
 // ─── Action Buttons ───────────────────────────────────────────────────────────
 @Composable
-private fun ActionButtons(onBack: () -> Unit) {
+private fun ActionButtons(onBack: () -> Unit, onSaveOrder: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End,
@@ -296,37 +321,13 @@ private fun ActionButtons(onBack: () -> Unit) {
         }
         Spacer(Modifier.width(10.dp))
         Button(
-            onClick = {},
+            onClick = onSaveOrder,
             shape = RoundedCornerShape(8.dp),
             colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
         ) {
             Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
             Text("Save Order", fontSize = 14.sp)
-        }
-    }
-}
-
-// ─── Bottom Bar ───────────────────────────────────────────────────────────────
-@Composable
-private fun CreateOrderBottomBar() {
-    HorizontalDivider(color = BorderColor)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(PageBg)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("v1.0", fontSize = 12.sp, color = LabelGray)
-            Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(50)).background(SuccessGreen))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            listOf("Feedback", "Refresh", "Activity", "Accessibility", "Help").forEach {
-                Text(it, fontSize = 12.sp, color = LabelGray)
-            }
         }
     }
 }
@@ -373,10 +374,12 @@ private fun MeasurementField(label: String, value: String, unit: String) {
     Column {
         Text(label, fontSize = 10.sp, color = LabelGray, letterSpacing = 0.06.sp)
         Spacer(Modifier.height(2.dp))
-        Row() {
-            Text(value, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary,modifier=Modifier. alignByBaseline())
-            Spacer(Modifier.width(4.dp))
-            Text(unit, fontSize = 12.sp, color = LabelGray,modifier=Modifier. alignByBaseline())
+        Row {
+            Text(value, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary, modifier = Modifier.alignByBaseline())
+            if (unit.isNotBlank()) {
+                Spacer(Modifier.width(4.dp))
+                Text(unit, fontSize = 12.sp, color = LabelGray, modifier = Modifier.alignByBaseline())
+            }
         }
     }
 }

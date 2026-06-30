@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -43,8 +44,14 @@ import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.model.CustomerGarment
 import com.cuso.mobile.model.CustomerOrder
 import com.cuso.mobile.view.composable.PhoneInputField
+import com.cuso.mobile.view.home.DatePickerField
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
+import com.example.tailorapp.ui.screens.OrderReviewData
+import com.github.skydoves.colorpicker.compose.AlphaSlider
+import com.github.skydoves.colorpicker.compose.BrightnessSlider
+import com.github.skydoves.colorpicker.compose.HsvColorPicker
+import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -76,7 +83,7 @@ data class MeasurementField(
 fun CreateOrderScreen(
     onBack: () -> Unit = {},
     onCancel: () -> Unit = {},
-    onNextStep: () -> Unit = {},
+    onNextStep: (OrderReviewData) -> Unit = {},
     salesViewModel: SalesViewModel = hiltViewModel(),
     branchViewModel: BranchViewModel = hiltViewModel()
 ) {
@@ -99,6 +106,12 @@ fun CreateOrderScreen(
     var showImagePickerOptions by remember { mutableStateOf(false) }
     var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
 
+    //--Branch---from api
+    // ── Branches ──
+    val branchUiState by branchViewModel.uiState.collectAsStateWithLifecycle()
+    val branches = (branchUiState as? com.cuso.mobile.viewmodel.BranchUiState.Success)?.branches ?: emptyList()
+    val isLoadingBranches = branchUiState is com.cuso.mobile.viewmodel.BranchUiState.Loading
+    var selectedBranchId by remember { mutableStateOf("") }
     // ── Permission state ──
     val cameraPermissionState = rememberPermissionState(
         Manifest.permission.CAMERA
@@ -450,7 +463,20 @@ fun CreateOrderScreen(
                     Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.Medium)
                 }
                 Button(
-                    onClick = { onNextStep() },
+                    onClick = {
+                        val data = OrderReviewData(
+                            fullName = fullName,
+                            countryCode = countryCode,
+                            phone = phone,
+                            gender = gender,
+                            dressFor = dressFor,
+                            address = address,
+                            garments = selectedGarments,
+                            trialDate = trialDate,
+                            deliveryDate = deliveryDate
+                        )
+                        onNextStep(data)
+                    },
                     modifier = Modifier
                         .weight(2f)
                         .height(48.dp),
@@ -488,23 +514,27 @@ fun CreateOrderScreen(
                     FormLabel("Phone")
 
                     // ── Phone field ──
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        PhoneInputField(
-                            phoneValue = phone,
-                            onPhoneChange = { newPhone ->
-                                phone = newPhone
-                                if (newPhone.isEmpty()) salesViewModel.clearCustomerSearch()
-                            },
-                            onCountryChange = { country ->
-                                countryCode = country.code
-                            }
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            PhoneInputField(
+                                phoneValue = phone,
+                                onPhoneChange = { newPhone ->
+                                    phone = newPhone
+                                    if (newPhone.isEmpty()) salesViewModel.clearCustomerSearch()
+                                },
+                                onCountryChange = { country ->
+                                    countryCode = country.code
+                                }
+                            )
+                        }
                         if (isSearchingCustomer) {
+                            Spacer(Modifier.width(8.dp))
                             CircularProgressIndicator(
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .align(Alignment.CenterEnd)
-                                    .padding(end = 8.dp),
+                                modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp,
                                 color = Color(0xFF3B3BF9)
                             )
@@ -998,19 +1028,39 @@ fun CreateOrderScreen(
                 // ══════════════════════════════════════════════
                 SectionCard(title = "DELIVERY DETAILS") {
                     FormLabel("Order Date")
-                    DateField(value = orderDate, placeholder = "dd-mm-yyyy", onClick = {})
-
+                    DatePickerField(
+                        value = orderDate.ifEmpty { "Select Date" },
+                        onDateSelected = { orderDate = it }
+                    )
                     Spacer(Modifier.height(4.dp))
                     FormLabel("Trial Date")
-                    DateField(value = trialDate, placeholder = "Select Trial Date", onClick = {})
-
+                    DatePickerField(
+                        value = trialDate.ifEmpty { "Select Date" },
+                        onDateSelected = { trialDate = it }
+                    )
                     Spacer(Modifier.height(4.dp))
                     FormLabel("Target Delivery Date")
-                    DateField(value = deliveryDate, placeholder = "Select Delivery Date", onClick = {})
-
+                    DatePickerField(
+                        value = deliveryDate.ifEmpty { "Select Date" },
+                        onDateSelected = { deliveryDate = it }
+                    )
                     Spacer(Modifier.height(4.dp))
+                    // ── Replace the "Assigned Branch" Box{...} block inside DELIVERY DETAILS SectionCard with this ──
+// Add near the other collectAsStateWithLifecycle() calls, ABOVE the Composable's UI code:
+//
+// val branchUiState by branchViewModel.uiState.collectAsStateWithLifecycle()
+// val branches = (branchUiState as? com.cuso.mobile.viewmodel.BranchUiState.Success)?.branches ?: emptyList()
+// val isLoadingBranches = branchUiState is com.cuso.mobile.viewmodel.BranchUiState.Loading
+//
+// Replace `var branch by remember { mutableStateOf("") }` with:
+// var selectedBranchId by remember { mutableStateOf("") }
+
                     FormLabel("Assigned Branch")
                     Box {
+                        // NOTE: adjust `b.name` below if BranchItem's display field is called
+                        // something else (e.g. b.branchName). `b.id` is assumed to be the
+                        // unique identifier field on BranchItem.
+                        val selectedBranchName = branches.find { it.id == selectedBranchId }?.name.orEmpty()
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1022,22 +1072,45 @@ fun CreateOrderScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                if (branch.isEmpty()) "Select Branch" else branch,
+                                text = when {
+                                    isLoadingBranches -> "Loading branches..."
+                                    selectedBranchName.isEmpty() -> "Select Branch"
+                                    else -> selectedBranchName
+                                },
                                 fontSize = 14.sp,
-                                color = if (branch.isEmpty()) Color(0xFF9CA3AF) else Color(0xFF111827)
+                                color = if (selectedBranchName.isEmpty()) Color(0xFF9CA3AF) else Color(0xFF111827)
                             )
-                            Icon(Icons.Default.KeyboardArrowDown, null, tint = Color(0xFF6B7280))
+                            if (isLoadingBranches) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Default.KeyboardArrowDown, null, tint = Color(0xFF6B7280))
+                            }
                         }
                         DropdownMenu(
-                            expanded = showBranchDropdown,
+                            expanded = showBranchDropdown && !isLoadingBranches,
                             onDismissRequest = { showBranchDropdown = false },
                             containerColor = Color.White
                         ) {
-                            listOf("Main Branch", "Branch 1", "Branch 2").forEach { opt ->
+                            if (branches.isEmpty()) {
                                 DropdownMenuItem(
-                                    text = { Text(opt) },
-                                    onClick = { branch = opt; showBranchDropdown = false }
+                                    text = { Text("No branches found", color = Color(0xFF9CA3AF)) },
+                                    onClick = {},
+                                    enabled = false
                                 )
+                            } else {
+                                branches.forEach { b ->
+                                    val branchName = b.name.orEmpty()
+                                    val branchId = b.id
+                                    if (branchId.isNotBlank()) {
+                                        DropdownMenuItem(
+                                            text = { Text(branchName.ifBlank { "Unnamed Branch" }) },
+                                            onClick = {
+                                                selectedBranchId = branchId
+                                                showBranchDropdown = false
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -1157,12 +1230,13 @@ fun CreateOrderScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(80.dp)
+                                .height(90.dp)
                                 .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
                                 .border(1.dp, Color(0xFFD1D5DB), RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(Modifier.padding(10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
                                     Icons.Default.Image,
                                     null,
@@ -1765,10 +1839,9 @@ fun GarmentDetailDialog(
                 )
 
                 FormLabel("Color / Tone")
-                FormTextField(
+                ColorPickerField(
                     value = garment.colorTone,
-                    onValueChange = { newValue -> onGarmentChange(garment.copy(colorTone = newValue)) },
-                    placeholder = "Color name"
+                    onColorSelected = { hex -> onGarmentChange(garment.copy(colorTone = hex)) }
                 )
 
                 FormLabel("Pattern")
@@ -2125,8 +2198,11 @@ private fun PatternSelector(
     options: List<String>,
     onPatternChange: (String) -> Unit
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { option ->
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        items(options) { option ->
             val isSelected = selectedPattern == option
             FilterChip(
                 selected = isSelected,
@@ -2146,7 +2222,6 @@ private fun PatternSelector(
         }
     }
 }
-
 @Composable
 private fun SectionCard(
     title: String,
@@ -2239,6 +2314,169 @@ private fun DateField(
             tint = Color(0xFF9CA3AF),
             modifier = Modifier.size(18.dp)
         )
+    }
+}
+
+
+/**
+ * Color/Tone field: shows a swatch + hex text. Tap to open a full HSV color picker.
+ * value -> hex string like "#FF5733" (or "" if not picked)
+ */
+@Composable
+fun ColorPickerField(
+    value: String,
+    onColorSelected: (String) -> Unit,
+    placeholder: String = "Pick a color"
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    val currentColor = remember(value) { parseHexColorOrNull(value) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
+            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+            .clickable { showDialog = true }
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .background(currentColor ?: Color(0xFFE5E7EB), CircleShape)
+                .border(1.dp, Color(0xFFD1D5DB), CircleShape)
+        )
+        Text(
+            text = value.ifBlank { placeholder },
+            fontSize = 14.sp,
+            color = if (value.isBlank()) Color(0xFF9CA3AF) else Color(0xFF111827)
+        )
+    }
+
+    if (showDialog) {
+        ColorPickerDialog(
+            initialHex = value,
+            onDismiss = { showDialog = false },
+            onConfirm = { hex ->
+                onColorSelected(hex)
+                showDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun ColorPickerDialog(
+    initialHex: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    val controller = rememberColorPickerController()
+    var selectedHex by remember { mutableStateOf(initialHex.ifBlank { "#3B82F6" }) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Choose Color", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+
+                // ── Full HSV color wheel ──
+                HsvColorPicker(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(260.dp)
+                        .padding(10.dp),
+                    controller = controller,
+                    initialColor = parseHexColorOrNull(selectedHex) ?: Color(0xFF3B82F6),
+                    onColorChanged = { envelope ->
+                        val argb = envelope.color.toArgb()
+                        val rgbHex = String.format("#%06X", 0xFFFFFF and argb)
+                        selectedHex = rgbHex
+                    }
+                )
+
+                // ── Brightness slider ──
+                BrightnessSlider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(35.dp),
+                    controller = controller
+                )
+
+                // ── Alpha slider (optional, remove if not needed) ──
+                AlphaSlider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(35.dp),
+                    controller = controller
+                )
+
+                // ── Preview + hex display ──
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                parseHexColorOrNull(selectedHex) ?: Color(0xFFE5E7EB),
+                                RoundedCornerShape(10.dp)
+                            )
+                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
+                    )
+                    Text(selectedHex.uppercase(), fontSize = 14.sp, color = Color(0xFF111827))
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Cancel", color = Color(0xFF374151))
+                    }
+                    Button(
+                        onClick = { onConfirm(selectedHex.uppercase()) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Select", color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun parseHexColorOrNull(hex: String): Color? {
+    return try {
+        val cleaned = hex.trim().removePrefix("#")
+        if (cleaned.length != 6 && cleaned.length != 8) return null
+        val colorLong = cleaned.toLong(16)
+        if (cleaned.length == 6) Color(0xFF000000 or colorLong) else Color(colorLong)
+    } catch (_: Exception) {
+        null
     }
 }
 

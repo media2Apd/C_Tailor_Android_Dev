@@ -26,13 +26,13 @@ import com.cuso.mobile.view.organization.OrganizationProfile
 import com.cuso.mobile.view.others.privacyPolicy
 import com.cuso.mobile.view.others.termsConditions
 import com.cuso.mobile.view.home.HomeScreen
+import com.cuso.mobile.view.home.OrderFlowNavigator
 import com.cuso.mobile.view.home.SalesSettingsScreen
 import com.cuso.mobile.view.home.SettingsScreen
 import com.cuso.mobile.view.sales.CreateOrderScreen
 import com.cuso.mobile.view.sales.SalesOrderScreen
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
-import com.example.tailorapp.ui.screens.CreateOrderNextStep
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -44,8 +44,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             CusoTailorTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
-//                    AppNav(activity = this)
-                    CreateOrderNextStep()
+                    val navController = rememberNavController()
+                    AppNav(activity = this)
+
+                    // OrderFlowNavigator internally handles BOTH screens:
+                    // step 0 -> CreateOrderScreen (fill details)
+                    // step 1 -> CreateOrderNextStep (review, using real filled data)
+//                    OrderFlowNavigator(
+//                        onFinish = { finish() }   // closes the activity when flow is done
+//                    )
                 }
             }
         }
@@ -78,8 +85,13 @@ fun AppNav(activity: Activity) {
                 resetSuccessMessage = message
             )
         }
+
+        // "create-order" route now drives the FULL flow (fill -> review),
+        // not just the first screen.
         composable("create-order") {
-            CreateOrderScreen()
+            OrderFlowNavigator(
+                onFinish = { navController.popBackStack() }
+            )
         }
 
         composable("login-with-email/{email}",

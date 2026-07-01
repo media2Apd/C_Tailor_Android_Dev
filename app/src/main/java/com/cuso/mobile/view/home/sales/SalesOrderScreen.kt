@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.sales
+package com.cuso.mobile.view.home.sales
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background

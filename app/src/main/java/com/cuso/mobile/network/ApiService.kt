@@ -16,6 +16,7 @@ import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
 import com.cuso.mobile.model.CreateOrderRequest
 import com.cuso.mobile.model.CreateOrderResponse
+import com.cuso.mobile.model.CustomerApiResponse
 import com.cuso.mobile.model.CustomerSearchResponse
 import com.cuso.mobile.model.DeleteLeadResponse
 import com.cuso.mobile.model.DepartmentCreateRequest
@@ -66,6 +67,7 @@ import com.cuso.mobile.model.organizationSetUpResponse
 import com.cuso.mobile.model.resetNewPasswordRequest
 import com.cuso.mobile.model.resetNewPasswordResponse
 import com.google.gson.JsonObject
+import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -79,6 +81,9 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import com.cuso.mobile.model.CustomerItem
+import com.cuso.mobile.model.CustomerListResponse
+import com.cuso.mobile.model.MeasurementsResponse
 
 interface ApiService {
 
@@ -443,11 +448,42 @@ interface ApiService {
 
 
     //create order when save order clicks
+    @Multipart
     @POST("/api/sales-orders/create-direct")
     suspend fun createOrder(
         @Header("Authorization") token: String,
-        @Header("x-csrf-token") csrfToken: String,
-        @Body request: CreateOrderRequest
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Part("customer") customer: RequestBody,
+        @Part("branch") branch: RequestBody,
+        @Part("wearerType") wearerType: RequestBody? = null,
+        @Part("source") source: RequestBody? = null,
+        @Part("orderType") orderType: RequestBody? = null,
+        @Part("garments") garments: RequestBody,
+        @Part("paymentDetails") paymentDetails: RequestBody,
+        @Part("orderDate") orderDate: RequestBody,
+        @Part("trialDate") trialDate: RequestBody? = null,
+        @Part("deliveryDate") deliveryDate: RequestBody? = null,
+        @Part("totalAmount") totalAmount: RequestBody,
+        @Part("status") status: RequestBody? = null,
+        @Part designImages: List<MultipartBody.Part>,           // pass emptyList() if none
+        @Part voiceNote: MultipartBody.Part?
     ): Response<CreateOrderResponse>
+
+    @GET("api/customers/view-all")
+    suspend fun getCustomers(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("type") type: String? = null
+    ): Response<CustomerListResponse>
+
+    @GET("api/measurements/customers-last-orders")
+    suspend fun getMeasurements(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<MeasurementsResponse>
+
 
 }

@@ -1,5 +1,5 @@
-package com.example.tailorapp.ui.screens
-
+package com.cuso.mobile.view.home.sales
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,16 +17,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.model.ChargeRequest
 import com.cuso.mobile.model.CreateGarmentRequestForCreateOrder
 import com.cuso.mobile.model.CreateOrderRequest
+import com.cuso.mobile.model.CustomerRequest
+import com.cuso.mobile.model.FabricDetailsRequest
+import com.cuso.mobile.model.GarmentModelRequest
+import com.cuso.mobile.model.PaymentDetailsRequest
+import com.cuso.mobile.model.image_voice.createImageParts
+import com.cuso.mobile.model.image_voice.createVoiceNotePart
 import com.cuso.mobile.viewmodel.SalesOrderViewModel
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -43,8 +51,8 @@ private val DangerRed    = Color(0xFFEF4444)
 
 // ─── Data holder passed in from CreateOrderScreen ──────────────────────────────
 data class OrderReviewData(
-    val customerId: String,             // ✅ NEW — Mongo _id of the customer, required by API
-    val branchId: String? = null,       // ✅ NEW — Mongo _id of the branch
+    val customerId: String,
+    val branchId: String? = null,
     val fullName: String,
     val countryCode: String,
     val phone: String,
@@ -52,12 +60,15 @@ data class OrderReviewData(
     val dressFor: String,
     val address: String,
     val garments: List<SelectedGarment>,
-    val trialDate: String,      // empty string => "Not Scheduled"   (expects yyyy-MM-dd if non-empty)
-    val deliveryDate: String,   // empty string => "Not Scheduled"   (expects yyyy-MM-dd if non-empty)
+    val orderDate: String = "",     // ✅ new — comes from Screen 1
+    val source: String = "Walk-in", // ✅ new — comes from Screen 1
+    val trialDate: String,
+    val deliveryDate: String,
     val discount: Double = 0.0,
-    val paidSoFar: Double = 0.0
+    val paidSoFar: Double = 0.0,
+    val designImages: List<Uri> = emptyList(),  // ✅ new — optional, from Screen 1
+    val voiceNoteUri: Uri? = null
 )
-
 // ─── Charge model used for both "Item Charge" (per garment) and "Global Charge" (order level) ──
 data class ChargeItem(
     val id: String,
@@ -75,6 +86,8 @@ fun CreateOrderNextStep(
     onBack: () -> Unit = {},
     onSaveOrder: (CreateOrderRequest) -> Unit = {}   // ✅ now hands back the fully built request
 ) {
+    val context = LocalContext.current   // if not already available in this composable
+
     // ── Editable unit price per garment (garment.id -> price text) ──
     var unitPrices by remember(orderData.garments) {
         mutableStateOf(
@@ -189,34 +202,48 @@ fun CreateOrderNextStep(
                 paidSoFar = orderData.paidSoFar
             )
 
-            val salesOrderViewModel: SalesOrderViewModel = hiltViewModel()
+//            val salesOrderViewModel: SalesOrderViewModel = hiltViewModel()
 
             ActionButtons(
                 onBack = onBack,
+                salesOrderViewModel = salesOrderViewModel,
                 onSaveOrder = {
-                    // ── Build the per-garment request list (price, qty, total, item charges) ──
+                    // ── Build the per-garment request list (price, qty, total, models, fabric, charges) ──
                     val garmentRequests = orderData.garments.map { g ->
                         val price = unitPrices[g.id]?.toDoubleOrNull() ?: 0.0
 
                         val charges = itemCharges[g.id].orEmpty().mapNotNull { c ->
                             val amt = c.amount.toDoubleOrNull()
                             if (c.name.isNotBlank() && amt != null) {
-                                ChargeRequest(
-                                    name = c.name,
-                                    amount = amt
-                                )
-                            } else {
-                                null
-                            }
+                                ChargeRequest(name = c.name, amount = amt)
+                            } else null
                         }
-
                         val chargeTotal = charges.sumOf { it.amount }
 
                         CreateGarmentRequestForCreateOrder(
                             category = g.category,
                             categoryName = g.categoryName,
-                            models = g.models ?: emptyList(),
+                            models = g.models.map { modelName -> GarmentModelRequest(modelName = modelName) },
+                            measurements = g.measurements
+                                .filter { it.label.isNotBlank() }
+                                .associate { m ->
+                                    m.label to com.cuso.mobile.model.MeasurementValueRequest(
+                                        value = listOf(m.value),
+                                        inputType = "Number",
+                                        unit = m.unit
+                                    )
+                                }
+                                .takeIf { it.isNotEmpty() },   // ✅ NEW — measurements now reach the backend
                             quantity = g.quantity,
+                            priority = g.priority,
+                            trialRequired = g.trialRequired,
+                            fabricDetails = FabricDetailsRequest(
+                                fabricSource = g.fabricSource,
+                                fabricType = g.fabricType,
+                                color = g.colorTone,
+                                pattern = g.pattern
+                            ),
+                            stitchingCharge = if (price > 0) price.toInt().toString() else null,
                             price = price,
                             total = (price * g.quantity) + chargeTotal,
                             additionalCharges = charges
@@ -227,55 +254,62 @@ fun CreateOrderNextStep(
                     val globalChargeRequests = globalCharges.mapNotNull { c ->
                         val amt = c.amount.toDoubleOrNull()
                         if (c.name.isNotBlank() && amt != null) {
-                            ChargeRequest(
-                                name = c.name,
-                                amount = amt
-                            )
-                        } else {
-                            null
-                        }
+                            ChargeRequest(name = c.name, amount = amt)
+                        } else null
                     }
-
-                    val today = java.text.SimpleDateFormat(
-                        "yyyy-MM-dd",
-                        java.util.Locale.getDefault()
-                    ).format(java.util.Date())
 
                     val grandTotal = (subtotal - discountValue).coerceAtLeast(0.0)
-                    val balance = (grandTotal - orderData.paidSoFar).coerceAtLeast(0.0)
 
-                    val paymentStatus = when {
-                        orderData.paidSoFar <= 0.0 -> "unpaid"
-                        balance <= 0.0 -> "paid"
-                        else -> "partial"
-                    }
-
+                    // NEW
                     val request = CreateOrderRequest(
-                        customerId = orderData.customerId,
-                        branch = orderData.branchId,
+                        customer = CustomerRequest(
+                            name = orderData.fullName,
+                            mobile = "${orderData.countryCode.removePrefix("+")}${orderData.phone}",
+                            address = orderData.address,
+                            gender = orderData.gender
+                        ),
+                        branch = orderData.branchId.orEmpty(),
                         wearerType = orderData.dressFor,
+                        source = orderData.source,
+                        orderType = "Direct Orders",
                         garments = garmentRequests,
-                        summaryAdditionalCharges = globalChargeRequests,
-                        discount = discountValue,
+                        paymentDetails = PaymentDetailsRequest(
+                            discount = discountValue,
+                            summaryAdditionalCharges = globalChargeRequests,
+                            paymentAmount = orderData.paidSoFar
+                        ),
+                        orderDate = orderData.orderDate.toIsoDateOrNull()
+                            ?: java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                                .format(java.util.Date()),
+                        trialDate = orderData.trialDate.toIsoDateOrNull(),
+                        deliveryDate = orderData.deliveryDate.toIsoDateOrNull(),
                         totalAmount = grandTotal,
-                        totalPaid = orderData.paidSoFar,
-                        paymentStatus = paymentStatus,
-                        source = "Walk-in",
-                        orderDate = today,
-                        trialDate = orderData.trialDate.ifBlank { null },
-                        deliveryDate = orderData.deliveryDate.ifBlank { null },
                         status = "confirmed"
                     )
 
                     // ✅ Create Order API Call
-                    salesOrderViewModel.createOrder(request) { createdOrder ->
-                        // Success
-                        onSaveOrder(request) // Navigate / Back / Success action
+
+                    salesOrderViewModel.createOrder(
+                        request = request,
+                        imageParts = context.createImageParts(orderData.designImages),
+                        voiceNotePart = context.createVoiceNotePart(orderData.voiceNoteUri)
+                    ) { orderItem ->
+                        onSaveOrder(request)
                     }
                 }
             )
         }
     }
+}
+
+// NEW — add this helper near the top of the file, e.g. right after newChargeId()
+private fun String.toIsoDateOrNull(): String? {
+    if (isBlank()) return null
+    val parts = split("-")
+    return if (parts.size == 3) {
+        // input: dd-MM-yyyy  →  output: yyyy-MM-dd
+        "${parts[2]}-${parts[1]}-${parts[0]}"
+    } else null
 }
 
 // ─── Top Bar ──────────────────────────────────────────────────────────────────
@@ -322,6 +356,7 @@ private fun CustomerDetailsSection(data: OrderReviewData) {
 }
 
 // ─── Garments ─────────────────────────────────────────────────────────────────
+// NEW — replace with:
 @Composable
 private fun GarmentsSection(garments: List<SelectedGarment>) {
     SectionCard {
@@ -352,6 +387,36 @@ private fun GarmentsSection(garments: List<SelectedGarment>) {
                     )
                 }
             }
+
+            // ✅ NEW — show saved measurements (Chest, Sleeve Length, custom fields...)
+            if (garment.measurements.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "MEASUREMENTS",
+                    fontSize = 10.sp,
+                    color = LabelGray,
+                    letterSpacing = 0.06.sp
+                )
+                Spacer(Modifier.height(6.dp))
+                val rows = garment.measurements.chunked(2)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    rows.forEach { rowPair ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            rowPair.forEach { m ->
+                                Box(Modifier.weight(1f)) {
+                                    MeasurementField(
+                                        label = m.label.uppercase(),
+                                        value = m.value.ifBlank { "-" },
+                                        unit = if (m.value.isNotBlank()) m.unit else ""
+                                    )
+                                }
+                            }
+                            if (rowPair.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+
             if (index != garments.lastIndex) {
                 Spacer(Modifier.height(12.dp))
                 HorizontalDivider(color = BorderColor)
@@ -695,8 +760,10 @@ private fun PaymentSummarySection(
 private fun ActionButtons(
     onBack: () -> Unit,
     onSaveOrder: () -> Unit,
-    salesOrderViewModel: SalesOrderViewModel = hiltViewModel()
+    salesOrderViewModel: SalesOrderViewModel,
+    navController: NavController?=null
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val actionState by salesOrderViewModel.actionState.collectAsState()
     val isSaving = actionState is com.cuso.mobile.viewmodel.OrderActionState.Loading
 
@@ -716,7 +783,7 @@ private fun ActionButtons(
         }
         Spacer(Modifier.width(10.dp))
         Button(
-            onClick = onSaveOrder,
+            onClick =  onSaveOrder ,
             shape = RoundedCornerShape(8.dp),
             colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
             enabled = !isSaving
@@ -738,15 +805,19 @@ private fun ActionButtons(
     }
 
     // Handle action state
+    // NEW
+    // Handle action state — navigation to SalesOrderScreen is already
+    // triggered via onSaveOrder(request) inside createOrder(...)'s success
+    // callback in the onClick above, so this block just resets state and
+    // shows feedback for both outcomes.
     LaunchedEffect(actionState) {
-        when (actionState) {
+        when (val state = actionState) {
             is com.cuso.mobile.viewmodel.OrderActionState.Success -> {
-                // Order created successfully
-                // You can add a callback here if needed
+                android.widget.Toast.makeText(context, "Order created successfully!", android.widget.Toast.LENGTH_SHORT).show()
                 salesOrderViewModel.resetActionState()
             }
             is com.cuso.mobile.viewmodel.OrderActionState.Error -> {
-                // Show error - you might want to pass an error callback
+                android.widget.Toast.makeText(context, "Failed: ${state.message}", android.widget.Toast.LENGTH_LONG).show()
                 salesOrderViewModel.resetActionState()
             }
             else -> {}

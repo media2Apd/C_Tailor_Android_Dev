@@ -88,10 +88,13 @@ import com.cuso.mobile.view.home.sales.GarmentTypeContent
 import com.cuso.mobile.view.home.sales.SalesSettingsScreen
 import com.cuso.mobile.view.home.sidebar.FullSideBar
 import com.cuso.mobile.view.home.sidebar.SalesSideBar
-import com.cuso.mobile.view.sales.CreateOrderScreen
-import com.cuso.mobile.view.sales.SalesOrderScreen
-import com.example.tailorapp.ui.screens.CreateOrderNextStep
-import com.example.tailorapp.ui.screens.OrderReviewData
+import com.cuso.mobile.view.home.sales.CreateOrderScreen
+import com.cuso.mobile.view.home.sales.SalesOrderScreen
+import com.cuso.mobile.view.home.sales.CreateOrderNextStep
+import com.cuso.mobile.view.home.sales.CustomerScreen
+import com.cuso.mobile.view.home.sales.MeasurementsScreen
+import com.cuso.mobile.view.home.sales.OrderReviewData
+import com.cuso.mobile.viewmodel.CustomerViewModel
 
 
 // ── Data classes ──
@@ -136,6 +139,8 @@ fun HomeScreen(navController: NavController) {
             currentScreen == "home_designation"
 
     val showSalesPanel = isSalesSettingsMode
+    val context = LocalContext.current
+
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -320,15 +325,42 @@ fun HomeScreen(navController: NavController) {
                 "edit_lead" -> EditLeadScreen(
                     onBack = { currentScreen = "sales_lead" }
                 )
+                // Then replace the sales_customers case:
+                // ✅ CUSTOMER SCREEN - Integrated with ViewModel
                 "sales_customers" -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Customers Screen", fontSize = 18.sp, color = Color.Gray)
-                    }
-                }
-                "sales_measurements" -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Measurements Screen", fontSize = 18.sp, color = Color.Gray)
-                    }
+                    val customerViewModel: CustomerViewModel = hiltViewModel()
+                    val customerUiState by customerViewModel.uiState.collectAsStateWithLifecycle()
+
+                    CustomerScreen(
+                        navController = navController,
+                        customerState = customerUiState,
+                        onSearch = customerViewModel::onSearch,
+                        onTypeFilterChange = customerViewModel::onTypeFilterChange,
+                        onPageChange = customerViewModel::onPageChange,
+                        onItemsPerPageChange = customerViewModel::onItemsPerPageChange,
+                        onBack = {
+                            currentScreen = "home"
+                        },
+                        onCreateCustomer = {
+                            Toast.makeText(context, "Create Customer clicked", Toast.LENGTH_SHORT).show()
+                            // Navigate to create customer screen when implemented
+                            // navController.navigate("create_customer")
+                        },
+                        onView = { customer ->
+                            Toast.makeText(context, "View: ${customer.name}", Toast.LENGTH_SHORT).show()
+                            // Navigate to customer detail when implemented
+                            // navController.navigate("customer_detail/${customer.id}")
+                        },
+                        onEdit = { customer ->
+                            Toast.makeText(context, "Edit: ${customer.name}", Toast.LENGTH_SHORT).show()
+                            // Navigate to edit customer when implemented
+                            // navController.navigate("edit_customer/${customer.id}")
+                        },
+                        onDelete = { customer ->
+                            Toast.makeText(context, "Delete: ${customer.name}", Toast.LENGTH_SHORT).show()
+                            // Show delete confirmation dialog when implemented
+                        }
+                    )
                 }
                 "sales_sales_orders" -> {
                     SalesOrderScreen(
@@ -352,6 +384,18 @@ fun HomeScreen(navController: NavController) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("Orders Screen", fontSize = 18.sp, color = Color.Gray)
                     }
+                }
+                // Then replace the sales_measurements case:
+                "sales_measurements" -> {
+                    MeasurementsScreen(
+                        navController = navController,
+                        onBack = {
+                            currentScreen = "home"
+                        },
+                        onCreateOrder = {
+                            currentScreen = "create_order"
+                        }
+                    )
                 }
                 "create_order_review" -> {
                     pendingOrderReviewData?.let { data ->

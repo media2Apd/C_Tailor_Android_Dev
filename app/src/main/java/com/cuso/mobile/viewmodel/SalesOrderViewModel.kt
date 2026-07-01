@@ -158,10 +158,16 @@ class SalesOrderViewModel @Inject constructor(
     // Create order
     // ─────────────────────────────────────────────────────────
 
-    fun createOrder(request: CreateOrderRequest, onSuccess: (OrderItem) -> Unit) {
+    // NEW
+    fun createOrder(
+        request: CreateOrderRequest,
+        imageParts: List<okhttp3.MultipartBody.Part> = emptyList(),
+        voiceNotePart: okhttp3.MultipartBody.Part? = null,
+        onSuccess: (OrderItem) -> Unit
+    ) {
         viewModelScope.launch {
             _actionState.value = OrderActionState.Loading
-            val result = repository.createOrder(request)
+            val result = repository.createOrder(request, imageParts, voiceNotePart)
             if (result.isSuccess) {
                 _actionState.value = OrderActionState.Success("Order created successfully")
                 result.getOrNull()?.let { onSuccess(it) }

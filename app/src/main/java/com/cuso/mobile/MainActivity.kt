@@ -28,7 +28,7 @@ import com.cuso.mobile.view.others.termsConditions
 import com.cuso.mobile.view.home.HomeScreen
 import com.cuso.mobile.view.home.OrderFlowNavigator
 import com.cuso.mobile.view.home.SettingsScreen
-import com.cuso.mobile.view.sales.SalesOrderScreen
+import com.cuso.mobile.view.home.sales.SalesOrderScreen
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
                     val navController = rememberNavController()
                     AppNav(activity = this)
-
+//                      SalesOrderScreen(navController)
                     // OrderFlowNavigator internally handles BOTH screens:
                     // step 0 -> CreateOrderScreen (fill details)
                     // step 1 -> CreateOrderNextStep (review, using real filled data)

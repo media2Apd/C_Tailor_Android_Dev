@@ -20,6 +20,8 @@ import com.cuso.mobile.model.CategoryItem
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
 import com.cuso.mobile.model.CreateOrderRequest
+import com.cuso.mobile.model.CustomerItem
+import com.cuso.mobile.model.CustomerListResponse
 import com.cuso.mobile.model.CustomerSearchResponse
 import com.cuso.mobile.model.DepartmentCreateRequest
 import com.cuso.mobile.model.DepartmentCreateResponse
@@ -48,6 +50,7 @@ import com.cuso.mobile.model.DesignationCreateResponse
 import com.cuso.mobile.model.DesignationUpdateRequest
 import com.cuso.mobile.model.DesignationUpdateResponse
 import com.cuso.mobile.model.DesignationDeleteResponse
+import com.cuso.mobile.model.MeasurementsResponse
 import com.cuso.mobile.model.OrderApiResponse
 import com.cuso.mobile.model.OrderItem
 import com.cuso.mobile.model.OrderResponse
@@ -195,19 +198,41 @@ class SalesRepository @Inject constructor(
     //---create order-------------------------------------------
     // In SalesRepository.kt, update the createOrder method:
 
-    suspend fun createOrder(request: CreateOrderRequest): Result<OrderItem> {
+    // NEW
+    suspend fun createOrder(
+        request: CreateOrderRequest,
+        imageParts: List<okhttp3.MultipartBody.Part> = emptyList(),
+        voiceNotePart: okhttp3.MultipartBody.Part? = null
+    ): Result<OrderItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
+            val gson = com.google.gson.Gson()
+
+            fun String.asTextBody(): RequestBody =
+                this.toRequestBody("text/plain".toMediaTypeOrNull())
+
             val response = api.createOrder(
                 token = accessToken,
                 csrfToken = csrfToken,
-                request = request
+                customer = gson.toJson(request.customer).asTextBody(),
+                branch = request.branch.asTextBody(),
+                wearerType = request.wearerType?.asTextBody(),
+                source = request.source?.asTextBody(),
+                orderType = request.orderType?.asTextBody(),
+                garments = gson.toJson(request.garments).asTextBody(),
+                paymentDetails = gson.toJson(request.paymentDetails).asTextBody(),
+                orderDate = request.orderDate.asTextBody(),
+                trialDate = request.trialDate?.asTextBody(),
+                deliveryDate = request.deliveryDate?.asTextBody(),
+                totalAmount = request.totalAmount.toString().asTextBody(),
+                status = request.status?.asTextBody(),
+                designImages = imageParts,
+                voiceNote = voiceNotePart
             )
+
             if (response.isSuccessful && response.body()?.success == true) {
                 val apiResponse = response.body()?.data
                     ?: return Result.failure(Exception("Order data is null"))
-
-                // Map OrderApiResponse to OrderItem using your existing mapper
                 val orderItem = apiResponse.toOrderItem()
                 Result.success(orderItem)
             } else {
@@ -219,9 +244,7 @@ class SalesRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
-    }
-
-    suspend fun deleteLead(id: String): Result<Unit> {
+    }    suspend fun deleteLead(id: String): Result<Unit> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = api.deleteLead(accessToken, csrfToken, id)
@@ -790,8 +813,155 @@ class SalesRepository @Inject constructor(
 //        }
 //    }
 
+    // ── Customer API Methods ──────────────────────────────────────────
 
+    /**
+     * GET /api/customers/view-all
+     * Fetch customers with pagination, search, and type filtering
+     */
+    suspend fun getCustomers(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        type: String? = null
+    ): Result<CustomerListResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getCustomers(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search,
+                type = type
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(response.message() ?: "Failed to fetch customers"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
+//    /**
+//     * GET /api/customers/{customerId}
+//     * Fetch a single customer by ID
+//     */
+//    suspend fun getCustomerById(customerId: String): Result<CustomerItem> {
+//        return try {
+//            val (accessToken, csrfToken) = getAuthHeaders()
+//            val response = api.getCustomerById(
+//                token = accessToken,
+//                csrfToken = csrfToken,
+//                customerId = customerId
+//            )
+//            if (response.isSuccessful && response.body()?.success == true) {
+//                val customer = response.body()?.data
+//                    ?: return Result.failure(Exception("Customer not found"))
+//                Result.success(customer)
+//            } else {
+//                Result.failure(Exception(response.message() ?: "Failed to fetch customer"))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
+
+//    /**
+//     * POST /api/customers
+//     * Create a new customer
+//     */
+//    suspend fun createCustomer(request: CreateCustomerRequest): Result<CustomerItem> {
+//        return try {
+//            val (accessToken, csrfToken) = getAuthHeaders()
+//            val response = api.createCustomer(
+//                token = accessToken,
+//                csrfToken = csrfToken,
+//                request = request
+//            )
+//            if (response.isSuccessful && response.body()?.success == true) {
+//                val customer = response.body()?.data
+//                    ?: return Result.failure(Exception("Failed to create customer"))
+//                Result.success(customer)
+//            } else {
+//                Result.failure(Exception(response.message() ?: "Failed to create customer"))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
+//
+//    /**
+//     * PUT /api/customers/{customerId}
+//     * Update an existing customer
+//     */
+//    suspend fun updateCustomer(
+//        customerId: String,
+//        request: UpdateCustomerRequest
+//    ): Result<CustomerItem> {
+//        return try {
+//            val (accessToken, csrfToken) = getAuthHeaders()
+//            val response = api.updateCustomer(
+//                token = accessToken,
+//                csrfToken = csrfToken,
+//                customerId = customerId,
+//                request = request
+//            )
+//            if (response.isSuccessful && response.body()?.success == true) {
+//                val customer = response.body()?.data
+//                    ?: return Result.failure(Exception("Failed to update customer"))
+//                Result.success(customer)
+//            } else {
+//                Result.failure(Exception(response.message() ?: "Failed to update customer"))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
+//
+//    /**
+//     * DELETE /api/customers/{customerId}
+//     * Delete a customer
+//     */
+//    suspend fun deleteCustomer(customerId: String): Result<Boolean> {
+//        return try {
+//            val (accessToken, csrfToken) = getAuthHeaders()
+//            val response = api.deleteCustomer(
+//                token = accessToken,
+//                csrfToken = csrfToken,
+//                customerId = customerId
+//            )
+//            if (response.isSuccessful && response.body()?.success == true) {
+//                Result.success(true)
+//            } else {
+//                Result.failure(Exception(response.message() ?: "Failed to delete customer"))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
+// ── Measurements API ──
+// ── Measurements API ──
+suspend fun getMeasurements(): Result<MeasurementsResponse> {
+    return try {
+        val (accessToken, csrfToken) = getAuthHeaders()
+        val response = api.getMeasurements(
+            token = accessToken,
+            csrfToken = csrfToken
+        )
+        if (response.isSuccessful && response.body()?.success == true) {
+            Result.success(response.body()!!)
+        } else {
+            Result.failure(
+                Exception(response.errorBody()?.string() ?: "Failed to fetch measurements: ${response.code()}")
+            )
+        }
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+}
 
     fun getLeads(): Flow<List<LeadEntity>> = leadDao.getAll()
 }

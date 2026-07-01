@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.sales
+package com.cuso.mobile.view.home.sales
 
 import android.Manifest
 import android.net.Uri
@@ -40,6 +40,7 @@ import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberImagePainter
+import com.cuso.mobile.database.entities.GarmentMeasurement
 import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.model.Customer
 import com.cuso.mobile.model.CustomerGarment
@@ -48,7 +49,7 @@ import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.home.DatePickerField
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
-import com.example.tailorapp.ui.screens.OrderReviewData
+import com.cuso.mobile.view.home.sales.OrderReviewData
 import com.github.skydoves.colorpicker.compose.AlphaSlider
 import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
@@ -306,6 +307,7 @@ fun CreateOrderScreen(
     val selectedGarments by salesViewModel.selectedGarments.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
+        salesViewModel.clearAllSelectedGarments()
         branchViewModel.loadBranches()
         salesViewModel.fetchOrgGarmentCategories()
         salesViewModel.fetchActiveOrgGarments()
@@ -360,8 +362,48 @@ fun CreateOrderScreen(
     var showBranchDropdown by remember { mutableStateOf(false) }
 
     // ── Notes ──
+    // ── Notes ──
     var stylingNotes by remember { mutableStateOf("") }
+
+    // ── Voice Recording state ──
     var isRecording by remember { mutableStateOf(false) }
+    var recordedVoiceNoteUri by remember { mutableStateOf<Uri?>(null) }
+    var mediaRecorder by remember { mutableStateOf<android.media.MediaRecorder?>(null) }
+    var recordingFile by remember { mutableStateOf<File?>(null) }
+
+    val micPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
+
+    fun startRecording() {
+        val file = File.createTempFile("voice_note_", ".m4a", context.cacheDir)
+        recordingFile = file
+        mediaRecorder = android.media.MediaRecorder().apply {
+            setAudioSource(android.media.MediaRecorder.AudioSource.MIC)
+            setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4)
+            setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC)
+            setOutputFile(file.absolutePath)
+            prepare()
+            start()
+        }
+        isRecording = true
+    }
+
+    fun stopRecording() {
+        try {
+            mediaRecorder?.apply {
+                stop()
+                release()
+            }
+        } catch (e: Exception) {
+            // recording too short or already stopped — ignore
+        }
+        mediaRecorder = null
+        isRecording = false
+        recordingFile?.let { file ->
+            recordedVoiceNoteUri = FileProvider.getUriForFile(
+                context, "${context.packageName}.fileprovider", file
+            )
+        }
+    }
 
     fun openGarmentDialog(categoryName: String, category: String) {
         tempGarment = SelectedGarment(
@@ -467,6 +509,7 @@ fun CreateOrderScreen(
                     onClick = {
                         val data = OrderReviewData(
                             customerId = selectedCustomer?.id ?: "",
+                            branchId = selectedBranchId,          // ✅ was missing — branch never reached screen 2
                             fullName = fullName,
                             countryCode = countryCode,
                             phone = phone,
@@ -474,8 +517,12 @@ fun CreateOrderScreen(
                             dressFor = dressFor,
                             address = address,
                             garments = selectedGarments,
+                            orderDate = orderDate,                // ✅ was missing
+                            source = source,                       // ✅ was missing
                             trialDate = trialDate,
-                            deliveryDate = deliveryDate
+                            deliveryDate = deliveryDate,
+                            designImages = selectedDesignImages,
+                            voiceNoteUri = recordedVoiceNoteUri
                         )
                         onNextStep(data)
                     },
@@ -1302,8 +1349,17 @@ fun CreateOrderScreen(
                             .padding(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        // NEW
                         Button(
-                            onClick = { isRecording = !isRecording },
+                            onClick = {
+                                if (isRecording) {
+                                    stopRecording()
+                                } else if (micPermissionState.status.isGranted) {
+                                    startRecording()
+                                } else {
+                                    micPermissionState.launchPermissionRequest()
+                                }
+                            },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isRecording) Color(0xFFEF4444) else Color(0xFFEEF2FF)
                             ),
@@ -1323,6 +1379,31 @@ fun CreateOrderScreen(
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium
                             )
+                        }
+                        if (recordedVoiceNoteUri != null && !isRecording) {
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFF0FDF4), RoundedCornerShape(8.dp))
+                                    .padding(10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Voice note recorded ✓",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF16A34A),
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    "Remove",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFFEF4444),
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.clickable { recordedVoiceNoteUri = null }
+                                )
+                            }
                         }
                     }
                 }
@@ -1695,9 +1776,16 @@ fun GarmentDetailDialog(
 
     // ── Measurements state (driven by selected models) ──
     var measurements by remember(garment.id) {
-        mutableStateOf(defaultMeasurementsFor(selectedModels))
+        mutableStateOf(
+            if (garment.measurements.isNotEmpty()) {
+                garment.measurements.map { m ->
+                    MeasurementField(id = m.id.ifBlank { m.label }, label = m.label, value = m.value, unit = m.unit)
+                }
+            } else {
+                defaultMeasurementsFor(selectedModels)
+            }
+        )
     }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -1754,7 +1842,7 @@ fun GarmentDetailDialog(
 
                 FormLabel("Garment Type")
                 GarmentTypeSelector(
-                    selectedCategoryId = garment.categoryName,
+                    selectedCategoryId = garment.category,
                     categories = categories,
                     onGarmentTypeChange = { newName, newId ->
                         onGarmentChange(garment.copy(categoryName = newName, category = newId))
@@ -1867,11 +1955,17 @@ fun GarmentDetailDialog(
                     selectedModels = selectedModels,
                     onModelToggle = { modelName ->
                         val wasEmpty = selectedModels.isEmpty()
+
                         if (selectedModels.contains(modelName)) {
-                            selectedModels.remove(modelName)
+                            // tapping the already-selected model deselects it
+                            selectedModels.clear()
                         } else {
+                            // ✅ single-select: clear any previous pick before adding the new one
+                            //    (Ankle Fit ↔ Mom Fit are now mutually exclusive)
+                            selectedModels.clear()
                             selectedModels.add(modelName)
                         }
+
                         // Auto-populate measurement fields the first time a model is picked
                         if (wasEmpty && selectedModels.isNotEmpty() && measurements.isEmpty()) {
                             measurements = defaultMeasurementsFor(selectedModels)
@@ -1891,13 +1985,22 @@ fun GarmentDetailDialog(
                         measurements = measurements,
                         onMeasurementsChange = { updated ->
                             measurements = updated
-                            // NOTE: persist `updated` against the garment here once
-                            // SelectedGarment exposes a `measurements` field, e.g.:
-                            // onGarmentChange(garment.copy(measurements = updated))
+                            // ✅ persist into the garment -> Room DB
+                            onGarmentChange(
+                                garment.copy(
+                                    measurements = updated.map { m ->
+                                        GarmentMeasurement(
+                                            id = m.id,
+                                            label = m.label,
+                                            value = m.value,
+                                            unit = m.unit
+                                        )
+                                    }
+                                )
+                            )
                         }
                     )
                 }
-
                 Spacer(Modifier.height(8.dp))
 
                 Row(

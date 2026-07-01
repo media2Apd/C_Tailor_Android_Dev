@@ -14,9 +14,9 @@ data class OrderApiResponse(
     @SerializedName("customerId")
     val customerId: CustomerApiResponse?,
     @SerializedName("garments")
-    val garments: List<GarmentApiResponse>,
+    val garments: List<GarmentApiResponse> = emptyList(),   // ✅ create response omits this
     @SerializedName("totalAmount")
-    val totalAmount: Int?,
+    val totalAmount: Double? = null,
     @SerializedName("totalPaid")
     val totalPaid: Int?,
     @SerializedName("balanceAmount")
@@ -188,7 +188,7 @@ fun OrderApiResponse.toOrderItem() = OrderItem(
     orderNumber   = orderNumber,
     customerId    = customerId?.toCustomer(),
     garments      = garments.map { it.toGarment() },
-    totalAmount   = totalAmount,
+    totalAmount   = totalAmount?.toInt(),
     totalPaid     = totalPaid,
     balanceAmount = balanceAmount,
     paymentStatus = paymentStatus,
@@ -235,55 +235,113 @@ private fun String.toEpochMillis(): Long? {
 
 
 data class CreateOrderRequest(
-    @SerializedName("customerId")
-    val customerId: String,
+    @SerializedName("customer")
+    val customer: CustomerRequest,              // ✅ object, not customerId string
     @SerializedName("branch")
-    val branch: String? = null,
+    val branch: String,                          // ✅ was missing entirely
     @SerializedName("wearerType")
     val wearerType: String? = null,
-    @SerializedName("garments")
-    val garments: List<CreateGarmentRequestForCreateOrder>,   // ✅ changed type here
-    @SerializedName("summaryAdditionalCharges")
-    val summaryAdditionalCharges: List<ChargeRequest> = emptyList(),
-    @SerializedName("discount")
-    val discount: Double = 0.0,
-    @SerializedName("totalAmount")
-    val totalAmount: Double,
-    @SerializedName("totalPaid")
-    val totalPaid: Double? = null,
-    @SerializedName("paymentStatus")
-    val paymentStatus: String? = null,
     @SerializedName("source")
     val source: String? = null,
+    @SerializedName("orderType")
+    val orderType: String? = null,                // ✅ was missing entirely
+    @SerializedName("garments")
+    val garments: List<CreateGarmentRequestForCreateOrder>,
+    @SerializedName("paymentDetails")
+    val paymentDetails: PaymentDetailsRequest,    // ✅ nested object, not flat fields
     @SerializedName("orderDate")
     val orderDate: String,
     @SerializedName("trialDate")
     val trialDate: String? = null,
     @SerializedName("deliveryDate")
     val deliveryDate: String? = null,
+    @SerializedName("totalAmount")
+    val totalAmount: Double,
     @SerializedName("status")
-    val status: String? = null,
-    @SerializedName("notes")
-    val notes: String? = null
+    val status: String? = null
 )
-
+data class CustomerRequest(
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("mobile")
+    val mobile: String,
+    @SerializedName("address")
+    val address: String? = null,
+    @SerializedName("gender")
+    val gender: String? = null,
+    @SerializedName("email")
+    val email: String? = null
+)
 data class CreateGarmentRequestForCreateOrder(
     @SerializedName("category")
     val category: String,
     @SerializedName("categoryName")
     val categoryName: String? = null,
     @SerializedName("models")
-    val models: List<String> = emptyList(),
+    val models: List<GarmentModelRequest> = emptyList(),   // ✅ objects, not plain strings
+    @SerializedName("measurements")
+    val measurements: Map<String, MeasurementValueRequest>? = null,
     @SerializedName("quantity")
     val quantity: Int,
+    @SerializedName("clothType")
+    val clothType: String? = null,
+    @SerializedName("priority")
+    val priority: String? = null,
+    @SerializedName("trialRequired")
+    val trialRequired: Boolean = false,
+    @SerializedName("fabricDetails")
+    val fabricDetails: FabricDetailsRequest? = null,
+    @SerializedName("stitchingCharge")
+    val stitchingCharge: String? = null,
     @SerializedName("price")
-    val price: Double,
+    val price: Double = 0.0,
     @SerializedName("total")
-    val total: Double,
+    val total: Double = 0.0,
     @SerializedName("additionalCharges")
     val additionalCharges: List<ChargeRequest> = emptyList()
 )
 
+data class GarmentModelRequest(
+    @SerializedName("modelName")
+    val modelName: String,
+    @SerializedName("pieceRate")
+    val pieceRate: Double? = null,
+    @SerializedName("modelIcon")
+    val modelIcon: String? = null,
+    @SerializedName("_id")
+    val id: String? = null
+)
+
+data class MeasurementValueRequest(
+    @SerializedName("value")
+    val value: List<String>,
+    @SerializedName("inputType")
+    val inputType: String,
+    @SerializedName("unit")
+    val unit: String
+)
+
+data class FabricDetailsRequest(
+    @SerializedName("fabricSource")
+    val fabricSource: String? = null,
+    @SerializedName("fabricType")
+    val fabricType: String? = null,
+    @SerializedName("color")
+    val color: String? = null,
+    @SerializedName("pattern")
+    val pattern: String? = null
+)
+
+data class PaymentDetailsRequest(
+    @SerializedName("notes")
+    val notes: String? = null,
+    @SerializedName("discount")
+    val discount: Double = 0.0,
+    @SerializedName("summaryAdditionalCharges")
+    val summaryAdditionalCharges: List<ChargeRequest> = emptyList(),
+    @SerializedName("paymentAmount")
+    val paymentAmount: Double = 0.0
+)
 data class ChargeRequest(
     @SerializedName("name")
     val name: String,

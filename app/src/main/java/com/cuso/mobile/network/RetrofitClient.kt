@@ -15,11 +15,11 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 //Mobile
-    private const val BASE_URL = "http://10.33.173.196:5000/"
+//    private const val BASE_URL = "http://10.33.173.196:5000/"
 //DNBS
 //    private const val BASE_URL = "http://192.168.31.116:5000/"
 //APD Corporate 5g
-//    private const val BASE_URL = "http://192.168.0.10:5000/"
+    private const val BASE_URL = "http://192.168.0.10:5000/"
 
     @Provides
     @Singleton

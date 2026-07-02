@@ -18,17 +18,18 @@ import com.cuso.mobile.ui.theme.CusoTailorTheme
 import com.cuso.mobile.view.forgot_password.ForgotUserPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
 import com.cuso.mobile.view.forgot_password.VerifyForgotPassword
-import com.cuso.mobile.view.home.branch.BranchSettingsScreen
-import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
+//import com.cuso.mobile.view.home.branch.BranchSettingsScreen
+//import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
 import com.cuso.mobile.view.login.LoginOtpScreen
 import com.cuso.mobile.view.login.LoginScreen
 import com.cuso.mobile.view.organization.OrganizationProfile
 import com.cuso.mobile.view.others.privacyPolicy
 import com.cuso.mobile.view.others.termsConditions
 import com.cuso.mobile.view.home.HomeScreen
+import com.cuso.mobile.view.home.LeadScreenContent
 import com.cuso.mobile.view.home.OrderFlowNavigator
 import com.cuso.mobile.view.home.SettingsScreen
-import com.cuso.mobile.view.home.sales.SalesOrderScreen
+//import com.cuso.mobile.view.home.sales.SalesOrderScreen
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -43,7 +44,8 @@ class MainActivity : ComponentActivity() {
             CusoTailorTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
                     val navController = rememberNavController()
-                    AppNav(activity = this)
+//                    AppNav(activity = this)
+                    LeadScreenContent()
 //                      SalesOrderScreen(navController)
                     // OrderFlowNavigator internally handles BOTH screens:
                     // step 0 -> CreateOrderScreen (fill details)
@@ -186,39 +188,39 @@ fun AppNav(activity: Activity) {
             )
         }
 
-        composable("home_branch_management") {
-            BranchSettingsScreen(
-                navController = navController,
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        composable("home_department_teams") {
-            DepartmentSettingsScreen(
-                navController = navController,
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        composable("home_designation") {
-            SettingsScreen(
-                navController = navController
-            )
-        }
-
-        // ── Sales sidebar routes ──────────────────────────────
-
-        composable("sales_lead") {
-            HomeScreen(navController) // TODO: replace with LeadScreen
-        }
-
-        composable("sales_sales_orders") {
-            SalesOrderScreen(
-                navController = navController,
-                onMenuClick = { navController.navigate("home") },
-                onBack = { navController.popBackStack() }
-            )
-        }
+//        composable("home_branch_management") {
+//            BranchSettingsScreen(
+//                navController = navController,
+//                onBack = { navController.popBackStack() }
+//            )
+//        }
+//
+//        composable("home_department_teams") {
+//            DepartmentSettingsScreen(
+//                navController = navController,
+//                onBack = { navController.popBackStack() }
+//            )
+//        }
+//
+//        composable("home_designation") {
+//            SettingsScreen(
+//                navController = navController
+//            )
+//        }
+//
+//        // ── Sales sidebar routes ──────────────────────────────
+//
+//        composable("sales_lead") {
+//            HomeScreen(navController) // TODO: replace with LeadScreen
+//        }
+//
+//        composable("sales_sales_orders") {
+//            SalesOrderScreen(
+//                navController = navController,
+//                onMenuClick = { navController.navigate("home") },
+//                onBack = { navController.popBackStack() }
+//            )
+//        }
 
         // TODO: add remaining sales routes as screens are built
         // composable("sales_customers")                  { CustomersScreen(...) }

@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -20,7 +19,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Assignment
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -74,27 +72,34 @@ import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.viewmodel.SaleState
 import com.cuso.mobile.viewmodel.SalesViewModel
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.text.TextStyle
 import com.cuso.mobile.model.Organization
 import com.cuso.mobile.model.Settings
 import com.cuso.mobile.model.Subscription
 import com.cuso.mobile.model.User
-import com.cuso.mobile.view.home.branch.BranchSettingsScreen
-import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
-import com.cuso.mobile.view.home.designation.DesignationScreen
+//import com.cuso.mobile.view.home.branch.BranchSettingsScreen
+//import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
+//import com.cuso.mobile.view.home.designation.DesignationScreen
 import com.cuso.mobile.view.home.sales.GarmentTypeContent
 import com.cuso.mobile.view.home.sales.SalesSettingsScreen
 import com.cuso.mobile.view.home.sidebar.FullSideBar
 import com.cuso.mobile.view.home.sidebar.SalesSideBar
 import com.cuso.mobile.view.home.sales.CreateOrderScreen
-import com.cuso.mobile.view.home.sales.SalesOrderScreen
+//import com.cuso.mobile.view.home.sales.SalesOrderScreen
 import com.cuso.mobile.view.home.sales.CreateOrderNextStep
-import com.cuso.mobile.view.home.sales.CustomerScreen
-import com.cuso.mobile.view.home.sales.MeasurementsScreen
+//import com.cuso.mobile.view.home.sales.CustomerScreen
+//import com.cuso.mobile.view.home.sales.MeasurementsScreen
 import com.cuso.mobile.view.home.sales.OrderReviewData
-import com.cuso.mobile.viewmodel.CustomerViewModel
+import com.cuso.mobile.view.home.reusablecomposables.ActionDropdownMenu
+import com.cuso.mobile.view.home.reusablecomposables.DataCard
+import com.cuso.mobile.view.home.reusablecomposables.FilterDrawer
+import com.cuso.mobile.view.home.reusablecomposables.FilterOption
+import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
+import com.cuso.mobile.view.home.reusablecomposables.FilterSection
+import com.cuso.mobile.view.home.reusablecomposables.FilterSectionType
 
 
 // ── Data classes ──
@@ -276,21 +281,21 @@ fun HomeScreen(navController: NavController) {
                     navController = navController,
                     onMenuClick = { isDrawerOpen = true }
                 )
-                "home_branch_management" -> BranchSettingsScreen(
-                    navController = navController,
-                    onMenuClick = { isDrawerOpen = true },
-                    onBack = { currentScreen = "settings" }
-                )
-                "home_department_teams" -> DepartmentSettingsScreen(
-                    navController = navController,
-                    onMenuClick = { isDrawerOpen = true },
-                    onBack = { currentScreen = "settings" }
-                )
-                "home_designation" -> DesignationScreen(
-                    navController = navController,
-                    onMenuClick = { isDrawerOpen = true },
-                    onBack = { currentScreen = "settings" }
-                )
+//                "home_branch_management" -> BranchSettingsScreen(
+//                    navController = navController,
+//                    onMenuClick = { isDrawerOpen = true },
+//                    onBack = { currentScreen = "settings" }
+//                )
+//                "home_department_teams" -> DepartmentSettingsScreen(
+//                    navController = navController,
+//                    onMenuClick = { isDrawerOpen = true },
+//                    onBack = { currentScreen = "settings" }
+//                )
+//                "home_designation" -> DesignationScreen(
+//                    navController = navController,
+//                    onMenuClick = { isDrawerOpen = true },
+//                    onBack = { currentScreen = "settings" }
+//                )
                 // ✅ Sales Settings Screen (your existing SalesSettingsScreen)
                 "sales_settings" -> SalesSettingsScreen(
                     navController = navController,
@@ -327,48 +332,48 @@ fun HomeScreen(navController: NavController) {
                 )
                 // Then replace the sales_customers case:
                 // ✅ CUSTOMER SCREEN - Integrated with ViewModel
-                "sales_customers" -> {
-                    val customerViewModel: CustomerViewModel = hiltViewModel()
-                    val customerUiState by customerViewModel.uiState.collectAsStateWithLifecycle()
-
-                    CustomerScreen(
-                        navController = navController,
-                        customerState = customerUiState,
-                        onSearch = customerViewModel::onSearch,
-                        onTypeFilterChange = customerViewModel::onTypeFilterChange,
-                        onPageChange = customerViewModel::onPageChange,
-                        onItemsPerPageChange = customerViewModel::onItemsPerPageChange,
-                        onBack = {
-                            currentScreen = "home"
-                        },
-                        onCreateCustomer = {
-                            Toast.makeText(context, "Create Customer clicked", Toast.LENGTH_SHORT).show()
-                            // Navigate to create customer screen when implemented
-                            // navController.navigate("create_customer")
-                        },
-                        onView = { customer ->
-                            Toast.makeText(context, "View: ${customer.name}", Toast.LENGTH_SHORT).show()
-                            // Navigate to customer detail when implemented
-                            // navController.navigate("customer_detail/${customer.id}")
-                        },
-                        onEdit = { customer ->
-                            Toast.makeText(context, "Edit: ${customer.name}", Toast.LENGTH_SHORT).show()
-                            // Navigate to edit customer when implemented
-                            // navController.navigate("edit_customer/${customer.id}")
-                        },
-                        onDelete = { customer ->
-                            Toast.makeText(context, "Delete: ${customer.name}", Toast.LENGTH_SHORT).show()
-                            // Show delete confirmation dialog when implemented
-                        }
-                    )
-                }
-                "sales_sales_orders" -> {
-                    SalesOrderScreen(
-                        navController = navController,
-                        onCreateOrder = { currentScreen = "create_order" },
-                        onBack = { currentScreen = "home" }
-                    )
-                }
+//                "sales_customers" -> {
+//                    val customerViewModel: CustomerViewModel = hiltViewModel()
+//                    val customerUiState by customerViewModel.uiState.collectAsStateWithLifecycle()
+//
+//                    CustomerScreen(
+//                        navController = navController,
+//                        customerState = customerUiState,
+//                        onSearch = customerViewModel::onSearch,
+//                        onTypeFilterChange = customerViewModel::onTypeFilterChange,
+//                        onPageChange = customerViewModel::onPageChange,
+//                        onItemsPerPageChange = customerViewModel::onItemsPerPageChange,
+//                        onBack = {
+//                            currentScreen = "home"
+//                        },
+//                        onCreateCustomer = {
+//                            Toast.makeText(context, "Create Customer clicked", Toast.LENGTH_SHORT).show()
+//                            // Navigate to create customer screen when implemented
+//                            // navController.navigate("create_customer")
+//                        },
+//                        onView = { customer ->
+//                            Toast.makeText(context, "View: ${customer.name}", Toast.LENGTH_SHORT).show()
+//                            // Navigate to customer detail when implemented
+//                            // navController.navigate("customer_detail/${customer.id}")
+//                        },
+//                        onEdit = { customer ->
+//                            Toast.makeText(context, "Edit: ${customer.name}", Toast.LENGTH_SHORT).show()
+//                            // Navigate to edit customer when implemented
+//                            // navController.navigate("edit_customer/${customer.id}")
+//                        },
+//                        onDelete = { customer ->
+//                            Toast.makeText(context, "Delete: ${customer.name}", Toast.LENGTH_SHORT).show()
+//                            // Show delete confirmation dialog when implemented
+//                        }
+//                    )
+//                }
+//                "sales_sales_orders" -> {
+//                    SalesOrderScreen(
+//                        navController = navController,
+//                        onCreateOrder = { currentScreen = "create_order" },
+//                        onBack = { currentScreen = "home" }
+//                    )
+//                }
 
                 "create_order" -> {
                     CreateOrderScreen(
@@ -385,18 +390,18 @@ fun HomeScreen(navController: NavController) {
                         Text("Orders Screen", fontSize = 18.sp, color = Color.Gray)
                     }
                 }
-                // Then replace the sales_measurements case:
-                "sales_measurements" -> {
-                    MeasurementsScreen(
-                        navController = navController,
-                        onBack = {
-                            currentScreen = "home"
-                        },
-                        onCreateOrder = {
-                            currentScreen = "create_order"
-                        }
-                    )
-                }
+//                // Then replace the sales_measurements case:
+//                "sales_measurements" -> {
+//                    MeasurementsScreen(
+//                        navController = navController,
+//                        onBack = {
+//                            currentScreen = "home"
+//                        },
+//                        onCreateOrder = {
+//                            currentScreen = "create_order"
+//                        }
+//                    )
+//                }
                 "create_order_review" -> {
                     pendingOrderReviewData?.let { data ->
                         CreateOrderNextStep(
@@ -1276,6 +1281,18 @@ fun CreateLeadScreen(onBack: () -> Unit) {
 // Replace your existing fun LeadScreenContent(...) { ... } completely with this.
 // ─────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────
+// LeadScreenContent (UPDATED WITH FILTER DRAWER)
+// ─────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
+// LeadScreenContent (FULLY FIXED)
+// ─────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
+// LeadScreenContent (FULLY FIXED - FAB Position Corrected)
+// ─────────────────────────────────────────────────────────────
+
 @Composable
 fun LeadScreenContent(
     onCreateLead: () -> Unit = {},
@@ -1285,7 +1302,6 @@ fun LeadScreenContent(
     val salesViewModel: SalesViewModel = hiltViewModel()
     val context = LocalContext.current
 
-    // State declarations
     val leads by salesViewModel.tableLeads.collectAsStateWithLifecycle()
     val isLoading by salesViewModel.isLoadingTableLeads.collectAsStateWithLifecycle()
     val tableError by salesViewModel.tableError.collectAsStateWithLifecycle()
@@ -1298,23 +1314,107 @@ fun LeadScreenContent(
     var isLoadingView by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
 
-    // Scroll states
-    val horizontalScrollState = rememberScrollState()
+    // ── Filter Drawer State ──
+    val filterDrawerState = rememberFilterDrawerState()
+    var searchQuery by remember { mutableStateOf("") }
+    var currentPage by remember { mutableIntStateOf(1) }
+    val itemsPerPage = 10
 
-    // ✅ Fetch table data when screen opens
+    // ── Filter Sections ──
+    var filterSections by remember {
+        mutableStateOf(
+            listOf(
+                FilterSection(
+                    title = "Date Range",
+                    icon = Icons.Filled.CalendarMonth,
+                    type = FilterSectionType.CHIP_GRID,
+                    isMultiSelect = false,
+                    options = listOf(
+                        FilterOption("today", "Today"),
+                        FilterOption("week", "This Week"),
+                        FilterOption("month", "This Month"),
+                        FilterOption("custom", "Custom")
+                    )
+                ),
+                FilterSection(
+                    title = "Status",
+                    icon = Icons.Filled.Sell,
+                    type = FilterSectionType.CHECKBOX_LIST,
+                    isMultiSelect = true,
+                    options = listOf(
+                        FilterOption("new", "New Enquiry"),
+                        FilterOption("quoted", "Quoted"),
+                        FilterOption("followup", "Follow-up Pending"),
+                        FilterOption("converted", "Converted to Order"),
+                        FilterOption("lost", "Lost Enquiry")
+                    )
+                ),
+                FilterSection(
+                    title = "Source",
+                    icon = Icons.Filled.Campaign,
+                    type = FilterSectionType.CHIP_ROW,
+                    isMultiSelect = true,
+                    options = listOf(
+                        FilterOption("walk_in", "Walk-in"),
+                        FilterOption("instagram", "Instagram"),
+                        FilterOption("facebook", "Facebook Ads"),
+                        FilterOption("website", "Website")
+                    )
+                ),
+                FilterSection(
+                    title = "Garments",
+                    icon = Icons.Filled.Checkroom,
+                    type = FilterSectionType.CHIP_ROW_MORE,
+                    isMultiSelect = true,
+                    options = listOf(
+                        FilterOption("shirt", "Shirt"),
+                        FilterOption("pant", "Pant"),
+                        FilterOption("blazer", "Blazer"),
+                        FilterOption("saree", "Saree")
+                    )
+                ),
+                FilterSection(
+                    title = "Amount Range",
+                    icon = Icons.Filled.CurrencyRupee,
+                    type = FilterSectionType.AMOUNT_RANGE,
+                    options = emptyList()
+                ),
+                FilterSection(
+                    title = "Sales Person",
+                    icon = Icons.Filled.People,
+                    type = FilterSectionType.DROPDOWN,
+                    options = emptyList()
+                ),
+                FilterSection(
+                    title = "Location",
+                    icon = Icons.Filled.LocationOn,
+                    type = FilterSectionType.DROPDOWN,
+                    options = emptyList()
+                ),
+                FilterSection(
+                    title = "Priority",
+                    icon = Icons.Filled.Flag,
+                    type = FilterSectionType.PRIORITY_DOTS,
+                    isMultiSelect = false,
+                    options = listOf(
+                        FilterOption("high", "High"),
+                        FilterOption("medium", "Medium"),
+                        FilterOption("low", "Low")
+                    )
+                )
+            )
+        )
+    }
+
     LaunchedEffect(Unit) {
         salesViewModel.fetchTableLeads()
         salesViewModel.fetchStaff()
         salesViewModel.fetchGarmentCategories()
     }
 
-    // ✅ Handle delete success with loading state
     LaunchedEffect(deleteState) {
-        val currentState = deleteState
-        when (currentState) {
-            is SaleState.Loading -> {
-                isDeleting = true
-            }
+        when (val currentState = deleteState) {
+            is SaleState.Loading -> { isDeleting = true }
             is SaleState.Success -> {
                 isDeleting = false
                 salesViewModel.resetDeleteState()
@@ -1326,13 +1426,10 @@ fun LeadScreenContent(
                 Toast.makeText(context, "Failed to delete lead: ${currentState.message}", Toast.LENGTH_LONG).show()
                 salesViewModel.resetDeleteState()
             }
-            else -> {
-                isDeleting = false
-            }
+            else -> { isDeleting = false }
         }
     }
 
-    // ✅ Handle update success
     LaunchedEffect(updateState) {
         if (updateState is SaleState.Success) {
             salesViewModel.fetchTableLeads()
@@ -1340,49 +1437,121 @@ fun LeadScreenContent(
         }
     }
 
-    var filterExpanded by remember { mutableStateOf(false) }
-    var selectedFilter by remember { mutableStateOf("All Leads") }
+    // ── Apply Filters Function ──
+    fun applyFilters(sections: List<FilterSection>) {
+        filterSections = sections
+        currentPage = 1
+    }
 
-    // ✅ View toggle state — true = Table View, false = Card View
-    var isListView by remember { mutableStateOf(true) }
-    var viewMenuExpanded by remember { mutableStateOf(false) }
+    // ── Helper function to get garment name ──
+    fun getGarmentName(lead: LeadTableItem): String {
+        val garment = lead.garmentCategory?.firstOrNull()
+        return if (garment == null) "—"
+        else when (garment) {
+            is Map<*, *> -> {
+                val categoryId = garment["categoryId"] as? Map<*, *>
+                categoryId?.get("categoryName") as? String ?: "—"
+            }
+            is String -> lead.occasion?.takeIf { it.isNotBlank() } ?: "—"
+            else -> "—"
+        }
+    }
 
-    var selectedIds by remember { mutableStateOf(setOf<String>()) }
-    val filterOptions = listOf("All Leads", "New Enquiry", "Quoted", "Follow-up", "Converted")
+    // ✅ Filter by search, status, source, garments, priority
+    val filteredLeads = leads.filter { lead ->
+        val matchesSearch = searchQuery.isBlank() ||
+                lead.person.name.contains(searchQuery, ignoreCase = true) ||
+                lead.enquiryType.contains(searchQuery, ignoreCase = true)
 
-    val itemsPerPage = 10
-    var currentPage by remember { mutableIntStateOf(1) }
+        // Status filter
+        val selectedStatuses = filterSections.find { it.title == "Status" }
+            ?.options
+            ?.filter { it.isSelected }
+            ?.map { it.id }
+            ?: emptyList()
 
-    val filteredLeads = if (selectedFilter == "All Leads") leads
-    else leads.filter {
-        val statusName = when (it.status) {
-            is String -> it.status
-            is Map<*, *> -> (it.status["name"] as? String) ?: ""
+        val statusName = when (lead.status) {
+            is String -> lead.status
+            is Map<*, *> -> (lead.status["name"] as? String) ?: ""
             else -> ""
         }
-        statusName.contains(selectedFilter, ignoreCase = true)
+
+        val matchesStatus = selectedStatuses.isEmpty() || run {
+            selectedStatuses.any { selected ->
+                when (selected) {
+                    "new" -> statusName.contains("New", ignoreCase = true) || statusName.equals("NEW", ignoreCase = true)
+                    "quoted" -> statusName.contains("Quot", ignoreCase = true) || statusName.equals("QUOTED", ignoreCase = true)
+                    "followup" -> statusName.contains("Follow", ignoreCase = true) || statusName.contains("Pending", ignoreCase = true)
+                    "converted" -> statusName.contains("Convert", ignoreCase = true) || statusName.equals("CONVERTED", ignoreCase = true)
+                    "lost" -> statusName.contains("Lost", ignoreCase = true)
+                    else -> false
+                }
+            }
+        }
+
+        // Source filter
+        val selectedSources = filterSections.find { it.title == "Source" }
+            ?.options
+            ?.filter { it.isSelected }
+            ?.map { it.id }
+            ?: emptyList()
+
+        val matchesSource = selectedSources.isEmpty() || run {
+            val source = lead.source.lowercase()
+            selectedSources.any { selected ->
+                when (selected) {
+                    "walk_in" -> source.contains("walk")
+                    "instagram" -> source.contains("instagram")
+                    "facebook" -> source.contains("facebook")
+                    "website" -> source.contains("website")
+                    else -> false
+                }
+            }
+        }
+
+        // Garments filter
+        val selectedGarments = filterSections.find { it.title == "Garments" }
+            ?.options
+            ?.filter { it.isSelected }
+            ?.map { it.id }
+            ?: emptyList()
+
+        val garmentName = getGarmentName(lead)
+        val matchesGarments = selectedGarments.isEmpty() || run {
+            selectedGarments.any { selected ->
+                when (selected) {
+                    "shirt" -> garmentName.contains("Shirt", ignoreCase = true)
+                    "pant" -> garmentName.contains("Pant", ignoreCase = true)
+                    "blazer" -> garmentName.contains("Blazer", ignoreCase = true)
+                    "saree" -> garmentName.contains("Saree", ignoreCase = true)
+                    else -> false
+                }
+            }
+        }
+
+        // Priority filter
+        val selectedPriority = filterSections.find { it.title == "Priority" }
+            ?.options
+            ?.find { it.isSelected }
+            ?.id
+
+        val matchesPriority = selectedPriority == null || run {
+            val priority = lead.appointment?.priority?.lowercase() ?: ""
+            when (selectedPriority) {
+                "high" -> priority.contains("high")
+                "medium" -> priority.contains("medium")
+                "low" -> priority.contains("low")
+                else -> true
+            }
+        }
+        matchesSearch && matchesStatus && matchesSource && matchesGarments && matchesPriority
     }
 
     val totalPages = maxOf(1, if (filteredLeads.isNotEmpty()) (filteredLeads.size + itemsPerPage - 1) / itemsPerPage else 1)
     val pagedLeads = if (filteredLeads.isNotEmpty()) {
         filteredLeads.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
-    } else {
-        emptyList()
-    }
+    } else emptyList()
 
-    // Define column widths
-    val checkboxWidth = 40.dp
-    val customerWidth = 150.dp
-    val enquiryWidth = 130.dp
-    val garmentsWidth = 120.dp
-    val qtyWidth = 80.dp
-    val budgetWidth = 160.dp
-    val dateWidth = 140.dp
-    val sourceWidth = 120.dp
-    val statusWidth = 140.dp
-    val actionWidth = 80.dp
-
-    // Helper to resolve status name + badge text/color (shared by table + card view)
     fun resolveStatusBadge(lead: LeadTableItem): Pair<String, Color> {
         val statusName = when (lead.status) {
             is String -> lead.status
@@ -1404,36 +1573,15 @@ fun LeadScreenContent(
         }
     }
 
-    fun resolveGarmentName(lead: LeadTableItem): String {
-        val garment = lead.garmentCategory?.firstOrNull()
-        return if (garment == null) {
-            "—"
-        } else {
-            when (garment) {
-                is Map<*, *> -> {
-                    val categoryId = garment["categoryId"] as? Map<*, *>
-                    categoryId?.get("categoryName") as? String ?: "—"
-                }
-                is String -> {
-                    lead.occasion?.takeIf { it.isNotBlank() } ?: "—"
-                }
-                else -> "—"
-            }
-        }
-    }
-
-    // ✅ shared action handler used by table row + card menu
     fun onViewClicked(lead: LeadTableItem) {
         actionMenuLeadId = null
         isLoadingView = true
         salesViewModel.fetchLeadDetails(lead.id) { success ->
             isLoadingView = false
-            if (success) {
-                onViewLead()
-            } else {
+            if (success) onViewLead()
+            else {
                 Toast.makeText(context, "Failed to load lead details", Toast.LENGTH_SHORT).show()
-                val leadEntity = lead.toLeadEntity()
-                salesViewModel.selectLead(leadEntity)
+                salesViewModel.selectLead(lead.toLeadEntity())
                 onViewLead()
             }
         }
@@ -1444,543 +1592,262 @@ fun LeadScreenContent(
         isLoadingEdit = true
         salesViewModel.fetchLeadDetails(lead.id) { success ->
             isLoadingEdit = false
-            if (success) {
-                onEditLead()
-            } else {
+            if (success) onEditLead()
+            else {
                 Toast.makeText(context, "Failed to load lead details for editing", Toast.LENGTH_SHORT).show()
-                val leadEntity = lead.toLeadEntity()
-                salesViewModel.selectLead(leadEntity)
+                salesViewModel.selectLead(lead.toLeadEntity())
                 onEditLead()
             }
         }
     }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F7))
-            .padding(16.dp)
-    ) {
-        // ── TOP HEADER BAR ──
-        Row(
+    // ── Main UI ──
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White, RoundedCornerShape(10.dp))
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .fillMaxSize()
+                .background(Color(0xFFF5F5F7))
         ) {
-            // LEFT SIDE: Filter Icon + "All Leads"
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            // ── FIXED TOP HEADER ──
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .background(Color.White)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                // Filter Icon
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(Color(0xFFF3F3F5), RoundedCornerShape(8.dp))
-                        .clickable { filterExpanded = true },
-                    contentAlignment = Alignment.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.FilterAlt,
-                        contentDescription = "Filter",
-                        tint = Color(0xFF374151),
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Text("Lead Management", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Black, modifier = Modifier.size(20.dp))
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
+            // ── Breadcrumb + Search + Filter ──
+            Column(
+                modifier = Modifier
+                    .background(Color(0xFFF8F9FF))
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp, horizontal = 16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Sales", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(16.dp))
+                    Text("Lead Management", fontSize = 13.sp, color = Color(0xFF3B3BF9), fontWeight = FontWeight.SemiBold)
                 }
 
-                // "All Leads" with dropdown
-                Box {
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Search Box
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { filterExpanded = true }
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .background(Color.White, RoundedCornerShape(10.dp))
+                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
+                            .padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = selectedFilter,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black
-                        )
-                        Icon(
-                            imageVector = Icons.Filled.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = Color(0xFF111827),
-                            modifier = Modifier.size(24.dp)
+                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = {
+                                searchQuery = it
+                                currentPage = 1
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
+                            decorationBox = { innerTextField ->
+                                if (searchQuery.isEmpty()) {
+                                    Text("Search leads...", fontSize = 14.sp, color = Color.Black)
+                                }
+                                innerTextField()
+                            }
                         )
                     }
-                    DropdownMenu(
-                        expanded = filterExpanded,
-                        onDismissRequest = { filterExpanded = false },
-                        containerColor = Color.White,
-                        shape = RoundedCornerShape(10.dp)
+
+                    // Filter Button
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color.White, RoundedCornerShape(10.dp))
+                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
+                            .clickable { filterDrawerState.open() },
+                        contentAlignment = Alignment.Center
                     ) {
-                        filterOptions.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(option, color = Color(0xFF374151)) },
-                                onClick = {
-                                    selectedFilter = option
-                                    currentPage = 1
-                                    filterExpanded = false
-                                }
-                            )
-                        }
+                        Icon(Icons.Filled.FilterList, "Filter", tint = Color.Black, modifier = Modifier.size(20.dp))
                     }
                 }
             }
 
-            // RIGHT SIDE: View toggle (Table/Card dropdown) + Create Lead
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            // ── Content ──
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
             ) {
-                // ✅ View Toggle Dropdown — works on all screen sizes (mobile + tablet)
-                Box {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                            .background(Color.White, RoundedCornerShape(8.dp))
-                            .clickable { viewMenuExpanded = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (isListView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
-                            contentDescription = "View Toggle",
-                            tint = Color(0xFF3B3BF9),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = viewMenuExpanded,
-                        onDismissRequest = { viewMenuExpanded = false },
-                        containerColor = Color.White,
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        DropdownMenuItem(
-                            text = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.List,
-                                        contentDescription = null,
-                                        tint = Color(0xFF374151),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text("Table View", color = Color(0xFF374151))
-                                    if (isListView) {
-                                        Spacer(Modifier.width(4.dp))
-                                        Icon(
-                                            Icons.Default.Check,
-                                            contentDescription = null,
-                                            tint = Color(0xFF3B3BF9),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-                            },
-                            onClick = {
-                                isListView = true
-                                viewMenuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.GridView,
-                                        contentDescription = null,
-                                        tint = Color(0xFF374151),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text("Card View", color = Color(0xFF374151))
-                                    if (!isListView) {
-                                        Spacer(Modifier.width(4.dp))
-                                        Icon(
-                                            Icons.Default.Check,
-                                            contentDescription = null,
-                                            tint = Color(0xFF3B3BF9),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-                            },
-                            onClick = {
-                                isListView = false
-                                viewMenuExpanded = false
-                            }
-                        )
-                    }
-                }
-
-                // Create Lead Button
-                Button(
-                    onClick = onCreateLead,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
-                    shape = RoundedCornerShape(6.dp),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
-                ) {
-                    Text(
-                        "Create Lead",
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // ── Content container (Table or Card) ──
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            when {
-                isLoading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.White, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator()
-                            Spacer(Modifier.height(8.dp))
-                            Text("Loading leads...", color = Color.Gray)
-                        }
-                    }
-                }
-                tableError != null -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.White, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = Color.Red,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Text("Error loading leads", color = Color.Red, fontWeight = FontWeight.Bold)
-                            Text(tableError ?: "Unknown error", color = Color.Gray, fontSize = 14.sp)
-                            Spacer(Modifier.height(12.dp))
-                            Button(onClick = { salesViewModel.fetchTableLeads() }) {
-                                Text("Retry")
-                            }
-                        }
-                    }
-                }
-                leads.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.White, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            Modifier.padding(40.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                "No Leads Yet",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                "Start by creating your first lead",
-                                fontSize = 14.sp,
-                                color = Color(0xFF9CA3AF)
-                            )
-                            Spacer(Modifier.height(20.dp))
-                            Button(
-                                onClick = onCreateLead,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
-                                shape = RoundedCornerShape(5.dp),
-                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
-                            ) {
-                                Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                            }
-                        }
-                    }
-                }
-                isListView -> {
-                    // ✅ TABLE VIEW
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.White, RoundedCornerShape(12.dp))
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .horizontalScroll(horizontalScrollState)
-                        ) {
-                            // ── Table Header ──
-                            Row(
-                                modifier = Modifier
-                                    .background(Color(0xFFF1F1F1))
-                                    .padding(horizontal = 12.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(modifier = Modifier.width(checkboxWidth)) {
-                                    Checkbox(
-                                        checked = pagedLeads.isNotEmpty() && pagedLeads.all { it.id in selectedIds },
-                                        onCheckedChange = { checked ->
-                                            selectedIds = if (checked) selectedIds + pagedLeads.map { it.id }
-                                            else selectedIds - pagedLeads.map { it.id }.toSet()
-                                        },
-                                        colors = CheckboxDefaults.colors(checkedColor = Color(0xFF3B3BF9)),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Text("Customer",     modifier = Modifier.width(customerWidth), fontSize = 14.sp,fontWeight = FontWeight.Bold, color = Color.Black)
-                                Text("Enquiry Type", modifier = Modifier.width(enquiryWidth),  fontSize = 14.sp,fontWeight = FontWeight.Bold, color = Color.Black)
-                                Text("Garments",     modifier = Modifier.width(garmentsWidth), fontSize = 14.sp,fontWeight = FontWeight.Bold, color = Color.Black)
-                                Text("Qty",          modifier = Modifier.width(qtyWidth),      fontSize = 14.sp,fontWeight = FontWeight.Bold, color = Color.Black)
-                                Text("Budget Range", modifier = Modifier.width(budgetWidth),   fontSize = 14.sp,fontWeight = FontWeight.Bold, color = Color.Black)
-                                Text("Required Date",modifier = Modifier.width(dateWidth),     fontSize = 14.sp,fontWeight = FontWeight.Bold, color = Color.Black)
-                                Text("Source",       modifier = Modifier.width(sourceWidth),   fontSize = 14.sp,fontWeight = FontWeight.Bold, color = Color.Black)
-                                Text("Status",       modifier = Modifier.width(statusWidth),   fontSize = 14.sp,fontWeight = FontWeight.Bold, color = Color.Black)
-                                Text("Action",       modifier = Modifier.width(actionWidth),   fontSize = 14.sp,fontWeight = FontWeight.Bold, color = Color.Black)
-                            }
-
-                            HorizontalDivider(color = Color(0xFFF0F0F0))
-
-                            // ── Table Body ──
-                            Column {
-                                pagedLeads.forEach { lead ->
-                                    val isChecked = lead.id in selectedIds
-                                    val (badgeText, badgeColor) = resolveStatusBadge(lead)
-                                    val garmentName = resolveGarmentName(lead)
-
-                                    Row(
-                                        modifier = Modifier
-                                            .background(if (isChecked) Color(0xFFF5F5FF) else Color.White)
-                                            .padding(horizontal = 12.dp, vertical = 16.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(modifier = Modifier.width(checkboxWidth)) {
-                                            Checkbox(
-                                                checked = isChecked,
-                                                onCheckedChange = { checked ->
-                                                    selectedIds = if (checked) selectedIds + lead.id else selectedIds - lead.id
-                                                },
-                                                colors = CheckboxDefaults.colors(checkedColor = Color(0xFF3B3BF9)),
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                        Text(lead.person.name, modifier = Modifier.width(customerWidth), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text(lead.enquiryType, modifier = Modifier.width(enquiryWidth), fontSize = 13.sp, color = Color(0xFF3B3BF9), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text(garmentName, modifier = Modifier.width(garmentsWidth), fontSize = 13.sp, color = Color(0xFF374151), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text(if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString(), modifier = Modifier.width(qtyWidth), fontSize = 13.sp, color = Color(0xFF374151))
-                                        Text("₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}", modifier = Modifier.width(budgetWidth), fontSize = 13.sp, color = Color(0xFF374151), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text(formatLeadDate(lead.requiredDate ?: ""), modifier = Modifier.width(dateWidth), fontSize = 13.sp, color = Color(0xFF374151))
-                                        Text(lead.source.ifEmpty { "—" }, modifier = Modifier.width(sourceWidth), fontSize = 13.sp, color = Color(0xFF374151), maxLines = 1, overflow = TextOverflow.Ellipsis)
-
-                                        Box(modifier = Modifier.width(statusWidth)) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .border(1.dp, badgeColor, RoundedCornerShape(20.dp))
-                                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                                            ) {
-                                                Text(badgeText, fontSize = 11.sp, color = badgeColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            }
-                                        }
-
-                                        // ✅ Action Menu with Delete
-                                        Box(modifier = Modifier.width(actionWidth), contentAlignment = Alignment.Center) {
-                                            Box {
-                                                Icon(
-                                                    imageVector = Icons.Default.MoreVert,
-                                                    contentDescription = "More",
-                                                    tint = Color(0xFF9CA3AF),
-                                                    modifier = Modifier
-                                                        .size(20.dp)
-                                                        .clickable { actionMenuLeadId = lead.id }
-                                                )
-                                                DropdownMenu(
-                                                    expanded = actionMenuLeadId == lead.id,
-                                                    onDismissRequest = { actionMenuLeadId = null },
-                                                    containerColor = Color.White,
-                                                    shape = RoundedCornerShape(10.dp)
-                                                ) {
-                                                    DropdownMenuItem(
-                                                        text = {
-                                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                                if (isLoadingView) {
-                                                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                                                } else {
-                                                                    Text("View", color = Color(0xFF374151))
-                                                                }
-                                                            }
-                                                        },
-                                                        enabled = !isLoadingView,
-                                                        onClick = { onViewClicked(lead) }
-                                                    )
-                                                    DropdownMenuItem(
-                                                        text = {
-                                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                                if (isLoadingEdit) {
-                                                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                                                } else {
-                                                                    Text("Edit", color = Color(0xFF374151))
-                                                                }
-                                                            }
-                                                        },
-                                                        enabled = !isLoadingEdit,
-                                                        onClick = { onEditClicked(lead) }
-                                                    )
-                                                    DropdownMenuItem(
-                                                        text = {
-                                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                                if (isDeleting) {
-                                                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                                                } else {
-                                                                    Text("Delete", color = Color(0xFF374151))
-                                                                }
-                                                            }
-                                                        },
-                                                        enabled = !isDeleting,
-                                                        onClick = {
-                                                            actionMenuLeadId = null
-                                                            leadToDelete = lead
-                                                        }
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                    HorizontalDivider(color = Color(0xFFF5F5F5))
-                                }
-                            }
-                        }
-
-                        // ── Pagination Footer ──
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Showing ${if (filteredLeads.isEmpty()) 0 else (currentPage - 1) * itemsPerPage + 1} - ${minOf(currentPage * itemsPerPage, filteredLeads.size)} of ${filteredLeads.size}",
-                                fontSize = 13.sp,
-                                color = Color(0xFF6B7280)
-                            )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Settings, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("10 per page", fontSize = 13.sp, color = Color(0xFF6B7280))
-                                }
-                                Spacer(Modifier.width(8.dp))
-                                IconButton(
-                                    onClick = { if (currentPage > 1) currentPage-- },
-                                    enabled = currentPage > 1,
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(Icons.Default.ChevronLeft, contentDescription = "Previous", tint = if (currentPage > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
-                                }
-                                Text("$currentPage - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
-                                IconButton(
-                                    onClick = { if (currentPage < totalPages) currentPage++ },
-                                    enabled = currentPage < totalPages,
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = if (currentPage < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
-                                }
-                            }
-                        }
-                    }
-                }
-                else -> {
-                    // ✅ CARD VIEW
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            contentPadding = PaddingValues(bottom = 4.dp)
-                        ) {
-                            items(pagedLeads) { lead ->
-                                LeadCardItem(
-                                    lead = lead,
-                                    badge = resolveStatusBadge(lead),
-                                    garmentName = resolveGarmentName(lead),
-                                    isMenuOpen = actionMenuLeadId == lead.id,
-                                    isLoadingView = isLoadingView,
-                                    isLoadingEdit = isLoadingEdit,
-                                    isDeleting = isDeleting,
-                                    onMenuOpenChange = { open -> actionMenuLeadId = if (open) lead.id else null },
-                                    onViewClick = { onViewClicked(lead) },
-                                    onEditClick = { onEditClicked(lead) },
-                                    onDeleteClick = {
-                                        actionMenuLeadId = null
-                                        leadToDelete = lead
-                                    }
-                                )
-                            }
-                        }
-
-                        // ── Pagination Footer (Card View) ──
+                when {
+                    isLoading -> {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.White, RoundedCornerShape(12.dp))
+                                .fillMaxSize()
+                                .background(Color.White, RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Column {
-                                HorizontalDivider(color = Color(0xFFF0F0F0))
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator()
+                                Spacer(Modifier.height(8.dp))
+                                Text("Loading leads...", color = Color.Gray)
+                            }
+                        }
+                    }
+                    tableError != null -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.White, RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
+                                Spacer(Modifier.height(8.dp))
+                                Text("Error loading leads", color = Color.Red, fontWeight = FontWeight.Bold)
+                                Text(tableError ?: "Unknown error", color = Color.Gray, fontSize = 14.sp)
+                                Spacer(Modifier.height(12.dp))
+                                Button(onClick = { salesViewModel.fetchTableLeads() }) {
+                                    Text("Retry")
+                                }
+                            }
+                        }
+                    }
+                    filteredLeads.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.White, RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(Modifier.padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                val hasFilters = filterSections.any { section -> section.options.any { it.isSelected } }
+                                Text(
+                                    if (searchQuery.isNotBlank() || hasFilters)
+                                        "No matching leads found"
+                                    else "No Leads Yet",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF111827)
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    if (searchQuery.isNotBlank() || hasFilters)
+                                        "Try adjusting your search or filter"
+                                    else "Start by creating your first lead",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF9CA3AF)
+                                )
+                                Spacer(Modifier.height(20.dp))
+                                Button(
+                                    onClick = onCreateLead,
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                                 ) {
-                                    Text(
-                                        text = "Showing ${if (filteredLeads.isEmpty()) 0 else (currentPage - 1) * itemsPerPage + 1} - ${minOf(currentPage * itemsPerPage, filteredLeads.size)} of ${filteredLeads.size}",
-                                        fontSize = 13.sp,
-                                        color = Color(0xFF6B7280)
+                                    Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                }
+                            }
+                        }
+                    }
+                    else -> {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            // ── Lead Cards ──
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                contentPadding = PaddingValues(bottom = 120.dp) // ✅ Prevents cards from hiding behind FAB
+                            ) {
+                                items(pagedLeads) { lead ->
+                                    val (badgeText, badgeColor) = resolveStatusBadge(lead)
+                                    DataCard(
+                                        item = lead,
+                                        dateText = formatLeadDate(lead.requiredDate?.takeIf { it.isNotBlank() } ?: lead.enquiryDate),
+                                        badgeText = badgeText,
+                                        badgeColor = badgeColor,
+                                        title = lead.person.name.ifEmpty { "—" },
+                                        subtitle = "${lead.enquiryType.ifEmpty { "—" }} • ${getGarmentName(lead)} • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
+                                        footerText = "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}",
+                                        actions = listOf(
+                                            MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClicked(lead) },
+                                            MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClicked(lead) },
+                                            MenuAction(
+                                                "Delete", Icons.Default.Delete,
+                                                tint = Color(0xFFF44336), textColor = Color(0xFFF44336),
+                                                enabled = !isDeleting
+                                            ) { leadToDelete = lead }
+                                        )
                                     )
+                                }
+                            }
+
+                            // ── Pagination Footer ──
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.White, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                            ) {
+                                Column {
+                                    HorizontalDivider(color = Color(0xFFF0F0F0))
                                     Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        IconButton(
-                                            onClick = { if (currentPage > 1) currentPage-- },
-                                            enabled = currentPage > 1,
-                                            modifier = Modifier.size(28.dp)
+                                        Text(
+                                            "Showing ${if (filteredLeads.isEmpty()) 0 else (currentPage - 1) * itemsPerPage + 1} - ${minOf(currentPage * itemsPerPage, filteredLeads.size)} of ${filteredLeads.size}",
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF6B7280)
+                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Icon(Icons.Default.ChevronLeft, contentDescription = "Previous", tint = if (currentPage > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
-                                        }
-                                        Text("$currentPage - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
-                                        IconButton(
-                                            onClick = { if (currentPage < totalPages) currentPage++ },
-                                            enabled = currentPage < totalPages,
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = if (currentPage < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
+                                            IconButton(
+                                                onClick = { if (currentPage > 1) currentPage-- },
+                                                enabled = currentPage > 1,
+                                                modifier = Modifier.size(28.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.ChevronLeft,
+                                                    "Previous",
+                                                    tint = if (currentPage > 1) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                                )
+                                            }
+                                            Text("$currentPage - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
+                                            IconButton(
+                                                onClick = { if (currentPage < totalPages) currentPage++ },
+                                                enabled = currentPage < totalPages,
+                                                modifier = Modifier.size(28.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.ChevronRight,
+                                                    "Next",
+                                                    tint = if (currentPage < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -1991,251 +1858,201 @@ fun LeadScreenContent(
             }
         }
 
-        // ── Delete Confirmation Dialog ──
-        if (leadToDelete != null) {
-            AlertDialog(
-                onDismissRequest = { leadToDelete = null },
-                containerColor = Color.White,
-                shape = RoundedCornerShape(12.dp),
-                title = {
-                    Text(
-                        "Delete Lead",
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
-                    )
-                },
-                text = {
-                    Text(
-                        "Are you sure you want to delete this lead? This action cannot be undone.",
-                        color = Color(0xFF6B7280)
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            salesViewModel.deleteLead(leadToDelete!!.id)
-                            leadToDelete = null
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Delete", color = Color.White)
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(
-                        onClick = { leadToDelete = null },
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFD1D5DB))
-                    ) {
-                        Text("Cancel", color = Color(0xFF374151))
-                    }
+        // ── FIXED FAB — Create Lead Button (Positioned Above Bottom Bar) ──
+        Button(
+            onClick = onCreateLead,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
+            shape = RoundedCornerShape(8.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 20.dp, bottom = 130.dp) // ✅ Fixed: Moved above bottom bar
+                .shadow(elevation = 6.dp, shape = RoundedCornerShape(8.dp))
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Spacer(Modifier.width(6.dp))
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+
+    // ── Delete Confirmation Dialog ──
+    if (leadToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { leadToDelete = null },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(12.dp),
+            title = {
+                Text("Delete Lead", fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            },
+            text = {
+                Text("Are you sure you want to delete this lead? This action cannot be undone.", color = Color(0xFF6B7280))
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        salesViewModel.deleteLead(leadToDelete!!.id)
+                        leadToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Delete", color = Color.White)
                 }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { leadToDelete = null },
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFFD1D5DB))
+                ) {
+                    Text("Cancel", color = Color(0xFF374151))
+                }
+            }
+        )
+    }
+
+    // ── Filter Drawer ──
+    FilterDrawer(
+        state = filterDrawerState,
+        title = "Filters",
+        sections = filterSections,
+        onApply = { updatedSections ->
+            applyFilters(updatedSections)
+        },
+        onClearAll = {
+            filterSections = filterSections.map { section ->
+                section.copy(
+                    options = section.options.map { option ->
+                        option.copy(isSelected = false)
+                    }
+                )
+            }
+            currentPage = 1
+        }
+    )
+}
+
+
+
+
+@Composable
+fun LeadCard(
+    lead: LeadTableItem,
+    badgeText: String,
+    badgeColor: Color,
+    garmentName: String,
+    isLoadingView: Boolean,
+    isLoadingEdit: Boolean,
+    isDeleting: Boolean,
+    onViewClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White, RoundedCornerShape(12.dp))
+            .padding(14.dp)
+    ) {
+        // ── Top row: date + status badge ──
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    tint = Color(0xFF9CA3AF),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    formatLeadDate(lead.requiredDate?.takeIf { it.isNotBlank() } ?: lead.enquiryDate),
+                    fontSize = 12.sp,
+                    color = Color(0xFF6B7280)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .background(badgeColor.copy(alpha = 0.14f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(badgeText, fontSize = 11.sp, color = badgeColor, fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // ── Name row + menu ──
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                lead.person.name.ifEmpty { "—" },
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111827),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            ActionDropdownMenu(
+                icon = Icons.Default.MoreVert,
+                actions = listOf(
+                    MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClick() },
+                    MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClick() },
+                    MenuAction(
+                        "Delete", Icons.Default.Delete,
+                        tint = Color(0xFFF44336), textColor = Color(0xFFF44336),
+                        enabled = !isDeleting
+                    ) { onDeleteClick() }
+                )
+            )
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        // ── Subtitle: Enquiry • Garment • Qty ──
+        Text(
+            "${lead.enquiryType.ifEmpty { "—" }} • $garmentName • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
+            fontSize = 13.sp,
+            color = Color(0xFF6B7280),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        // ── Budget row ──
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.AccountBalanceWallet,
+                contentDescription = null,
+                tint = Color(0xFF9CA3AF),
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}",
+                fontSize = 13.sp,
+                color = Color(0xFF374151),
+                fontWeight = FontWeight.Medium
             )
         }
     }
 }
-
 // ─────────────────────────────────────────────────────────────
 // LeadCardItem  (NEW COMPOSABLE — add this anywhere below LeadScreenContent)
 // Renders one lead as a card, matching the "Sales Orders" card-view style
 // from your screenshot (Id + status badge + menu, name + chip, dates row).
 // ─────────────────────────────────────────────────────────────
-@Composable
-fun LeadCardItem(
-    lead: LeadTableItem,
-    badge: Pair<String, Color>,
-    garmentName: String,
-    isMenuOpen: Boolean,
-    isLoadingView: Boolean,
-    isLoadingEdit: Boolean,
-    isDeleting: Boolean,
-    onMenuOpenChange: (Boolean) -> Unit,
-    onViewClick: () -> Unit,
-    onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
-) {
-    val (badgeText, badgeColor) = badge
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(12.dp))
-    ) {
-        // ── Top row: a small colored bar + id-like label + status + menu ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .height(18.dp)
-                        .background(Color(0xFF3B3BF9), RoundedCornerShape(2.dp))
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = lead.enquiryType.ifEmpty { "Lead" },
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
-                )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(
-                    modifier = Modifier
-                        .background(badgeColor.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(badgeText, fontSize = 11.sp, color = badgeColor, fontWeight = FontWeight.Medium)
-                }
-                Box {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "More",
-                        tint = Color(0xFF9CA3AF),
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable { onMenuOpenChange(true) }
-                    )
-                    DropdownMenu(
-                        expanded = isMenuOpen,
-                        onDismissRequest = { onMenuOpenChange(false) },
-                        containerColor = Color.White,
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    if (isLoadingView) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                    } else {
-                                        Text("View", color = Color(0xFF374151))
-                                    }
-                                }
-                            },
-                            enabled = !isLoadingView,
-                            onClick = onViewClick
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    if (isLoadingEdit) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                    } else {
-                                        Text("Edit", color = Color(0xFF374151))
-                                    }
-                                }
-                            },
-                            enabled = !isLoadingEdit,
-                            onClick = onEditClick
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    if (isDeleting) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                    } else {
-                                        Text("Delete", color = Color(0xFF374151))
-                                    }
-                                }
-                            },
-                            enabled = !isDeleting,
-                            onClick = onDeleteClick
-                        )
-                    }
-                }
-            }
-        }
-
-        HorizontalDivider(color = Color(0xFFF5F5F5))
-
-        // ── Middle row: avatar initial + name + garment chip ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(Color(0xFFEEEEFE), RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = lead.person.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                    color = Color(0xFF3B3BF9),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = lead.person.name.ifEmpty { "—" },
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF111827),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = garmentName,
-                    fontSize = 13.sp,
-                    color = Color(0xFF6B7280),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .background(Color(0xFFFFF7E6), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = "Qty: ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
-                    fontSize = 11.sp,
-                    color = Color(0xFFB45309)
-                )
-            }
-        }
-
-        // ── Bottom row: source / required date / budget ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFFF8F9FB), RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text("Source", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                Spacer(Modifier.height(2.dp))
-                Text(lead.source.ifEmpty { "—" }, fontSize = 13.sp, color = Color(0xFF374151), fontWeight = FontWeight.Medium)
-            }
-            Column {
-                Text("Required Date", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                Spacer(Modifier.height(2.dp))
-                Text(formatLeadDate(lead.requiredDate ?: ""), fontSize = 13.sp, color = Color(0xFF374151), fontWeight = FontWeight.Medium)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("Budget", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}",
-                    fontSize = 13.sp,
-                    color = Color(0xFF3B3BF9),
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
 
 
 // ─────────────────────────────────────────────────────────────
@@ -3868,19 +3685,6 @@ fun CustomTimePicker(
             }
         }
     }
-}
-// ── Table cell helpers ──
-@Composable
-fun LeadTableCell(text: String, modifier: Modifier, bold: Boolean = false, color: Color = Color(0xFF374151)) {
-    Text(
-        text = text,
-        modifier = modifier,
-        fontSize = 13.sp,
-        fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal,
-        color = color,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis
-    )
 }
 
 

@@ -47,6 +47,7 @@ composeMaterial3 = "1.6.2"
 runtime = "1.11.3"
 foundationVersion = "1.11.3"
 material3Version = "1.4.0"
+composeMaterial = "1.6.2"
 
 [libraries]
 #androidx-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "uiVersion" }
@@ -98,6 +99,7 @@ compose-material3 = { group = "androidx.wear.compose", name = "compose-material3
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundationVersion" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3Version" }
+androidx-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "composeMaterial" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

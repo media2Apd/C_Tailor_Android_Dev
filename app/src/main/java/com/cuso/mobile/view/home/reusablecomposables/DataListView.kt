@@ -36,28 +36,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.lightGray
-import com.cuso.mobile.R
+import androidx.compose.foundation.Image
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Shape
 
-// ── One column = one piece of data + how it looks. Reused by header,
-//    table cell AND card field (label above value). ──
-data class DataColumn<T>(
-    val key: String,
-    val label: String,
-    val width: Dp,
-    val headerBold: Boolean = false,
-    val cellAlignment: Alignment = Alignment.CenterStart,
-    // Override for special headers (e.g. a "select all" checkbox instead of
-    // plain text). Falls back to the default text header when null.
-    val headerContent: (@Composable () -> Unit)? = null,
-    val cellContent: @Composable (T) -> Unit
-)
 
 // ── One action-menu item (View / Edit / Delete / View Teams ...) ──
 data class MenuAction(
@@ -67,6 +56,40 @@ data class MenuAction(
     val textColor: Color = Color(0xFF111827),
     val enabled: Boolean = true,
     val onClick: () -> Unit
+)
+
+// ─────────────────────────────────────────────────────────────
+// Dynamic building blocks — pass only what a given page needs,
+// everything else stays null/empty and simply won't render.
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Leading avatar/thumbnail for the card. Give it a `url` (network image via Coil),
+ * a `painter` (local drawable/bitmap), or a `vector` (Material icon placeholder) —
+ * whichever one a particular page has available.
+ */
+data class DataCardImage(
+    val url: String? = null,
+    val painter: Painter? = null,
+    val vector: ImageVector? = null,
+    val size: Dp = 44.dp,
+    val shape: Shape = CircleShape,
+    val backgroundColor: Color = Color(0xFFF3F4F6),
+    val tint: Color? = null // only used when `vector` is supplied
+)
+
+/** One icon + text line in the footer. Add as many as a page needs (or none). */
+data class DataCardField(
+    val icon: ImageVector? = null,
+    val painter: Painter? = null,
+    val text: String,
+    val textColor: Color = Color(0xFF374151),
+    val iconTint: Color = Color(0xFF9CA3AF)
+)
+
+data class DataCardBadge(
+    val text: String,
+    val color: Color
 )
 
 // 🔁 ONE action trigger, reused by every table row and every card.
@@ -169,123 +192,193 @@ fun ActionDropdownMenu(
     }
 }
 
-// 🔁 ONE header cell — used for every table, every screen.
-@Composable
-private fun DataTableHeaderCell(text: String, width: Dp, bold: Boolean = false) {
-    Text(
-        text,
-        modifier = Modifier.width(width),
-        fontSize = 13.sp,
-        fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold,
-        color = if (bold) Color(0xFF111827) else Color(0xFF6B7280)
-    )
-}
-
-// 🔁 ONE table — header row + scrollable body, built purely from `columns`.
-// Any screen's "XyzTable" becomes a 3-line wrapper around this.
 
 
-// 🔁 ONE card shell — header (leading + title / trailing), optional middle
-// row, then N-per-row "label above value" fields built from `fields`
-// (the SAME DataColumn list used for the table's cells).
-// 🔁 ONE card shell — matches the "date + badge / bold title + menu / subtitle / footer" look.
-// Reused by every list screen (Leads, Measurements, SalesOrder, Department, Branch, Designation).
+
+/**
+ * Fully reusable card — same shell used everywhere, every visual bit (image,
+ * date icon, badge, footer rows, actions) is driven by parameters instead of
+ * being hardcoded, so each screen just plugs in its own data.
+ */
 @Composable
 fun <T> DataCard(
     item: T,
+    image: DataCardImage? = null,
     dateText: String? = null,
-    dateIcon: Painter?=null,
-    badgeText: String,
-    badgeColor: Color,
+    dateIcon: ImageVector = Icons.Default.CalendarMonth,
+    badge: DataCardBadge? = null,
     title: String,
     subtitle: String? = null,
-    footerIcon: ImageVector? = null,
-    footerText: String? = null,
-    actions: List<MenuAction> = emptyList()
+    footerFields: List<DataCardField> = emptyList(),
+    actions: List<MenuAction> = emptyList(),
+    onClick: ((T) -> Unit)? = null
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .let { m -> if (onClick != null) m.clickable { onClick(item) } else m },
         shape = RoundedCornerShape(0.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)) {
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
         Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
 
-            // ── Top row: date (left) + status badge (right) ──
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (dateText != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        val painter = dateIcon ?: painterResource(id = R.drawable.calendar1)
-                        // ↑ simpler: default null-nu vachikonalam
-                        if (dateIcon != null) {
+            // ── Top row: date (left) + status badge (right) — both optional ──
+            if (dateText != null || badge != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (dateText != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(dateIcon, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(14.dp))
-                        } else {
-                            Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(dateText, fontSize = 12.sp, color = Color(0xFF6B7280))
                         }
-                        Spacer(Modifier.width(4.dp))
-                        Text(dateText, fontSize = 12.sp, color = Color(0xFF6B7280))
+                    } else {
+                        Spacer(Modifier.width(1.dp))
+                    }
+                    if (badge != null) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(badge.color.copy(alpha = 0.14f))
+                                .padding(horizontal = 20.dp, vertical = 0.dp)
+                        ) {
+                            Text(badge.text, fontSize = 10.sp, color = badge.color, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
-                Box(
-                    modifier = Modifier
-                        .background(badgeColor.copy(alpha = 0.14f))
-                        .clip(RoundedCornerShape(8.dp))
-                        .padding(horizontal = 20.dp, vertical = 0.dp)
-                ) {
-                    Text(badgeText, fontSize = 10.sp, color = badgeColor, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(8.dp))
+            }
+
+            // ── Main row: optional image + title/subtitle + "⋮" menu ──
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+
+                if (image != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(image.size)
+                            .clip(image.shape)
+                            .background(image.backgroundColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        when {
+                            image.url != null -> AsyncImage(
+                                model = image.url,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            image.painter != null -> Image(
+                                painter = image.painter,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            image.vector != null -> Icon(
+                                image.vector,
+                                contentDescription = null,
+                                tint = image.tint ?: Color(0xFF9CA3AF),
+                                modifier = Modifier.size(image.size * 0.55f)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
                 }
-            }
 
-            Spacer(Modifier.height(8.dp))
-
-            // ── Title row: bold name (left) + "⋮" menu (right) ──
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    title,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-
-            }
-            Row(Modifier.fillMaxWidth()) {
-                // ── Subtitle line ──
-                if (subtitle != null) {
-                    Spacer(Modifier.height(4.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        subtitle,
-                        fontSize = 14.sp,
-                        color = Color(0xFF6B7280),
+                        title,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF111827),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    if (actions.isNotEmpty()) {
-                        ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = actions)
+                    if (subtitle != null) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            subtitle,
+                            fontSize = 14.sp,
+                            color = Color(0xFF6B7280),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
+                }
+
+                if (actions.isNotEmpty()) {
+                    ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = actions)
                 }
             }
 
-
-            // ── Footer row: icon + value ──
-            if (footerText != null) {
+            // ── Footer: any number of icon+text rows, fully dynamic per page ──
+            if (footerFields.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-
-                    Text(footerText, fontSize = 13.sp, color = Color(0xFF374151), fontWeight = FontWeight.Medium)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    footerFields.forEach { field ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            when {
+                                field.icon != null -> {
+                                    Icon(field.icon, contentDescription = null, tint = field.iconTint, modifier = Modifier.size(14.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                                field.painter != null -> {
+                                    Icon(field.painter, contentDescription = null, tint = field.iconTint, modifier = Modifier.size(14.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                            }
+                            Text(field.text, fontSize = 13.sp, color = field.textColor, fontWeight = FontWeight.Medium)
+                        }
+                    }
                 }
             }
         }
     }
-    HorizontalDivider(color= lightGray, thickness = 2.dp)
+    HorizontalDivider(color = lightGray, thickness = 2.dp)
 }
+
+// ─────────────────────────────────────────────────────────────
+// Usage examples — 3 different pages, 3 different field sets,
+// same DataCard, nothing hardcoded.
+// ─────────────────────────────────────────────────────────────
+
+/*
+// 1) Orders page — no image, date + badge + one footer line
+DataCard(
+    item = order,
+    dateText = order.createdOn,
+    badge = DataCardBadge(text = order.status, color = Color(0xFF22C55E)),
+    title = order.customerName,
+    subtitle = order.orderNumber,
+    footerFields = listOf(
+        DataCardField(icon = Icons.Filled.CurrencyRupee, text = "₹${order.amount}")
+    ),
+    actions = listOf(
+        MenuAction("Edit") { /* ... */ },
+        MenuAction("Delete") { /* ... */ }
+    ),
+    onClick = { navigateToOrder(order.id) }
+)
+
+// 2) Customer page — network image (avatar) + two footer lines
+DataCard(
+    item = customer,
+    image = DataCardImage(url = customer.photoUrl, size = 48.dp),
+    title = customer.name,
+    subtitle = customer.city,
+    footerFields = listOf(
+        DataCardField(icon = Icons.Filled.LocationOn, text = customer.address),
+        DataCardField(icon = Icons.Filled.People, text = customer.phone)
+    )
+)
+
+// 3) Garment page — local drawable as image, no date/badge/footer at all
+DataCard(
+    item = garment,
+    image = DataCardImage(painter = painterResource(id = R.drawable.garment_placeholder), shape = RoundedCornerShape(8.dp)),
+    title = garment.name,
+    subtitle = garment.category
+)
+*/

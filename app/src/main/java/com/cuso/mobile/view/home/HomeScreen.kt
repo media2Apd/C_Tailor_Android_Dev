@@ -1,6 +1,12 @@
 package com.cuso.mobile.view.home
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,13 +24,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -73,12 +80,26 @@ import com.cuso.mobile.viewmodel.SaleState
 import com.cuso.mobile.viewmodel.SalesViewModel
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.wear.compose.material.Colors
+import com.cuso.mobile.database.entities.SalesStatusEntity
+import com.cuso.mobile.model.CategoryItem
 import com.cuso.mobile.model.Organization
 import com.cuso.mobile.model.Settings
+import com.cuso.mobile.model.StaffDto
 import com.cuso.mobile.model.Subscription
 import com.cuso.mobile.model.User
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.view.home.branch.BranchSettingsScreen
+import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
+import com.cuso.mobile.view.home.designation.DesignationScreen
 //import com.cuso.mobile.view.home.branch.BranchSettingsScreen
 //import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
 //import com.cuso.mobile.view.home.designation.DesignationScreen
@@ -87,13 +108,15 @@ import com.cuso.mobile.view.home.sales.SalesSettingsScreen
 import com.cuso.mobile.view.home.sidebar.FullSideBar
 import com.cuso.mobile.view.home.sidebar.SalesSideBar
 import com.cuso.mobile.view.home.sales.CreateOrderScreen
-//import com.cuso.mobile.view.home.sales.SalesOrderScreen
+import com.cuso.mobile.view.home.sales.SalesOrderScreen
 import com.cuso.mobile.view.home.sales.CreateOrderNextStep
 //import com.cuso.mobile.view.home.sales.CustomerScreen
 //import com.cuso.mobile.view.home.sales.MeasurementsScreen
 import com.cuso.mobile.view.home.sales.OrderReviewData
 import com.cuso.mobile.view.home.reusablecomposables.ActionDropdownMenu
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
+import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
+import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.FilterDrawer
 import com.cuso.mobile.view.home.reusablecomposables.FilterOption
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
@@ -101,6 +124,11 @@ import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
 import com.cuso.mobile.view.home.reusablecomposables.FilterSection
 import com.cuso.mobile.view.home.reusablecomposables.FilterSectionType
 
+
+// ── Design tokens (Primary color used everywhere for icons / accents) ──
+val LeadPrimary = Color(0xFF3B3BF9)
+val LeadPrimarySoft = Color(0xFFEEEEFE)
+val LeadTextMuted = Color(0xFF9CA3AF)
 
 // ── Data classes ──
 
@@ -281,21 +309,21 @@ fun HomeScreen(navController: NavController) {
                     navController = navController,
                     onMenuClick = { isDrawerOpen = true }
                 )
-//                "home_branch_management" -> BranchSettingsScreen(
-//                    navController = navController,
-//                    onMenuClick = { isDrawerOpen = true },
-//                    onBack = { currentScreen = "settings" }
-//                )
-//                "home_department_teams" -> DepartmentSettingsScreen(
-//                    navController = navController,
-//                    onMenuClick = { isDrawerOpen = true },
-//                    onBack = { currentScreen = "settings" }
-//                )
-//                "home_designation" -> DesignationScreen(
-//                    navController = navController,
-//                    onMenuClick = { isDrawerOpen = true },
-//                    onBack = { currentScreen = "settings" }
-//                )
+                "home_branch_management" -> BranchSettingsScreen(
+                    navController = navController,
+                    onMenuClick = { isDrawerOpen = true },
+                    onBack = { currentScreen = "settings" }
+                )
+                "home_department_teams" -> DepartmentSettingsScreen(
+                    navController = navController,
+                    onMenuClick = { isDrawerOpen = true },
+                    onBack = { currentScreen = "settings" }
+                )
+                "home_designation" -> DesignationScreen(
+                    navController = navController,
+                    onMenuClick = { isDrawerOpen = true },
+                    onBack = { currentScreen = "settings" }
+                )
                 // ✅ Sales Settings Screen (your existing SalesSettingsScreen)
                 "sales_settings" -> SalesSettingsScreen(
                     navController = navController,
@@ -330,51 +358,6 @@ fun HomeScreen(navController: NavController) {
                 "edit_lead" -> EditLeadScreen(
                     onBack = { currentScreen = "sales_lead" }
                 )
-                // Then replace the sales_customers case:
-                // ✅ CUSTOMER SCREEN - Integrated with ViewModel
-//                "sales_customers" -> {
-//                    val customerViewModel: CustomerViewModel = hiltViewModel()
-//                    val customerUiState by customerViewModel.uiState.collectAsStateWithLifecycle()
-//
-//                    CustomerScreen(
-//                        navController = navController,
-//                        customerState = customerUiState,
-//                        onSearch = customerViewModel::onSearch,
-//                        onTypeFilterChange = customerViewModel::onTypeFilterChange,
-//                        onPageChange = customerViewModel::onPageChange,
-//                        onItemsPerPageChange = customerViewModel::onItemsPerPageChange,
-//                        onBack = {
-//                            currentScreen = "home"
-//                        },
-//                        onCreateCustomer = {
-//                            Toast.makeText(context, "Create Customer clicked", Toast.LENGTH_SHORT).show()
-//                            // Navigate to create customer screen when implemented
-//                            // navController.navigate("create_customer")
-//                        },
-//                        onView = { customer ->
-//                            Toast.makeText(context, "View: ${customer.name}", Toast.LENGTH_SHORT).show()
-//                            // Navigate to customer detail when implemented
-//                            // navController.navigate("customer_detail/${customer.id}")
-//                        },
-//                        onEdit = { customer ->
-//                            Toast.makeText(context, "Edit: ${customer.name}", Toast.LENGTH_SHORT).show()
-//                            // Navigate to edit customer when implemented
-//                            // navController.navigate("edit_customer/${customer.id}")
-//                        },
-//                        onDelete = { customer ->
-//                            Toast.makeText(context, "Delete: ${customer.name}", Toast.LENGTH_SHORT).show()
-//                            // Show delete confirmation dialog when implemented
-//                        }
-//                    )
-//                }
-//                "sales_sales_orders" -> {
-//                    SalesOrderScreen(
-//                        navController = navController,
-//                        onCreateOrder = { currentScreen = "create_order" },
-//                        onBack = { currentScreen = "home" }
-//                    )
-//                }
-
                 "create_order" -> {
                     CreateOrderScreen(
                         onBack = { currentScreen = "sales_sales_orders" },
@@ -385,23 +368,17 @@ fun HomeScreen(navController: NavController) {
                         }
                     )
                 }
+                "sales_sales_orders" -> SalesOrderScreen(
+                    navController = navController,
+                    onMenuClick = { isDrawerOpen = true },
+                    onBack = { currentScreen = "sales_lead" },
+                    onCreateOrder = { currentScreen = "create_order" }
+                )
                 "sales_orders" -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("Orders Screen", fontSize = 18.sp, color = Color.Gray)
                     }
                 }
-//                // Then replace the sales_measurements case:
-//                "sales_measurements" -> {
-//                    MeasurementsScreen(
-//                        navController = navController,
-//                        onBack = {
-//                            currentScreen = "home"
-//                        },
-//                        onCreateOrder = {
-//                            currentScreen = "create_order"
-//                        }
-//                    )
-//                }
                 "create_order_review" -> {
                     pendingOrderReviewData?.let { data ->
                         CreateOrderNextStep(
@@ -913,14 +890,231 @@ fun HomeScreenContent() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// CreateLeadScreen
+// Reusable "Lead Form" UI kit — this is the exact card/accordion
+// design from the reference screenshot. CreateLeadScreen,
+// ViewLeadScreen and EditLeadScreen all reuse these same pieces
+// so the three screens stay pixel-consistent with each other.
+// All icons use LeadPrimary (the app's primary/purple color).
 // ─────────────────────────────────────────────────────────────
+
+/** Top row: "Create Lead" / "View Lead" / "Edit Lead" + status badge + close (X). */
+@Composable
+fun LeadFormTopBar(
+    title: String,
+    badgeText: String,
+    badgeColor: Color = LeadPrimary,
+    onClose: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (badgeText.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .background(badgeColor.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(badgeText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = badgeColor)
+                }
+            }
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Close",
+                tint = Color(0xFF111827),
+                modifier = Modifier
+                    .size(22.dp)
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onClose() }
+            )
+        }
+    }
+}
+
+/** Dismissible info banner right under the top bar, e.g. "Fill the details below...". */
+@Composable
+fun LeadInfoBanner(text: String) {
+    var visible by remember { mutableStateOf(true) }
+    AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(LeadPrimarySoft, RoundedCornerShape(10.dp))
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Info, contentDescription = null, tint = LeadPrimary, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(text, fontSize = 13.sp, color = Color(0xFF374151), modifier = Modifier.weight(1f))
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Dismiss",
+                tint = Color(0xFF9CA3AF),
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { visible = false }
+            )
+        }
+    }
+}
+
+/**
+ * A single collapsible section card — icon (primary color) + title + subtitle + chevron.
+ * Pass [trailing] to replace the chevron with something else (e.g. a Switch for
+ * "Appointment & Follow-Up", exactly like the reference design).
+ */
+@Composable
+fun LeadAccordionSection(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    expanded: Boolean,
+    onExpandChange: (Boolean) -> Unit,
+    trailing: (@Composable () -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f, label = "lead_chevron")
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { onExpandChange(!expanded) }
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(LeadPrimarySoft, RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+            }
+            Spacer(Modifier.width(8.dp))
+            if (trailing != null) {
+                trailing()
+            } else {
+                Icon(
+                    Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = Primary,
+                    modifier = Modifier
+                        .size(25.dp)
+                        .rotate(chevronRotation)
+                )
+            }
+        }
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 16.dp)
+            ) {
+                content()
+            }
+        }
+    }
+}
+
+/** Bottom action bar: muted left action (Clear All / Cancel / Back) + primary right button. */
+@Composable
+fun LeadBottomBar(
+    leftLabel: String,
+    leftIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    onLeftClick: () -> Unit,
+    rightLabel: String,
+    rightIcon: androidx.compose.ui.graphics.vector.ImageVector?,
+    onRightClick: () -> Unit,
+    rightEnabled: Boolean = true,
+    rightLoading: Boolean = false
+) {
+    Column {
+        HorizontalDivider(color = Color(0xFFF0F0F0))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onLeftClick() }
+                    .padding(vertical = 6.dp, horizontal = 4.dp)
+            ) {
+                Icon(leftIcon, contentDescription = null, tint = Color(0xFF6B7280), modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(leftLabel, fontSize = 13.sp, color = Color(0xFF6B7280), fontWeight = FontWeight.Medium)
+            }
+            Button(
+                onClick = onRightClick,
+                enabled = rightEnabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = LeadPrimary,
+                    disabledContainerColor = LeadPrimary.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp)
+            ) {
+                if (rightLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                } else {
+                    Text(rightLabel, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    if (rightIcon != null) {
+                        Spacer(Modifier.width(6.dp))
+                        Icon(rightIcon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// CreateLeadScreen — exact accordion-card design from reference.
+// Same state/API logic as before; only the layout changed to use
+// the LeadFormTopBar / LeadInfoBanner / LeadAccordionSection /
+// LeadBottomBar kit above (also reused by View & Edit below).
+// ─────────────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun CreateLeadScreen(onBack: () -> Unit) {
     var leadSource       by remember { mutableStateOf("") }
-    var enquiryDate      by remember { mutableStateOf("22-06-2026") }
-    var leadOwner        by remember { mutableStateOf("Nithish Kumar - NIT-001") }
-    var leadStatus       by remember { mutableStateOf("New Enquiry") }
+    var enquiryDate      by remember { mutableStateOf("") }
+    var leadOwner        by remember { mutableStateOf("") }
+    var leadStatus       by remember { mutableStateOf("") }
     var customerType     by remember { mutableStateOf("Individual") }
     var fullName         by remember { mutableStateOf("") }
     var email            by remember { mutableStateOf("") }
@@ -936,9 +1130,9 @@ fun CreateLeadScreen(onBack: () -> Unit) {
     var budgetRange      by remember { mutableStateOf(1000f) }
     var requiredDate     by remember { mutableStateOf("") }
     var occasion         by remember { mutableStateOf("") }
-    var appointmentRequired by remember { mutableStateOf(true) }
+    var appointmentRequired by remember { mutableStateOf(false) }
     var appointmentDate  by remember { mutableStateOf("") }
-    var appointmentTime  by remember { mutableStateOf("01:04 PM") }
+    var appointmentTime  by remember { mutableStateOf("") }
     var assignedStaff    by remember { mutableStateOf("") }
     var followUpDate     by remember { mutableStateOf("") }
     var priority         by remember { mutableStateOf("") }
@@ -956,6 +1150,9 @@ fun CreateLeadScreen(onBack: () -> Unit) {
     var assignedStaffExpanded    by remember { mutableStateOf(false) }
     var priorityExpanded         by remember { mutableStateOf(false) }
 
+    // ── Accordion open/close state — "Lead Information" open by default, rest closed ──
+    var expandedSection by remember { mutableStateOf("lead_info") }
+
     val leadSourceOptions       = listOf("Walk-in", "Instagram", "Facebook Ads", "Website")
     val genderOptions           = listOf("Male", "Female", "Other")
     val preferredContactOptions = listOf("WhatsApp", "Call")
@@ -967,20 +1164,71 @@ fun CreateLeadScreen(onBack: () -> Unit) {
     val staffList          by salesViewModel.staffList.collectAsStateWithLifecycle()
     val isLoadingStaff     by salesViewModel.isLoadingStaff.collectAsStateWithLifecycle()
     val salesStatuses      by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
-    val garmentCategories  by salesViewModel.garmentCategories.collectAsStateWithLifecycle()  // ✅
+    val garmentCategories  by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
 
     val staffDisplayList   = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
     val staffIdMap         = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
     val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == assignedStaff }?.key ?: ""
     val statusOptions      = salesStatuses.map { it.name }
     val statusIdMap        = salesStatuses.associate { it.name to it.id }
-    val garmentIdMap       = garmentCategories.associate { it.categoryId.categoryName to it.id }  // ✅
-    val garmentOptions     = garmentCategories.map { it.categoryId.categoryName }                  // ✅
+    val garmentIdMap       = garmentCategories.associate { it.categoryId.categoryName to it.id }
+    val garmentOptions     = garmentCategories.map { it.categoryId.categoryName }
 
+    fun clearAllFields() {
+        leadSource = ""; enquiryDate = ""; leadStatus = ""; customerType = "Individual"
+        fullName = ""; email = ""; gender = ""; dob = ""; address = ""; areaZone = ""; city = ""
+        preferredContact = ""; enquiryType = ""; estimatedQuantity = ""; garmentCategory = ""
+        budgetRange = 1000f; requiredDate = ""; occasion = ""; appointmentRequired = false
+        appointmentDate = ""; appointmentTime = ""; assignedStaff = ""; followUpDate = ""
+        priority = ""; internalNotes = ""; customerNotes = ""; phone = ""
+    }
+
+    fun submitLead() {
+        val request = CreateLeadFormRequest(
+            customerType = customerType.lowercase(),
+            enquiryType = enquiryType,
+            estimatedQuantity = estimatedQuantity.toIntOrNull() ?: 0,
+            budgetRange = BudgetRange(min = budgetRange.toInt(), max = 250000),
+            garments = listOfNotNull(garmentIdMap[garmentCategory]?.takeIf {
+                garmentCategory.isNotBlank()
+            }),
+            enquiryDate = enquiryDate.toIsoDate(),
+            requiredDate = requiredDate.toIsoDate(),
+            source = leadSource,
+            person = LeadPerson(
+                name = fullName,
+                phone = phone,
+                email = email,
+                gender = gender,
+                dob = dob.toIsoDate()
+            ),
+            contact = LeadContact(
+                address = address,
+                area = areaZone,
+                city = city,
+                preferredContactMethod = preferredContact
+            ),
+            appointment = LeadAppointment(
+                isRequired = appointmentRequired,
+                date = appointmentDate.toIsoDate(),
+                time = appointmentTime,
+                assignedStaff = assignedStaff,
+                priority = priority,
+                followUpDate = followUpDate.toIsoDate()
+            ),
+            status = statusIdMap[leadStatus] ?: "",
+            statusName = leadStatus,
+            notes = buildList {
+                if (internalNotes.isNotBlank()) add(LeadNote(internalNotes, "internal"))
+                if (customerNotes.isNotBlank()) add(LeadNote(customerNotes, "customer"))
+            }
+        )
+        salesViewModel.createLead(request)
+    }
 
     LaunchedEffect(Unit) {
         salesViewModel.fetchStaff()
-        salesViewModel.fetchGarmentCategories()  // ✅
+        salesViewModel.fetchGarmentCategories()
     }
 
     LaunchedEffect(leadState) {
@@ -992,307 +1240,325 @@ fun CreateLeadScreen(onBack: () -> Unit) {
     }
 
     Scaffold(
-        bottomBar = {
-            Column {
+        containerColor = Color(0xFFF5F5F7)
+        // ✅ bottomBar முழுசா நீக்கிடுச்சு
+    ) { padding ->
+        // ✅ Root Box — content + fixed floating Create Lead button
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                LeadFormTopBar(
+                    title = "Create Lead",
+                    badgeText = leadStatus.ifEmpty { "New Enquiry" },
+                    onClose = onBack
+                )
                 HorizontalDivider(color = Color(0xFFF0F0F0))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("All required fields are filled", fontSize = 12.sp, color = Color(0xFF6B7280))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = onBack,
-                            shape  = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, Color(0xFFD1D5DB))
-                        ) { Text("Cancel", color = Color(0xFF374151)) }
-                        Button(
-                            onClick = {
-                                val request = CreateLeadFormRequest(
-                                    customerType = customerType.lowercase(),
-                                    enquiryType = enquiryType,
-                                    estimatedQuantity = estimatedQuantity.toIntOrNull() ?: 0,
-                                    budgetRange = BudgetRange(min = budgetRange.toInt(), max = 250000),
-                                    garments = listOfNotNull(garmentIdMap[garmentCategory]?.takeIf {
-                                        garmentCategory.isNotBlank()
-                                    }),
-                                    enquiryDate = enquiryDate.toIsoDate(),
-                                    requiredDate = requiredDate.toIsoDate(),
-                                    source = leadSource,
-                                    person = LeadPerson(
-                                        name = fullName,
-                                        phone = phone,
-                                        email = email,
-                                        gender = gender,        // ✅ This will now be sent
-                                        dob = dob.toIsoDate()   // ✅ This will now be sent
-                                    ),
-                                    contact = LeadContact(
-                                        address = address,      // ✅ This will now be sent
-                                        area = areaZone,        // ✅ This will now be sent
-                                        city = city,            // ✅ This will now be sent
-                                        preferredContactMethod = preferredContact  // ✅ This will now be sent
-                                    ),
-                                    appointment = LeadAppointment(
-                                        isRequired = appointmentRequired,
-                                        date = appointmentDate.toIsoDate(),
-                                        time = appointmentTime,
-                                        assignedStaff = assignedStaff,
-                                        priority = priority,
-                                        followUpDate = followUpDate.toIsoDate()
-                                    ),
-                                    status = statusIdMap[leadStatus] ?: "",
-                                    statusName = leadStatus,
-                                    notes = buildList {
-                                        if (internalNotes.isNotBlank()) add(LeadNote(internalNotes, "internal"))
-                                        if (customerNotes.isNotBlank()) add(LeadNote(customerNotes, "customer"))
+                    item {
+                        LeadInfoBanner("Fill the details below to create a new lead.")
+                    }
+
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.Description,
+                            title = "Lead Information",
+                            subtitle = "",
+                            expanded = expandedSection == "lead_info",
+                            onExpandChange = { expandedSection = if (expandedSection == "lead_info") "" else "lead_info" }
+                        ) {
+                            FormDropdown("Lead Source", leadSource.ifEmpty { "Select an option" }, leadSourceExpanded, { leadSourceExpanded = it }, leadSourceOptions, { leadSource = it }, isRequired = true)
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Enquiry Date", isRequired = true)
+                            DatePickerField(value = enquiryDate.ifEmpty { "Select Date" }, onDateSelected = { enquiryDate = it })
+                            Spacer(Modifier.height(14.dp))
+                            FormDropdown("Lead Owner", leadOwner.ifEmpty { "Select an option" }, leadOwnerExpanded, { leadOwnerExpanded = it }, listOf("Nithish Kumar - NIT-001"), { leadOwner = it }, isRequired = true)
+                            Spacer(Modifier.height(14.dp))
+                            FormDropdown("Lead Status", leadStatus.ifEmpty { "Select an option" }, leadStatusExpanded, { leadStatusExpanded = it }, statusOptions, { leadStatus = it }, isRequired = true)
+                        }
+                    }
+
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.Person,
+                            title = "Customer Identity",
+                            subtitle = "Who is this lead for?",
+                            expanded = expandedSection == "customer",
+                            onExpandChange = { expandedSection = if (expandedSection == "customer") "" else "customer" }
+                        ) {
+                            Row(modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                                .padding(4.dp)) {
+                                listOf("Individual", "Corporate").forEach { type ->
+                                    val isSelected = customerType == type
+                                    Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(if (isSelected) Color.White else Color.Transparent)
+                                            .clickable { customerType = type }
+                                            .padding(vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            if (type == "Individual") Icons.Default.Person else Icons.Default.Business,
+                                            type,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = if (isSelected) LeadPrimary else Color(0xFF6B7280)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            type,
+                                            fontSize = 14.sp,
+                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                            color = if (isSelected) Color.Black else Color(0xFF6B7280)
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel(if (customerType == "Corporate") "Company Name" else "Full Name", isRequired = true)
+                            FormTextField(value = fullName, onValueChange = { fullName = it })
+                            Spacer(Modifier.height(14.dp))
+                            PhoneInputField(phoneValue = phone, onPhoneChange = { phone = it }, onCountryChange = { selectedIso = it.iso })
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Email")
+                            FormTextField(value = email, onValueChange = { email = it })
+                            if (customerType == "Individual") {
+                                Spacer(Modifier.height(14.dp))
+                                FormDropdown("Gender", gender.ifEmpty { "Select an option" }, genderExpanded, { genderExpanded = it }, genderOptions, { gender = it })
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Date of Birth")
+                                DatePickerField(value = dob.ifEmpty { "Select Date" }, onDateSelected = { dob = it })
+                            }
+                        }
+                    }
+
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.LocationOn,
+                            title = "Location & Communication",
+                            subtitle = "Contact details and preferences",
+                            expanded = expandedSection == "location",
+                            onExpandChange = { expandedSection = if (expandedSection == "location") "" else "location" }
+                        ) {
+                            FormLabel("Address")
+                            FormTextField(value = address, onValueChange = { address = it })
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Area / Zone")
+                            FormTextField(value = areaZone, onValueChange = { areaZone = it })
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("City")
+                            FormTextField(value = city, onValueChange = { city = it })
+                            Spacer(Modifier.height(14.dp))
+                            FormDropdown("Preferred Contact Method", preferredContact.ifEmpty { "Select an option" }, preferredContactExpanded, { preferredContactExpanded = it }, preferredContactOptions, { preferredContact = it })
+                        }
+                    }
+
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.AutoMirrored.Filled.Assignment,
+                            title = "Enquiry Details",
+                            subtitle = "What are they looking for?",
+                            expanded = expandedSection == "enquiry",
+                            onExpandChange = { expandedSection = if (expandedSection == "enquiry") "" else "enquiry" }
+                        ) {
+                            FormDropdown("Enquiry Type", enquiryType.ifEmpty { "Select an option" }, enquiryTypeExpanded, { enquiryTypeExpanded = it }, enquiryTypeOptions, { enquiryType = it })
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Estimated Quantity")
+                            FormTextField(value = estimatedQuantity, onValueChange = { estimatedQuantity = it }, keyboardType = KeyboardType.Number)
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Garment Category")
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(garmentOptions) { option ->
+                                    val isSelected = garmentCategory == option
+                                    Box(
+                                        modifier = Modifier
+                                            .border(1.dp, if (isSelected) Primary else Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
+                                            .background(if (isSelected) LeadPrimarySoft else Color.White, RoundedCornerShape(50.dp))
+                                            .clickable { garmentCategory = if (garmentCategory == option) "" else option }
+                                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                                    ) {
+                                        Text(option, fontSize = 13.sp, color = if (isSelected) LeadPrimary else Color(0xFF374151), fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Budget Range")
+                            Slider(
+                                value = budgetRange,
+                                onValueChange = { budgetRange = it },
+                                valueRange = 1000f..250000f,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = LeadPrimary,
+                                    activeTrackColor = LeadPrimary,
+                                    inactiveTrackColor = Color(0xFFE5E7EB)
+                                ),
+                                thumb = {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(22.dp)
+                                            .background(Color.White, CircleShape)
+                                            .border(3.dp, LeadPrimary, CircleShape)
+                                    )
+                                },
+                                track = { sliderState ->
+                                    val fraction = (sliderState.value - sliderState.valueRange.start) /
+                                            (sliderState.valueRange.endInclusive - sliderState.valueRange.start)
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(6.dp)
+                                            .clip(RoundedCornerShape(50))
+                                            .background(Color(0xFFE5E7EB))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(fraction)
+                                                .fillMaxHeight()
+                                                .clip(RoundedCornerShape(50))
+                                                .background(LeadPrimary)
+                                        )
+                                    }
+                                }
+                            )
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("₹1000", fontSize = 12.sp, color = Color(0xFF6B7280))
+                                Text("₹${formatIndianNumber(budgetRange.toInt())}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
+                                Text("₹250000", fontSize = 12.sp, color = Color(0xFF6B7280))
+                            }
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Required Date")
+                            DatePickerField(value = requiredDate.ifEmpty { "Select Date" }, onDateSelected = { requiredDate = it })
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Occasion")
+                            FormTextField(value = occasion, onValueChange = { occasion = it })
+                        }
+                    }
+
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.CalendarMonth,
+                            title = "Appointment & Follow-Up",
+                            subtitle = "Schedule interactions",
+                            expanded = expandedSection == "appointment",
+                            onExpandChange = { expandedSection = if (expandedSection == "appointment") "" else "appointment" },
+                            trailing = {
+                                MiniSwitch(
+                                    checked = appointmentRequired,
+                                    onCheckedChange = {
+                                        appointmentRequired = it
+                                        if (it) expandedSection = "appointment"
                                     }
                                 )
-                                salesViewModel.createLead(request)
-                            },
-                            enabled = leadState !is SaleState.Loading,
-                            colors  = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                            shape   = RoundedCornerShape(8.dp)
+                            }
                         ) {
-                            if (leadState is SaleState.Loading) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                            if (appointmentRequired) {
+                                FormLabel("Appointment Date")
+                                DatePickerField(value = appointmentDate.ifEmpty { "Select Date" }, onDateSelected = { appointmentDate = it })
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Appointment Time")
+                                TimePickerField(value = appointmentTime, onTimeSelected = { appointmentTime = it })
+                                FormDropdown("Assigned Staff", selectedStaffLabel.ifEmpty { if (isLoadingStaff) "Loading staff..." else "Select an option" }, assignedStaffExpanded && !isLoadingStaff, { assignedStaffExpanded = it }, staffDisplayList, { label -> assignedStaff = staffIdMap[label] ?: "" })
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Follow-up Date", isRequired = true)
+                                DatePickerField(value = followUpDate.ifEmpty { "Select Date" }, onDateSelected = { followUpDate = it })
+                                Spacer(Modifier.height(14.dp))
+                                FormDropdown("Priority", priority.ifEmpty { "Select an option" }, priorityExpanded, { priorityExpanded = it }, priorityOptions, { priority = it }, isRequired = true)
                             } else {
-                                Text("Save Lead", color = Color.White)
+                                Text("No appointment scheduled.", fontSize = 13.sp, color = LeadTextMuted)
                             }
                         }
                     }
-                }
-                if (leadState is SaleState.Error) {
-                    Text((leadState as SaleState.Error).message, color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp))
-                }
-            }
-        }
-    ) { padding ->
-        Column(modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F7))
-            .padding(padding)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", modifier = Modifier.clickable { onBack() }, tint = Color(0xFF111827))
-                    Text("Create Lead", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                }
-                Box(modifier = Modifier
-                    .border(1.dp, Color(0xFF3B3BF9), RoundedCornerShape(6.dp))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)) {
-                    Text(text=leadStatus.ifEmpty { "New Enquiry" }, fontSize = 12.sp, color = Color(0xFF3B3BF9))
-                }
-            }
-            HorizontalDivider(color = Color(0xFFF0F0F0))
 
-            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                item {
-                    FormCard {
-                        SectionHeader(icon = Icons.Default.Description, title = "Lead Information", subtitle = "Basic details about this lead")
-                        FormDropdown("Lead Source", leadSource.ifEmpty { "Select an option" }, leadSourceExpanded, { leadSourceExpanded = it }, leadSourceOptions, { leadSource = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Enquiry Date")
-                        DatePickerField(value = enquiryDate.ifEmpty { "Select Date" }, onDateSelected = { enquiryDate = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormDropdown("Lead Owner", leadOwner.ifEmpty { "Select an option" }, leadOwnerExpanded, { leadOwnerExpanded = it }, listOf("Nithish Kumar - NIT-001"), { leadOwner = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormDropdown("Lead Status", leadStatus.ifEmpty { "Select an option" }, leadStatusExpanded, { leadStatusExpanded = it }, statusOptions, { leadStatus = it })
-                    }
-                }
-                item {
-                    FormCard {
-                        SectionHeader(icon = Icons.Default.Person, title = "Customer Identity", subtitle = "Who is this lead for?")
-                        Spacer(Modifier.padding(top = 10.dp))
-                        Row(modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                            .padding(4.dp)) {
-                            listOf("Individual", "Corporate").forEach { type ->
-                                val isSelected = customerType == type
-                                Row(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(if (isSelected) Color.White else Color.Transparent)
-                                        .clickable { customerType = type }
-                                        .padding(vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        if (type == "Individual") Icons.Default.Person else Icons.Default.Business,
-                                        type,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = if (isSelected) Color.Black else Color(0xFF6B7280)
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        type,
-                                        fontSize = 14.sp,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                        color = if (isSelected) Color.Black else Color(0xFF6B7280)
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel(if (customerType == "Corporate") "Company Name" else "Full Name")
-                        FormTextField(value = fullName, onValueChange = { fullName = it })
-                        Spacer(Modifier.height(14.dp))
-                        PhoneInputField(phoneValue = phone, onPhoneChange = { phone = it }, onCountryChange = { selectedIso = it.iso })
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Email")
-                        FormTextField(value = email, onValueChange = { email = it })
-                        if (customerType == "Individual") {
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.Description,
+                            title = "Notes & References",
+                            subtitle = "Additional information and attachments",
+                            expanded = expandedSection == "notes",
+                            onExpandChange = { expandedSection = if (expandedSection == "notes") "" else "notes" }
+                        ) {
+                            FormLabel("Internal Notes")
+                            OutlinedTextField(value = internalNotes, onValueChange = { internalNotes = it }, modifier = Modifier
+                                .fillMaxWidth()
+                                .height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = LeadPrimary, unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
                             Spacer(Modifier.height(14.dp))
-                            FormDropdown("Gender", gender.ifEmpty { "Select an option" }, genderExpanded, { genderExpanded = it }, genderOptions, { gender = it })
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Date of Birth")
-                            DatePickerField(value = dob.ifEmpty { "Select Date" }, onDateSelected = { dob = it })
+                            FormLabel("Customer Notes")
+                            OutlinedTextField(value = customerNotes, onValueChange = { customerNotes = it }, modifier = Modifier
+                                .fillMaxWidth()
+                                .height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = LeadPrimary, unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
                         }
                     }
-                }
-                item {
-                    FormCard {
-                        SectionHeader(icon = Icons.Default.LocationOn, title = "Location & Communication", subtitle = "Contact details and preferences")
-                        FormLabel("Address")
-                        FormTextField(value = address, onValueChange = { address = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Area / Zone")
-                        FormTextField(value = areaZone, onValueChange = { areaZone = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("City")
-                        FormTextField(value = city, onValueChange = { city = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormDropdown("Preferred Contact Method", preferredContact.ifEmpty { "Select an option" }, preferredContactExpanded, { preferredContactExpanded = it }, preferredContactOptions, { preferredContact = it })
+
+                    // ✅ "Clear All" — Notes & References-க்கு கீழ, normal content-ஆ (fixed இல்ல, scroll ஆகும்)
+                    item {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { clearAllFields() }
+                                .padding(horizontal = 15.dp, vertical = 8.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Clear All", fontSize = 13.sp, color = Primary, fontWeight = FontWeight.Medium)
+                        }
                     }
-                }
-                item {
-                    FormCard {
-                        SectionHeader(icon = Icons.AutoMirrored.Filled.Assignment, title = "Enquiry Details", subtitle = "What are they looking for?")
-                        FormDropdown("Enquiry Type", enquiryType.ifEmpty { "Select an option" }, enquiryTypeExpanded, { enquiryTypeExpanded = it }, enquiryTypeOptions, { enquiryType = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Estimated Quantity")
-                        FormTextField(value = estimatedQuantity, onValueChange = { estimatedQuantity = it }, keyboardType = KeyboardType.Number)
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Garment Category")
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(garmentOptions) { option ->  // ✅ from API
-                                val isSelected = garmentCategory == option
-                                Box(
-                                    modifier = Modifier
-                                        .border(
-                                            1.dp,
-                                            if (isSelected) Color(0xFF3B3BF9) else Color(0xFFE5E7EB),
-                                            RoundedCornerShape(50.dp)
-                                        )
-                                        .background(
-                                            if (isSelected) Color(0xFFEEEEFE) else Color.White,
-                                            RoundedCornerShape(50.dp)
-                                        )
-                                        .clickable {
-                                            garmentCategory =
-                                                if (garmentCategory == option) "" else option
-                                        }
-                                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                                ) {
-                                    Text(option, fontSize = 13.sp, color = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF374151), fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Budget Range")
-                        Slider(value = budgetRange, onValueChange = { budgetRange = it }, valueRange = 1000f..250000f, modifier = Modifier.fillMaxWidth(), colors = SliderDefaults.colors(thumbColor = Color(0xFF3B3BF9), activeTrackColor = Color(0xFF3B3BF9), inactiveTrackColor = Color(0xFFE5E7EB)))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("₹1000", fontSize = 12.sp, color = Color(0xFF6B7280))
-                            Text("₹${formatIndianNumber(budgetRange.toInt())}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B3BF9))
-                            Text("₹250000", fontSize = 12.sp, color = Color(0xFF6B7280))
-                        }
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Required Date")
-                        DatePickerField(value = requiredDate.ifEmpty { "Select Date" }, onDateSelected = { requiredDate = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Occasion")
-                        FormTextField(value = occasion, onValueChange = { occasion = it })
-                    }
-                }
-                item {
-                    FormCard {
-                        SectionHeader(icon = Icons.Default.CalendarMonth, title = "Appointment & Follow-Up", subtitle = "Schedule interactions")
-                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Appointment Required?", fontSize = 14.sp, color = Color(0xFF374151))
-                            Switch(checked = appointmentRequired, onCheckedChange = { appointmentRequired = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF3B3BF9)))
-                        }
-                        if (appointmentRequired) {
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Appointment Date")
-                            DatePickerField(value = appointmentDate.ifEmpty { "Select Date" }, onDateSelected = { appointmentDate = it })
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Appointment Time")
-                            TimePickerField(
-                                value = appointmentTime,
-                                onTimeSelected = { appointmentTime = it }
+
+                    if (leadState is SaleState.Error) {
+                        item {
+                            Text(
+                                (leadState as SaleState.Error).message,
+                                color = Color.Red,
+                                fontSize = 12.sp
                             )
-                            FormDropdown("Assigned Staff", selectedStaffLabel.ifEmpty { if (isLoadingStaff) "Loading staff..." else "Select an option" }, assignedStaffExpanded && !isLoadingStaff, { assignedStaffExpanded = it }, staffDisplayList, { label -> assignedStaff = staffIdMap[label] ?: "" })
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Follow-up Date", isRequired = true)
-                            DatePickerField(value = followUpDate.ifEmpty { "Select Date" }, onDateSelected = { followUpDate = it })
-                            Spacer(Modifier.height(14.dp))
-                            FormDropdown("Priority", priority.ifEmpty { "Select an option" }, priorityExpanded, { priorityExpanded = it }, priorityOptions, { priority = it }, isRequired = true)
                         }
-                        Spacer(Modifier.height(14.dp))
                     }
+
+                    // ✅ floating button மறையாம கடைசில extra space
+                    item { Spacer(Modifier.height(90.dp)) }
                 }
-                item {
-                    FormCard {
-                        SectionHeader(icon = Icons.Default.Description, title = "Notes & References", subtitle = "Additional information and attachments")
-                        FormLabel("Internal Notes")
-                        OutlinedTextField(value = internalNotes, onValueChange = { internalNotes = it }, modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = Color(0xFF3B3BF9), unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Customer Notes")
-                        OutlinedTextField(value = customerNotes, onValueChange = { customerNotes = it }, modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = Color(0xFF3B3BF9), unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
-                    }
+            }
+
+            // ✅ Fixed floating "Create Lead" button — bottom-end-ல எப்போவும் இருக்கும்
+            Button(
+                onClick = { submitLead() },
+                enabled = leadState !is SaleState.Loading,
+                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = 130.dp) // ✅ Fixed: Moved above bottom bar
+
+            ) {
+                if (leadState is SaleState.Loading) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                } else {
+                    Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                 }
             }
         }
     }
 }
-
 // ─────────────────────────────────────────────────────────────
-// LeadScreenContent
+// LeadScreenContent (unchanged — table/list screen, not the form)
 // ─────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────
-// LeadScreenContent  (FULL UPDATED FUNCTION)
-// Replace your existing fun LeadScreenContent(...) { ... } completely with this.
-// ─────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────
-// LeadScreenContent (UPDATED WITH FILTER DRAWER)
-// ─────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────
-// LeadScreenContent (FULLY FIXED)
-// ─────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────
-// LeadScreenContent (FULLY FIXED - FAB Position Corrected)
-// ─────────────────────────────────────────────────────────────
-
 @Composable
 fun LeadScreenContent(
     onCreateLead: () -> Unit = {},
@@ -1308,6 +1574,11 @@ fun LeadScreenContent(
     val deleteState by salesViewModel.deleteState.collectAsStateWithLifecycle()
     val updateState by salesViewModel.updateState.collectAsStateWithLifecycle()
 
+    // ✅ filter sections ku venum dynamic data ellam inga irundhே varum
+    val salesStatuses by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
+    val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
+    val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
+
     var actionMenuLeadId by remember { mutableStateOf<String?>(null) }
     var leadToDelete by remember { mutableStateOf<LeadTableItem?>(null) }
     var isLoadingEdit by remember { mutableStateOf(false) }
@@ -1320,96 +1591,24 @@ fun LeadScreenContent(
     var currentPage by remember { mutableIntStateOf(1) }
     val itemsPerPage = 10
 
-    // ── Filter Sections ──
+    // ✅ FIXED — declared here, BEFORE filteredLeads (below) reads it.
+    // Builds the filter sections from live ViewModel data instead of hardcoded lists.
     var filterSections by remember {
-        mutableStateOf(
-            listOf(
-                FilterSection(
-                    title = "Date Range",
-                    icon = Icons.Filled.CalendarMonth,
-                    type = FilterSectionType.CHIP_GRID,
-                    isMultiSelect = false,
-                    options = listOf(
-                        FilterOption("today", "Today"),
-                        FilterOption("week", "This Week"),
-                        FilterOption("month", "This Month"),
-                        FilterOption("custom", "Custom")
-                    )
-                ),
-                FilterSection(
-                    title = "Status",
-                    icon = Icons.Filled.Sell,
-                    type = FilterSectionType.CHECKBOX_LIST,
-                    isMultiSelect = true,
-                    options = listOf(
-                        FilterOption("new", "New Enquiry"),
-                        FilterOption("quoted", "Quoted"),
-                        FilterOption("followup", "Follow-up Pending"),
-                        FilterOption("converted", "Converted to Order"),
-                        FilterOption("lost", "Lost Enquiry")
-                    )
-                ),
-                FilterSection(
-                    title = "Source",
-                    icon = Icons.Filled.Campaign,
-                    type = FilterSectionType.CHIP_ROW,
-                    isMultiSelect = true,
-                    options = listOf(
-                        FilterOption("walk_in", "Walk-in"),
-                        FilterOption("instagram", "Instagram"),
-                        FilterOption("facebook", "Facebook Ads"),
-                        FilterOption("website", "Website")
-                    )
-                ),
-                FilterSection(
-                    title = "Garments",
-                    icon = Icons.Filled.Checkroom,
-                    type = FilterSectionType.CHIP_ROW_MORE,
-                    isMultiSelect = true,
-                    options = listOf(
-                        FilterOption("shirt", "Shirt"),
-                        FilterOption("pant", "Pant"),
-                        FilterOption("blazer", "Blazer"),
-                        FilterOption("saree", "Saree")
-                    )
-                ),
-                FilterSection(
-                    title = "Amount Range",
-                    icon = Icons.Filled.CurrencyRupee,
-                    type = FilterSectionType.AMOUNT_RANGE,
-                    options = emptyList()
-                ),
-                FilterSection(
-                    title = "Sales Person",
-                    icon = Icons.Filled.People,
-                    type = FilterSectionType.DROPDOWN,
-                    options = emptyList()
-                ),
-                FilterSection(
-                    title = "Location",
-                    icon = Icons.Filled.LocationOn,
-                    type = FilterSectionType.DROPDOWN,
-                    options = emptyList()
-                ),
-                FilterSection(
-                    title = "Priority",
-                    icon = Icons.Filled.Flag,
-                    type = FilterSectionType.PRIORITY_DOTS,
-                    isMultiSelect = false,
-                    options = listOf(
-                        FilterOption("high", "High"),
-                        FilterOption("medium", "Medium"),
-                        FilterOption("low", "Low")
-                    )
-                )
-            )
-        )
+        mutableStateOf(buildFilterSections(emptyList(), emptyList(), emptyList(), emptyList(), emptyList()))
+    }
+
+    // ✅ Rebuilds sections whenever the underlying ViewModel data changes,
+    // while keeping whatever the user already had checked.
+    LaunchedEffect(salesStatuses, garmentCategories, staffList, leads) {
+        val dynamicSources = leads.map { it.source }.filter { it.isNotBlank() }.distinct().sorted()
+        filterSections = buildFilterSections(filterSections, salesStatuses, garmentCategories, staffList, dynamicSources)
     }
 
     LaunchedEffect(Unit) {
         salesViewModel.fetchTableLeads()
         salesViewModel.fetchStaff()
         salesViewModel.fetchGarmentCategories()
+        salesViewModel.fetchSalesData() // ✅ salesStatuses (Status filter) idhula irundhே populate aagum
     }
 
     LaunchedEffect(deleteState) {
@@ -1457,77 +1656,41 @@ fun LeadScreenContent(
         }
     }
 
-    // ✅ Filter by search, status, source, garments, priority
+    // ✅ Filter by search, status, source, garments, amount, priority, sales person
     val filteredLeads = leads.filter { lead ->
         val matchesSearch = searchQuery.isBlank() ||
                 lead.person.name.contains(searchQuery, ignoreCase = true) ||
                 lead.enquiryType.contains(searchQuery, ignoreCase = true)
 
-        // Status filter
-        val selectedStatuses = filterSections.find { it.title == "Status" }
-            ?.options
-            ?.filter { it.isSelected }
-            ?.map { it.id }
-            ?: emptyList()
-
+        // Status filter — matches directly against real status names, no id→keyword mapping
         val statusName = when (lead.status) {
             is String -> lead.status
             is Map<*, *> -> (lead.status["name"] as? String) ?: ""
             else -> ""
         }
+        val selectedStatusLabels = filterSections.find { it.title == "Status" }
+            ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
+        val matchesStatus = selectedStatusLabels.isEmpty() ||
+                selectedStatusLabels.any { it.equals(statusName, ignoreCase = true) }
 
-        val matchesStatus = selectedStatuses.isEmpty() || run {
-            selectedStatuses.any { selected ->
-                when (selected) {
-                    "new" -> statusName.contains("New", ignoreCase = true) || statusName.equals("NEW", ignoreCase = true)
-                    "quoted" -> statusName.contains("Quot", ignoreCase = true) || statusName.equals("QUOTED", ignoreCase = true)
-                    "followup" -> statusName.contains("Follow", ignoreCase = true) || statusName.contains("Pending", ignoreCase = true)
-                    "converted" -> statusName.contains("Convert", ignoreCase = true) || statusName.equals("CONVERTED", ignoreCase = true)
-                    "lost" -> statusName.contains("Lost", ignoreCase = true)
-                    else -> false
-                }
-            }
-        }
-
-        // Source filter
-        val selectedSources = filterSections.find { it.title == "Source" }
-            ?.options
-            ?.filter { it.isSelected }
-            ?.map { it.id }
-            ?: emptyList()
-
-        val matchesSource = selectedSources.isEmpty() || run {
-            val source = lead.source.lowercase()
-            selectedSources.any { selected ->
-                when (selected) {
-                    "walk_in" -> source.contains("walk")
-                    "instagram" -> source.contains("instagram")
-                    "facebook" -> source.contains("facebook")
-                    "website" -> source.contains("website")
-                    else -> false
-                }
-            }
-        }
+        // Source filter — matches against real source values from the API
+        val selectedSourceLabels = filterSections.find { it.title == "Source" }
+            ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
+        val matchesSource = selectedSourceLabels.isEmpty() ||
+                selectedSourceLabels.any { it.equals(lead.source, ignoreCase = true) }
 
         // Garments filter
-        val selectedGarments = filterSections.find { it.title == "Garments" }
-            ?.options
-            ?.filter { it.isSelected }
-            ?.map { it.id }
-            ?: emptyList()
-
         val garmentName = getGarmentName(lead)
-        val matchesGarments = selectedGarments.isEmpty() || run {
-            selectedGarments.any { selected ->
-                when (selected) {
-                    "shirt" -> garmentName.contains("Shirt", ignoreCase = true)
-                    "pant" -> garmentName.contains("Pant", ignoreCase = true)
-                    "blazer" -> garmentName.contains("Blazer", ignoreCase = true)
-                    "saree" -> garmentName.contains("Saree", ignoreCase = true)
-                    else -> false
-                }
-            }
-        }
+        val selectedGarmentLabels = filterSections.find { it.title == "Garments" }
+            ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
+        val matchesGarments = selectedGarmentLabels.isEmpty() ||
+                selectedGarmentLabels.any { it.equals(garmentName, ignoreCase = true) }
+
+        // ✅ Amount Range now actually filters (was collected in the drawer but never used)
+        val minAmountFilter = filterSections.find { it.title == "Amount Range" }?.minAmount?.toIntOrNull()
+        val maxAmountFilter = filterSections.find { it.title == "Amount Range" }?.maxAmount?.toIntOrNull()
+        val matchesAmount = (minAmountFilter == null || lead.budgetRange.max >= minAmountFilter) &&
+                (maxAmountFilter == null || lead.budgetRange.min <= maxAmountFilter)
 
         // Priority filter
         val selectedPriority = filterSections.find { it.title == "Priority" }
@@ -1544,7 +1707,14 @@ fun LeadScreenContent(
                 else -> true
             }
         }
-        matchesSearch && matchesStatus && matchesSource && matchesGarments && matchesPriority
+
+        // ✅ Sales Person filter — matches against appointment.assignedStaff id from the API
+        val selectedStaffIds = filterSections.find { it.title == "Sales Person" }
+            ?.options?.filter { it.isSelected }?.map { it.id } ?: emptyList()
+        val matchesSalesPerson = selectedStaffIds.isEmpty() ||
+                selectedStaffIds.contains(lead.appointment?.assignedStaff)
+
+        matchesSearch && matchesStatus && matchesSource && matchesGarments && matchesPriority && matchesAmount && matchesSalesPerson
     }
 
     val totalPages = maxOf(1, if (filteredLeads.isNotEmpty()) (filteredLeads.size + itemsPerPage - 1) / itemsPerPage else 1)
@@ -1759,7 +1929,7 @@ fun LeadScreenContent(
                                 Spacer(Modifier.height(20.dp))
                                 Button(
                                     onClick = onCreateLead,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
                                     shape = RoundedCornerShape(8.dp),
                                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                                 ) {
@@ -1783,11 +1953,18 @@ fun LeadScreenContent(
                                     DataCard(
                                         item = lead,
                                         dateText = formatLeadDate(lead.requiredDate?.takeIf { it.isNotBlank() } ?: lead.enquiryDate),
-                                        badgeText = badgeText,
-                                        badgeColor = badgeColor,
+                                        badge = DataCardBadge(text = badgeText, color = badgeColor),
                                         title = lead.person.name.ifEmpty { "—" },
                                         subtitle = "${lead.enquiryType.ifEmpty { "—" }} • ${getGarmentName(lead)} • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
-                                        footerText = "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}",
+                                        footerFields = listOf(
+                                            DataCardField(
+                                                text = "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${
+                                                    formatIndianNumber(
+                                                        lead.budgetRange.max
+                                                    )
+                                                }"
+                                            )
+                                        ),
                                         actions = listOf(
                                             MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClicked(lead) },
                                             MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClicked(lead) },
@@ -1861,13 +2038,13 @@ fun LeadScreenContent(
         // ── FIXED FAB — Create Lead Button (Positioned Above Bottom Bar) ──
         Button(
             onClick = onCreateLead,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
-            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Primary),
+            shape = RoundedCornerShape(10.dp),
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 20.dp, bottom = 130.dp) // ✅ Fixed: Moved above bottom bar
-                .shadow(elevation = 6.dp, shape = RoundedCornerShape(8.dp))
+
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
@@ -1934,129 +2111,105 @@ fun LeadScreenContent(
     )
 }
 
-
-
-
-@Composable
-fun LeadCard(
-    lead: LeadTableItem,
-    badgeText: String,
-    badgeColor: Color,
-    garmentName: String,
-    isLoadingView: Boolean,
-    isLoadingEdit: Boolean,
-    isDeleting: Boolean,
-    onViewClick: () -> Unit,
-    onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(12.dp))
-            .padding(14.dp)
-    ) {
-        // ── Top row: date + status badge ──
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.CalendarMonth,
-                    contentDescription = null,
-                    tint = Color(0xFF9CA3AF),
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    formatLeadDate(lead.requiredDate?.takeIf { it.isNotBlank() } ?: lead.enquiryDate),
-                    fontSize = 12.sp,
-                    color = Color(0xFF6B7280)
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .background(badgeColor.copy(alpha = 0.14f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) {
-                Text(badgeText, fontSize = 11.sp, color = badgeColor, fontWeight = FontWeight.SemiBold)
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // ── Name row + menu ──
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                lead.person.name.ifEmpty { "—" },
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            ActionDropdownMenu(
-                icon = Icons.Default.MoreVert,
-                actions = listOf(
-                    MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClick() },
-                    MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClick() },
-                    MenuAction(
-                        "Delete", Icons.Default.Delete,
-                        tint = Color(0xFFF44336), textColor = Color(0xFFF44336),
-                        enabled = !isDeleting
-                    ) { onDeleteClick() }
-                )
-            )
-        }
-
-        Spacer(Modifier.height(4.dp))
-
-        // ── Subtitle: Enquiry • Garment • Qty ──
-        Text(
-            "${lead.enquiryType.ifEmpty { "—" }} • $garmentName • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
-            fontSize = 13.sp,
-            color = Color(0xFF6B7280),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        // ── Budget row ──
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Default.AccountBalanceWallet,
-                contentDescription = null,
-                tint = Color(0xFF9CA3AF),
-                modifier = Modifier.size(14.dp)
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}",
-                fontSize = 13.sp,
-                color = Color(0xFF374151),
-                fontWeight = FontWeight.Medium
-            )
-        }
+// ─────────────────────────────────────────────────────────────
+// buildFilterSections — builds the FilterDrawer sections from live
+// ViewModel data instead of hardcoded lists. `previous` is passed in so
+// a user's existing selections survive when the underlying data refreshes
+// (e.g. staff list reloads while "Sales Person" is checked).
+// ─────────────────────────────────────────────────────────────
+fun buildFilterSections(
+    previous: List<FilterSection>,
+    statuses: List<SalesStatusEntity>,
+    garments: List<CategoryItem>,
+    staff: List<StaffDto>,
+    dynamicSources: List<String>
+): List<FilterSection> {
+    fun preserveSelection(title: String, options: List<FilterOption>): List<FilterOption> {
+        val prevSelectedIds = previous.find { it.title == title }
+            ?.options?.filter { it.isSelected }?.map { it.id }?.toSet() ?: emptySet()
+        return options.map { it.copy(isSelected = it.id in prevSelectedIds) }
     }
+
+    return listOf(
+        FilterSection(
+            title = "Date Range", icon = Icons.Filled.CalendarMonth,
+            type = FilterSectionType.CHIP_GRID, isMultiSelect = false,
+            // kept static — relative date buckets, not backend data
+            options = preserveSelection("Date Range", listOf(
+                FilterOption("today", "Today"),
+                FilterOption("week", "This Week"),
+                FilterOption("month", "This Month"),
+                FilterOption("custom", "Custom")
+            ))
+        ),
+        FilterSection(
+            title = "Status", icon = Icons.Filled.Sell,
+            type = FilterSectionType.CHECKBOX_LIST, isMultiSelect = true,
+            // ✅ from salesViewModel.salesStatuses — real API/DB data
+            options = preserveSelection(
+                "Status",
+                statuses.map { FilterOption(id = it.id, label = it.name) }
+            )
+        ),
+        FilterSection(
+            title = "Source", icon = Icons.Filled.Campaign,
+            type = FilterSectionType.CHIP_ROW, isMultiSelect = true,
+            // ✅ distinct source values actually present in fetched leads
+            options = preserveSelection(
+                "Source",
+                dynamicSources.map { FilterOption(id = it, label = it) }
+            )
+        ),
+        FilterSection(
+            title = "Garments", icon = Icons.Filled.Checkroom,
+            type = FilterSectionType.CHIP_ROW_MORE, isMultiSelect = true,
+            // ✅ from salesViewModel.garmentCategories — real API/DB data
+            options = preserveSelection(
+                "Garments",
+                garments.map { FilterOption(id = it.id, label = it.categoryId.categoryName) }
+            )
+        ),
+        FilterSection(
+            title = "Amount Range", icon = Icons.Filled.CurrencyRupee,
+            type = FilterSectionType.AMOUNT_RANGE,
+            minAmount = previous.find { it.title == "Amount Range" }?.minAmount ?: "",
+            maxAmount = previous.find { it.title == "Amount Range" }?.maxAmount ?: "",
+            options = emptyList()
+        ),
+        FilterSection(
+            title = "Sales Person", icon = Icons.Filled.People,
+            // ✅ CHECKBOX_LIST instead of DROPDOWN: DROPDOWN body has no
+            // selection UI wired up (just a "TODO: open picker").
+            type = FilterSectionType.CHECKBOX_LIST, isMultiSelect = true,
+            // ✅ from salesViewModel.staffList — real API/DB data
+            options = preserveSelection(
+                "Sales Person",
+                staff.map { FilterOption(id = it.id, label = "${it.firstName} ${it.lastName}") }
+            )
+        ),
+        FilterSection(
+            title = "Location", icon = Icons.Filled.LocationOn,
+            type = FilterSectionType.DROPDOWN,
+            // ⚠️ LeadTableItem doesn't currently expose a city/area field from the
+            // API, so there's no real data source to populate this from yet.
+            options = emptyList()
+        ),
+        FilterSection(
+            title = "Priority", icon = Icons.Filled.Flag,
+            type = FilterSectionType.PRIORITY_DOTS, isMultiSelect = false,
+            // kept static — fixed High/Medium/Low enum used by appointment.priority
+            options = preserveSelection("Priority", listOf(
+                FilterOption("high", "High"),
+                FilterOption("medium", "Medium"),
+                FilterOption("low", "Low")
+            ))
+        )
+    )
 }
-// ─────────────────────────────────────────────────────────────
-// LeadCardItem  (NEW COMPOSABLE — add this anywhere below LeadScreenContent)
-// Renders one lead as a card, matching the "Sales Orders" card-view style
-// from your screenshot (Id + status badge + menu, name + chip, dates row).
-// ─────────────────────────────────────────────────────────────
-
-
 
 // ─────────────────────────────────────────────────────────────
-// ViewLeadScreen
+// ViewLeadScreen — same accordion-card design as Create Lead,
+// but fields are read-only (ViewFieldValue instead of inputs).
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun ViewLeadScreen(
@@ -2071,7 +2224,14 @@ fun ViewLeadScreen(
     val error by salesViewModel.leadDetailsError.collectAsStateWithLifecycle()
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
 
-    // Show loading state
+    // ── Accordion open/close state — "Lead Information" open by default, rest closed ──
+    var sectionLeadInfo    by remember { mutableStateOf(true) }
+    var sectionCustomer    by remember { mutableStateOf(false) }
+    var sectionLocation    by remember { mutableStateOf(false) }
+    var sectionEnquiry     by remember { mutableStateOf(false) }
+    var sectionAppointment by remember { mutableStateOf(false) }
+    var sectionNotes       by remember { mutableStateOf(false) }
+
     if (isLoading) {
         Box(
             modifier = Modifier
@@ -2080,7 +2240,7 @@ fun ViewLeadScreen(
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = LeadPrimary)
                 Spacer(Modifier.height(8.dp))
                 Text("Loading lead details...", color = Color.Gray, fontSize = 14.sp)
             }
@@ -2088,7 +2248,6 @@ fun ViewLeadScreen(
         return
     }
 
-    // Show error state
     if (error != null) {
         Box(
             modifier = Modifier
@@ -2097,32 +2256,12 @@ fun ViewLeadScreen(
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = Color.Red,
-                    modifier = Modifier.size(48.dp)
-                )
+                Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(48.dp))
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    "Error loading lead",
-                    color = Color.Red,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
-                Text(
-                    error ?: "Unknown error",
-                    color = Color.Gray,
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 32.dp)
-                )
+                Text("Error loading lead", color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(error ?: "Unknown error", color = Color.Gray, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
                 Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = { onBack() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
+                Button(onClick = { onBack() }, colors = ButtonDefaults.buttonColors(containerColor = LeadPrimary), shape = RoundedCornerShape(8.dp)) {
                     Text("Go Back", color = Color.White)
                 }
             }
@@ -2140,120 +2279,62 @@ fun ViewLeadScreen(
 
     val l = lead!!
 
+    // ✅ Local toggle state, seeded from the lead's saved appointmentRequired value.
+    // Re-seeds whenever a different lead (l.id) is loaded into this screen.
+    var appointmentRequired by remember(l.id) { mutableStateOf(l.appointmentRequired) }
+
     // ✅ Map garment IDs to names using garmentCategories
     val garmentNames = if (l.garments.isNotBlank() && garmentCategories.isNotEmpty()) {
         val ids = l.garments.split(",").filter { it.isNotBlank() }
-        ids.mapNotNull { id ->
-            garmentCategories.find { it.id == id }?.categoryId?.categoryName
-        }
+        ids.mapNotNull { id -> garmentCategories.find { it.id == id }?.categoryId?.categoryName }
     } else if (l.garments.isNotBlank() && garmentCategories.isEmpty()) {
-        // Fallback: show IDs if categories not loaded yet
         l.garments.split(",").filter { it.isNotBlank() }
-    } else {
-        emptyList()
-    }
+    } else emptyList()
 
     Scaffold(
+        containerColor = Color(0xFFF5F5F7),
         bottomBar = {
-            Column {
-                HorizontalDivider(color = Color(0xFFF0F0F0))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedButton(
-                        onClick = onBack,
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFD1D5DB))
-                    ) {
-                        Text("Back", color = Color(0xFF374151))
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            salesViewModel.fetchLeadDetails(l.id) { success ->
-                                if (success) {
-                                    onEditLead()
-                                } else {
-                                    Toast.makeText(context, "Failed to refresh lead data", Toast.LENGTH_SHORT).show()
-                                    onEditLead()
-                                }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Edit Lead", color = Color.White)
+            LeadBottomBar(
+                leftLabel = "Back",
+                leftIcon = Icons.AutoMirrored.Filled.ArrowBack,
+                onLeftClick = onBack,
+                rightLabel = "Edit Lead",
+                rightIcon = Icons.Default.Edit,
+                onRightClick = {
+                    salesViewModel.fetchLeadDetails(l.id) { success ->
+                        if (!success) {
+                            Toast.makeText(context, "Failed to refresh lead data", Toast.LENGTH_SHORT).show()
+                        }
+                        onEditLead()
                     }
                 }
-            }
+            )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F7))
                 .padding(padding)
         ) {
-            // ── Top Bar ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        modifier = Modifier.clickable { onBack() },
-                        tint = Color(0xFF111827)
-                    )
-                    Text(
-                        "View Lead",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .border(1.dp, Color(0xFF3B3BF9), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        l.status.ifEmpty { "—" },
-                        fontSize = 12.sp,
-                        color = Color(0xFF3B3BF9)
-                    )
-                }
-            }
+            LeadFormTopBar(
+                title = "View Lead",
+                badgeText = l.status.ifEmpty { "—" },
+                onClose = onBack
+            )
             HorizontalDivider(color = Color(0xFFF0F0F0))
 
-            // ── Form Fields (Read-Only) ──
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // ── Lead Information ──
+
+                ) {
                 item {
-                    FormCard {
-                        SectionHeader(
-                            Icons.Default.Description,
-                            "Lead Information",
-                            "Basic details about this lead"
-                        )
-                        Spacer(Modifier.height(8.dp))
+                    LeadAccordionSection(
+                        icon = Icons.Default.Description,
+                        title = "Lead Information",
+                        subtitle = "Basic details about this lead",
+                        expanded = sectionLeadInfo,
+                        onExpandChange = { sectionLeadInfo = it }
+                    ) {
                         ViewFieldValue("Lead Source", l.source.ifEmpty { "—" })
                         ViewFieldValue("Enquiry Date", formatLeadDate(l.enquiryDate))
                         ViewFieldValue("Lead Owner", "Nithish Kumar - NIT-001")
@@ -2261,17 +2342,14 @@ fun ViewLeadScreen(
                     }
                 }
 
-                // ── Customer Identity ──
                 item {
-                    FormCard {
-                        SectionHeader(
-                            Icons.Default.Person,
-                            "Customer Identity",
-                            "Who is this lead for?"
-                        )
-                        Spacer(Modifier.height(8.dp))
-
-                        // Customer Type - Individual/Corporate toggle (read-only)
+                    LeadAccordionSection(
+                        icon = Icons.Default.Person,
+                        title = "Customer Identity",
+                        subtitle = "Who is this lead for?",
+                        expanded = sectionCustomer,
+                        onExpandChange = { sectionCustomer = it }
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2293,20 +2371,14 @@ fun ViewLeadScreen(
                                         if (type == "Individual") Icons.Default.Person else Icons.Default.Business,
                                         type,
                                         modifier = Modifier.size(16.dp),
-                                        tint = if (isSelected) Color.Black else Color(0xFF6B7280)
+                                        tint = if (isSelected) LeadPrimary else Color(0xFF6B7280)
                                     )
                                     Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        type,
-                                        fontSize = 14.sp,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                        color = if (isSelected) Color.Black else Color(0xFF6B7280)
-                                    )
+                                    Text(type, fontSize = 14.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, color = if (isSelected) Color.Black else Color(0xFF6B7280))
                                 }
                             }
                         }
-
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(4.dp))
                         ViewFieldValue("Full Name", l.fullName.ifEmpty { "—" })
                         ViewFieldValue("Phone", l.phone.ifEmpty { "—" })
                         ViewFieldValue("Email", l.email.ifEmpty { "—" })
@@ -2315,15 +2387,14 @@ fun ViewLeadScreen(
                     }
                 }
 
-                // ── Location & Communication ──
                 item {
-                    FormCard {
-                        SectionHeader(
-                            Icons.Default.LocationOn,
-                            "Location & Communication",
-                            "Contact details and preferences"
-                        )
-                        Spacer(Modifier.height(8.dp))
+                    LeadAccordionSection(
+                        icon = Icons.Default.LocationOn,
+                        title = "Location & Communication",
+                        subtitle = "Contact details and preferences",
+                        expanded = sectionLocation,
+                        onExpandChange = { sectionLocation = it }
+                    ) {
                         ViewFieldValue("Address", l.address.ifEmpty { "—" })
                         ViewFieldValue("Area / Zone", l.area.ifEmpty { "—" })
                         ViewFieldValue("City", l.city.ifEmpty { "—" })
@@ -2331,62 +2402,35 @@ fun ViewLeadScreen(
                     }
                 }
 
-                // ── Enquiry Details ──
                 item {
-                    FormCard {
-                        SectionHeader(
-                            Icons.AutoMirrored.Filled.Assignment,
-                            "Enquiry Details",
-                            "What are they looking for?"
-                        )
-                        Spacer(Modifier.height(8.dp))
+                    LeadAccordionSection(
+                        icon = Icons.AutoMirrored.Filled.Assignment,
+                        title = "Enquiry Details",
+                        subtitle = "What are they looking for?",
+                        expanded = sectionEnquiry,
+                        onExpandChange = { sectionEnquiry = it }
+                    ) {
                         ViewFieldValue("Enquiry Type", l.enquiryType.ifEmpty { "—" })
                         ViewFieldValue("Estimated Quantity", if (l.estimatedQuantity == 0) "—" else l.estimatedQuantity.toString())
 
-                        // ── Garment Category ── ✅ Shows names, not IDs
                         Column(modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 6.dp)) {
-                            Text(
-                                "Garment Category",
-                                fontSize = 12.sp,
-                                color = Color(0xFF9CA3AF),
-                                fontWeight = FontWeight.Medium
-                            )
+                            Text("Garment Category", fontSize = 12.sp, color = LeadTextMuted, fontWeight = FontWeight.Medium)
                             Spacer(Modifier.height(4.dp))
                             if (garmentNames.isNotEmpty()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     garmentNames.forEach { garment ->
                                         Box(
                                             modifier = Modifier
-                                                .border(
-                                                    1.dp,
-                                                    Color(0xFF3B3BF9),
-                                                    RoundedCornerShape(50.dp)
-                                                )
-                                                .background(
-                                                    Color(0xFFEEEEFE),
-                                                    RoundedCornerShape(50.dp)
-                                                )
+                                                .border(1.dp, LeadPrimary, RoundedCornerShape(50.dp))
+                                                .background(LeadPrimarySoft, RoundedCornerShape(50.dp))
                                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    Icons.Default.Check,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(14.dp),
-                                                    tint = Color(0xFF3B3BF9)
-                                                )
+                                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp), tint = LeadPrimary)
                                                 Spacer(Modifier.width(4.dp))
-                                                Text(
-                                                    garment,
-                                                    fontSize = 13.sp,
-                                                    color = Color(0xFF3B3BF9),
-                                                    fontWeight = FontWeight.SemiBold
-                                                )
+                                                Text(garment, fontSize = 13.sp, color = LeadPrimary, fontWeight = FontWeight.SemiBold)
                                             }
                                         }
                                     }
@@ -2396,40 +2440,22 @@ fun ViewLeadScreen(
                             }
                         }
 
-                        // ── Budget Range ──
                         Column(modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 6.dp)) {
-                            Text(
-                                "Budget Range",
-                                fontSize = 12.sp,
-                                color = Color(0xFF9CA3AF),
-                                fontWeight = FontWeight.Medium
-                            )
+                            Text("Budget Range", fontSize = 12.sp, color = LeadTextMuted, fontWeight = FontWeight.Medium)
                             Spacer(Modifier.height(4.dp))
-                            Text(
-                                "₹${formatIndianNumber(l.budgetMin)}  ₹${formatIndianNumber(l.budgetMax)}",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF3B3BF9)
-                            )
+                            Text("₹${formatIndianNumber(l.budgetMin)}  ₹${formatIndianNumber(l.budgetMax)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
                             Spacer(Modifier.height(4.dp))
                             Slider(
                                 value = l.budgetMin.toFloat(),
                                 onValueChange = {},
                                 valueRange = 1000f..250000f,
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = Color(0xFF3B3BF9),
-                                    activeTrackColor = Color(0xFF3B3BF9),
-                                    inactiveTrackColor = Color(0xFFE5E7EB)
-                                ),
+                                colors = SliderDefaults.colors(thumbColor = LeadPrimary, activeTrackColor = LeadPrimary, inactiveTrackColor = Color(0xFFE5E7EB)),
                                 enabled = false
                             )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("₹1000", fontSize = 12.sp, color = Color(0xFF6B7280))
                                 Text("₹250000", fontSize = 12.sp, color = Color(0xFF6B7280))
                             }
@@ -2440,63 +2466,82 @@ fun ViewLeadScreen(
                     }
                 }
 
-                // ── Appointment & Follow-Up ──
                 item {
-                    FormCard {
-                        SectionHeader(
-                            Icons.Default.CalendarMonth,
-                            "Appointment & Follow-Up",
-                            "Schedule interactions"
-                        )
-                        Spacer(Modifier.height(8.dp))
-
-                        // Appointment Required - Switch (read-only)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Appointment Required?", fontSize = 14.sp, color = Color(0xFF374151))
-                            Switch(
-                                checked = l.appointmentRequired,
-                                onCheckedChange = {},
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = Color(0xFF3B3BF9)
-                                ),
-                                enabled = false
+                    LeadAccordionSection(
+                        icon = Icons.Default.CalendarMonth,
+                        title = "Appointment & Follow-Up",
+                        subtitle = "Schedule interactions",
+                        expanded = sectionAppointment,
+                        onExpandChange = { sectionAppointment = it },
+                        trailing = {
+                            MiniSwitch(
+                                checked = appointmentRequired,
+                                onCheckedChange = { appointmentRequired = it }
                             )
                         }
-
-                        if (l.appointmentRequired) {
-                            Spacer(Modifier.height(12.dp))
+                    ) {
+                        if (appointmentRequired) {
                             ViewFieldValue("Appointment Date", formatLeadDate(l.appointmentDate))
                             ViewFieldValue("Appointment Time", l.appointmentTime.ifEmpty { "--:--" })
                             ViewFieldValue("Assigned Staff", "Select an option")
                             ViewFieldValue("Follow-up Date", formatLeadDate(l.followUpDate))
                             ViewFieldValue("Priority", l.priority.ifEmpty { "Select an option" })
+                        } else {
+                            Text("No appointment scheduled.", fontSize = 13.sp, color = LeadTextMuted)
                         }
                     }
                 }
 
-                // ── Notes & References ──
                 item {
-                    FormCard {
-                        SectionHeader(
-                            Icons.Default.Description,
-                            "Notes & References",
-                            "Additional information and attachments"
-                        )
-                        Spacer(Modifier.height(8.dp))
+                    LeadAccordionSection(
+                        icon = Icons.Default.Description,
+                        title = "Notes & References",
+                        subtitle = "Additional information and attachments",
+                        expanded = sectionNotes,
+                        onExpandChange = { sectionNotes = it }
+                    ) {
                         ViewFieldValue("Internal Notes", l.internalNotes.ifEmpty { "—" })
                         ViewFieldValue("Customer Notes", l.customerNotes.ifEmpty { "—" })
                     }
                 }
+
+                item { Spacer(Modifier.height(8.dp)) }
             }
         }
     }
 }
 
+@Composable
+fun MiniSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,  // ✅ Added callback parameter
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .width(30.dp)
+            .height(18.dp)
+            .clip(RoundedCornerShape(50))
+            .background(
+                if (checked) Primary else Color(0xFFE5E7EB)
+            )
+            .border(
+                width = 1.dp,
+                color = if (checked) Primary else Color(0xFFD1D5DB),
+                shape = RoundedCornerShape(50)
+            )
+            .clickable { onCheckedChange(!checked) }  // ✅ Added clickable with toggle
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(2.dp)
+                .size(14.dp)
+                .offset(x = if (checked) 12.dp else 0.dp)
+                .clip(CircleShape)
+                .background(Color.White)
+        )
+    }
+}
 
 // ─────────────────────────────────────────────────────────────
 // Helper Functions
@@ -2511,7 +2556,7 @@ fun ViewFieldValue(label: String, value: String) {
         Text(
             label,
             fontSize = 12.sp,
-            color = Color(0xFF9CA3AF),
+            color = LeadTextMuted,
             fontWeight = FontWeight.Medium
         )
         Spacer(Modifier.height(2.dp))
@@ -2528,6 +2573,11 @@ fun ViewFieldValue(label: String, value: String) {
     )
 }
 
+// ─────────────────────────────────────────────────────────────
+// EditLeadScreen — same accordion-card design as Create Lead,
+// pre-filled with the selected lead's data and calling update
+// instead of create.
+// ─────────────────────────────────────────────────────────────
 @Composable
 fun EditLeadScreen(onBack: () -> Unit) {
     val salesViewModel: SalesViewModel = hiltViewModel()
@@ -2541,7 +2591,6 @@ fun EditLeadScreen(onBack: () -> Unit) {
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
     val isLoadingLead by salesViewModel.isLoadingLeadDetails.collectAsStateWithLifecycle()
 
-    // Show loading state while fetching lead details
     if (isLoadingLead) {
         Box(
             modifier = Modifier
@@ -2550,7 +2599,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = LeadPrimary)
                 Spacer(Modifier.height(8.dp))
                 Text("Loading lead data...", color = Color.Gray, fontSize = 14.sp)
             }
@@ -2568,19 +2617,10 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
     val l = lead!!
 
-    // Only fetch staff and categories if they are empty
     LaunchedEffect(Unit) {
-        if (staffList.isEmpty()) {
-            salesViewModel.fetchStaff()
-        }
-        if (garmentCategories.isEmpty()) {
-            salesViewModel.fetchGarmentCategories()
-        }
-        if (salesStatuses.isEmpty()) {
-            salesViewModel.fetchSalesData()   // use whatever method name your
-            // SalesViewModel already exposes for loading salesStatuses
-            // (it's probably already called somewhere like fetchSalesData())
-        }
+        if (staffList.isEmpty()) salesViewModel.fetchStaff()
+        if (garmentCategories.isEmpty()) salesViewModel.fetchGarmentCategories()
+        if (salesStatuses.isEmpty()) salesViewModel.fetchSalesData()
     }
 
     // ── State declarations ──
@@ -2623,6 +2663,14 @@ fun EditLeadScreen(onBack: () -> Unit) {
     var assignedStaffExpanded by remember { mutableStateOf(false) }
     var priorityExpanded by remember { mutableStateOf(false) }
 
+    // ── Accordion open/close state — "Lead Information" open by default, rest closed ──
+    var sectionLeadInfo    by remember { mutableStateOf(true) }
+    var sectionCustomer    by remember { mutableStateOf(false) }
+    var sectionLocation    by remember { mutableStateOf(false) }
+    var sectionEnquiry     by remember { mutableStateOf(false) }
+    var sectionAppointment by remember { mutableStateOf(false) }
+    var sectionNotes       by remember { mutableStateOf(false) }
+
     // ── Options ──
     val leadSourceOptions = listOf("Walk-in", "Instagram", "Facebook Ads", "Website")
     val genderOptions = listOf("Male", "Female", "Other")
@@ -2642,21 +2690,9 @@ fun EditLeadScreen(onBack: () -> Unit) {
     LaunchedEffect(l.garments, garmentCategories) {
         if (garmentCategories.isNotEmpty() && l.garments.isNotBlank()) {
             val ids = l.garments.split(",").filter { it.isNotBlank() }
-            val names = ids.mapNotNull { id ->
-                garmentCategories.find { it.id == id }?.categoryId?.categoryName
-            }
-            if (names.isNotEmpty()) {
-                selectedGarmentCategories = names
-            }
+            val names = ids.mapNotNull { id -> garmentCategories.find { it.id == id }?.categoryId?.categoryName }
+            if (names.isNotEmpty()) selectedGarmentCategories = names
         }
-    }
-
-    // Set default garment category if empty and categories are loaded
-    LaunchedEffect(garmentCategories) {
-//        if (garmentCategories.isNotEmpty() && selectedGarmentCategories.isEmpty() && l.garments.isBlank()) {
-//            // Only set default if no garments are selected and none exist in the data
-//            // Don't auto-select - let user choose
-//        }
     }
 
     // ✅ Handle update success/failure
@@ -2675,22 +2711,16 @@ fun EditLeadScreen(onBack: () -> Unit) {
         }
     }
 
-    // In EditLeadScreen.kt - Update validateAndUpdate function
-
     fun validateAndUpdate() {
-        // Check if at least one garment is selected
         if (selectedGarmentCategories.isEmpty()) {
             showGarmentError = true
             return
         }
-
-        // Get the IDs for all selected garments
         val garmentIds = selectedGarmentCategories.mapNotNull { garmentIdMap[it] }
         if (garmentIds.isEmpty()) {
             showGarmentError = true
             return
         }
-
         showGarmentError = false
 
         val request = CreateLeadFormRequest(
@@ -2702,19 +2732,8 @@ fun EditLeadScreen(onBack: () -> Unit) {
             enquiryDate = enquiryDate.toIsoDate(),
             requiredDate = requiredDate.toIsoDate(),
             source = leadSource,
-            person = LeadPerson(
-                name = fullName,
-                phone = phone,
-                email = email,
-                gender = gender,           // ✅ This will now be sent
-                dob = dob.toIsoDate()      // ✅ This will now be sent
-            ),
-            contact = LeadContact(
-                address = address,         // ✅ This will now be sent
-                area = areaZone,           // ✅ This will now be sent
-                city = city,               // ✅ This will now be sent
-                preferredContactMethod = preferredContact  // ✅ This will now be sent
-            ),
+            person = LeadPerson(name = fullName, phone = phone, email = email, gender = gender, dob = dob.toIsoDate()),
+            contact = LeadContact(address = address, area = areaZone, city = city, preferredContactMethod = preferredContact),
             appointment = LeadAppointment(
                 isRequired = appointmentRequired,
                 date = appointmentDate.toIsoDate(),
@@ -2728,10 +2747,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
             notes = buildList {
                 if (internalNotes.isNotBlank()) add(LeadNote(internalNotes, "internal"))
                 if (customerNotes.isNotBlank()) add(LeadNote(customerNotes, "customer"))
-                // ✅ Ensure both notes are always sent
-                if (internalNotes.isBlank() && customerNotes.isBlank()) {
-                    add(LeadNote("-", "internal"))
-                }
+                if (internalNotes.isBlank() && customerNotes.isBlank()) add(LeadNote("-", "internal"))
             },
             occasion = l.occasion
         )
@@ -2739,58 +2755,27 @@ fun EditLeadScreen(onBack: () -> Unit) {
         salesViewModel.updateLeadById(l.id, request)
     }
 
-    // ✅ Get current state for error display
     val currentUpdateState = updateState
 
     Scaffold(
+        containerColor = Color(0xFFF5F5F7),
         bottomBar = {
             Column {
-                HorizontalDivider(color = Color(0xFFF0F0F0))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(horizontal = 10.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Edit and save your changes", fontSize = 12.sp, color = Color(0xFF6B7280))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = onBack,
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, Color(0xFFD1D5DB))
-                        ) { Text("Cancel", color = Color(0xFF374151)) }
-
-                        Button(
-                            onClick = { validateAndUpdate() },
-                            enabled = currentUpdateState !is SaleState.Loading && selectedGarmentCategories.isNotEmpty(),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            if (currentUpdateState is SaleState.Loading) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
-                            } else {
-                                Text("Update Lead", color = Color.White)
-                            }
-                        }
-                    }
-                }
+                LeadBottomBar(
+                    leftLabel = "Cancel",
+                    leftIcon = Icons.Default.Close,
+                    onLeftClick = onBack,
+                    rightLabel = if (currentUpdateState is SaleState.Loading) "" else "Update Lead",
+                    rightIcon = Icons.Default.Check,
+                    rightEnabled = currentUpdateState !is SaleState.Loading && selectedGarmentCategories.isNotEmpty(),
+                    rightLoading = currentUpdateState is SaleState.Loading,
+                    onRightClick = { validateAndUpdate() }
+                )
                 if (showGarmentError) {
-                    Text(
-                        "Please select at least one garment category",
-                        color = Color.Red,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
+                    Text("Please select at least one garment category", color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                 }
                 if (currentUpdateState is SaleState.Error) {
-                    Text(
-                        currentUpdateState.message,
-                        color = Color.Red,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
+                    Text(currentUpdateState.message, color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                 }
             }
         }
@@ -2798,89 +2783,49 @@ fun EditLeadScreen(onBack: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F7))
                 .padding(padding)
         ) {
-            // ── Top Bar ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        modifier = Modifier.clickable { onBack() },
-                        tint = Color(0xFF111827)
-                    )
-                    Text("Edit Lead", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                }
-                Box(
-                    modifier = Modifier
-                        .border(1.dp, Color(0xFF3B3BF9), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(leadStatus, fontSize = 12.sp, color = Color(0xFF3B3BF9))
-                }
-            }
+            LeadFormTopBar(
+                title = "Edit Lead",
+                badgeText = leadStatus.ifEmpty { "—" },
+                onClose = onBack
+            )
             HorizontalDivider(color = Color(0xFFF0F0F0))
 
-            // ── Form Fields ──
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // ── Lead Information ──
                 item {
-                    FormCard {
-                        SectionHeader(
-                            Icons.Default.Description,
-                            "Lead Information",
-                            "Basic details about this lead"
-                        )
-                        FormDropdown(
-                            "Lead Source",
-                            leadSource.ifEmpty { "Select an option" },
-                            leadSourceExpanded,
-                            { leadSourceExpanded = it },
-                            leadSourceOptions,
-                            { leadSource = it }
-                        )
+                    LeadInfoBanner("Edit the details below and save your changes.")
+                }
+
+                item {
+                    LeadAccordionSection(
+                        icon = Icons.Default.Description,
+                        title = "Lead Information",
+                        subtitle = "Basic details about this lead",
+                        expanded = sectionLeadInfo,
+                        onExpandChange = { sectionLeadInfo = it }
+                    ) {
+                        FormDropdown("Lead Source", leadSource.ifEmpty { "Select an option" }, leadSourceExpanded, { leadSourceExpanded = it }, leadSourceOptions, { leadSource = it }, isRequired = true)
                         Spacer(Modifier.height(14.dp))
-                        FormLabel("Enquiry Date")
-                        DatePickerField(
-                            value = enquiryDate.ifEmpty { "Select Date" },
-                            onDateSelected = { enquiryDate = it }
-                        )
+                        FormLabel("Enquiry Date", isRequired = true)
+                        DatePickerField(value = enquiryDate.ifEmpty { "Select Date" }, onDateSelected = { enquiryDate = it })
                         Spacer(Modifier.height(14.dp))
-                        FormDropdown(
-                            "Lead Status",
-                            leadStatus.ifEmpty { "Select an option" },
-                            leadStatusExpanded,
-                            { leadStatusExpanded = it },
-                            statusOptions,
-                            { leadStatus = it }
-                        )
+                        FormDropdown("Lead Status", leadStatus.ifEmpty { "Select an option" }, leadStatusExpanded, { leadStatusExpanded = it }, statusOptions, { leadStatus = it }, isRequired = true)
                     }
                 }
 
-                // ── Customer Identity ──
                 item {
-                    FormCard {
-                        SectionHeader(
-                            Icons.Default.Person,
-                            "Customer Identity",
-                            "Who is this lead for?"
-                        )
-                        Spacer(Modifier.padding(top = 10.dp))
+                    LeadAccordionSection(
+                        icon = Icons.Default.Person,
+                        title = "Customer Identity",
+                        subtitle = "Who is this lead for?",
+                        expanded = sectionCustomer,
+                        onExpandChange = { sectionCustomer = it }
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2903,56 +2848,37 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                         if (type == "Individual") Icons.Default.Person else Icons.Default.Business,
                                         type,
                                         modifier = Modifier.size(16.dp),
-                                        tint = if (isSelected) Color.Black else Color(0xFF6B7280)
+                                        tint = if (isSelected) LeadPrimary else Color(0xFF6B7280)
                                     )
                                     Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        type,
-                                        fontSize = 14.sp,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                        color = if (isSelected) Color.Black else Color(0xFF6B7280)
-                                    )
+                                    Text(type, fontSize = 14.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, color = if (isSelected) Color.Black else Color(0xFF6B7280))
                                 }
                             }
                         }
                         Spacer(Modifier.height(14.dp))
-                        FormLabel("Full Name")
+                        FormLabel("Full Name", isRequired = true)
                         FormTextField(value = fullName, onValueChange = { fullName = it })
                         Spacer(Modifier.height(14.dp))
-                        PhoneInputField(
-                            phoneValue = phone,
-                            onPhoneChange = { phone = it },
-                            onCountryChange = {}
-                        )
+                        PhoneInputField(phoneValue = phone, onPhoneChange = { phone = it }, onCountryChange = {})
                         Spacer(Modifier.height(14.dp))
                         FormLabel("Email")
                         FormTextField(value = email, onValueChange = { email = it })
                         Spacer(Modifier.height(14.dp))
-                        FormDropdown(
-                            "Gender",
-                            gender.ifEmpty { "Select an option" },
-                            genderExpanded,
-                            { genderExpanded = it },
-                            genderOptions,
-                            { gender = it }
-                        )
+                        FormDropdown("Gender", gender.ifEmpty { "Select an option" }, genderExpanded, { genderExpanded = it }, genderOptions, { gender = it })
                         Spacer(Modifier.height(14.dp))
                         FormLabel("Date of Birth")
-                        DatePickerField(
-                            value = dob.ifEmpty { "Select Date" },
-                            onDateSelected = { dob = it }
-                        )
+                        DatePickerField(value = dob.ifEmpty { "Select Date" }, onDateSelected = { dob = it })
                     }
                 }
 
-                // ── Location & Communication ──
                 item {
-                    FormCard {
-                        SectionHeader(
-                            Icons.Default.LocationOn,
-                            "Location & Communication",
-                            "Contact details"
-                        )
+                    LeadAccordionSection(
+                        icon = Icons.Default.LocationOn,
+                        title = "Location & Communication",
+                        subtitle = "Contact details and preferences",
+                        expanded = sectionLocation,
+                        onExpandChange = { sectionLocation = it }
+                    ) {
                         FormLabel("Address")
                         FormTextField(value = address, onValueChange = { address = it })
                         Spacer(Modifier.height(14.dp))
@@ -2962,62 +2888,29 @@ fun EditLeadScreen(onBack: () -> Unit) {
                         FormLabel("City")
                         FormTextField(value = city, onValueChange = { city = it })
                         Spacer(Modifier.height(14.dp))
-                        FormDropdown(
-                            "Preferred Contact Method",
-                            preferredContact.ifEmpty { "Select an option" },
-                            preferredContactExpanded,
-                            { preferredContactExpanded = it },
-                            preferredContactOptions,
-                            { preferredContact = it }
-                        )
+                        FormDropdown("Preferred Contact Method", preferredContact.ifEmpty { "Select an option" }, preferredContactExpanded, { preferredContactExpanded = it }, preferredContactOptions, { preferredContact = it })
                     }
                 }
 
-                // ── Enquiry Details ──
                 item {
-                    FormCard {
-                        SectionHeader(
-                            Icons.AutoMirrored.Filled.Assignment,
-                            "Enquiry Details",
-                            "What are they looking for?"
-                        )
-                        FormDropdown(
-                            "Enquiry Type",
-                            enquiryType.ifEmpty { "Select an option" },
-                            enquiryTypeExpanded,
-                            { enquiryTypeExpanded = it },
-                            enquiryTypeOptions,
-                            { enquiryType = it }
-                        )
+                    LeadAccordionSection(
+                        icon = Icons.AutoMirrored.Filled.Assignment,
+                        title = "Enquiry Details",
+                        subtitle = "What are they looking for?",
+                        expanded = sectionEnquiry,
+                        onExpandChange = { sectionEnquiry = it }
+                    ) {
+                        FormDropdown("Enquiry Type", enquiryType.ifEmpty { "Select an option" }, enquiryTypeExpanded, { enquiryTypeExpanded = it }, enquiryTypeOptions, { enquiryType = it })
                         Spacer(Modifier.height(14.dp))
                         FormLabel("Estimated Quantity")
-                        FormTextField(
-                            value = estimatedQuantity,
-                            onValueChange = { estimatedQuantity = it },
-                            keyboardType = KeyboardType.Number
-                        )
+                        FormTextField(value = estimatedQuantity, onValueChange = { estimatedQuantity = it }, keyboardType = KeyboardType.Number)
                         Spacer(Modifier.height(14.dp))
 
-                        // ── Garment Category Section (Multi-Select) ──
                         Column {
                             Row {
-                                Text(
-                                    text = "Garment Categories",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = if (showGarmentError) Color.Red else Color.Gray
-                                )
-                                Text(
-                                    text = " *",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color.Red
-                                )
-                                Text(
-                                    text = " (Select one or more)",
-                                    fontSize = 11.sp,
-                                    color = Color.Gray
-                                )
+                                Text("Garment Categories", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = if (showGarmentError) Color.Red else Color.Gray)
+                                Text(" *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.Red)
+                                Text(" (Select one or more)", fontSize = 11.sp, color = Color.Gray)
                             }
                             Spacer(Modifier.height(6.dp))
 
@@ -3030,30 +2923,18 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = LeadPrimary)
                                         Text("Loading categories...", fontSize = 14.sp, color = Color(0xFF6B7280))
                                     }
                                 }
                             } else {
-                                LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                     items(garmentOptions) { option ->
                                         val isSelected = selectedGarmentCategories.contains(option)
                                         Box(
                                             modifier = Modifier
-                                                .border(
-                                                    1.dp,
-                                                    if (isSelected) Color(0xFF3B3BF9) else Color(
-                                                        0xFFE5E7EB
-                                                    ),
-                                                    RoundedCornerShape(50.dp)
-                                                )
-                                                .background(
-                                                    if (isSelected) Color(0xFFEEEEFE) else Color.White,
-                                                    RoundedCornerShape(50.dp)
-                                                )
+                                                .border(1.dp, if (isSelected) LeadPrimary else Color(0xFFE5E7EB), RoundedCornerShape(50.dp))
+                                                .background(if (isSelected) LeadPrimarySoft else Color.White, RoundedCornerShape(50.dp))
                                                 .clickable {
                                                     selectedGarmentCategories = if (isSelected) {
                                                         selectedGarmentCategories.filter { it != option }
@@ -3066,110 +2947,61 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 if (isSelected) {
-                                                    Icon(
-                                                        Icons.Default.Check,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(14.dp),
-                                                        tint = Color(0xFF3B3BF9)
-                                                    )
+                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp), tint = LeadPrimary)
                                                     Spacer(Modifier.width(4.dp))
                                                 }
-                                                Text(
-                                                    option,
-                                                    fontSize = 13.sp,
-                                                    color = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF374151),
-                                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                                                )
+                                                Text(option, fontSize = 13.sp, color = if (isSelected) LeadPrimary else Color(0xFF374151), fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
                                             }
                                         }
                                     }
                                 }
-                                // Show selected count
                                 if (selectedGarmentCategories.isNotEmpty()) {
                                     Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        "Selected: ${selectedGarmentCategories.joinToString(", ")}",
-                                        fontSize = 12.sp,
-                                        color = Color(0xFF6B7280)
-                                    )
+                                    Text("Selected: ${selectedGarmentCategories.joinToString(", ")}", fontSize = 12.sp, color = Color(0xFF6B7280))
                                 }
                             }
 
                             if (showGarmentError) {
                                 Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "Please select at least one garment category",
-                                    fontSize = 12.sp,
-                                    color = Color.Red
-                                )
+                                Text("Please select at least one garment category", fontSize = 12.sp, color = Color.Red)
                             }
                         }
 
                         Spacer(Modifier.height(14.dp))
                         FormLabel("Budget Range")
-                        Slider(
-                            value = budgetRange,
-                            onValueChange = { budgetRange = it },
-                            valueRange = 1000f..250000f,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = SliderDefaults.colors(
-                                thumbColor = Color(0xFF3B3BF9),
-                                activeTrackColor = Color(0xFF3B3BF9),
-                                inactiveTrackColor = Color(0xFFE5E7EB)
-                            )
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
+                        Slider(value = budgetRange, onValueChange = { budgetRange = it }, valueRange = 1000f..250000f, modifier = Modifier.fillMaxWidth(), colors = SliderDefaults.colors(thumbColor = LeadPrimary, activeTrackColor = LeadPrimary, inactiveTrackColor = Color(0xFFE5E7EB)))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("₹1000", fontSize = 12.sp, color = Color(0xFF6B7280))
-                            Text(
-                                "₹${formatIndianNumber(budgetRange.toInt())}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF3B3BF9)
-                            )
+                            Text("₹${formatIndianNumber(budgetRange.toInt())}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
                             Text("₹250000", fontSize = 12.sp, color = Color(0xFF6B7280))
                         }
                         Spacer(Modifier.height(14.dp))
                         FormLabel("Required Date")
-                        DatePickerField(
-                            value = requiredDate.ifEmpty { "Select Date" },
-                            onDateSelected = { requiredDate = it }
-                        )
+                        DatePickerField(value = requiredDate.ifEmpty { "Select Date" }, onDateSelected = { requiredDate = it })
                     }
                 }
 
-                // ── Appointment & Follow-Up ──
                 item {
-                    FormCard {
-                        SectionHeader(
-                            Icons.Default.CalendarMonth,
-                            "Appointment & Follow-Up",
-                            "Schedule interactions"
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Appointment Required?", fontSize = 14.sp, color = Color(0xFF374151))
+                    LeadAccordionSection(
+                        icon = Icons.Default.CalendarMonth,
+                        title = "Appointment & Follow-Up",
+                        subtitle = "Schedule interactions",
+                        expanded = sectionAppointment && appointmentRequired,
+                        onExpandChange = { sectionAppointment = it },
+                        trailing = {
                             Switch(
                                 checked = appointmentRequired,
-                                onCheckedChange = { appointmentRequired = it },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = Color(0xFF3B3BF9)
-                                )
+                                onCheckedChange = {
+                                    appointmentRequired = it
+                                    sectionAppointment = it
+                                },
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Primary)
                             )
                         }
+                    ) {
                         if (appointmentRequired) {
-                            Spacer(Modifier.height(14.dp))
                             FormLabel("Appointment Date")
-                            DatePickerField(
-                                value = appointmentDate.ifEmpty { "Select Date" },
-                                onDateSelected = { appointmentDate = it }
-                            )
+                            DatePickerField(value = appointmentDate.ifEmpty { "Select Date" }, onDateSelected = { appointmentDate = it })
                             Spacer(Modifier.height(14.dp))
                             FormLabel("Appointment Time")
                             Row(
@@ -3181,87 +3013,136 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(appointmentTime, color = Color(0xFF374151), fontSize = 14.sp)
-                                Icon(
-                                    Icons.Default.Schedule,
-                                    contentDescription = null,
-                                    tint = Color.Gray,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                Icon(Icons.Default.Schedule, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
                             }
-                            FormDropdown(
-                                "Assigned Staff",
-                                selectedStaffLabel.ifEmpty { if (isLoadingStaff) "Loading..." else "Select an option" },
-                                assignedStaffExpanded && !isLoadingStaff,
-                                { assignedStaffExpanded = it },
-                                staffDisplayList,
-                                { label -> assignedStaff = staffIdMap[label] ?: "" }
-                            )
+                            FormDropdown("Assigned Staff", selectedStaffLabel.ifEmpty { if (isLoadingStaff) "Loading..." else "Select an option" }, assignedStaffExpanded && !isLoadingStaff, { assignedStaffExpanded = it }, staffDisplayList, { label -> assignedStaff = staffIdMap[label] ?: "" })
                             Spacer(Modifier.height(14.dp))
                             FormLabel("Follow-up Date")
-                            DatePickerField(
-                                value = followUpDate.ifEmpty { "Select Date" },
-                                onDateSelected = { followUpDate = it }
-                            )
+                            DatePickerField(value = followUpDate.ifEmpty { "Select Date" }, onDateSelected = { followUpDate = it })
                             Spacer(Modifier.height(14.dp))
-                            FormDropdown(
-                                "Priority",
-                                priority.ifEmpty { "Select an option" },
-                                priorityExpanded,
-                                { priorityExpanded = it },
-                                priorityOptions,
-                                { priority = it }
-                            )
+                            FormDropdown("Priority", priority.ifEmpty { "Select an option" }, priorityExpanded, { priorityExpanded = it }, priorityOptions, { priority = it })
+                        } else {
+                            Text("No appointment scheduled.", fontSize = 13.sp, color = LeadTextMuted)
                         }
-                        Spacer(Modifier.height(14.dp))
                     }
                 }
 
-                // ── Notes & References ──
                 item {
-                    FormCard {
-                        SectionHeader(
-                            Icons.Default.Description,
-                            "Notes & References",
-                            "Additional information"
-                        )
+                    LeadAccordionSection(
+                        icon = Icons.Default.Description,
+                        title = "Notes & References",
+                        subtitle = "Additional information",
+                        expanded = sectionNotes,
+                        onExpandChange = { sectionNotes = it }
+                    ) {
                         FormLabel("Internal Notes")
-                        OutlinedTextField(
-                            value = internalNotes,
-                            onValueChange = { internalNotes = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(100.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = Color(0xFFE5E7EB),
-                                focusedBorderColor = Color(0xFF3B3BF9),
-                                unfocusedContainerColor = Color.White,
-                                focusedContainerColor = Color.White
-                            )
-                        )
+                        OutlinedTextField(value = internalNotes, onValueChange = { internalNotes = it }, modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = LeadPrimary, unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
                         Spacer(Modifier.height(14.dp))
                         FormLabel("Customer Notes")
-                        OutlinedTextField(
-                            value = customerNotes,
-                            onValueChange = { customerNotes = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(100.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = Color(0xFFE5E7EB),
-                                focusedBorderColor = Color(0xFF3B3BF9),
-                                unfocusedContainerColor = Color.White,
-                                focusedContainerColor = Color.White
-                            )
-                        )
+                        OutlinedTextField(value = customerNotes, onValueChange = { customerNotes = it }, modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = LeadPrimary, unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
                     }
                 }
+
+                item { Spacer(Modifier.height(8.dp)) }
             }
         }
     }
 }
 
+// ─────────────────────────────────────────────────────────────
+// LeadCard (kept for compatibility with any other call sites —
+// the lead list itself now renders via the reusable DataCard)
+// ─────────────────────────────────────────────────────────────
+@Composable
+fun LeadCard(
+    lead: LeadTableItem,
+    badgeText: String,
+    badgeColor: Color,
+    garmentName: String,
+    isLoadingView: Boolean,
+    isLoadingEdit: Boolean,
+    isDeleting: Boolean,
+    onViewClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White, RoundedCornerShape(12.dp))
+            .padding(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = LeadTextMuted, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(formatLeadDate(lead.requiredDate?.takeIf { it.isNotBlank() } ?: lead.enquiryDate), fontSize = 12.sp, color = Color(0xFF6B7280))
+            }
+            Box(modifier = Modifier
+                .background(badgeColor.copy(alpha = 0.14f), RoundedCornerShape(20.dp))
+                .padding(horizontal = 10.dp, vertical = 4.dp)) {
+                Text(badgeText, fontSize = 11.sp, color = badgeColor, fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                lead.person.name.ifEmpty { "—" },
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111827),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            ActionDropdownMenu(
+                icon = Icons.Default.MoreVert,
+                actions = listOf(
+                    MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClick() },
+                    MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClick() },
+                    MenuAction("Delete", Icons.Default.Delete, tint = Color(0xFFF44336), textColor = Color(0xFFF44336), enabled = !isDeleting) { onDeleteClick() }
+                )
+            )
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        Text(
+            "${lead.enquiryType.ifEmpty { "—" }} • $garmentName • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
+            fontSize = 13.sp,
+            color = Color(0xFF6B7280),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = LeadTextMuted, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(
+                "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}",
+                fontSize = 13.sp,
+                color = Color(0xFF374151),
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
 
 // "2026-03-31T00:00:00.000Z" or "2026-03-31" → "31-03-2026"
 fun formatLeadDate(raw: String): String {
@@ -3391,7 +3272,7 @@ fun TimePickerField(
                         showPicker = false
                     },
                     colors = ButtonDefaults.textButtonColors(
-                        contentColor = Color(0xFF3B3BF9)
+                        contentColor = LeadPrimary
                     )
                 ) {
                     Text("OK", fontWeight = FontWeight.Bold)
@@ -3505,7 +3386,7 @@ fun CustomTimePicker(
             Text(
                 "Hour",
                 fontSize = 12.sp,
-                color = Color(0xFF9CA3AF),
+                color = LeadTextMuted,
                 fontWeight = FontWeight.Medium
             )
             Spacer(Modifier.height(4.dp))
@@ -3522,7 +3403,7 @@ fun CustomTimePicker(
                         .fillMaxWidth()
                         .height(44.dp)
                         .align(Alignment.Center)
-                        .background(Color(0xFFF0F0FF), RoundedCornerShape(8.dp))
+                        .background(LeadPrimarySoft, RoundedCornerShape(8.dp))
                 )
 
                 LazyColumn(
@@ -3547,7 +3428,7 @@ fun CustomTimePicker(
                                 text = String.format("%02d", h),
                                 fontSize = if (isSelected) 24.sp else 18.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF6B7280)
+                                color = if (isSelected) LeadPrimary else Color(0xFF6B7280)
                             )
                         }
                     }
@@ -3572,7 +3453,7 @@ fun CustomTimePicker(
             Text(
                 "Minute",
                 fontSize = 12.sp,
-                color = Color(0xFF9CA3AF),
+                color = LeadTextMuted,
                 fontWeight = FontWeight.Medium
             )
             Spacer(Modifier.height(4.dp))
@@ -3588,7 +3469,7 @@ fun CustomTimePicker(
                         .fillMaxWidth()
                         .height(44.dp)
                         .align(Alignment.Center)
-                        .background(Color(0xFFF0F0FF), RoundedCornerShape(8.dp))
+                        .background(LeadPrimarySoft, RoundedCornerShape(8.dp))
                 )
 
                 LazyColumn(
@@ -3613,7 +3494,7 @@ fun CustomTimePicker(
                                 text = m,
                                 fontSize = if (isSelected) 24.sp else 18.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF6B7280)
+                                color = if (isSelected) LeadPrimary else Color(0xFF6B7280)
                             )
                         }
                     }
@@ -3631,7 +3512,7 @@ fun CustomTimePicker(
             Text(
                 "AM/PM",
                 fontSize = 12.sp,
-                color = Color(0xFF9CA3AF),
+                color = LeadTextMuted,
                 fontWeight = FontWeight.Medium
             )
             Spacer(Modifier.height(4.dp))
@@ -3649,7 +3530,7 @@ fun CustomTimePicker(
                         .fillMaxWidth()
                         .height(44.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isAm) Color(0xFF3B3BF9) else Color.Transparent)
+                        .background(if (isAm) LeadPrimary else Color.Transparent)
                         .clickable { onAmPmChange(true) }
                         .padding(8.dp),
                     contentAlignment = Alignment.Center
@@ -3670,7 +3551,7 @@ fun CustomTimePicker(
                         .fillMaxWidth()
                         .height(44.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (!isAm) Color(0xFF3B3BF9) else Color.Transparent)
+                        .background(if (!isAm) LeadPrimary else Color.Transparent)
                         .clickable { onAmPmChange(false) }
                         .padding(8.dp),
                     contentAlignment = Alignment.Center
@@ -3693,12 +3574,12 @@ fun SectionHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, title: 
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(modifier = Modifier
             .size(40.dp)
-            .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-            Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF374151), modifier = Modifier.size(20.dp))
+            .background(LeadPrimarySoft, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+            Icon(imageVector = icon, contentDescription = null, tint = LeadPrimary, modifier = Modifier.size(20.dp))
         }
         Column {
             Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Text(subtitle, fontSize = 13.sp, color = Color(0xFF9CA3AF))
+            Text(subtitle, fontSize = 13.sp, color = LeadTextMuted)
         }
     }
 }
@@ -3713,30 +3594,45 @@ fun FormCard(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 fun FormLabel(text: String, isRequired: Boolean = false) {
-    Row { Text(text = text, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.Gray) }
+    Row {
+        Text(text = text, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.Gray)
+        if (isRequired) {
+            Text(text = " *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.Red)
+        }
+    }
     Spacer(Modifier.height(6.dp))
 }
-
 @Composable
 fun FormTextField(value: String, onValueChange: (String) -> Unit, keyboardType: KeyboardType = KeyboardType.Text) {
-    BasicTextField(
-        value = value, onValueChange = onValueChange,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp, vertical = 14.dp),
-        singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
-    )
+            .height(40.dp)
+            .background(Color.White, RoundedCornerShape(8.dp))
+            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.CenterStart   // ✅ text-ஐ Box-ஓட நடுவுல vertically center பண்ணும்
+    ) {
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),     // ✅ height இங்க கொடுக்கல — Box தான் height define பண்ணுது
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151))  // ✅ text style கூட explicit-ஆ கொடுத்தேன்
+        )
+    }
 }
-
 @Composable
 fun FormDateField(value: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+            .height(40.dp)
+            .background(Color.White, RoundedCornerShape(8.dp))
+            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
             .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 14.dp),
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(value, fontSize = 14.sp, color = if (value == "Select Date") Color(0xFF9CA3AF) else Color(0xFF374151))
@@ -3744,58 +3640,324 @@ fun FormDateField(value: String, onClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// ─────────────────────────────────────────────────────────────
+// DatePickerField - custom implementation, no Material3 stock
+// DatePicker, no MaterialTheme wrap, no animation. Guaranteed
+// identical behaviour/performance across every device (fixes the
+// pencil-icon-toggle lag, light/dark theming inconsistencies, and
+// the wallpaper-based dynamic color issue on real devices).
+// ─────────────────────────────────────────────────────────────
+
+private data class DatePickerPalette(
+    val surface: Color,
+    val text: Color,
+    val subtext: Color,
+    val accent: Color,
+    val divider: Color,
+    val accentText: Color
+)
+
+private val LightDatePalette = DatePickerPalette(
+    surface = Color.White,
+    text = Color.Black,
+    subtext = Color(0xFF666666),
+    accent = LeadPrimary,
+    divider = Color(0xFFE0E0E0),
+    accentText = Color.White
+)
+
+private val DarkDatePalette = DatePickerPalette(
+    surface = Color(0xFF1E1E2E),
+    text = Color.White,
+    subtext = Color(0xFFAAAAAA),
+    accent = Color(0xFF7C7CFF),
+    divider = Color(0xFF3A3A4A),
+    accentText = Color.Black
+)
+
+private val DatePickerMonthNames = listOf(
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+)
+
 @Composable
 fun DatePickerField(value: String, onDateSelected: (String) -> Unit) {
     var showPicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState()
     FormDateField(value = value, onClick = { showPicker = true })
+
     if (showPicker) {
-        DatePickerDialog(
-            onDismissRequest = { showPicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        val calendar = java.util.Calendar.getInstance().apply { timeInMillis = millis }
-                        val day   = calendar.get(java.util.Calendar.DAY_OF_MONTH).toString().padStart(2, '0')
-                        val month = (calendar.get(java.util.Calendar.MONTH) + 1).toString().padStart(2, '0')
-                        val year  = calendar.get(java.util.Calendar.YEAR).toString()
-                        onDateSelected("$day-$month-$year")
-                    }
-                    showPicker = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { showPicker = false }) { Text("Cancel") } },
-            colors = DatePickerDefaults.colors(containerColor = Color.White)
+        val palette = if (isSystemInDarkTheme()) DarkDatePalette else LightDatePalette
+        CustomDatePickerDialog(
+            palette = palette,
+            initialDate = value,
+            onDismiss = { showPicker = false },
+            onConfirm = { day, month, year ->
+                onDateSelected(
+                    String.format(java.util.Locale.US, "%02d-%02d-%04d", day, month, year)
+                )
+                showPicker = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun CustomDatePickerDialog(
+    palette: DatePickerPalette,
+    initialDate: String,
+    onDismiss: () -> Unit,
+    onConfirm: (day: Int, month: Int, year: Int) -> Unit
+) {
+    val today = remember { java.util.Calendar.getInstance() }
+    var displayMonth by remember { mutableIntStateOf(today.get(java.util.Calendar.MONTH)) }
+    var displayYear by remember { mutableIntStateOf(today.get(java.util.Calendar.YEAR)) }
+    var selectedDay by remember { mutableStateOf(today.get(java.util.Calendar.DAY_OF_MONTH)) }
+    var isManualEntry by remember { mutableStateOf(false) }
+    var manualText by remember { mutableStateOf(initialDate) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.width(320.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = palette.surface
         ) {
-            DatePicker(state = datePickerState, colors = DatePickerDefaults.colors(selectedDayContainerColor = Color(0xFF3B3BF9), todayDateBorderColor = Color(0xFF3B3BF9), todayContentColor = Color(0xFF3B3BF9)))
+            Column(modifier = Modifier.padding(20.dp)) {
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)   // ✅ fixed height 40dp
+                        .background(Color.White, RoundedCornerShape(8.dp))   // ✅ shape kூட background-ku serthu clip aagum
+                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp),   // ✅ text/icon box edge-ல ஒட்டிக்காம இருக்க
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Select date", color = palette.text, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    IconButton(
+                        onClick = { isManualEntry = !isManualEntry },
+                        modifier = Modifier.size(28.dp)   // ✅ 40dp row-க்குள் IconButton default 48dp overflow ஆகாம இருக்க
+                    ) {
+                        Icon(
+                            imageVector = if (isManualEntry) Icons.Default.CalendarMonth else Icons.Default.Edit,
+                            contentDescription = "Toggle input mode",
+                            tint = palette.accent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                if (isManualEntry) {
+                    OutlinedTextField(
+                        value = manualText,
+                        onValueChange = { manualText = it },
+                        label = { Text("dd-mm-yyyy", color = palette.subtext) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = palette.text,
+                            unfocusedTextColor = palette.text,
+                            focusedBorderColor = palette.accent,
+                            unfocusedBorderColor = palette.divider,
+                            cursorColor = palette.accent,
+                            focusedLabelColor = palette.accent,
+                            unfocusedLabelColor = palette.subtext
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    DatePickerCalendarGrid(
+                        palette = palette,
+                        displayMonth = displayMonth,
+                        displayYear = displayYear,
+                        selectedDay = selectedDay,
+                        onDaySelected = { selectedDay = it },
+                        onPrevMonth = {
+                            if (displayMonth == 0) { displayMonth = 11; displayYear-- }
+                            else displayMonth--
+                        },
+                        onNextMonth = {
+                            if (displayMonth == 11) { displayMonth = 0; displayYear++ }
+                            else displayMonth++
+                        }
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel", color = palette.accent)
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    TextButton(onClick = {
+                        if (isManualEntry) {
+                            parseManualDatePicked(manualText)?.let { (d, m, y) -> onConfirm(d, m, y) }
+                        } else {
+                            onConfirm(selectedDay, displayMonth + 1, displayYear)
+                        }
+                    }) {
+                        Text("OK", color = palette.accent)
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun DatePickerCalendarGrid(
+    palette: DatePickerPalette,
+    displayMonth: Int,
+    displayYear: Int,
+    selectedDay: Int,
+    onDaySelected: (Int) -> Unit,
+    onPrevMonth: () -> Unit,
+    onNextMonth: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "${DatePickerMonthNames[displayMonth]} $displayYear",
+            color = palette.text,
+            fontWeight = FontWeight.Medium
+        )
+        Row {
+            IconButton(onClick = onPrevMonth) {
+                Icon(Icons.Default.ChevronLeft, contentDescription = "Previous month", tint = palette.text)
+            }
+            IconButton(onClick = onNextMonth) {
+                Icon(Icons.Default.ChevronRight, contentDescription = "Next month", tint = palette.text)
+            }
+        }
+    }
+
+    Spacer(Modifier.height(8.dp))
+
+    Row(modifier = Modifier.fillMaxWidth()) {
+        listOf("S", "M", "T", "W", "T", "F", "S").forEach { d ->
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Text(d, color = palette.subtext, fontWeight = FontWeight.Medium)
+            }
+        }
+    }
+
+    Spacer(Modifier.height(4.dp))
+
+    val calendar = remember(displayMonth, displayYear) {
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.YEAR, displayYear)
+            set(java.util.Calendar.MONTH, displayMonth)
+            set(java.util.Calendar.DAY_OF_MONTH, 1)
+        }
+    }
+    val firstDayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK) - 1
+    val daysInMonth = calendar.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+
+    val cells = remember(displayMonth, displayYear) {
+        buildList {
+            repeat(firstDayOfWeek) { add(null) }
+            for (d in 1..daysInMonth) add(d)
+        }
+    }
+
+    cells.chunked(7).forEach { week ->
+        Row(modifier = Modifier.fillMaxWidth()) {
+            week.forEach { day ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1f)
+                        .padding(2.dp)
+                        .then(
+                            if (day != null && day == selectedDay)
+                                Modifier.background(palette.accent, RoundedCornerShape(50))
+                            else Modifier
+                        )
+                        .clickable(enabled = day != null) { day?.let(onDaySelected) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (day != null) {
+                        Text(
+                            text = day.toString(),
+                            color = if (day == selectedDay) palette.accentText else palette.text
+                        )
+                    }
+                }
+            }
+            repeat(7 - week.size) {
+                Box(modifier = Modifier.weight(1f).aspectRatio(1f))
+            }
+        }
+    }
+}
+
+private fun parseManualDatePicked(text: String): Triple<Int, Int, Int>? {
+    val parts = text.split("-")
+    if (parts.size != 3) return null
+    return try {
+        val day = parts[0].trim().toInt()
+        val month = parts[1].trim().toInt()
+        val year = parts[2].trim().toInt()
+        if (month !in 1..12 || day !in 1..31) return null
+        Triple(day, month, year)
+    } catch (e: NumberFormatException) {
+        null
     }
 }
 
 @Composable
 fun FormDropdown(label: String, value: String, expanded: Boolean, onExpandChange: (Boolean) -> Unit, options: List<String>, onOptionSelected: (String) -> Unit, isRequired: Boolean = false) {
     FormLabel(label, isRequired)
+
+    // ✅ Trigger box-oda actual width-a measure panni, DropdownMenu-ku athuvea kudukurom
+    // (fillMaxWidth(0.9f) screen width base pannuchu, athanala field vida wide-a iruthu)
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    var triggerWidthPx by remember { mutableStateOf(0) }
+
     Box {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                .onGloballyPositioned { coordinates -> triggerWidthPx = coordinates.size.width }
+                .height(40.dp)
+                .background(Color.White, RoundedCornerShape(8.dp))
+                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
                 .clickable { onExpandChange(true) }
-                .padding(horizontal = 12.dp, vertical = 14.dp),
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(value, fontSize = 14.sp, color = if (value == "Select an option") Color(0xFF9CA3AF) else Color(0xFF374151))
+            Text(value, fontSize = 12.sp, color = if (value == "Select an option") Color(0xFF9CA3AF) else Color(0xFF374151))
             Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color.Gray)
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { onExpandChange(false) }, containerColor = Color.White, shape = RoundedCornerShape(10.dp)) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { onExpandChange(false) },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(6.dp),
+            modifier = Modifier
+                .width(with(density) { triggerWidthPx.toDp() }) // ✅ field width-oda exact match, screen-width base illa
+                .heightIn(max = 180.dp) // ✅ mொத்த menu height kammi
+        ) {
             options.forEach { option ->
-                DropdownMenuItem(text = { Text(option, color = Color(0xFF374151)) }, onClick = { onOptionSelected(option); onExpandChange(false) })
+                DropdownMenuItem(
+                    text = { Text(option, fontSize = 14.sp, color = Color(0xFF374151)) },
+                    onClick = { onOptionSelected(option); onExpandChange(false) },
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp), // ✅ item internal padding kammi
+                    modifier = Modifier.heightIn(min = 36.dp) // ✅ ஒவ்வொரு row-oda height compact-a (default ~48dp)
+                )
             }
         }
     }
 }
-
 @Composable
 fun StatCard(modifier: Modifier = Modifier, iconBg: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, iconTint: Color, title: String, value: String) {
     Box(modifier = modifier
@@ -3877,15 +4039,3 @@ fun String.toIsoDate(): String {
         if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}T00:00:00.000Z" else ""
     } catch (_: Exception) { "" }
 }
-
-//// Add this helper at the bottom of the file
-//fun mapLeadStatusToApiCode(displayStatus: String): String {
-//    return when (displayStatus) {
-//        "New Enquiry"        -> "NEW"
-//        "Quoted"             -> "QUOTED"
-//        "Follow-up Pending"  -> "FOLLOW_UP"
-//        "Converted to Order" -> "CONVERTED"
-//        "Lost Enquiry"       -> "LOST"
-//        else                 -> displayStatus
-//    }
-//}

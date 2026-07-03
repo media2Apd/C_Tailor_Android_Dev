@@ -1,6 +1,7 @@
 package com.cuso.mobile.view.composable
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,8 +55,10 @@ fun PhoneInputField(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))  // same as FormTextField
-                .padding(horizontal = 12.dp, vertical = 14.dp),           // same as FormTextField
+                .height(40.dp)
+                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                .background(Color.White, RoundedCornerShape(8.dp))  // same as FormTextField
+                .padding(horizontal = 12.dp),           // same as FormTextField
             verticalAlignment = Alignment.CenterVertically
         ) {
             // ── Country picker ──

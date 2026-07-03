@@ -2,9 +2,13 @@ package com.cuso.mobile.view.home.reusablecomposables
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColor
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -106,6 +110,10 @@ private fun priorityDotColor(id: String): Color = when (id) {
     else -> Color(0xFF9CA3AF)
 }
 
+// ── Animation timing — enter/exit share the same duration so slide + fade +
+// scrim all finish together instead of one lagging behind the other. ──
+private const val DrawerAnimDurationMs = 320
+
 // ── Full-Screen Filters Page ──
 @Composable
 fun FilterDrawer(
@@ -134,25 +142,27 @@ fun FilterDrawer(
     val displayedSections = if (searchQuery.isBlank()) currentSections
     else currentSections.filter { it.title.contains(searchQuery, ignoreCase = true) }
 
-    // ✅ Animation state — tracks open/close for slide animation
-    // ✅ Animation state — tracks open/close for slide animation
-    val visibleState = remember { MutableTransitionState(false) }
-    LaunchedEffect(state.isOpen) {
-        visibleState.targetState = state.isOpen
-    }
+    // ✅ Animation state — SINGLE Transition drives both the scrim and the
+    // panel slide/fade. Previously the scrim used its own separate
+    // rememberTransition(visibleState) while AnimatedVisibility(visibleState=...)
+    // used its own internal Transition — both reading/writing the SAME
+    // MutableTransitionState. Compose doesn't support two Transitions sharing
+    // one MutableTransitionState cleanly, so the scrim's currentState updates
+    // got interrupted/out of sync with the panel's, which is what caused the
+    // "jerky, not smooth" fade instead of a clean gradual transparent fade.
+    val transition = updateTransition(targetState = state.isOpen, label = "drawerTransition")
 
-    // ✅ visibleState declare ஆன பிறகுதான் transition எடுக்கணும்
-    val transition =  rememberTransition(visibleState, label = "drawerTransition")
-
-    val scrimColor by transition.animateColor(
-        transitionSpec = { tween(1000) },
-        label = "scrimColor"
-    ) { entering ->
-        if (entering) Color.Black.copy(alpha = 0.4f) else Color.Transparent
-    }
+    // ✅ Animate plain alpha (Float) instead of Color — interpolating a Color
+    // (even black→transparent) goes through Color's blending, which can read
+    // as slightly stepped. A Float alpha applied to a fixed black is a pure
+    // linear fade and looks perfectly smooth.
+    val scrimAlpha by transition.animateFloat(
+        transitionSpec = { tween(DrawerAnimDurationMs) },
+        label = "scrimAlpha"
+    ) { open -> if (open) 0.4f else 0f }
 
     // Keep Dialog composed while opening OR while close animation is still running
-    if (state.isOpen || visibleState.currentState || visibleState.targetState) {
+    if (state.isOpen || transition.currentState || transition.targetState) {
         Dialog(
             onDismissRequest = { state.close() },
             properties = DialogProperties(
@@ -160,22 +170,25 @@ fun FilterDrawer(
                 decorFitsSystemWindows = false
             )
         ) {
-            // ✅ scrim background — behind the sliding panel
+            // ✅ scrim background — behind the sliding panel, fades to fully transparent
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(scrimColor)
+                    .background(Color.Black.copy(alpha = scrimAlpha))
             ) {
-                AnimatedVisibility(
-                    visibleState = visibleState,
+                transition.AnimatedVisibility(
+                    visible = { it },
+                    // ✅ Enter: decelerates in — feels natural settling into place.
                     enter = slideInHorizontally(
                         initialOffsetX = { fullWidth -> -fullWidth },
-                        animationSpec = tween(500)
-                    ) + fadeIn(animationSpec = tween(500)),
+                        animationSpec = tween(DrawerAnimDurationMs, easing = FastOutSlowInEasing)
+                    ) + fadeIn(animationSpec = tween(DrawerAnimDurationMs)),
+                    // ✅ Exit: accelerates out, same duration as enter, and now driven
+                    // by the SAME transition as the scrim so both finish in lockstep.
                     exit = slideOutHorizontally(
                         targetOffsetX = { fullWidth -> -fullWidth },
-                        animationSpec = tween(500)
-                    ) + fadeOut(animationSpec = tween(1000))
+                        animationSpec = tween(DrawerAnimDurationMs, easing = FastOutLinearInEasing)
+                    ) + fadeOut(animationSpec = tween(DrawerAnimDurationMs))
                 ) {
 
                     // ✅ FULL SCREEN page — not a side drawer

@@ -71,6 +71,7 @@ dependencies {
     // Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.foundation)
+    implementation(libs.androidx.foundation.layout)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.material3)
 
@@ -80,6 +81,7 @@ dependencies {
     // Splash (UPDATED)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.room3.common.jvm)
+    implementation(libs.androidx.runtime)
     implementation(libs.compose.material3)
 
     // Google Auth (UPDATED)

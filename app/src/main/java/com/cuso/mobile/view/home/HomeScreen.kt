@@ -81,14 +81,23 @@ import com.cuso.mobile.viewmodel.SalesViewModel
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.wear.compose.material.Colors
+import coil.compose.AsyncImage
 import com.cuso.mobile.database.entities.SalesStatusEntity
 import com.cuso.mobile.model.CategoryItem
 import com.cuso.mobile.model.Organization
@@ -100,9 +109,6 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.view.home.branch.BranchSettingsScreen
 import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
 import com.cuso.mobile.view.home.designation.DesignationScreen
-//import com.cuso.mobile.view.home.branch.BranchSettingsScreen
-//import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
-//import com.cuso.mobile.view.home.designation.DesignationScreen
 import com.cuso.mobile.view.home.sales.GarmentTypeContent
 import com.cuso.mobile.view.home.sales.SalesSettingsScreen
 import com.cuso.mobile.view.home.sidebar.FullSideBar
@@ -110,8 +116,6 @@ import com.cuso.mobile.view.home.sidebar.SalesSideBar
 import com.cuso.mobile.view.home.sales.CreateOrderScreen
 import com.cuso.mobile.view.home.sales.SalesOrderScreen
 import com.cuso.mobile.view.home.sales.CreateOrderNextStep
-//import com.cuso.mobile.view.home.sales.CustomerScreen
-//import com.cuso.mobile.view.home.sales.MeasurementsScreen
 import com.cuso.mobile.view.home.sales.OrderReviewData
 import com.cuso.mobile.view.home.reusablecomposables.ActionDropdownMenu
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -123,7 +127,22 @@ import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
 import com.cuso.mobile.view.home.reusablecomposables.FilterSection
 import com.cuso.mobile.view.home.reusablecomposables.FilterSectionType
-
+import com.cuso.mobile.R
+import com.cuso.mobile.view.home.sidebar.ModulesPanel
+import com.cuso.mobile.view.home.sidebar.SidebarConfig
+import com.cuso.mobile.view.home.sidebar.buildNavigationKey
+// ─────────────────────────────────────────────────────────────
+// HomeScreenContent
+// ─────────────────────────────────────────────────────────────
+import com.cuso.mobile.model.ActiveOrderItem
+import com.cuso.mobile.model.CustomerItem
+import com.cuso.mobile.model.DashboardStatDto
+import com.cuso.mobile.model.OperationItem
+import com.cuso.mobile.view.home.sales.CustomerScreen
+import com.cuso.mobile.view.home.sales.MeasurementsScreen
+import com.cuso.mobile.viewmodel.CustomerViewModel
+import com.cuso.mobile.viewmodel.DashboardUiState
+import com.cuso.mobile.viewmodel.DashboardViewModel
 
 // ── Design tokens (Primary color used everywhere for icons / accents) ──
 val LeadPrimary = Color(0xFF3B3BF9)
@@ -152,9 +171,12 @@ fun HomeScreen(navController: NavController) {
     var currentScreen by remember { mutableStateOf("home") }
     var isDrawerOpen by remember { mutableStateOf(false) }
     var pendingOrderReviewData by remember { mutableStateOf<OrderReviewData?>(null) }
+    val customerViewModel: CustomerViewModel = hiltViewModel()
+    val customerUiState by customerViewModel.uiState.collectAsStateWithLifecycle()
+    var selectedCustomer by remember { mutableStateOf<CustomerItem?>(null) }
 
-    // ✅ Track if we're in Sales Settings mode
     var isSalesSettingsMode by remember { mutableStateOf(false) }
+    var showModulesPanel by remember { mutableStateOf(false) }   // ✅ NEW
 
     LaunchedEffect(isLoggedOut) {
         if (isLoggedOut) {
@@ -163,8 +185,12 @@ fun HomeScreen(navController: NavController) {
             }
         }
     }
+    LaunchedEffect(currentScreen) {
+        if (currentScreen == "sales_customers") {
+            customerViewModel.loadCustomers()
+        }
+    }
 
-    // ✅ Determine which panel to show
     val showHomePanel = currentScreen == "settings" ||
             currentScreen == "home_organization_profile" ||
             currentScreen == "home_branch_management" ||
@@ -174,14 +200,20 @@ fun HomeScreen(navController: NavController) {
     val showSalesPanel = isSalesSettingsMode
     val context = LocalContext.current
 
-
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = Color.White,
-        bottomBar = {
-            // ✅ Fixed top nav bar - behaves like bottomBar, stays pinned while content scrolls
-            Box(modifier = Modifier.background(Color.Transparent)) {
-                TopNavBar(
+    Box(modifier = Modifier.fillMaxSize()) {   // ✅ NEW — wraps Scaffold so panel can overlay everything
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0),
+            topBar = {
+                TopBar(
+                    onProfileClick={
+                        currentScreen="profile-settings"
+                    }
+                )
+            },
+            bottomBar = {
+                BottomBar(
                     navController = navController,
                     isSettingsOpen = showHomePanel || showSalesPanel,
                     currentScreen = currentScreen,
@@ -189,18 +221,19 @@ fun HomeScreen(navController: NavController) {
                     onDrawerToggle = { isDrawerOpen = !isDrawerOpen },
                     onDrawerClose = { isDrawerOpen = false },
                     onSettingsClick = {
-                        if (currentScreen == "sales_lead" || currentScreen == "create_lead" ||
-                            currentScreen == "view_lead" || currentScreen == "edit_lead") {
-                            // ✅ Enter Sales Settings mode
+                        if (
+                            currentScreen == "sales_lead" ||
+                            currentScreen == "create_lead" ||
+                            currentScreen == "view_lead" ||
+                            currentScreen == "edit_lead"
+                        ) {
                             isSalesSettingsMode = true
                             currentScreen = "sales_settings"
                         } else {
                             if (showHomePanel || showSalesPanel) {
-                                // ✅ Close settings - go back to home
                                 isSalesSettingsMode = false
                                 currentScreen = "home"
                             } else {
-                                // ✅ Open settings
                                 currentScreen = "settings"
                             }
                         }
@@ -238,8 +271,8 @@ fun HomeScreen(navController: NavController) {
                                 currentScreen = "sales_measurements"
                                 isDrawerOpen = false
                             }
-                            // ✅ Fix: catch both possible route keys
-                            route == "sales_sales_orders" || route == "sales_sales_&_orders" -> {
+                            route == "sales_sales_orders" ||
+                                    route == "sales_sales_&_orders" -> {
                                 isSalesSettingsMode = false
                                 currentScreen = "sales_sales_orders"
                                 isDrawerOpen = false
@@ -255,11 +288,8 @@ fun HomeScreen(navController: NavController) {
                             }
                             route == "home" -> {
                                 isSalesSettingsMode = false
-                                if (showHomePanel) {
-                                    currentScreen = "settings"
-                                } else {
-                                    currentScreen = "home"
-                                }
+                                currentScreen =
+                                    if (showHomePanel) "settings" else "home"
                                 isDrawerOpen = false
                             }
                             route == "settings" -> {
@@ -271,16 +301,15 @@ fun HomeScreen(navController: NavController) {
                                 try {
                                     navController.navigate(route)
                                 } catch (_: Exception) {
-                                    when {
-                                        route.startsWith("sales_") -> {
-                                            currentScreen = route
-                                        }
+                                    if (route.startsWith("sales_")) {
+                                        currentScreen = route
                                     }
                                 }
                                 isDrawerOpen = false
                             }
                         }
                     },
+                    onModulesClick = { showModulesPanel = true },   // ✅ NEW
                     onLogout = {
                         navController.navigate("login") {
                             popUpTo(0) { inclusive = true }
@@ -291,121 +320,361 @@ fun HomeScreen(navController: NavController) {
                     isSalesSettingsMode = isSalesSettingsMode
                 )
             }
-        }
-    ) { innerPadding->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White)
-//                .padding(innerPadding)
-        ) {
-            when (currentScreen) {
-                // ✅ Settings Screen (your existing SettingsScreen)
-                "settings" -> SettingsScreen(
-                    navController = navController,
-                    onMenuClick = { isDrawerOpen = true }
-                )
-                "home_organization_profile" -> SettingsScreen(
-                    navController = navController,
-                    onMenuClick = { isDrawerOpen = true }
-                )
-                "home_branch_management" -> BranchSettingsScreen(
-                    navController = navController,
-                    onMenuClick = { isDrawerOpen = true },
-                    onBack = { currentScreen = "settings" }
-                )
-                "home_department_teams" -> DepartmentSettingsScreen(
-                    navController = navController,
-                    onMenuClick = { isDrawerOpen = true },
-                    onBack = { currentScreen = "settings" }
-                )
-                "home_designation" -> DesignationScreen(
-                    navController = navController,
-                    onMenuClick = { isDrawerOpen = true },
-                    onBack = { currentScreen = "settings" }
-                )
-                // ✅ Sales Settings Screen (your existing SalesSettingsScreen)
-                "sales_settings" -> SalesSettingsScreen(
-                    navController = navController,
-                    onClose = {
-                        isSalesSettingsMode = false
-                        currentScreen = "sales_lead"
-                    },
-                    onMenuClick = { isDrawerOpen = true }
-                )
-                // ✅ Garment Type Screen (your existing GarmentTypeContent)
-                "sales_garment_type" -> GarmentTypeContent(
-                    onClose = {
-                        currentScreen = "sales_settings"
-                        isSalesSettingsMode = true
-                    },
-                    onMenuClick = { isDrawerOpen = true }
-                )
-                "home" -> HomeScreenContent()
-                "sales_lead" -> LeadScreenContent(
-                    onCreateLead = { currentScreen = "create_lead" },
-                    onViewLead = { currentScreen = "view_lead" },
-                    onEditLead = { currentScreen = "edit_lead" }
-                )
-                "create_lead" -> CreateLeadScreen(
-                    onBack = { currentScreen = "sales_lead" }
-                )
-                "view_lead" -> ViewLeadScreen(
-                    onBack = { currentScreen = "sales_lead" },
-                    onEditLead = { currentScreen = "edit_lead" }
-                )
-
-                "edit_lead" -> EditLeadScreen(
-                    onBack = { currentScreen = "sales_lead" }
-                )
-                "create_order" -> {
-                    CreateOrderScreen(
-                        onBack = { currentScreen = "sales_sales_orders" },
-                        onCancel = { currentScreen = "sales_sales_orders" },
-                        onNextStep = { orderReviewData ->
-                            pendingOrderReviewData = orderReviewData
-                            currentScreen = "create_order_review"
-                        }
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White)
+                    .padding(innerPadding)
+            ) {
+                when (currentScreen) {
+                    "settings" -> SettingsScreen(
+                        navController = navController,
+                        onMenuClick = { isDrawerOpen = true }
                     )
-                }
-                "sales_sales_orders" -> SalesOrderScreen(
-                    navController = navController,
-                    onMenuClick = { isDrawerOpen = true },
-                    onBack = { currentScreen = "sales_lead" },
-                    onCreateOrder = { currentScreen = "create_order" }
-                )
-                "sales_orders" -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Orders Screen", fontSize = 18.sp, color = Color.Gray)
-                    }
-                }
-                "create_order_review" -> {
-                    pendingOrderReviewData?.let { data ->
-                        CreateOrderNextStep(
-                            orderData = data,
-                            onBack = { currentScreen = "create_order" },
-                            onSaveOrder = {
-                                // unga save-order API call inga pannunga
-                                pendingOrderReviewData = null
-                                currentScreen = "sales_sales_orders"
+                    "home_organization_profile" -> SettingsScreen(
+                        navController = navController,
+                        onMenuClick = { isDrawerOpen = true }
+                    )
+                    "home_branch_management" -> BranchSettingsScreen(
+                        navController = navController,
+                        onMenuClick = { isDrawerOpen = true },
+                        onBack = { currentScreen = "settings" }
+                    )
+                    "home_department_teams" -> DepartmentSettingsScreen(
+                        navController = navController,
+                        onMenuClick = { isDrawerOpen = true },
+                        onBack = { currentScreen = "settings" }
+                    )
+                    "home_designation" -> DesignationScreen(
+                        navController = navController,
+                        onMenuClick = { isDrawerOpen = true },
+                        onBack = { currentScreen = "settings" }
+                    )
+                    "sales_settings" -> SalesSettingsScreen(
+                        navController = navController,
+                        onClose = {
+                            isSalesSettingsMode = false
+                            currentScreen = "sales_lead"
+                        },
+                        onMenuClick = { isDrawerOpen = true }
+                    )
+                    "sales_garment_type" -> GarmentTypeContent(
+                        onClose = {
+                            currentScreen = "sales_settings"
+                            isSalesSettingsMode = true
+                        },
+                        onMenuClick = { isDrawerOpen = true }
+                    )
+                    "home" -> HomeScreenContent()
+                    "sales_lead" -> LeadScreenContent(
+                        onCreateLead = { currentScreen = "create_lead" },
+                        onViewLead = { currentScreen = "view_lead" },
+                        onEditLead = { currentScreen = "edit_lead" }
+                    )
+                    "create_lead" -> CreateLeadScreen(
+                        onBack = { currentScreen = "sales_lead" }
+                    )
+                    "view_lead" -> ViewLeadScreen(
+                        onBack = { currentScreen = "sales_lead" },
+                        onEditLead = { currentScreen = "edit_lead" }
+                    )
+                    "edit_lead" -> EditLeadScreen(
+                        onBack = { currentScreen = "sales_lead" }
+                    )
+                    "create_order" -> {
+                        CreateOrderScreen(
+                            onBack = { currentScreen = "sales_sales_orders" },
+                            onCancel = { currentScreen = "sales_sales_orders" },
+                            onNextStep = { orderReviewData ->
+                                pendingOrderReviewData = orderReviewData
+                                currentScreen = "create_order_review"
                             }
                         )
-                    } ?: run {
-                        // safety fallback — data illana create_order-ku thirumba pogalam
-                        currentScreen = "create_order"
                     }
+                    "sales_sales_orders" -> SalesOrderScreen(
+                        navController = navController,
+                        onMenuClick = { isDrawerOpen = true },
+                        onBack = { currentScreen = "sales_lead" },
+                        onCreateOrder = { currentScreen = "create_order" }
+                    )
+                    "sales_orders" -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Orders Screen", fontSize = 18.sp, color = Color.Gray)
+                        }
+                    }
+                    "sales_customers" -> CustomerScreen(
+                        navController = navController,
+                        customerState = customerUiState,
+//                        onSearch = { query -> customerViewModel.search(query) },
+//                        onTypeFilterChange = { type -> customerViewModel.filterByType(type) },
+//                        onPageChange = { page -> customerViewModel.setPage(page) },
+//                        onItemsPerPageChange = { count -> customerViewModel.setItemsPerPage(count) },
+                        onBack = { currentScreen = "sales_lead" },
+                        onCreateCustomer = { currentScreen = "create_customer" },
+                        onView = { customer ->
+                            selectedCustomer = customer
+                            currentScreen = "view_customer"
+                        },
+                        onEdit = { customer ->
+                            selectedCustomer = customer
+                            currentScreen = "edit_customer"
+                        },
+//                        onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) }
+                    )
+
+                    "sales_measurements" -> MeasurementsScreen(
+                        navController = navController,
+                        onBack = { currentScreen = "sales_lead" },
+                        onCreateOrder = { currentScreen = "create_order" }
+                    )
+                    "create_order_review" -> {
+                        pendingOrderReviewData?.let { data ->
+                            CreateOrderNextStep(
+                                orderData = data,
+                                onBack = { currentScreen = "create_order" },
+                                onSaveOrder = {
+                                    pendingOrderReviewData = null
+                                    currentScreen = "sales_sales_orders"
+                                }
+                            )
+                        } ?: run {
+                            currentScreen = "create_order"
+                        }
+                    }
+                    "profile-settings" -> ProfileSettingsScreen(
+                        onClose = { currentScreen = "home" },
+                        onOrganizationSetup = { currentScreen = "home_organization_profile" },
+                        onBranchManagement = { currentScreen = "home_branch_management" },
+                        onDepartment = { currentScreen = "home_department_teams" },
+                        onDesignation = { currentScreen = "home_designation" },
+                        onLogout = {
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    )
+                    else -> { }
                 }
-                else -> { }
             }
         }
+
+        // ✅ NEW — Modules bottom-sheet panel, overlays Scaffold+bottom nav, slides up from bottom
+        // ✅ NEW — Modules bottom-sheet panel, overlays Scaffold+bottom nav, slides up from bottom
+        ModulesPanel(
+            isOpen = showModulesPanel,
+            onClose = { showModulesPanel = false },
+            onModuleCategoryClick = { menu, category ->
+                // category-ல first subItem-ஐ எடுத்து, sidebar mாதிரி அதே navigation key build பண்றோம்
+                val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
+                val firstSubItem = menuItem?.subItems?.get(category)?.firstOrNull()
+
+                val navKey = if (firstSubItem != null) {
+                    buildNavigationKey(menu, firstSubItem)
+                } else {
+                    buildNavigationKey(menu, category)
+                }
+
+                currentScreen = navKey
+                showModulesPanel = false
+            }
+        )
     }
 }
+
 // ─────────────────────────────────────────────────────────────
 // TopNavBar
 // ─────────────────────────────────────────────────────────────
 
 @Composable
-fun TopNavBar(
+fun TopBar(
+    isPanelMode: Boolean = false,
+    hasNotification: Boolean = true,
+    onSearchClick: () -> Unit = {},
+    onNotificationClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {}
+) {
+    val authViewModel: Authenticate = hiltViewModel()
+    val userEntity by authViewModel.user.collectAsStateWithLifecycle()
+
+    val user: User? = userEntity?.let {
+        User(
+            firstName = it.firstName,
+            lastName = it.lastName,
+            email = it.email,
+            profilePicture = it.profilePicture.orEmpty(),
+            organizationId = Organization(
+                _id = it.organizationId,
+                businessId = "",
+                name = "",
+                industry = "",
+                orgType = "",
+                organizationPicture = null,
+                organizationPictureId = null,
+                domains = emptyList(),
+                email = "",
+                mobile = "",
+                orgSetupComplete = false,
+                totalMembers = 0,
+                activeMembers = 0,
+                segments = emptyList(),
+                branches = emptyList(),
+                isTaxId = false,
+                status = "",
+                createdAt = "",
+                updatedAt = "",
+                slug = "",
+                __v = 0,
+                defaultBranch = "",
+                ownerId = "",
+                ownerMemberId = "",
+                businessType = "",
+                taxId = "",
+                isInternalOrganization = false,
+                subscription = Subscription(
+                    memberLimit = 0,
+                    featuresEnabled = emptyList()
+                ),
+                settings = Settings(
+                    country = "",
+                    state = "",
+                    portalName = "",
+                    termsAccepted = false,
+                    marketingEmails = false,
+                    workingDays = emptyList(),
+                    timezone = "",
+                    currency = "",
+                    language = "",
+                    address = "",
+                    city = "",
+                    pincode = ""
+                )
+            ),
+            role = it.role
+        )
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.White,
+        shadowElevation = 1.dp,   // ✅ real elevation shadow
+        tonalElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // ── Left: Logo + Title ──
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(id = R.drawable.cuso_logo),
+                    contentDescription = "Logo",
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(40.dp)
+                )
+                Spacer(modifier = Modifier.width(15.dp))
+                Text(
+                    text = "Tailor",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+            }
+
+            // ── Right: Search + Notification + Profile ──
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search",
+                    tint = Color(0xFF4B5563),
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { onSearchClick() }
+                )
+
+                Spacer(modifier = Modifier.width(18.dp))
+
+                Box {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Notifications",
+                        tint = Color(0xFF4B5563),
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { onNotificationClick() }
+                    )
+                    if (hasNotification) {
+                        Box(
+                            modifier = Modifier
+                                .size(9.dp)
+                                .align(Alignment.TopEnd)
+                                .offset(x = 2.dp, y = (-1).dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFEF4444))
+                                .border(1.5.dp, Color(0xFFF5F5FA), CircleShape)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(18.dp))
+
+                // ── Profile picture / initials ──
+                val profilePicture = user?.profilePicture
+                val avatarSize = if (isPanelMode) 38.dp else 42.dp
+
+                if (!profilePicture.isNullOrBlank()) {
+                    AsyncImage(
+                        model = profilePicture,
+                        contentDescription = "Profile picture",
+                        modifier = Modifier
+                            .size(avatarSize)
+                            .clip(CircleShape)
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { onProfileClick() },
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    val initials = buildString {
+                        user?.firstName?.firstOrNull()?.let { append(it.uppercaseChar()) }
+                        user?.lastName?.firstOrNull()?.let { append(it.uppercaseChar()) }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(avatarSize)
+                            .clip(CircleShape)
+                            .background(Color(0xFF3B3BF9))
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { onProfileClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = initials,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
+fun BottomBar(
     navController: NavController,
     isSettingsOpen: Boolean = false,
     currentScreen: String = "home",
@@ -414,6 +683,7 @@ fun TopNavBar(
     onDrawerClose: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onMenuItemClick: (String) -> Unit = {},
+    onModulesClick: () -> Unit = {},   // ✅ NEW
     onLogout: () -> Unit,
     showHomePanel: Boolean = false,
     showSalesPanel: Boolean = false,
@@ -479,10 +749,8 @@ fun TopNavBar(
         )
     }
 
-    // ✅ Root Box -> full screen (sidebar full-screen overlay ஆவதுக்கு)
     Box(modifier = Modifier) {
 
-        // ✅ Sidebar — burger (center FAB) click ஆனா இது open ஆகும். Logic மாறல.
         if (isSettingsOpen || showSalesPanel) {
             SalesSideBar(
                 isOpen = isDrawerOpen,
@@ -509,395 +777,559 @@ fun TopNavBar(
             )
         }
 
-        // ── BOTTOM NAV BAR ── ✅ image மாதிரி design, screen கீழ fixed
+        // ── BOTTOM NAV BAR ──
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 14.dp)
+                .background(Color.Transparent)
+
         ) {
-            // Pill-shaped bottom bar background
-            Row(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp)
-                    .shadow(elevation = 12.dp, shape = RoundedCornerShape(32.dp), clip = false)
-                    .background(Color.White, RoundedCornerShape(32.dp))
-                    .padding(horizontal = 18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .height(90.dp)
+                    .border(
+                        width = 1.dp,
+                        color = Color(0xFFE5E7EB),
+                        shape = RoundedCornerShape(24.dp)
+                    ),
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White,
+                shadowElevation = 12.dp,
+                tonalElevation = 0.dp
             ) {
-                // ── Notifications (Home spot) ──
-                BottomNavItem(
-                    icon = Icons.Default.Notifications,
-                    label = "Notifications",
-                    isSelected = false,
-                    onClick = { /* TODO: notifications action */ }
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    BottomNavItem(
+                        icon = Icons.Default.Home,
+                        label = "Home",
+                        isSelected = currentScreen == "home",
+                        selectedColor = Color(0xFF6C4FF6),
+                        onClick = { onMenuItemClick("home") }
+                    )
 
-                // ── Search ──
-                BottomNavItem(
-                    icon = Icons.Default.Search,
-                    label = "Search",
-                    isSelected = false,
-                    onClick = { /* TODO: search action */ }
-                )
+                    BottomNavItem(
+                        icon = Icons.Default.Inventory2,
+                        label = "Orders",
+                        isSelected = currentScreen == "orders",
+                        selectedColor = Color(0xFF6C4FF6),
+                        onClick = { onMenuItemClick("orders") }
+                    )
 
-                // ── Center spacer for floating button ──
-                Spacer(modifier = Modifier.width(64.dp))
+                    Spacer(modifier = Modifier.width(64.dp))
 
-                // ── Settings (History spot) ──
-                BottomNavItem(
-                    icon = if (isSettingsOpen) Icons.Default.Close else Icons.Filled.Settings,
-                    label = if (isSettingsOpen) "Close" else "Settings",
-                    isSelected = isSettingsOpen,
-                    selectedColor = if (isSettingsOpen) Color.Red else Color(0xFF6C4FF6),
-                    onClick = onSettingsClick
-                )
+                    BottomNavItem(
+                        icon = Icons.Default.BarChart,
+                        label = "Reports",
+                        isSelected = currentScreen == "reports",
+                        selectedColor = Color(0xFF6C4FF6),
+                        onClick = { onMenuItemClick("reports") }
+                    )
 
-                // ── Profile spot ──
-                BottomNavItem(
-                    icon = Icons.Default.Person,
-                    label = "Profile",
-                    isSelected = false,
-                    onClick = { /* TODO: profile action */ }
-                )
+                    BottomNavItem(
+                        icon = Icons.Default.GridView,
+                        label = "Modules",
+                        isSelected = currentScreen == "modules",
+                        selectedColor = Color(0xFF6C4FF6),
+                        onClick = { onModulesClick() }   // ✅ CHANGED — was onMenuItemClick("modules")
+                    )
+                }
             }
 
-            // ── Floating center Burger Menu button (+ spot in image) ──
+            // Floating center "+" button
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .offset(y = (-14).dp)
-                    .size(56.dp)
-                    .shadow(elevation = 8.dp, shape = CircleShape, clip = false)
-                    .background(Color(0xFF6C4FF6), CircleShape)
+                    .offset(y = (-24).dp)
+                    .size(72.dp)
+                    .shadow(10.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(Color(0xFF6C4FF6))
                     .clickable { onDrawerToggle() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Menu",
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(36.dp)
                 )
             }
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Bottom Nav Item (icon + label, image style)
-// ─────────────────────────────────────────────────────────────
 @Composable
-private fun BottomNavItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+fun BottomNavItem(
+    icon: ImageVector,
     label: String,
     isSelected: Boolean,
     selectedColor: Color = Color(0xFF6C4FF6),
     onClick: () -> Unit
 ) {
+    val color = if (isSelected) selectedColor else Color(0xFF9CA3AF)
     Column(
-        modifier = Modifier
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) { onClick() }
-            .padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+        modifier = Modifier.clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (isSelected) selectedColor else Color(0xFF9CA3AF),
-            modifier = Modifier.size(22.dp)
+            tint = color,
+            modifier = Modifier.size(30.dp)
         )
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = label,
+            color = color,
             fontSize = 11.sp,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isSelected) selectedColor else Color(0xFF9CA3AF)
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
 }
+
+
+
 // ─────────────────────────────────────────────────────────────
-// HomeScreenContent
+// UI-side data models (built FROM api dtos, not hardcoded)
+// ─────────────────────────────────────────────────────────────
+private data class DashboardStat(
+    val label: String,
+    val value: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val iconBg: Color,
+    val iconTint: Color,
+    val trendText: String,
+    val trendUp: Boolean?
+)
+
+private data class QuickModule(
+    val label: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
+
+private data class ActivityItem(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val iconBg: Color,
+    val iconTint: Color,
+    val title: String,
+    val timeAgo: String,
+    val amount: String? = null
+)
+
+private data class RecentCustomer(
+    val name: String,
+    val role: String,
+    val initials: String,
+    val avatarColor: Color
+)
+
+// ─────────────────────────────────────────────────────────────
+// Mappers — API dto -> UI model
+// ─────────────────────────────────────────────────────────────
+private fun statVisualsFor(title: String): Triple<androidx.compose.ui.graphics.vector.ImageVector, Color, Color> {
+    return when {
+        title.contains("Revenue", true) ->
+            Triple(Icons.Default.AccountBalanceWallet, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+        title.contains("Order", true) ->
+            Triple(Icons.Default.ShoppingCart, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+        title.contains("Measurement", true) ->
+            Triple(Icons.Default.Straighten, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+        title.contains("Pending", true) || title.contains("Payment", true) ->
+            Triple(Icons.Default.Description, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+        else ->
+            Triple(Icons.Default.Info, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+    }
+}
+
+private fun formatCompactNumber(value: Double): String {
+    return when {
+        value >= 100000 -> String.format("%.1fL", value / 100000)
+        value >= 1000 -> String.format("%.1fk", value / 1000)
+        else -> value.toInt().toString()
+    }
+}
+
+private fun mapApiStatsToUi(stats: List<DashboardStatDto>): List<DashboardStat> {
+    return stats.map { stat ->
+        val (icon, iconBg, iconTint) = statVisualsFor(stat.title)
+        val trendUp: Boolean? = when (stat.color.lowercase()) {
+            "green" -> true
+            "red" -> false
+            else -> null
+        }
+        val valueText = if (stat.type == "currency") {
+            "₹ ${formatCompactNumber(stat.value)}"
+        } else {
+            stat.value.toInt().toString()
+        }
+        val trendText = "${stat.change.toInt()}%"
+        DashboardStat(stat.title, valueText, icon, iconBg, iconTint, trendText, trendUp)
+    }
+}
+
+private fun mapActiveOrdersToActivity(orders: List<ActiveOrderItem>): List<ActivityItem> {
+    return orders.take(4).map { order ->
+        val statusLabel = order.status.replaceFirstChar { it.uppercase() }
+        ActivityItem(
+            icon = Icons.Default.ShoppingCart,
+            iconBg = Color(0xFFDCFCE7),
+            iconTint = Color(0xFF16A34A),
+            title = "${order.customer} — Order ${order.orderNumber} ($statusLabel)",
+            timeAgo = "",
+            amount = if (order.amount > 0) "₹${formatIndianNumber(order.amount.toInt())}" else null
+        )
+    }
+}
+
+private val CustomerAvatarPalette = listOf(
+    Color(0xFFF59E0B), Color(0xFF3B82F6), Color(0xFFEC4899), Color(0xFF10B981), Color(0xFF6366F1)
+)
+
+private fun mapOperationsToCustomers(ops: List<OperationItem>): List<RecentCustomer> {
+    return ops.distinctBy { it.customer }.take(5).mapIndexed { index, op ->
+        val nameParts = op.customer.trim().split(" ").filter { it.isNotBlank() }
+        val initials = nameParts.take(2).joinToString("") { it.first().uppercase() }.ifBlank { "?" }
+        val prettyName = nameParts.joinToString(" ") { word ->
+            word.lowercase().replaceFirstChar { it.uppercase() }
+        }
+        RecentCustomer(
+            name = prettyName.ifBlank { op.customer },
+            role = op.type,
+            initials = initials,
+            avatarColor = CustomerAvatarPalette[index % CustomerAvatarPalette.size]
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// HomeScreenContent — fetches real dashboard data + fixed design
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun HomeScreenContent() {
-    val leadItems = listOf(
-        LeadItem("New Enquiry", 10f),
-        LeadItem("Quoted", 7f),
-        LeadItem("Follow-up", 5f),
-        LeadItem("Converted", 12f),
-        LeadItem("Last Enquiry", 3f)
-    )
-    val operationControls = listOf(ControlItem("Customer"), ControlItem("Type"), ControlItem("Measurements"), ControlItem("Priority"))
-    val barColors = listOf(Color(0xFF6C63FF), Color(0xFF3B82F6), Color(0xFFF59E0B), Color(0xFF10B981), Color(0xFFEF4444))
-    val labels = leadItems.map { it.header }
-    val values = leadItems.map { it.value }
-
-    val bottomAxisFormatter = CartesianValueFormatter { value, _, _ -> labels.getOrNull(value.toInt()) ?: "" }
-    val modelProducer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(leadItems) { modelProducer.runTransaction { columnSeries { series(values) } } }
-
-    val columnComponents = barColors.map { color ->
-        rememberLineComponent(color = color, thickness = 24.dp, shape = VicoShape.rounded(allPercent = 20))
+    // ✅ Locks fontScale to 1f so the layout looks identical across every
+    // device regardless of the system "font size" accessibility setting.
+    val baseDensity = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(density = baseDensity.density, fontScale = 1f)
+    ) {
+        HomeScreenContentBody()
     }
-    val columnProvider = remember(columnComponents) {
-        object : ColumnCartesianLayer.ColumnProvider {
-            override fun getColumn(entry: ColumnCartesianLayerModel.Entry, seriesIndex: Int, extraStore: ExtraStore): LineComponent =
-                columnComponents[entry.x.toInt().mod(columnComponents.size)]
-            override fun getWidestSeriesColumn(seriesIndex: Int, extraStore: ExtraStore): LineComponent = columnComponents[0]
+}
+
+@Composable
+private fun HomeScreenContentBody() {
+    val dashboardViewModel: DashboardViewModel = hiltViewModel()
+    val uiState by dashboardViewModel.uiState.collectAsStateWithLifecycle()
+
+    val authViewModel: Authenticate = hiltViewModel()
+    val userEntity by authViewModel.user.collectAsStateWithLifecycle()
+    val adminName = userEntity?.firstName?.takeIf { it.isNotBlank() } ?: "Admin"
+
+    // Quick Modules — static shortcuts (not part of this API response)
+    val quickModules = remember {
+        listOf(
+            QuickModule("Contacts", Icons.Default.Person),
+            QuickModule("Leads", Icons.Default.TrendingUp),
+            QuickModule("Deals", Icons.Default.Sell),
+            QuickModule("Tickets", Icons.Default.Description),
+            QuickModule("Email", Icons.Default.Email),
+            QuickModule("Calendar", Icons.Default.CalendarMonth)
+        )
+    }
+
+    when (val state = uiState) {
+        is DashboardUiState.Loading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFF7F7FB)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color(0xFF7C3AED))
+                    Spacer(Modifier.height(8.dp))
+                    Text("Loading dashboard...", color = Color.Gray, fontSize = 14.sp)
+                }
+            }
+        }
+
+        is DashboardUiState.Error -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFF7F7FB)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(40.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text("Failed to load dashboard", color = Color.Red, fontWeight = FontWeight.Bold)
+                    Text(state.message, color = Color.Gray, fontSize = 13.sp)
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = { dashboardViewModel.loadDashboard() }) {
+                        Text("Retry")
+                    }
+                }
+            }
+        }
+
+        is DashboardUiState.Success -> {
+            val data = state.data
+            val stats = remember(data) { mapApiStatsToUi(data.stats) }
+            val activities = remember(data) { mapActiveOrdersToActivity(data.activeOrders) }
+            val customers = remember(data) { mapOperationsToCustomers(data.operations) }
+            val newLeadsCount = remember(data) {
+                data.leadChart.find { it.name.equals("New Enquiry", ignoreCase = true) }?.count ?: 0
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFF7F7FB)),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                item { GreetingCard(userName = adminName, newLeadsCount = newLeadsCount) }
+                item { StatsGrid(stats) }
+                item { QuickModulesSection(quickModules) }
+                if (activities.isNotEmpty()) {
+                    item { RecentActivitySection(activities) }
+                }
+                if (customers.isNotEmpty()) {
+                    item { RecentCustomersSection(customers) }
+                }
+                item { Spacer(Modifier.height(8.dp)) }
+            }
+        }
+        else -> {
+            CircularProgressIndicator()
         }
     }
-    val markerLabel = rememberTextComponent(
-        color = Color.White,
-        background = rememberShapeComponent(color = Color(0xFF1E293B), shape = VicoShape.rounded(allPercent = 8)),
-        padding = Dimensions(8f, 4f, 8f, 4f)
-    )
-    val marker = rememberDefaultCartesianMarker(
-        label = markerLabel,
-        valueFormatter = { _, targets ->
-            targets.joinToString { t -> "${labels.getOrNull(t.x.toInt()) ?: ""}: ${values.getOrNull(t.x.toInt())?.toInt() ?: 0}" }
-        }
-    )
-    val legendScrollState     = rememberLazyListState()
-    val operationsScrollState = rememberLazyListState()
 
-    Column(Modifier
-        .fillMaxSize()
-        .background(lightGray)) {
-        LazyColumn(
+
+}
+
+// ── Greeting card — purple gradient banner ──
+@Composable
+private fun GreetingCard(userName: String, newLeadsCount: Int) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(Brush.linearGradient(colors = listOf(Color(0xFF6C4FF6), Color(0xFF9333EA))))
+            .padding(20.dp)
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(lightGray),
-            contentPadding = PaddingValues(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .align(Alignment.TopEnd)
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center
         ) {
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    StatCard(Modifier.weight(1f), Color(0xFFDCFCE7), Icons.Filled.Money,        Color(0xFF16A34A), "Total Revenue",     "₹0")
-                    StatCard(Modifier.weight(1f), Color(0xFFDBEAFE), Icons.Filled.ShoppingCart,  Color(0xFF2563EB), "Active Orders",     "0")
-                }
-            }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    StatCard(Modifier.weight(1f), Color(0xFFDBEAFE), Icons.Filled.LinearScale,   Color(0xFF9333EA), "Measurements",      "0")
-                    StatCard(Modifier.weight(1f), Color(0xFFDCFCE7), Icons.Filled.Money,         Color(0xFF16A34A), "Pending Payments",  "₹0")
-                }
-            }
+            Icon(Icons.Default.TrendingUp, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+        }
+        Column {
+            Text("Good Morning, $userName", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "You have $newLeadsCount new leads to review today",
+                color = Color.White.copy(alpha = 0.85f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal
+            )
+        }
+    }
+}
 
-            // Collection Efficiency
-            item {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .padding(16.dp)) {
-                    Column {
-                        Text("Collection Efficiency", color = Color.Gray, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(8.dp))
-                        Text("0%", color = Color.Black, fontSize = 50.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(12.dp))
-                        Row(Modifier.fillMaxWidth()) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Total Invoiced", color = Color(0xFF6366F1), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                Text("₹0", modifier = Modifier.align(Alignment.End), fontSize = 16.sp, color = Color.Black, fontWeight = FontWeight.Bold)
-                            }
-                            Column(Modifier.weight(1f)) {
-                                Text("Payments Received", color = Color(0xFF22C55E), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                Text("₹0", modifier = Modifier.align(Alignment.End), fontSize = 16.sp, color = Color.Black, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        Box(Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFE0E0FC), RoundedCornerShape(12.dp))) { Text(" ") }
-                        Spacer(Modifier.height(8.dp))
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier
-                                .size(10.dp)
-                                .background(Color(0xFFF97316), CircleShape))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Pending Collection :", fontSize = 16.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
-                            Text("₹0", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text("Target 0%", color = Color.LightGray, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+// ── Stats grid — 2x2 cards, driven by API `stats` array ──
+@Composable
+private fun StatsGrid(stats: List<DashboardStat>) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        stats.chunked(2).forEach { rowStats ->
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                rowStats.forEach { stat -> DashboardStatCard(stat = stat, modifier = Modifier.weight(1f)) }
+                if (rowStats.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DashboardStatCard(stat: DashboardStat, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .background(Color.White, RoundedCornerShape(14.dp))
+            .padding(14.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(stat.iconBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(stat.icon, contentDescription = null, tint = stat.iconTint, modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(stat.label, fontSize = 13.sp, color = Color(0xFF6B7280), fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(2.dp))
+        Text(stat.value, fontSize = 19.sp, color = Color(0xFF111827), fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        when (stat.trendUp) {
+            true -> TrendRow(icon = Icons.Default.ArrowUpward, text = stat.trendText, color = Color(0xFF16A34A))
+            false -> TrendRow(icon = Icons.Default.ArrowDownward, text = stat.trendText, color = Color(0xFFEF4444))
+            null -> Text(stat.trendText, fontSize = 11.sp, color = Color(0xFF9CA3AF))
+        }
+    }
+}
+
+@Composable
+private fun TrendRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(12.dp))
+        Spacer(Modifier.width(2.dp))
+        Text(text, fontSize = 12.sp, color = color, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+// ── Quick Modules — static shortcuts row ──
+@Composable
+private fun QuickModulesSection(modules: List<QuickModule>) {
+    Column {
+        Text("Quick Modules", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+        Spacer(Modifier.height(12.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            items(modules) { module ->
+                Column(modifier = Modifier.width(64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFFEDE9FE)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(module.icon, contentDescription = module.label, tint = Color(0xFF7C3AED), modifier = Modifier.size(24.dp))
                     }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        module.label,
+                        fontSize = 11.sp,
+                        color = Color(0xFF6B7280),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
+        }
+    }
+}
 
-            // Lead Management Chart
-            item {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .padding(16.dp)) {
-                    Column(Modifier.fillMaxWidth()) {
-                        Text("Lead Management", color = Color.Gray, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(16.dp))
-                        CartesianChartHost(
-                            chart = rememberCartesianChart(
-                                rememberColumnCartesianLayer(columnProvider = columnProvider),
-                                startAxis  = rememberStartAxis(guideline = null),
-                                bottomAxis = rememberBottomAxis(valueFormatter = bottomAxisFormatter, guideline = null),
-                                marker = marker
-                            ),
-                            modelProducer = modelProducer,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(220.dp)
+// ── Recent Activity — driven by API `activeOrders` ──
+@Composable
+private fun RecentActivitySection(activities: List<ActivityItem>) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Recent Activity", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            Text("View All", fontSize = 13.sp, color = Color(0xFF7C3AED), fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.height(12.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            activities.forEach { activity ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White, RoundedCornerShape(14.dp))
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(activity.iconBg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(activity.icon, contentDescription = null, tint = activity.iconTint, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            activity.title,
+                            fontSize = 13.sp,
+                            color = Color(0xFF111827),
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(Modifier.height(16.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            leadItems.forEachIndexed { index, item ->
-                                val color = barColors[index % barColors.size]
-                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Box(Modifier
-                                        .size(12.dp)
-                                        .background(color, CircleShape))
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(text = item.header, color = Color.DarkGray, fontSize = 14.sp, maxLines = 1, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(text = item.value.toInt().toString(), fontWeight = FontWeight.Bold, color = color, fontSize = 14.sp)
-                                }
-                            }
+                        if (activity.timeAgo.isNotBlank()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(activity.timeAgo, fontSize = 11.sp, color = Color(0xFF9CA3AF))
                         }
-                        Spacer(Modifier.height(8.dp))
-                        HorizontalScrollbar(state = legendScrollState, modifier = Modifier.padding(horizontal = 8.dp))
+                    }
+                    if (activity.amount != null) {
+                        Spacer(Modifier.width(8.dp))
+                        Text(activity.amount, fontSize = 13.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Bold)
                     }
                 }
             }
+        }
+    }
+}
 
-            // Invoicing vs Collection
-            item {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .height(420.dp)
-                    .background(Color.White, RoundedCornerShape(16.dp))
-                    .padding(16.dp)) {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("Invoicing vs. Collection", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = Color(0xFF2D3748))
-                            Spacer(Modifier.weight(1f))
-                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-                                Box(Modifier
-                                    .size(10.dp)
-                                    .background(Color(0xFF6C63FF), CircleShape))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Invoiced", fontSize = 12.sp, color = Color.Black, maxLines = 1)
-                                Spacer(Modifier.width(12.dp))
-                                Box(Modifier
-                                    .size(10.dp)
-                                    .background(Color(0xFF34C759), CircleShape))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Collected", fontSize = 12.sp, color = Color.Black, maxLines = 1)
-                            }
-                        }
-                        Box(modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth())
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF5F5F5), RoundedCornerShape(16.dp))
-                                .padding(horizontal = 20.dp, vertical = 18.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier
-                                    .size(12.dp)
-                                    .background(Color(0xFF6C63FF), CircleShape))
-                                Spacer(Modifier.width(12.dp))
-                                Text("Total 7d: ₹0", fontSize = 18.sp, color = Color(0xFF4A5568))
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier
-                                    .size(12.dp)
-                                    .background(Color(0xFF34C759), CircleShape))
-                                Spacer(Modifier.width(12.dp))
-                                Text("Collected: ₹0", fontSize = 18.sp, color = Color(0xFF34C759))
-                            }
-                        }
+// ── Recent Customers — driven by API `operations` ──
+@Composable
+private fun RecentCustomersSection(customers: List<RecentCustomer>) {
+    Column {
+        Text("Recent Customers", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+        Spacer(Modifier.height(12.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            customers.forEach { customer ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White, RoundedCornerShape(14.dp))
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .clickable { /* TODO: navigate to customer detail */ },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(customer.avatarColor.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(customer.initials, color = customer.avatarColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
-                }
-            }
-
-            // Operations Control
-            item {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .padding(16.dp)) {
-                    Column(Modifier.fillMaxWidth()) {
-                        Text("Operations Control", fontSize = 25.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(16.dp))
-                        LazyRow(state = operationsScrollState, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            items(operationControls) { item ->
-                                Column(
-                                    modifier = Modifier
-                                        .width(200.dp)
-                                        .background(Color(0xFFF8FAFC))
-                                        .padding(20.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(text = item.controls, color = Color.DarkGray, maxLines = 1, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        HorizontalScrollbar(state = operationsScrollState, modifier = Modifier.padding(horizontal = 8.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(customer.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                        Text(customer.role, fontSize = 12.sp, color = Color(0xFF9CA3AF))
                     }
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(18.dp))
                 }
-            }
-
-            // Order Status Distribution
-            item {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .height(450.dp)
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .padding(16.dp)) {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        Text("Order Status Distribution", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                        Spacer(modifier = Modifier.height(50.dp))
-                        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(modifier = Modifier
-                                .size(30.dp)
-                                .background(Color(0xFF3F3CCF), CircleShape))
-                            Spacer(modifier = Modifier.height(30.dp))
-                            Text("0", fontSize = 64.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                            Text("TOTAL", fontSize = 28.sp, color = Color.Gray)
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                StatusLegend(color = Color(0xFF3F3CCF), text = "In Progress (0)\n(0%)")
-                                StatusLegend(color = Color(0xFF3FA66B), text = "Completed (0)\n(0%)")
-                            }
-                            StatusLegend(color = Color(0xFFD1D5DB), text = "Scheduled (0)\n(0%)")
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// Reusable "Lead Form" UI kit — this is the exact card/accordion
-// design from the reference screenshot. CreateLeadScreen,
-// ViewLeadScreen and EditLeadScreen all reuse these same pieces
-// so the three screens stay pixel-consistent with each other.
-// All icons use LeadPrimary (the app's primary/purple color).
+// Reusable "Lead Form" UI kit
 // ─────────────────────────────────────────────────────────────
 
-/** Top row: "Create Lead" / "View Lead" / "Edit Lead" + status badge + close (X). */
 @Composable
 fun LeadFormTopBar(
     title: String,
@@ -939,7 +1371,6 @@ fun LeadFormTopBar(
     }
 }
 
-/** Dismissible info banner right under the top bar, e.g. "Fill the details below...". */
 @Composable
 fun LeadInfoBanner(text: String) {
     var visible by remember { mutableStateOf(true) }
@@ -969,11 +1400,6 @@ fun LeadInfoBanner(text: String) {
     }
 }
 
-/**
- * A single collapsible section card — icon (primary color) + title + subtitle + chevron.
- * Pass [trailing] to replace the chevron with something else (e.g. a Switch for
- * "Appointment & Follow-Up", exactly like the reference design).
- */
 @Composable
 fun LeadAccordionSection(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -988,7 +1414,6 @@ fun LeadAccordionSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-
     ) {
         Row(
             modifier = Modifier
@@ -1042,7 +1467,6 @@ fun LeadAccordionSection(
     }
 }
 
-/** Bottom action bar: muted left action (Clear All / Cancel / Back) + primary right button. */
 @Composable
 fun LeadBottomBar(
     leftLabel: String,
@@ -1102,13 +1526,9 @@ fun LeadBottomBar(
 }
 
 // ─────────────────────────────────────────────────────────────
-// CreateLeadScreen — exact accordion-card design from reference.
-// Same state/API logic as before; only the layout changed to use
-// the LeadFormTopBar / LeadInfoBanner / LeadAccordionSection /
-// LeadBottomBar kit above (also reused by View & Edit below).
+// CreateLeadScreen
 // ─────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
-
 @Composable
 fun CreateLeadScreen(onBack: () -> Unit) {
     var leadSource       by remember { mutableStateOf("") }
@@ -1150,7 +1570,6 @@ fun CreateLeadScreen(onBack: () -> Unit) {
     var assignedStaffExpanded    by remember { mutableStateOf(false) }
     var priorityExpanded         by remember { mutableStateOf(false) }
 
-    // ── Accordion open/close state — "Lead Information" open by default, rest closed ──
     var expandedSection by remember { mutableStateOf("lead_info") }
 
     val leadSourceOptions       = listOf("Walk-in", "Instagram", "Facebook Ads", "Website")
@@ -1240,10 +1659,9 @@ fun CreateLeadScreen(onBack: () -> Unit) {
     }
 
     Scaffold(
-        containerColor = Color(0xFFF5F5F7)
-        // ✅ bottomBar முழுசா நீக்கிடுச்சு
-    ) { padding ->
-        // ✅ Root Box — content + fixed floating Create Lead button
+        containerColor = Color(0xFFF5F5F7),
+        contentWindowInsets = WindowInsets(0)
+        ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1501,7 +1919,6 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                         }
                     }
 
-                    // ✅ "Clear All" — Notes & References-க்கு கீழ, normal content-ஆ (fixed இல்ல, scroll ஆகும்)
                     item {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -1528,12 +1945,10 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                         }
                     }
 
-                    // ✅ floating button மறையாம கடைசில extra space
                     item { Spacer(Modifier.height(90.dp)) }
                 }
             }
 
-            // ✅ Fixed floating "Create Lead" button — bottom-end-ல எப்போவும் இருக்கும்
             Button(
                 onClick = { submitLead() },
                 enabled = leadState !is SaleState.Loading,
@@ -1542,8 +1957,7 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = 130.dp) // ✅ Fixed: Moved above bottom bar
-
+                    .padding(end = 10.dp, bottom = 50.dp)
             ) {
                 if (leadState is SaleState.Loading) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
@@ -1556,8 +1970,9 @@ fun CreateLeadScreen(onBack: () -> Unit) {
         }
     }
 }
+
 // ─────────────────────────────────────────────────────────────
-// LeadScreenContent (unchanged — table/list screen, not the form)
+// LeadScreenContent
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun LeadScreenContent(
@@ -1574,7 +1989,6 @@ fun LeadScreenContent(
     val deleteState by salesViewModel.deleteState.collectAsStateWithLifecycle()
     val updateState by salesViewModel.updateState.collectAsStateWithLifecycle()
 
-    // ✅ filter sections ku venum dynamic data ellam inga irundhே varum
     val salesStatuses by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
@@ -1585,20 +1999,15 @@ fun LeadScreenContent(
     var isLoadingView by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
 
-    // ── Filter Drawer State ──
     val filterDrawerState = rememberFilterDrawerState()
     var searchQuery by remember { mutableStateOf("") }
     var currentPage by remember { mutableIntStateOf(1) }
     val itemsPerPage = 10
 
-    // ✅ FIXED — declared here, BEFORE filteredLeads (below) reads it.
-    // Builds the filter sections from live ViewModel data instead of hardcoded lists.
     var filterSections by remember {
         mutableStateOf(buildFilterSections(emptyList(), emptyList(), emptyList(), emptyList(), emptyList()))
     }
 
-    // ✅ Rebuilds sections whenever the underlying ViewModel data changes,
-    // while keeping whatever the user already had checked.
     LaunchedEffect(salesStatuses, garmentCategories, staffList, leads) {
         val dynamicSources = leads.map { it.source }.filter { it.isNotBlank() }.distinct().sorted()
         filterSections = buildFilterSections(filterSections, salesStatuses, garmentCategories, staffList, dynamicSources)
@@ -1608,7 +2017,7 @@ fun LeadScreenContent(
         salesViewModel.fetchTableLeads()
         salesViewModel.fetchStaff()
         salesViewModel.fetchGarmentCategories()
-        salesViewModel.fetchSalesData() // ✅ salesStatuses (Status filter) idhula irundhே populate aagum
+        salesViewModel.fetchSalesData()
     }
 
     LaunchedEffect(deleteState) {
@@ -1636,13 +2045,11 @@ fun LeadScreenContent(
         }
     }
 
-    // ── Apply Filters Function ──
     fun applyFilters(sections: List<FilterSection>) {
         filterSections = sections
         currentPage = 1
     }
 
-    // ── Helper function to get garment name ──
     fun getGarmentName(lead: LeadTableItem): String {
         val garment = lead.garmentCategory?.firstOrNull()
         return if (garment == null) "—"
@@ -1656,13 +2063,11 @@ fun LeadScreenContent(
         }
     }
 
-    // ✅ Filter by search, status, source, garments, amount, priority, sales person
     val filteredLeads = leads.filter { lead ->
         val matchesSearch = searchQuery.isBlank() ||
                 lead.person.name.contains(searchQuery, ignoreCase = true) ||
                 lead.enquiryType.contains(searchQuery, ignoreCase = true)
 
-        // Status filter — matches directly against real status names, no id→keyword mapping
         val statusName = when (lead.status) {
             is String -> lead.status
             is Map<*, *> -> (lead.status["name"] as? String) ?: ""
@@ -1673,26 +2078,22 @@ fun LeadScreenContent(
         val matchesStatus = selectedStatusLabels.isEmpty() ||
                 selectedStatusLabels.any { it.equals(statusName, ignoreCase = true) }
 
-        // Source filter — matches against real source values from the API
         val selectedSourceLabels = filterSections.find { it.title == "Source" }
             ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
         val matchesSource = selectedSourceLabels.isEmpty() ||
                 selectedSourceLabels.any { it.equals(lead.source, ignoreCase = true) }
 
-        // Garments filter
         val garmentName = getGarmentName(lead)
         val selectedGarmentLabels = filterSections.find { it.title == "Garments" }
             ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
         val matchesGarments = selectedGarmentLabels.isEmpty() ||
                 selectedGarmentLabels.any { it.equals(garmentName, ignoreCase = true) }
 
-        // ✅ Amount Range now actually filters (was collected in the drawer but never used)
         val minAmountFilter = filterSections.find { it.title == "Amount Range" }?.minAmount?.toIntOrNull()
         val maxAmountFilter = filterSections.find { it.title == "Amount Range" }?.maxAmount?.toIntOrNull()
         val matchesAmount = (minAmountFilter == null || lead.budgetRange.max >= minAmountFilter) &&
                 (maxAmountFilter == null || lead.budgetRange.min <= maxAmountFilter)
 
-        // Priority filter
         val selectedPriority = filterSections.find { it.title == "Priority" }
             ?.options
             ?.find { it.isSelected }
@@ -1708,7 +2109,6 @@ fun LeadScreenContent(
             }
         }
 
-        // ✅ Sales Person filter — matches against appointment.assignedStaff id from the API
         val selectedStaffIds = filterSections.find { it.title == "Sales Person" }
             ?.options?.filter { it.isSelected }?.map { it.id } ?: emptyList()
         val matchesSalesPerson = selectedStaffIds.isEmpty() ||
@@ -1771,18 +2171,15 @@ fun LeadScreenContent(
         }
     }
 
-    // ── Main UI ──
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF5F5F7))
         ) {
-            // ── FIXED TOP HEADER ──
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
                     .background(Color.White)
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
@@ -1797,7 +2194,6 @@ fun LeadScreenContent(
                 Spacer(Modifier.height(8.dp))
             }
 
-            // ── Breadcrumb + Search + Filter ──
             Column(
                 modifier = Modifier
                     .background(Color(0xFFF8F9FF))
@@ -1817,7 +2213,6 @@ fun LeadScreenContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Search Box
                     Row(
                         modifier = Modifier
                             .weight(1f)
@@ -1847,7 +2242,6 @@ fun LeadScreenContent(
                         )
                     }
 
-                    // Filter Button
                     Box(
                         modifier = Modifier
                             .size(48.dp)
@@ -1861,7 +2255,6 @@ fun LeadScreenContent(
                 }
             }
 
-            // ── Content ──
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1940,41 +2333,41 @@ fun LeadScreenContent(
                     }
                     else -> {
                         Column(modifier = Modifier.fillMaxSize()) {
-                            // ── Lead Cards ──
-                            LazyColumn(
+                            Column(
                                 modifier = Modifier
+                                    .weight(1f)
                                     .fillMaxWidth()
-                                    .weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                contentPadding = PaddingValues(bottom = 120.dp) // ✅ Prevents cards from hiding behind FAB
+                                    .verticalScroll(rememberScrollState())
                             ) {
-                                items(pagedLeads) { lead ->
-                                    val (badgeText, badgeColor) = resolveStatusBadge(lead)
-                                    DataCard(
-                                        item = lead,
-                                        dateText = formatLeadDate(lead.requiredDate?.takeIf { it.isNotBlank() } ?: lead.enquiryDate),
-                                        badge = DataCardBadge(text = badgeText, color = badgeColor),
-                                        title = lead.person.name.ifEmpty { "—" },
-                                        subtitle = "${lead.enquiryType.ifEmpty { "—" }} • ${getGarmentName(lead)} • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
-                                        footerFields = listOf(
-                                            DataCardField(
-                                                text = "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${
-                                                    formatIndianNumber(
-                                                        lead.budgetRange.max
-                                                    )
-                                                }"
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                                ) {
+                                    pagedLeads.forEach { lead ->
+                                        val (badgeText, badgeColor) = resolveStatusBadge(lead)
+                                        DataCard(
+                                            item = lead,
+                                            dateText = formatLeadDate(lead.requiredDate?.takeIf { it.isNotBlank() } ?: lead.enquiryDate),
+                                            badge = DataCardBadge(text = badgeText, color = badgeColor),
+                                            title = lead.person.name.ifEmpty { "—" },
+                                            subtitle = "${lead.enquiryType.ifEmpty { "—" }} • ${getGarmentName(lead)} • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
+                                            footerFields = listOf(
+                                                DataCardField(
+                                                    text = "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}"
+                                                )
+                                            ),
+                                            actions = listOf(
+                                                MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClicked(lead) },
+                                                MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClicked(lead) },
+                                                MenuAction(
+                                                    "Delete", Icons.Default.Delete,
+                                                    tint = Color(0xFFF44336), textColor = Color(0xFFF44336),
+                                                    enabled = !isDeleting
+                                                ) { leadToDelete = lead }
                                             )
-                                        ),
-                                        actions = listOf(
-                                            MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClicked(lead) },
-                                            MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClicked(lead) },
-                                            MenuAction(
-                                                "Delete", Icons.Default.Delete,
-                                                tint = Color(0xFFF44336), textColor = Color(0xFFF44336),
-                                                enabled = !isDeleting
-                                            ) { leadToDelete = lead }
                                         )
-                                    )
+                                    }
                                 }
                             }
 
@@ -2035,7 +2428,6 @@ fun LeadScreenContent(
             }
         }
 
-        // ── FIXED FAB — Create Lead Button (Positioned Above Bottom Bar) ──
         Button(
             onClick = onCreateLead,
             colors = ButtonDefaults.buttonColors(containerColor = Primary),
@@ -2043,8 +2435,7 @@ fun LeadScreenContent(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 130.dp) // ✅ Fixed: Moved above bottom bar
-
+                .padding(end = 10.dp, bottom = 50.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
@@ -2054,7 +2445,6 @@ fun LeadScreenContent(
         }
     }
 
-    // ── Delete Confirmation Dialog ──
     if (leadToDelete != null) {
         AlertDialog(
             onDismissRequest = { leadToDelete = null },
@@ -2090,7 +2480,6 @@ fun LeadScreenContent(
         )
     }
 
-    // ── Filter Drawer ──
     FilterDrawer(
         state = filterDrawerState,
         title = "Filters",
@@ -2112,10 +2501,7 @@ fun LeadScreenContent(
 }
 
 // ─────────────────────────────────────────────────────────────
-// buildFilterSections — builds the FilterDrawer sections from live
-// ViewModel data instead of hardcoded lists. `previous` is passed in so
-// a user's existing selections survive when the underlying data refreshes
-// (e.g. staff list reloads while "Sales Person" is checked).
+// buildFilterSections
 // ─────────────────────────────────────────────────────────────
 fun buildFilterSections(
     previous: List<FilterSection>,
@@ -2134,7 +2520,6 @@ fun buildFilterSections(
         FilterSection(
             title = "Date Range", icon = Icons.Filled.CalendarMonth,
             type = FilterSectionType.CHIP_GRID, isMultiSelect = false,
-            // kept static — relative date buckets, not backend data
             options = preserveSelection("Date Range", listOf(
                 FilterOption("today", "Today"),
                 FilterOption("week", "This Week"),
@@ -2145,7 +2530,6 @@ fun buildFilterSections(
         FilterSection(
             title = "Status", icon = Icons.Filled.Sell,
             type = FilterSectionType.CHECKBOX_LIST, isMultiSelect = true,
-            // ✅ from salesViewModel.salesStatuses — real API/DB data
             options = preserveSelection(
                 "Status",
                 statuses.map { FilterOption(id = it.id, label = it.name) }
@@ -2154,7 +2538,6 @@ fun buildFilterSections(
         FilterSection(
             title = "Source", icon = Icons.Filled.Campaign,
             type = FilterSectionType.CHIP_ROW, isMultiSelect = true,
-            // ✅ distinct source values actually present in fetched leads
             options = preserveSelection(
                 "Source",
                 dynamicSources.map { FilterOption(id = it, label = it) }
@@ -2163,7 +2546,6 @@ fun buildFilterSections(
         FilterSection(
             title = "Garments", icon = Icons.Filled.Checkroom,
             type = FilterSectionType.CHIP_ROW_MORE, isMultiSelect = true,
-            // ✅ from salesViewModel.garmentCategories — real API/DB data
             options = preserveSelection(
                 "Garments",
                 garments.map { FilterOption(id = it.id, label = it.categoryId.categoryName) }
@@ -2178,10 +2560,7 @@ fun buildFilterSections(
         ),
         FilterSection(
             title = "Sales Person", icon = Icons.Filled.People,
-            // ✅ CHECKBOX_LIST instead of DROPDOWN: DROPDOWN body has no
-            // selection UI wired up (just a "TODO: open picker").
             type = FilterSectionType.CHECKBOX_LIST, isMultiSelect = true,
-            // ✅ from salesViewModel.staffList — real API/DB data
             options = preserveSelection(
                 "Sales Person",
                 staff.map { FilterOption(id = it.id, label = "${it.firstName} ${it.lastName}") }
@@ -2190,14 +2569,11 @@ fun buildFilterSections(
         FilterSection(
             title = "Location", icon = Icons.Filled.LocationOn,
             type = FilterSectionType.DROPDOWN,
-            // ⚠️ LeadTableItem doesn't currently expose a city/area field from the
-            // API, so there's no real data source to populate this from yet.
             options = emptyList()
         ),
         FilterSection(
             title = "Priority", icon = Icons.Filled.Flag,
             type = FilterSectionType.PRIORITY_DOTS, isMultiSelect = false,
-            // kept static — fixed High/Medium/Low enum used by appointment.priority
             options = preserveSelection("Priority", listOf(
                 FilterOption("high", "High"),
                 FilterOption("medium", "Medium"),
@@ -2208,8 +2584,7 @@ fun buildFilterSections(
 }
 
 // ─────────────────────────────────────────────────────────────
-// ViewLeadScreen — same accordion-card design as Create Lead,
-// but fields are read-only (ViewFieldValue instead of inputs).
+// ViewLeadScreen
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun ViewLeadScreen(
@@ -2224,7 +2599,6 @@ fun ViewLeadScreen(
     val error by salesViewModel.leadDetailsError.collectAsStateWithLifecycle()
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
 
-    // ── Accordion open/close state — "Lead Information" open by default, rest closed ──
     var sectionLeadInfo    by remember { mutableStateOf(true) }
     var sectionCustomer    by remember { mutableStateOf(false) }
     var sectionLocation    by remember { mutableStateOf(false) }
@@ -2279,11 +2653,8 @@ fun ViewLeadScreen(
 
     val l = lead!!
 
-    // ✅ Local toggle state, seeded from the lead's saved appointmentRequired value.
-    // Re-seeds whenever a different lead (l.id) is loaded into this screen.
     var appointmentRequired by remember(l.id) { mutableStateOf(l.appointmentRequired) }
 
-    // ✅ Map garment IDs to names using garmentCategories
     val garmentNames = if (l.garments.isNotBlank() && garmentCategories.isNotEmpty()) {
         val ids = l.garments.split(",").filter { it.isNotBlank() }
         ids.mapNotNull { id -> garmentCategories.find { it.id == id }?.categoryId?.categoryName }
@@ -2293,6 +2664,7 @@ fun ViewLeadScreen(
 
     Scaffold(
         containerColor = Color(0xFFF5F5F7),
+        contentWindowInsets = WindowInsets(0),
         bottomBar = {
             LeadBottomBar(
                 leftLabel = "Back",
@@ -2325,8 +2697,7 @@ fun ViewLeadScreen(
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-
-                ) {
+            ) {
                 item {
                     LeadAccordionSection(
                         icon = Icons.Default.Description,
@@ -2514,7 +2885,7 @@ fun ViewLeadScreen(
 @Composable
 fun MiniSwitch(
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,  // ✅ Added callback parameter
+    onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -2530,7 +2901,7 @@ fun MiniSwitch(
                 color = if (checked) Primary else Color(0xFFD1D5DB),
                 shape = RoundedCornerShape(50)
             )
-            .clickable { onCheckedChange(!checked) }  // ✅ Added clickable with toggle
+            .clickable { onCheckedChange(!checked) }
     ) {
         Box(
             modifier = Modifier
@@ -2543,11 +2914,6 @@ fun MiniSwitch(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Helper Functions
-// ─────────────────────────────────────────────────────────────
-
-// ── Custom ViewFieldValue Component for Read-Only Display ──
 @Composable
 fun ViewFieldValue(label: String, value: String) {
     Column(modifier = Modifier
@@ -2574,9 +2940,7 @@ fun ViewFieldValue(label: String, value: String) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// EditLeadScreen — same accordion-card design as Create Lead,
-// pre-filled with the selected lead's data and calling update
-// instead of create.
+// EditLeadScreen
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun EditLeadScreen(onBack: () -> Unit) {
@@ -2623,7 +2987,6 @@ fun EditLeadScreen(onBack: () -> Unit) {
         if (salesStatuses.isEmpty()) salesViewModel.fetchSalesData()
     }
 
-    // ── State declarations ──
     var leadSource by remember { mutableStateOf(l.source) }
     var enquiryDate by remember { mutableStateOf(formatLeadDate(l.enquiryDate)) }
     var leadStatus by remember { mutableStateOf(l.status) }
@@ -2650,11 +3013,9 @@ fun EditLeadScreen(onBack: () -> Unit) {
     var customerNotes by remember { mutableStateOf(l.customerNotes) }
     var phone by remember { mutableStateOf(l.phone) }
 
-    // ✅ Multi-select garment categories
     var selectedGarmentCategories by remember { mutableStateOf<List<String>>(emptyList()) }
     var showGarmentError by remember { mutableStateOf(false) }
 
-    // ── Dropdown expanded states ──
     var leadSourceExpanded by remember { mutableStateOf(false) }
     var leadStatusExpanded by remember { mutableStateOf(false) }
     var genderExpanded by remember { mutableStateOf(false) }
@@ -2663,7 +3024,6 @@ fun EditLeadScreen(onBack: () -> Unit) {
     var assignedStaffExpanded by remember { mutableStateOf(false) }
     var priorityExpanded by remember { mutableStateOf(false) }
 
-    // ── Accordion open/close state — "Lead Information" open by default, rest closed ──
     var sectionLeadInfo    by remember { mutableStateOf(true) }
     var sectionCustomer    by remember { mutableStateOf(false) }
     var sectionLocation    by remember { mutableStateOf(false) }
@@ -2671,7 +3031,6 @@ fun EditLeadScreen(onBack: () -> Unit) {
     var sectionAppointment by remember { mutableStateOf(false) }
     var sectionNotes       by remember { mutableStateOf(false) }
 
-    // ── Options ──
     val leadSourceOptions = listOf("Walk-in", "Instagram", "Facebook Ads", "Website")
     val genderOptions = listOf("Male", "Female", "Other")
     val preferredContactOptions = listOf("WhatsApp", "Call")
@@ -2686,7 +3045,6 @@ fun EditLeadScreen(onBack: () -> Unit) {
     val garmentIdMap = garmentCategories.associate { it.categoryId.categoryName to it.id }
     val garmentOptions = garmentCategories.map { it.categoryId.categoryName }
 
-    // ✅ Initialize selected garment categories from lead data
     LaunchedEffect(l.garments, garmentCategories) {
         if (garmentCategories.isNotEmpty() && l.garments.isNotBlank()) {
             val ids = l.garments.split(",").filter { it.isNotBlank() }
@@ -2695,7 +3053,6 @@ fun EditLeadScreen(onBack: () -> Unit) {
         }
     }
 
-    // ✅ Handle update success/failure
     LaunchedEffect(updateState) {
         when (val state = updateState) {
             is SaleState.Success -> {
@@ -2759,6 +3116,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
     Scaffold(
         containerColor = Color(0xFFF5F5F7),
+        contentWindowInsets = WindowInsets(0),
         bottomBar = {
             Column {
                 LeadBottomBar(
@@ -3054,8 +3412,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// LeadCard (kept for compatibility with any other call sites —
-// the lead list itself now renders via the reusable DataCard)
+// LeadCard
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun LeadCard(
@@ -3144,17 +3501,15 @@ fun LeadCard(
     }
 }
 
-// "2026-03-31T00:00:00.000Z" or "2026-03-31" → "31-03-2026"
 fun formatLeadDate(raw: String): String {
     if (raw.isBlank()) return "—"
     return try {
-        val datePart = raw.take(10)          // "2026-03-31"
-        val parts = datePart.split("-")      // [2026, 03, 31]
+        val datePart = raw.take(10)
+        val parts = datePart.split("-")
         if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else raw
     } catch (_: Exception) { raw }
 }
 
-// 250000 → "2,50,000"  (Indian numbering)
 fun formatIndianNumber(number: Int): String {
     if (number <= 0) return "0"
     val s = number.toString()
@@ -3175,7 +3530,6 @@ fun TimePickerField(
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
-    // Parse initial time
     var selectedHour by remember(value) {
         mutableIntStateOf(
             if (value.isNotEmpty()) {
@@ -3211,7 +3565,6 @@ fun TimePickerField(
         )
     }
 
-    // Display row
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -3234,7 +3587,6 @@ fun TimePickerField(
         )
     }
 
-    // Custom Time Picker Dialog
     if (showPicker) {
         AlertDialog(
             onDismissRequest = { showPicker = false },
@@ -3301,12 +3653,9 @@ fun CustomTimePicker(
     onMinuteChange: (Int) -> Unit,
     onAmPmChange: (Boolean) -> Unit
 ) {
-    // Generate hour options (1-12)
     val hourOptions = (1..12).toList()
-    // Generate minute options (00-59)
     val minuteOptions = (0..59).map { String.format("%02d", it) }
 
-    // Current display values
     val displayHour = when {
         hour == 0 -> 12
         hour > 12 -> hour - 12
@@ -3314,7 +3663,6 @@ fun CustomTimePicker(
     }
     val displayMinute = String.format("%02d", minute)
 
-    // Scroll states for hour and minute pickers
     val hourScrollState = rememberLazyListState(
         initialFirstVisibleItemIndex = hourOptions.indexOf(displayHour).coerceAtLeast(0)
     )
@@ -3322,7 +3670,6 @@ fun CustomTimePicker(
         initialFirstVisibleItemIndex = minuteOptions.indexOf(displayMinute).coerceAtLeast(0)
     )
 
-    // Detect which item is centered
     val hourCenterIndex by remember {
         derivedStateOf {
             val layoutInfo = hourScrollState.layoutInfo
@@ -3349,11 +3696,9 @@ fun CustomTimePicker(
         }
     }
 
-    // Update selected values when center changes
     LaunchedEffect(hourCenterIndex) {
         if (hourCenterIndex in hourOptions.indices) {
             val newHour = hourOptions[hourCenterIndex]
-            // Convert display hour back to 24-hour format
             val hour24 = when {
                 newHour == 12 && isAm -> 0
                 newHour == 12 && !isAm -> 12
@@ -3378,7 +3723,6 @@ fun CustomTimePicker(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // ── Hour Picker ──
         Column(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -3391,13 +3735,11 @@ fun CustomTimePicker(
             )
             Spacer(Modifier.height(4.dp))
 
-            // Highlighted center background
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
             ) {
-                // Center highlight
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -3436,7 +3778,6 @@ fun CustomTimePicker(
             }
         }
 
-        // ── Colon Separator ──
         Text(
             ":",
             fontSize = 28.sp,
@@ -3445,7 +3786,6 @@ fun CustomTimePicker(
             modifier = Modifier.padding(horizontal = 4.dp)
         )
 
-        // ── Minute Picker ──
         Column(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -3463,7 +3803,6 @@ fun CustomTimePicker(
                     .fillMaxWidth()
                     .height(200.dp)
             ) {
-                // Center highlight
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -3502,7 +3841,6 @@ fun CustomTimePicker(
             }
         }
 
-        // ── AM/PM Toggle ──
         Column(
             modifier = Modifier
                 .weight(0.8f)
@@ -3524,7 +3862,6 @@ fun CustomTimePicker(
                     .padding(vertical = 20.dp),
                 verticalArrangement = Arrangement.Center
             ) {
-                // AM Button
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -3545,7 +3882,6 @@ fun CustomTimePicker(
 
                 Spacer(Modifier.height(8.dp))
 
-                // PM Button
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -3611,15 +3947,15 @@ fun FormTextField(value: String, onValueChange: (String) -> Unit, keyboardType: 
             .background(Color.White, RoundedCornerShape(8.dp))
             .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.CenterStart   // ✅ text-ஐ Box-ஓட நடுவுல vertically center பண்ணும்
+        contentAlignment = Alignment.CenterStart
     ) {
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),     // ✅ height இங்க கொடுக்கல — Box தான் height define பண்ணுது
+            modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151))  // ✅ text style கூட explicit-ஆ கொடுத்தேன்
+            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151))
         )
     }
 }
@@ -3639,14 +3975,6 @@ fun FormDateField(value: String, onClick: () -> Unit) {
         Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// DatePickerField - custom implementation, no Material3 stock
-// DatePicker, no MaterialTheme wrap, no animation. Guaranteed
-// identical behaviour/performance across every device (fixes the
-// pencil-icon-toggle lag, light/dark theming inconsistencies, and
-// the wallpaper-based dynamic color issue on real devices).
-// ─────────────────────────────────────────────────────────────
 
 private data class DatePickerPalette(
     val surface: Color,
@@ -3729,17 +4057,17 @@ private fun CustomDatePickerDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(40.dp)   // ✅ fixed height 40dp
-                        .background(Color.White, RoundedCornerShape(8.dp))   // ✅ shape kூட background-ku serthu clip aagum
+                        .height(40.dp)
+                        .background(Color.White, RoundedCornerShape(8.dp))
                         .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 12.dp),   // ✅ text/icon box edge-ல ஒட்டிக்காம இருக்க
+                        .padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Select date", color = palette.text, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                     IconButton(
                         onClick = { isManualEntry = !isManualEntry },
-                        modifier = Modifier.size(28.dp)   // ✅ 40dp row-க்குள் IconButton default 48dp overflow ஆகாம இருக்க
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = if (isManualEntry) Icons.Default.CalendarMonth else Icons.Default.Edit,
@@ -3918,8 +4246,6 @@ private fun parseManualDatePicked(text: String): Triple<Int, Int, Int>? {
 fun FormDropdown(label: String, value: String, expanded: Boolean, onExpandChange: (Boolean) -> Unit, options: List<String>, onOptionSelected: (String) -> Unit, isRequired: Boolean = false) {
     FormLabel(label, isRequired)
 
-    // ✅ Trigger box-oda actual width-a measure panni, DropdownMenu-ku athuvea kudukurom
-    // (fillMaxWidth(0.9f) screen width base pannuchu, athanala field vida wide-a iruthu)
     val density = androidx.compose.ui.platform.LocalDensity.current
     var triggerWidthPx by remember { mutableStateOf(0) }
 
@@ -3944,15 +4270,15 @@ fun FormDropdown(label: String, value: String, expanded: Boolean, onExpandChange
             containerColor = Color.White,
             shape = RoundedCornerShape(6.dp),
             modifier = Modifier
-                .width(with(density) { triggerWidthPx.toDp() }) // ✅ field width-oda exact match, screen-width base illa
-                .heightIn(max = 180.dp) // ✅ mொத்த menu height kammi
+                .width(with(density) { triggerWidthPx.toDp() })
+                .heightIn(max = 180.dp)
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(option, fontSize = 14.sp, color = Color(0xFF374151)) },
                     onClick = { onOptionSelected(option); onExpandChange(false) },
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp), // ✅ item internal padding kammi
-                    modifier = Modifier.heightIn(min = 36.dp) // ✅ ஒவ்வொரு row-oda height compact-a (default ~48dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    modifier = Modifier.heightIn(min = 36.dp)
                 )
             }
         }

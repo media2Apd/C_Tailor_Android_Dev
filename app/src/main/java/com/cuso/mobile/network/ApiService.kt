@@ -83,6 +83,7 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 import com.cuso.mobile.model.CustomerItem
 import com.cuso.mobile.model.CustomerListResponse
+import com.cuso.mobile.model.DashboardResponse
 import com.cuso.mobile.model.MeasurementsResponse
 
 interface ApiService {
@@ -484,6 +485,12 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<MeasurementsResponse>
+
+    @GET("/api/dashboard/advanced-dashboard")
+    suspend fun getDashboardDetails(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<DashboardResponse>
 
 
 }

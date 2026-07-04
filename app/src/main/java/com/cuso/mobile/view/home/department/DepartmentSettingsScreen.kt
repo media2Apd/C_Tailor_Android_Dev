@@ -163,7 +163,7 @@ fun DepartmentSettingsScreen(
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7))) {
 
             Column(
-                modifier = Modifier.fillMaxWidth().statusBarsPadding().background(Color.White).padding(horizontal = 16.dp, vertical = 12.dp)
+                modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -233,8 +233,6 @@ fun DepartmentSettingsScreen(
                             Column(modifier = Modifier.fillMaxSize()) {
                                 LazyColumn(
                                     modifier = Modifier.fillMaxWidth().weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 120.dp)
                                 ) {
                                     items(pagedDepartments) { department ->
                                         val (badgeText, badgeColor) = if (department.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
@@ -304,7 +302,7 @@ fun DepartmentSettingsScreen(
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 130.dp)
+                .padding(end = 10.dp, bottom = 50.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Add Department", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)

@@ -169,7 +169,6 @@ fun BranchSettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
                     .background(Color.White)
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
@@ -340,7 +339,7 @@ fun BranchSettingsScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 130.dp)
+                .padding(end = 10.dp, bottom = 50.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Add Branch", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)

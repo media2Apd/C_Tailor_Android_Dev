@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.cuso.mobile.ui.theme.CusoTailorTheme
+import com.cuso.mobile.view.composable.OrganizationNotFoundScreen
 import com.cuso.mobile.view.forgot_password.ForgotUserPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
 import com.cuso.mobile.view.forgot_password.VerifyForgotPassword
@@ -50,6 +51,8 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
                     val navController = rememberNavController()
                     AppNav(activity = this)
+//                    HomeScreen(navController)
+//                    OrganizationNotFoundScreen(navController)
 //                    CreateLeadScreen (onBack = {})
 //                    LeadScreenContent()
 //                      SalesOrderScreen(navController)
@@ -110,6 +113,9 @@ fun AppNav(activity: Activity) {
                 onloginSuccess = { navController.navigate("home") },
                 prefilledEmail = email
             )
+        }
+        composable("org-not-found"){
+            OrganizationNotFoundScreen(navController)
         }
 
         composable("login-otp/{email}",

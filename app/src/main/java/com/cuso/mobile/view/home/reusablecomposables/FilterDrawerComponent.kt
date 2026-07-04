@@ -150,19 +150,22 @@ fun FilterDrawer(
     // one MutableTransitionState cleanly, so the scrim's currentState updates
     // got interrupted/out of sync with the panel's, which is what caused the
     // "jerky, not smooth" fade instead of a clean gradual transparent fade.
-    val transition = updateTransition(targetState = state.isOpen, label = "drawerTransition")
+    // ✅ MutableTransitionState starts at `false` — so the FIRST time state.isOpen
+// becomes true, currentState(false) != targetState(true), and the transition
+// actually animates instead of snapping instantly to the open state.
+    val visibleState = remember { MutableTransitionState(false) }
+    LaunchedEffect(state.isOpen) {
+        visibleState.targetState = state.isOpen
+    }
+    val transition = rememberTransition(visibleState, label = "drawerTransition")
 
-    // ✅ Animate plain alpha (Float) instead of Color — interpolating a Color
-    // (even black→transparent) goes through Color's blending, which can read
-    // as slightly stepped. A Float alpha applied to a fixed black is a pure
-    // linear fade and looks perfectly smooth.
     val scrimAlpha by transition.animateFloat(
         transitionSpec = { tween(DrawerAnimDurationMs) },
         label = "scrimAlpha"
     ) { open -> if (open) 0.4f else 0f }
 
-    // Keep Dialog composed while opening OR while close animation is still running
-    if (state.isOpen || transition.currentState || transition.targetState) {
+// Keep Dialog composed while opening OR while close animation is still running
+    if (!visibleState.isIdle || visibleState.currentState) {
         Dialog(
             onDismissRequest = { state.close() },
             properties = DialogProperties(
@@ -178,13 +181,13 @@ fun FilterDrawer(
             ) {
                 transition.AnimatedVisibility(
                     visible = { it },
-                    // ✅ Enter: decelerates in — feels natural settling into place.
+                    // ✅ Enter: panel starts fully off-screen to the LEFT (-fullWidth)
+                    // and slides RIGHT into position → left-to-right open.
                     enter = slideInHorizontally(
                         initialOffsetX = { fullWidth -> -fullWidth },
                         animationSpec = tween(DrawerAnimDurationMs, easing = FastOutSlowInEasing)
                     ) + fadeIn(animationSpec = tween(DrawerAnimDurationMs)),
-                    // ✅ Exit: accelerates out, same duration as enter, and now driven
-                    // by the SAME transition as the scrim so both finish in lockstep.
+                    // ✅ Exit: panel slides LEFT off-screen (-fullWidth) → right-to-left close.
                     exit = slideOutHorizontally(
                         targetOffsetX = { fullWidth -> -fullWidth },
                         animationSpec = tween(DrawerAnimDurationMs, easing = FastOutLinearInEasing)

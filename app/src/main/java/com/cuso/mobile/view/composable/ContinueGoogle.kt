@@ -4,15 +4,26 @@ import android.app.Activity
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,6 +43,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import com.cuso.mobile.ui.theme.PrimaryBorder
 
 @Composable
 fun ContinueWithGoogle(activity: Activity, navController: NavController) {
@@ -104,35 +117,57 @@ fun ContinueWithGoogle(activity: Activity, navController: NavController) {
     }
 
     Column {
-        OutlinedButton(
-            onClick = {
-                errorMessage = null
-                Log.d("GOOGLE", "Button clicked, launching sign in")
-                googleSignInClient.signOut().addOnCompleteListener {
-                    Log.d("GOOGLE", "signOut complete, launching intent")
-                    launcher.launch(googleSignInClient.signInIntent)
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            OutlinedButton(
+                onClick = {
+                    errorMessage = null
+                    Log.d("GOOGLE", "Button clicked, launching sign in")
+                    googleSignInClient.signOut().addOnCompleteListener {
+                        Log.d("GOOGLE", "signOut complete, launching intent")
+                        launcher.launch(googleSignInClient.signInIntent)
+                    }
+                },
+                modifier = Modifier
+                    .height(40.dp)
+                    .fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 0.dp, horizontal = 16.dp),
+                border = BorderStroke(1.dp, PrimaryBorder),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.White,
+                    contentColor = Color.Black
+                ),
+                shape = RoundedCornerShape(5.dp)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(R.drawable.google),
+                            contentDescription = "Google icon",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Continue with Google",
+                            color = Color.Black,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
-            },
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Image(
-                painter = painterResource(R.drawable.google),
-                contentDescription = "Google icon",
-                Modifier.padding(horizontal = 12.dp).size(30.dp)
-            )
-            Text("Continue with Google", color = Color.Black, fontSize = 18.sp)
+            }
         }
 
-        // 👇 Show error visibly on screen
-        if (errorMessage != null) {
-            Text(
-                text = errorMessage!!,
-                color = Color.Red,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
+//        // 👇 Show error visibly on screen
+//        if (errorMessage != null) {
+//            Text(
+//                text = errorMessage!!,
+//                color = Color.Red,
+//                fontSize = 13.sp,
+//                modifier = Modifier.padding(top = 4.dp)
+//            )
+//        }
     }
 }
 

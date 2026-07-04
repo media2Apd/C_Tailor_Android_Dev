@@ -137,7 +137,7 @@ fun DesignationScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7))) {
 
-            Column(modifier = Modifier.fillMaxWidth().statusBarsPadding().background(Color.White).padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", modifier = Modifier.size(22.dp).clickable { onBack() }, tint = Color(0xFF111827))
@@ -198,9 +198,7 @@ fun DesignationScreen(
                         } else {
                             Column(modifier = Modifier.fillMaxSize()) {
                                 LazyColumn(
-                                    modifier = Modifier.fillMaxWidth().weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 120.dp)
+                                    modifier = Modifier.fillMaxWidth().weight(1f)
                                 ) {
                                     items(pagedDesignations) { item ->
                                         val (badgeText, badgeColor) = if (item.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
@@ -258,7 +256,7 @@ fun DesignationScreen(
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 130.dp)
+                .padding(end = 10.dp, bottom = 50.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Add Designation", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)

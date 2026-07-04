@@ -117,7 +117,6 @@ fun SalesOrderScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
                     .background(Color.White)
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
@@ -287,9 +286,7 @@ fun SalesOrderScreen(
                         } else {
                             Column(modifier = Modifier.fillMaxSize()) {
                                 LazyColumn(
-                                    modifier = Modifier.fillMaxWidth().weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 120.dp)
+                                    modifier = Modifier.fillMaxWidth().weight(1f)
                                 ) {
                                     items(orders) { order ->
                                         val (_, statusTextColor) = orderStatusColors(order.status)

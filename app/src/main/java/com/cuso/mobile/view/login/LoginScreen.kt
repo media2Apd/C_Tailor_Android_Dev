@@ -123,7 +123,7 @@ fun LoginScreen(activity: Activity,
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.White)
+                    .background(Color(0xFFf5f5f5))
 
                     // ✅ Scrolls instead of clipping fields on short screens, and
                     // pushes content above the keyboard instead of letting it
@@ -136,28 +136,31 @@ fun LoginScreen(activity: Activity,
                 Spacer(modifier = Modifier.height(10.dp))
                 LoginScreenTitle()
                 Spacer(modifier = Modifier.height(10.dp))
-                Card(
-                    modifier = Modifier
-                        .border(
-                            width = 2.dp,
-                            color = Color.White,
-                            shape = RoundedCornerShape(12.dp)
-                        ),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White
-                    ),
+                Box(
+                    Modifier.padding(20.dp)
                 ) {
-                    CardContentsLoginScreen(
-                        navController,
-                        activity,
-                        authViewModel,
-                        prefilledEmail=prefilledEmail
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    SignUpText(navController)
-                    Spacer(Modifier.padding(bottom = 30.dp))
+                    Card(
+                        modifier = Modifier
+                            .border(
+                                width = 2.dp,
+                                color = Color.White,
+                                shape = RoundedCornerShape(15.dp)
+                            ),
+                        shape = RoundedCornerShape(15.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.White
+                        ),
+                    ) {
+                        CardContentsLoginScreen(
+                            navController,
+                            activity,
+                            authViewModel,
+                            prefilledEmail = prefilledEmail
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.padding(bottom = 30.dp))
 
+                    }
                 }
             }
         }

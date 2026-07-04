@@ -15,3 +15,7 @@ val lightGray=Color(0xFFF2F2F2)
 val Primary=Color(0xFF5D3FD3)
 
 val Primary_background=Color(0xFFfafafb)
+
+val PrimaryBorder=Color(0xFFf0f1f3)
+
+val PrimaryTextColor=Color(0xFF8d939d)

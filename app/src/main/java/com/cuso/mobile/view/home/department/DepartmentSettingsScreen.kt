@@ -48,6 +48,8 @@ import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.draw.shadow
+import com.cuso.mobile.view.home.reusablecomposables.FabConfig
+import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.viewmodel.DepartmentUiState
 import com.cuso.mobile.viewmodel.DepartmentViewModel
 import com.cuso.mobile.viewmodel.DesignationCreateState
@@ -159,7 +161,17 @@ fun DepartmentSettingsScreen(
     val totalPages = maxOf(1, if (filteredDepartments.isNotEmpty()) (filteredDepartments.size + itemsPerPage - 1) / itemsPerPage else 1)
     val pagedDepartments = filteredDepartments.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    FabScaffold(
+        fab = FabConfig(
+            label = "Add Department",
+            icon = Icons.Default.Add,
+            onClick = {
+                if (planLimits != null && isDepartmentLimitReached) showPlanLimitDialog =
+                    true else showAddDialog = true
+            }
+        ),
+        snackbarHostState = snackbarHostState
+    ) {
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7))) {
 
             Column(
@@ -292,23 +304,6 @@ fun DepartmentSettingsScreen(
                 onDismiss = { showPlanLimitDialog = false },
                 onUpgrade = { showPlanLimitDialog = false; navController.navigate("subscription") }
             )
-        }
-
-        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
-
-        Button(
-            onClick = { if (planLimits != null && isDepartmentLimitReached) showPlanLimitDialog = true else showAddDialog = true },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 10.dp, bottom = 50.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Add Department", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Spacer(Modifier.width(6.dp))
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-            }
         }
     }
 

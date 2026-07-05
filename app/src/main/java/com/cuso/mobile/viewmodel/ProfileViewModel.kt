@@ -62,27 +62,22 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    // ─── Refresh Organization ───
+    // ─── Refresh Organization (used after update, so UI shows the fresh logo URL too) ───
     fun refreshOrganization(token: String) {
         viewModelScope.launch {
-            _uiState.value = ProfileUiState.Loading
             val result = authRepository.getMyOrganization("Bearer $token")
             result.fold(
                 onSuccess = { response ->
                     if (response.success) {
                         _uiState.value = ProfileUiState.Success(response.data)
-                    } else {
-                        _uiState.value = ProfileUiState.Error("Failed to load organization")
                     }
                 },
-                onFailure = { e ->
-                    _uiState.value = ProfileUiState.Error(e.message ?: "Something went wrong")
-                }
+                onFailure = { /* keep existing state if refresh fails */ }
             )
         }
     }
 
-    // ─── Update Organization ───
+    // ─── Update Organization (text fields + optional Base64 logo, all in one JSON request) ───
     fun updateOrganization(token: String, request: UpdateOrganizationRequest) {
         viewModelScope.launch {
             _updateState.value = UpdateOrgUiState.Loading
@@ -91,7 +86,6 @@ class ProfileViewModel @Inject constructor(
                 onSuccess = { response ->
                     if (response.success) {
                         _updateState.value = UpdateOrgUiState.Success(response.message ?: "Organization updated successfully")
-                        // Refresh the data after successful update
                         refreshOrganization(token)
                     } else {
                         _updateState.value = UpdateOrgUiState.Error(response.message ?: "Failed to update organization")

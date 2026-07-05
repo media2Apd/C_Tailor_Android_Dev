@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.myOrganizationResponse
 import com.cuso.mobile.repository.AuthRepository
+import com.cuso.mobile.repository.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val sessionManager: SessionManager   // 👈 added
 ) : ViewModel() {
 
     // ── Organization State ──
@@ -50,5 +52,14 @@ class SettingsViewModel @Inject constructor(
     fun clearOrganization() {
         _organization.value = null
         _organizationError.value = null
+    }
+
+    // ── Logout ──
+    fun logout(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            sessionManager.logout()
+            clearOrganization()   // clear in-memory state too, avoids stale data flash on next login
+            onComplete()
+        }
     }
 }

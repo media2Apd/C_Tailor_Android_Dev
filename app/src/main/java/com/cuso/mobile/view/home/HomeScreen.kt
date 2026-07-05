@@ -96,6 +96,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import androidx.wear.compose.material.Colors
 import coil.compose.AsyncImage
 import com.cuso.mobile.database.entities.SalesStatusEntity
@@ -143,6 +145,9 @@ import com.cuso.mobile.view.home.sales.MeasurementsScreen
 import com.cuso.mobile.viewmodel.CustomerViewModel
 import com.cuso.mobile.viewmodel.DashboardUiState
 import com.cuso.mobile.viewmodel.DashboardViewModel
+import androidx.activity.compose.BackHandler
+import com.cuso.mobile.viewmodel.SettingsViewModel
+
 
 // ── Design tokens (Primary color used everywhere for icons / accents) ──
 val LeadPrimary = Color(0xFF3B3BF9)
@@ -163,9 +168,10 @@ data class ControlItem(
 // ─────────────────────────────────────────────────────────────
 // HomeScreen
 // ─────────────────────────────────────────────────────────────
+
 @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(navController: NavHostController) {
     val viewModel: HomeViewModel = hiltViewModel()
     val isLoggedOut: Boolean by viewModel.isLoggedOut.collectAsStateWithLifecycle(initialValue = false)
     var currentScreen by remember { mutableStateOf("home") }
@@ -174,6 +180,8 @@ fun HomeScreen(navController: NavController) {
     val customerViewModel: CustomerViewModel = hiltViewModel()
     val customerUiState by customerViewModel.uiState.collectAsStateWithLifecycle()
     var selectedCustomer by remember { mutableStateOf<CustomerItem?>(null) }
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+
 
     var isSalesSettingsMode by remember { mutableStateOf(false) }
     var showModulesPanel by remember { mutableStateOf(false) }   // ✅ NEW
@@ -199,6 +207,48 @@ fun HomeScreen(navController: NavController) {
 
     val showSalesPanel = isSalesSettingsMode
     val context = LocalContext.current
+
+    // ✅ NEW — System back button handling
+    BackHandler(enabled = isDrawerOpen || showModulesPanel || currentScreen != "home") {
+        when {
+            // Priority 1: close overlays first
+            showModulesPanel -> showModulesPanel = false
+            isDrawerOpen -> isDrawerOpen = false
+            // Priority 2: mimic each screen's own onBack/onClose logic
+            currentScreen == "settings" -> currentScreen = "profile-settings"
+            currentScreen == "home_organization_profile" -> currentScreen = "profile-settings"
+            currentScreen == "home_branch_management" -> currentScreen = "profile-settings"
+            currentScreen == "home_department_teams" -> currentScreen = "profile-settings"
+            currentScreen == "home_designation" -> currentScreen = "profile-settings"
+            currentScreen == "sales_settings" -> {
+                isSalesSettingsMode = false
+                currentScreen = "sales_lead"
+            }
+            currentScreen == "sales_garment_type" -> {
+                currentScreen = "sales_settings"
+                isSalesSettingsMode = true
+            }
+            currentScreen == "sales_lead" -> {
+                isSalesSettingsMode = false
+                currentScreen = "home"
+            }
+            currentScreen == "create_lead" -> currentScreen = "sales_lead"
+            currentScreen == "view_lead" -> currentScreen = "sales_lead"
+            currentScreen == "edit_lead" -> currentScreen = "sales_lead"
+            currentScreen == "create_order" -> currentScreen = "sales_sales_orders"
+            currentScreen == "sales_sales_orders" -> currentScreen = "home"        // ✅ CHANGED — was "sales_lead"
+            currentScreen == "sales_orders" -> currentScreen = "home"
+            currentScreen == "sales_customers" -> currentScreen = "home"          // ✅ CHANGED — was "sales_lead"
+            currentScreen == "sales_measurements" -> currentScreen = "home"
+            currentScreen == "create_order_review" -> {
+                pendingOrderReviewData = null
+                currentScreen = "create_order"
+            }
+            currentScreen == "profile-settings" -> currentScreen = "home"
+            // Fallback: any unmapped/unknown screen -> go home
+            currentScreen != "home" -> currentScreen = "home"
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {   // ✅ NEW — wraps Scaffold so panel can overlay everything
         Scaffold(
@@ -330,7 +380,8 @@ fun HomeScreen(navController: NavController) {
                 when (currentScreen) {
                     "settings" -> SettingsScreen(
                         navController = navController,
-                        onMenuClick = { isDrawerOpen = true }
+                        onMenuClick = { isDrawerOpen = true },
+                        onBack = { currentScreen = "profile-settings" }
                     )
                     "home_organization_profile" -> SettingsScreen(
                         navController = navController,
@@ -339,18 +390,19 @@ fun HomeScreen(navController: NavController) {
                     "home_branch_management" -> BranchSettingsScreen(
                         navController = navController,
                         onMenuClick = { isDrawerOpen = true },
-                        onBack = { currentScreen = "settings" }
+                        onBack = { currentScreen = "profile-settings" }
                     )
                     "home_department_teams" -> DepartmentSettingsScreen(
                         navController = navController,
                         onMenuClick = { isDrawerOpen = true },
-                        onBack = { currentScreen = "settings" }
+                        onBack = { currentScreen = "profile-settings" }
                     )
                     "home_designation" -> DesignationScreen(
                         navController = navController,
                         onMenuClick = { isDrawerOpen = true },
-                        onBack = { currentScreen = "settings" }
+                        onBack = { currentScreen = "profile-settings" }
                     )
+
                     "sales_settings" -> SalesSettingsScreen(
                         navController = navController,
                         onClose = {
@@ -366,11 +418,40 @@ fun HomeScreen(navController: NavController) {
                         },
                         onMenuClick = { isDrawerOpen = true }
                     )
-                    "home" -> HomeScreenContent()
+                    "home" -> HomeScreenContent(
+                        navController = navController,
+                        onNavigate = { route ->
+                            when (route) {
+                                "sales_lead" -> {
+                                    isSalesSettingsMode = false
+                                    currentScreen = "sales_lead"
+                                }
+                                "sales_customers" -> {
+                                    isSalesSettingsMode = false
+                                    currentScreen = "sales_customers"
+                                }
+                                "sales_sales_orders" -> {
+                                    isSalesSettingsMode = false
+                                    currentScreen = "sales_sales_orders"
+                                }
+                                "sales_measurements" -> {
+                                    isSalesSettingsMode = false
+                                    currentScreen = "sales_measurements"
+                                }
+                                else -> {
+                                    android.util.Log.d("NAV_DEBUG", "Unhandled home navigation: $route")
+                                }
+                            }
+                        }
+                    )
                     "sales_lead" -> LeadScreenContent(
                         onCreateLead = { currentScreen = "create_lead" },
                         onViewLead = { currentScreen = "view_lead" },
-                        onEditLead = { currentScreen = "edit_lead" }
+                        onEditLead = { currentScreen = "edit_lead" },
+                        onClose = {
+                            isSalesSettingsMode = false
+                            currentScreen = "home"
+                        }
                     )
                     "create_lead" -> CreateLeadScreen(
                         onBack = { currentScreen = "sales_lead" }
@@ -379,6 +460,9 @@ fun HomeScreen(navController: NavController) {
                         onBack = { currentScreen = "sales_lead" },
                         onEditLead = { currentScreen = "edit_lead" }
                     )
+
+
+
                     "edit_lead" -> EditLeadScreen(
                         onBack = { currentScreen = "sales_lead" }
                     )
@@ -395,7 +479,7 @@ fun HomeScreen(navController: NavController) {
                     "sales_sales_orders" -> SalesOrderScreen(
                         navController = navController,
                         onMenuClick = { isDrawerOpen = true },
-                        onBack = { currentScreen = "sales_lead" },
+                        onBack = { currentScreen = "home" },
                         onCreateOrder = { currentScreen = "create_order" }
                     )
                     "sales_orders" -> {
@@ -406,11 +490,7 @@ fun HomeScreen(navController: NavController) {
                     "sales_customers" -> CustomerScreen(
                         navController = navController,
                         customerState = customerUiState,
-//                        onSearch = { query -> customerViewModel.search(query) },
-//                        onTypeFilterChange = { type -> customerViewModel.filterByType(type) },
-//                        onPageChange = { page -> customerViewModel.setPage(page) },
-//                        onItemsPerPageChange = { count -> customerViewModel.setItemsPerPage(count) },
-                        onBack = { currentScreen = "sales_lead" },
+                        onBack = { currentScreen = "home" },
                         onCreateCustomer = { currentScreen = "create_customer" },
                         onView = { customer ->
                             selectedCustomer = customer
@@ -420,12 +500,11 @@ fun HomeScreen(navController: NavController) {
                             selectedCustomer = customer
                             currentScreen = "edit_customer"
                         },
-//                        onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) }
                     )
 
                     "sales_measurements" -> MeasurementsScreen(
                         navController = navController,
-                        onBack = { currentScreen = "sales_lead" },
+                        onBack = { currentScreen = "home" },
                         onCreateOrder = { currentScreen = "create_order" }
                     )
                     "create_order_review" -> {
@@ -449,8 +528,10 @@ fun HomeScreen(navController: NavController) {
                         onDepartment = { currentScreen = "home_department_teams" },
                         onDesignation = { currentScreen = "home_designation" },
                         onLogout = {
-                            navController.navigate("login") {
-                                popUpTo(0) { inclusive = true }
+                            settingsViewModel.logout {
+                                navController.navigate("login") {
+                                    popUpTo(0) { inclusive = true }
+                                }
                             }
                         }
                     )
@@ -460,12 +541,10 @@ fun HomeScreen(navController: NavController) {
         }
 
         // ✅ NEW — Modules bottom-sheet panel, overlays Scaffold+bottom nav, slides up from bottom
-        // ✅ NEW — Modules bottom-sheet panel, overlays Scaffold+bottom nav, slides up from bottom
         ModulesPanel(
             isOpen = showModulesPanel,
             onClose = { showModulesPanel = false },
             onModuleCategoryClick = { menu, category ->
-                // category-ல first subItem-ஐ எடுத்து, sidebar mாதிரி அதே navigation key build பண்றோம்
                 val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
                 val firstSubItem = menuItem?.subItems?.get(category)?.firstOrNull()
 
@@ -481,7 +560,6 @@ fun HomeScreen(navController: NavController) {
         )
     }
 }
-
 // ─────────────────────────────────────────────────────────────
 // TopNavBar
 // ─────────────────────────────────────────────────────────────
@@ -557,31 +635,28 @@ fun TopBar(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Color.White,
-        shadowElevation = 1.dp,   // ✅ real elevation shadow
+        shadowElevation = 1.dp,
         tonalElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(horizontal = 20.dp, vertical = 0.dp),   // ✅ vertical padding 0
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // ── Left: Logo + Title ──
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // ── Left: Logo ──
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.height(56.dp)   // ✅ fixed height so logo doesn't push row down
+            ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.cuso_logo),
+                    painter = painterResource(id = R.drawable.cuso_tailor_logo),
                     contentDescription = "Logo",
                     tint = Color.Unspecified,
-                    modifier = Modifier.size(40.dp)
-                )
-                Spacer(modifier = Modifier.width(15.dp))
-                Text(
-                    text = "Tailor",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    modifier = Modifier
+                        .size(90.dp)   // ✅ slightly smaller so it fits within the fixed height
                 )
             }
 
@@ -817,9 +892,9 @@ fun BottomBar(
                     BottomNavItem(
                         icon = Icons.Default.Inventory2,
                         label = "Orders",
-                        isSelected = currentScreen == "orders",
+                        isSelected = currentScreen == "sales_sales_orders",
                         selectedColor = Color(0xFF6C4FF6),
-                        onClick = { onMenuItemClick("orders") }
+                        onClick = { onMenuItemClick("sales_sales_orders") }
                     )
 
                     Spacer(modifier = Modifier.width(64.dp))
@@ -850,8 +925,8 @@ fun BottomBar(
                     .size(72.dp)
                     .shadow(10.dp, CircleShape)
                     .clip(CircleShape)
-                    .background(Color(0xFF6C4FF6))
-                    .clickable { onDrawerToggle() },
+                    .background(Color(0xFF6C4FF6)),
+//                    .clickable { onDrawerToggle() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -1011,20 +1086,29 @@ private fun mapOperationsToCustomers(ops: List<OperationItem>): List<RecentCusto
 // ─────────────────────────────────────────────────────────────
 // HomeScreenContent — fetches real dashboard data + fixed design
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// HomeScreenContent — fetches real dashboard data + fixed design
+// ─────────────────────────────────────────────────────────────
 @Composable
-fun HomeScreenContent() {
+fun HomeScreenContent(
+    navController: NavHostController,
+    onNavigate: (String) -> Unit = {}
+) {
     // ✅ Locks fontScale to 1f so the layout looks identical across every
     // device regardless of the system "font size" accessibility setting.
     val baseDensity = LocalDensity.current
     CompositionLocalProvider(
         LocalDensity provides Density(density = baseDensity.density, fontScale = 1f)
     ) {
-        HomeScreenContentBody()
+        HomeScreenContentBody(navController = navController, onNavigate = onNavigate)
     }
 }
 
 @Composable
-private fun HomeScreenContentBody() {
+private fun HomeScreenContentBody(
+    navController: NavHostController,
+    onNavigate: (String) -> Unit
+) {
     val dashboardViewModel: DashboardViewModel = hiltViewModel()
     val uiState by dashboardViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -1096,14 +1180,35 @@ private fun HomeScreenContentBody() {
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                item { GreetingCard(userName = adminName, newLeadsCount = newLeadsCount) }
+                item {
+                    GreetingCard(
+                        userName = adminName,
+                        newLeadsCount = newLeadsCount,
+                        onNavigate = onNavigate
+                    )
+                }
                 item { StatsGrid(stats) }
-                item { QuickModulesSection(quickModules) }
+                item {
+                    QuickModulesSection(
+                        modules = quickModules,
+                        onNavigate = onNavigate
+                    )
+                }
                 if (activities.isNotEmpty()) {
-                    item { RecentActivitySection(activities) }
+                    item {
+                        RecentActivitySection(
+                            activities = activities,
+                            onNavigate = onNavigate
+                        )
+                    }
                 }
                 if (customers.isNotEmpty()) {
-                    item { RecentCustomersSection(customers) }
+                    item {
+                        RecentCustomersSection(
+                            customers = customers,
+                            onNavigate = onNavigate
+                        )
+                    }
                 }
                 item { Spacer(Modifier.height(8.dp)) }
             }
@@ -1112,19 +1217,25 @@ private fun HomeScreenContentBody() {
             CircularProgressIndicator()
         }
     }
-
-
 }
 
 // ── Greeting card — purple gradient banner ──
 @Composable
-private fun GreetingCard(userName: String, newLeadsCount: Int) {
+private fun GreetingCard(
+    userName: String,
+    newLeadsCount: Int,
+    onNavigate: (String) -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(Brush.linearGradient(colors = listOf(Color(0xFF6C4FF6), Color(0xFF9333EA))))
             .padding(20.dp)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onNavigate("sales_lead") }
     ) {
         Box(
             modifier = Modifier
@@ -1202,13 +1313,35 @@ private fun TrendRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text
 
 // ── Quick Modules — static shortcuts row ──
 @Composable
-private fun QuickModulesSection(modules: List<QuickModule>) {
+private fun QuickModulesSection(
+    modules: List<QuickModule>,
+    onNavigate: (String) -> Unit
+) {
     Column {
         Text("Quick Modules", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
         Spacer(Modifier.height(12.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             items(modules) { module ->
-                Column(modifier = Modifier.width(64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    modifier = Modifier
+                        .width(64.dp)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            val route = when (module.label) {
+                                "Contacts" -> "sales_customers"
+                                "Leads" -> "sales_lead"
+                                "Deals" -> "sales_sales_orders"
+                                "Tickets" -> null   // no screen mapped yet
+                                "Email" -> null     // no screen mapped yet
+                                "Calendar" -> null  // no screen mapped yet
+                                else -> null
+                            }
+                            route?.let { onNavigate(it) }
+                        },
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Box(
                         modifier = Modifier
                             .size(52.dp)
@@ -1235,7 +1368,10 @@ private fun QuickModulesSection(modules: List<QuickModule>) {
 
 // ── Recent Activity — driven by API `activeOrders` ──
 @Composable
-private fun RecentActivitySection(activities: List<ActivityItem>) {
+private fun RecentActivitySection(
+    activities: List<ActivityItem>,
+    onNavigate: (String) -> Unit
+) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1243,7 +1379,17 @@ private fun RecentActivitySection(activities: List<ActivityItem>) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Recent Activity", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Text("View All", fontSize = 13.sp, color = Color(0xFF7C3AED), fontWeight = FontWeight.SemiBold)
+            Text(
+                "View All",
+                fontSize = 13.sp,
+                color = Color(0xFF7C3AED),
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onNavigate("sales_sales_orders") }
+            )
         }
         Spacer(Modifier.height(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1252,6 +1398,10 @@ private fun RecentActivitySection(activities: List<ActivityItem>) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.White, RoundedCornerShape(14.dp))
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { onNavigate("sales_sales_orders") }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -1291,7 +1441,10 @@ private fun RecentActivitySection(activities: List<ActivityItem>) {
 
 // ── Recent Customers — driven by API `operations` ──
 @Composable
-private fun RecentCustomersSection(customers: List<RecentCustomer>) {
+private fun RecentCustomersSection(
+    customers: List<RecentCustomer>,
+    onNavigate: (String) -> Unit
+) {
     Column {
         Text("Recent Customers", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
         Spacer(Modifier.height(12.dp))
@@ -1302,7 +1455,10 @@ private fun RecentCustomersSection(customers: List<RecentCustomer>) {
                         .fillMaxWidth()
                         .background(Color.White, RoundedCornerShape(14.dp))
                         .padding(horizontal = 14.dp, vertical = 12.dp)
-                        .clickable { /* TODO: navigate to customer detail */ },
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { onNavigate("sales_customers") },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
@@ -1978,7 +2134,8 @@ fun CreateLeadScreen(onBack: () -> Unit) {
 fun LeadScreenContent(
     onCreateLead: () -> Unit = {},
     onViewLead: () -> Unit = {},
-    onEditLead: () -> Unit = {}
+    onEditLead: () -> Unit = {},
+    onClose:()->Unit={}
 ) {
     val salesViewModel: SalesViewModel = hiltViewModel()
     val context = LocalContext.current
@@ -2189,7 +2346,17 @@ fun LeadScreenContent(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Lead Management", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Black, modifier = Modifier.size(20.dp))
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.Black,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { onClose() }   // ✅ NEW
+                    )
                 }
                 Spacer(Modifier.height(8.dp))
             }

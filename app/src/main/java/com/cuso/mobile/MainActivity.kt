@@ -9,19 +9,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.cuso.mobile.repository.SessionManager
 import com.cuso.mobile.ui.theme.CusoTailorTheme
 import com.cuso.mobile.view.composable.OrganizationNotFoundScreen
 import com.cuso.mobile.view.forgot_password.ForgotUserPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
 import com.cuso.mobile.view.forgot_password.VerifyForgotPassword
 import com.cuso.mobile.view.home.CreateLeadScreen
-//import com.cuso.mobile.view.home.branch.BranchSettingsScreen
-//import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
 import com.cuso.mobile.view.login.LoginOtpScreen
 import com.cuso.mobile.view.login.LoginScreen
 import com.cuso.mobile.view.organization.OrganizationProfile
@@ -33,35 +33,43 @@ import com.cuso.mobile.view.home.OrderFlowNavigator
 import com.cuso.mobile.view.home.SettingsScreen
 import com.cuso.mobile.view.home.branch.BranchSettingsScreen
 import com.cuso.mobile.view.home.sales.SalesOrderScreen
-
 import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
-//import com.cuso.mobile.view.home.sales.SalesOrderScreen
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.runBlocking
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var sessionManager: SessionManager
+
+    // 👇 null while checking. Splash stays on screen as long as this is null.
+    private var isLoggedIn: Boolean? = null
+
     @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 👇 MUST be the very first line, before super.onCreate()
+        val splashScreen = installSplashScreen()
+
         super.onCreate(savedInstanceState)
+
+        // 👇 Tell the system splash: "don't dismiss until isLoggedIn is resolved"
+        splashScreen.setKeepOnScreenCondition { isLoggedIn == null }
+
+        // 👇 Fast Room query - resolves in a few ms, splash covers this entirely
+        runBlocking {
+            isLoggedIn = sessionManager.isLoggedIn()
+        }
+
         enableEdgeToEdge()
         setContent {
             CusoTailorTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
-                    val navController = rememberNavController()
-                    AppNav(activity = this)
-//                    HomeScreen(navController)
-//                    OrganizationNotFoundScreen(navController)
-//                    CreateLeadScreen (onBack = {})
-//                    LeadScreenContent()
-//                      SalesOrderScreen(navController)
-                    // OrderFlowNavigator internally handles BOTH screens:
-                    // step 0 -> CreateOrderScreen (fill details)
-                    // step 1 -> CreateOrderNextStep (review, using real filled data)
-//                    OrderFlowNavigator(
-//                        onFinish = { finish() }   // closes the activity when flow is done
-//                    )
+                    // 👇 isLoggedIn is guaranteed non-null here since splash already waited for it
+                    AppNav(activity = this, startLoggedIn = isLoggedIn == true)
                 }
             }
         }
@@ -69,13 +77,16 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun AppNav(activity: Activity) {
+fun AppNav(activity: Activity, startLoggedIn: Boolean) {
     val navController = rememberNavController()
     val localActivity = activity
 
+    // 👇 No more null-check, no more spinner box - resolved before first frame
+    val startDestination = if (startLoggedIn) "home" else "login?message={message}"
+
     NavHost(
         navController = navController,
-        startDestination = "login",
+        startDestination = startDestination,
         modifier = Modifier.fillMaxSize()
     ) {
 
@@ -90,13 +101,15 @@ fun AppNav(activity: Activity) {
             LoginScreen(
                 activity = localActivity,
                 navController = navController,
-                onloginSuccess = { navController.navigate("home") },
+                onloginSuccess = {
+                    navController.navigate("home") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
                 resetSuccessMessage = message
             )
         }
 
-        // "create-order" route now drives the FULL flow (fill -> review),
-        // not just the first screen.
         composable("create-order") {
             OrderFlowNavigator(
                 onFinish = { navController.popBackStack() }
@@ -110,7 +123,11 @@ fun AppNav(activity: Activity) {
             LoginScreen(
                 activity = localActivity,
                 navController = navController,
-                onloginSuccess = { navController.navigate("home") },
+                onloginSuccess = {
+                    navController.navigate("home") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
                 prefilledEmail = email
             )
         }
@@ -196,21 +213,29 @@ fun AppNav(activity: Activity) {
 
         composable("home_organization_profile") {
             OrganizationProfile(
-                onSetupComplete = { navController.popBackStack() }
+                onSetupComplete = { navController.popBackStack() },
             )
         }
 
         composable("home_branch_management") {
             BranchSettingsScreen(
                 navController = navController,
-                onBack = { navController.popBackStack() }
+                onBack = {
+                    navController.navigate("profile-settings") {
+                        popUpTo("profile-settings") { inclusive = true }
+                    }
+                }
             )
         }
 
         composable("home_department_teams") {
             DepartmentSettingsScreen(
                 navController = navController,
-                onBack = { navController.popBackStack() }
+                onBack = {
+                    navController.navigate("profile-settings") {
+                        popUpTo("profile-settings") { inclusive = true }
+                    }
+                }
             )
         }
 
@@ -232,6 +257,9 @@ fun AppNav(activity: Activity) {
                 onMenuClick = { navController.navigate("home") },
                 onBack = { navController.popBackStack() }
             )
+        }
+        composable("lead") {
+            LeadScreenContent()
         }
 
         // TODO: add remaining sales routes as screens are built

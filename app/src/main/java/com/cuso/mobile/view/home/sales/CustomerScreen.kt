@@ -77,7 +77,7 @@ fun CustomerScreen(
         "business" to "Business"
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {   // ✅ NEW — wraps everything so FAB overlays content
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -165,7 +165,7 @@ fun CustomerScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .weight(1f)
+                        .weight(1f)    // ✅ now takes full width since button is removed
                         .height(40.dp)
                         .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
                         .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
@@ -204,15 +204,7 @@ fun CustomerScreen(
                         )
                     }
                 }
-
-                Button(
-                    onClick = { onCreateCustomer() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text("Create Customer", color = Color.White, fontSize = 14.sp)
-                }
+                // ✅ REMOVED — "Create Customer" Button moved out to fixed FAB below
             }
 
             HorizontalDivider(color = Color(0xFFF0F0F0))
@@ -407,5 +399,22 @@ fun CustomerScreen(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
         )
+
+        // ✅ NEW — Fixed FAB "Create Customer" Button (Branch pattern)
+        Button(
+            onClick = { onCreateCustomer() },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
+            shape = RoundedCornerShape(8.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 10.dp, bottom = 50.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Create Customer", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Spacer(Modifier.width(6.dp))
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+        }
     }
 }

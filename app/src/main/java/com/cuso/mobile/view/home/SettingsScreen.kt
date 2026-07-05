@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Business
@@ -47,11 +49,20 @@ import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.UpdateOrgUiState
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import android.content.Context
+import android.net.Uri
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun SettingsScreen(
     @Suppress("UNUSED_PARAMETER") navController: NavController,
-    @Suppress("UNUSED_PARAMETER") onMenuClick: () -> Unit = {}
+    @Suppress("UNUSED_PARAMETER") onMenuClick: () -> Unit = {},
+    onBack: () -> Unit = {}   // ✅ NEW
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf(
@@ -68,13 +79,69 @@ fun SettingsScreen(
             .fillMaxSize()
             .background(Color(0xFFF5F5F5))
     ) {
+        // ── FIXED TOP HEADER (matches Branch/Department/Designation pattern) ──
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clickable { onBack() },
+                        tint = Color(0xFF111827)
+                    )
+                    Text(
+                        "Organization Settings",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF111827)
+                    )
+                }
+            }
+        }
+
+        // ── Breadcrumb ──
+        Column(
+            modifier = Modifier
+                .background(Color(0xFFF8F9FF))
+                .fillMaxWidth()
+                .padding(vertical = 10.dp, horizontal = 16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Settings", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = Color(0xFF9CA3AF),
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    "Organization Settings",
+                    fontSize = 13.sp,
+                    color = Color(0xFF3B3BF9),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        // ── Tabs ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 10.dp)
-                .padding(12.dp)
-                .background(Color(0xFFEEEEEE), RoundedCornerShape(12.dp))
-                .padding(4.dp),
+                .background(Color(0xFFEEEEEE), RoundedCornerShape(12.dp)),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             tabs.forEachIndexed { index, (icon, label) ->
@@ -115,19 +182,35 @@ fun SettingsScreen(
     }
 }
 
+
+
+
 // ─────────────────────────────────────────────────────────────
-// ProfileTab - With Edit Mode & Save
+// Helper: Convert picked Uri -> Base64 string
 // ─────────────────────────────────────────────────────────────
+private fun uriToBase64(context: Context, uri: Uri): String? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val bytes = inputStream.readBytes()
+        inputStream.close()
+        Base64.encodeToString(bytes, Base64.NO_WRAP)
+    } catch (e: Exception) {
+        null
+    }
+}
+
 @Composable
 fun ProfileTab(
     token: String,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     var isEditing by remember { mutableStateOf(false) }
     val uiState by viewModel.uiState.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
 
     // Form states for editing
     var orgName by remember { mutableStateOf("") }
@@ -135,6 +218,18 @@ fun ProfileTab(
     var businessType by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var mobile by remember { mutableStateOf("") }
+
+    // 👇 Logo state - just holds the picked image for local preview until Save is clicked
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    // 👇 Image picker launcher - ONLY stores the uri, does NOT upload immediately
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            selectedImageUri = uri
+        }
+    }
 
     LaunchedEffect(token) {
         if (token.isNotEmpty()) viewModel.loadOrganization(token)
@@ -156,6 +251,7 @@ fun ProfileTab(
         when (val state = updateState) {
             is UpdateOrgUiState.Success -> {
                 isEditing = false
+                selectedImageUri = null   // clear local preview - real URL now comes from server
                 viewModel.resetUpdateState()
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar(state.message)
@@ -229,6 +325,7 @@ fun ProfileTab(
                                             TextButton(
                                                 onClick = {
                                                     isEditing = false
+                                                    selectedImageUri = null
                                                     viewModel.resetUpdateState()
                                                 },
                                                 enabled = !isSaving
@@ -237,12 +334,15 @@ fun ProfileTab(
                                             }
                                             Button(
                                                 onClick = {
+                                                    // 👇 Convert picked image to Base64 (null if no new image picked)
+                                                    val base64Image = selectedImageUri?.let { uriToBase64(context, it) }
                                                     val request = UpdateOrganizationRequest(
                                                         name = orgName,
                                                         orgType = orgType,
                                                         businessType = businessType,
                                                         email = email,
-                                                        mobile = mobile
+                                                        mobile = mobile,
+                                                        organizationPicture = base64Image
                                                     )
                                                     viewModel.updateOrganization(token, request)
                                                 },
@@ -282,22 +382,71 @@ fun ProfileTab(
 
                                 Spacer(Modifier.height(16.dp))
 
-                                // ── Logo ──
+                                // ── Logo (clickable in edit mode - just picks image, upload happens on Save) ──
                                 Box(
                                     modifier = Modifier
                                         .size(130.dp)
-                                        .border(1.5.dp, Color.LightGray, RoundedCornerShape(10.dp)),
+                                        .border(1.5.dp, Color.LightGray, RoundedCornerShape(10.dp))
+                                        .clickable(enabled = isEditing) {
+                                            imagePickerLauncher.launch(
+                                                PickVisualMediaRequest(
+                                                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                                                )
+                                            )
+                                        },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    if (org.organizationPicture.isNullOrBlank()) {
-                                        Text("Upload Logo", color = Color.LightGray, fontSize = 13.sp)
-                                    } else {
-                                        AsyncImage(
-                                            model = org.organizationPicture,
-                                            contentDescription = "Organization Logo",
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentScale = ContentScale.Crop
-                                        )
+                                    when {
+                                        selectedImageUri != null -> {
+                                            // Local preview of newly picked image (not yet saved)
+                                            AsyncImage(
+                                                model = selectedImageUri,
+                                                contentDescription = "Organization Logo",
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        }
+                                        !org.organizationPicture.isNullOrBlank() -> {
+                                            AsyncImage(
+                                                model = org.organizationPicture,
+                                                contentDescription = "Organization Logo",
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        }
+                                        else -> {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.CameraAlt,
+                                                    contentDescription = null,
+                                                    tint = Color.LightGray,
+                                                    modifier = Modifier.size(28.dp)
+                                                )
+                                                Text("Upload Logo", color = Color.LightGray, fontSize = 13.sp)
+                                            }
+                                        }
+                                    }
+
+                                    // Camera badge overlay - only in edit mode
+                                    if (isEditing) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(6.dp)
+                                                .size(28.dp)
+                                                .background(Color(0xFF3B3BF9), RoundedCornerShape(50)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.CameraAlt,
+                                                contentDescription = "Change logo",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
                                     }
                                 }
 

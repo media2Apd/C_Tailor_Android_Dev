@@ -83,6 +83,7 @@ dependencies {
     implementation(libs.androidx.room3.common.jvm)
     implementation(libs.androidx.runtime)
     implementation(libs.compose.material3)
+    implementation(libs.foundation)
 
     // Google Auth (UPDATED)
     implementation(libs.play.services.auth)

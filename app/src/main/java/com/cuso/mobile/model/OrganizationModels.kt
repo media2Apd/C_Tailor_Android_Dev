@@ -7,7 +7,9 @@ data class UpdateOrganizationRequest(
     val businessType: String? = null,
     val email: String? = null,
     val mobile: String? = null,
-    val settings: UpdateOrganizationSettings? = null
+    val settings: UpdateOrganizationSettings? = null,
+    val organizationPicture: String? = null
+
 )
 
 data class UpdateOrganizationSettings(

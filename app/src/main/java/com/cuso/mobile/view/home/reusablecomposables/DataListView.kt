@@ -17,6 +17,7 @@ package com.cuso.mobile.view.home.reusablecomposables
 // Add a column → header AND every row AND every card update together.
 // ═════════════════════════════════════════════════════════════════════════
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -46,6 +47,7 @@ import androidx.compose.foundation.Image
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.DpOffset
 
 
 // ── One action-menu item (View / Edit / Delete / View Teams ...) ──
@@ -99,99 +101,74 @@ data class DataCardBadge(
 @Composable
 fun ActionDropdownMenu(
     actions: List<MenuAction>,
-    icon: ImageVector = Icons.Default.MoreHoriz,
-    sheetTitle: String = "Actions"
+    icon: ImageVector = Icons.Default.MoreHoriz
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    Icon(
-        icon,
-        contentDescription = "Actions",
-        tint = Color(0xFF9CA3AF),
-        modifier = Modifier
-            .size(20.dp)
-            .clickable { expanded = true }
-    )
+    Box {
+        Icon(
+            icon,
+            contentDescription = "Actions",
+            tint = Color(0xFF9CA3AF),
+            modifier = Modifier
+                .size(20.dp)
+                .clickable { expanded = true }
+        )
 
-    if (expanded) {
-        ModalBottomSheet(
+        DropdownMenu(
+            expanded = expanded,
             onDismissRequest = { expanded = false },
-            sheetState = sheetState,
-            containerColor = Color.White,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            dragHandle = null
+            modifier = Modifier
+                .width(120.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color.Transparent),
+            shape = RoundedCornerShape(10.dp),
+            containerColor = Color.Transparent,
+            shadowElevation = 0.dp,
+            tonalElevation = 0.dp,
+            offset = DpOffset((-8).dp, 4.dp)
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                shadowElevation = 0.dp,
+                tonalElevation = 0.dp
+            ) {
+                Column {
+                    actions.forEach { action ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = action.enabled) {
+                                    expanded = false
+                                    action.onClick()
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                action.icon,
+                                contentDescription = null,
+                                tint = action.tint,
+                                modifier = Modifier.size(15.dp)
+                            )
 
-                // ── Header: title + close ──
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        sheetTitle,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F766E)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(Color.Red, CircleShape)
-                            .clickable { expanded = false },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
+                            Text(
+                                text = action.label,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = action.textColor
+                            )
+                        }
                     }
                 }
-
-                HorizontalDivider(color = Color(0xFFF0F0F0))
-
-                // ── Action rows ──
-                actions.forEachIndexed { index, action ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = action.enabled) {
-                                expanded = false
-                                action.onClick()
-                            }
-                            .alpha(if (action.enabled) 1f else 0.4f)
-                            .padding(horizontal = 20.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Icon(
-                            action.icon,
-                            contentDescription = null,
-                            tint = action.tint,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            action.label,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = action.textColor
-                        )
-                    }
-                    if (index != actions.lastIndex) HorizontalDivider(color = Color(0xFFF0F0F0))
-                }
-
-                Spacer(Modifier.height(12.dp))
             }
         }
     }
 }
-
 
 
 

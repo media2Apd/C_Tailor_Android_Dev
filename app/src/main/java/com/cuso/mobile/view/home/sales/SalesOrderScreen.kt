@@ -353,7 +353,7 @@ fun SalesOrderScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 130.dp)
+                .padding(end = 20.dp, bottom = 50.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Create Order", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)

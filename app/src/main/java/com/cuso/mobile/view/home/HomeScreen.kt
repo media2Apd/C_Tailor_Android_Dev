@@ -1,5 +1,6 @@
 package com.cuso.mobile.view.home
 
+import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -41,27 +42,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.cuso.mobile.ui.theme.lightGray
 import com.cuso.mobile.viewmodel.HomeViewModel
 import com.cuso.mobile.viewmodel.Authenticate
-import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
-import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
-import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
-import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
-import com.patrykandpatrick.vico.core.common.Dimensions
-import com.patrykandpatrick.vico.core.common.shape.Shape as VicoShape
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
-import com.patrykandpatrick.vico.core.cartesian.data.ColumnCartesianLayerModel
-import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
-import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
-import com.patrykandpatrick.vico.core.common.component.LineComponent
-import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.remember
@@ -80,25 +62,18 @@ import com.cuso.mobile.viewmodel.SaleState
 import com.cuso.mobile.viewmodel.SalesViewModel
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
-import androidx.wear.compose.material.Colors
 import coil.compose.AsyncImage
 import com.cuso.mobile.database.entities.SalesStatusEntity
 import com.cuso.mobile.model.CategoryItem
@@ -115,11 +90,10 @@ import com.cuso.mobile.view.home.sales.GarmentTypeContent
 import com.cuso.mobile.view.home.sales.SalesSettingsScreen
 import com.cuso.mobile.view.home.sidebar.FullSideBar
 import com.cuso.mobile.view.home.sidebar.SalesSideBar
-import com.cuso.mobile.view.home.sales.CreateOrderScreen
-import com.cuso.mobile.view.home.sales.SalesOrderScreen
-import com.cuso.mobile.view.home.sales.CreateOrderNextStep
-import com.cuso.mobile.view.home.sales.OrderReviewData
-import com.cuso.mobile.view.home.reusablecomposables.ActionDropdownMenu
+import com.cuso.mobile.view.home.sales.sales_order.CreateOrderScreen
+import com.cuso.mobile.view.home.sales.sales_order.SalesOrderScreen
+import com.cuso.mobile.view.home.sales.sales_order.CreateOrderNextStep
+import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -140,30 +114,37 @@ import com.cuso.mobile.model.ActiveOrderItem
 import com.cuso.mobile.model.CustomerItem
 import com.cuso.mobile.model.DashboardStatDto
 import com.cuso.mobile.model.OperationItem
-import com.cuso.mobile.view.home.sales.CustomerScreen
-import com.cuso.mobile.view.home.sales.MeasurementsScreen
+import com.cuso.mobile.view.home.sales.customer.CustomerScreen
+import com.cuso.mobile.view.home.sales.measurements.MeasurementsScreen
 import com.cuso.mobile.viewmodel.CustomerViewModel
 import com.cuso.mobile.viewmodel.DashboardUiState
 import com.cuso.mobile.viewmodel.DashboardViewModel
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.ui.graphics.ColorFilter
+import com.cuso.mobile.view.composable.DatePickerField
+import com.cuso.mobile.view.home.sales.customer.CustomerDetailScreen
+import com.cuso.mobile.viewmodel.CustomerDeleteState
 import com.cuso.mobile.viewmodel.SettingsViewModel
+import kotlinx.coroutines.launch
 
 
 // ── Design tokens (Primary color used everywhere for icons / accents) ──
 val LeadPrimary = Color(0xFF3B3BF9)
 val LeadPrimarySoft = Color(0xFFEEEEFE)
 val LeadTextMuted = Color(0xFF9CA3AF)
-
-// ── Data classes ──
-
-data class LeadItem(
-    val header: String,
-    val value: Float
-)
-
-data class ControlItem(
-    val controls: String
-)
+//
+//// ── Data classes ──
+//
+//data class LeadItem(
+//    val header: String,
+//    val value: Float
+//)
+//
+//data class ControlItem(
+//    val controls: String
+//)
 
 // ─────────────────────────────────────────────────────────────
 // HomeScreen
@@ -182,6 +163,11 @@ fun HomeScreen(navController: NavHostController) {
     var selectedCustomer by remember { mutableStateOf<CustomerItem?>(null) }
     val settingsViewModel: SettingsViewModel = hiltViewModel()
 
+    //delete
+    val deleteState by customerViewModel.deleteState.collectAsState()   // ✅ this needs to exist
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
 
     var isSalesSettingsMode by remember { mutableStateOf(false) }
     var showModulesPanel by remember { mutableStateOf(false) }   // ✅ NEW
@@ -196,6 +182,19 @@ fun HomeScreen(navController: NavHostController) {
     LaunchedEffect(currentScreen) {
         if (currentScreen == "sales_customers") {
             customerViewModel.loadCustomers()
+        }
+    }
+    LaunchedEffect(deleteState) {
+        when (val state = deleteState) {
+            is CustomerDeleteState.Success -> {
+                coroutineScope.launch { snackbarHostState.showSnackbar("Customer deleted successfully") }
+                customerViewModel.resetDeleteState()
+            }
+            is CustomerDeleteState.Error -> {
+                coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
+                customerViewModel.resetDeleteState()
+            }
+            else -> {}
         }
     }
 
@@ -240,6 +239,8 @@ fun HomeScreen(navController: NavHostController) {
             currentScreen == "sales_orders" -> currentScreen = "home"
             currentScreen == "sales_customers" -> currentScreen = "home"          // ✅ CHANGED — was "sales_lead"
             currentScreen == "sales_measurements" -> currentScreen = "home"
+            currentScreen == "view_customer" -> currentScreen = "sales_customers"
+            currentScreen == "edit_customer" -> currentScreen = "sales_customers"
             currentScreen == "create_order_review" -> {
                 pendingOrderReviewData = null
                 currentScreen = "create_order"
@@ -490,7 +491,7 @@ fun HomeScreen(navController: NavHostController) {
                     "sales_customers" -> CustomerScreen(
                         navController = navController,
                         customerState = customerUiState,
-                        onBack = { currentScreen = "home" },
+                        onClose = { currentScreen = "home" },
                         onCreateCustomer = { currentScreen = "create_customer" },
                         onView = { customer ->
                             selectedCustomer = customer
@@ -500,7 +501,29 @@ fun HomeScreen(navController: NavHostController) {
                             selectedCustomer = customer
                             currentScreen = "edit_customer"
                         },
+                        onDelete ={ customer -> customerViewModel.deleteCustomer(customer.id) }
                     )
+                    "view_customer", "edit_customer" -> {
+                        val customer = selectedCustomer
+                        if (customer != null && customer.id.isNotBlank()) {
+                            CustomerDetailScreen(
+                                navController = navController,
+                                customerId = customer.id,
+                                startInEditMode = currentScreen == "edit_customer",   // ✅ NEW — route decides the mode, same as Lead's View/Edit screens
+                                onClose = { currentScreen = "sales_customers" },
+                                onUpdateSuccess = {
+                                    customerViewModel.refresh()
+                                    currentScreen = "sales_customers"
+                                },
+                                onRequestEdit = { currentScreen = "edit_customer" }   // ✅ NEW — tapping "Edit" while viewing jumps to the edit route
+                            )
+                        } else {
+                            LaunchedEffect(Unit) {
+                                Toast.makeText(context, "Unable to load customer details", Toast.LENGTH_SHORT).show()
+                            }
+                            currentScreen = "sales_customers"
+                        }
+                    }
 
                     "sales_measurements" -> MeasurementsScreen(
                         navController = navController,
@@ -882,7 +905,7 @@ fun BottomBar(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     BottomNavItem(
-                        icon = Icons.Default.Home,
+                        icon = R.drawable.home,
                         label = "Home",
                         isSelected = currentScreen == "home",
                         selectedColor = Color(0xFF6C4FF6),
@@ -890,7 +913,7 @@ fun BottomBar(
                     )
 
                     BottomNavItem(
-                        icon = Icons.Default.Inventory2,
+                        icon = R.drawable.orders,
                         label = "Orders",
                         isSelected = currentScreen == "sales_sales_orders",
                         selectedColor = Color(0xFF6C4FF6),
@@ -900,7 +923,7 @@ fun BottomBar(
                     Spacer(modifier = Modifier.width(64.dp))
 
                     BottomNavItem(
-                        icon = Icons.Default.BarChart,
+                        icon = R.drawable.reports,
                         label = "Reports",
                         isSelected = currentScreen == "reports",
                         selectedColor = Color(0xFF6C4FF6),
@@ -908,7 +931,7 @@ fun BottomBar(
                     )
 
                     BottomNavItem(
-                        icon = Icons.Default.GridView,
+                        icon = R.drawable.modules,
                         label = "Modules",
                         isSelected = currentScreen == "modules",
                         selectedColor = Color(0xFF6C4FF6),
@@ -942,7 +965,7 @@ fun BottomBar(
 
 @Composable
 fun BottomNavItem(
-    icon: ImageVector,
+    icon: Int,                          // ✅ CHANGED — drawable resource id, not ImageVector
     label: String,
     isSelected: Boolean,
     selectedColor: Color = Color(0xFF6C4FF6),
@@ -953,10 +976,10 @@ fun BottomNavItem(
         modifier = Modifier.clickable { onClick() },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = icon,
+        Image(
+            painter = painterResource(id = icon),
             contentDescription = label,
-            tint = color,
+            colorFilter = ColorFilter.tint(color),   // ✅ tints the PNG like an Icon would
             modifier = Modifier.size(30.dp)
         )
         Spacer(modifier = Modifier.height(4.dp))
@@ -969,10 +992,8 @@ fun BottomNavItem(
     }
 }
 
-
-
 // ─────────────────────────────────────────────────────────────
-// UI-side data models (built FROM api dtos, not hardcoded)
+// UI-side data models (built FROM api)
 // ─────────────────────────────────────────────────────────────
 private data class DashboardStat(
     val label: String,
@@ -1120,7 +1141,7 @@ private fun HomeScreenContentBody(
     val quickModules = remember {
         listOf(
             QuickModule("Contacts", Icons.Default.Person),
-            QuickModule("Leads", Icons.Default.TrendingUp),
+            QuickModule("Leads", Icons.AutoMirrored.Filled.TrendingUp),
             QuickModule("Deals", Icons.Default.Sell),
             QuickModule("Tickets", Icons.Default.Description),
             QuickModule("Email", Icons.Default.Email),
@@ -1137,7 +1158,6 @@ private fun HomeScreenContentBody(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = Color(0xFF7C3AED))
                     Spacer(Modifier.height(8.dp))
                     Text("Loading dashboard...", color = Color.Gray, fontSize = 14.sp)
                 }
@@ -1245,7 +1265,7 @@ private fun GreetingCard(
                 .background(Color.White.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.TrendingUp, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+            Icon(Icons.AutoMirrored.Filled.TrendingUp, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
         }
         Column {
             Text("Good Morning, $userName", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -1684,6 +1704,7 @@ fun LeadBottomBar(
 // ─────────────────────────────────────────────────────────────
 // CreateLeadScreen
 // ─────────────────────────────────────────────────────────────
+@SuppressLint("AutoboxingStateCreation")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateLeadScreen(onBack: () -> Unit) {
@@ -1703,7 +1724,7 @@ fun CreateLeadScreen(onBack: () -> Unit) {
     var enquiryType      by remember { mutableStateOf("") }
     var estimatedQuantity by remember { mutableStateOf("") }
     var garmentCategory  by remember { mutableStateOf("") }
-    var budgetRange      by remember { mutableStateOf(1000f) }
+    var budgetRange      by remember { mutableFloatStateOf(1000f) }
     var requiredDate     by remember { mutableStateOf("") }
     var occasion         by remember { mutableStateOf("") }
     var appointmentRequired by remember { mutableStateOf(false) }
@@ -1967,50 +1988,13 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                 }
                             }
                             Spacer(Modifier.height(14.dp))
+
+                            //SLIDER BUDGET RANGE
                             FormLabel("Budget Range")
-                            Slider(
-                                value = budgetRange,
-                                onValueChange = { budgetRange = it },
-                                valueRange = 1000f..250000f,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = LeadPrimary,
-                                    activeTrackColor = LeadPrimary,
-                                    inactiveTrackColor = Color(0xFFE5E7EB)
-                                ),
-                                thumb = {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(22.dp)
-                                            .background(Color.White, CircleShape)
-                                            .border(3.dp, LeadPrimary, CircleShape)
-                                    )
-                                },
-                                track = { sliderState ->
-                                    val fraction = (sliderState.value - sliderState.valueRange.start) /
-                                            (sliderState.valueRange.endInclusive - sliderState.valueRange.start)
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(6.dp)
-                                            .clip(RoundedCornerShape(50))
-                                            .background(Color(0xFFE5E7EB))
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth(fraction)
-                                                .fillMaxHeight()
-                                                .clip(RoundedCornerShape(50))
-                                                .background(LeadPrimary)
-                                        )
-                                    }
-                                }
-                            )
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("₹1000", fontSize = 12.sp, color = Color(0xFF6B7280))
-                                Text("₹${formatIndianNumber(budgetRange.toInt())}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
-                                Text("₹250000", fontSize = 12.sp, color = Color(0xFF6B7280))
-                            }
+                            BudgetRangeSlider(value = budgetRange, onValueChange = { budgetRange = it })
+                            Spacer(Modifier.height(4.dp))
+                            BudgetRangeLabels(currentValue = budgetRange.toInt())
+
                             Spacer(Modifier.height(14.dp))
                             FormLabel("Required Date")
                             DatePickerField(value = requiredDate.ifEmpty { "Select Date" }, onDateSelected = { requiredDate = it })
@@ -2981,22 +2965,15 @@ fun ViewLeadScreen(
                         Column(modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 6.dp)) {
+
+
                             Text("Budget Range", fontSize = 12.sp, color = LeadTextMuted, fontWeight = FontWeight.Medium)
                             Spacer(Modifier.height(4.dp))
                             Text("₹${formatIndianNumber(l.budgetMin)}  ₹${formatIndianNumber(l.budgetMax)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
                             Spacer(Modifier.height(4.dp))
-                            Slider(
-                                value = l.budgetMin.toFloat(),
-                                onValueChange = {},
-                                valueRange = 1000f..250000f,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = SliderDefaults.colors(thumbColor = LeadPrimary, activeTrackColor = LeadPrimary, inactiveTrackColor = Color(0xFFE5E7EB)),
-                                enabled = false
-                            )
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("₹1000", fontSize = 12.sp, color = Color(0xFF6B7280))
-                                Text("₹250000", fontSize = 12.sp, color = Color(0xFF6B7280))
-                            }
+                            BudgetRangeSlider(value = l.budgetMin.toFloat(), onValueChange = {}, enabled = false)
+                            Spacer(Modifier.height(4.dp))
+                            BudgetRangeLabels(currentValue = l.budgetMin, /* or whatever value you want shown in middle */)
                         }
 
                         ViewFieldValue("Required Date", formatLeadDate(l.requiredDate))
@@ -3494,12 +3471,15 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
                         Spacer(Modifier.height(14.dp))
                         FormLabel("Budget Range")
-                        Slider(value = budgetRange, onValueChange = { budgetRange = it }, valueRange = 1000f..250000f, modifier = Modifier.fillMaxWidth(), colors = SliderDefaults.colors(thumbColor = LeadPrimary, activeTrackColor = LeadPrimary, inactiveTrackColor = Color(0xFFE5E7EB)))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("₹1000", fontSize = 12.sp, color = Color(0xFF6B7280))
-                            Text("₹${formatIndianNumber(budgetRange.toInt())}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
-                            Text("₹250000", fontSize = 12.sp, color = Color(0xFF6B7280))
-                        }
+                        BudgetRangeSlider(value = budgetRange, onValueChange = { budgetRange = it })
+                        Spacer(Modifier.height(4.dp))
+                        BudgetRangeLabels(currentValue = budgetRange.toInt())
+
+//                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+//                            Text("₹1000", fontSize = 12.sp, color = Color(0xFF6B7280))
+//                            Text("₹${formatIndianNumber(budgetRange.toInt())}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
+//                            Text("₹250000", fontSize = 12.sp, color = Color(0xFF6B7280))
+//                        }
                         Spacer(Modifier.height(14.dp))
                         FormLabel("Required Date")
                         DatePickerField(value = requiredDate.ifEmpty { "Select Date" }, onDateSelected = { requiredDate = it })
@@ -3581,92 +3561,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
 // ─────────────────────────────────────────────────────────────
 // LeadCard
 // ─────────────────────────────────────────────────────────────
-@Composable
-fun LeadCard(
-    lead: LeadTableItem,
-    badgeText: String,
-    badgeColor: Color,
-    garmentName: String,
-    isLoadingView: Boolean,
-    isLoadingEdit: Boolean,
-    isDeleting: Boolean,
-    onViewClick: () -> Unit,
-    onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(12.dp))
-            .padding(14.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = LeadTextMuted, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(formatLeadDate(lead.requiredDate?.takeIf { it.isNotBlank() } ?: lead.enquiryDate), fontSize = 12.sp, color = Color(0xFF6B7280))
-            }
-            Box(modifier = Modifier
-                .background(badgeColor.copy(alpha = 0.14f), RoundedCornerShape(20.dp))
-                .padding(horizontal = 10.dp, vertical = 4.dp)) {
-                Text(badgeText, fontSize = 11.sp, color = badgeColor, fontWeight = FontWeight.SemiBold)
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                lead.person.name.ifEmpty { "—" },
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            ActionDropdownMenu(
-                icon = Icons.Default.MoreVert,
-                actions = listOf(
-                    MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClick() },
-                    MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClick() },
-                    MenuAction("Delete", Icons.Default.Delete, tint = Color(0xFFF44336), textColor = Color(0xFFF44336), enabled = !isDeleting) { onDeleteClick() }
-                )
-            )
-        }
-
-        Spacer(Modifier.height(4.dp))
-
-        Text(
-            "${lead.enquiryType.ifEmpty { "—" }} • $garmentName • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
-            fontSize = 13.sp,
-            color = Color(0xFF6B7280),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = LeadTextMuted, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(4.dp))
-            Text(
-                "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}",
-                fontSize = 13.sp,
-                color = Color(0xFF374151),
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
+//
 
 fun formatLeadDate(raw: String): String {
     if (raw.isBlank()) return "—"
@@ -4072,28 +3967,8 @@ fun CustomTimePicker(
 }
 
 
-@Composable
-fun SectionHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(modifier = Modifier
-            .size(40.dp)
-            .background(LeadPrimarySoft, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-            Icon(imageVector = icon, contentDescription = null, tint = LeadPrimary, modifier = Modifier.size(20.dp))
-        }
-        Column {
-            Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Text(subtitle, fontSize = 13.sp, color = LeadTextMuted)
-        }
-    }
-}
 
-@Composable
-fun FormCard(content: @Composable ColumnScope.() -> Unit) {
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .background(Color.White, RoundedCornerShape(12.dp))
-        .padding(16.dp), content = content)
-}
+
 
 @Composable
 fun FormLabel(text: String, isRequired: Boolean = false) {
@@ -4143,274 +4018,86 @@ fun FormDateField(value: String, onClick: () -> Unit) {
     }
 }
 
-private data class DatePickerPalette(
-    val surface: Color,
-    val text: Color,
-    val subtext: Color,
-    val accent: Color,
-    val divider: Color,
-    val accentText: Color
-)
 
-private val LightDatePalette = DatePickerPalette(
-    surface = Color.White,
-    text = Color.Black,
-    subtext = Color(0xFF666666),
-    accent = LeadPrimary,
-    divider = Color(0xFFE0E0E0),
-    accentText = Color.White
-)
 
-private val DarkDatePalette = DatePickerPalette(
-    surface = Color(0xFF1E1E2E),
-    text = Color.White,
-    subtext = Color(0xFFAAAAAA),
-    accent = Color(0xFF7C7CFF),
-    divider = Color(0xFF3A3A4A),
-    accentText = Color.Black
-)
-
-private val DatePickerMonthNames = listOf(
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-)
+// ─────────────────────────────────────────────────────────────
+// Reusable Budget Range Slider (same design everywhere)
+// ─────────────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
 
 @Composable
-fun DatePickerField(value: String, onDateSelected: (String) -> Unit) {
-    var showPicker by remember { mutableStateOf(false) }
-    FormDateField(value = value, onClick = { showPicker = true })
-
-    if (showPicker) {
-        val palette = if (isSystemInDarkTheme()) DarkDatePalette else LightDatePalette
-        CustomDatePickerDialog(
-            palette = palette,
-            initialDate = value,
-            onDismiss = { showPicker = false },
-            onConfirm = { day, month, year ->
-                onDateSelected(
-                    String.format(java.util.Locale.US, "%02d-%02d-%04d", day, month, year)
-                )
-                showPicker = false
-            }
-        )
-    }
-}
-
-@Composable
-private fun CustomDatePickerDialog(
-    palette: DatePickerPalette,
-    initialDate: String,
-    onDismiss: () -> Unit,
-    onConfirm: (day: Int, month: Int, year: Int) -> Unit
+fun BudgetRangeSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    valueRange: ClosedFloatingPointRange<Float> = 1000f..250000f,
+    enabled: Boolean = true
 ) {
-    val today = remember { java.util.Calendar.getInstance() }
-    var displayMonth by remember { mutableIntStateOf(today.get(java.util.Calendar.MONTH)) }
-    var displayYear by remember { mutableIntStateOf(today.get(java.util.Calendar.YEAR)) }
-    var selectedDay by remember { mutableStateOf(today.get(java.util.Calendar.DAY_OF_MONTH)) }
-    var isManualEntry by remember { mutableStateOf(false) }
-    var manualText by remember { mutableStateOf(initialDate) }
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            modifier = Modifier.width(320.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = palette.surface
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .background(Color.White, RoundedCornerShape(8.dp))
-                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Select date", color = palette.text, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                    IconButton(
-                        onClick = { isManualEntry = !isManualEntry },
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isManualEntry) Icons.Default.CalendarMonth else Icons.Default.Edit,
-                            contentDescription = "Toggle input mode",
-                            tint = palette.accent,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                if (isManualEntry) {
-                    OutlinedTextField(
-                        value = manualText,
-                        onValueChange = { manualText = it },
-                        label = { Text("dd-mm-yyyy", color = palette.subtext) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = palette.text,
-                            unfocusedTextColor = palette.text,
-                            focusedBorderColor = palette.accent,
-                            unfocusedBorderColor = palette.divider,
-                            cursorColor = palette.accent,
-                            focusedLabelColor = palette.accent,
-                            unfocusedLabelColor = palette.subtext
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    DatePickerCalendarGrid(
-                        palette = palette,
-                        displayMonth = displayMonth,
-                        displayYear = displayYear,
-                        selectedDay = selectedDay,
-                        onDaySelected = { selectedDay = it },
-                        onPrevMonth = {
-                            if (displayMonth == 0) { displayMonth = 11; displayYear-- }
-                            else displayMonth--
-                        },
-                        onNextMonth = {
-                            if (displayMonth == 11) { displayMonth = 0; displayYear++ }
-                            else displayMonth++
-                        }
-                    )
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel", color = palette.accent)
-                    }
-                    Spacer(Modifier.width(4.dp))
-                    TextButton(onClick = {
-                        if (isManualEntry) {
-                            parseManualDatePicked(manualText)?.let { (d, m, y) -> onConfirm(d, m, y) }
-                        } else {
-                            onConfirm(selectedDay, displayMonth + 1, displayYear)
-                        }
-                    }) {
-                        Text("OK", color = palette.accent)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DatePickerCalendarGrid(
-    palette: DatePickerPalette,
-    displayMonth: Int,
-    displayYear: Int,
-    selectedDay: Int,
-    onDaySelected: (Int) -> Unit,
-    onPrevMonth: () -> Unit,
-    onNextMonth: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "${DatePickerMonthNames[displayMonth]} $displayYear",
-            color = palette.text,
-            fontWeight = FontWeight.Medium
-        )
-        Row {
-            IconButton(onClick = onPrevMonth) {
-                Icon(Icons.Default.ChevronLeft, contentDescription = "Previous month", tint = palette.text)
-            }
-            IconButton(onClick = onNextMonth) {
-                Icon(Icons.Default.ChevronRight, contentDescription = "Next month", tint = palette.text)
-            }
-        }
-    }
-
-    Spacer(Modifier.height(8.dp))
-
-    Row(modifier = Modifier.fillMaxWidth()) {
-        listOf("S", "M", "T", "W", "T", "F", "S").forEach { d ->
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                Text(d, color = palette.subtext, fontWeight = FontWeight.Medium)
-            }
-        }
-    }
-
-    Spacer(Modifier.height(4.dp))
-
-    val calendar = remember(displayMonth, displayYear) {
-        java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.YEAR, displayYear)
-            set(java.util.Calendar.MONTH, displayMonth)
-            set(java.util.Calendar.DAY_OF_MONTH, 1)
-        }
-    }
-    val firstDayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK) - 1
-    val daysInMonth = calendar.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
-
-    val cells = remember(displayMonth, displayYear) {
-        buildList {
-            repeat(firstDayOfWeek) { add(null) }
-            for (d in 1..daysInMonth) add(d)
-        }
-    }
-
-    cells.chunked(7).forEach { week ->
-        Row(modifier = Modifier.fillMaxWidth()) {
-            week.forEach { day ->
+    Slider(
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = valueRange,
+        enabled = enabled,
+        modifier = modifier.fillMaxWidth(),
+        colors = SliderDefaults.colors(
+            thumbColor = LeadPrimary,
+            activeTrackColor = LeadPrimary,
+            inactiveTrackColor = Color(0xFFE5E7EB)
+        ),
+        thumb = {
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .background(Color.White, CircleShape)
+                    .border(3.dp, LeadPrimary, CircleShape)
+            )
+        },
+        track = { sliderState ->
+            val fraction = (sliderState.value - sliderState.valueRange.start) /
+                    (sliderState.valueRange.endInclusive - sliderState.valueRange.start)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0xFFE5E7EB))
+            ) {
                 Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(1f)
-                        .padding(2.dp)
-                        .then(
-                            if (day != null && day == selectedDay)
-                                Modifier.background(palette.accent, RoundedCornerShape(50))
-                            else Modifier
-                        )
-                        .clickable(enabled = day != null) { day?.let(onDaySelected) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (day != null) {
-                        Text(
-                            text = day.toString(),
-                            color = if (day == selectedDay) palette.accentText else palette.text
-                        )
-                    }
-                }
-            }
-            repeat(7 - week.size) {
-                Box(modifier = Modifier.weight(1f).aspectRatio(1f))
+                        .fillMaxWidth(fraction)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(50))
+                        .background(LeadPrimary)
+                )
             }
         }
-    }
+    )
 }
 
-private fun parseManualDatePicked(text: String): Triple<Int, Int, Int>? {
-    val parts = text.split("-")
-    if (parts.size != 3) return null
-    return try {
-        val day = parts[0].trim().toInt()
-        val month = parts[1].trim().toInt()
-        val year = parts[2].trim().toInt()
-        if (month !in 1..12 || day !in 1..31) return null
-        Triple(day, month, year)
-    } catch (e: NumberFormatException) {
-        null
-    }
-}
-
+// Bonus: min/current/max label row — this also repeats everywhere
 @Composable
-fun FormDropdown(label: String, value: String, expanded: Boolean, onExpandChange: (Boolean) -> Unit, options: List<String>, onOptionSelected: (String) -> Unit, isRequired: Boolean = false) {
+fun BudgetRangeLabels(
+    currentValue: Int,
+    min: Int = 1000,
+    max: Int = 250000
+) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text("₹${formatIndianNumber(min)}", fontSize = 12.sp, color = Color(0xFF6B7280))
+        Text("₹${formatIndianNumber(currentValue)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
+        Text("₹${formatIndianNumber(max)}", fontSize = 12.sp, color = Color(0xFF6B7280))
+    }
+}
+@Composable
+fun FormDropdown(
+    label: String,
+    value: String,
+    expanded: Boolean,
+    onExpandChange: (Boolean) -> Unit,
+    options: List<String>,
+    onOptionSelected: (String) -> Unit,
+    isRequired: Boolean = false,
+    enabled: Boolean = true   // ✅ NEW — when false, field looks disabled and can't be opened (view mode)
+) {
     FormLabel(label, isRequired)
 
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -4422,57 +4109,49 @@ fun FormDropdown(label: String, value: String, expanded: Boolean, onExpandChange
                 .fillMaxWidth()
                 .onGloballyPositioned { coordinates -> triggerWidthPx = coordinates.size.width }
                 .height(40.dp)
-                .background(Color.White, RoundedCornerShape(8.dp))
+                .background(
+                    if (enabled) Color.White else Color(0xFFF3F4F6),   // ✅ dimmed bg when disabled
+                    RoundedCornerShape(8.dp)
+                )
                 .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                .clickable { onExpandChange(true) }
+                .clickable(enabled = enabled) { onExpandChange(true) }   // ✅ blocked when disabled
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(value, fontSize = 12.sp, color = if (value == "Select an option") Color(0xFF9CA3AF) else Color(0xFF374151))
-            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color.Gray)
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { onExpandChange(false) },
-            containerColor = Color.White,
-            shape = RoundedCornerShape(6.dp),
-            modifier = Modifier
-                .width(with(density) { triggerWidthPx.toDp() })
-                .heightIn(max = 180.dp)
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option, fontSize = 14.sp, color = Color(0xFF374151)) },
-                    onClick = { onOptionSelected(option); onExpandChange(false) },
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    modifier = Modifier.heightIn(min = 36.dp)
-                )
-            }
-        }
-    }
-}
-@Composable
-fun StatCard(modifier: Modifier = Modifier, iconBg: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, iconTint: Color, title: String, value: String) {
-    Box(modifier = modifier
-        .background(Color.White, RoundedCornerShape(12.dp))
-        .padding(16.dp)) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier
-                    .size(48.dp)
-                    .background(iconBg, RoundedCornerShape(12.dp))
-                    .clip(RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                    Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(26.dp))
+            Text(
+                value,
+                fontSize = 12.sp,
+                color = when {
+                    !enabled -> Color(0xFF9CA3AF)
+                    value == "Select an option" -> Color(0xFF9CA3AF)
+                    else -> Color(0xFF374151)
                 }
-                Spacer(Modifier.weight(1f))
-                Text(text = "0%", modifier = Modifier
-                    .background(Color(0xFFDCFCE7), RoundedCornerShape(18.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF16A34A))
+            )
+            Icon(
+                Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = if (enabled) Color.Gray else Color(0xFFD1D5DB)
+            )
+        }
+        if (enabled) {   // ✅ menu can't even open when disabled
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { onExpandChange(false) },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(6.dp),
+                modifier = Modifier
+                    .width(with(density) { triggerWidthPx.toDp() })
+                    .heightIn(max = 180.dp)
+            ) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option, fontSize = 14.sp, color = Color(0xFF374151)) },
+                        onClick = { onOptionSelected(option); onExpandChange(false) },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        modifier = Modifier.heightIn(min = 36.dp)
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(text = title, color = Color.DarkGray, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = value, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.Black)
         }
     }
 }
@@ -4514,16 +4193,6 @@ fun HorizontalScrollbar(state: LazyListState, modifier: Modifier = Modifier, tra
     }
 }
 
-@Composable
-fun StatusLegend(color: Color, text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier
-            .size(18.dp)
-            .background(color = color, shape = CircleShape))
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(text = text, fontSize = 18.sp, color = Color.Black)
-    }
-}
 
 fun String.toIsoDate(): String {
     if (this.isEmpty() || this == "Select Date") return ""

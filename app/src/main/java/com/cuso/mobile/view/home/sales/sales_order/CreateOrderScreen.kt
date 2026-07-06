@@ -1,12 +1,16 @@
-package com.cuso.mobile.view.home.sales
+package com.cuso.mobile.view.home.sales.sales_order
 
 import android.Manifest
+import android.media.MediaRecorder
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,10 +30,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -39,17 +45,21 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberImagePainter
 import com.cuso.mobile.database.entities.GarmentMeasurement
 import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.model.Customer
 import com.cuso.mobile.model.CustomerGarment
 import com.cuso.mobile.model.CustomerOrder
+import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.PhoneInputField
-import com.cuso.mobile.view.home.DatePickerField
+import com.cuso.mobile.view.home.FormDropdown
+import com.cuso.mobile.view.home.sales.customer.CustomerOutlinedField
+import com.cuso.mobile.view.home.sales.customer.LabeledField
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
-import com.cuso.mobile.view.home.sales.OrderReviewData
+import com.cuso.mobile.viewmodel.BranchUiState
 import com.github.skydoves.colorpicker.compose.AlphaSlider
 import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
@@ -80,7 +90,7 @@ data class MeasurementField(
 // Screen
 // ─────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CreateOrderScreen(
     onBack: () -> Unit = {},
@@ -108,11 +118,14 @@ fun CreateOrderScreen(
     var showImagePickerOptions by remember { mutableStateOf(false) }
     var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
 
+    var dressForExpanded by remember { mutableStateOf(false) }
+    var sourceExpanded by remember { mutableStateOf(false) }
+
     //--Branch---from api
     // ── Branches ──
     val branchUiState by branchViewModel.uiState.collectAsStateWithLifecycle()
-    val branches = (branchUiState as? com.cuso.mobile.viewmodel.BranchUiState.Success)?.branches ?: emptyList()
-    val isLoadingBranches = branchUiState is com.cuso.mobile.viewmodel.BranchUiState.Loading
+    val branches = (branchUiState as? BranchUiState.Success)?.branches ?: emptyList()
+    val isLoadingBranches = branchUiState is BranchUiState.Loading
     var selectedBranchId by remember { mutableStateOf("") }
     // ── Permission state ──
     val cameraPermissionState = rememberPermissionState(
@@ -353,13 +366,19 @@ fun CreateOrderScreen(
             )
         )
     }
+// ── Accordion state — which top-level section is open ──
+    var expandedSection by remember { mutableStateOf("customer") }
 
-    // ── Delivery state ──
+// ── Delivery state ──
     var orderDate by remember { mutableStateOf("") }
     var trialDate by remember { mutableStateOf("") }
     var deliveryDate by remember { mutableStateOf("") }
     var branch by remember { mutableStateOf("") }
-    var showBranchDropdown by remember { mutableStateOf(false) }
+    var branchExpanded by remember { mutableStateOf(false) }
+    val branchNameToId = remember(branches) {
+        branches.associate { it.name.orEmpty().ifBlank { "Unnamed Branch" } to it.id }
+    }
+    val selectedBranchName = branches.find { it.id == selectedBranchId }?.name.orEmpty()
 
     // ── Notes ──
     // ── Notes ──
@@ -368,7 +387,7 @@ fun CreateOrderScreen(
     // ── Voice Recording state ──
     var isRecording by remember { mutableStateOf(false) }
     var recordedVoiceNoteUri by remember { mutableStateOf<Uri?>(null) }
-    var mediaRecorder by remember { mutableStateOf<android.media.MediaRecorder?>(null) }
+    var mediaRecorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordingFile by remember { mutableStateOf<File?>(null) }
 
     val micPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
@@ -376,10 +395,10 @@ fun CreateOrderScreen(
     fun startRecording() {
         val file = File.createTempFile("voice_note_", ".m4a", context.cacheDir)
         recordingFile = file
-        mediaRecorder = android.media.MediaRecorder().apply {
-            setAudioSource(android.media.MediaRecorder.AudioSource.MIC)
-            setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4)
-            setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC)
+        mediaRecorder = MediaRecorder().apply {
+            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             setOutputFile(file.absolutePath)
             prepare()
             start()
@@ -467,19 +486,20 @@ fun CreateOrderScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clickable { onBack() },
-                    tint = Color(0xFF111827)
-                )
+
                 Text(
                     "Create Order",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
+                )
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "close",
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clickable { onBack() },
+                    tint = Color(0xFF111827)
                 )
             }
         },
@@ -501,7 +521,7 @@ fun CreateOrderScreen(
                         .weight(1f)
                         .height(48.dp),
                     shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB))
+                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
                 ) {
                     Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.Medium)
                 }
@@ -551,14 +571,17 @@ fun CreateOrderScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .verticalScroll(scrollState)
-                    .padding(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(bottom = 16.dp)
             ) {
 
                 // ══════════════════════════════════════════════
                 // 1. CUSTOMER DETAILS
                 // ══════════════════════════════════════════════
-                SectionCard(title = "CUSTOMER DETAILS") {
+                SectionCard(
+                    title = "Customer Details",
+                    expanded = expandedSection == "customer",
+                    onToggle = { expandedSection = if (expandedSection == "customer") "" else "customer" }
+                ) {
 
                     FormLabel("Phone")
 
@@ -674,7 +697,7 @@ fun CreateOrderScreen(
                                                     showImportDialog = true
                                                 },
                                                 shape = RoundedCornerShape(8.dp),
-                                                border = androidx.compose.foundation.BorderStroke(
+                                                border = BorderStroke(
                                                     1.dp,
                                                     Color(0xFF3B3BF9)
                                                 ),
@@ -709,7 +732,7 @@ fun CreateOrderScreen(
                                                     salesViewModel.clearCustomerSearch()
                                                 },
                                                 shape = RoundedCornerShape(8.dp),
-                                                border = androidx.compose.foundation.BorderStroke(
+                                                border = BorderStroke(
                                                     1.dp,
                                                     Color(0xFF3B3BF9)
                                                 ),
@@ -737,12 +760,13 @@ fun CreateOrderScreen(
 
                     Spacer(Modifier.height(4.dp))
 
-                    FormLabel("Full Name")
-                    FormTextField(
-                        value = fullName,
-                        onValueChange = { fullName = it },
-                        placeholder = "Enter Customer Name"
-                    )
+                    LabeledField("Full Name *") {
+                        CustomerOutlinedField(
+                            value = fullName,
+                            onValueChange = { fullName = it },
+                            placeholder = "Enter your name"
+                        )
+                    }
 
                     Spacer(Modifier.height(4.dp))
 
@@ -767,7 +791,7 @@ fun CreateOrderScreen(
                             focusedContainerColor = Color.White
                         ),
                         shape = RoundedCornerShape(8.dp),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+                        textStyle = TextStyle(fontSize = 14.sp)
                     )
 
                     Spacer(Modifier.height(4.dp))
@@ -792,92 +816,37 @@ fun CreateOrderScreen(
 
                     Spacer(Modifier.height(4.dp))
 
-                    FormLabel("Dress For")
-                    Box {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                                .clickable { showDressDropdown = true }
-                                .padding(horizontal = 14.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(dressFor, fontSize = 14.sp, color = Color(0xFF111827))
-                            Icon(Icons.Default.KeyboardArrowDown, null, tint = Color(0xFF6B7280))
-                        }
-                        DropdownMenu(
-                            expanded = showDressDropdown,
-                            onDismissRequest = { showDressDropdown = false },
-                            containerColor = Color.White
-                        ) {
-                            listOf("Men", "Women", "Kids", "Unisex").forEach { opt ->
-                                DropdownMenuItem(
-                                    text = { Text(opt) },
-                                    onClick = { dressFor = opt; showDressDropdown = false }
-                                )
-                            }
-                        }
-                    }
+                    FormDropdown(
+                        label = "Dress For",
+                        value = dressFor.ifEmpty { "Select an option" },
+                        expanded = dressForExpanded,
+                        onExpandChange = { dressForExpanded = it },
+                        options = listOf("Men", "Women", "Kids", "Unisex"),
+                        onOptionSelected = { dressFor = it },
+                        isRequired = true
+                    )
 
                     Spacer(Modifier.height(4.dp))
 
-                    FormLabel("Source")
-                    Box {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                                .clickable { showSourceDropdown = true }
-                                .padding(horizontal = 14.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(source, fontSize = 14.sp, color = Color(0xFF111827))
-                            Icon(Icons.Default.KeyboardArrowDown, null, tint = Color(0xFF6B7280))
-                        }
-                        DropdownMenu(
-                            expanded = showSourceDropdown,
-                            onDismissRequest = { showSourceDropdown = false },
-                            containerColor = Color.White
-                        ) {
-                            listOf("Walk-in", "Phone", "WhatsApp", "Referral", "Online").forEach { opt ->
-                                DropdownMenuItem(
-                                    text = { Text(opt) },
-                                    onClick = { source = opt; showSourceDropdown = false }
-                                )
-                            }
-                        }
-                    }
+                    FormDropdown(
+                        label = "Source",
+                        value = source.ifEmpty { "Select an option" },
+                        expanded = sourceExpanded,
+                        onExpandChange = { sourceExpanded = it },
+                        options = listOf("Walk-in", "Phone", "WhatsApp", "Referral", "Online"),
+                        onOptionSelected = { source = it },
+                        isRequired = true
+                    )
                 }
 
                 // ══════════════════════════════════════════════
                 // 2. GARMENT DETAILS
                 // ══════════════════════════════════════════════
                 SectionCard(
-                    title = "GARMENT DETAILS",
-                    action = {
-                        Row(
-                            modifier = Modifier.clickable { openGarmentDialog("", "") },
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Add,
-                                null,
-                                tint = Color(0xFF3B3BF9),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                "Add Category",
-                                fontSize = 13.sp,
-                                color = Color(0xFF3B3BF9),
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
+                    title = "Garment Details",
+                    expanded = expandedSection == "garment",
+                    onToggle = { expandedSection = if (expandedSection == "garment") "" else "garment" },
+                    action = { /* Add Category row */ }
                 ) {
                     Text(
                         "QUICK ADD CATEGORY",
@@ -1075,22 +1044,26 @@ fun CreateOrderScreen(
                 // ══════════════════════════════════════════════
                 // 3. DELIVERY DETAILS
                 // ══════════════════════════════════════════════
-                SectionCard(title = "DELIVERY DETAILS") {
+                SectionCard(
+                    title = "Delivery Details",
+                    expanded = expandedSection == "delivery",
+                    onToggle = { expandedSection = if (expandedSection == "delivery") "" else "delivery" }
+                ) {
                     FormLabel("Order Date")
                     DatePickerField(
-                        value = orderDate.ifEmpty { "Select Date" },
+                        value = orderDate.ifEmpty { "" },
                         onDateSelected = { orderDate = it }
                     )
                     Spacer(Modifier.height(4.dp))
                     FormLabel("Trial Date")
                     DatePickerField(
-                        value = trialDate.ifEmpty { "Select Date" },
+                        value = trialDate.ifEmpty { "" },
                         onDateSelected = { trialDate = it }
                     )
                     Spacer(Modifier.height(4.dp))
                     FormLabel("Target Delivery Date")
                     DatePickerField(
-                        value = deliveryDate.ifEmpty { "Select Date" },
+                        value = deliveryDate.ifEmpty { "" },
                         onDateSelected = { deliveryDate = it }
                     )
                     Spacer(Modifier.height(4.dp))
@@ -1105,70 +1078,31 @@ fun CreateOrderScreen(
 // var selectedBranchId by remember { mutableStateOf("") }
 
                     FormLabel("Assigned Branch")
-                    Box {
-                        // NOTE: adjust `b.name` below if BranchItem's display field is called
-                        // something else (e.g. b.branchName). `b.id` is assumed to be the
-                        // unique identifier field on BranchItem.
-                        val selectedBranchName = branches.find { it.id == selectedBranchId }?.name.orEmpty()
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                                .clickable { showBranchDropdown = true }
-                                .padding(horizontal = 14.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = when {
-                                    isLoadingBranches -> "Loading branches..."
-                                    selectedBranchName.isEmpty() -> "Select Branch"
-                                    else -> selectedBranchName
-                                },
-                                fontSize = 14.sp,
-                                color = if (selectedBranchName.isEmpty()) Color(0xFF9CA3AF) else Color(0xFF111827)
-                            )
-                            if (isLoadingBranches) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            } else {
-                                Icon(Icons.Default.KeyboardArrowDown, null, tint = Color(0xFF6B7280))
-                            }
-                        }
-                        DropdownMenu(
-                            expanded = showBranchDropdown && !isLoadingBranches,
-                            onDismissRequest = { showBranchDropdown = false },
-                            containerColor = Color.White
-                        ) {
-                            if (branches.isEmpty()) {
-                                DropdownMenuItem(
-                                    text = { Text("No branches found", color = Color(0xFF9CA3AF)) },
-                                    onClick = {},
-                                    enabled = false
-                                )
-                            } else {
-                                branches.forEach { b ->
-                                    val branchName = b.name.orEmpty()
-                                    val branchId = b.id
-                                    if (branchId.isNotBlank()) {
-                                        DropdownMenuItem(
-                                            text = { Text(branchName.ifBlank { "Unnamed Branch" }) },
-                                            onClick = {
-                                                selectedBranchId = branchId
-                                                showBranchDropdown = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    FormDropdown(
+                        label = "Assigned Branch",
+                        value = when {
+                            isLoadingBranches -> "Loading branches..."
+                            selectedBranchName.isEmpty() -> "Select Branch"
+                            else -> selectedBranchName
+                        },
+                        expanded = branchExpanded && !isLoadingBranches,
+                        onExpandChange = { branchExpanded = it },
+                        options = if (branches.isEmpty()) listOf("No branches found") else branchNameToId.keys.toList(),
+                        onOptionSelected = { selectedName ->
+                            branchNameToId[selectedName]?.let { id -> selectedBranchId = id }
+                        },
+                        isRequired = true
+                    )
                 }
 
                 // ══════════════════════════════════════════════
                 // 4. DESIGN REFERENCE (with Photo Upload)
                 // ══════════════════════════════════════════════
-                SectionCard(title = "DESIGN REFERENCE") {
+                SectionCard(
+                    title = "Design Reference",
+                    expanded = expandedSection == "design",
+                    onToggle = { expandedSection = if (expandedSection == "design") "" else "design" }
+                ) {
                     // ── Upload buttons ──
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1179,7 +1113,7 @@ fun CreateOrderScreen(
                             onClick = { showImagePickerOptions = true },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(
+                            border = BorderStroke(
                                 1.dp,
                                 Color(0xFFD1D5DB)
                             ),
@@ -1206,7 +1140,7 @@ fun CreateOrderScreen(
                             },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(
+                            border = BorderStroke(
                                 1.dp,
                                 Color(0xFFD1D5DB)
                             ),
@@ -1311,14 +1245,19 @@ fun CreateOrderScreen(
                 // ══════════════════════════════════════════════
                 // 5. INSTRUCTIONS
                 // ══════════════════════════════════════════════
-                SectionCard(title = "INSTRUCTIONS") {
+                SectionCard(
+                    title = "Instructions",
+                    expanded = expandedSection == "instructions",
+                    onToggle = { expandedSection = if (expandedSection == "instructions") "" else "instructions" }
+                ) {
                     FormLabel("Styling Notes")
                     OutlinedTextField(
                         value = stylingNotes,
                         onValueChange = { stylingNotes = it },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(100.dp),
+                            .height(100.dp)
+                            .background(Color.White),
                         placeholder = {
                             Text(
                                 "Special requirements, cutting instructions...",
@@ -1333,14 +1272,18 @@ fun CreateOrderScreen(
                             focusedContainerColor = Color.White
                         ),
                         shape = RoundedCornerShape(8.dp),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+                        textStyle = TextStyle(fontSize = 14.sp)
                     )
                 }
 
                 // ══════════════════════════════════════════════
                 // 6. VOICE INSTRUCTIONS
                 // ══════════════════════════════════════════════
-                SectionCard(title = "VOICE INSTRUCTIONS") {
+                SectionCard(
+                    title = "Voice Instructions",
+                    expanded = expandedSection == "voice",
+                    onToggle = { expandedSection = if (expandedSection == "voice") "" else "voice" }
+                ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1411,13 +1354,31 @@ fun CreateOrderScreen(
 
             // ── Garment Detail Dialog ──
             if (showGarmentDialog) {
-                GarmentDetailDialog(
-                    garment = tempGarment,
-                    categories = quickCategories,
-                    onGarmentChange = { tempGarment = it },
-                    onSave = { saveGarment() },
-                    onDismiss = { showGarmentDialog = false }
-                )
+                ModalBottomSheet(
+                    onDismissRequest = { showGarmentDialog = false },
+                    sheetState = rememberModalBottomSheetState(
+                        skipPartiallyExpanded = true,
+                        confirmValueChange = { true }
+                    ),
+                    containerColor = Color.White,
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    dragHandle = {
+                        BottomSheetDefaults.DragHandle(
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                ) {
+                    InlineGarmentPanel(
+                        garment = tempGarment,
+                        categories = quickCategories,
+                        onGarmentChange = { tempGarment = it },
+                        onSave = {
+                            saveGarment()
+                            showGarmentDialog = false
+                        },
+                        onCancel = { showGarmentDialog = false }
+                    )
+                }
             }
 
             // ── Previous Measurements Import Dialog ──
@@ -1518,7 +1479,7 @@ fun PreviousMeasurementsDialog(
                             shape = RoundedCornerShape(10.dp),
                             colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
                             elevation = CardDefaults.cardElevation(0.dp),
-                            border = androidx.compose.foundation.BorderStroke(
+                            border = BorderStroke(
                                 1.dp,
                                 Color(0xFFE5E7EB)
                             )
@@ -1704,7 +1665,7 @@ fun PreviousMeasurementsDialog(
                             .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(8.dp),
-                        border = androidx.compose.foundation.BorderStroke(
+                        border = BorderStroke(
                             1.dp,
                             Color(0xFFE5E7EB)
                         )
@@ -1753,131 +1714,141 @@ fun PreviousMeasurementsDialog(
 // GARMENT DETAIL DIALOG
 // ─────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────
+// GARMENT DETAIL PANEL - EXACT DESIGN FROM SCREENSHOTS
+// ─────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
+// GARMENT DETAIL PANEL - ALL FIELDS WITH FORM DROPDOWNS
+// ─────────────────────────────────────────────────────────────
+
 @Composable
-fun GarmentDetailDialog(
+private fun InlineGarmentPanel(
     garment: SelectedGarment,
     categories: List<Pair<String, String>>,
     onGarmentChange: (SelectedGarment) -> Unit,
     onSave: () -> Unit,
-    onDismiss: () -> Unit
+    onCancel: () -> Unit
 ) {
     val priorityOptions = listOf("Low", "Medium", "High", "Urgent")
     val fabricSourceOptions = listOf("In-House", "Client")
-    val patternOptions = listOf("Solid", "Striped", "Checked", "Printed", "Plain")
-
+    val fabricTypeOptions = listOf("Cotton", "Polyester", "Silk", "Wool", "Linen", "Denim", "Satin", "Velvet", "Jersey", "Chiffon")
+    val patternOptions = listOf("Solid", "Striped", "Checked", "Printed", "Plain", "Plaid", "Floral")
     val availableModels = listOf(
-        GarmentModel("1", "Ankle Fit"),
-        GarmentModel("2", "Mom Fit")
+        GarmentModel("1", "Slim Fit"),
+        GarmentModel("2", "Shirt")
     )
 
-    var selectedModels by remember(garment.id) {
-        mutableStateOf(garment.models.toMutableList())
-    }
+    // ── Dropdown states ──
+    var priorityExpanded by remember { mutableStateOf(false) }
+    var fabricTypeExpanded by remember { mutableStateOf(false) }
+    var patternExpanded by remember { mutableStateOf(false) }
 
-    // ── Measurements state (driven by selected models) ──
+    var selectedModels by remember(garment.id) { mutableStateOf(garment.models.toMutableList()) }
     var measurements by remember(garment.id) {
         mutableStateOf(
-            if (garment.measurements.isNotEmpty()) {
-                garment.measurements.map { m ->
-                    MeasurementField(id = m.id.ifBlank { m.label }, label = m.label, value = m.value, unit = m.unit)
-                }
-            } else {
-                defaultMeasurementsFor(selectedModels)
-            }
+            if (garment.measurements.isNotEmpty())
+                garment.measurements.map { m -> MeasurementField(id = m.id.ifBlank { m.label }, label = m.label, value = m.value, unit = m.unit) }
+            else defaultMeasurementsFor(selectedModels)
         )
     }
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+
+    // ── nested accordion state ──
+    var subSection by remember { mutableStateOf("basic") }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Card(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentHeight()
-                .padding(horizontal = 12.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                .padding(20.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+            // ── Header ──
+            Text(
+                "ADD NEW GARMENT",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111827),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(20.dp))
+
+            // ── Basic Information ──
+            GarmentSubSection(
+                icon = Icons.Default.Info,
+                label = "Basic Information",
+                expanded = subSection == "basic",
+                onToggle = { subSection = if (subSection == "basic") "" else "basic" }
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            "Add New Garment",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
-                        )
-                        Text(
-                            "CONFIGURE DETAILS",
-                            fontSize = 11.sp,
-                            color = Color(0xFF9CA3AF),
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.8.sp
-                        )
-                    }
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Close, null, tint = Color(0xFF9CA3AF))
-                    }
-                }
-
-                HorizontalDivider(color = Color(0xFFE5E7EB))
-                Text(
-                    "BASIC INFORMATION",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827),
-                    letterSpacing = 0.5.sp
-                )
-
+                // ── Garment Type - Using FormDropdown ──
                 FormLabel("Garment Type")
-                GarmentTypeSelector(
-                    selectedCategoryId = garment.category,
-                    categories = categories,
-                    onGarmentTypeChange = { newName, newId ->
-                        onGarmentChange(garment.copy(categoryName = newName, category = newId))
-                    }
+                FormDropdown(
+                    label = "Garment Type",
+                    value = garment.categoryName.ifEmpty { "Select Garment Type" },
+                    expanded = false, // Using the category selector below instead
+                    onExpandChange = {},
+                    options = categories.map { it.first },
+                    onOptionSelected = { selectedName ->
+                        categories.find { it.first == selectedName }?.let {
+                            onGarmentChange(garment.copy(categoryName = it.first, category = it.second))
+                        }
+                    },
+                    isRequired = true
                 )
 
+                Spacer(Modifier.height(16.dp))
+
+                // ── Quantity - Using FormDropdown ──
                 FormLabel("Quantity")
-                QuantitySelector(
-                    quantity = garment.quantity,
-                    onQuantityChange = { newQty -> onGarmentChange(garment.copy(quantity = newQty)) }
+                FormDropdown(
+                    label = "Quantity",
+                    value = garment.quantity.toString(),
+                    expanded = false, // Using the quantity selector below instead
+                    onExpandChange = {},
+                    options = (1..10).map { it.toString() },
+                    onOptionSelected = { selected ->
+                        onGarmentChange(garment.copy(quantity = selected.toInt()))
+                    },
+                    isRequired = true
                 )
 
+                Spacer(Modifier.height(16.dp))
+
+                // ── Priority - Using FormDropdown ──
                 FormLabel("Priority")
-                PrioritySelector(
-                    selectedPriority = garment.priority,
+                FormDropdown(
+                    label = "Priority",
+                    value = garment.priority.ifEmpty { "Select Priority" },
+                    expanded = priorityExpanded,
+                    onExpandChange = { priorityExpanded = it },
                     options = priorityOptions,
-                    onPriorityChange = { newPriority ->
-                        onGarmentChange(garment.copy(priority = newPriority))
-                    }
+                    onOptionSelected = { selected ->
+                        onGarmentChange(garment.copy(priority = selected))
+                    },
+                    isRequired = true
                 )
 
+                Spacer(Modifier.height(16.dp))
+
+                // Trial Required
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Switch(
                         checked = garment.trialRequired,
-                        onCheckedChange = { isChecked ->
-                            onGarmentChange(garment.copy(trialRequired = isChecked))
-                        },
+                        onCheckedChange = { onGarmentChange(garment.copy(trialRequired = it)) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF3B3BF9),
-                            uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = Color(0xFFD1D5DB)
+                            checkedTrackColor = Color(0xFF3B3BF9)
                         )
                     )
                     Column {
@@ -1887,90 +1858,99 @@ fun GarmentDetailDialog(
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF374151)
                         )
-                        Text("Schedule fitting?", fontSize = 12.sp, color = Color(0xFF9CA3AF))
-                    }
-                }
-
-                HorizontalDivider(color = Color(0xFFE5E7EB))
-                Text(
-                    "FABRIC DETAILS",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827),
-                    letterSpacing = 0.5.sp
-                )
-
-                FormLabel("Fabric Source")
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    fabricSourceOptions.forEach { option ->
-                        FilterChip(
-                            selected = garment.fabricSource == option,
-                            onClick = { onGarmentChange(garment.copy(fabricSource = option)) },
-                            label = { Text(option, fontSize = 13.sp) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFEEF2FF),
-                                selectedLabelColor = Color(0xFF3B3BF9)
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = garment.fabricSource == option,
-                                borderColor = Color(0xFFE5E7EB),
-                                selectedBorderColor = Color(0xFF3B3BF9)
-                            )
+                        Text(
+                            "Schedule fitting?",
+                            fontSize = 12.sp,
+                            color = Color(0xFF9CA3AF)
                         )
                     }
                 }
+            }
 
-                FormLabel("Fabric Type")
-                FormTextField(
-                    value = garment.fabricType,
-                    onValueChange = { newValue -> onGarmentChange(garment.copy(fabricType = newValue)) },
-                    placeholder = "e.g. Cotton"
+            // ── Fabric Details ──
+            GarmentSubSection(
+                icon = Icons.Default.Description,
+                label = "Fabric Details",
+                expanded = subSection == "fabric",
+                onToggle = { subSection = if (subSection == "fabric") "" else "fabric" }
+            ) {
+                // ── Fabric Source - Using FormDropdown ──
+                FormLabel("Fabric Source")
+                FormDropdown(
+                    label = "Fabric Source",
+                    value = garment.fabricSource.ifEmpty { "Select Source" },
+                    expanded = false, // Using chips below instead
+                    onExpandChange = {},
+                    options = fabricSourceOptions,
+                    onOptionSelected = { selected ->
+                        onGarmentChange(garment.copy(fabricSource = selected))
+                    },
+                    isRequired = true
                 )
 
+                Spacer(Modifier.height(16.dp))
+
+                // ── Fabric Type - Using FormDropdown ──
+                FormLabel("Fabric Type")
+                FormDropdown(
+                    label = "Fabric Type",
+                    value = garment.fabricType.ifEmpty { "Select Fabric" },
+                    expanded = fabricTypeExpanded,
+                    onExpandChange = { fabricTypeExpanded = it },
+                    options = fabricTypeOptions,
+                    onOptionSelected = { selected ->
+                        onGarmentChange(garment.copy(fabricType = selected))
+                    },
+                    isRequired = true
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                // ── Color / Tone ──
                 FormLabel("Color / Tone")
                 ColorPickerField(
                     value = garment.colorTone,
-                    onColorSelected = { hex -> onGarmentChange(garment.copy(colorTone = hex)) }
+                    onColorSelected = { onGarmentChange(garment.copy(colorTone = it)) }
                 )
 
+                Spacer(Modifier.height(16.dp))
+
+                // ── Pattern - Using FormDropdown ──
                 FormLabel("Pattern")
-                PatternSelector(
-                    selectedPattern = garment.pattern,
+                FormDropdown(
+                    label = "Pattern",
+                    value = garment.pattern.ifEmpty { "Select Pattern" },
+                    expanded = patternExpanded,
+                    onExpandChange = { patternExpanded = it },
                     options = patternOptions,
-                    onPatternChange = { newPattern -> onGarmentChange(garment.copy(pattern = newPattern)) }
+                    onOptionSelected = { selected ->
+                        onGarmentChange(garment.copy(pattern = selected))
+                    },
+                    isRequired = true
                 )
+            }
 
-                HorizontalDivider(color = Color(0xFFE5E7EB))
-                Text(
-                    "MODELS",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827),
-                    letterSpacing = 0.5.sp
-                )
-
+            // ── Models ──
+            GarmentSubSection(
+                icon = Icons.Default.RadioButtonUnchecked,
+                label = "Models",
+                expanded = subSection == "models",
+                onToggle = { subSection = if (subSection == "models") "" else "models" }
+            ) {
                 ModelGridSelector(
                     models = availableModels,
                     selectedModels = selectedModels,
                     onModelToggle = { modelName ->
                         val wasEmpty = selectedModels.isEmpty()
-
                         if (selectedModels.contains(modelName)) {
-                            // tapping the already-selected model deselects it
                             selectedModels.clear()
                         } else {
-                            // ✅ single-select: clear any previous pick before adding the new one
-                            //    (Ankle Fit ↔ Mom Fit are now mutually exclusive)
                             selectedModels.clear()
                             selectedModels.add(modelName)
                         }
-
-                        // Auto-populate measurement fields the first time a model is picked
                         if (wasEmpty && selectedModels.isNotEmpty() && measurements.isEmpty()) {
                             measurements = defaultMeasurementsFor(selectedModels)
                         }
-                        // Clear measurements if no model is selected anymore
                         if (selectedModels.isEmpty()) {
                             measurements = emptyList()
                         }
@@ -1978,14 +1958,12 @@ fun GarmentDetailDialog(
                     }
                 )
 
-                // ── MEASUREMENTS SECTION (shows only after a model is selected) ──
                 if (selectedModels.isNotEmpty()) {
-                    HorizontalDivider(color = Color(0xFFE5E7EB))
+                    Spacer(Modifier.height(16.dp))
                     MeasurementsSection(
                         measurements = measurements,
                         onMeasurementsChange = { updated ->
                             measurements = updated
-                            // ✅ persist into the garment -> Room DB
                             onGarmentChange(
                                 garment.copy(
                                     measurements = updated.map { m ->
@@ -2001,52 +1979,117 @@ fun GarmentDetailDialog(
                         }
                     )
                 }
-                Spacer(Modifier.height(8.dp))
+            }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+            Spacer(Modifier.height(24.dp))
+
+            // ── Action Buttons ──
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color.White
+                    )
                 ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB))
-                    ) {
-                        Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.Medium)
-                    }
-                    Button(
-                        onClick = onSave,
-                        modifier = Modifier
-                            .weight(2f)
-                            .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Apply", color = Color.White, fontWeight = FontWeight.SemiBold)
-                    }
+                    Text(
+                        "Cancel",
+                        color = Color(0xFF374151),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Button(
+                    onClick = onSave,
+                    modifier = Modifier
+                        .weight(2f)
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF3B3BF9)
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        "Apply",
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
     }
 }
 
-// ── Default measurement fields per selected model(s) ──
-// Customize this if different models need different measurement sets.
-private fun defaultMeasurementsFor(modelNames: List<String>): List<MeasurementField> {
-    if (modelNames.isEmpty()) return emptyList()
-    return listOf(
-        MeasurementField(id = "chest", label = "Chest"),
-        MeasurementField(id = "sleeve_length", label = "Sleeve Length")
+// ── Reusable Sub-Section Component ──
+@Composable
+private fun GarmentSubSection(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val chevronRotation by androidx.compose.animation.core.animateFloatAsState(
+        if (expanded) 180f else 0f,
+        label = "sub_chevron"
     )
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggle() }
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = Color(0xFF3B3BF9),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    label,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF3B3BF9)
+                )
+            }
+            Icon(
+                Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = Color(0xFF3B3BF9),
+                modifier = Modifier
+                    .size(24.dp)
+                    .rotate(chevronRotation)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column(modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)) {
+                content()
+            }
+        }
+
+        HorizontalDivider(color = Color(0xFFE5E7EB))
+    }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Reusable Components
-// ─────────────────────────────────────────────────────────────
-
+// ── Model Grid Selector ──
 @Composable
 private fun ModelGridSelector(
     models: List<GarmentModel>,
@@ -2054,11 +2097,11 @@ private fun ModelGridSelector(
     onModelToggle: (String) -> Unit
 ) {
     val rows = models.chunked(2)
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         rows.forEach { rowModels ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 rowModels.forEach { model ->
                     val isSelected = selectedModels.contains(model.name)
@@ -2094,7 +2137,6 @@ private fun ModelGridSelector(
                         )
                     }
                 }
-                // pad odd-count last row so card width stays consistent
                 if (rowModels.size == 1) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
@@ -2103,6 +2145,7 @@ private fun ModelGridSelector(
     }
 }
 
+// ── Measurements Section ──
 @Composable
 private fun MeasurementsSection(
     measurements: List<MeasurementField>,
@@ -2110,10 +2153,10 @@ private fun MeasurementsSection(
 ) {
     val unitOptions = listOf("inch", "cm")
 
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             "MEASUREMENTS",
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF3B3BF9),
             letterSpacing = 0.5.sp
@@ -2143,7 +2186,7 @@ private fun MeasurementsSection(
                     updated.removeAt(index)
                     onMeasurementsChange(updated)
                 },
-                removable = index >= 2 // keep first two (Chest, Sleeve Length) non-removable
+                removable = index >= 2
             )
 
             if (index != measurements.lastIndex) {
@@ -2167,6 +2210,7 @@ private fun MeasurementsSection(
     }
 }
 
+// ── Measurement Row ──
 @Composable
 private fun MeasurementRow(
     field: MeasurementField,
@@ -2181,39 +2225,40 @@ private fun MeasurementRow(
     var isEditingLabel by remember { mutableStateOf(false) }
     var labelDraft by remember(field.id) { mutableStateOf(field.label) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isEditingLabel) {
-                OutlinedTextField(
-                    value = labelDraft,
-                    onValueChange = { labelDraft = it },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    textStyle = androidx.compose.ui.text.TextStyle(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = Color(0xFFE5E7EB),
-                        focusedBorderColor = Color(0xFF3B3BF9)
+                Row(modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = labelDraft,
+                        onValueChange = { labelDraft = it },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = Color(0xFFE5E7EB),
+                            focusedBorderColor = Color(0xFF3B3BF9)
+                        )
                     )
-                )
-                Icon(
-                    Icons.Default.Check,
-                    null,
-                    tint = Color(0xFF16A34A),
-                    modifier = Modifier
-                        .size(18.dp)
-                        .clickable {
-                            onLabelChange(labelDraft)
-                            isEditingLabel = false
-                        }
-                )
+                    Icon(
+                        Icons.Default.Check,
+                        null,
+                        tint = Color(0xFF16A34A),
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clickable {
+                                onLabelChange(labelDraft)
+                                isEditingLabel = false
+                            }
+                    )
+                }
             } else {
                 Text(
                     field.label,
@@ -2235,7 +2280,11 @@ private fun MeasurementRow(
             }
         }
 
-        Text("Number", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+        Text(
+            "Number",
+            fontSize = 11.sp,
+            color = Color(0xFF9CA3AF)
+        )
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -2250,7 +2299,13 @@ private fun MeasurementRow(
                     }
                 },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("0.0", color = Color(0xFF9CA3AF), fontSize = 14.sp) },
+                placeholder = {
+                    Text(
+                        "0.0",
+                        color = Color(0xFF9CA3AF),
+                        fontSize = 14.sp
+                    )
+                },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = Color(0xFFE5E7EB),
@@ -2259,7 +2314,7 @@ private fun MeasurementRow(
                     focusedContainerColor = Color.White
                 ),
                 shape = RoundedCornerShape(8.dp),
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+                textStyle = TextStyle(fontSize = 14.sp)
             )
 
             Box {
@@ -2272,7 +2327,11 @@ private fun MeasurementRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(field.unit, fontSize = 14.sp, color = Color(0xFF111827))
+                    Text(
+                        field.unit,
+                        fontSize = 14.sp,
+                        color = Color(0xFF111827)
+                    )
                     Icon(
                         Icons.Default.KeyboardArrowDown,
                         null,
@@ -2288,13 +2347,25 @@ private fun MeasurementRow(
                     unitOptions.forEach { opt ->
                         DropdownMenuItem(
                             text = { Text(opt) },
-                            onClick = { onUnitChange(opt); showUnitDropdown = false }
+                            onClick = {
+                                onUnitChange(opt)
+                                showUnitDropdown = false
+                            }
                         )
                     }
                 }
             }
         }
     }
+}
+
+// ── Default Measurements ──
+private fun defaultMeasurementsFor(modelNames: List<String>): List<MeasurementField> {
+    if (modelNames.isEmpty()) return emptyList()
+    return listOf(
+        MeasurementField(id = "chest", label = "Chest"),
+        MeasurementField(id = "sleeve_length", label = "Sleeve Length")
+    )
 }
 
 @Composable
@@ -2330,34 +2401,62 @@ private fun PatternSelector(
 @Composable
 private fun SectionCard(
     title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
     action: @Composable (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val chevronRotation by androidx.compose.animation.core.animateFloatAsState(
+        if (expanded) 180f else 0f, label = "section_chevron"
+    )
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White)
-            .padding(horizontal = 16.dp, vertical = 16.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggle() }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 title,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827),
-                letterSpacing = 0.8.sp
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF111827)
             )
-            action?.invoke()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                action?.invoke()
+                Icon(
+                    Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = Color(0xFF6B7280),
+                    modifier = Modifier
+                        .size(20.dp)
+                        .rotate(chevronRotation)
+                )
+            }
         }
-        Spacer(Modifier.height(16.dp))
-        content()
+        androidx.compose.animation.AnimatedVisibility(
+            visible = expanded,
+            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
+            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 16.dp)
+            ) {
+                content()
+            }
+        }
     }
+    HorizontalDivider(color = Color(0xFFF0F0F0))
 }
-
 @Composable
 private fun FormLabel(text: String) {
     Text(
@@ -2388,7 +2487,7 @@ private fun FormTextField(
         ),
         shape = RoundedCornerShape(8.dp),
         singleLine = true,
-        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+        textStyle = TextStyle(fontSize = 14.sp)
     )
 }
 

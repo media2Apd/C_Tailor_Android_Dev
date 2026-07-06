@@ -2,11 +2,11 @@ package com.cuso.mobile.view.home
 
 import androidx.compose.runtime.*
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.cuso.mobile.view.home.sales.CreateOrderScreen
+import com.cuso.mobile.view.home.sales.sales_order.CreateOrderScreen
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
-import com.cuso.mobile.view.home.sales.CreateOrderNextStep
-import com.cuso.mobile.view.home.sales.OrderReviewData
+import com.cuso.mobile.view.home.sales.sales_order.CreateOrderNextStep
+import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 
 /**
  * This wraps BOTH screens and holds the data that needs to flow

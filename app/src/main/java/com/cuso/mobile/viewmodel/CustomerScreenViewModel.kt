@@ -1,9 +1,11 @@
 package com.cuso.mobile.viewmodel
 
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.CustomerItem
+import com.cuso.mobile.model.CustomerViewAddress
+import com.cuso.mobile.model.CustomerViewData
+import com.cuso.mobile.model.UpdateCustomerRequest
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +20,10 @@ class CustomerViewModel @Inject constructor(
     private val repository: SalesRepository
 ) : ViewModel() {
 
+    // ─────────────────────────────────────────────
+    // LIST STATE (Customer list screen)
+    // ─────────────────────────────────────────────
+
     private val _uiState = MutableStateFlow<CustomerUiState>(CustomerUiState.Loading)
     val uiState: StateFlow<CustomerUiState> = _uiState.asStateFlow()
 
@@ -26,6 +32,9 @@ class CustomerViewModel @Inject constructor(
     private var currentSearch: String? = null
     private var currentType: String? = null
 
+
+    private val _deleteState = MutableStateFlow<CustomerDeleteState>(CustomerDeleteState.Idle)
+    val deleteState: StateFlow<CustomerDeleteState> = _deleteState.asStateFlow()
     init {
         loadCustomers()
     }
@@ -95,9 +104,157 @@ class CustomerViewModel @Inject constructor(
     fun refresh() {
         loadCustomers(page = 1)
     }
+
+    // ─────────────────────────────────────────────
+    // DETAIL / VIEW / EDIT STATE (Customer detail screen)
+    // ─────────────────────────────────────────────
+
+    private val _detailState = MutableStateFlow<CustomerDetailUiState>(CustomerDetailUiState.Loading)
+    val detailState: StateFlow<CustomerDetailUiState> = _detailState.asStateFlow()
+
+    private val _formState = MutableStateFlow(CustomerFormState())
+    val formState: StateFlow<CustomerFormState> = _formState.asStateFlow()
+
+    private val _updateState = MutableStateFlow<CustomerUpdateState>(CustomerUpdateState.Idle)
+    val updateState: StateFlow<CustomerUpdateState> = _updateState.asStateFlow()
+
+    // Keep the original response so we can re-send fields the form doesn't edit
+    // (organizationId, createdAt, referralCount, totalSpend, pendingPayment, __v, etc.)
+    private var originalCustomer: CustomerViewData? = null
+
+    /**
+     * Called when View or Edit is tapped on the list screen.
+     * Fetches the "view-one" style response and populates the editable form
+     * (Personal Information step) with it. Other wizard steps stay static.
+     */
+    fun loadCustomerDetail(id: String) {
+        viewModelScope.launch {
+            _detailState.update { CustomerDetailUiState.Loading }
+            _updateState.update { CustomerUpdateState.Idle }
+
+            val result = repository.getCustomerView(id)
+
+            result.fold(
+                onSuccess = { data ->
+                    originalCustomer = data
+                    _formState.update {
+                        CustomerFormState(
+                            type = data.type,
+                            name = data.name,
+                            mobile = data.mobile,
+                            status = data.status,
+                            addressLine = data.address?.addressLine ?: "",
+                            city = data.address?.city ?: "",
+                            pincode = data.address?.pincode ?: ""
+                        )
+                    }
+                    _detailState.update { CustomerDetailUiState.Success(data) }
+                },
+                onFailure = { error ->
+                    _detailState.update {
+                        CustomerDetailUiState.Error(error.message ?: "Failed to load customer")
+                    }
+                }
+            )
+        }
+    }
+
+    // ── Form field updates (bind these to your TextFields in Step 1) ──
+
+    fun onTypeChange(value: String) = _formState.update { it.copy(type = value) }
+    fun onNameChange(value: String) = _formState.update { it.copy(name = value) }
+    fun onMobileChange(value: String) = _formState.update { it.copy(mobile = value) }
+    fun onStatusChange(value: String) = _formState.update { it.copy(status = value) }
+    fun onAddressLineChange(value: String) = _formState.update { it.copy(addressLine = value) }
+    fun onCityChange(value: String) = _formState.update { it.copy(city = value) }
+    fun onPincodeChange(value: String) = _formState.update { it.copy(pincode = value) }
+
+    /**
+     * Called when Update button (Step 5) is tapped.
+     * Builds the payload from the current form state + original untouched
+     * fields, sends it to the update API, and emits success/error.
+     */
+    fun updateCustomer(id: String) {
+        val original = originalCustomer
+        if (original == null) {
+            _updateState.update { CustomerUpdateState.Error("Customer not loaded") }
+            return
+        }
+
+        val form = _formState.value
+
+        val request = UpdateCustomerRequest(
+            type = form.type,
+            name = form.name,
+            mobile = form.mobile,
+            status = form.status,
+            address = CustomerViewAddress(
+                addressLine = form.addressLine,
+                city = form.city,
+                pincode = form.pincode
+            ),
+            referralCount = original.referralCount ?: 0,
+            totalSpend = original.totalSpend ?: 0,
+            pendingPayment = original.pendingPayment ?: 0,
+            _id = original._id,
+            organizationId = original.organizationId,
+            createdAt = original.createdAt,
+            updatedAt = original.updatedAt,
+            __v = original.__v
+        )
+
+        viewModelScope.launch {
+            _updateState.update { CustomerUpdateState.Loading }
+
+            val result = repository.updateCustomer(id, request)
+
+            result.fold(
+                onSuccess = { updatedData ->
+                    originalCustomer = updatedData
+                    _detailState.update { CustomerDetailUiState.Success(updatedData) }
+                    _updateState.update { CustomerUpdateState.Success(updatedData) }
+                },
+                onFailure = { error ->
+                    _updateState.update {
+                        CustomerUpdateState.Error(error.message ?: "Failed to update customer")
+                    }
+                }
+            )
+        }
+    }
+
+    fun deleteCustomer(id: String) {
+        viewModelScope.launch {
+            _deleteState.update { CustomerDeleteState.Loading }
+
+            val result = repository.deleteCustomer(id)
+
+            result.fold(
+                onSuccess = {
+                    _deleteState.update { CustomerDeleteState.Success }
+                    refresh()   // reload the list so the deleted row disappears
+                },
+                onFailure = { error ->
+                    _deleteState.update {
+                        CustomerDeleteState.Error(error.message ?: "Failed to delete customer")
+                    }
+                }
+            )
+        }
+    }
+
+    fun resetUpdateState() {
+        _updateState.update { CustomerUpdateState.Idle }
+    }
+    fun resetDeleteState() {
+        _deleteState.update { CustomerDeleteState.Idle }
+    }
 }
 
-// Placeholder UI-state contracts — wire these to your real CustomerViewModel
+// ─────────────────────────────────────────────
+// UI STATE CONTRACTS
+// ─────────────────────────────────────────────
+
 sealed class CustomerUiState {
     data object Loading : CustomerUiState()
     data class Success(
@@ -106,4 +263,34 @@ sealed class CustomerUiState {
         val totalPages: Int
     ) : CustomerUiState()
     data class Error(val message: String) : CustomerUiState()
+}
+
+sealed class CustomerDetailUiState {
+    data object Loading : CustomerDetailUiState()
+    data class Success(val customer: CustomerViewData) : CustomerDetailUiState()
+    data class Error(val message: String) : CustomerDetailUiState()
+}
+
+sealed class CustomerUpdateState {
+    data object Idle : CustomerUpdateState()
+    data object Loading : CustomerUpdateState()
+    data class Success(val customer: CustomerViewData) : CustomerUpdateState()
+    data class Error(val message: String) : CustomerUpdateState()
+}
+
+data class CustomerFormState(
+    val type: String = "individual",
+    val name: String = "",
+    val mobile: String = "",
+    val status: String = "Active",
+    val addressLine: String = "",
+    val city: String = "",
+    val pincode: String = ""
+)
+
+sealed class CustomerDeleteState {
+    data object Idle : CustomerDeleteState()
+    data object Loading : CustomerDeleteState()
+    data object Success : CustomerDeleteState()
+    data class Error(val message: String) : CustomerDeleteState()
 }

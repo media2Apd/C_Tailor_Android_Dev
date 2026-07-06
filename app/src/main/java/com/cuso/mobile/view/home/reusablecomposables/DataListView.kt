@@ -86,7 +86,8 @@ data class DataCardField(
     val painter: Painter? = null,
     val text: String,
     val textColor: Color = Color(0xFF374151),
-    val iconTint: Color = Color(0xFF9CA3AF)
+    val iconTint: Color = Color(0xFF9CA3AF),
+    val label: String? = null   // ✅ NEW — when set + footerAsRows=true, renders "label   value" instead of icon+text
 )
 
 data class DataCardBadge(
@@ -184,9 +185,11 @@ fun <T> DataCard(
     dateText: String? = null,
     dateIcon: ImageVector = Icons.Default.CalendarMonth,
     badge: DataCardBadge? = null,
+    badgeInline: Boolean = false,          // ✅ NEW — default false = old behavior (badge in top row). true = badge sits next to title.
     title: String,
     subtitle: String? = null,
     footerFields: List<DataCardField> = emptyList(),
+    footerAsRows: Boolean = false,         // ✅ NEW — default false = old icon+text footer. true = "label   value" rows like image 1.
     actions: List<MenuAction> = emptyList(),
     onClick: ((T) -> Unit)? = null
 ) {
@@ -200,7 +203,9 @@ fun <T> DataCard(
         Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
 
             // ── Top row: date (left) + status badge (right) — both optional ──
-            if (dateText != null || badge != null) {
+            // ── Top row: date (left) + status badge (right) — both optional ──
+            val showBadgeInTopRow = badge != null && !badgeInline   // ✅ NEW guard
+            if (dateText != null || showBadgeInTopRow) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -215,11 +220,11 @@ fun <T> DataCard(
                     } else {
                         Spacer(Modifier.width(1.dp))
                     }
-                    if (badge != null) {
+                    if (showBadgeInTopRow) {
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(badge.color.copy(alpha = 0.14f))
+                                .background(badge!!.color.copy(alpha = 0.14f))
                                 .padding(horizontal = 20.dp, vertical = 0.dp)
                         ) {
                             Text(badge.text, fontSize = 10.sp, color = badge.color, fontWeight = FontWeight.SemiBold)
@@ -285,28 +290,53 @@ fun <T> DataCard(
                     }
                 }
 
+                // ✅ NEW — inline badge next to title (only used when badgeInline=true)
+                if (badge != null && badgeInline) {
+                    Box(
+                        modifier = Modifier
+                            .background(badge.color.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        Text(badge.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = badge.color)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                }
+
                 if (actions.isNotEmpty()) {
                     ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = actions)
                 }
             }
 
             // ── Footer: any number of icon+text rows, fully dynamic per page ──
+            // ── Footer: any number of icon+text rows, fully dynamic per page ──
             if (footerFields.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(if (footerAsRows) 3.dp else 4.dp)) {
                     footerFields.forEach { field ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            when {
-                                field.icon != null -> {
-                                    Icon(field.icon, contentDescription = null, tint = field.iconTint, modifier = Modifier.size(14.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                }
-                                field.painter != null -> {
-                                    Icon(field.painter, contentDescription = null, tint = field.iconTint, modifier = Modifier.size(14.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                }
+                        if (footerAsRows) {
+                            // ✅ NEW — "label        value" row style (image 1 design)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(field.label ?: "", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                                Text(field.text, fontSize = 13.sp, color = field.textColor, fontWeight = FontWeight.Medium)
                             }
-                            Text(field.text, fontSize = 13.sp, color = field.textColor, fontWeight = FontWeight.Medium)
+                        } else {
+                            // existing icon+text style — unchanged for all other pages
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                when {
+                                    field.icon != null -> {
+                                        Icon(field.icon, contentDescription = null, tint = field.iconTint, modifier = Modifier.size(14.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                    }
+                                    field.painter != null -> {
+                                        Icon(field.painter, contentDescription = null, tint = field.iconTint, modifier = Modifier.size(14.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                    }
+                                }
+                                Text(field.text, fontSize = 13.sp, color = field.textColor, fontWeight = FontWeight.Medium)
+                            }
                         }
                     }
                 }

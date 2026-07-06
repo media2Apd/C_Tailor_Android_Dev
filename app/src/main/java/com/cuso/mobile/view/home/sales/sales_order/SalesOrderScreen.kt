@@ -1,13 +1,11 @@
-package com.cuso.mobile.view.home.sales
+package com.cuso.mobile.view.home.sales.sales_order
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -20,22 +18,18 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.cuso.mobile.model.OrderItem
-import com.cuso.mobile.view.home.reusablecomposables.ActionDropdownMenu
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
 import com.cuso.mobile.viewmodel.OrderActionState
 import com.cuso.mobile.viewmodel.OrderUiState
 import com.cuso.mobile.viewmodel.SalesOrderViewModel
@@ -66,6 +60,7 @@ fun SalesOrderScreen(
     var page by remember { mutableStateOf(1) }
     var itemsPerPage by remember { mutableStateOf(10) }
     var showStatusDropdown by remember { mutableStateOf(false) }
+
 
     LaunchedEffect(page, itemsPerPage, statusFilter, searchQuery) {
         viewModel.fetchOrders(
@@ -126,25 +121,28 @@ fun SalesOrderScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            modifier = Modifier.size(22.dp).clickable { onBack() },
-                            tint = Color(0xFF111827)
-                        )
+
                         Text("Sales Orders", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+
                     }
-                    if (total > 0) {
-                        Surface(color = Color(0xFFEEF2FF), shape = RoundedCornerShape(20.dp)) {
-                            Text(
-                                "$total orders",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                fontSize = 12.sp,
-                                color = Color(0xFF3B3BF9),
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
+//                    if (total > 0) {
+//                        Surface(color = Color(0xFFEEF2FF), shape = RoundedCornerShape(20.dp)) {
+//                            Text(
+//                                "$total orders",
+//                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+//                                fontSize = 12.sp,
+//                                color = Color(0xFF3B3BF9),
+//                                fontWeight = FontWeight.SemiBold
+//                            )
+//                        }
+//                    }
+                    Spacer(Modifier.width(8.dp))
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "close",
+                        modifier = Modifier.size(22.dp).clickable { onBack() },
+                        tint = Color(0xFF111827)
+                    )
                 }
             }
 
@@ -293,16 +291,24 @@ fun SalesOrderScreen(
                                         val garmentNames = order.garments.joinToString(", ") { it.categoryName }.ifEmpty { "—" }
                                         DataCard(
                                             item = order,
+                                            image = DataCardImage(
+                                                vector = Icons.Default.Checkroom,
+                                                size = 50.dp,
+                                                backgroundColor = Color.Transparent,
+                                                tint = Color(0xFF9CA3AF)
+                                            ),
                                             badge = DataCardBadge(
                                                 text = order.status?.replaceFirstChar { it.uppercase() } ?: "—",
                                                 color = statusTextColor
                                             ),
+                                            badgeInline = true,                      // ✅ badge next to title, like Customer screen
                                             title = order.orderNumber,
                                             subtitle = order.customerId?.name ?: "Unknown",
+                                            footerAsRows = true,                     // ✅ "label   value" rows, like Customer screen
                                             footerFields = listOf(
-                                                DataCardField(icon = Icons.Default.Checkroom, text = garmentNames),
-                                                DataCardField(icon = Icons.Default.CalendarMonth, text = "Delivery: ${order.deliveryDate.toDisplayDate()}"),
-                                                DataCardField(text = order.totalAmount?.let { "₹$it" } ?: "—")
+                                                DataCardField(label = "Garment", text = garmentNames),
+                                                DataCardField(label = "Delivery", text = order.deliveryDate.toDisplayDate()),
+                                                DataCardField(label = "Amount", text = order.totalAmount?.let { "₹$it" } ?: "—")
                                             ),
                                             actions = listOf(
                                                 MenuAction("View", Icons.Default.Visibility) { /* TODO */ },

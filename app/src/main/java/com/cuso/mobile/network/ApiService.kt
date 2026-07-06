@@ -84,7 +84,11 @@ import retrofit2.http.Query
 import com.cuso.mobile.model.CustomerItem
 import com.cuso.mobile.model.CustomerListResponse
 import com.cuso.mobile.model.DashboardResponse
+import com.cuso.mobile.model.DeleteCustomerResponse
+import com.cuso.mobile.model.GetCustomerViewResponse
 import com.cuso.mobile.model.MeasurementsResponse
+import com.cuso.mobile.model.UpdateCustomerRequest
+import com.cuso.mobile.model.UpdateCustomerResponse
 
 interface ApiService {
 
@@ -491,6 +495,28 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<DashboardResponse>
+
+    @GET("api/customers/view-one/{id}")   // 🔁 replace with your real path
+    suspend fun getCustomerView(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<GetCustomerViewResponse>
+
+    @PUT("api/customers/update-one/{id}") // 🔁 replace with your real path
+    suspend fun updateCustomer(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: UpdateCustomerRequest
+    ): Response<UpdateCustomerResponse>
+
+    @DELETE("api/customers/delete-one/{id}")   // 🔁 replace with your real path
+    suspend fun deleteCustomer(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<DeleteCustomerResponse>
 
 
 }

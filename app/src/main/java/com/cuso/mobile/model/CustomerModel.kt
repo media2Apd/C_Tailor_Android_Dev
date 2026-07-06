@@ -1,5 +1,7 @@
 package com.cuso.mobile.model
 
+import com.google.gson.annotations.SerializedName
+
 // ─────────────────────────────────────────────────────────────
 // Model — matches the API response you shared
 // ─────────────────────────────────────────────────────────────
@@ -9,6 +11,7 @@ data class GetCustomerAddress(
     val city: String? = null,
     val pincode: String? = null
 )
+
 
 
 // ─────────────────────────────────────────────────────────────
@@ -24,6 +27,7 @@ data class CustomerListResponse(
     val limit: Int
 )
 data class CustomerItem(
+    @SerializedName("_id")
     val id: String,                 // _id
     val organizationId: String? = null,
     val type: String? = null,       // "individual" / "business"
@@ -43,3 +47,60 @@ data class CustomerItem(
             ?: address?.addressLine?.takeIf { it.isNotBlank() }
             ?: "—"
 }
+
+
+//view and update
+// ── View API (GET) ──────────────────────────────
+data class GetCustomerViewResponse(
+    val success: Boolean,
+    val data: CustomerViewData
+)
+
+data class CustomerViewData(
+    val _id: String,
+    val organizationId: String,
+    val type: String,
+    val name: String,
+    val mobile: String,
+    val status: String,
+    val address: CustomerViewAddress? = null,
+    val customFields: Map<String, @JvmSuppressWildcards Any>? = null,
+    val referralCount: Int? = 0,
+    val totalSpend: Int? = 0,
+    val pendingPayment: Int? = 0,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
+    val __v: Int? = null
+)
+
+data class CustomerViewAddress(
+    val addressLine: String? = null,
+    val city: String? = null,
+    val pincode: String? = null
+)
+
+// ── Update API (PUT) ────────────────────────────
+data class UpdateCustomerRequest(
+    val type: String,
+    val name: String,
+    val mobile: String,
+    val status: String,
+    val address: CustomerViewAddress,
+    val referralCount: Int = 0,
+    val totalSpend: Int = 0,
+    val pendingPayment: Int = 0,
+    val _id: String,
+    val organizationId: String,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
+    val __v: Int? = null
+)
+
+data class UpdateCustomerResponse(
+    val success: Boolean,
+    val data: CustomerViewData
+)
+
+data class DeleteCustomerResponse(
+    val success: Boolean
+)

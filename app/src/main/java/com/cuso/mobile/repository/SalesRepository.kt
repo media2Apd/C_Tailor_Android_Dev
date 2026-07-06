@@ -23,6 +23,7 @@ import com.cuso.mobile.model.CreateOrderRequest
 import com.cuso.mobile.model.CustomerItem
 import com.cuso.mobile.model.CustomerListResponse
 import com.cuso.mobile.model.CustomerSearchResponse
+import com.cuso.mobile.model.CustomerViewData
 import com.cuso.mobile.model.DepartmentCreateRequest
 import com.cuso.mobile.model.DepartmentCreateResponse
 import com.cuso.mobile.model.DepartmentResponse
@@ -53,6 +54,7 @@ import com.cuso.mobile.model.MeasurementsResponse
 import com.cuso.mobile.model.OrderApiResponse
 import com.cuso.mobile.model.OrderItem
 import com.cuso.mobile.model.OrderResponse
+import com.cuso.mobile.model.UpdateCustomerRequest
 import com.cuso.mobile.model.UpdateOrderRequest
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationResponse
@@ -704,5 +706,53 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    // ── Customer View / Update ──────────────────────────────
+
+    suspend fun getCustomerView(id: String): Result<CustomerViewData> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getCustomerView(accessToken, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch customer: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateCustomer(id: String, request: UpdateCustomerRequest): Result<CustomerViewData> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.updateCustomer(accessToken, csrfToken, id, request)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to update customer: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    suspend fun deleteCustomer(id: String): Result<Boolean> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.deleteCustomer(accessToken, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(true)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to delete customer: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     fun getLeads(): Flow<List<LeadEntity>> = leadDao.getAll()
 }

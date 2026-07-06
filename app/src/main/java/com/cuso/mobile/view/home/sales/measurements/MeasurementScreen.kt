@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.home.sales
+package com.cuso.mobile.view.home.sales.measurements
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -31,6 +31,8 @@ import androidx.navigation.NavController
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
+import com.cuso.mobile.view.home.reusablecomposables.FabConfig
+import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.viewmodel.MeasurementsUiState
 import com.cuso.mobile.viewmodel.MeasurementsViewModel
@@ -61,7 +63,13 @@ fun MeasurementsScreen(
         "corporate" to "Corporate"
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {   // ✅ NEW — wraps everything so FAB overlays content
+    FabScaffold(
+        fab = FabConfig(
+            label = "New Order",
+            icon = Icons.Default.Add,
+            onClick = onCreateOrder
+        )
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -74,7 +82,7 @@ fun MeasurementsScreen(
                     .background(Color.White)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween   // ✅ kept, but button removed on the right
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -95,7 +103,6 @@ fun MeasurementsScreen(
                         color = Color(0xFF111827)
                     )
                 }
-                // ✅ REMOVED — "New Order" Button moved out to fixed FAB below
             }
 
             // ── Filter Row ──────────────────────────────────────
@@ -348,11 +355,7 @@ fun MeasurementsScreen(
                                     .fillMaxWidth()
                                     .verticalScroll(rememberScrollState())
                             ) {
-                                // ✅ Card View — using DataCard directly (Designation pattern)
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
                                     pagedList.forEach { item ->
                                         val (badgeText, badgeColor) = if (item.type == "Corporate")
                                             "Corporate" to Color(0xFFD97706)
@@ -467,23 +470,6 @@ fun MeasurementsScreen(
                         }
                     }
                 }
-            }
-        }
-
-        // ✅ NEW — Fixed FAB "New Order" Button (Branch pattern)
-        Button(
-            onClick = onCreateOrder,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-            shape = RoundedCornerShape(8.dp),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 10.dp, bottom = 50.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("New Order", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Spacer(Modifier.width(6.dp))
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
             }
         }
     }

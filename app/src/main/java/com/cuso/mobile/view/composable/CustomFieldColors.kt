@@ -1,9 +1,12 @@
 package com.cuso.mobile.view.composable
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
 
@@ -45,4 +48,17 @@ fun CustomFieldOutlinedColors() = OutlinedTextFieldDefaults.colors(
     unfocusedBorderColor =  PrimaryBorder
 
 )
+
+// ✅ NEW — Outlined Button custom colors (same theme as text fields)
+@Composable
+fun CustomOutlinedButtonColors() = ButtonDefaults.outlinedButtonColors(
+    contentColor = Color.Black,
+    containerColor = Color.White,
+    disabledContentColor = Color.Gray,
+    disabledContainerColor = Color.White
+)
+
+// ✅ NEW — Border color for outlined buttons (reuses same Primary theme border)
+val CustomOutlinedButtonBorder: BorderStroke
+    @Composable get() = BorderStroke(1.dp, PrimaryBorder)
 

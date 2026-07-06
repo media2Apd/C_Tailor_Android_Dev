@@ -2,6 +2,7 @@ package com.cuso.mobile.view.organization
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
@@ -457,6 +458,7 @@ fun OrgTextField(
 fun OrganizationDropdown(
     items: List<String>,
     selected: String,
+    enabled: Boolean = true,
     onSelect: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -469,37 +471,39 @@ fun OrganizationDropdown(
     }
 
     Column {
-        // Trigger field
-        OutlinedTextField(
-            value = selected,
-            onValueChange = {},
-            readOnly = true,
-            enabled = false,
+        // Trigger field — now matches FormDropdown's look exactly
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
-                .clickable { expanded = !expanded },
-            shape = RoundedCornerShape(10.dp),
-            singleLine = true,
-            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
-            trailingIcon = {
-                Icon(
-                    imageVector = if (expanded) Icons.Filled.KeyboardArrowUp
-                    else Icons.Filled.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = Color.LightGray
+                .height(40.dp)
+                .background(
+                    if (enabled) Color.White else Color(0xFFF3F4F6),
+                    RoundedCornerShape(8.dp)
                 )
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                disabledTextColor = if (selected.isEmpty()) Color.Gray else Color.Black,
-                disabledBorderColor = Color.LightGray,
-                disabledContainerColor = Color(0xFFF2F2F2),
-                disabledTrailingIconColor = Color.LightGray
+                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                .clickable(enabled = enabled) { expanded = !expanded }
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = selected.ifEmpty { "Select an option" },
+                fontSize = 12.sp,
+                color = when {
+                    !enabled -> Color(0xFF9CA3AF)
+                    selected.isEmpty() -> Color(0xFF9CA3AF)
+                    else -> Color(0xFF374151)
+                }
             )
-        )
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = if (enabled) Color.Gray else Color(0xFFD1D5DB)
+            )
+        }
 
-        // Dropdown card
-        AnimatedVisibility(visible = expanded) {
+        // Dropdown card — only ever shown if enabled AND expanded
+        AnimatedVisibility(visible = expanded && enabled) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -509,7 +513,6 @@ fun OrganizationDropdown(
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column {
-                    // Search field
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -543,7 +546,6 @@ fun OrganizationDropdown(
 
                     HorizontalDivider(color = Color.LightGray)
 
-                    // Items list
                     LazyColumn {
                         if (filteredItems.isEmpty()) {
                             item {
@@ -577,7 +579,6 @@ fun OrganizationDropdown(
             }
         }
 
-        // Auto focus search when opened
         LaunchedEffect(expanded) {
             if (expanded) {
                 delay(150.milliseconds)

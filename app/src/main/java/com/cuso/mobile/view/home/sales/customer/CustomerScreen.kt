@@ -1,14 +1,16 @@
-package com.cuso.mobile.view.home.sales
+package com.cuso.mobile.view.home.sales.customer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,14 +25,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.cuso.mobile.model.CustomerItem
+import com.cuso.mobile.ui.theme.PrimaryTextColor
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
+import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
+import com.cuso.mobile.view.home.reusablecomposables.FabConfig
+import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
+import com.cuso.mobile.view.home.sales.sales_order.toDisplayDate
 import com.cuso.mobile.viewmodel.CustomerUiState
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
 
 // ─────────────────────────────────────────────────────────────
 // Screen
@@ -44,7 +50,7 @@ fun CustomerScreen(
     onTypeFilterChange: (String) -> Unit = {},
     onPageChange: (Int) -> Unit = {},
     onItemsPerPageChange: (Int) -> Unit = {},
-    onBack: () -> Unit = {},
+    onClose: () -> Unit = {},
     onCreateCustomer: () -> Unit = {},
     onView: (CustomerItem) -> Unit = {},
     onEdit: (CustomerItem) -> Unit = {},
@@ -59,6 +65,9 @@ fun CustomerScreen(
     var itemsPerPage by remember { mutableStateOf(10) }
     var showTypeDropdown by remember { mutableStateOf(false) }
     var showItemsPerPageDropdown by remember { mutableStateOf(false) }
+    var customerPendingDelete by remember { mutableStateOf<CustomerItem?>(null) }   // ✅ NEW
+    var currentPage by remember { mutableIntStateOf(1) }
+
 
     LaunchedEffect(customerState) {
         if (customerState is CustomerUiState.Error) {
@@ -70,6 +79,8 @@ fun CustomerScreen(
     val customers = (customerState as? CustomerUiState.Success)?.customers ?: emptyList()
     val total = (customerState as? CustomerUiState.Success)?.total ?: 0
     val totalPages = (customerState as? CustomerUiState.Success)?.totalPages ?: 1
+    val filterDrawerState = rememberFilterDrawerState()
+
 
     val typeOptions = listOf(
         "all" to "All Customers",
@@ -77,7 +88,15 @@ fun CustomerScreen(
         "business" to "Business"
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {   // ✅ NEW — wraps everything so FAB overlays content
+    FabScaffold(
+//        fab = FabConfig(
+//            label = "Create Customer",
+//            icon = Icons.Default.Add,
+//            onClick = onCreateCustomer
+//        )
+        fab=null,
+        snackbarHostState = snackbarHostState
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -93,118 +112,93 @@ fun CustomerScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.clickable { showTypeDropdown = true }
-                        ) {
-                            Icon(
-                                Icons.Default.FilterList,
-                                contentDescription = null,
-                                tint = Color(0xFF111827),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                typeOptions.find { it.first == typeFilter }?.second ?: "All Customers",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
-                            )
-                            Icon(
-                                Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                tint = Color(0xFF111827),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showTypeDropdown,
-                            onDismissRequest = { showTypeDropdown = false },
-                            containerColor = Color.White,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            typeOptions.forEach { (value, label) ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Text(label, color = Color(0xFF111827))
-                                            if (value == typeFilter) {
-                                                Icon(Icons.Default.Check, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
-                                            }
-                                        }
-                                    },
-                                    onClick = {
-                                        typeFilter = value
-                                        page = 1
-                                        showTypeDropdown = false
-                                        onTypeFilterChange(value)
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── Search bar ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
+                Column(
                     modifier = Modifier
-                        .weight(1f)    // ✅ now takes full width since button is removed
-                        .height(40.dp)
-                        .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxSize()
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
+                        Text("Customers", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
                         Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            tint = Color(0xFF9CA3AF),
-                            modifier = Modifier.padding(start = 12.dp, end = 8.dp)
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.Black,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onClose() }   // ✅ NEW
                         )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .background(Color(0xFFF8F9FF))
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp, horizontal = 16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Sales", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(16.dp))
+                    Text("Customers", fontSize = 13.sp, color = Color(0xFF3B3BF9), fontWeight = FontWeight.SemiBold)
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .background(Color.White, RoundedCornerShape(10.dp))
+                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
+                            .padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
                         BasicTextField(
                             value = searchQuery,
                             onValueChange = {
                                 searchQuery = it
-                                page = 1
-                                onSearch(it)
+                                currentPage = 1
                             },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(end = 12.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF111827)),
-                            cursorBrush = SolidColor(Color(0xFF3B3BF9)),
+                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
                             decorationBox = { innerTextField ->
-                                Box {
-                                    if (searchQuery.isEmpty()) {
-                                        Text("", fontSize = 14.sp, color = Color(0xFF9CA3AF))
-                                    }
-                                    innerTextField()
+                                if (searchQuery.isEmpty()) {
+                                    Text("Search leads...", fontSize = 14.sp, color = Color.Black)
                                 }
+                                innerTextField()
                             }
                         )
                     }
+
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color.White, RoundedCornerShape(10.dp))
+                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
+                            .clickable { filterDrawerState.open() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.FilterList, "Filter", tint = Color.Black, modifier = Modifier.size(20.dp))
+                    }
                 }
-                // ✅ REMOVED — "Create Customer" Button moved out to fixed FAB below
             }
 
             HorizontalDivider(color = Color(0xFFF0F0F0))
@@ -259,11 +253,7 @@ fun CustomerScreen(
                                     .fillMaxWidth()
                                     .verticalScroll(rememberScrollState())
                             ) {
-                                // ✅ Card View — using DataCard directly (Designation pattern)
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
                                     customers.forEach { customer ->
                                         val (badgeText, badgeColor) = if (customer.type == "business")
                                             "Business" to Color(0xFFD97706)
@@ -272,28 +262,29 @@ fun CustomerScreen(
 
                                         DataCard(
                                             item = customer,
-                                            badge = DataCardBadge(
-                                                text = badgeText,
-                                                color = badgeColor
+                                            image = DataCardImage(
+                                                vector = Icons.Default.Person,
+                                                size = 50.dp,
+                                                backgroundColor = Color.Transparent,
+                                                tint = Color(0xFF9CA3AF)
                                             ),
+                                            badge = DataCardBadge(text = badgeText, color = badgeColor),
+                                            badgeInline = true,                       // ✅ badge next to name, not top row
                                             title = customer.name,
-                                            subtitle = customer.email?.ifBlank { "—" } ?: "—",
+                                            subtitle = "Date of Birth  ${customer.dateOfBirth.toDisplayDate()}",
+                                            footerAsRows = true,                      // ✅ "label   value" style like image 1
                                             footerFields = listOf(
-                                                DataCardField(icon = Icons.Default.Phone, text = customer.mobile?.ifBlank { "—" } ?: "—"),
-                                                DataCardField(icon = Icons.Default.Person, text = customer.gender?.ifBlank { "—" } ?: "—"),
-                                                DataCardField(icon = Icons.Default.LocationOn, text = customer.location),
-                                                DataCardField(
-                                                    icon = Icons.Default.CalendarMonth,
-                                                    text = customer.dateOfBirth.toDisplayDate()
-                                                )
+                                                DataCardField(label = "Email", text = customer.email?.ifBlank { "—" } ?: "—"),
+                                                DataCardField(label = "Mobile", text = customer.mobile?.ifBlank { "—" } ?: "—"),
+                                                DataCardField(label = "Gender", text = customer.gender?.ifBlank { "—" } ?: "—"),
+                                                DataCardField(label = "Location", text = customer.location.ifBlank { "—" })
                                             ),
                                             actions = listOf(
-                                                MenuAction(
-                                                    "View",
-                                                    Icons.Default.Visibility
-                                                ) { onView(customer) },
+                                                MenuAction("View", Icons.Default.Visibility) { onView(customer) },
                                                 MenuAction("Edit", Icons.Default.Edit) { onEdit(customer) },
-                                                MenuAction("Delete", Icons.Default.Delete, tint = Color(0xFFF44336), textColor = Color(0xFFF44336)) { onDelete(customer) }
+                                                MenuAction("Delete", Icons.Default.Delete, tint = Color(0xFFF44336), textColor = Color(0xFFF44336)) {
+                                                    customerPendingDelete = customer
+                                                }
                                             )
                                         )
                                     }
@@ -394,27 +385,28 @@ fun CustomerScreen(
                 }
             }
         }
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+    }
+    customerPendingDelete?.let { customer ->
+        AlertDialog(
+            onDismissRequest = { customerPendingDelete = null },
+            title = { Text("Delete Customer") },
+            text = { Text("Are you sure you want to delete \"${customer.name}\"? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete(customer)
+                        customerPendingDelete = null
+                    }
+                ) {
+                    Text("Delete", color = Color(0xFFF44336))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { customerPendingDelete = null }) {
+                    Text("Cancel")
+                }
+            },
+            containerColor = Color.White
         )
-
-        // ✅ NEW — Fixed FAB "Create Customer" Button (Branch pattern)
-        Button(
-            onClick = { onCreateCustomer() },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-            shape = RoundedCornerShape(8.dp),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 10.dp, bottom = 50.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Create Customer", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Spacer(Modifier.width(6.dp))
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-            }
-        }
     }
 }

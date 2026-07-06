@@ -40,7 +40,8 @@ import com.cuso.mobile.view.home.FormLabel
 fun PhoneInputField(
     phoneValue: String,
     onPhoneChange: (String) -> Unit,
-    onCountryChange: (Country) -> Unit
+    onCountryChange: (Country) -> Unit,
+    enabled: Boolean = true
 ) {
     var expanded by remember { mutableStateOf(false) }
     var selectedCountry by remember {
@@ -57,15 +58,21 @@ fun PhoneInputField(
                 .fillMaxWidth()
                 .height(40.dp)
                 .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                .background(Color.White, RoundedCornerShape(8.dp))  // same as FormTextField
-                .padding(horizontal = 12.dp),           // same as FormTextField
+                .background(
+                    if (enabled) Color.White else Color(0xFFF2F2F2),
+                    RoundedCornerShape(8.dp)
+                )
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // ── Country picker ──
             Box {
                 Row(
                     modifier = Modifier
-                        .clickable { expanded = true }
+                        .then(
+                            if (enabled) Modifier.clickable { expanded = true }
+                            else Modifier
+                        )
                         .padding(end = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -75,7 +82,6 @@ fun PhoneInputField(
                         contentDescription = null,
                         tint = Color.Gray
                     )
-                    // Thin vertical divider
                     Box(
                         modifier = Modifier
                             .width(1.dp)
@@ -85,13 +91,13 @@ fun PhoneInputField(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = selectedCountry.code,
-                        color = Color(0xFF374151),
+                        color = if (enabled) Color(0xFF374151) else Color(0xFF9CA3AF),
                         fontSize = 14.sp
                     )
                 }
 
                 DropdownMenu(
-                    expanded = expanded,
+                    expanded = expanded && enabled,
                     onDismissRequest = { expanded = false },
                     modifier = Modifier
                         .height(400.dp)
@@ -126,9 +132,10 @@ fun PhoneInputField(
                     if (digitsOnly.length <= 15) onPhoneChange(digitsOnly)
                 },
                 modifier = Modifier.weight(1f),
+                enabled = enabled,
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(
-                    color = Color(0xFF374151),
+                    color = if (enabled) Color(0xFF374151) else Color(0xFF9CA3AF),
                     fontSize = 14.sp
                 ),
                 cursorBrush = SolidColor(Color(0xFF374151)),
@@ -138,7 +145,7 @@ fun PhoneInputField(
                         if (phoneValue.isEmpty()) {
                             Text(
                                 "Enter phone number",
-                                color = Color(0xFF9CA3AF),  // same placeholder gray as FormTextField
+                                color = Color(0xFF9CA3AF),
                                 fontSize = 14.sp
                             )
                         }

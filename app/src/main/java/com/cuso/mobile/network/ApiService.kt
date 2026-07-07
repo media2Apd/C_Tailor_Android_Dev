@@ -10,6 +10,7 @@ import CreateBranchResponse
 import GarmentCategoriesResponse
 import OrgGarmentResponse
 import RemoveOrgGarmentResponse
+import com.cuso.mobile.model.AssignStageResponse
 //import com.cuso.mobile.model.BaseResponse
 import com.cuso.mobile.model.BranchListResponse
 import com.cuso.mobile.model.CreateLeadFormRequest
@@ -87,6 +88,8 @@ import com.cuso.mobile.model.DashboardResponse
 import com.cuso.mobile.model.DeleteCustomerResponse
 import com.cuso.mobile.model.GetCustomerViewResponse
 import com.cuso.mobile.model.MeasurementsResponse
+import com.cuso.mobile.model.OrderOverviewApiResponse
+import com.cuso.mobile.model.StageAssignRequest
 import com.cuso.mobile.model.UpdateCustomerRequest
 import com.cuso.mobile.model.UpdateCustomerResponse
 
@@ -119,7 +122,7 @@ interface ApiService {
         @Body request: otpSendRequest
     ): Response<otpSendResponse>
 
-    @POST("api/auth/login/verify-otp")
+    @POST("/api/auth/login/verify-otp")
     suspend fun verifyOtp(
         @Body request: otpVerifyRequest
     ): Response<otpVerifyResponse>
@@ -307,7 +310,7 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String
     ): BranchListResponse
 
-    @POST("api/branches/create")
+    @POST("/api/branches/create")
     suspend fun createBranch(
         @Header("Authorization") authorization: String,
         @Header("X-CSRF-TOKEN") csrfToken: String,
@@ -324,7 +327,6 @@ interface ApiService {
 
     // ── Departments ───────────────────────────────────────────────
 
-    // ── Departments ───────────────────────────────────────────────
 
     // Option 1: All unwrapped (recommended)
     @GET("/api/departments/view-all")
@@ -333,14 +335,14 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String
     ): DepartmentResponse
 
-    @POST("api/departments/create")
+    @POST("/api/departments/create")
     suspend fun createDepartment(
         @Header("Authorization") authorization: String,
         @Header("X-CSRF-TOKEN") csrfToken: String,
         @Body request: DepartmentCreateRequest
     ): DepartmentCreateResponse  // ← Remove Response wrapper
 
-    @PUT("api/departments/update-one/{id}")
+    @PUT("/api/departments/update-one/{id}")
     suspend fun updateDepartment(
         @Header("Authorization") authorization: String,
         @Header("X-CSRF-TOKEN") csrfToken: String,
@@ -407,7 +409,7 @@ interface ApiService {
 
     // ── Add these to your ApiService.kt ──
 
-    @GET("api/sales-leads/{orderId}")
+    @GET("/api/sales-leads/{orderId}")
     suspend fun getOrderById(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -436,7 +438,7 @@ interface ApiService {
 //        @Path("orderId") orderId: String
 //    ): Response<BaseResponse<Boolean>>
 
-    @PATCH("api/sales-leads/{orderId}/status")
+    @PATCH("/api/sales-leads/{orderId}/status")
     suspend fun updateOrderStatus(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -474,7 +476,7 @@ interface ApiService {
         @Part voiceNote: MultipartBody.Part?
     ): Response<CreateOrderResponse>
 
-    @GET("api/customers/view-all")
+    @GET("/api/customers/view-all")
     suspend fun getCustomers(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -484,7 +486,7 @@ interface ApiService {
         @Query("type") type: String? = null
     ): Response<CustomerListResponse>
 
-    @GET("api/measurements/customers-last-orders")
+    @GET("/api/measurements/customers-last-orders")
     suspend fun getMeasurements(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
@@ -496,14 +498,14 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<DashboardResponse>
 
-    @GET("api/customers/view-one/{id}")   // 🔁 replace with your real path
+    @GET("/api/customers/view-one/{id}")   // 🔁 replace with your real path
     suspend fun getCustomerView(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<GetCustomerViewResponse>
 
-    @PUT("api/customers/update-one/{id}") // 🔁 replace with your real path
+    @PUT("/api/customers/update-one/{id}") // 🔁 replace with your real path
     suspend fun updateCustomer(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -511,12 +513,45 @@ interface ApiService {
         @Body request: UpdateCustomerRequest
     ): Response<UpdateCustomerResponse>
 
-    @DELETE("api/customers/delete-one/{id}")   // 🔁 replace with your real path
+    @DELETE("/api/customers/delete-one/{id}")   // 🔁 replace with your real path
     suspend fun deleteCustomer(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<DeleteCustomerResponse>
 
+    @GET("/api/sales-orders/view-one/{orderId}")
+    suspend fun getSalesOverview(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("orderId") orderId: String
+    ): Response<OrderOverviewApiResponse>
+
+    @PUT("/api/sales-orders/assign-worker-to-stage/{orderId}/{garmentItemId}/cutting")
+    suspend fun assignCutting(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("orderId") orderId: String,
+        @Path("garmentItemId") garmentItemId: String,
+        @Body request: StageAssignRequest
+    ): Response<AssignStageResponse>
+
+    @PUT("/api/sales-orders/assign-worker-to-stage/{orderId}/{garmentItemId}/stitching")
+    suspend fun assignStitching(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("orderId") orderId: String,
+        @Path("garmentItemId") garmentItemId: String,
+        @Body request: StageAssignRequest
+    ): Response<AssignStageResponse>
+
+    @PUT("/api/sales-orders/assign-worker-to-stage/{orderId}/{garmentItemId}/qc")
+    suspend fun assignQc(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("orderId") orderId: String,
+        @Path("garmentItemId") garmentItemId: String,
+        @Body request: StageAssignRequest
+    ): Response<AssignStageResponse>
 
 }

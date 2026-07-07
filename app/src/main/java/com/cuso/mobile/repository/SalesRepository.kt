@@ -14,6 +14,7 @@ import com.cuso.mobile.database.entities.LeadEntity
 import com.cuso.mobile.database.entities.SalesStatusEntity
 import com.cuso.mobile.database.entities.SalesSummaryEntity
 import com.cuso.mobile.database.entities.toEntity
+import com.cuso.mobile.model.AssignStageResponse
 import com.cuso.mobile.model.BranchItem
 import com.cuso.mobile.model.BranchListResponse
 import com.cuso.mobile.model.CategoryItem
@@ -53,7 +54,9 @@ import com.cuso.mobile.model.DesignationDeleteResponse
 import com.cuso.mobile.model.MeasurementsResponse
 import com.cuso.mobile.model.OrderApiResponse
 import com.cuso.mobile.model.OrderItem
+import com.cuso.mobile.model.OrderOverviewData
 import com.cuso.mobile.model.OrderResponse
+import com.cuso.mobile.model.StageAssignRequest
 import com.cuso.mobile.model.UpdateCustomerRequest
 import com.cuso.mobile.model.UpdateOrderRequest
 import com.cuso.mobile.model.UpdateOrganizationRequest
@@ -749,6 +752,72 @@ class SalesRepository @Inject constructor(
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to delete customer: ${response.code()}")
                 )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Sales Order Overview ──────────────────────────────────────
+
+    suspend fun getSalesOverview(orderId: String): Result<OrderOverviewData> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getSalesOverview(accessToken, csrfToken, orderId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch order overview: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun assignCutting(
+        token: String,
+        csrfToken: String,
+        orderId: String,
+        garmentItemId: String,
+        staffId: String,
+        quantity: Int
+    ): Result<AssignStageResponse> = safeAssignCall {
+        api.assignCutting(token, csrfToken, orderId, garmentItemId, StageAssignRequest(listOf(staffId), quantity))
+    }
+
+    suspend fun assignStitching(
+        token: String,
+        csrfToken: String,
+        orderId: String,
+        garmentItemId: String,
+        staffId: String,
+        quantity: Int
+    ): Result<AssignStageResponse> = safeAssignCall {
+        api.assignStitching(token, csrfToken, orderId, garmentItemId, StageAssignRequest(listOf(staffId), quantity))
+    }
+
+    suspend fun assignQc(
+        token: String,
+        csrfToken: String,
+        orderId: String,
+        garmentItemId: String,
+        staffId: String,
+        quantity: Int
+    ): Result<AssignStageResponse> = safeAssignCall {
+        api.assignQc(token, csrfToken, orderId, garmentItemId,
+            StageAssignRequest(listOf(staffId), quantity)
+        )
+    }
+
+    private suspend fun safeAssignCall(call: suspend () -> Response<AssignStageResponse>): Result<AssignStageResponse> {
+        return try {
+            val response = call()
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Assign failed"))
             }
         } catch (e: Exception) {
             Result.failure(e)

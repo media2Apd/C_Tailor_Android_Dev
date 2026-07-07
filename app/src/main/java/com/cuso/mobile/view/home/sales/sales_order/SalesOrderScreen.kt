@@ -47,7 +47,8 @@ fun SalesOrderScreen(
     navController: NavController,
     onMenuClick: () -> Unit = {},
     onBack: () -> Unit = {},
-    onCreateOrder: () -> Unit = {}
+    onCreateOrder: () -> Unit = {},
+    onViewOrder: (String) -> Unit = {}   // ✅ CHANGED — OrderItem இல்ல, String (orderId) expect பண்ணணும்
 ) {
     val viewModel: SalesOrderViewModel = hiltViewModel()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
@@ -302,16 +303,17 @@ fun SalesOrderScreen(
                                                 color = statusTextColor
                                             ),
                                             badgeInline = true,                      // ✅ badge next to title, like Customer screen
-                                            title = order.orderNumber,
-                                            subtitle = order.customerId?.name ?: "Unknown",
+                                            title = order.customerId?.name ?: "Unknown",
+                                            subtitle = order.orderNumber,
                                             footerAsRows = true,                     // ✅ "label   value" rows, like Customer screen
                                             footerFields = listOf(
-                                                DataCardField(label = "Garment", text = garmentNames),
-                                                DataCardField(label = "Delivery", text = order.deliveryDate.toDisplayDate()),
-                                                DataCardField(label = "Amount", text = order.totalAmount?.let { "₹$it" } ?: "—")
+                                                DataCardField(label = "Items", text = garmentNames),
+                                                DataCardField(label = "Price",text = order.totalAmount?.let { "₹$it" } ?: "—" ),
+                                                DataCardField(label = "Date Of Delivery",text = order.deliveryDate.toDisplayDate()),
+                                                DataCardField(label = "Priority", text= "—")
                                             ),
                                             actions = listOf(
-                                                MenuAction("View", Icons.Default.Visibility) { /* TODO */ },
+                                                MenuAction("View", Icons.Default.Visibility) { onViewOrder(order.id) },
                                                 MenuAction("Edit", Icons.Default.Edit) { /* TODO */ }
                                             )
                                         )
@@ -503,6 +505,7 @@ fun SalesOrderScreen(
 // ─────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────
+// Idha SalesOrderScreen.kt file-la (அல்லது தனி Mappers.kt file-la) add pannunga
 
 fun orderStatusColors(status: String?): Pair<Color, Color> = when (status?.lowercase()) {
     "confirmed"  -> Color(0xFFE8F5E9) to Color(0xFF388E3C)

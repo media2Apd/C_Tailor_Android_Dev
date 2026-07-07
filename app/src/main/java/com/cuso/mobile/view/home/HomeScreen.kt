@@ -162,6 +162,8 @@ fun HomeScreen(navController: NavHostController) {
     val customerUiState by customerViewModel.uiState.collectAsStateWithLifecycle()
     var selectedCustomer by remember { mutableStateOf<CustomerItem?>(null) }
     val settingsViewModel: SettingsViewModel = hiltViewModel()
+    var selectedOrderId by remember { mutableStateOf<String?>(null) }   // ✅ ADD THIS LINE
+
 
     //delete
     val deleteState by customerViewModel.deleteState.collectAsState()   // ✅ this needs to exist
@@ -469,8 +471,12 @@ fun HomeScreen(navController: NavHostController) {
                     )
                     "create_order" -> {
                         CreateOrderScreen(
+                            initialData = pendingOrderReviewData,
                             onBack = { currentScreen = "sales_sales_orders" },
-                            onCancel = { currentScreen = "sales_sales_orders" },
+                            onCancel = {
+                                pendingOrderReviewData = null
+                                currentScreen = "sales_sales_orders"
+                            },
                             onNextStep = { orderReviewData ->
                                 pendingOrderReviewData = orderReviewData
                                 currentScreen = "create_order_review"
@@ -481,8 +487,23 @@ fun HomeScreen(navController: NavHostController) {
                         navController = navController,
                         onMenuClick = { isDrawerOpen = true },
                         onBack = { currentScreen = "home" },
-                        onCreateOrder = { currentScreen = "create_order" }
+                        onCreateOrder = { currentScreen = "create_order" },
+                        onViewOrder = { orderId ->
+                            selectedOrderId = orderId
+                            currentScreen = "order_overview"
+                        }
                     )
+                    "order_overview" -> {
+                        selectedOrderId?.let { id ->
+                            com.cuso.mobile.view.home.sales.sales_order.OrderOverviewScreen(
+                                orderId = id,
+                                onClose = {
+                                    selectedOrderId = null
+                                    currentScreen = "sales_sales_orders"
+                                }
+                            )
+                        } ?: run { currentScreen = "sales_sales_orders" }
+                    }
                     "sales_orders" -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("Orders Screen", fontSize = 18.sp, color = Color.Gray)
@@ -998,7 +1019,7 @@ fun BottomNavItem(
 private data class DashboardStat(
     val label: String,
     val value: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val icon: Int,
     val iconBg: Color,
     val iconTint: Color,
     val trendText: String,
@@ -1026,49 +1047,9 @@ private data class RecentCustomer(
     val avatarColor: Color
 )
 
-// ─────────────────────────────────────────────────────────────
-// Mappers — API dto -> UI model
-// ─────────────────────────────────────────────────────────────
-private fun statVisualsFor(title: String): Triple<androidx.compose.ui.graphics.vector.ImageVector, Color, Color> {
-    return when {
-        title.contains("Revenue", true) ->
-            Triple(Icons.Default.AccountBalanceWallet, Color(0xFFEDE9FE), Color(0xFF7C3AED))
-        title.contains("Order", true) ->
-            Triple(Icons.Default.ShoppingCart, Color(0xFFEDE9FE), Color(0xFF7C3AED))
-        title.contains("Measurement", true) ->
-            Triple(Icons.Default.Straighten, Color(0xFFEDE9FE), Color(0xFF7C3AED))
-        title.contains("Pending", true) || title.contains("Payment", true) ->
-            Triple(Icons.Default.Description, Color(0xFFEDE9FE), Color(0xFF7C3AED))
-        else ->
-            Triple(Icons.Default.Info, Color(0xFFEDE9FE), Color(0xFF7C3AED))
-    }
-}
 
-private fun formatCompactNumber(value: Double): String {
-    return when {
-        value >= 100000 -> String.format("%.1fL", value / 100000)
-        value >= 1000 -> String.format("%.1fk", value / 1000)
-        else -> value.toInt().toString()
-    }
-}
 
-private fun mapApiStatsToUi(stats: List<DashboardStatDto>): List<DashboardStat> {
-    return stats.map { stat ->
-        val (icon, iconBg, iconTint) = statVisualsFor(stat.title)
-        val trendUp: Boolean? = when (stat.color.lowercase()) {
-            "green" -> true
-            "red" -> false
-            else -> null
-        }
-        val valueText = if (stat.type == "currency") {
-            "₹ ${formatCompactNumber(stat.value)}"
-        } else {
-            stat.value.toInt().toString()
-        }
-        val trendText = "${stat.change.toInt()}%"
-        DashboardStat(stat.title, valueText, icon, iconBg, iconTint, trendText, trendUp)
-    }
-}
+
 
 private fun mapActiveOrdersToActivity(orders: List<ActiveOrderItem>): List<ActivityItem> {
     return orders.take(4).map { order ->
@@ -1300,17 +1281,31 @@ private fun DashboardStatCard(stat: DashboardStat, modifier: Modifier = Modifier
             .background(Color.White, RoundedCornerShape(14.dp))
             .padding(14.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(stat.iconBg),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(stat.icon, contentDescription = null, tint = stat.iconTint, modifier = Modifier.size(18.dp))
+        Row() {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(stat.iconBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = stat.icon),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(stat.iconTint),   // ✅ tints the PNG same as Icon would
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(Modifier.width(5.dp))
+
+            Text(
+                stat.label,
+                fontSize = 13.sp,
+                color = Color(0xFF6B7280),
+                fontWeight = FontWeight.Medium
+            )
         }
         Spacer(Modifier.height(10.dp))
-        Text(stat.label, fontSize = 13.sp, color = Color(0xFF6B7280), fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(2.dp))
         Text(stat.value, fontSize = 19.sp, color = Color(0xFF111827), fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
@@ -1331,7 +1326,7 @@ private fun TrendRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text
     }
 }
 
-// ── Quick Modules — static shortcuts row ──
+// ──  — static shortcuts row ──
 @Composable
 private fun QuickModulesSection(
     modules: List<QuickModule>,
@@ -1383,6 +1378,50 @@ private fun QuickModulesSection(
                 }
             }
         }
+    }
+}
+
+private fun statVisualsFor(title: String): Triple<Int, Color, Color> {
+    return when {
+        title.contains("Revenue", true) ->
+            Triple(R.drawable.revenue, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+        title.contains("Order", true) ->
+            Triple(R.drawable.cart, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+        title.contains("Measurement", true) ->
+            Triple(R.drawable.customer, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+        title.contains("Pending", true) || title.contains("Payment", true) ->
+            Triple(R.drawable.pending, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+        else ->
+            Triple(R.drawable.cart, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+    }
+}
+
+// ✅ NEW — short display label for stat cards
+private fun shortStatLabel(title: String): String {
+    return when {
+        title.contains("Revenue", true) -> "Revenue"
+        title.contains("Order", true) -> "Orders"
+        title.contains("Measurement", true) -> "Customers"
+        title.contains("Pending", true) || title.contains("Payment", true) -> "Pending"
+        else -> title
+    }
+}
+
+private fun mapApiStatsToUi(stats: List<DashboardStatDto>): List<DashboardStat> {
+    return stats.map { stat ->
+        val (icon, iconBg, iconTint) = statVisualsFor(stat.title)
+        val trendUp: Boolean? = when (stat.color.lowercase()) {
+            "green" -> true
+            "red" -> false
+            else -> null
+        }
+        val valueText = if (stat.type == "currency") {
+            "₹${formatIndianNumber(stat.value)}"
+        } else {
+            formatIndianNumber(stat.value.toInt())
+        }
+        val trendText = "${stat.change.toInt()}%"
+        DashboardStat(shortStatLabel(stat.title), valueText, icon, iconBg, iconTint, trendText, trendUp)
     }
 }
 
@@ -3572,13 +3611,19 @@ fun formatLeadDate(raw: String): String {
     } catch (_: Exception) { raw }
 }
 
-fun formatIndianNumber(number: Int): String {
-    if (number <= 0) return "0"
-    val s = number.toString()
+fun formatIndianNumber(number: Number): String {
+    val value = number.toLong()
+
+    if (value <= 0) return "0"
+
+    val s = value.toString()
+
     if (s.length <= 3) return s
+
     val last3 = s.takeLast(3)
     val rest = s.dropLast(3)
     val grouped = rest.reversed().chunked(2).joinToString(",").reversed()
+
     return "$grouped,$last3"
 }
 

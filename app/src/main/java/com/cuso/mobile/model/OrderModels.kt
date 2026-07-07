@@ -14,7 +14,7 @@ data class OrderApiResponse(
     @SerializedName("customerId")
     val customerId: CustomerApiResponse?,
     @SerializedName("garments")
-    val garments: List<GarmentApiResponse> = emptyList(),   // ✅ create response omits this
+    val garments: List<GarmentApiResponse>? = null,   // ✅ create response omits this
     @SerializedName("totalAmount")
     val totalAmount: Double? = null,
     @SerializedName("totalPaid")
@@ -187,7 +187,7 @@ fun OrderApiResponse.toOrderItem() = OrderItem(
     id            = id,
     orderNumber   = orderNumber,
     customerId    = customerId?.toCustomer(),
-    garments      = garments.map { it.toGarment() },
+    garments      = garments.orEmpty().map { it.toGarment() },   // ✅ safe even if null
     totalAmount   = totalAmount?.toInt(),
     totalPaid     = totalPaid,
     balanceAmount = balanceAmount,

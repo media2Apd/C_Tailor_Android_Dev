@@ -2,6 +2,13 @@ package com.cuso.mobile.view.home.sales.sales_order
 
 import android.net.Uri
 import android.widget.Toast
+import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -32,6 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.model.ChargeRequest
@@ -49,10 +58,11 @@ import com.cuso.mobile.viewmodel.SalesOrderViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.cuso.mobile.R
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
-private val AccentBlue = Color(0xFF3B82F6)
-private val AccentBlueBg = Color(0xFFEFF6FF)
+private val AccentBlue = Color(0xFF4F46E5)
+private val AccentBlueBg = Color(0xFFF0EEFE)
 private val SuccessGreen = Color(0xFF22C55E)
 private val SectionBg = Color(0xFFFFFFFF)
 private val PageBg = Color(0xFFF3F4F6)
@@ -138,7 +148,25 @@ fun CreateOrderNextStep(
     val grandTotal = (subtotal - discountValue).coerceAtLeast(0.0)
     val balanceDue = (grandTotal - orderData.paidSoFar).coerceAtLeast(0.0)
 
-    // ✅ NEW — build the request once, reused by the floating "Save Order" FAB button
+    val actionState by salesOrderViewModel.actionState.collectAsStateWithLifecycle()
+
+    // ✅ FIX — removed the duplicate LaunchedEffect that used to fire onSaveOrder()
+    // a second time with an empty/dummy CreateOrderRequest whenever actionState
+    // became Success. Navigation now happens ONLY once, from the real
+    // createOrder(...) completion callback inside buildAndSaveOrder(), with the
+    // actual saved request data. `actionState` is now only used to drive the
+    // Save Order button's loading/disabled state below.
+
+    // ── Show a toast if the order creation fails ──
+    LaunchedEffect(actionState) {
+        if (actionState is OrderActionState.Error) {
+            val message = (actionState as OrderActionState.Error).message
+            Toast.makeText(context, message.ifBlank { "Failed to save order" }, Toast.LENGTH_LONG).show()
+            salesOrderViewModel.resetActionState()
+        }
+    }
+
+    // ✅ Build the request once, reused by the "Save Order" bottom bar button
     fun buildAndSaveOrder() {
         val garmentRequests = orderData.garments.map { g ->
             val price = unitPrices[g.id]?.toDoubleOrNull() ?: 0.0
@@ -218,6 +246,8 @@ fun CreateOrderNextStep(
             imageParts = context.createImageParts(orderData.designImages),
             voiceNotePart = context.createVoiceNotePart(orderData.voiceNoteUri)
         ) { orderItem ->
+            // ✅ Fires ONLY here, with the real saved request/order data.
+            // HomeScreen's onSaveOrder handler navigates to "sales_sales_orders".
             onSaveOrder(request)
         }
     }
@@ -254,59 +284,123 @@ fun CreateOrderNextStep(
                 HorizontalDivider(color = BorderColor)
             }
         },
-        containerColor = PageBg
+        containerColor = Color.White,
+        bottomBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onBack,
+                    enabled = actionState !is OrderActionState.Loading,   // ✅ block "Back" while saving
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color.White,
+                        contentColor = TextPrimary
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                    contentPadding = PaddingValues(vertical = 0.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 4.dp,
+                        pressedElevation = 2.dp
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    Text("Back to Edit", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                Button(
+                    onClick = { buildAndSaveOrder() },
+                    enabled = actionState !is OrderActionState.Loading,   // ✅ prevent double-tap while saving
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AccentBlue,
+                        contentColor = Color.White,
+                        disabledContainerColor = AccentBlue.copy(alpha = 0.6f)
+                    ),
+                    contentPadding = PaddingValues(vertical = 0.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 6.dp,
+                        pressedElevation = 3.dp
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    if (actionState is OrderActionState.Loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Save Order", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
     ) { padding ->
-        // ✅ NEW — outer Box lets the floating pill buttons sit ON TOP of the scrollable content,
-        // exactly like CustomerDetailScreen's Back/Next FAB pattern
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(bottom = 90.dp), // ✅ reserve space so content isn't hidden behind floating buttons
-                verticalArrangement = Arrangement.spacedBy(0.dp) // ✅ CHANGED — gap between cards removed (was 12.dp)
-            ) {
-                // ── 1. BILLING DETAILS ──
-                SectionCard {
-                    SectionHeader(
-                        icon = Icons.Default.Description,
-                        title = "Billing Details",
-                        expanded = expandedSection == "billing",
-                        onToggle = { expandedSection = if (expandedSection == "billing") "" else "billing" }
-                    )
+            // ── 1. BILLING DETAILS ──
+            SectionCard {
+                SectionHeader(
+                    icon = R.drawable.billing,
+                    title = "Billing Details",
+                    expanded = expandedSection == "billing",
+                    onToggle = { expandedSection = if (expandedSection == "billing") "" else "billing" }
+                )
 
-                    if (expandedSection == "billing") {
-                        // ── Header Row ──
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("ITEM", fontSize = 10.sp, color = LabelGray, modifier = Modifier.weight(1f))
-                            Text("QTY", fontSize = 10.sp, color = LabelGray, modifier = Modifier.width(48.dp), textAlign = TextAlign.Center)
-                            Text("Unit Price", fontSize = 10.sp, color = LabelGray, modifier = Modifier.width(110.dp), textAlign = TextAlign.End)
-                        }
-                        HorizontalDivider(color = BorderColor, modifier = Modifier.padding(vertical = 6.dp))
+                AnimatedVisibility(
+                    visible = expandedSection == "billing",
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Column {
+                        Text(
+                            "ITEM",
+                            fontSize = 10.sp,
+                            color = LabelGray,
+                            letterSpacing = 0.06.sp
+                        )
+                        Spacer(Modifier.height(10.dp))
 
                         if (orderData.garments.isEmpty()) {
                             Text("No items added", fontSize = 14.sp, color = LabelGray, modifier = Modifier.padding(vertical = 8.dp))
                         } else {
                             orderData.garments.forEachIndexed { index, garment ->
-                                // ── Garment Row ──
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         garment.categoryName,
                                         fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
                                         color = TextPrimary,
                                         modifier = Modifier.weight(1f)
                                     )
+                                    Text("Qty", fontSize = 11.sp, color = LabelGray, modifier = Modifier.width(56.dp), textAlign = TextAlign.Center)
+                                    Text("Unit Price", fontSize = 11.sp, color = LabelGray, modifier = Modifier.width(110.dp), textAlign = TextAlign.End)
+                                }
+                                Spacer(Modifier.height(6.dp))
+
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Spacer(Modifier.weight(1f))
                                     Box(
                                         modifier = Modifier
                                             .width(48.dp)
                                             .clip(RoundedCornerShape(6.dp))
                                             .border(0.5.dp, BorderColor, RoundedCornerShape(6.dp))
                                             .background(PageBg)
-                                            .padding(vertical = 4.dp),
+                                            .padding(vertical = 6.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
@@ -325,7 +419,6 @@ fun CreateOrderNextStep(
                                     )
                                 }
 
-                                // ── Item Charges ──
                                 val charges = itemCharges[garment.id].orEmpty()
                                 if (charges.isNotEmpty()) {
                                     Spacer(Modifier.height(8.dp))
@@ -365,9 +458,11 @@ fun CreateOrderNextStep(
                                                     modifier = Modifier
                                                         .size(16.dp)
                                                         .clickable {
-                                                            itemCharges = itemCharges.toMutableMap().apply {
-                                                                this[garment.id] = (this[garment.id].orEmpty()).filter { it.id != charge.id }
-                                                            }
+                                                            itemCharges =
+                                                                itemCharges.toMutableMap().apply {
+                                                                    this[garment.id] =
+                                                                        (this[garment.id].orEmpty()).filter { it.id != charge.id }
+                                                                }
                                                         }
                                                 )
                                             }
@@ -390,14 +485,13 @@ fun CreateOrderNextStep(
                                 )
 
                                 if (index != orderData.garments.lastIndex) {
-                                    Spacer(Modifier.height(12.dp))
+                                    Spacer(Modifier.height(14.dp))
                                     HorizontalDivider(color = Color(0xFFF0F0F0))
-                                    Spacer(Modifier.height(8.dp))
+                                    Spacer(Modifier.height(12.dp))
                                 }
                             }
                         }
 
-                        // ── Global / Additional Charges ──
                         Spacer(Modifier.height(16.dp))
                         Text(
                             "GLOBAL / ADDITIONAL CHARGES",
@@ -438,7 +532,8 @@ fun CreateOrderNextStep(
                                             modifier = Modifier
                                                 .size(16.dp)
                                                 .clickable {
-                                                    globalCharges = globalCharges.filter { it.id != charge.id }
+                                                    globalCharges =
+                                                        globalCharges.filter { it.id != charge.id }
                                                 }
                                         )
                                     }
@@ -457,7 +552,6 @@ fun CreateOrderNextStep(
                             }
                         )
 
-                        // ── Total Items & Subtotal ──
                         HorizontalDivider(color = BorderColor, modifier = Modifier.padding(vertical = 12.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Total Items: ${orderData.garments.size}", fontSize = 14.sp, color = TextSecond)
@@ -465,98 +559,130 @@ fun CreateOrderNextStep(
                         }
                     }
                 }
+            }
 
-                // ── 2. PAYMENT SUMMARY ──
-                SectionCard {
-                    SectionHeader(
-                        icon = Icons.Default.CurrencyRupee,
-                        title = "Payment Summary",
-                        expanded = expandedSection == "payment",
-                        onToggle = { expandedSection = if (expandedSection == "payment") "" else "payment" }
-                    )
+            // ── 2. PAYMENT SUMMARY ──
+            SectionCard {
+                SectionHeader(
+                    icon = R.drawable.rupee,
+                    title = "Payment Summary",
+                    expanded = expandedSection == "payment",
+                    onToggle = { expandedSection = if (expandedSection == "payment") "" else "payment" }
+                )
 
-                    if (expandedSection == "payment") {
-                        // ── Subtotal ──
-                        Row(
-                            Modifier
+                AnimatedVisibility(
+                    visible = expandedSection == "payment",
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+
+                        Column(
+                            modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 5.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .clip(RoundedCornerShape(10.dp))
+                                .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Subtotal", fontSize = 14.sp, color = TextSecond)
-                            Text("₹${"%.2f".format(subtotal)}", fontSize = 14.sp, color = TextPrimary)
-                        }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Subtotal", fontSize = 14.sp, color = TextSecond)
+                                Text("₹${"%.2f".format(subtotal)}", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                            }
 
-                        // ── Discount Row ──
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("Discount", fontSize = 14.sp, color = TextSecond, modifier = Modifier.weight(1f))
-                            Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .border(0.5.dp, BorderColor, RoundedCornerShape(6.dp))
-                                    .background(PageBg)
-                                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("- ₹", fontSize = 13.sp, color = LabelGray)
-                                Spacer(Modifier.width(4.dp))
-                                BasicTextField(
-                                    value = discountText,
-                                    onValueChange = { newValue ->
-                                        if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*$"))) {
-                                            discountText = newValue
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Discount", fontSize = 14.sp, color = TextSecond, modifier = Modifier.weight(1f))
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .border(0.5.dp, BorderColor, RoundedCornerShape(6.dp))
+                                        .background(Color.White)
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("₹", fontSize = 13.sp, color = LabelGray)
+                                    Spacer(Modifier.width(4.dp))
+                                    BasicTextField(
+                                        value = discountText,
+                                        onValueChange = { newValue ->
+                                            if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*$"))) {
+                                                discountText = newValue
+                                            }
+                                        },
+                                        singleLine = true,
+                                        textStyle = TextStyle(fontSize = 13.sp, color = TextPrimary),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                        modifier = Modifier.width(50.dp),
+                                        decorationBox = { inner ->
+                                            if (discountText.isEmpty()) {
+                                                Text("0", fontSize = 13.sp, color = LabelGray)
+                                            }
+                                            inner()
                                         }
-                                    },
-                                    singleLine = true,
-                                    textStyle = TextStyle(fontSize = 13.sp, color = TextPrimary),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                    modifier = Modifier.width(50.dp),
-                                    decorationBox = { inner ->
-                                        if (discountText.isEmpty()) {
-                                            Text("0", fontSize = 13.sp, color = LabelGray)
-                                        }
-                                        inner()
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
 
-                        HorizontalDivider(color = BorderColor, modifier = Modifier.padding(vertical = 8.dp))
-
-                        // ── Grand Total ──
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 14.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text("Grand Total", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
-                            Text("₹${"%.2f".format(grandTotal)}", fontSize = 17.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+                            Text("₹${"%.2f".format(grandTotal)}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                         }
-                        Spacer(Modifier.height(6.dp))
 
-                        // ── Paid So Far ──
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Paid So Far", fontSize = 13.sp, color = TextSecond)
-                            Text("₹${"%.2f".format(orderData.paidSoFar)}", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = SuccessGreen)
-                        }
-                        Spacer(Modifier.height(4.dp))
-
-                        // ── Balance Due ──
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Balance Due", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextSecond)
-                            Text("₹${"%.2f".format(balanceDue)}", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = SuccessGreen)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Paid So Far", fontSize = 13.sp, color = TextSecond)
+                                Text("₹${"%.2f".format(orderData.paidSoFar)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = SuccessGreen)
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Balance Due", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextSecond)
+                                Text("₹${"%.2f".format(balanceDue)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = SuccessGreen)
+                            }
                         }
                     }
                 }
+            }
 
-                // ── 3. DELIVERY SCHEDULE ──
-                SectionCard {
-                    SectionHeader(
-                        icon = Icons.Default.CalendarMonth,
-                        title = "Delivery Schedule",
-                        expanded = expandedSection == "delivery",
-                        onToggle = { expandedSection = if (expandedSection == "delivery") "" else "delivery" }
-                    )
+            // ── 3. DELIVERY SCHEDULE ──
+            SectionCard {
+                SectionHeader(
+                    icon = R.drawable.delivery,
+                    title = "Delivery Schedule",
+                    expanded = expandedSection == "delivery",
+                    onToggle = { expandedSection = if (expandedSection == "delivery") "" else "delivery" }
+                )
 
-                    if (expandedSection == "delivery") {
-                        // ── Trial Date ──
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                AnimatedVisibility(
+                    visible = expandedSection == "delivery",
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color.White)
+                                .border(1.dp, Color.LightGray, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text("Trial Date", fontSize = 14.sp, color = TextSecond)
                             Text(
                                 orderData.trialDate.ifBlank { "Not Scheduled" },
@@ -564,15 +690,14 @@ fun CreateOrderNextStep(
                                 color = if (orderData.trialDate.isBlank()) LabelGray else TextPrimary
                             )
                         }
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(10.dp))
 
-                        // ── Final Delivery ──
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(10.dp))
                                 .background(AccentBlueBg)
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -588,57 +713,8 @@ fun CreateOrderNextStep(
                 }
             }
 
-                // ✅ NEW — Floating "Back to Edit" pill button (bottom-start, overlays content)
-                // Styled exactly like CustomerDetailScreen's Back FAB button
-                OutlinedButton(
-                    onClick = onBack,
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF111827)
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                    contentPadding = PaddingValues(horizontal = 50.dp, vertical = 14.dp),
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 20.dp, bottom = 24.dp)
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Back to Edit", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                }
-                Spacer(Modifier.padding(horizontal = 50.dp))
-                // ✅ NEW — Floating "Save Order" pill button (bottom-end, overlays content)
-                // Styled exactly like CustomerDetailScreen's Next/Update FAB button
-                Button(
-                    onClick = { buildAndSaveOrder() },
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AccentBlue,
-                        contentColor = Color.White
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                    contentPadding = PaddingValues(horizontal = 50.dp, vertical = 14.dp),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 20.dp, bottom = 24.dp)
-                ) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Save Order", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                }
-
+            Spacer(Modifier.height(12.dp))
         }
-
     }
 }
 
@@ -665,7 +741,8 @@ private fun PriceInputBox(
             .clip(RoundedCornerShape(6.dp))
             .border(0.5.dp, BorderColor, RoundedCornerShape(6.dp))
             .background(PageBg)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .height(40.dp)
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text("₹", fontSize = 13.sp, color = LabelGray)
@@ -682,10 +759,15 @@ private fun PriceInputBox(
             textStyle = TextStyle(fontSize = 13.sp, color = TextPrimary),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             decorationBox = { inner ->
-                if (value.isEmpty()) {
-                    Text("0", fontSize = 13.sp, color = LabelGray)
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (value.isEmpty()) {
+                        Text("0", fontSize = 13.sp, color = LabelGray)
+                    }
+                    inner()
                 }
-                inner()
             }
         )
     }
@@ -702,7 +784,9 @@ private fun ChargeNameInput(
             .clip(RoundedCornerShape(6.dp))
             .border(0.5.dp, BorderColor, RoundedCornerShape(6.dp))
             .background(PageBg)
-            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .height(40.dp)
+            .padding(horizontal = 10.dp),
+        contentAlignment = Alignment.CenterStart
     ) {
         BasicTextField(
             value = value,
@@ -711,10 +795,15 @@ private fun ChargeNameInput(
             textStyle = TextStyle(fontSize = 13.sp, color = TextPrimary),
             modifier = Modifier.fillMaxWidth(),
             decorationBox = { inner ->
-                if (value.isEmpty()) {
-                    Text("Charge Name", fontSize = 13.sp, color = LabelGray)
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (value.isEmpty()) {
+                        Text("Charge Name", fontSize = 13.sp, color = LabelGray)
+                    }
+                    inner()
                 }
-                inner()
             }
         )
     }
@@ -728,7 +817,7 @@ private fun SectionCard(content: @Composable ColumnScope.() -> Unit) {
         colors = CardDefaults.cardColors(containerColor = SectionBg),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 20.dp), // ✅ CHANGED — top/bottom padding removed, header's own vertical padding handles spacing
+            modifier = Modifier.padding(horizontal = 10.dp),
             content = content
         )
     }
@@ -736,44 +825,46 @@ private fun SectionCard(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun SectionHeader(
-    icon: ImageVector,
+    @DrawableRes icon: Int,
     title: String,
     expanded: Boolean,
     onToggle: () -> Unit,
     bottomPadding: Dp = 14.dp
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) { onToggle() }
-            .padding(horizontal = 10.dp, vertical = 15.dp)
-    ) {
-        // ── Icon badge (small colored square behind icon) ──
-        Box(
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .size(28.dp)
-                .background(AccentBlueBg),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { onToggle() }
+                .padding(horizontal = 5.dp, vertical = 15.dp)
         ) {
-            Icon(icon, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(15.dp))
+            Image(
+                painter = painterResource(icon),
+                contentDescription = null,
+                modifier = Modifier.size(30.dp)
+            )
+
+            Spacer(Modifier.width(10.dp))
+            Text(
+                title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = TextPrimary,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = null,
+                tint = LabelGray,
+                modifier = Modifier.size(25.dp)
+            )
         }
-        Spacer(Modifier.width(10.dp))
-        Text(
-            title,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = TextPrimary,
-            modifier = Modifier.weight(1f)
-        )
-        Icon(
-            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-            contentDescription = null,
-            tint = LabelGray,
-            modifier = Modifier.size(20.dp)
-        )
+        if (!expanded) {
+            HorizontalDivider(color = BorderColor)
+        }
     }
 }

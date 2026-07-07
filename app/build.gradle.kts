@@ -141,4 +141,12 @@ dependencies {
     implementation("com.google.accompanist:accompanist-permissions:0.37.3")
 
     implementation("com.github.skydoves:colorpicker-compose:1.1.2")
+
+    // iText7 for PDF generation
+    implementation("com.itextpdf:itext7-core:7.2.5")
+
+// For printing
+    implementation("androidx.print:print:1.0.0")
+// For file handling
+    implementation("androidx.core:core-ktx:1.10.1")
 }

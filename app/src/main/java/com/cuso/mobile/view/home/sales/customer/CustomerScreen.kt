@@ -268,11 +268,13 @@ fun CustomerScreen(
                                                 backgroundColor = Color.Transparent,
                                                 tint = Color(0xFF9CA3AF)
                                             ),
-                                            badge = DataCardBadge(text = badgeText, color = badgeColor),
-                                            badgeInline = true,                       // ✅ badge next to name, not top row
+                                            topBadgeText = badgeText,
+                                            topBadgeTextColor = badgeColor,
+                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
+                                            topBadgeInline = true,                       // ✅ badge next to name, not top row
                                             title = customer.name,
                                             subtitle = "Date of Birth  ${customer.dateOfBirth.toDisplayDate()}",
-                                            footerAsRows = true,                      // ✅ "label   value" style like image 1
+                                            footerAsRows = true,
                                             footerFields = listOf(
                                                 DataCardField(label = "Email", text = customer.email?.ifBlank { "—" } ?: "—"),
                                                 DataCardField(label = "Mobile", text = customer.mobile?.ifBlank { "—" } ?: "—"),

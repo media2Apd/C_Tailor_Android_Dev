@@ -54,8 +54,10 @@ import com.cuso.mobile.model.DesignationDeleteResponse
 import com.cuso.mobile.model.MeasurementsResponse
 import com.cuso.mobile.model.OrderApiResponse
 import com.cuso.mobile.model.OrderItem
+import com.cuso.mobile.model.OrderManagementResponse
 import com.cuso.mobile.model.OrderOverviewData
 import com.cuso.mobile.model.OrderResponse
+import com.cuso.mobile.model.OrderViewData
 import com.cuso.mobile.model.StageAssignRequest
 import com.cuso.mobile.model.UpdateCustomerRequest
 import com.cuso.mobile.model.UpdateOrderRequest
@@ -238,6 +240,54 @@ class SalesRepository @Inject constructor(
                 val errorMsg = response.errorBody()?.string()
                     ?: response.message()
                     ?: "Failed to create order"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    suspend fun updateOrder(
+        orderId: String,
+        request: CreateOrderRequest,
+        existingImages: List<String> = emptyList(),
+        imageParts: List<okhttp3.MultipartBody.Part> = emptyList(),
+        voiceNotePart: okhttp3.MultipartBody.Part? = null
+    ): Result<OrderItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val gson = com.google.gson.Gson()
+
+            fun String.asTextBody(): RequestBody =
+                this.toRequestBody("text/plain".toMediaTypeOrNull())
+
+            val response = api.updateOrder(
+                token = accessToken,
+                csrfToken = csrfToken,
+                orderId = orderId,
+                customer = gson.toJson(request.customer).asTextBody(),
+                branch = request.branch.asTextBody(),
+                wearerType = request.wearerType?.asTextBody(),
+                source = request.source?.asTextBody(),
+                orderType = request.orderType?.asTextBody(),
+                garments = gson.toJson(request.garments).asTextBody(),
+                paymentDetails = gson.toJson(request.paymentDetails).asTextBody(),
+                orderDate = request.orderDate.asTextBody(),
+                trialDate = request.trialDate?.asTextBody(),
+                deliveryDate = request.deliveryDate?.asTextBody(),
+                totalAmount = request.totalAmount.toString().asTextBody(),
+                existingImages = gson.toJson(existingImages).asTextBody(),
+                designImages = imageParts,
+                voiceNote = voiceNotePart
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val apiResponse = response.body()?.data
+                    ?: return Result.failure(Exception("Order data is null"))
+                Result.success(apiResponse.toOrderItem())
+            } else {
+                val errorMsg = response.errorBody()?.string()
+                    ?: response.message()
+                    ?: "Failed to update order"
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
@@ -615,7 +665,50 @@ class SalesRepository @Inject constructor(
             Result.failure(e)
         }
     }
-
+    suspend fun getOrderManagement(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ): Result<OrderManagementResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getOrderManagement(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search,
+                status = status
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch order management data: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    suspend fun getOrdersView(orderId: String): Result<OrderViewData> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getOrdersView(accessToken, csrfToken, orderId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data
+                    ?: return Result.failure(Exception("Order data is null"))
+                Result.success(data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch order view: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     suspend fun getOrderById(orderId: String): Result<OrderItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -777,38 +870,33 @@ class SalesRepository @Inject constructor(
     }
 
     suspend fun assignCutting(
-        token: String,
-        csrfToken: String,
         orderId: String,
         garmentItemId: String,
         staffId: String,
         quantity: Int
     ): Result<AssignStageResponse> = safeAssignCall {
+        val (token, csrfToken) = getAuthHeaders()
         api.assignCutting(token, csrfToken, orderId, garmentItemId, StageAssignRequest(listOf(staffId), quantity))
     }
 
     suspend fun assignStitching(
-        token: String,
-        csrfToken: String,
         orderId: String,
         garmentItemId: String,
         staffId: String,
         quantity: Int
     ): Result<AssignStageResponse> = safeAssignCall {
+        val (token, csrfToken) = getAuthHeaders()
         api.assignStitching(token, csrfToken, orderId, garmentItemId, StageAssignRequest(listOf(staffId), quantity))
     }
 
     suspend fun assignQc(
-        token: String,
-        csrfToken: String,
         orderId: String,
         garmentItemId: String,
         staffId: String,
         quantity: Int
     ): Result<AssignStageResponse> = safeAssignCall {
-        api.assignQc(token, csrfToken, orderId, garmentItemId,
-            StageAssignRequest(listOf(staffId), quantity)
-        )
+        val (token, csrfToken) = getAuthHeaders()
+        api.assignQc(token, csrfToken, orderId, garmentItemId, StageAssignRequest(listOf(staffId), quantity))
     }
 
     private suspend fun safeAssignCall(call: suspend () -> Response<AssignStageResponse>): Result<AssignStageResponse> {

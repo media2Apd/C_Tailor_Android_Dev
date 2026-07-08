@@ -204,7 +204,9 @@ fun DesignationScreen(
                                         val (badgeText, badgeColor) = if (item.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
                                         DataCard(
                                             item = item,
-                                            badge = DataCardBadge(text = badgeText, color = badgeColor),
+                                            topBadgeText = badgeText,
+                                            topBadgeTextColor = badgeColor,
+                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
                                             title = item.name,
                                             subtitle = item.code,
                                             footerFields = listOf(

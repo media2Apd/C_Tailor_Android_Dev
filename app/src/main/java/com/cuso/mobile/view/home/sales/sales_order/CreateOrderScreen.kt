@@ -110,6 +110,9 @@ fun CreateOrderScreen(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
+    // ✅ Check if we're in edit mode
+    val isEditMode = initialData?.orderId != null
+
     var phone by rememberSaveable {
         mutableStateOf(initialData?.phone ?: "")
     }
@@ -163,7 +166,6 @@ fun CreateOrderScreen(
     }
 
     // ── Customer state ──
-
     var showImagePickerOptions by rememberSaveable { mutableStateOf(false) }
     var capturedImageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
@@ -174,7 +176,7 @@ fun CreateOrderScreen(
     val branchUiState by branchViewModel.uiState.collectAsStateWithLifecycle()
     val branches = (branchUiState as? BranchUiState.Success)?.branches ?: emptyList()
     val isLoadingBranches = branchUiState is BranchUiState.Loading
-    var genderExpanded by rememberSaveable {mutableStateOf(false)}
+    var genderExpanded by rememberSaveable { mutableStateOf(false) }
 
     // ── Permission state ──
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
@@ -187,6 +189,7 @@ fun CreateOrderScreen(
             selectedDesignImages = selectedDesignImages + it
         }
     }
+
     LaunchedEffect(initialData) {
         initialData?.garments?.let { garments ->
             garments.forEach { salesViewModel.addOrUpdateGarment(it) }
@@ -206,7 +209,6 @@ fun CreateOrderScreen(
     }
 
     var expandedSection by rememberSaveable { mutableStateOf("customer") }
-
 
     var branchExpanded by rememberSaveable { mutableStateOf(false) }
     val branchNameToId = rememberSaveable(branches) {
@@ -374,7 +376,6 @@ fun CreateOrderScreen(
 
     LaunchedEffect(Unit) {
         if (initialData == null) {
-            // புது order start பண்றப்போ மட்டும் clear பண்ணனும்
             salesViewModel.clearAllSelectedGarments()
         }
         branchViewModel.loadBranches()
@@ -384,7 +385,7 @@ fun CreateOrderScreen(
     }
 
     LaunchedEffect(phone) {
-        if (phone.length >= 4) {
+        if (phone.length >= 4 && !isEditMode) {
             salesViewModel.searchCustomerByMobile(mobile = phone, countryCode = countryCode)
         } else {
             salesViewModel.clearCustomerSearch()
@@ -405,6 +406,7 @@ fun CreateOrderScreen(
             SelectedGarment(
                 category = "",
                 categoryName = "",
+                categoryId = "",
                 quantity = 1,
                 price = 0.0,
                 priority = "",
@@ -417,8 +419,6 @@ fun CreateOrderScreen(
             )
         )
     }
-
-
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun startRecording() {
@@ -454,9 +454,11 @@ fun CreateOrderScreen(
     }
 
     fun openGarmentDialog(categoryName: String, category: String) {
+        android.util.Log.d("GARMENT_DEBUG", "categoryName param=$categoryName | category param=$category")
         tempGarment = SelectedGarment(
             category = category,
             categoryName = categoryName,
+            categoryId = category,
             quantity = 1,
             price = 0.0,
             priority = "Low",
@@ -491,6 +493,7 @@ fun CreateOrderScreen(
             val garment = SelectedGarment(
                 category = cg.category,
                 categoryName = cg.categoryName,
+                categoryId = cg.id,
                 quantity = cg.quantity,
                 priority = cg.priority,
                 trialRequired = cg.trialRequired,
@@ -515,7 +518,7 @@ fun CreateOrderScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    "Create Order",
+                    if (isEditMode) "Edit Order" else "Create Order",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
@@ -526,7 +529,11 @@ fun CreateOrderScreen(
                     contentDescription = "close",
                     modifier = Modifier
                         .size(22.dp)
-                        .clickable { onBack() },
+                        .clickable {
+                            salesViewModel.clearAllSelectedGarments()
+                            salesViewModel.clearCustomerSearch()
+                            onBack()
+                        },
                     tint = Color(0xFF111827)
                 )
             }
@@ -562,7 +569,8 @@ fun CreateOrderScreen(
                 Button(
                     onClick = {
                         val data = OrderReviewData(
-                            customerId = selectedCustomer?.id ?: "",
+                            orderId = initialData?.orderId,
+                            customerId = selectedCustomer?.id ?: initialData?.customerId ?: "",
                             branchId = selectedBranchId,
                             fullName = fullName,
                             countryCode = countryCode,
@@ -575,7 +583,10 @@ fun CreateOrderScreen(
                             source = source,
                             trialDate = trialDate,
                             deliveryDate = deliveryDate,
+                            discount = initialData?.discount ?: 0.0,
+                            paidSoFar = initialData?.paidSoFar ?: 0.0,
                             designImages = selectedDesignImages,
+                            existingImageUrls = initialData?.existingImageUrls ?: emptyList(),
                             voiceNoteUri = recordedVoiceNoteUri
                         )
                         onNextStep(data)
@@ -588,7 +599,11 @@ fun CreateOrderScreen(
                         pressedElevation = 3.dp
                     )
                 ) {
-                    Text("Next Step", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (isEditMode) "Update Order" else "Next Step",
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold
+                    )
                     Spacer(Modifier.width(6.dp))
                     Icon(
                         Icons.Default.ChevronRight,
@@ -619,151 +634,152 @@ fun CreateOrderScreen(
                     onToggle = { expandedSection = if (expandedSection == "customer") "" else "customer" }
                 ) {
 
-                    Row(
+                    Box(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                        contentAlignment = Alignment.CenterEnd
                     ) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            PhoneInputField(
-                                phoneValue = phone,
-                                onPhoneChange = { newPhone ->
+                        PhoneInputField(
+                            phoneValue = phone,
+                            onPhoneChange = { newPhone ->
+                                if (!isEditMode) {
                                     phone = newPhone
                                     if (newPhone.isEmpty()) salesViewModel.clearCustomerSearch()
-                                },
-                                onCountryChange = { country -> countryCode = country.code }
-                            )
-                        }
-                        if (isSearchingCustomer) {
-                            Spacer(Modifier.width(8.dp))
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = Color(0xFF3B3BF9)
-                            )
-                        }
+                                }
+                            },
+                            onCountryChange = { country -> countryCode = country.code },
+                            isLoading = isSearchingCustomer,
+                            onRetry = {
+                                if (phone.length >= 4 && !isEditMode) {
+                                    salesViewModel.searchCustomerByMobile(mobile = phone, countryCode = countryCode)
+                                }
+                            },
+                            enabled = !isEditMode
+                        )
                     }
 
-                    AnimatedVisibility(
-                        visible = customerSearchResult?.customer != null,
-                        enter = expandVertically(),
-                        exit = shrinkVertically()
-                    ) {
-                        customerSearchResult?.customer?.let { customer ->
-                            Spacer(Modifier.height(8.dp))
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                elevation = CardDefaults.cardElevation(3.dp)
-                            ) {
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Color(0xFFF0FDF4))
-                                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
+                    // Hide customer search in edit mode
+                    if (!isEditMode) {
+                        AnimatedVisibility(
+                            visible = customerSearchResult?.customer != null,
+                            enter = expandVertically(),
+                            exit = shrinkVertically()
+                        ) {
+                            customerSearchResult?.customer?.let { customer ->
+                                Spacer(Modifier.height(8.dp))
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    elevation = CardDefaults.cardElevation(3.dp)
+                                ) {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
                                         Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.CheckCircle,
-                                                null,
-                                                tint = Color(0xFF16A34A),
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Text(
-                                                "FOUND CUSTOMER",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF16A34A),
-                                                letterSpacing = 0.5.sp
-                                            )
-                                        }
-                                        Icon(
-                                            Icons.Default.Close,
-                                            null,
-                                            tint = Color(0xFF6B7280),
                                             modifier = Modifier
-                                                .size(16.dp)
-                                                .clickable { salesViewModel.clearCustomerSearch() }
-                                        )
-                                    }
-
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column {
-                                            Text(
-                                                customer.name,
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF111827)
-                                            )
-                                            val orderCount = customerSearchResult?.orders?.size ?: 0
-                                            Text(
-                                                "Found $orderCount previous order${if (orderCount != 1) "s" else ""}",
-                                                fontSize = 12.sp,
-                                                color = Color(0xFF6B7280)
-                                            )
-                                        }
-
-                                        if ((customerSearchResult?.orders?.size ?: 0) > 0) {
-                                            OutlinedButton(
-                                                onClick = {
-                                                    fullName = customer.name
-                                                    address = customer.address?.addressLine ?: ""
-                                                    showImportDialog = true
-                                                },
-                                                shape = RoundedCornerShape(8.dp),
-                                                border = BorderStroke(1.dp, Color(0xFF3B3BF9)),
-                                                colors = ButtonDefaults.outlinedButtonColors(
-                                                    containerColor = Color(0xFFEEF2FF)
-                                                ),
-                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                                .fillMaxWidth()
+                                                .background(Color(0xFFF0FDF4))
+                                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
                                                 Icon(
-                                                    Icons.Default.Download,
+                                                    Icons.Default.CheckCircle,
                                                     null,
-                                                    tint = Color(0xFF3B3BF9),
-                                                    modifier = Modifier.size(14.dp)
+                                                    tint = Color(0xFF16A34A),
+                                                    modifier = Modifier.size(16.dp)
                                                 )
-                                                Spacer(Modifier.width(4.dp))
                                                 Text(
-                                                    "Import Data",
-                                                    fontSize = 13.sp,
-                                                    color = Color(0xFF3B3BF9),
-                                                    fontWeight = FontWeight.SemiBold
+                                                    "FOUND CUSTOMER",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF16A34A),
+                                                    letterSpacing = 0.5.sp
                                                 )
                                             }
-                                        } else {
-                                            OutlinedButton(
-                                                onClick = {
-                                                    fullName = customer.name
-                                                    address = customer.address?.addressLine ?: ""
-                                                    salesViewModel.clearCustomerSearch()
-                                                },
-                                                shape = RoundedCornerShape(8.dp),
-                                                border = BorderStroke(1.dp, Color(0xFF3B3BF9)),
-                                                colors = ButtonDefaults.outlinedButtonColors(
-                                                    containerColor = Color(0xFFEEF2FF)
-                                                ),
-                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                                            ) {
+                                            Icon(
+                                                Icons.Default.Close,
+                                                null,
+                                                tint = Color(0xFF6B7280),
+                                                modifier = Modifier
+                                                    .size(16.dp)
+                                                    .clickable { salesViewModel.clearCustomerSearch() }
+                                            )
+                                        }
+
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column {
                                                 Text(
-                                                    "Use Details",
-                                                    fontSize = 13.sp,
-                                                    color = Color(0xFF3B3BF9),
-                                                    fontWeight = FontWeight.SemiBold
+                                                    customer.name,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF111827)
                                                 )
+                                                val orderCount = customerSearchResult?.orders?.size ?: 0
+                                                Text(
+                                                    "Found $orderCount previous order${if (orderCount != 1) "s" else ""}",
+                                                    fontSize = 12.sp,
+                                                    color = Color(0xFF6B7280)
+                                                )
+                                            }
+
+                                            if ((customerSearchResult?.orders?.size ?: 0) > 0) {
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        fullName = customer.name
+                                                        address = customer.address?.addressLine ?: ""
+                                                        showImportDialog = true
+                                                    },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    border = BorderStroke(1.dp, Color(0xFF3B3BF9)),
+                                                    colors = ButtonDefaults.outlinedButtonColors(
+                                                        containerColor = Color(0xFFEEF2FF)
+                                                    ),
+                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Download,
+                                                        null,
+                                                        tint = Color(0xFF3B3BF9),
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                    Spacer(Modifier.width(4.dp))
+                                                    Text(
+                                                        "Import Data",
+                                                        fontSize = 13.sp,
+                                                        color = Color(0xFF3B3BF9),
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                }
+                                            } else {
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        fullName = customer.name
+                                                        address = customer.address?.addressLine ?: ""
+                                                        salesViewModel.clearCustomerSearch()
+                                                    },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    border = BorderStroke(1.dp, Color(0xFF3B3BF9)),
+                                                    colors = ButtonDefaults.outlinedButtonColors(
+                                                        containerColor = Color(0xFFEEF2FF)
+                                                    ),
+                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                                ) {
+                                                    Text(
+                                                        "Use Details",
+                                                        fontSize = 13.sp,
+                                                        color = Color(0xFF3B3BF9),
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -777,8 +793,9 @@ fun CreateOrderScreen(
                     LabeledField("Full Name *") {
                         CustomerOutlinedField(
                             value = fullName,
-                            onValueChange = { fullName = it },
-                            placeholder = "Enter your name"
+                            onValueChange = { if (!isEditMode) fullName = it },
+                            placeholder = "Enter your name",
+                            enabled = !isEditMode
                         )
                     }
 
@@ -803,19 +820,21 @@ fun CreateOrderScreen(
                             focusedContainerColor = Color.White
                         ),
                         shape = RoundedCornerShape(8.dp),
-                        textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF111827))
+                        textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF111827)),
+                        enabled = !isEditMode
                     )
 
                     Spacer(Modifier.height(4.dp))
 
                     FormDropdown(
                         label = "Gender",
-                        value = gender.ifEmpty { "Select an option" },
+                        value = gender.ifEmpty { "Male" },
                         expanded = genderExpanded,
                         onExpandChange = { genderExpanded = it },
                         options = listOf("Male", "Female", "Other"),
-                        onOptionSelected = { gender = it },
-                        isRequired = true
+                        onOptionSelected = { if (!isEditMode) gender = it },
+                        isRequired = true,
+                        enabled = !isEditMode
                     )
 
                     Spacer(Modifier.height(4.dp))
@@ -826,8 +845,9 @@ fun CreateOrderScreen(
                         expanded = dressForExpanded,
                         onExpandChange = { dressForExpanded = it },
                         options = listOf("Men", "Women", "Kids", "Unisex"),
-                        onOptionSelected = { dressFor = it },
+                        onOptionSelected = { if (!isEditMode) dressFor = it },
                         isRequired = true
+
                     )
 
                     Spacer(Modifier.height(4.dp))
@@ -838,7 +858,7 @@ fun CreateOrderScreen(
                         expanded = sourceExpanded,
                         onExpandChange = { sourceExpanded = it },
                         options = listOf("Walk-in", "Phone", "WhatsApp", "Referral", "Online"),
-                        onOptionSelected = { source = it },
+                        onOptionSelected = { if (!isEditMode) source = it },
                         isRequired = true
                     )
                 }
@@ -1190,9 +1210,15 @@ fun CreateOrderScreen(
                                     ) {
                                         Icon(
                                             Icons.Default.Close,
-                                            null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(12.dp)
+                                            contentDescription = "close",
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .clickable {
+                                                    salesViewModel.clearAllSelectedGarments()
+                                                    salesViewModel.clearCustomerSearch()
+                                                    onBack()
+                                                },
+                                            tint = Color(0xFF111827)
                                         )
                                     }
                                 }

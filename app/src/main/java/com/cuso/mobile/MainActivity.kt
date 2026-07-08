@@ -33,6 +33,7 @@ import com.cuso.mobile.view.home.SettingsScreen
 import com.cuso.mobile.view.home.branch.BranchSettingsScreen
 import com.cuso.mobile.view.home.sales.sales_order.SalesOrderScreen
 import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
+import com.cuso.mobile.view.home.sales.ordermanagement.OrderManagementScreen
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -67,8 +68,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             CusoTailorTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
+                    val navController = rememberNavController()
+
                     // 👇 isLoggedIn is guaranteed non-null here since splash already waited for it
                     AppNav(activity = this, startLoggedIn = isLoggedIn == true)
+//                    OrderManagementScreen(navController = navController)
                 }
             }
         }

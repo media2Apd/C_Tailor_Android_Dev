@@ -29,6 +29,12 @@ import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import com.cuso.mobile.ui.theme.greenBg
+import com.cuso.mobile.ui.theme.greentext
+import com.cuso.mobile.ui.theme.redBg
+import com.cuso.mobile.ui.theme.redtext
+import com.cuso.mobile.ui.theme.yellowBg
+import com.cuso.mobile.ui.theme.yellowtext
 import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
 import com.cuso.mobile.viewmodel.OrderActionState
 import com.cuso.mobile.viewmodel.OrderUiState
@@ -48,7 +54,9 @@ fun SalesOrderScreen(
     onMenuClick: () -> Unit = {},
     onBack: () -> Unit = {},
     onCreateOrder: () -> Unit = {},
-    onViewOrder: (String) -> Unit = {}   // ✅ CHANGED — OrderItem இல்ல, String (orderId) expect பண்ணணும்
+    onViewOrder: (String) -> Unit = {},   // ✅ CHANGED — OrderItem இல்ல, String (orderId) expect பண்ணணும்
+    onEditOrder: (String) -> Unit = {}   // ✅ NEW
+
 ) {
     val viewModel: SalesOrderViewModel = hiltViewModel()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
@@ -298,23 +306,22 @@ fun SalesOrderScreen(
                                                 backgroundColor = Color.Transparent,
                                                 tint = Color(0xFF9CA3AF)
                                             ),
-                                            badge = DataCardBadge(
-                                                text = order.status?.replaceFirstChar { it.uppercase() } ?: "—",
-                                                color = statusTextColor
-                                            ),
-                                            badgeInline = true,                      // ✅ badge next to title, like Customer screen
+                                            topBadgeText = order.status?.replaceFirstChar { it.uppercase() } ?: "—",
+                                            topBadgeTextColor = statusTextColor,
+                                            topBadgeBgColor = statusTextColor.copy(alpha = 0.14f),
+                                            topBadgeInline = true,                      // ✅ badge next to title, like Customer screen
                                             title = order.customerId?.name ?: "Unknown",
                                             subtitle = order.orderNumber,
-                                            footerAsRows = true,                     // ✅ "label   value" rows, like Customer screen
+                                            footerAsRows = true,
                                             footerFields = listOf(
                                                 DataCardField(label = "Items", text = garmentNames),
-                                                DataCardField(label = "Price",text = order.totalAmount?.let { "₹$it" } ?: "—" ),
-                                                DataCardField(label = "Date Of Delivery",text = order.deliveryDate.toDisplayDate()),
-                                                DataCardField(label = "Priority", text= "—")
+                                                DataCardField(label = "Price", text = order.totalAmount?.let { "₹$it" } ?: "—"),
+                                                DataCardField(label = "Date Of Delivery", text = order.deliveryDate.toDisplayDate()),
+                                                DataCardField(label = "Priority", text = "—")
                                             ),
                                             actions = listOf(
                                                 MenuAction("View", Icons.Default.Visibility) { onViewOrder(order.id) },
-                                                MenuAction("Edit", Icons.Default.Edit) { /* TODO */ }
+                                                MenuAction("Edit", Icons.Default.Edit) { onEditOrder(order.id) }
                                             )
                                         )
                                     }
@@ -508,18 +515,18 @@ fun SalesOrderScreen(
 // Idha SalesOrderScreen.kt file-la (அல்லது தனி Mappers.kt file-la) add pannunga
 
 fun orderStatusColors(status: String?): Pair<Color, Color> = when (status?.lowercase()) {
-    "confirmed"  -> Color(0xFFE8F5E9) to Color(0xFF388E3C)
-    "pending"    -> Color(0xFFFFF3E0) to Color(0xFFFF9800)
+    "confirmed"  -> greenBg to greentext
+    "pending"    -> yellowBg to yellowtext
     "processing" -> Color(0xFFF3E5F5) to Color(0xFF9C27B0)
-    "completed"  -> Color(0xFFE8F5E9) to Color(0xFF4CAF50)
-    "cancelled"  -> Color(0xFFFFEBEE) to Color(0xFFF44336)
+    "completed"  -> greenBg to greentext
+    "cancelled"  -> redBg to redtext
     else         -> Color(0xFFE3F2FD) to Color(0xFF1976D2)
 }
 
 fun paymentStatusColors(status: String): Pair<Color, Color> = when (status.lowercase()) {
-    "paid"    -> Color(0xFFE8F5E9) to Color(0xFF388E3C)
-    "partial" -> Color(0xFFFFF3E0) to Color(0xFFFF9800)
-    "unpaid"  -> Color(0xFFFFF8E6) to Color(0xFFD97706)
+    "paid"    -> greenBg to greentext
+    "partial" ->yellowBg to yellowtext
+    "unpaid"  -> redBg to redtext
     else      -> Color(0xFFF3F4F6) to Color(0xFF6B7280)
 }
 fun Long?.toDisplayDate(): String {

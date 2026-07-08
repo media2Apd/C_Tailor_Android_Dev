@@ -125,6 +125,8 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.ui.graphics.ColorFilter
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.home.sales.customer.CustomerDetailScreen
+import com.cuso.mobile.view.home.sales.ordermanagement.OrderManagementScreen
+import com.cuso.mobile.view.home.sales.sales_order.toOrderReviewData
 import com.cuso.mobile.viewmodel.CustomerDeleteState
 import com.cuso.mobile.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
@@ -163,6 +165,7 @@ fun HomeScreen(navController: NavHostController) {
     var selectedCustomer by remember { mutableStateOf<CustomerItem?>(null) }
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     var selectedOrderId by remember { mutableStateOf<String?>(null) }   // ✅ ADD THIS LINE
+    val context = LocalContext.current
 
 
     //delete
@@ -170,10 +173,32 @@ fun HomeScreen(navController: NavHostController) {
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+    var selectedManagementOrderId by remember { mutableStateOf<String?>(null) }
 
     var isSalesSettingsMode by remember { mutableStateOf(false) }
     var showModulesPanel by remember { mutableStateOf(false) }   // ✅ NEW
+    val orderOverviewViewModel: com.cuso.mobile.viewmodel.OrderOverviewViewModel = hiltViewModel()
+    val editOverviewState by orderOverviewViewModel.overviewState.collectAsStateWithLifecycle()
+    var editOrderId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(editOrderId) {
+        editOrderId?.let { orderOverviewViewModel.fetchSalesOverview(it) }
+    }
 
+    LaunchedEffect(editOverviewState) {
+        val id = editOrderId ?: return@LaunchedEffect
+        when (val s = editOverviewState) {
+            is com.cuso.mobile.viewmodel.OrderOverviewState.Success -> {
+                pendingOrderReviewData = s.data.toOrderReviewData()
+                currentScreen = "create_order"
+                editOrderId = null
+            }
+            is com.cuso.mobile.viewmodel.OrderOverviewState.Error -> {
+                Toast.makeText(context, "Failed to load order for editing", Toast.LENGTH_SHORT).show()
+                editOrderId = null
+            }
+            else -> Unit
+        }
+    }
     LaunchedEffect(isLoggedOut) {
         if (isLoggedOut) {
             navController.navigate("login") {
@@ -207,7 +232,6 @@ fun HomeScreen(navController: NavHostController) {
             currentScreen == "home_designation"
 
     val showSalesPanel = isSalesSettingsMode
-    val context = LocalContext.current
 
     // ✅ NEW — System back button handling
     BackHandler(enabled = isDrawerOpen || showModulesPanel || currentScreen != "home") {
@@ -491,6 +515,9 @@ fun HomeScreen(navController: NavHostController) {
                         onViewOrder = { orderId ->
                             selectedOrderId = orderId
                             currentScreen = "order_overview"
+                        },
+                        onEditOrder = { orderId ->
+                            editOrderId = orderId   // ✅ triggers fetch → convert → create_order
                         }
                     )
                     "order_overview" -> {
@@ -500,14 +527,40 @@ fun HomeScreen(navController: NavHostController) {
                                 onClose = {
                                     selectedOrderId = null
                                     currentScreen = "sales_sales_orders"
+                                },
+                                onEditOrder = { reviewData ->
+                                    pendingOrderReviewData = reviewData
+                                    selectedOrderId = null
+                                    currentScreen = "create_order"
                                 }
                             )
                         } ?: run { currentScreen = "sales_sales_orders" }
                     }
-                    "sales_orders" -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Orders Screen", fontSize = 18.sp, color = Color.Gray)
-                        }
+                    "sales_orders" -> OrderManagementScreen(
+                        navController = navController,
+                        onMenuClick = { isDrawerOpen = true },
+                        onBack = { currentScreen = "home" },
+                        onViewOrder = { orderId ->
+                            selectedManagementOrderId = orderId
+                            currentScreen = "order_management_overview"
+                        },
+
+                    )
+                    "order_management_overview" -> {
+                        selectedManagementOrderId?.let { id ->
+                            com.cuso.mobile.view.home.sales.ordermanagement.OrderDetailScreen(
+                                orderId = id,
+                                onClose = {
+                                    selectedManagementOrderId = null
+                                    currentScreen = "sales_orders"
+                                },
+                                onEditOrder = {
+                                    // When Edit Order is clicked, fetch data using OrderOverviewViewModel
+                                    editOrderId = id
+                                    // Don't change screen here, let LaunchedEffect handle it
+                                }
+                            )
+                        } ?: run { currentScreen = "sales_orders" }
                     }
                     "sales_customers" -> CustomerScreen(
                         navController = navController,
@@ -2539,7 +2592,9 @@ fun LeadScreenContent(
                                         DataCard(
                                             item = lead,
                                             dateText = formatLeadDate(lead.requiredDate?.takeIf { it.isNotBlank() } ?: lead.enquiryDate),
-                                            badge = DataCardBadge(text = badgeText, color = badgeColor),
+                                            topBadgeText = badgeText,
+                                            topBadgeTextColor = badgeColor,
+                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
                                             title = lead.person.name.ifEmpty { "—" },
                                             subtitle = "${lead.enquiryType.ifEmpty { "—" }} • ${getGarmentName(lead)} • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
                                             footerFields = listOf(
@@ -4178,7 +4233,7 @@ fun FormDropdown(
                 tint = if (enabled) Color.Gray else Color(0xFFD1D5DB)
             )
         }
-        if (enabled) {   // ✅ menu can't even open when disabled
+        if (enabled) {
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { onExpandChange(false) },
@@ -4189,11 +4244,17 @@ fun FormDropdown(
                     .heightIn(max = 180.dp)
             ) {
                 options.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option, fontSize = 14.sp, color = Color(0xFF374151)) },
-                        onClick = { onOptionSelected(option); onExpandChange(false) },
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                        modifier = Modifier.heightIn(min = 36.dp)
+                    Text(
+                        text = option,
+                        fontSize = 14.sp,
+                        color = Color(0xFF374151),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onOptionSelected(option)
+                                onExpandChange(false)
+                            }
+                            .padding(horizontal = 12.dp, vertical = 8.dp) // ← tune this
                     )
                 }
             }

@@ -28,6 +28,8 @@ import kotlinx.coroutines.launch
 import android.util.Log
 import com.cuso.mobile.database.dao.SelectedGarmentDao
 import com.cuso.mobile.database.entities.SelectedGarment
+import com.cuso.mobile.model.CreateOrderRequest
+import com.cuso.mobile.model.OrderItem
 import com.cuso.mobile.model.StatusData
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
@@ -166,6 +168,11 @@ class SalesViewModel @Inject constructor(
     val isSearchingCustomer: StateFlow<Boolean> = _isSearchingCustomer.asStateFlow()
 
     private var searchJob: Job? = null
+
+    // ── Update Order (Edit flow) ──
+    private val _updateOrderState = MutableStateFlow<SaleState<OrderItem>>(SaleState.Idle)
+    val updateOrderState: StateFlow<SaleState<OrderItem>> = _updateOrderState.asStateFlow()
+
 
     fun searchCustomerByMobile(mobile: String, countryCode: String) {
         searchJob?.cancel()
@@ -481,6 +488,9 @@ class SalesViewModel @Inject constructor(
         _leadDetailsError.value = null
         isFetchingLeadDetails = false
     }
+
+
+
 }
 
 sealed class SaleState<out T> {

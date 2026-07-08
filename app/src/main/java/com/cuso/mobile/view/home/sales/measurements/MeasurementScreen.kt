@@ -364,17 +364,13 @@ fun MeasurementsScreen(
 
                                         DataCard(
                                             item = item,
-                                            badge = DataCardBadge(
-                                                text = badgeText,
-                                                color = badgeColor
-                                            ),
+                                            topBadgeText = badgeText,
+                                            topBadgeTextColor = badgeColor,
+                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
                                             title = item.customerName,
                                             subtitle = item.contact,
                                             footerFields = listOf(
-                                                DataCardField(
-                                                    icon = Icons.Default.Checkroom,
-                                                    text = item.garments
-                                                ),
+                                                DataCardField(icon = Icons.Default.Checkroom, text = item.garments),
                                                 DataCardField(icon = Icons.Default.CurrencyRupee, text = "Pending: ${item.pending}"),
                                                 DataCardField(icon = Icons.Default.AccountBalanceWallet, text = "Spend: ${item.totalSpend}"),
                                                 DataCardField(icon = Icons.Default.CalendarMonth, text = item.lastUpdated)

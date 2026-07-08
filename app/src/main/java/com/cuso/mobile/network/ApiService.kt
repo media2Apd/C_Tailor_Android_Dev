@@ -88,7 +88,9 @@ import com.cuso.mobile.model.DashboardResponse
 import com.cuso.mobile.model.DeleteCustomerResponse
 import com.cuso.mobile.model.GetCustomerViewResponse
 import com.cuso.mobile.model.MeasurementsResponse
+import com.cuso.mobile.model.OrderManagementResponse
 import com.cuso.mobile.model.OrderOverviewApiResponse
+import com.cuso.mobile.model.OrderViewResponse
 import com.cuso.mobile.model.StageAssignRequest
 import com.cuso.mobile.model.UpdateCustomerRequest
 import com.cuso.mobile.model.UpdateCustomerResponse
@@ -416,27 +418,6 @@ interface ApiService {
         @Path("orderId") orderId: String
     ): Response<OrderDetailResponse>
 
-//    @POST("api/sales-leads")
-//    suspend fun createOrder(
-//        @Header("Authorization") token: String,
-//        @Header("X-CSRF-Token") csrfToken: String,
-//        @Body request: CreateOrderRequest
-//    ): Response<OrderDetailResponse>
-//
-//    @PUT("api/sales-leads/{orderId}")
-//    suspend fun updateOrder(
-//        @Header("Authorization") token: String,
-//        @Header("X-CSRF-Token") csrfToken: String,
-//        @Path("orderId") orderId: String,
-//        @Body request: UpdateOrderRequest
-//    ): Response<OrderDetailResponse>
-//
-//    @DELETE("api/sales-leads/{orderId}")
-//    suspend fun deleteOrder(
-//        @Header("Authorization") token: String,
-//        @Header("X-CSRF-Token") csrfToken: String,
-//        @Path("orderId") orderId: String
-//    ): Response<BaseResponse<Boolean>>
 
     @PATCH("/api/sales-leads/{orderId}/status")
     suspend fun updateOrderStatus(
@@ -473,6 +454,29 @@ interface ApiService {
         @Part("totalAmount") totalAmount: RequestBody,
         @Part("status") status: RequestBody? = null,
         @Part designImages: List<MultipartBody.Part>,           // pass emptyList() if none
+        @Part voiceNote: MultipartBody.Part?
+    ): Response<CreateOrderResponse>
+
+    // ── Update Order (Edit flow) ──
+    @Multipart
+    @PUT("/api/sales-orders/update-one/{orderId}")
+    suspend fun updateOrder(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("orderId") orderId: String,
+        @Part("customer") customer: RequestBody,
+        @Part("branch") branch: RequestBody,
+        @Part("wearerType") wearerType: RequestBody? = null,
+        @Part("source") source: RequestBody? = null,
+        @Part("orderType") orderType: RequestBody? = null,
+        @Part("garments") garments: RequestBody,
+        @Part("paymentDetails") paymentDetails: RequestBody,
+        @Part("orderDate") orderDate: RequestBody,
+        @Part("trialDate") trialDate: RequestBody? = null,
+        @Part("deliveryDate") deliveryDate: RequestBody? = null,
+        @Part("totalAmount") totalAmount: RequestBody,
+        @Part("existingImages") existingImages: RequestBody,
+        @Part designImages: List<MultipartBody.Part>,
         @Part voiceNote: MultipartBody.Part?
     ): Response<CreateOrderResponse>
 
@@ -553,5 +557,23 @@ interface ApiService {
         @Path("garmentItemId") garmentItemId: String,
         @Body request: StageAssignRequest
     ): Response<AssignStageResponse>
+
+    // ⚠️ endpoint path உங்க backend route-க்கு ஏத்த மாற்றிக்கோங்க
+    @GET("/api/sales-orders/confirmed-orders")
+    suspend fun getOrderManagement(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int,
+        @Query("limit") limit: Int,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<OrderManagementResponse>
+
+    @GET("/api/sales-orders/view-one/{orderId}")   // ✅ உங்க backend-oda actual route path-ஐ இங்க கொடுங்க
+    suspend fun getOrdersView(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("orderId") orderId: String
+    ): Response<OrderViewResponse>
 
 }

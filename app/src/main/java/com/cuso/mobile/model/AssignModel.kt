@@ -1,7 +1,11 @@
 package com.cuso.mobile.model
 
+import com.google.gson.annotations.SerializedName
+
 data class StageAssignRequest(
-    val assignedTo: List<String>,
+    @SerializedName("workerIds")
+    val workerIds: List<String>,
+    @SerializedName("assignedQuantity")
     val assignedQuantity: Int
 )
 

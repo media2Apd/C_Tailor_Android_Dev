@@ -250,7 +250,9 @@ fun DepartmentSettingsScreen(
                                         val (badgeText, badgeColor) = if (department.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
                                         DataCard(
                                             item = department,
-                                            badge = DataCardBadge(text = badgeText, color = badgeColor),
+                                            topBadgeText = badgeText,
+                                            topBadgeTextColor = badgeColor,
+                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
                                             title = department.name,
                                             subtitle = department.description ?: "-",
                                             footerFields = listOf(

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.AssignStageResponse
 import com.cuso.mobile.model.OrderOverviewData
+import com.cuso.mobile.model.StageAssignRequest
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,7 @@ sealed class OrderOverviewState {
     data class Success(val data: OrderOverviewData) : OrderOverviewState()
     data class Error(val message: String) : OrderOverviewState()
 }
+
 sealed class AssignWorkersState {
     object Idle : AssignWorkersState()
     object Loading : AssignWorkersState()
@@ -36,8 +38,9 @@ class OrderOverviewViewModel @Inject constructor(
 
     private val _overviewState = MutableStateFlow<OrderOverviewState>(OrderOverviewState.Idle)
     val overviewState: StateFlow<OrderOverviewState> = _overviewState.asStateFlow()
+
     private val _assignWorkersState = MutableStateFlow<AssignWorkersState>(AssignWorkersState.Idle)
-    val assignWorkersState: StateFlow<AssignWorkersState> = _assignWorkersState
+    val assignWorkersState: StateFlow<AssignWorkersState> = _assignWorkersState.asStateFlow()
 
     fun fetchSalesOverview(orderId: String) {
         viewModelScope.launch {
@@ -53,8 +56,6 @@ class OrderOverviewViewModel @Inject constructor(
     }
 
     fun assignWorkersToGarment(
-        token: String,
-        csrfToken: String,
         orderId: String,
         garmentItemId: String,
         quantity: Int,
@@ -65,22 +66,44 @@ class OrderOverviewViewModel @Inject constructor(
         viewModelScope.launch {
             _assignWorkersState.value = AssignWorkersState.Loading
 
-            val cuttingResult = repository.assignCutting(token, csrfToken, orderId, garmentItemId, cuttingStaffId, quantity)
-            val stitchingResult = repository.assignStitching(token, csrfToken, orderId, garmentItemId, stitchingStaffId, quantity)
-            val qcResult = repository.assignQc(token, csrfToken, orderId, garmentItemId, qcStaffId, quantity)
-
-            if (cuttingResult.isSuccess && stitchingResult.isSuccess && qcResult.isSuccess) {
-                _assignWorkersState.value = AssignWorkersState.Success(
-                    cuttingResult.getOrThrow(),
-                    stitchingResult.getOrThrow(),
-                    qcResult.getOrThrow()
-                )
-            } else {
-                val errorMsg = listOf(cuttingResult, stitchingResult, qcResult)
-                    .firstOrNull { it.isFailure }
-                    ?.exceptionOrNull()?.message ?: "Assignment failed"
-                _assignWorkersState.value = AssignWorkersState.Error(errorMsg)
+            val cuttingResult = repository.assignCutting(
+                orderId = orderId,
+                garmentItemId = garmentItemId,
+                staffId = cuttingStaffId,
+                quantity = quantity
+            )
+            val cuttingData = cuttingResult.getOrElse { e ->
+                _assignWorkersState.value = AssignWorkersState.Error("Cutting assignment failed: ${e.message}")
+                return@launch
             }
+
+            val stitchingResult = repository.assignStitching(
+                orderId = orderId,
+                garmentItemId = garmentItemId,
+                staffId = stitchingStaffId,
+                quantity = quantity
+            )
+            val stitchingData = stitchingResult.getOrElse { e ->
+                _assignWorkersState.value = AssignWorkersState.Error("Stitching assignment failed: ${e.message}")
+                return@launch
+            }
+
+            val qcResult = repository.assignQc(
+                orderId = orderId,
+                garmentItemId = garmentItemId,
+                staffId = qcStaffId,
+                quantity = quantity
+            )
+            val qcData = qcResult.getOrElse { e ->
+                _assignWorkersState.value = AssignWorkersState.Error("QC assignment failed: ${e.message}")
+                return@launch
+            }
+
+            _assignWorkersState.value = AssignWorkersState.Success(
+                cutting = cuttingData,
+                stitching = stitchingData,
+                qc = qcData
+            )
         }
     }
 

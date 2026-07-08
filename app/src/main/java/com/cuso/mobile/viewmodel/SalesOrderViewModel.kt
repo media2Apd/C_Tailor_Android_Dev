@@ -180,6 +180,31 @@ class SalesOrderViewModel @Inject constructor(
     }
 
     // ─────────────────────────────────────────────────────────
+    // Update order (Edit flow)
+    // ─────────────────────────────────────────────────────────
+
+    fun updateOrder(
+        orderId: String,
+        request: CreateOrderRequest,
+        existingImages: List<String> = emptyList(),
+        imageParts: List<okhttp3.MultipartBody.Part> = emptyList(),
+        voiceNotePart: okhttp3.MultipartBody.Part? = null,
+        onSuccess: (OrderItem) -> Unit
+    ) {
+        viewModelScope.launch {
+            _actionState.value = OrderActionState.Loading
+            val result = repository.updateOrder(orderId, request, existingImages, imageParts, voiceNotePart)
+            if (result.isSuccess) {
+                _actionState.value = OrderActionState.Success("Order updated successfully")
+                result.getOrNull()?.let { onSuccess(it) }
+            } else {
+                _actionState.value = OrderActionState.Error(
+                    result.exceptionOrNull()?.message ?: "Failed to update order"
+                )
+            }
+        }
+    }
+    // ─────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────
 

@@ -282,7 +282,9 @@ fun BranchSettingsScreen(
                                         val (badgeText, badgeColor) = statusColorsOf(branch.status)
                                         DataCard(
                                             item = branch,
-                                            badge = DataCardBadge(text = badgeText, color = badgeColor),
+                                            topBadgeText = badgeText,
+                                            topBadgeTextColor = badgeColor,
+                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
                                             title = (branch.name ?: "Unnamed") + if (branch.isMainBranch) " ⭐" else "",
                                             subtitle = branch.branchId ?: "-",
                                             footerFields = listOf(

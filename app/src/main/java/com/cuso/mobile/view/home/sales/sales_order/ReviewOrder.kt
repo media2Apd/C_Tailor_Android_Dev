@@ -30,6 +30,9 @@ import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.*
+import com.cuso.mobile.view.composable.DatePickerField
+import com.cuso.mobile.view.home.FormDropdown
+import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.sales.sales_order.pdfgenerator.OrderReceiptPdfGenerator
 import com.cuso.mobile.viewmodel.AssignWorkersState
 import com.cuso.mobile.viewmodel.OrderOverviewState
@@ -128,13 +131,14 @@ data class PaymentInfo(
 fun OrderOverviewScreen(
     orderId: String,
     onClose: () -> Unit = {},
-    onEditOrder: () -> Unit = {},
+    onEditOrder: (OrderReviewData) -> Unit = {},   // CHANGED — was () -> Unit
     onCreateNew: () -> Unit = {}
 ) {
     val viewModel: OrderOverviewViewModel = hiltViewModel()
     val salesViewModel: SalesViewModel = hiltViewModel()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
     val state by viewModel.overviewState.collectAsStateWithLifecycle()
+    val currentOrderData = (state as? OrderOverviewState.Success)?.data   // NEW
     val assignState by viewModel.assignWorkersState.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -219,7 +223,8 @@ fun OrderOverviewScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
-                        onClick = onEditOrder,
+                        onClick = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
+                        enabled = currentOrderData != null,
                         modifier = Modifier.weight(1f).height(40.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary)
@@ -300,6 +305,17 @@ private fun extractGarments(data: OrderOverviewData): List<GarmentDetail> {
         val stageGroup = stageGroups.firstOrNull { it.garmentItemId == item._id }
         val anyAssigned = stageGroup?.stages?.any { isStageAssigned(it) } == true
 
+        // ── Pull the assigned worker for each stage ──
+        val cuttingTailor = stageGroup?.stages
+            ?.firstOrNull { it.stageName == "cutting" }
+            ?.assignedTo?.firstOrNull()
+        val stitchingTailor = stageGroup?.stages
+            ?.firstOrNull { it.stageName == "stitching" }
+            ?.assignedTo?.firstOrNull()
+        val qualityInspector = stageGroup?.stages
+            ?.firstOrNull { it.stageName == "qc" }
+            ?.assignedTo?.firstOrNull()
+
         val additionalChargesTotal = item.additionalCharges.sumOf { it.amount }
 
         GarmentDetail(
@@ -319,13 +335,15 @@ private fun extractGarments(data: OrderOverviewData): List<GarmentDetail> {
             additionalCharges = additionalChargesTotal,
             discount = 0.0,
             assignment = GarmentAssignment(
+                cuttingTailor = cuttingTailor,
+                stitchingTailor = stitchingTailor,
+                qualityInspector = qualityInspector,
                 priority = item.priority,
                 isAssigned = anyAssigned
             )
         )
     }
 }
-
 private fun normalizePaymentStatus(raw: String): String = when (raw.lowercase().replace("_", " ").trim()) {
     "paid" -> "PAID"
     "unpaid" -> "UNPAID"
@@ -533,45 +551,62 @@ private fun AssignmentsTab(
     var selectedGarment by remember { mutableStateOf<GarmentDetail?>(null) }
     var showAssignSheet by remember { mutableStateOf(false) }
 
-    if (garments.isEmpty()) {
-        EmptyAssignmentsState()
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 16.dp)
-        ) {
-            Text(
-                "Garment Assignments",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Assign cutting, stitching and QC workers to each garment",
-                fontSize = 13.sp,
-                color = TextMuted
-            )
-            Spacer(Modifier.height(16.dp))
+    // Does ANY garment have at least one worker assigned?
+    val hasAnyWorkerAssigned = garments.any { g ->
+        g.assignment?.cuttingTailor != null ||
+                g.assignment?.stitchingTailor != null ||
+                g.assignment?.qualityInspector != null
+    }
 
-            garments.forEachIndexed { idx, garment ->
-                // Check if garment has any assignment
-                val hasCutting = garment.assignment?.cuttingTailor != null
-                val hasStitching = garment.assignment?.stitchingTailor != null
-                val hasQC = garment.assignment?.qualityInspector != null
-                val isFullyAssigned = hasCutting && hasStitching && hasQC
-
-                AssignmentCard(
-                    garment = garment,
-                    isFullyAssigned = isFullyAssigned,
-                    onAssignClick = {
-                        selectedGarment = garment
-                        showAssignSheet = true
-                    }
+    when {
+        garments.isEmpty() -> {
+            EmptyAssignmentsState()
+        }
+        !hasAnyWorkerAssigned -> {
+            NoWorkersAssignedState(
+                onAssignWorker = {
+                    selectedGarment = garments.first()
+                    showAssignSheet = true
+                }
+            )
+        }
+        else -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
+            ) {
+                Text(
+                    "Garment Assignments",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
                 )
-                if (idx != garments.lastIndex) Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Assign cutting, stitching and QC workers to each garment",
+                    fontSize = 13.sp,
+                    color = TextMuted
+                )
+                Spacer(Modifier.height(16.dp))
+
+                garments.forEachIndexed { idx, garment ->
+                    val hasCutting = garment.assignment?.cuttingTailor != null
+                    val hasStitching = garment.assignment?.stitchingTailor != null
+                    val hasQC = garment.assignment?.qualityInspector != null
+                    val isFullyAssigned = hasCutting && hasStitching && hasQC
+
+                    AssignmentCard(
+                        garment = garment,
+                        isFullyAssigned = isFullyAssigned,
+                        onAssignClick = {
+                            selectedGarment = garment
+                            showAssignSheet = true
+                        }
+                    )
+                    if (idx != garments.lastIndex) Spacer(Modifier.height(16.dp))
+                }
             }
         }
     }
@@ -589,6 +624,71 @@ private fun AssignmentsTab(
                 selectedGarment = null
             }
         )
+    }
+}
+
+@Composable
+private fun NoWorkersAssignedState(
+    onAssignWorker: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp, vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(AvatarBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Group,
+                contentDescription = null,
+                tint = ChipPurpleText,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Text(
+            "No workers assigned",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextPrimary
+        )
+
+        Spacer(Modifier.height(6.dp))
+
+        Text(
+            "Assign tailors and masters to begin tracking garment production.",
+            fontSize = 13.sp,
+            color = TextMuted,
+            textAlign = TextAlign.Center,
+            lineHeight = 18.sp
+        )
+
+        Spacer(Modifier.height(20.dp))
+
+        Button(
+            onClick = onAssignWorker,
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = TabActive),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text("Assign Worker", color = Color.White, fontWeight = FontWeight.SemiBold)
+        }
     }
 }
 
@@ -795,99 +895,183 @@ private fun AssignTailorsSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    val staffNameToStaff = remember(staffList) {
+        staffList.associateBy { "${it.firstName} ${it.lastName}" }
+    }
+    val staffNames = remember(staffList) { staffNameToStaff.keys.toList() }
+
     var selectedCutting by remember { mutableStateOf<StaffDto?>(garment.assignment?.cuttingTailor) }
     var selectedStitching by remember { mutableStateOf<StaffDto?>(garment.assignment?.stitchingTailor) }
     var selectedQC by remember { mutableStateOf<StaffDto?>(garment.assignment?.qualityInspector) }
-    var startDate by remember { mutableStateOf(garment.assignment?.startDate ?: SimpleDateFormat("MMM dd", Locale.US).format(Date())) }
-    var expectedDate by remember { mutableStateOf(garment.assignment?.completionDate ?: SimpleDateFormat("MMM dd", Locale.US).format(Date().apply { time += 30L * 24 * 60 * 60 * 1000 })) }
+    var priority by remember { mutableStateOf(garment.assignment?.priority?.ifBlank { "Low" } ?: "Low") }
+    var completionDate by remember {
+        mutableStateOf(
+            garment.assignment?.completionDate
+                ?: SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date().apply { time += 30L * 24 * 60 * 60 * 1000 })
+        )
+    }
+
+    var cuttingExpanded by remember { mutableStateOf(false) }
+    var stitchingExpanded by remember { mutableStateOf(false) }
+    var qcExpanded by remember { mutableStateOf(false) }
+    var priorityExpanded by remember { mutableStateOf(false) }
 
     val isAssigning = assignState is AssignWorkersState.Loading
-    val context = LocalContext.current // ✅ Moved here
-
+    val context = LocalContext.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color.White
+        containerColor = Color.White,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
+            // ── Header ──
             Text(
-                "ASSIGN WORKERS",
-                fontSize = 16.sp,
+                "ASSIGN TAILORS",
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary,
+                letterSpacing = 0.5.sp,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
             Text(
-                "Assign workers for ${garment.type}",
-                fontSize = 13.sp,
+                "Manage workers for ${garment.type}.",
+                fontSize = 12.sp,
                 color = TextMuted,
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 16.dp),
                 textAlign = TextAlign.Center
             )
 
-            // Staff Dropdowns
-            WorkerDropdown(
-                label = "Cutting Staff",
-                staffList = staffList,
-                selectedStaff = selectedCutting,
-                onSelect = { selectedCutting = it }
-            )
+            // ── Garment info card ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(SectionBg, RoundedCornerShape(10.dp))
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(AvatarBg),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        garment.type.take(1),
+                        color = ChipPurpleText,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(garment.type, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                    Text("Qty: ${garment.quantity}", fontSize = 12.sp, color = TextMuted)
+                }
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        "TRIAL: ${if (garment.trialRequired) "YES" else "NO"}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextMutedDark
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // ── Section header ──
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.ContentCut,
+                    contentDescription = null,
+                    tint = TabActive,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "Production Assignment",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TabActive
+                )
+            }
+
             Spacer(Modifier.height(12.dp))
 
-            WorkerDropdown(
-                label = "Stitching Staff",
-                staffList = staffList,
-                selectedStaff = selectedStitching,
-                onSelect = { selectedStitching = it }
+            // ── Staff dropdowns (reusing FormDropdown) ──
+            FormDropdown(
+                label = "Cutting Tailor",
+                value = selectedCutting?.let { "${it.firstName} ${it.lastName}" } ?: "Select an option",
+                expanded = cuttingExpanded,
+                onExpandChange = { cuttingExpanded = it },
+                options = staffNames,
+                onOptionSelected = { name -> staffNameToStaff[name]?.let { selectedCutting = it } }
             )
+
             Spacer(Modifier.height(12.dp))
 
-            WorkerDropdown(
-                label = "Quality Control",
-                staffList = staffList,
-                selectedStaff = selectedQC,
-                onSelect = { selectedQC = it }
+            FormDropdown(
+                label = "Stitching Tailor",
+                value = selectedStitching?.let { "${it.firstName} ${it.lastName}" } ?: "Select an option",
+                expanded = stitchingExpanded,
+                onExpandChange = { stitchingExpanded = it },
+                options = staffNames,
+                onOptionSelected = { name -> staffNameToStaff[name]?.let { selectedStitching = it } }
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
-            // Dates
+            FormDropdown(
+                label = "Quality Inspector",
+                value = selectedQC?.let { "${it.firstName} ${it.lastName}" } ?: "Select an option",
+                expanded = qcExpanded,
+                onExpandChange = { qcExpanded = it },
+                options = staffNames,
+                onOptionSelected = { name -> staffNameToStaff[name]?.let { selectedQC = it } }
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            // ── Priority + Completion Date row ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedButton(
-                    onClick = { /* Date picker */ },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Start", fontSize = 10.sp, color = TextMuted)
-                        Text(startDate, fontSize = 13.sp, color = TextPrimary)
-                    }
+                Column(Modifier.weight(1f)) {
+                    FormDropdown(
+                        label = "Priority",
+                        value = priority,
+                        expanded = priorityExpanded,
+                        onExpandChange = { priorityExpanded = it },
+                        options = listOf("Low", "Medium", "High", "Urgent"),
+                        onOptionSelected = { priority = it }
+                    )
                 }
-                OutlinedButton(
-                    onClick = { /* Date picker */ },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Expected", fontSize = 10.sp, color = TextMuted)
-                        Text(expectedDate, fontSize = 13.sp, color = TextPrimary)
-                    }
+                Column(Modifier.weight(1f)) {
+                    FormLabel("Completion Date")
+                    DatePickerField(
+                        value = completionDate,
+                        onDateSelected = { completionDate = it }
+                    )
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
 
-            // Buttons
+            // ── Buttons ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -896,17 +1080,16 @@ private fun AssignTailorsSheet(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
                     enabled = !isAssigning
                 ) {
-                    Text("Cancel", color = TextPrimary)
+                    Text("Cancel", color = TextPrimary, fontWeight = FontWeight.Medium)
                 }
 
                 Button(
                     onClick = {
                         if (selectedCutting != null && selectedStitching != null && selectedQC != null) {
                             viewModel.assignWorkersToGarment(
-                                token = "", // Pass your token
-                                csrfToken = "", // Pass your CSRF token
                                 orderId = orderId,
                                 garmentItemId = garment.id,
                                 quantity = garment.quantity,
@@ -916,11 +1099,7 @@ private fun AssignTailorsSheet(
                             )
                             onDismiss()
                         } else {
-                            Toast.makeText(
-                                context,
-                                "Please select all three workers",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast.makeText(context, "Please select all three workers", Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.weight(1f).height(48.dp),
@@ -931,7 +1110,7 @@ private fun AssignTailorsSheet(
                     if (isAssigning) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
                     } else {
-                        Text("Assign Workers", color = Color.White)
+                        Text("Assign Workers", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
                 }
             }

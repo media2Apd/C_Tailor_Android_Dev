@@ -87,7 +87,8 @@ data class OrderOverviewStageStep(
     val status: String,
     val assignedQuantity: Int,
     val completedQuantity: Int,
-    val failedQuantity: Int
+    val failedQuantity: Int,
+    val assignedTo: List<StaffDto> = emptyList()
 )
 
 data class OrderOverviewPayment(

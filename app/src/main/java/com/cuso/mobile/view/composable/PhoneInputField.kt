@@ -36,12 +36,19 @@ import androidx.compose.ui.unit.sp
 import com.cuso.mobile.model.countries
 import com.cuso.mobile.model.Country
 import com.cuso.mobile.view.home.FormLabel
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Refresh
+
 @Composable
 fun PhoneInputField(
     phoneValue: String,
     onPhoneChange: (String) -> Unit,
     onCountryChange: (Country) -> Unit,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    isLoading: Boolean = false ,  // ← new param
+    onRetry: () -> Unit = {}   // ← new param
+
 ) {
     var expanded by remember { mutableStateOf(false) }
     var selectedCountry by remember {
@@ -65,7 +72,7 @@ fun PhoneInputField(
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ── Country picker ──
+            // ── Country picker ── (unchanged)
             Box {
                 Row(
                     modifier = Modifier
@@ -153,6 +160,23 @@ fun PhoneInputField(
                     }
                 }
             )
+
+            // ── Loading indicator (inside the box, trailing end) ──
+            if (isLoading) {
+                Spacer(modifier = Modifier.width(8.dp))
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = Color(0xFF3B3BF9)
+                )
+            }
+            else{
+                Icon(Icons.Default.Refresh,null,
+                    modifier = Modifier.size(20.dp).clickable{
+                        onRetry()
+                    },
+                    tint = Color.Gray)
+            }
         }
     }
 }

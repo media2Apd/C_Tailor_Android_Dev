@@ -59,6 +59,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.cuso.mobile.R
+import com.cuso.mobile.viewmodel.SalesViewModel
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 private val AccentBlue = Color(0xFF4F46E5)
@@ -73,6 +74,7 @@ private val TextSecond = Color(0xFF6B7280)
 
 // ─── Data holder ──────────────────────────────────────────────────────────────
 data class OrderReviewData(
+    val orderId: String? = null,          // NEW
     val customerId: String,
     val branchId: String? = null,
     val fullName: String,
@@ -89,6 +91,7 @@ data class OrderReviewData(
     val discount: Double = 0.0,
     val paidSoFar: Double = 0.0,
     val designImages: List<Uri> = emptyList(),
+    val existingImageUrls: List<String> = emptyList(),   // NEW
     val voiceNoteUri: Uri? = null
 )
 
@@ -111,7 +114,7 @@ fun CreateOrderNextStep(
 ) {
     val context = LocalContext.current
     val salesOrderViewModel: SalesOrderViewModel = hiltViewModel()
-
+    val salesViewModel: SalesViewModel=hiltViewModel()
     // ── State ──
     var unitPrices by remember(orderData.garments) {
         mutableStateOf(
@@ -120,6 +123,7 @@ fun CreateOrderNextStep(
             }
         )
     }
+    val isEditMode = orderData.orderId != null   // NEW
 
     var itemCharges by remember(orderData.garments) {
         mutableStateOf(mapOf<String, List<ChargeItem>>())
@@ -167,6 +171,7 @@ fun CreateOrderNextStep(
     }
 
     // ✅ Build the request once, reused by the "Save Order" bottom bar button
+    // ✅ Build the request once, reused by the "Save Order" bottom bar button
     fun buildAndSaveOrder() {
         val garmentRequests = orderData.garments.map { g ->
             val price = unitPrices[g.id]?.toDoubleOrNull() ?: 0.0
@@ -180,7 +185,7 @@ fun CreateOrderNextStep(
             val chargeTotal = charges.sumOf { it.amount }
 
             CreateGarmentRequestForCreateOrder(
-                category = g.category,
+                category = g.categoryId,
                 categoryName = g.categoryName,
                 models = g.models.map { modelName -> GarmentModelRequest(modelName = modelName) },
                 measurements = g.measurements
@@ -241,16 +246,34 @@ fun CreateOrderNextStep(
             status = "confirmed"
         )
 
-        salesOrderViewModel.createOrder(
-            request = request,
-            imageParts = context.createImageParts(orderData.designImages),
-            voiceNotePart = context.createVoiceNotePart(orderData.voiceNoteUri)
-        ) { orderItem ->
-            // ✅ Fires ONLY here, with the real saved request/order data.
-            // HomeScreen's onSaveOrder handler navigates to "sales_sales_orders".
+        // ✅ Common success callback - clears garments after successful save/update
+        val onOrderSuccess: (Any?) -> Unit = { _ ->
+            // Clear all selected garments from Room database
+            salesViewModel.clearAllSelectedGarments()
+            // Notify the caller that order was saved
             onSaveOrder(request)
         }
+
+        // ✅ Call based on isEditMode with the success callback
+        if (isEditMode) {
+            salesOrderViewModel.updateOrder(
+                orderId = orderData.orderId!!,
+                request = request,
+                existingImages = orderData.existingImageUrls,
+                imageParts = context.createImageParts(orderData.designImages),
+                voiceNotePart = context.createVoiceNotePart(orderData.voiceNoteUri),
+                onSuccess = onOrderSuccess
+            )
+        } else {
+            salesOrderViewModel.createOrder(
+                request = request,
+                imageParts = context.createImageParts(orderData.designImages),
+                voiceNotePart = context.createVoiceNotePart(orderData.voiceNoteUri),
+                onSuccess = onOrderSuccess
+            )
+        }
     }
+
 
     Scaffold(
         topBar = {
@@ -278,7 +301,8 @@ fun CreateOrderNextStep(
                             .clickable(
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
-                            ) { onBack() }
+                            ) { onBack()
+                            salesViewModel.clearAllSelectedGarments()}
                     )
                 }
                 HorizontalDivider(color = BorderColor)
@@ -339,8 +363,7 @@ fun CreateOrderNextStep(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("Save Order", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    }
+                        Text(if (isEditMode) "Update Order" else "Save Order", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)                    }
                 }
             }
         }

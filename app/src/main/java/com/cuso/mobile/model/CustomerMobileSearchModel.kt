@@ -43,7 +43,7 @@ data class CustomerGarment(
     val categoryName: String = "",
     val quantity: Int = 1,
     val models: List<String> = emptyList(),
-    val priority: String = "Low",
+    val priority: String = "",
     val trialRequired: Boolean = false,
     val clothType: String = "",
     val fabricDetails: CustomerFabricDetails? = null,
@@ -51,10 +51,10 @@ data class CustomerGarment(
 )
 
 data class CustomerFabricDetails(
-    val fabricSource: String = "In-House",
+    val fabricSource: String = "",
     val fabricType: String = "",
     val color: String = "",
-    val pattern: String = "Solid"
+    val pattern: String = ""
 )
 
 data class MeasurementValue(

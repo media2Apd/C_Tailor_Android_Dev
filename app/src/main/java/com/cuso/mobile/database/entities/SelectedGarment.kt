@@ -55,6 +55,7 @@ data class SelectedGarment(
     val id: String = UUID.randomUUID().toString(),
     val orderSessionId: String = "draft_order",
     val category: String = "",
+    val categoryId: String,
     val categoryName: String = "",
     val quantity: Int = 1,
     val price: Double = 0.0,

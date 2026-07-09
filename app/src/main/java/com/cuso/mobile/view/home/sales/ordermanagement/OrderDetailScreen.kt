@@ -14,10 +14,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,9 +25,15 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.OrderViewData
-import com.cuso.mobile.view.home.FormDropdown
+import com.cuso.mobile.model.OrderViewGarmentItem
+import com.cuso.mobile.model.OrderViewStageGroup
+import com.cuso.mobile.viewmodel.OrderOverviewViewModel
 import com.cuso.mobile.viewmodel.OrderViewUiState
 import com.cuso.mobile.viewmodel.OrderViewViewModel
+import com.cuso.mobile.viewmodel.StageUpdateState
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private val Primary = Color(0xFF3B3BF9)
 private val TextMuted = Color(0xFF9CA3AF)
@@ -40,7 +46,10 @@ fun OrderDetailScreen(
     onEditOrder: () -> Unit = {}
 ) {
     val viewModel: OrderViewViewModel = hiltViewModel()
+    val overviewViewModel: OrderOverviewViewModel = hiltViewModel()
+
     val uiState by viewModel.orderViewState.collectAsStateWithLifecycle()
+    val stageUpdateState by overviewViewModel.stageUpdateState.collectAsStateWithLifecycle()
 
     LaunchedEffect(orderId) {
         viewModel.getOrdersView(orderId)
@@ -86,17 +95,27 @@ fun OrderDetailScreen(
                 }
             }
             is OrderViewUiState.Success -> {
-                OrderDetailContent(data = state.data, onEditOrder = onEditOrder)
+                OrderDetailContent(
+                    orderId = orderId,
+                    data = state.data,
+                    onEditOrder = onEditOrder,
+                    overviewViewModel = overviewViewModel,
+                    stageUpdateState = stageUpdateState
+                )
             }
         }
     }
 }
 
+private fun normalizeStatus(status: String) = status.trim().lowercase().replace(" ", "_")
+
 @Composable
 private fun OrderDetailContent(
+    orderId: String,
     data: OrderViewData,
-    onEditOrder: () -> Unit = {}  // This will trigger the navigation
-
+    onEditOrder: () -> Unit = {},
+    overviewViewModel: OrderOverviewViewModel,
+    stageUpdateState: StageUpdateState
 ) {
     val order = data.order
     var garmentIndex by remember { mutableIntStateOf(0) }
@@ -108,7 +127,29 @@ private fun OrderDetailContent(
 
     var fabricExpanded by remember { mutableStateOf(false) }
     var measurementsExpanded by remember { mutableStateOf(false) }
-    var stageNotes by remember { mutableStateOf("") }
+
+    // Tracks locally-applied status per stage (keyed by stage id) so a change in one
+    // stage never leaks into another stage's dropdown/card state.
+    val stageStatusOverrides = remember(garmentIndex) { mutableStateMapOf<String, String>() }
+
+    // The index of the first stage (for the current garment) that isn't completed yet.
+    val unlockedStageIndex by remember(currentStageGroup, stageStatusOverrides.toMap()) {
+        derivedStateOf {
+            val stages = currentStageGroup?.stages ?: emptyList()
+            val firstIncomplete = stages.indexOfFirst { s ->
+                normalizeStatus(stageStatusOverrides[s.id] ?: s.status) != "completed"
+            }
+            if (firstIncomplete == -1) stages.size - 1 else firstIncomplete
+        }
+    }
+
+    // Order-level activity cards (all garments' completed stages, sorted latest-first)
+    val stageActivityCards = remember(data.stages) {
+        buildStageActivityCards(data.stages, data.items)
+    }
+    val trialCard = remember(order.trialDate) {
+        buildTrialActivityCard(order.trialDate)
+    }
 
     Column(
         modifier = Modifier
@@ -226,23 +267,24 @@ private fun OrderDetailContent(
         // Fabric Details Section
         ExpandableRow("Fabric & Material Details", fabricExpanded) { fabricExpanded = !fabricExpanded }
         if (fabricExpanded) {
-            currentItem?.fabricDetails?.let { fabric ->
-                Column(Modifier.padding(vertical = 8.dp)) {
-                    LabelValueRow("Fabric Type", fabric.fabricType.ifBlank { "—" })
-                    LabelValueRow("Color", fabric.color.ifBlank { "—" })
-                    LabelValueRow("Pattern", fabric.pattern.ifBlank { "—" })
-                    LabelValueRow("Source", fabric.fabricSource.ifBlank { "—" })
-                    LabelValueRow("Priority", currentItem.priority.ifBlank { "—" })
-                    LabelValueRow("Trial Required", if (currentItem.trialRequired) "Yes" else "No")
-                    LabelValueRow("Stitching Charge", "₹${currentItem.stitchingCharge}")
-                    LabelValueRow("Quantity", "${currentItem.quantity}")
+            currentItem?.let { item ->
+                item.fabricDetails?.let { fabric ->
+                    Column(Modifier.padding(vertical = 8.dp)) {
+                        LabelValueRow("Fabric Type", fabric.fabricType.ifBlank { "—" })
+                        LabelValueRow("Color", fabric.color.ifBlank { "—" })
+                        LabelValueRow("Pattern", fabric.pattern.ifBlank { "—" })
+                        LabelValueRow("Source", fabric.fabricSource.ifBlank { "—" })
+                        LabelValueRow("Priority", item.priority.ifBlank { "—" })
+                        LabelValueRow("Trial Required", if (item.trialRequired) "Yes" else "No")
+                        LabelValueRow("Stitching Charge", "₹${item.stitchingCharge}")
+                        LabelValueRow("Quantity", "${item.quantity}")
+                    }
                 }
             }
         }
         HorizontalDivider(color = Color(0xFFF0F0F0))
 
-        // Measurements Section - DISPLAYS ACTUAL DATA
-        // Measurements Section - Shows in Card layout like the image
+        // Measurements Section
         ExpandableRow("Measurements", measurementsExpanded) { measurementsExpanded = !measurementsExpanded }
         if (measurementsExpanded) {
             Card(
@@ -269,11 +311,7 @@ private fun OrderDetailContent(
                                     .padding(vertical = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(
-                                    fieldName,
-                                    fontSize = 14.sp,
-                                    color = TextMuted
-                                )
+                                Text(fieldName, fontSize = 14.sp, color = TextMuted)
                                 Text(
                                     if (value.isNotBlank()) "$value $unit" else "—",
                                     fontSize = 14.sp,
@@ -283,20 +321,15 @@ private fun OrderDetailContent(
                             }
                         }
                     } else {
-                        // Placeholder measurements
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("Chest", fontSize = 14.sp, color = TextMuted)
                             Text("— in", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
                         }
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("Sleeve Length", fontSize = 14.sp, color = TextMuted)
@@ -313,8 +346,12 @@ private fun OrderDetailContent(
         // Garment Progress
         currentItem?.let { item ->
             val totalStages = currentStageGroup?.stages?.size ?: 0
-            val completedStages = currentStageGroup?.stages?.count { stage -> stage.status == "completed" } ?: 0
-            val inProgressStages = currentStageGroup?.stages?.count { stage -> stage.status == "in_progress" } ?: 0
+            val completedStages = currentStageGroup?.stages?.count { stage ->
+                normalizeStatus(stageStatusOverrides[stage.id] ?: stage.status) == "completed"
+            } ?: 0
+            val inProgressStages = currentStageGroup?.stages?.count { stage ->
+                normalizeStatus(stageStatusOverrides[stage.id] ?: stage.status) == "in_progress"
+            } ?: 0
 
             Column(
                 modifier = Modifier
@@ -327,46 +364,23 @@ private fun OrderDetailContent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        item.categoryName,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextDark
-                    )
-                    Text(
-                        "Progress: $completedStages/$totalStages",
-                        fontSize = 13.sp,
-                        color = TextMuted
-                    )
+                    Text(item.categoryName, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
+                    Text("Progress: $completedStages/$totalStages", fontSize = 13.sp, color = TextMuted)
                 }
                 Spacer(Modifier.height(4.dp))
 
-                // Progress Bar
                 val progress = if (totalStages > 0) completedStages.toFloat() / totalStages else 0f
                 LinearProgressIndicator(
                     progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp),
+                    modifier = Modifier.fillMaxWidth().height(6.dp),
                     color = Primary,
                     trackColor = Color(0xFFE5E7EB)
                 )
 
                 Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "Pending: ${totalStages - completedStages}",
-                        fontSize = 12.sp,
-                        color = TextMuted
-                    )
-                    Text(
-                        "In Progress: $inProgressStages",
-                        fontSize = 12.sp,
-                        color = Color(0xFFF59E0B)
-                    )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Pending: ${totalStages - completedStages}", fontSize = 12.sp, color = TextMuted)
+                    Text("In Progress: $inProgressStages", fontSize = 12.sp, color = Color(0xFFF59E0B))
                 }
 
                 Spacer(Modifier.height(10.dp))
@@ -383,98 +397,98 @@ private fun OrderDetailContent(
 
         Spacer(Modifier.height(16.dp))
 
-        // Stage Details
-        // Stage Details - With Status Dropdown
-        // Stage Details - With Custom Status Dropdown like the image
         currentStage?.let { stage ->
-            var statusExpanded by remember { mutableStateOf(false) }
-            var selectedStatus by remember(stage.status) { mutableStateOf(stage.status) }
+            var statusExpanded by remember(stage.id) { mutableStateOf(false) }
+            var selectedStatus by remember(stage.id) {
+                mutableStateOf(stageStatusOverrides[stage.id] ?: stage.status)
+            }
+            var stageNotes by remember(stage.id) { mutableStateOf("") }
 
-            // Status options from API
-            val statusOptions = currentStageGroup.stages.map { it.status }.distinct() ?: listOf("pending", "in_progress", "completed", "failed")
+            LaunchedEffect(stageUpdateState) {
+                if (stageUpdateState is StageUpdateState.Success && stageUpdateState.stageId == stage.id) {
+                    stageStatusOverrides[stage.id] = selectedStatus
+                    overviewViewModel.resetStageUpdateState()
+                } else if (stageUpdateState is StageUpdateState.Error && stageUpdateState.stageId == stage.id) {
+                    // TODO: show a snackbar/toast with stageUpdateState.message
+                    overviewViewModel.resetStageUpdateState()
+                }
+            }
+
+            val isAssigned = stage.assignedTo.isNotEmpty()
+            val isUnlocked = stageIndex == unlockedStageIndex
+            val isCardEnabled = isAssigned && isUnlocked
+
+            val committedStatus = stageStatusOverrides[stage.id] ?: stage.status
+            val hasChanges = selectedStatus != committedStatus
+            val normalizedSelected = normalizeStatus(selectedStatus)
+
+            val isCommittedCompleted = normalizeStatus(committedStatus) == "completed"
+
+            val isUpdating = (stageUpdateState as? StageUpdateState.Loading)?.stageId == stage.id
+
+            val cardBorderColor = when (normalizedSelected) {
+                "in_progress" -> Color(0xFF3B82F6)
+                "completed" -> Color(0xFF22C55E)
+                else -> Color.Transparent
+            }
 
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, cardBorderColor, RoundedCornerShape(12.dp))
+                    .alpha(if (isCardEnabled) 1f else 0.5f),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    // Stage Header with Status Dropdown
+
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.Top
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "Stage ${stageIndex + 1}",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = TextDark
-                            )
+                        Row(verticalAlignment = Alignment.Top) {
+                            StageStatusIcon(status = committedStatus)
                             Spacer(Modifier.width(8.dp))
-                            Text(
-                                stage.stageName.replaceFirstChar { it.uppercase() },
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextDark
-                            )
+                            Column {
+                                Text(
+                                    stage.stageName.replaceFirstChar { it.uppercase() },
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextDark
+                                )
+                                if (isAssigned) {
+                                    Text(
+                                        stage.assignedTo.joinToString(", ") { worker ->
+                                            "${worker.firstName} ${worker.lastName}"
+                                        },
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Primary
+                                    )
+                                } else {
+                                    Text("Not assigned", fontSize = 13.sp, color = TextMuted)
+                                }
+                                Text(
+                                    "Qty: ${stage.completedQuantity} / ${stage.assignedQuantity}",
+                                    fontSize = 12.sp,
+                                    color = TextMuted
+                                )
+                            }
                         }
-                        // Custom Status Dropdown - Matches the image
+
                         CustomStatusDropdown(
                             selectedStatus = selectedStatus,
-                            statusOptions = statusOptions,
                             expanded = statusExpanded,
-                            onExpandChange = { statusExpanded = it },
-                            onStatusSelected = {
-                                selectedStatus = it
-                                // TODO: Call API to update stage status
-                            }
+                            enabled = isCardEnabled && !isCommittedCompleted && !isUpdating,
+                            onExpandChange = { if (isCardEnabled && !isCommittedCompleted && !isUpdating) statusExpanded = it },
+                            onStatusSelected = { status -> selectedStatus = status }
                         )
                     }
 
                     Spacer(Modifier.height(12.dp))
 
-                    // Assigned Workers Status - Like the image showing "Not assigned" or assigned info
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (stage.assignedTo.isNotEmpty()) {
-                            // Assigned state - show worker info with green dot
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFF22C55E))
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Assigned · Qty: ${stage.completedQuantity}/${stage.assignedQuantity}",
-                                fontSize = 13.sp,
-                                color = TextMuted
-                            )
-                        } else {
-                            // Not assigned state - show grey dot like the image
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFD1D5DB))
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Not assigned · Qty: 0 / 0",
-                                fontSize = 13.sp,
-                                color = TextMuted
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-
-                    // Stage Notes Input
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -483,16 +497,13 @@ private fun OrderDetailContent(
                     ) {
                         BasicTextField(
                             value = stageNotes,
-                            onValueChange = { stageNotes = it },
+                            onValueChange = { if (isCardEnabled) stageNotes = it },
+                            enabled = isCardEnabled,
                             modifier = Modifier.fillMaxWidth(),
                             textStyle = TextStyle(fontSize = 13.sp, color = TextDark),
                             cursorBrush = SolidColor(Primary),
                             decorationBox = { inner ->
-                                if (stageNotes.isEmpty()) Text(
-                                    "Add stage notes...",
-                                    fontSize = 13.sp,
-                                    color = TextMuted
-                                )
+                                if (stageNotes.isEmpty()) Text("Add stage notes...", fontSize = 13.sp, color = TextMuted)
                                 inner()
                             }
                         )
@@ -500,34 +511,54 @@ private fun OrderDetailContent(
 
                     Spacer(Modifier.height(10.dp))
 
-                    // Quick Update Button - Shows "Not Assigned" when no workers
-                    val isAssigned = stage.assignedTo.isNotEmpty()
+                    val buttonText = when {
+                        !isAssigned -> "Not Assigned"
+                        !isUnlocked -> "Locked"
+                        isCommittedCompleted -> "Completed"
+                        !hasChanges -> "No Changes"
+                        else -> "Quick Update"
+                    }
+                    val buttonEnabled = isCardEnabled && hasChanges && !isUpdating
+
                     Button(
                         onClick = {
-                            // TODO: Update stage with new status and notes
+                            val garmentItemId = currentItem.id
+                            overviewViewModel.updateStage(
+                                orderId = orderId,
+                                garmentItemId = garmentItemId,
+                                stageId = stage.id,
+                                stageName = stage.stageName,
+                                status = normalizeStatus(selectedStatus)
+                            )
                         },
-                        enabled = isAssigned,
+                        enabled = buttonEnabled,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isAssigned) Primary else Color(0xFFF3F4F6),
+                            containerColor = if (buttonEnabled) Primary else Color(0xFFF3F4F6),
                             disabledContainerColor = Color(0xFFF3F4F6),
-                            disabledContentColor = TextMuted,  // This sets the text color when disabled
-                            contentColor = if (isAssigned) Color.White else TextMuted
-
+                            disabledContentColor = TextMuted,
+                            contentColor = if (buttonEnabled) Color.White else TextMuted
                         ),
                     ) {
-                        Text(
-                            if (isAssigned) "Quick Update" else "Not Assigned",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                            color = if (isAssigned) Color.White else TextMuted
-                        )
+                        if (isUpdating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                buttonText,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                                color = if (buttonEnabled) Color.White else TextMuted
+                            )
+                        }
                     }
 
                     Spacer(Modifier.height(10.dp))
 
-                    // Stage Navigation
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         IconButton(
                             onClick = { if (stageIndex > 0) stageIndex-- },
@@ -545,13 +576,13 @@ private fun OrderDetailContent(
                                 val max = (currentStageGroup.stages.size) - 1
                                 if (stageIndex < max) stageIndex++
                             },
-                            enabled = stageIndex < (currentStageGroup.stages.size) - 1,
+                            enabled = stageIndex < (currentStageGroup.stages.size ) - 1,
                             modifier = Modifier.size(28.dp)
                         ) {
                             Icon(
                                 Icons.Default.ChevronRight,
                                 contentDescription = null,
-                                tint = if (stageIndex < (currentStageGroup.stages.size) - 1)
+                                tint = if (stageIndex < (currentStageGroup.stages.size ) - 1)
                                     TextDark
                                 else
                                     Color(0xFFD1D5DB)
@@ -570,10 +601,27 @@ private fun OrderDetailContent(
         Text("Activity & Alerts", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
         Spacer(Modifier.height(8.dp))
 
-        if (data.payments.isNullOrEmpty() && data.delivery == null) {
+        val hasAnyActivity = stageActivityCards.isNotEmpty() ||
+                trialCard != null ||
+                !data.payments.isNullOrEmpty() ||
+                data.delivery != null
+
+        if (!hasAnyActivity) {
             Text("No activity yet", fontSize = 13.sp, color = TextMuted)
         } else {
-            // Show payments if any
+            // Trial alert — only shown if trialDate is present in API response
+            trialCard?.let { card ->
+                ActivityLogCard(card)
+                Spacer(Modifier.height(8.dp))
+            }
+
+            // Stage completion cards — cutting, stitching, qc, trial (color coded, all garments)
+            stageActivityCards.forEach { card ->
+                ActivityLogCard(card)
+                Spacer(Modifier.height(8.dp))
+            }
+
+            // Payments
             data.payments?.forEach { payment ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Icon(Icons.Default.Payment, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
@@ -585,16 +633,13 @@ private fun OrderDetailContent(
                     )
                 }
             }
-            // Show delivery info if any
+
+            // Delivery
             data.delivery?.let {
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Icon(Icons.Default.LocalShipping, contentDescription = null, tint = Color(0xFF22C55E), modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        "Delivery Status: ${it.status ?: "N/A"}",
-                        fontSize = 13.sp,
-                        color = TextDark
-                    )
+                    Text("Delivery Status: ${it.status ?: "N/A"}", fontSize = 13.sp, color = TextDark)
                 }
             }
         }
@@ -602,84 +647,164 @@ private fun OrderDetailContent(
         Spacer(Modifier.height(40.dp))
     }
 }
+
+// ---------- Activity Log data + helpers ----------
+
+private data class ActivityCardData(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector,
+    val accentColor: Color,
+    val bgColor: Color
+)
+
+@Composable
+private fun ActivityLogCard(data: ActivityCardData) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(data.bgColor, RoundedCornerShape(10.dp))
+            .border(1.dp, data.accentColor.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(data.icon, contentDescription = null, tint = data.accentColor, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(data.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
+            Text(data.subtitle, fontSize = 12.sp, color = TextMuted)
+        }
+    }
+}
+
+// API 25-safe "today" string (yyyy-MM-dd) — avoids java.time.LocalDate which needs API 26+
+private fun getTodayDateString(): String {
+    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    return sdf.format(Date())
+}
+
+// Trial alert card — only built if trialDate is present (non-blank) in the API response.
+private fun buildTrialActivityCard(trialDateIso: String?): ActivityCardData? {
+    if (trialDateIso.isNullOrBlank()) return null
+
+    val trialDatePart = trialDateIso.take(10) // yyyy-MM-dd
+    val todayPart = getTodayDateString()      // yyyy-MM-dd
+
+    return when {
+        trialDatePart == todayPart -> ActivityCardData(
+            title = "Trial Scheduled Today",
+            subtitle = "Trial date: ${formatIso(trialDateIso)}",
+            icon = Icons.Default.Warning,
+            accentColor = Color(0xFFF59E0B),
+            bgColor = Color(0xFFFEF3C7)
+        )
+        trialDatePart > todayPart -> ActivityCardData(
+            title = "Upcoming Trial",
+            subtitle = "Trial date: ${formatIso(trialDateIso)}",
+            icon = Icons.Default.Event,
+            accentColor = Color(0xFF3B82F6),
+            bgColor = Color(0xFFDBEAFE)
+        )
+        else -> ActivityCardData(
+            title = "Trial Date Passed",
+            subtitle = "Trial date: ${formatIso(trialDateIso)}",
+            icon = Icons.Default.EventBusy,
+            accentColor = Color(0xFF9CA3AF),
+            bgColor = Color(0xFFF3F4F6)
+        )
+    }
+}
+
+// Stage cards — one card per COMPLETED stage (cutting/stitching/qc/trial) across ALL garments,
+// color coded by stage name, sorted latest-completed first.
+private fun buildStageActivityCards(
+    stageGroups: List<OrderViewStageGroup>,
+    items: List<OrderViewGarmentItem>
+): List<ActivityCardData> {
+    val garmentNameById = items.associateBy({ it.id }, { it.categoryName })
+
+    return stageGroups
+        .flatMap { group ->
+            val garmentName = garmentNameById[group.garmentItemId] ?: "Garment"
+            group.stages
+                .filter { normalizeStatus(it.status) == "completed" }
+                .map { stage -> garmentName to stage }
+        }
+        .sortedByDescending { (_, stage) -> stage.completedAt ?: "" }
+        .map { (garmentName, stage) ->
+            val (accent, bg) = stageColors(stage.stageName)
+            ActivityCardData(
+                title = "${stage.stageName.replaceFirstChar { it.uppercase() }} Completed — $garmentName",
+                subtitle = if (!stage.completedAt.isNullOrBlank())
+                    "Completed on ${formatIso(stage.completedAt)}"
+                else
+                    "Completed",
+                icon = Icons.Default.CheckCircle,
+                accentColor = accent,
+                bgColor = bg
+            )
+        }
+}
+
+private fun stageColors(stageName: String): Pair<Color, Color> {
+    return when (stageName.trim().lowercase()) {
+        "cutting" -> Color(0xFF3B82F6) to Color(0xFFDBEAFE)      // blue
+        "stitching" -> Color(0xFF8B5CF6) to Color(0xFFEDE9FE)    // purple
+        "qc" -> Color(0xFFF59E0B) to Color(0xFFFEF3C7)           // amber
+        "trial" -> Color(0xFF22C55E) to Color(0xFFDBFCE7)        // green
+        else -> Color(0xFF6B7280) to Color(0xFFF3F4F6)           // gray fallback
+    }
+}
+
 @Composable
 private fun CustomStatusDropdown(
     selectedStatus: String,
-    statusOptions: List<String>,
     expanded: Boolean,
+    enabled: Boolean = true,
     onExpandChange: (Boolean) -> Unit,
     onStatusSelected: (String) -> Unit
 ) {
+    val statusOptions = listOf("Pending", "In Progress", "Completed")
     val displayText = selectedStatus.replaceFirstChar { it.uppercase() }
+    val borderColor = if (enabled) Color(0xFFC7D2FE) else Color(0xFFE5E7EB)
+    val textColor = if (enabled) TextDark else TextMuted
 
     Box {
-        // Status chip that looks like the image
         Row(
             modifier = Modifier
-                .background(
-                    when (selectedStatus.lowercase()) {
-                        "in_progress", "in progress" -> Color(0xFFFEF3C7)
-                        "completed" -> Color(0xFFDBFCE7)
-                        "pending" -> Color(0xFFF3F4F6)
-                        else -> Color(0xFFF3F4F6)
-                    },
-                    RoundedCornerShape(20.dp)
-                )
-                .clickable { onExpandChange(!expanded) }
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .background(Color.White, RoundedCornerShape(8.dp))
+                .clickable(enabled = enabled) { onExpandChange(!expanded) }
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Small colored dot
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(
-                        when (selectedStatus.lowercase()) {
-                            "in_progress", "in progress" -> Color(0xFF92400E)
-                            "completed" -> Color(0xFF0AB83E)
-                            "pending" -> Color(0xFF6B7280)
-                            else -> Color(0xFF6B7280)
-                        }
-                    )
-            )
-            Text(
-                displayText,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = when (selectedStatus.lowercase()) {
-                    "in_progress", "in progress" -> Color(0xFF92400E)
-                    "completed" -> Color(0xFF0AB83E)
-                    "pending" -> Color(0xFF6B7280)
-                    else -> Color(0xFF6B7280)
-                }
-            )
+            Text(displayText, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = textColor)
             Icon(
-                Icons.Default.ArrowDropDown,
+                if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
-                tint = when (selectedStatus.lowercase()) {
-                    "in_progress", "in progress" -> Color(0xFF92400E)
-                    "completed" -> Color(0xFF0AB83E)
-                    "pending" -> Color(0xFF6B7280)
-                    else -> Color(0xFF6B7280)
-                },
-                modifier = Modifier.size(16.dp)
+                tint = TextMuted,
+                modifier = Modifier.size(18.dp)
             )
         }
 
-        // Dropdown menu
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { onExpandChange(false) },
             containerColor = Color.White,
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .width(140.dp)
+            modifier = Modifier.width(160.dp)
         ) {
+            Text(
+                "Select an option",
+                fontSize = 12.sp,
+                color = TextMuted,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
             statusOptions.forEach { status ->
-                val statusText = status.replaceFirstChar { it.uppercase() }
-                val isSelected = status == selectedStatus
+                val isSelected = status.equals(selectedStatus, ignoreCase = true) ||
+                        status.replace(" ", "_").equals(selectedStatus, ignoreCase = true)
 
                 Row(
                     modifier = Modifier
@@ -688,55 +813,42 @@ private fun CustomStatusDropdown(
                             onStatusSelected(status)
                             onExpandChange(false)
                         }
-                        .background(
-                            if (isSelected) Color(0xFFF3F4F6) else Color.Transparent
-                        )
+                        .background(if (isSelected) Color(0xFFEEF2FF) else Color.Transparent)
                         .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Colored dot
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(
-                                when (status.lowercase()) {
-                                    "in_progress", "in progress" -> Color(0xFF92400E)
-                                    "completed" -> Color(0xFF0AB83E)
-                                    "pending" -> Color(0xFF6B7280)
-                                    else -> Color(0xFF6B7280)
-                                }
-                            )
-                    )
                     Text(
-                        statusText,
+                        status,
                         fontSize = 13.sp,
                         fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                        color = TextDark
+                        color = if (isSelected) Primary else TextDark
                     )
-                    if (isSelected) {
-                        Spacer(Modifier.weight(1f))
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
                 }
             }
         }
     }
 }
-// Helper Composables
 
 @Composable
-private fun GarmentChip(
-    label: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
+private fun StageStatusIcon(status: String) {
+    when (status.lowercase()) {
+        "completed" -> Icon(
+            Icons.Default.CheckCircle,
+            contentDescription = null,
+            tint = Color(0xFF22C55E),
+            modifier = Modifier.size(20.dp)
+        )
+        else -> Icon(
+            Icons.Default.Schedule,
+            contentDescription = null,
+            tint = Color(0xFF3B82F6),
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+@Composable
+private fun GarmentChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
@@ -783,28 +895,6 @@ private fun ExpandableRow(title: String, expanded: Boolean, onToggle: () -> Unit
             if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
             contentDescription = null,
             tint = TextMuted
-        )
-    }
-}
-
-@Composable
-private fun StageStatusChip(status: String) {
-    val (bg, text) = when (status.lowercase()) {
-        "in_progress", "in progress" -> Color(0xFFFEF3C7) to Color(0xFF92400E)
-        "completed" -> Color(0xFFDBFCE7) to Color(0xFF0AB83E)
-        "pending" -> Color(0xFFF3F4F6) to Color(0xFF6B7280)
-        else -> Color(0xFFF3F4F6) to Color(0xFF6B7280)
-    }
-    Box(
-        modifier = Modifier
-            .background(bg, RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-    ) {
-        Text(
-            status.replaceFirstChar { it.uppercase() },
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = text
         )
     }
 }

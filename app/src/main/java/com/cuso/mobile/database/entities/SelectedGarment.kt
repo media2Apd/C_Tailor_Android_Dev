@@ -42,7 +42,7 @@ class MeasurementListConverter {
         val type = object : TypeToken<List<GarmentMeasurement>>() {}.type
         return try {
             gson.fromJson<List<GarmentMeasurement>>(data, type) ?: emptyList()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }

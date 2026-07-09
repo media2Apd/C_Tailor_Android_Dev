@@ -10,14 +10,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -25,12 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.cuso.mobile.model.CustomerItem
-import com.cuso.mobile.ui.theme.PrimaryTextColor
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
-import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
@@ -60,10 +55,10 @@ fun CustomerScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
-    var typeFilter by remember { mutableStateOf("all") }
-    var page by remember { mutableStateOf(1) }
-    var itemsPerPage by remember { mutableStateOf(10) }
-    var showTypeDropdown by remember { mutableStateOf(false) }
+//    var typeFilter by remember { mutableStateOf("all") }
+    var page by remember { mutableIntStateOf(1) }
+    var itemsPerPage by remember { mutableIntStateOf(10) }
+//    var showTypeDropdown by remember { mutableStateOf(false) }
     var showItemsPerPageDropdown by remember { mutableStateOf(false) }
     var customerPendingDelete by remember { mutableStateOf<CustomerItem?>(null) }   // ✅ NEW
     var currentPage by remember { mutableIntStateOf(1) }
@@ -81,12 +76,12 @@ fun CustomerScreen(
     val totalPages = (customerState as? CustomerUiState.Success)?.totalPages ?: 1
     val filterDrawerState = rememberFilterDrawerState()
 
-
-    val typeOptions = listOf(
-        "all" to "All Customers",
-        "individual" to "Individual",
-        "business" to "Business"
-    )
+//
+//    val typeOptions = listOf(
+//        "all" to "All Customers",
+//        "individual" to "Individual",
+//        "business" to "Business"
+//    )
 
     FabScaffold(
 //        fab = FabConfig(

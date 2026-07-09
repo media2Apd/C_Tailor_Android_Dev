@@ -51,18 +51,20 @@ import com.cuso.mobile.model.DesignationCreateResponse
 import com.cuso.mobile.model.DesignationUpdateRequest
 import com.cuso.mobile.model.DesignationUpdateResponse
 import com.cuso.mobile.model.DesignationDeleteResponse
+import com.cuso.mobile.model.GarmentStageDoc
 import com.cuso.mobile.model.MeasurementsResponse
-import com.cuso.mobile.model.OrderApiResponse
 import com.cuso.mobile.model.OrderItem
 import com.cuso.mobile.model.OrderManagementResponse
 import com.cuso.mobile.model.OrderOverviewData
 import com.cuso.mobile.model.OrderResponse
 import com.cuso.mobile.model.OrderViewData
+import com.cuso.mobile.model.PricingQuotationSaveRequest
+import com.cuso.mobile.model.PricingQuotationSaveResponse
 import com.cuso.mobile.model.StageAssignRequest
 import com.cuso.mobile.model.UpdateCustomerRequest
-import com.cuso.mobile.model.UpdateOrderRequest
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationResponse
+import com.cuso.mobile.model.UpdateStageRequest
 import com.cuso.mobile.model.toOrderItem
 
 @Singleton
@@ -906,6 +908,61 @@ class SalesRepository @Inject constructor(
                 Result.success(response.body()!!)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Assign failed"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateStage(
+        orderId: String,
+        garmentItemId: String,
+        stageName: String,
+        status: String
+    ): Result<GarmentStageDoc> {
+        return try {
+            val (token, csrfToken) = getAuthHeaders()
+            val response = api.updateStage(
+                token = token,
+                csrfToken = csrfToken,
+                orderId = orderId,
+                garmentItemId = garmentItemId,
+                stageName = stageName.trim().lowercase(),
+                request = UpdateStageRequest(status = status)
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data
+                    ?: return Result.failure(Exception("Stage data is null"))
+                Result.success(data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to update stage: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun savePricingQuotation(
+        request: PricingQuotationSaveRequest
+    ): Result<PricingQuotationSaveResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.savePricingQuotation(
+                token = accessToken,
+                csrfToken = csrfToken,
+                request = request
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(
+                        response.errorBody()?.string()
+                            ?: "Failed to save pricing: ${response.code()}"
+                    )
+                )
             }
         } catch (e: Exception) {
             Result.failure(e)

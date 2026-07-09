@@ -4,13 +4,13 @@ import android.content.Context
 import android.net.Uri
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
-import okhttp3.RequestBody
+//import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
+//import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 
-fun createPartFromString(value: String): RequestBody =
-    value.toRequestBody("text/plain".toMediaTypeOrNull())
+//fun createPartFromString(value: String): RequestBody =
+//    value.toRequestBody("text/plain".toMediaTypeOrNull())
 
 /** Copies a content Uri into a temp cache file Retrofit/OkHttp can stream. */
 fun Context.uriToTempFile(uri: Uri, prefix: String, suffix: String): File? {
@@ -19,7 +19,7 @@ fun Context.uriToTempFile(uri: Uri, prefix: String, suffix: String): File? {
         val file = File.createTempFile(prefix, suffix, cacheDir)
         input.use { inStream -> file.outputStream().use { out -> inStream.copyTo(out) } }
         file
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }

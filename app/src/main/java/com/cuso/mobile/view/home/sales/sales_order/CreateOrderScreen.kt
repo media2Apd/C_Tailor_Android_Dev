@@ -26,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -75,6 +74,8 @@ import java.io.File
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
+import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 
 // ─────────────────────────────────────────────────────────────
 // Data Models
@@ -538,82 +539,82 @@ fun CreateOrderScreen(
                 )
             }
         },
-        bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        salesViewModel.clearAllSelectedGarments()
-                        salesViewModel.clearCustomerSearch()
-                        onCancel()
-                    },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF374151)
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 3.dp,
-                        pressedElevation = 1.dp
-                    )
-                ) {
-                    Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.Medium)
-                }
-
-                Button(
-                    onClick = {
-                        val data = OrderReviewData(
-                            orderId = initialData?.orderId,
-                            customerId = selectedCustomer?.id ?: initialData?.customerId ?: "",
-                            branchId = selectedBranchId,
-                            fullName = fullName,
-                            countryCode = countryCode,
-                            phone = phone,
-                            gender = gender,
-                            dressFor = dressFor,
-                            address = address,
-                            garments = selectedGarments,
-                            orderDate = orderDate,
-                            source = source,
-                            trialDate = trialDate,
-                            deliveryDate = deliveryDate,
-                            discount = initialData?.discount ?: 0.0,
-                            paidSoFar = initialData?.paidSoFar ?: 0.0,
-                            designImages = selectedDesignImages,
-                            existingImageUrls = initialData?.existingImageUrls ?: emptyList(),
-                            voiceNoteUri = recordedVoiceNoteUri
-                        )
-                        onNextStep(data)
-                    },
-                    modifier = Modifier.weight(2f).height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                    shape = RoundedCornerShape(10.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 6.dp,
-                        pressedElevation = 3.dp
-                    )
-                ) {
-                    Text(
-                        if (isEditMode) "Update Order" else "Next Step",
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        },
+//        bottomBar = {
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .padding(horizontal = 16.dp, vertical = 12.dp),
+//                horizontalArrangement = Arrangement.spacedBy(12.dp)
+//            ) {
+//                OutlinedButton(
+//                    onClick = {
+//                        salesViewModel.clearAllSelectedGarments()
+//                        salesViewModel.clearCustomerSearch()
+//                        onCancel()
+//                    },
+//                    modifier = Modifier.weight(1f).height(48.dp),
+//                    shape = RoundedCornerShape(10.dp),
+//                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+//                    colors = ButtonDefaults.outlinedButtonColors(
+//                        containerColor = Color.White,
+//                        contentColor = Color(0xFF374151)
+//                    ),
+//                    elevation = ButtonDefaults.buttonElevation(
+//                        defaultElevation = 3.dp,
+//                        pressedElevation = 1.dp
+//                    )
+//                ) {
+//                    Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.Medium)
+//                }
+//
+//                Button(
+//                    onClick = {
+//                        val data = OrderReviewData(
+//                            orderId = initialData?.orderId,
+//                            customerId = selectedCustomer?.id ?: initialData?.customerId ?: "",
+//                            branchId = selectedBranchId,
+//                            fullName = fullName,
+//                            countryCode = countryCode,
+//                            phone = phone,
+//                            gender = gender,
+//                            dressFor = dressFor,
+//                            address = address,
+//                            garments = selectedGarments,
+//                            orderDate = orderDate,
+//                            source = source,
+//                            trialDate = trialDate,
+//                            deliveryDate = deliveryDate,
+//                            discount = initialData?.discount ?: 0.0,
+//                            paidSoFar = initialData?.paidSoFar ?: 0.0,
+//                            designImages = selectedDesignImages,
+//                            existingImageUrls = initialData?.existingImageUrls ?: emptyList(),
+//                            voiceNoteUri = recordedVoiceNoteUri
+//                        )
+//                        onNextStep(data)
+//                    },
+//                    modifier = Modifier.weight(2f).height(48.dp),
+//                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
+//                    shape = RoundedCornerShape(10.dp),
+//                    elevation = ButtonDefaults.buttonElevation(
+//                        defaultElevation = 6.dp,
+//                        pressedElevation = 3.dp
+//                    )
+//                ) {
+//                    Text(
+//                        if (isEditMode) "Update Order" else "Next Step",
+//                        color = Color.White,
+//                        fontWeight = FontWeight.SemiBold
+//                    )
+//                    Spacer(Modifier.width(6.dp))
+//                    Icon(
+//                        Icons.Default.ChevronRight,
+//                        null,
+//                        tint = Color.White,
+//                        modifier = Modifier.size(18.dp)
+//                    )
+//                }
+//            }
+//        },
         containerColor = Color(0xFFF3F4F6)
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -1388,6 +1389,7 @@ fun CreateOrderScreen(
                 }
             }
 
+            // AFTER
             if (showImportDialog) {
                 customerSearchResult?.let { result ->
                     PreviousMeasurementsDialog(
@@ -1401,9 +1403,50 @@ fun CreateOrderScreen(
                     )
                 }
             }
+
+
+            StepNavigationFab(
+                showBack = true,
+                onBack = {
+                    salesViewModel.clearAllSelectedGarments()
+                    salesViewModel.clearCustomerSearch()
+                    onCancel()
+                },
+                backLabel = "Cancel",
+                backWidthFraction = 0.40f,
+                trailingWidthFraction = 0.40f,
+                trailingAction = TrailingFabAction.Next(
+                    label = "Next Step",
+                    onClick = {
+                        val data = OrderReviewData(
+                            orderId = initialData?.orderId,
+                            customerId = selectedCustomer?.id ?: initialData?.customerId ?: "",
+                            branchId = selectedBranchId,
+                            fullName = fullName,
+                            countryCode = countryCode,
+                            phone = phone,
+                            gender = gender,
+                            dressFor = dressFor,
+                            address = address,
+                            garments = selectedGarments,
+                            orderDate = orderDate,
+                            source = source,
+                            trialDate = trialDate,
+                            deliveryDate = deliveryDate,
+                            discount = initialData?.discount ?: 0.0,
+                            paidSoFar = initialData?.paidSoFar ?: 0.0,
+                            designImages = selectedDesignImages,
+                            existingImageUrls = initialData?.existingImageUrls ?: emptyList(),
+                            voiceNoteUri = recordedVoiceNoteUri
+                        )
+                        onNextStep(data)
+                    }
+                )
+            )
         }
     }
 }
+
 
 // ─────────────────────────────────────────────────────────────
 // Previous Measurements Import Dialog
@@ -2322,7 +2365,7 @@ fun ColorPickerField(
     placeholder: String = "Color name"
 ) {
     var showDialog by remember { mutableStateOf(false) }
-    val currentColor = remember(value) { parseHexColorOrNull(value) }
+//    val currentColor = remember(value) { parseHexColorOrNull(value) }
 
     Row(
         modifier = Modifier

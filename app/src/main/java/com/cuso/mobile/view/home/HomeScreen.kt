@@ -45,7 +45,6 @@ import androidx.navigation.NavController
 import com.cuso.mobile.viewmodel.HomeViewModel
 import com.cuso.mobile.viewmodel.Authenticate
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -95,7 +94,6 @@ import com.cuso.mobile.view.home.sales.sales_order.SalesOrderScreen
 import com.cuso.mobile.view.home.sales.sales_order.CreateOrderNextStep
 import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.FilterDrawer
 import com.cuso.mobile.view.home.reusablecomposables.FilterOption
@@ -124,8 +122,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.ui.graphics.ColorFilter
 import com.cuso.mobile.view.composable.DatePickerField
+import com.cuso.mobile.view.home.reusablecomposables.FabConfig
+import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.sales.customer.CustomerDetailScreen
 import com.cuso.mobile.view.home.sales.ordermanagement.OrderManagementScreen
+import com.cuso.mobile.view.home.sales.pricing_and_quotation.PricingQuotationScreen
 import com.cuso.mobile.view.home.sales.sales_order.toOrderReviewData
 import com.cuso.mobile.viewmodel.CustomerDeleteState
 import com.cuso.mobile.viewmodel.SettingsViewModel
@@ -185,7 +186,7 @@ fun HomeScreen(navController: NavHostController) {
     }
 
     LaunchedEffect(editOverviewState) {
-        val id = editOrderId ?: return@LaunchedEffect
+//        val id = editOrderId ?: return@LaunchedEffect
         when (val s = editOverviewState) {
             is com.cuso.mobile.viewmodel.OrderOverviewState.Success -> {
                 pendingOrderReviewData = s.data.toOrderReviewData()
@@ -254,6 +255,10 @@ fun HomeScreen(navController: NavHostController) {
                 isSalesSettingsMode = true
             }
             currentScreen == "sales_lead" -> {
+                isSalesSettingsMode = false
+                currentScreen = "home"
+            }
+            currentScreen == "sales_pricing_quotation" -> {
                 isSalesSettingsMode = false
                 currentScreen = "home"
             }
@@ -363,6 +368,13 @@ fun HomeScreen(navController: NavHostController) {
                                 currentScreen = "sales_garment_type"
                                 isDrawerOpen = false
                             }
+                            route == "sales_pricing_quotation" ||
+                                    route == "sales_pricing_and_quotations" ||   // ✅ ADD THIS — actual buildNavigationKey output
+                                    route == "sales_pricing_&_quotations" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "sales_pricing_quotation"
+                                isDrawerOpen = false
+                            }
                             route == "home" -> {
                                 isSalesSettingsMode = false
                                 currentScreen =
@@ -465,6 +477,13 @@ fun HomeScreen(navController: NavHostController) {
                                     isSalesSettingsMode = false
                                     currentScreen = "sales_measurements"
                                 }
+                                // ✅ ADD THIS
+                                "sales_pricing_quotation",
+                                "sales_pricing_and_quotations",
+                                "sales_pricing_&_quotations" -> {
+                                    isSalesSettingsMode = false
+                                    currentScreen = "sales_pricing_quotation"
+                                }
                                 else -> {
                                     android.util.Log.d("NAV_DEBUG", "Unhandled home navigation: $route")
                                 }
@@ -562,6 +581,25 @@ fun HomeScreen(navController: NavHostController) {
                             )
                         } ?: run { currentScreen = "sales_orders" }
                     }
+                    "sales_pricing_quotation" -> PricingQuotationScreen(
+                        onClose = {
+                            isSalesSettingsMode = false
+                            currentScreen = "home"   // or "sales_lead" if this should return to the Sales section
+                        },
+                        onCategoryClick = { category ->
+                            // TODO: navigate to category detail screen when built, e.g.:
+                            // currentScreen = "sales_pricing_${category.categoryType}"
+                        },
+                        onAddNewPricing = { currentScreen = "create_garment_pricing" }
+
+                    )
+                    "create_garment_pricing" -> com.cuso.mobile.view.home.sales.pricing_and_quotation.AddGarmentPricingScreen(
+                        onClose = { currentScreen = "sales_pricing_quotation" },
+                        onSave = {
+                            // TODO: call ViewModel to submit pricing, then:
+                            currentScreen = "sales_pricing_quotation"
+                        }
+                    )
                     "sales_customers" -> CustomerScreen(
                         navController = navController,
                         customerState = customerUiState,
@@ -638,6 +676,7 @@ fun HomeScreen(navController: NavHostController) {
         }
 
         // ✅ NEW — Modules bottom-sheet panel, overlays Scaffold+bottom nav, slides up from bottom
+        // ✅ NEW — Modules bottom-sheet panel, overlays Scaffold+bottom nav, slides up from bottom
         ModulesPanel(
             isOpen = showModulesPanel,
             onClose = { showModulesPanel = false },
@@ -645,12 +684,19 @@ fun HomeScreen(navController: NavHostController) {
                 val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
                 val firstSubItem = menuItem?.subItems?.get(category)?.firstOrNull()
 
-                val navKey = if (firstSubItem != null) {
+                val rawNavKey = if (firstSubItem != null) {
                     buildNavigationKey(menu, firstSubItem)
                 } else {
                     buildNavigationKey(menu, category)
                 }
 
+                // ✅ FIX — normalize aliases (e.g. "sales_pricing_and_quotations")
+                // to the exact key the `when(currentScreen)` block expects
+                // (e.g. "sales_pricing_quotation"), otherwise it falls into
+                // the `else -> { }` branch and nothing renders.
+                val navKey = normalizeRoute(rawNavKey)
+
+                isSalesSettingsMode = false   // ✅ also reset this, same as other nav paths do
                 currentScreen = navKey
                 showModulesPanel = false
             }
@@ -1693,15 +1739,15 @@ fun LeadAccordionSection(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(LeadPrimarySoft, RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
-            }
-            Spacer(Modifier.width(12.dp))
+//            Box(
+//                modifier = Modifier
+//                    .size(36.dp)
+//                    .background(LeadPrimarySoft, RoundedCornerShape(10.dp)),
+//                contentAlignment = Alignment.Center
+//            ) {
+//                Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+//            }
+//            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
             }
@@ -1927,11 +1973,18 @@ fun CreateLeadScreen(onBack: () -> Unit) {
         }
     }
 
+    // AFTER
     Scaffold(
         containerColor = Color(0xFFF5F5F7),
         contentWindowInsets = WindowInsets(0)
-        ) { padding ->
-        Box(
+    ) { padding ->
+        FabScaffold(
+            fab = FabConfig(
+                label = "Create Lead",
+                icon = Icons.AutoMirrored.Filled.ArrowForward,
+                onClick = { submitLead() },
+                bottomPadding = 50.dp
+            ),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -2180,25 +2233,6 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                     item { Spacer(Modifier.height(90.dp)) }
                 }
             }
-
-            Button(
-                onClick = { submitLead() },
-                enabled = leadState !is SaleState.Loading,
-                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 10.dp, bottom = 50.dp)
-            ) {
-                if (leadState is SaleState.Loading) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
-                } else {
-                    Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    Spacer(Modifier.width(6.dp))
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                }
-            }
         }
     }
 }
@@ -2404,7 +2438,15 @@ fun LeadScreenContent(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    FabScaffold(
+        fab = FabConfig(
+            label = "Create Lead",
+            icon = Icons.Default.Add,
+            onClick = onCreateLead,
+            bottomPadding = 50.dp
+        ),
+        modifier = Modifier.fillMaxSize()
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -2431,7 +2473,7 @@ fun LeadScreenContent(
                             .clickable(
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
-                            ) { onClose() }   // ✅ NEW
+                            ) { onClose() }
                     )
                 }
                 Spacer(Modifier.height(8.dp))
@@ -2670,22 +2712,6 @@ fun LeadScreenContent(
                         }
                     }
                 }
-            }
-        }
-
-        Button(
-            onClick = onCreateLead,
-            colors = ButtonDefaults.buttonColors(containerColor = Primary),
-            shape = RoundedCornerShape(10.dp),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 10.dp, bottom = 50.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Spacer(Modifier.width(6.dp))
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -4081,7 +4107,11 @@ fun FormLabel(text: String, isRequired: Boolean = false) {
     Spacer(Modifier.height(6.dp))
 }
 @Composable
-fun FormTextField(value: String, onValueChange: (String) -> Unit, keyboardType: KeyboardType = KeyboardType.Text) {
+fun FormTextField(value: String,
+                  onValueChange: (String) -> Unit,
+                  keyboardType: KeyboardType = KeyboardType.Text ,
+                  placeholder: String = ""   // ✅ NEW — optional, old call-sites unaffected
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -4200,7 +4230,7 @@ fun FormDropdown(
 ) {
     FormLabel(label, isRequired)
 
-    val density = androidx.compose.ui.platform.LocalDensity.current
+    val density = LocalDensity.current
     var triggerWidthPx by remember { mutableStateOf(0) }
 
     Box {
@@ -4262,6 +4292,7 @@ fun FormDropdown(
     }
 }
 
+@SuppressLint("FrequentlyChangingValue")
 @Composable
 fun HorizontalScrollbar(state: LazyListState, modifier: Modifier = Modifier, trackColor: Color = Color(0xFFE5E7EB), thumbColor: Color = Color.Gray, height: androidx.compose.ui.unit.Dp = 4.dp) {
     val layoutInfo       = state.layoutInfo
@@ -4298,7 +4329,23 @@ fun HorizontalScrollbar(state: LazyListState, modifier: Modifier = Modifier, tra
             .background(thumbColor, RoundedCornerShape(height / 2)))
     }
 }
+// ─────────────────────────────────────────────────────────────
+// Route alias normalizer — single source of truth for all
+// route-name variations that buildNavigationKey() or menu
+// clicks might produce. Add new aliases here ONLY.
+// ─────────────────────────────────────────────────────────────
+fun normalizeRoute(route: String): String {
+    return when (route) {
+        "sales_pricing_quotation",
+        "sales_pricing_and_quotations",
+        "sales_pricing_&_quotations" -> "sales_pricing_quotation"
 
+        "sales_sales_orders",
+        "sales_sales_&_orders" -> "sales_sales_orders"
+
+        else -> route
+    }
+}
 
 fun String.toIsoDate(): String {
     if (this.isEmpty() || this == "Select Date") return ""

@@ -27,7 +27,6 @@ import androidx.navigation.NavController
 import com.cuso.mobile.model.OrderManagementItem
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.home.sales.sales_order.orderStatusColors
@@ -43,7 +42,6 @@ fun OrderManagementScreen(
     navController: NavController,
     onMenuClick: () -> Unit = {},
     onBack: () -> Unit = {},
-    onCreateOrder: () -> Unit = {},
     onViewOrder: (String) -> Unit = {},
     onEditOrder: (String) -> Unit = {}
 ) {
@@ -267,19 +265,7 @@ fun OrderManagementScreen(
             }
         }
 
-        Button(
-            onClick = { onCreateOrder() },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
-            shape = RoundedCornerShape(8.dp),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 50.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Create Order", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Spacer(Modifier.width(6.dp))
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-            }
-        }
+
     }
 }
 
@@ -290,8 +276,8 @@ private fun OrderManagementCard(
     onView: () -> Unit,
     onEdit: () -> Unit
 ) {
-    val (orderBg, orderTextColor) = orderStatusColors(order.orderStatus)             // ✅ CHANGED — order.status -> order.orderStatus
-    val (paymentBg, paymentTextColor) = paymentStatusColors(order.paymentStatus)      // ✅ CHANGED — always non-null string now
+    val ( orderTextColor) = orderStatusColors(order.orderStatus)             // ✅ CHANGED — order.status -> order.orderStatus
+    val ( paymentTextColor) = paymentStatusColors(order.paymentStatus)      // ✅ CHANGED — always non-null string now
 
     DataCard(
         item = order,

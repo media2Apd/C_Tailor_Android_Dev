@@ -189,7 +189,9 @@ data class OrderViewStage(
     @SerializedName("failedQuantity")
     val failedQuantity: Int = 0,
     @SerializedName("status")
-    val status: String = ""
+    val status: String = "",
+    @SerializedName("completedAt")
+val completedAt: String? = null
 )
 
 data class OrderViewPayment(

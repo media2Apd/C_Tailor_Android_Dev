@@ -3,8 +3,8 @@ package com.cuso.mobile.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.AssignStageResponse
+import com.cuso.mobile.model.GarmentStageDoc
 import com.cuso.mobile.model.OrderOverviewData
-import com.cuso.mobile.model.StageAssignRequest
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +31,15 @@ sealed class AssignWorkersState {
     data class Error(val message: String) : AssignWorkersState()
 }
 
+// Stage status update state (Quick Update button) — uses the PATCH
+// /assign-worker-to-stage/{orderId}/{garmentItemId}/{stageName} endpoint.
+sealed class StageUpdateState {
+    object Idle : StageUpdateState()
+    data class Loading(val stageId: String) : StageUpdateState()
+    data class Success(val stageId: String, val data: GarmentStageDoc) : StageUpdateState()
+    data class Error(val stageId: String, val message: String) : StageUpdateState()
+}
+
 @HiltViewModel
 class OrderOverviewViewModel @Inject constructor(
     private val repository: SalesRepository
@@ -41,6 +50,9 @@ class OrderOverviewViewModel @Inject constructor(
 
     private val _assignWorkersState = MutableStateFlow<AssignWorkersState>(AssignWorkersState.Idle)
     val assignWorkersState: StateFlow<AssignWorkersState> = _assignWorkersState.asStateFlow()
+
+    private val _stageUpdateState = MutableStateFlow<StageUpdateState>(StageUpdateState.Idle)
+    val stageUpdateState: StateFlow<StageUpdateState> = _stageUpdateState.asStateFlow()
 
     fun fetchSalesOverview(orderId: String) {
         viewModelScope.launch {
@@ -107,11 +119,50 @@ class OrderOverviewViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Quick Update button click aagumbodhu call aagum.
+     * stageId - local UI card tracking-ku (Compose la stage.id vachi match pannuvom)
+     * stageName - "cutting" / "stitching" / "qc" -> API path segment-ku
+     * status - "pending" / "in_progress" / "completed"
+     *
+     * PATCH /api/sales-orders/assign-worker-to-stage/{orderId}/{garmentItemId}/{stageName}
+     * mattum call aagum -- adhavadhu andha ஒரு stage மட்டும் update aagும், marabadi
+     * stages touch aagathu.
+     */
+    fun updateStage(
+        orderId: String,
+        garmentItemId: String,
+        stageId: String,
+        stageName: String,
+        status: String
+    ) {
+        viewModelScope.launch {
+            _stageUpdateState.value = StageUpdateState.Loading(stageId)
+
+            repository.updateStage(
+                orderId = orderId,
+                garmentItemId = garmentItemId,
+                stageName = stageName,
+                status = status
+            )
+                .onSuccess { data ->
+                    _stageUpdateState.value = StageUpdateState.Success(stageId, data)
+                }
+                .onFailure { e ->
+                    _stageUpdateState.value = StageUpdateState.Error(stageId, e.message ?: "Failed to update stage")
+                }
+        }
+    }
+
+    fun resetStageUpdateState() {
+        _stageUpdateState.value = StageUpdateState.Idle
+    }
+
     fun resetAssignWorkersState() {
         _assignWorkersState.value = AssignWorkersState.Idle
     }
 
-    fun resetState() {
-        _overviewState.value = OrderOverviewState.Idle
-    }
+//    fun resetState() {
+//        _overviewState.value = OrderOverviewState.Idle
+//    }
 }

@@ -1,12 +1,11 @@
 package com.cuso.mobile.view.home.sidebar
 
+import android.content.Context
 import com.cuso.mobile.model.User
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -21,14 +20,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,7 +35,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -58,6 +53,7 @@ import coil.compose.AsyncImage
 import com.cuso.mobile.R
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.platform.LocalContext
 
 // ─────────────────────────────────────────────────────────────
 // Data Classes for Menu Configuration
@@ -110,8 +106,7 @@ object SidebarConfig {
                 isPanel = true,
                 categories = listOf(
                     "Lead Management", "Customer", "Measurements",
-                    "Sales & Orders", "Order Management", "Pricing & Quotations",
-                    "Targets vs Achievements", "Salesperson Analytics"
+                    "Sales & Orders", "Order Management", "Pricing & Quotations"
                 ),
                 subItems = mapOf(
                     "Lead Management"          to listOf("Lead"),
@@ -119,9 +114,7 @@ object SidebarConfig {
                     "Measurements"             to listOf("Measurements"),
                     "Sales & Orders"           to listOf("Sales Orders"),
                     "Order Management"         to listOf("Orders"),
-                    "Pricing & Quotations"     to listOf("Overview", "Pricing & Quotations"),
-                    "Targets vs Achievements"  to listOf("Targets vs Achievements"),
-                    "Salesperson Analytics"    to listOf("Salesperson Analytics")
+                    "Pricing & Quotations"     to listOf("Pricing & Quotations")
                 )
             ),
             MenuItem(
@@ -326,11 +319,14 @@ private fun AppSidebarContent(
     val activeCategories = selectedMenuItem?.categories ?: emptyList()
     val activeSubItems   = selectedMenuItem?.subItems   ?: emptyMap()
 
+    val context = LocalContext.current
+
     // ── handleMenuClick ───────────────────────────────────────
     fun handleMenuClick(label: String) {
         val menuItem = menuItems.find { it.label == label }
         if (menuItem?.enabled == false) return
 
+        ModuleUsageTracker.recordUsage(context, label)
         selectedMenu = label
         expandedCategory = null
         burgerMenuExpanded = false
@@ -870,19 +866,53 @@ private val moduleDescriptions = mapOf(
     "Reports" to "Sales & finance reporting"
 )
 
+// Fixed accent color per module label, cycled if a module isn't in this map.
+private val moduleAccentColors = mapOf(
+    "Sales"      to Color(0xFF6C4FF6),
+    "Inventory"  to Color(0xFF10B981),
+    "Finance"    to Color(0xFFF59E0B),
+    "Marketing"  to Color(0xFFEC4899),
+    "Logistics"  to Color(0xFF0EA5E9),
+    "Services"   to Color(0xFF8B5CF6),
+    "HR"         to Color(0xFFEF4444),
+    "IT"         to Color(0xFF6366F1),
+    "Legal"      to Color(0xFF64748B),
+    "Security"   to Color(0xFF14B8A6),
+    "Reports"    to Color(0xFFF97316)
+)
+private val fallbackAccentColor = Color(0xFF6B7280)
+
 private data class FrequentModule(
     val label: String,
-    val icon: ImageVector,
+    val icon: Int,   // drawable res id, reused from MenuItem.icon
     val bg: Color,
-    val tint: Color
+    val tint: Color = Color.White
 )
 
-private val frequentlyUsed = listOf(
-    FrequentModule("Sales", Icons.Default.ShoppingBag, Color(0xFF6C4FF6), Color.White),
-    FrequentModule("Inventory", Icons.Default.Inventory2, Color(0xFF10B981), Color.White),
-    FrequentModule("Finance", Icons.Default.AccountBalance, Color(0xFFF59E0B), Color.White)
-)
+/** Builds the Frequently Used tiles from real usage data, falling back to the first
+ *  3 available modules if the user has no usage history yet (e.g. first app launch). */
+private fun buildFrequentlyUsed(context: Context, menuItems: List<MenuItem>): List<FrequentModule> {
+    val candidateLabels = menuItems.map { it.label }
+    val recentlyUsed = ModuleUsageTracker.getRecentlyUsed(context, candidateLabels, limit = 3)
 
+    // No usage history yet -> this is an "Explore" prompt, not "Frequently Used".
+    // Show modules the user hasn't opened at all, so it genuinely invites exploration
+    // rather than repeating whatever happens to be first in the menu config.
+    val labelsToShow = if (recentlyUsed.isNotEmpty()) {
+        recentlyUsed
+    } else {
+        candidateLabels.take(3)
+    }
+
+    return labelsToShow.mapNotNull { label ->
+        val menuItem = menuItems.find { it.label == label } ?: return@mapNotNull null
+        FrequentModule(
+            label = menuItem.label,
+            icon = menuItem.icon,
+            bg = moduleAccentColors[menuItem.label] ?: fallbackAccentColor
+        )
+    }
+}
 private const val HALF_FRACTION = 0.55f
 private const val FULL_FRACTION = 0.96f
 
@@ -909,21 +939,21 @@ fun ModulesPanel(
 // 📊 SALES MODULES PANEL (Sales nav bar-oda "Modules" bottom sheet)
 // ─────────────────────────────────────────────────────────────
 
-@Composable
-fun SalesModulesPanel(
-    isOpen: Boolean,
-    onClose: () -> Unit,
-    onModuleCategoryClick: (menu: String, category: String) -> Unit
-) {
-    ModulesPanelContent(
-        isOpen = isOpen,
-        onClose = onClose,
-        onModuleCategoryClick = onModuleCategoryClick,
-        menuItems = SidebarConfig.getSalesMenuItems()
-            .filter { it.label != "Home" && it.enabled },
-        showFrequentlyUsed = false
-    )
-}
+//@Composable
+//fun SalesModulesPanel(
+//    isOpen: Boolean,
+//    onClose: () -> Unit,
+//    onModuleCategoryClick: (menu: String, category: String) -> Unit
+//) {
+//    ModulesPanelContent(
+//        isOpen = isOpen,
+//        onClose = onClose,
+//        onModuleCategoryClick = onModuleCategoryClick,
+//        menuItems = SidebarConfig.getSalesMenuItems()
+//            .filter { it.label != "Home" && it.enabled },
+//        showFrequentlyUsed = false
+//    )
+//}
 
 // ─────────────────────────────────────────────────────────────
 // 🧩 Reusable Modules Panel Content
@@ -938,12 +968,25 @@ private fun ModulesPanelContent(
     showFrequentlyUsed: Boolean
 ) {
     val density = LocalDensity.current
+    val context = LocalContext.current
     val heightFraction = remember { Animatable(HALF_FRACTION) }
     val scope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
     var expandedModule by remember { mutableStateOf(menuItems.firstOrNull()?.label) }
 
+    val candidateLabels = remember(menuItems) { menuItems.map { it.label } }
+
+    // Reactive: recomputes automatically the instant recordUsage() changes the ranking,
+    // reordering (or relabeling) the tiles live without closing/reopening the panel.
+    val hasUsageHistory by remember(menuItems) {
+        derivedStateOf {
+            ModuleUsageTracker.getRecentlyUsed(context, candidateLabels, limit = 3).isNotEmpty()
+        }
+    }
+    val frequentlyUsed by remember(menuItems) {
+        derivedStateOf { buildFrequentlyUsed(context, menuItems).take(3) }
+    }
     LaunchedEffect(isOpen) {
         if (isOpen) heightFraction.snapTo(HALF_FRACTION)
     }
@@ -1088,56 +1131,74 @@ private fun ModulesPanelContent(
                     ) {
                         if (searchQuery.isBlank() && showFrequentlyUsed) {
                             item {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        if (hasUsageHistory) "FREQUENTLY USED" else "EXPLORE",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF9CA3AF)
+                                    )
+                                    if (!hasUsageHistory) {
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(
+                                            "Modules you haven't tried yet",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFFC1C5CC)
+                                        )
+                                    }
+                                    Spacer(Modifier.height(10.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        frequentlyUsed.forEach { fm ->
+                                            Column(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .background(Color.White, RoundedCornerShape(14.dp))
+                                                    .border1(Color(0xFFF0F0F0))
+                                                    .clickable {
+                                                        ModuleUsageTracker.recordUsage(context, fm.label)
+                                                        val menu = menuItems.find { it.label == fm.label }
+                                                        val firstCat = menu?.categories?.firstOrNull()
+                                                        if (menu != null && firstCat != null) {
+                                                            onModuleCategoryClick(menu.label, firstCat)
+                                                        }
+                                                    }
+                                                    .padding(vertical = 16.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(44.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(fm.bg),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(id = fm.icon),
+                                                        contentDescription = fm.label,
+                                                        tint = fm.tint,
+                                                        modifier = Modifier.size(22.dp)
+                                                    )
+                                                }
+                                                Spacer(Modifier.height(8.dp))
+                                                Text(fm.label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
+                                            }
+                                        }
+                                    }
+                                    Spacer(Modifier.height(24.dp))
+                                }
+                            }
+                        }
+
+                        item {
+                            Column(modifier = Modifier.fillMaxWidth()) {
                                 Text(
-                                    "FREQUENTLY USED",
+                                    "ALL MODULES",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color(0xFF9CA3AF)
                                 )
                                 Spacer(Modifier.height(10.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    frequentlyUsed.forEach { fm ->
-                                        Column(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .background(Color.White, RoundedCornerShape(14.dp))
-                                                .border1(Color(0xFFF0F0F0))
-                                                .clickable {
-                                                    val menu = menuItems.find { it.label == fm.label }
-                                                    val firstCat = menu?.categories?.firstOrNull()
-                                                    if (menu != null && firstCat != null) {
-                                                        onModuleCategoryClick(menu.label, firstCat)
-                                                    }
-                                                }
-                                                .padding(vertical = 16.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(44.dp)
-                                                    .clip(RoundedCornerShape(12.dp))
-                                                    .background(fm.bg),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(fm.icon, contentDescription = fm.label, tint = fm.tint, modifier = Modifier.size(22.dp))
-                                            }
-                                            Spacer(Modifier.height(8.dp))
-                                            Text(fm.label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
-                                        }
-                                    }
-                                }
-                                Spacer(Modifier.height(24.dp))
                             }
-                        }
-
-                        item {
-                            Text(
-                                "ALL MODULES",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF9CA3AF)
-                            )
-                            Spacer(Modifier.height(10.dp))
                         }
 
                         items(filteredModules) { module ->
@@ -1192,6 +1253,7 @@ private fun ModulesPanelContent(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .clickable {
+                                                        ModuleUsageTracker.recordUsage(context, module.label)
                                                         onModuleCategoryClick(module.label, category)
                                                     }
                                                     .padding(vertical = 6.dp)

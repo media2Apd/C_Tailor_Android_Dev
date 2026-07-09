@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,7 +23,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,6 +34,8 @@ import com.cuso.mobile.ui.theme.redtext
 import com.cuso.mobile.ui.theme.yellowBg
 import com.cuso.mobile.ui.theme.yellowtext
 import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
+import com.cuso.mobile.view.home.reusablecomposables.FabConfig
+import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.viewmodel.OrderActionState
 import com.cuso.mobile.viewmodel.OrderUiState
 import com.cuso.mobile.viewmodel.SalesOrderViewModel
@@ -54,9 +54,8 @@ fun SalesOrderScreen(
     onMenuClick: () -> Unit = {},
     onBack: () -> Unit = {},
     onCreateOrder: () -> Unit = {},
-    onViewOrder: (String) -> Unit = {},   // ✅ CHANGED — OrderItem இல்ல, String (orderId) expect பண்ணணும்
-    onEditOrder: (String) -> Unit = {}   // ✅ NEW
-
+    onViewOrder: (String) -> Unit = {},
+    onEditOrder: (String) -> Unit = {}
 ) {
     val viewModel: SalesOrderViewModel = hiltViewModel()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
@@ -69,7 +68,6 @@ fun SalesOrderScreen(
     var page by remember { mutableStateOf(1) }
     var itemsPerPage by remember { mutableStateOf(10) }
     var showStatusDropdown by remember { mutableStateOf(false) }
-
 
     LaunchedEffect(page, itemsPerPage, statusFilter, searchQuery) {
         viewModel.fetchOrders(
@@ -114,7 +112,16 @@ fun SalesOrderScreen(
         "cancelled" to "Cancelled"
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    FabScaffold(
+        fab = FabConfig(
+            label = "Create Order",
+            icon = Icons.Default.Add,
+            onClick = { onCreateOrder() },
+            bottomPadding = 50.dp
+        ),
+        snackbarHostState = snackbarHostState,
+        modifier = Modifier.fillMaxSize()
+    ) {
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7))) {
 
             // ── FIXED TOP HEADER ──
@@ -130,21 +137,8 @@ fun SalesOrderScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-
                         Text("Sales Orders", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-
                     }
-//                    if (total > 0) {
-//                        Surface(color = Color(0xFFEEF2FF), shape = RoundedCornerShape(20.dp)) {
-//                            Text(
-//                                "$total orders",
-//                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-//                                fontSize = 12.sp,
-//                                color = Color(0xFF3B3BF9),
-//                                fontWeight = FontWeight.SemiBold
-//                            )
-//                        }
-//                    }
                     Spacer(Modifier.width(8.dp))
                     Icon(
                         Icons.Default.Close,
@@ -309,7 +303,7 @@ fun SalesOrderScreen(
                                             topBadgeText = order.status?.replaceFirstChar { it.uppercase() } ?: "—",
                                             topBadgeTextColor = statusTextColor,
                                             topBadgeBgColor = statusTextColor.copy(alpha = 0.14f),
-                                            topBadgeInline = true,                      // ✅ badge next to title, like Customer screen
+                                            topBadgeInline = true,
                                             title = order.customerId?.name ?: "Unknown",
                                             subtitle = order.orderNumber,
                                             footerAsRows = true,
@@ -357,162 +351,12 @@ fun SalesOrderScreen(
                 }
             }
         }
-
-        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
-
-        // ── FAB Create Order Button ──
-        Button(
-            onClick = { onCreateOrder() },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
-            shape = RoundedCornerShape(8.dp),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 50.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Create Order", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Spacer(Modifier.width(6.dp))
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-            }
-        }
     }
 }
-
-// ... rest of the composables remain the same (SalesOrderTable, SalesOrderRow, SalesOrderCard, helpers) ...
-
-// ─────────────────────────────────────────────────────────────
-// Table (top section)
-// ─────────────────────────────────────────────────────────────
-
-
-
-//private fun Long?.toDisplayDate(): String {
-//    if (this == null) return "—"
-//    return runCatching { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(this)) }.getOrDefault("—")
-//}
-
-// ─────────────────────────────────────────────────────────────
-// 🔁 ONE column list for orders — reused by table header, table cells
-// and card footer fields.
-// ─────────────────────────────────────────────────────────────
-//private fun orderColumns(): List<DataColumn<OrderItem>> = listOf(
-//    DataColumn("orderId", "Order Id", 110.dp) { order ->
-//        Text(order.orderNumber, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-//            color = Color(0xFF3B3BF9), maxLines = 1, overflow = TextOverflow.Ellipsis)
-//    },
-//    DataColumn("status", "Status", 120.dp) { order ->
-//        val (bg, textColor) = orderStatusColors(order.status)
-//        Box(modifier = Modifier.background(bg, RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 4.dp)) {
-//            Text(order.status?.replaceFirstChar { it.uppercase() } ?: "—", fontSize = 12.sp,
-//                color = textColor, fontWeight = FontWeight.Medium)
-//        }
-//    },
-//    DataColumn("customer", "Customer", 150.dp) { order ->
-//        Column {
-//            Text(order.customerId?.name ?: "Unknown", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-//                color = Color(0xFF111827), maxLines = 1, overflow = TextOverflow.Ellipsis)
-//            Text(order.customerId?.mobile ?: "", fontSize = 11.sp, color = Color(0xFF6B7280))
-//        }
-//    },
-//    DataColumn("priority", "Priority", 90.dp) { order ->
-//        Text(order.source?.replaceFirstChar { it.uppercase() } ?: "Normal", fontSize = 13.sp, color = Color(0xFF374151))
-//    },
-//    DataColumn("garments", "Garments", 120.dp) { order ->
-//        val names = order.garments.joinToString(", ") { it.categoryName }.ifEmpty { "—" }
-//        Text(names, fontSize = 13.sp, color = Color(0xFF374151), maxLines = 1, overflow = TextOverflow.Ellipsis)
-//    },
-//    DataColumn("payment", "Payment", 110.dp) { order ->
-//        val paymentStatus = order.paymentStatus ?: "unpaid"
-//        val (bg, textColor) = paymentStatusColors(paymentStatus)
-//        Box(
-//            modifier = Modifier.background(bg, RoundedCornerShape(20.dp))
-//                .border(1.dp, textColor.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
-//                .padding(horizontal = 8.dp, vertical = 4.dp)
-//        ) {
-//            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-//                Box(modifier = Modifier.size(6.dp).background(textColor, RoundedCornerShape(3.dp)))
-//                Text(paymentStatus, fontSize = 12.sp, color = textColor, fontWeight = FontWeight.Medium)
-//            }
-//        }
-//    },
-//    DataColumn("orderDate", "Order Date", 110.dp) { order ->
-//        Text(order.orderDate.toDisplayDate(), fontSize = 13.sp, color = Color(0xFF374151))
-//    },
-//    DataColumn("delivery", "Delivery", 110.dp) { order ->
-//        Text(order.deliveryDate.toDisplayDate(), fontSize = 13.sp, color = Color(0xFF374151))
-//    },
-//    DataColumn("total", "Total", 90.dp) { order ->
-//        Text(order.totalAmount?.let { "₹${it}" } ?: "—", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-//    },
-//    DataColumn("action", "Action", 70.dp, cellAlignment = Alignment.Center) {
-//        ActionDropdownMenu(
-//            actions = listOf(
-//                MenuAction("View", Icons.Default.Visibility) {},
-//                MenuAction("Edit", Icons.Default.Edit) {}
-//            )
-//        )
-//    }
-//)
-//
-//
-//
-//// ── Card view — same call site as before ──
-//@Composable
-//fun SalesOrderCard(order: OrderItem, onStatusChange: (String) -> Unit = {}) {
-//    val columns = orderColumns()
-//    val statusColumn = columns.first { it.key == "status" }
-//    val paymentColumn = columns.first { it.key == "payment" }
-//    val (_, statusTextColor) = orderStatusColors(order.status)
-//    val footerFields = columns.filter { it.key in listOf("orderDate", "delivery", "total") }
-//
-//    DataCard(
-//        item = order,
-//        leading = {
-//            Box(modifier = Modifier.width(4.dp).height(20.dp).background(statusTextColor, RoundedCornerShape(2.dp)))
-//        },
-//        title = {
-//            Text(order.orderNumber, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-//        },
-//        trailing = {
-//            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-//                statusColumn.cellContent(order)
-//                ActionDropdownMenu(
-//                    icon = Icons.Default.MoreVert,
-//                    actions = listOf(
-//                        MenuAction("View", Icons.Default.Visibility) {},
-//                        MenuAction("Edit", Icons.Default.Edit) {}
-//                    )
-//                )
-//            }
-//        },
-//        middleContent = {
-//            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-//                Box(
-//                    modifier = Modifier.size(42.dp).background(Color(0xFFEEF2FF), RoundedCornerShape(10.dp)),
-//                    contentAlignment = Alignment.Center
-//                ) {
-//                    Text(order.customerId?.name?.firstOrNull()?.uppercase() ?: "?", fontSize = 18.sp,
-//                        fontWeight = FontWeight.Bold, color = Color(0xFF3B3BF9))
-//                }
-//                Column(modifier = Modifier.weight(1f)) {
-//                    Text(order.customerId?.name ?: "Unknown", fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
-//                        color = Color(0xFF111827), maxLines = 1, overflow = TextOverflow.Ellipsis)
-//                    val names = order.garments.joinToString(", ") { it.categoryName }.ifEmpty { "—" }
-//                    Text(names, fontSize = 12.sp, color = Color(0xFF6B7280), maxLines = 1, overflow = TextOverflow.Ellipsis)
-//                }
-//                paymentColumn.cellContent(order)
-//            }
-//        },
-//        fields = footerFields,
-//        fieldsPerRow = 3
-//    )
-//}
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────
-// Idha SalesOrderScreen.kt file-la (அல்லது தனி Mappers.kt file-la) add pannunga
 
 fun orderStatusColors(status: String?): Pair<Color, Color> = when (status?.lowercase()) {
     "confirmed"  -> greenBg to greentext
@@ -525,7 +369,7 @@ fun orderStatusColors(status: String?): Pair<Color, Color> = when (status?.lower
 
 fun paymentStatusColors(status: String): Pair<Color, Color> = when (status.lowercase()) {
     "paid"    -> greenBg to greentext
-    "partial" ->yellowBg to yellowtext
+    "partial" -> yellowBg to yellowtext
     "unpaid"  -> redBg to redtext
     else      -> Color(0xFFF3F4F6) to Color(0xFF6B7280)
 }

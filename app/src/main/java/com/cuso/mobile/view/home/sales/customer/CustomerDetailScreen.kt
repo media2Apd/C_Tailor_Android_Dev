@@ -10,8 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +28,8 @@ import com.cuso.mobile.view.composable.CustomFieldOutlinedColors
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.home.FormDropdown   // ✅ NEW — reuse the shared dropdown from Lead screens
+import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
+import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 import com.cuso.mobile.view.home.reusablecomposables.dashedBorder
 import com.cuso.mobile.view.organization.OrgOptions
 import com.cuso.mobile.view.organization.OrganizationDropdown
@@ -51,10 +51,10 @@ fun CustomerDetailScreen(
     navController: NavController,
     customerId: String,
     viewModel: CustomerViewModel = hiltViewModel(),
-    startInEditMode: Boolean = false,          // ✅ NEW — decided by the caller/route ("edit_customer" vs "view_customer")
+    startInEditMode: Boolean = false,
     onClose: () -> Unit = { navController.popBackStack() },
     onUpdateSuccess: () -> Unit = onClose,
-    onRequestEdit: () -> Unit = {}              // ✅ NEW — like ViewLeadScreen's onEditLead(): navigates OUT to the edit route
+    onRequestEdit: () -> Unit = {}
 
 ) {
     val detailState by viewModel.detailState.collectAsState()
@@ -63,8 +63,7 @@ fun CustomerDetailScreen(
 
     var currentStep by remember { mutableStateOf(0) }
 
-    // ✅ CHANGED — initial mode now comes from the route, not a local toggle.
-    // View screen and Edit screen are two navigation states, exactly like ViewLeadScreen / EditLeadScreen.
+
     var isEditMode by remember(startInEditMode) { mutableStateOf(startInEditMode) }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -76,7 +75,7 @@ fun CustomerDetailScreen(
         when (val state = updateState) {
             is CustomerUpdateState.Success -> {
                 coroutineScope.launch { snackbarHostState.showSnackbar("Customer updated successfully") }
-                isEditMode = false          // go back to view-only mode after a successful update
+                isEditMode = false
                 onUpdateSuccess()
                 viewModel.resetUpdateState()
             }
@@ -92,12 +91,12 @@ fun CustomerDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = Color.Transparent
     ) { padding ->
-        Box(                                    // outer Box lets buttons float ON TOP of content
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding()
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {   // Column has NO bottom row anymore
+            Column(modifier = Modifier.fillMaxSize()) {
                 // ── Header ──
                 Row(
                     modifier = Modifier
@@ -180,94 +179,20 @@ fun CustomerDetailScreen(
                 }
             }
 
-            // ── Back pill button (bottom-start, overlays everything) ──
-            if (currentStep > 0) {
-                OutlinedButton(
-                    onClick = { currentStep-- },
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF111827)
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                    contentPadding = PaddingValues(horizontal = 50.dp, vertical = 14.dp),
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 20.dp, bottom = 24.dp)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Back", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
 
-            // ── Next / Edit / Update pill button (bottom-end, overlays everything) ──
-            if (currentStep < stepLabels.lastIndex) {
-                Button(
-                    onClick = { currentStep++ },
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF3B3BF9),
-                        contentColor = Color.White
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                    contentPadding = PaddingValues(horizontal = 50.dp, vertical = 14.dp),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 20.dp, bottom = 24.dp)
-                ) {
-                    Text("Next", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+
+            StepNavigationFab(
+                showBack = currentStep > 0,
+                onBack = { currentStep-- },
+                trailingAction = when {
+                    currentStep < stepLabels.lastIndex -> TrailingFabAction.Next { currentStep++ }
+                    !isEditMode -> TrailingFabAction.Edit { onRequestEdit() }
+                    else -> TrailingFabAction.Update(
+                        onClick = { viewModel.updateCustomer(customerId) },
+                        isLoading = updateState is CustomerUpdateState.Loading
+                    )
                 }
-            } else if (!isEditMode) {
-                // ✅ VIEW mode: "Edit" navigates to the Edit route (onRequestEdit),
-                // same as ViewLeadScreen's "Edit Lead" button calling onEditLead(). It does NOT
-                // flip isEditMode locally, so View and Edit stay two distinct navigation states.
-                Button(
-                    onClick = { onRequestEdit() },
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF3B3BF9),
-                        contentColor = Color.White
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                    contentPadding = PaddingValues(horizontal = 50.dp, vertical = 14.dp),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 20.dp, bottom = 24.dp)
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Edit", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                }
-            } else {
-                // ✅ EDIT mode: "Update" actually calls the API.
-                Button(
-                    onClick = { viewModel.updateCustomer(customerId) },
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF3B3BF9),
-                        contentColor = Color.White
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                    contentPadding = PaddingValues(horizontal = 50.dp, vertical = 14.dp),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 20.dp, bottom = 24.dp)
-                ) {
-                    if (updateState is CustomerUpdateState.Loading) {
-                        CircularProgressIndicator(
-                            color = Color.White,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    } else {
-                        Text("Update", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
+            )
         }
     }
 }
@@ -727,11 +652,12 @@ private fun InsightRow(label: String, value: String) {
 // ─────────────────────────────────────────────────────────────
 @Composable
 private fun OutlinedIconActionButton(
+    modifier: Modifier = Modifier,
     text: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
-    enabled: Boolean = true,
-    modifier: Modifier = Modifier
+    enabled: Boolean = true
+
 ) {
     OutlinedButton(
         onClick = onClick,
@@ -1135,30 +1061,30 @@ private fun InfoPill(modifier: Modifier = Modifier, icon: androidx.compose.ui.gr
     }
 }
 
-@Composable
-private fun ExpandableRow(title: String, subtitle: String? = null) {
-    var expanded by remember { mutableStateOf(false) }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(10.dp))
-            .clickable { expanded = !expanded }
-            .padding(14.dp)
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column {
-                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF111827))
-                if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = Color(0xFF9CA3AF))
-            }
-            Icon(
-                if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                null,
-                tint = Color(0xFF6B7280)
-            )
-        }
-    }
-}
+//@Composable
+//private fun ExpandableRow(title: String, subtitle: String? = null) {
+//    var expanded by remember { mutableStateOf(false) }
+//    Column(
+//        modifier = Modifier
+//            .fillMaxWidth()
+//            .background(Color.White, RoundedCornerShape(10.dp))
+//            .clickable { expanded = !expanded }
+//            .padding(14.dp)
+//    ) {
+//        Row(
+//            horizontalArrangement = Arrangement.SpaceBetween,
+//            verticalAlignment = Alignment.CenterVertically,
+//            modifier = Modifier.fillMaxWidth()
+//        ) {
+//            Column {
+//                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF111827))
+//                if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = Color(0xFF9CA3AF))
+//            }
+//            Icon(
+//                if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+//                null,
+//                tint = Color(0xFF6B7280)
+//            )
+//        }
+//    }
+//}

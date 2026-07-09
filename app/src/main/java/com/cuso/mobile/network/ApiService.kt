@@ -11,13 +11,10 @@ import GarmentCategoriesResponse
 import OrgGarmentResponse
 import RemoveOrgGarmentResponse
 import com.cuso.mobile.model.AssignStageResponse
-//import com.cuso.mobile.model.BaseResponse
 import com.cuso.mobile.model.BranchListResponse
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
-import com.cuso.mobile.model.CreateOrderRequest
 import com.cuso.mobile.model.CreateOrderResponse
-import com.cuso.mobile.model.CustomerApiResponse
 import com.cuso.mobile.model.CustomerSearchResponse
 import com.cuso.mobile.model.DeleteLeadResponse
 import com.cuso.mobile.model.DepartmentCreateRequest
@@ -91,9 +88,13 @@ import com.cuso.mobile.model.MeasurementsResponse
 import com.cuso.mobile.model.OrderManagementResponse
 import com.cuso.mobile.model.OrderOverviewApiResponse
 import com.cuso.mobile.model.OrderViewResponse
+import com.cuso.mobile.model.PricingQuotationSaveRequest
+import com.cuso.mobile.model.PricingQuotationSaveResponse
 import com.cuso.mobile.model.StageAssignRequest
 import com.cuso.mobile.model.UpdateCustomerRequest
 import com.cuso.mobile.model.UpdateCustomerResponse
+import com.cuso.mobile.model.UpdateStageRequest
+import com.cuso.mobile.model.UpdateStageResponse
 
 interface ApiService {
 
@@ -558,7 +559,17 @@ interface ApiService {
         @Body request: StageAssignRequest
     ): Response<AssignStageResponse>
 
-    // ⚠️ endpoint path உங்க backend route-க்கு ஏத்த மாற்றிக்கோங்க
+    @PUT("/api/sales-orders/update-stage-status/{orderId}/{garmentItemId}/{stageName}")
+       suspend fun updateStage(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("orderId") orderId: String,
+        @Path("garmentItemId") garmentItemId: String,
+        @Path("stageName") stageName: String,
+        @Body request: UpdateStageRequest
+    ): Response<UpdateStageResponse>
+
+
     @GET("/api/sales-orders/confirmed-orders")
     suspend fun getOrderManagement(
         @Header("Authorization") token: String,
@@ -575,5 +586,13 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("orderId") orderId: String
     ): Response<OrderViewResponse>
+
+    // Add this endpoint to your ApiService interface
+    @POST("/api/pricing-quotations/garment-pricing/set-price-for-garment")  // Update with your actual endpoint
+    suspend fun savePricingQuotation(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: PricingQuotationSaveRequest
+    ): Response<PricingQuotationSaveResponse>
 
 }

@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.cuso.mobile.viewmodel.Authenticate
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 // ── Data model for each settings row ──
 private data class SettingsMenuItem(
@@ -70,7 +71,7 @@ fun ProfileSettingsScreen(
     // Wait for the exit animation to finish before actually leaving the screen
     LaunchedEffect(visible) {
         if (!visible) {
-            delay(300) // must match the animation duration below
+            delay(300.milliseconds) // must match the animation duration below
             onClose()
         }
     }
@@ -145,18 +146,11 @@ private fun ProfileSettingsContent(
             icon = Icons.Default.Business,
             iconBg = Color(0xFFD1FAE5),
             iconTint = Color(0xFF10B981),
-            title = "Department",
+            title = "Department & Teams",
             subtitle = "Manage departments in your organization",
             onClick = onDepartment
         ),
-        SettingsMenuItem(
-            icon = Icons.Default.Person,
-            iconBg = Color(0xFFEDE9FE),
-            iconTint = Color(0xFF8B5CF6),
-            title = "Teams",
-            subtitle = "Create and manage teams",
-            onClick = onTeams
-        ),
+
         SettingsMenuItem(
             icon = Icons.Default.Code,
             iconBg = Color(0xFFFFEDD5),

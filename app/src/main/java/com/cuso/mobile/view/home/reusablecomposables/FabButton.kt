@@ -11,17 +11,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.Primary
 
 /**
  * Common config for the fixed bottom-end FAB button used across
  * Branch / Department / Designation / Lead / Customer / Measurements /
  * SalesOrder screens.
  */
+// AFTER
 data class FabConfig(
     val label: String,
     val icon: ImageVector,
     val onClick: () -> Unit,
-    val containerColor: Color = Color(0xFF3B3BF9),
     val endPadding: androidx.compose.ui.unit.Dp = 10.dp,
     val bottomPadding: androidx.compose.ui.unit.Dp = 50.dp
 )
@@ -39,13 +40,15 @@ data class FabConfig(
  *     // your existing screen Column goes here
  * }
  */
+// AFTER
 @Composable
 fun FabScaffold(
+    modifier: Modifier = Modifier,
     fab: FabConfig?,
     snackbarHostState: SnackbarHostState? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier) {
         content()
 
         if (snackbarHostState != null) {
@@ -57,10 +60,11 @@ fun FabScaffold(
             )
         }
 
+        // AFTER
         if (fab != null) {
             Button(
                 onClick = fab.onClick,
-                colors = ButtonDefaults.buttonColors(containerColor = fab.containerColor),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                 modifier = Modifier

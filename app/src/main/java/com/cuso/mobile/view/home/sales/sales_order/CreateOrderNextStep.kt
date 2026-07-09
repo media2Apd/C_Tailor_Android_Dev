@@ -20,8 +20,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,7 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -41,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
 import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.model.ChargeRequest
 import com.cuso.mobile.model.CreateGarmentRequestForCreateOrder
@@ -59,6 +55,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.cuso.mobile.R
+import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
+import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 import com.cuso.mobile.viewmodel.SalesViewModel
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -257,7 +255,7 @@ fun CreateOrderNextStep(
         // ✅ Call based on isEditMode with the success callback
         if (isEditMode) {
             salesOrderViewModel.updateOrder(
-                orderId = orderData.orderId!!,
+                orderId = orderData.orderId,
                 request = request,
                 existingImages = orderData.existingImageUrls,
                 imageParts = context.createImageParts(orderData.designImages),
@@ -308,73 +306,19 @@ fun CreateOrderNextStep(
                 HorizontalDivider(color = BorderColor)
             }
         },
-        containerColor = Color.White,
-        bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onBack,
-                    enabled = actionState !is OrderActionState.Loading,   // ✅ block "Back" while saving
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
-                        contentColor = TextPrimary
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                    contentPadding = PaddingValues(vertical = 0.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 4.dp,
-                        pressedElevation = 2.dp
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                ) {
-                    Text("Back to Edit", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                }
+        // AFTER
+        containerColor = Color.White
 
-                Button(
-                    onClick = { buildAndSaveOrder() },
-                    enabled = actionState !is OrderActionState.Loading,   // ✅ prevent double-tap while saving
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AccentBlue,
-                        contentColor = Color.White,
-                        disabledContainerColor = AccentBlue.copy(alpha = 0.6f)
-                    ),
-                    contentPadding = PaddingValues(vertical = 0.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 6.dp,
-                        pressedElevation = 3.dp
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                ) {
-                    if (actionState is OrderActionState.Loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(if (isEditMode) "Update Order" else "Save Order", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)                    }
-                }
-            }
-        }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 90.dp),   // reserve space so last section isn't hidden behind the fab
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
             // ── 1. BILLING DETAILS ──
             SectionCard {
                 SectionHeader(
@@ -736,10 +680,28 @@ fun CreateOrderNextStep(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+
+                Spacer(Modifier.height(12.dp))
+            }
+
+            StepNavigationFab(
+                showBack = true,
+                onBack = onBack,
+                backLabel = "Back to Edit",
+                backEnabled = actionState !is OrderActionState.Loading,   // ✅ block "Back" while saving
+                backWidthFraction = 0.42f,
+                trailingWidthFraction = 0.42f,
+                trailingAction = TrailingFabAction.Update(
+                    isLoading = actionState is OrderActionState.Loading,
+                    label = if (isEditMode) "Update Order" else "Save Order",
+                    onClick = { buildAndSaveOrder() }
+                )
+            )
         }
     }
 }
+
+// ─── Helper ──────────────────────────────────────────────────────────────────
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 private fun String.toIsoDateOrNull(): String? {

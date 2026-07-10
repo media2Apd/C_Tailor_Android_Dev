@@ -135,7 +135,7 @@ fun LoginOtpSelection(
             Modifier
                 .clickable {
                     navController.navigate("login-with-email/${savedEmail}") {
-                        popUpTo(0) { true }
+                        popUpTo(0) {  }
                     }
                 },
             color = Color.Blue, fontSize = 14.sp

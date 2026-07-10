@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -180,7 +179,7 @@ fun SignUpOtpSelection(
             if (isOtpComplete && !isVerifying) {
                 isVerifying = true
                 errorMessage = null
-                authViewModel.RegisterVerifyOtp(
+                authViewModel.registerVerifyOtp(
                     savedEmail, otp
                 )
             }
@@ -196,11 +195,7 @@ fun SignUpOtpSelection(
         shape = RoundedCornerShape(8.dp)
     ) {
         if (isVerifying) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(22.dp),
-                color = Color.White,
-                strokeWidth = 2.dp
-            )
+            CirculerProgressIndicatorReuse()
         } else {
             Text(
                 text = "Verify and continue",

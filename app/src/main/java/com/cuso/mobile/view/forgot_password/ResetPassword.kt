@@ -24,11 +24,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.AppLogo
-import com.cuso.mobile.view.composable.CustomFieldColors
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.customFieldColors
 import com.cuso.mobile.view.composable.ResetPasswordText
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
-
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ResetPassword(
     resetToken:String,
@@ -137,7 +138,7 @@ fun ResetPassword(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    colors = CustomFieldColors()
+                    colors = customFieldColors()
                 )
                 Column(verticalArrangement = Arrangement.Center)
                 {
@@ -188,7 +189,7 @@ fun ResetPassword(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CustomFieldColors()
+                    colors = customFieldColors()
                 )
 
                 // Error message (e.g. from API)
@@ -244,11 +245,8 @@ fun ResetPassword(
                     )
                 ) {
                     if (resetPasswordState is UiState.Loading) {
-                        CircularProgressIndicator(
-                            color = Color.White,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        CirculerProgressIndicatorReuse()
+
                         Text(
                             text = "Resetting Password",
                             fontSize = 20.sp,

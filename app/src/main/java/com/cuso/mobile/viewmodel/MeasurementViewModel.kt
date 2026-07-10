@@ -87,7 +87,7 @@ class MeasurementsViewModel @Inject constructor(
             val date = inputFormat.parse(isoDate)
             val outputFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
             date?.let { outputFormat.format(it) } ?: isoDate
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             isoDate
         }
     }

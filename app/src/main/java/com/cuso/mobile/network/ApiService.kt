@@ -10,6 +10,7 @@ import CreateBranchResponse
 import GarmentCategoriesResponse
 import OrgGarmentResponse
 import RemoveOrgGarmentResponse
+import com.cuso.mobile.model.ApiResponse
 import com.cuso.mobile.model.AssignStageResponse
 import com.cuso.mobile.model.BranchListResponse
 import com.cuso.mobile.model.CreateLeadFormRequest
@@ -79,10 +80,12 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
-import com.cuso.mobile.model.CustomerItem
 import com.cuso.mobile.model.CustomerListResponse
 import com.cuso.mobile.model.DashboardResponse
 import com.cuso.mobile.model.DeleteCustomerResponse
+import com.cuso.mobile.model.GarmentPricingDetailDto
+import com.cuso.mobile.model.GarmentPricingListItemDto
+import com.cuso.mobile.model.GarmentPricingResponse
 import com.cuso.mobile.model.GetCustomerViewResponse
 import com.cuso.mobile.model.MeasurementsResponse
 import com.cuso.mobile.model.OrderManagementResponse
@@ -90,6 +93,7 @@ import com.cuso.mobile.model.OrderOverviewApiResponse
 import com.cuso.mobile.model.OrderViewResponse
 import com.cuso.mobile.model.PricingQuotationSaveRequest
 import com.cuso.mobile.model.PricingQuotationSaveResponse
+import com.cuso.mobile.model.QuotationListResponse
 import com.cuso.mobile.model.StageAssignRequest
 import com.cuso.mobile.model.UpdateCustomerRequest
 import com.cuso.mobile.model.UpdateCustomerResponse
@@ -594,5 +598,47 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Body request: PricingQuotationSaveRequest
     ): Response<PricingQuotationSaveResponse>
+
+    // ── Dashboard: get all garment pricing cards ──
+    @GET("/api/pricing-quotations/garment-pricing/view-all")
+    suspend fun getGarmentPricingList(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+
+    ): ApiResponse<List<GarmentPricingListItemDto>>
+
+    // ── Get single record detail (for edit-screen prefill) ──
+    @GET("/api/pricing-quotations/garment-pricing/view-one/{id}")
+    suspend fun getGarmentPricingDetail(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): ApiResponse<GarmentPricingDetailDto>
+
+    // ApiService.kt — add this alongside savePricingQuotation
+
+    @PUT("/api/pricing-quotations/garment-pricing/update-price-for-garment/{id}")
+    suspend fun updatePricingQuotation(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: PricingQuotationSaveRequest
+    ): Response<PricingQuotationSaveResponse>
+
+    @GET("/api/quotations/view-all")
+    suspend fun getQuotations(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<QuotationListResponse>
+
+    @GET("/api/pricing-quotations/garment-pricing/options")
+    suspend fun getGarmentPricing(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<GarmentPricingResponse>
 
 }

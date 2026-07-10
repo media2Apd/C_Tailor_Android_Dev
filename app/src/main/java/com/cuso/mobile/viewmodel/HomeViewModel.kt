@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
+@Suppress("UNUSED_PARAMETER")
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val loginRepository: LoginRepository

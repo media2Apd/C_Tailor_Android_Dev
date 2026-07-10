@@ -33,6 +33,7 @@ import com.cuso.mobile.ui.theme.redBg
 import com.cuso.mobile.ui.theme.redtext
 import com.cuso.mobile.ui.theme.yellowBg
 import com.cuso.mobile.ui.theme.yellowtext
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
@@ -47,6 +48,7 @@ import java.util.Locale
 // ─────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 fun SalesOrderScreen(
@@ -248,7 +250,9 @@ fun SalesOrderScreen(
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when {
                     isLoading -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Color(0xFF3B3BF9)) }
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CirculerProgressIndicatorReuse()
+                        }
                     }
                     orderState is OrderUiState.Error -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -27,7 +26,6 @@ import com.cuso.mobile.viewmodel.Authenticate
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
@@ -97,11 +95,7 @@ fun ForgotOtpSelection(
         shape = RoundedCornerShape(8.dp)
     ) {
         if (accountState is UiState.Loading) {
-            CircularProgressIndicator(
-                color = Color.White,
-                strokeWidth = 2.dp,
-                modifier = Modifier.size(24.dp)
-            )
+            CirculerProgressIndicatorReuse()
         } else {
             Text(
                 text = "Verify and continue",

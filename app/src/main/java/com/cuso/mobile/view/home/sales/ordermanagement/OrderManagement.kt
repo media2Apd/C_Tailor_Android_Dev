@@ -25,6 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.model.OrderManagementItem
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -37,6 +38,8 @@ import com.cuso.mobile.viewmodel.OrderManagementViewModel
 // ─────────────────────────────────────────────────────────────
 // Order Management — real API (OrderManagementViewModel), separate from SalesOrderScreen.kt
 // ─────────────────────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
+
 @Composable
 fun OrderManagementScreen(
     navController: NavController,
@@ -184,7 +187,7 @@ fun OrderManagementScreen(
                 when {
                     isLoading -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = Color(0xFF3B3BF9))
+                            CirculerProgressIndicatorReuse()
                         }
                     }
                     orderState is OrderManagementUiState.Error -> {   // ✅ CHANGED

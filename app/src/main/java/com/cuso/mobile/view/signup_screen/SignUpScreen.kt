@@ -23,7 +23,7 @@ import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
-
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun SignUpScreen(
     onSignUpSuccess: () -> Unit,
@@ -166,11 +166,8 @@ fun SignUpScreen(
                     enabled = state !is UiState.Loading
                 ) {
                     if (state is UiState.Loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.dp,
-                            color = Color.White
-                        )
+                        CirculerProgressIndicatorReuse()
+
                     } else {
                         Text(
                             "Create Account",

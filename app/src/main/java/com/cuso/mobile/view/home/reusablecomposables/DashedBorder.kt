@@ -1,6 +1,5 @@
 package com.cuso.mobile.view.home.reusablecomposables
 
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color

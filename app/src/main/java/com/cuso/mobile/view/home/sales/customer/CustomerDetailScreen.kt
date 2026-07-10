@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,7 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.cuso.mobile.view.composable.CustomFieldOutlinedColors
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.customFieldOutlinedColors
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.home.FormDropdown   // ✅ NEW — reuse the shared dropdown from Lead screens
@@ -45,6 +47,7 @@ private val stepLabels = listOf(
     "Preferences",
     "Notes\n& Tags"
 )
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 fun CustomerDetailScreen(
@@ -61,7 +64,7 @@ fun CustomerDetailScreen(
     val formState by viewModel.formState.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
 
-    var currentStep by remember { mutableStateOf(0) }
+    var currentStep by remember { mutableIntStateOf(0) }
 
 
     var isEditMode by remember(startInEditMode) { mutableStateOf(startInEditMode) }
@@ -213,7 +216,7 @@ private fun PersonalInformationStep(
             Box(Modifier
                 .fillMaxWidth()
                 .padding(vertical = 60.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color(0xFF3B3BF9))
+                CirculerProgressIndicatorReuse()
             }
         }
         is CustomerDetailUiState.Error -> {
@@ -480,7 +483,7 @@ private fun AccordionSectionCard(
     enabled: Boolean = true
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val colors = CustomFieldOutlinedColors()
+    val colors = customFieldOutlinedColors()
 
     BasicTextField(
         value = value,
@@ -670,7 +673,7 @@ private fun OutlinedIconActionButton(
                 cornerRadius = 8.dp
             ),
         shape = RoundedCornerShape(8.dp),
-        colors = com.cuso.mobile.view.composable.CustomOutlinedButtonColors(),
+        colors = com.cuso.mobile.view.composable.customOutlinedButtonColors(),
         border = null
     ) {
         Icon(icon, null, modifier = Modifier.size(16.dp))
@@ -875,7 +878,7 @@ private fun PreferencesStep() {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             InfoPill(modifier = Modifier.weight(1f), icon = Icons.Default.Star, label = "VIP", sub = "Loyalty Level", color = Color(0xFF9333EA))
             InfoPill(modifier = Modifier.weight(1f), icon = Icons.Default.Groups, label = "5", sub = "Referrals", color = Color(0xFF374151))
-            InfoPill(modifier = Modifier.weight(1f), icon = Icons.Default.TrendingUp, label = "Upgrade Ready", sub = "Next tier eligible", color = Color(0xFF16A34A))
+            InfoPill(modifier = Modifier.weight(1f), icon = Icons.AutoMirrored.Filled.TrendingUp, label = "Upgrade Ready", sub = "Next tier eligible", color = Color(0xFF16A34A))
         }
 
         Spacer(Modifier.height(16.dp))
@@ -970,6 +973,7 @@ private fun NotesTagsStep(isEditMode: Boolean) {
 // ─────────────────────────────────────────────────────────────
 // Reusable small pieces
 // ─────────────────────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 private fun SectionCard(

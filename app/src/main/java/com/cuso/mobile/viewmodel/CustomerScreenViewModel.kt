@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
+@Suppress("UNUSED_PARAMETER")
 @HiltViewModel
 class CustomerViewModel @Inject constructor(
     private val repository: SalesRepository

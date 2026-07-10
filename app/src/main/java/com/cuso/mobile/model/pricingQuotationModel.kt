@@ -104,3 +104,88 @@ data class PricingQuotationDataForSave(
     @SerializedName("createdAt")         val createdAt: String,
     @SerializedName("updatedAt")         val updatedAt: String
 )
+
+
+//PRICING DASHBOARD VIEW ALL
+
+
+// ── Request body for CREATE (POST) ──
+data class GarmentPricingRequest(
+    val garmentCategoryId: String,
+    val basePrice: Double,
+    val fabricAdjustments: List<PriceAdjustmentDto>,
+    val designAdjustments: List<PriceAdjustmentDto>,
+    val additionalCharges: List<PriceAdjustmentDto>,
+    val expressCharge: Double,
+    val bulkRules: List<BulkRuleDto>
+)
+
+// ── Request body for UPDATE (PUT/PATCH) ──
+data class GarmentPricingUpdateRequest(
+    val garmentCategoryId: String,
+    val basePrice: Double,
+    val fabricAdjustments: List<PriceAdjustmentDto>,
+    val designAdjustments: List<PriceAdjustmentDto>,
+    val additionalCharges: List<PriceAdjustmentDto>,
+    val expressCharge: Double,
+    val bulkRules: List<BulkRuleDto>
+)
+
+//// ── Response after create/update ──
+//data class GarmentPricingResponse(
+//    val id: String,
+//    val itemName: String,
+//    val basePrice: Double,
+//    val fabricCost: Double,
+//    val designCost: Double,
+//    val additionalCost: Double,
+//    val expressCharge: Double,
+//    val totalPrice: Double,
+//    val applicableGarment: Int,
+//    val status: Boolean
+//)
+
+// ── Wrapper matching your API's { success, data } shape ──
+data class ApiResponse<T>(
+    val success: Boolean,
+    val data: T?,
+    val message: String? = null
+)
+
+// ── Dashboard list item (matches the JSON you shared) ──
+data class GarmentPricingListItemDto(
+    val id: String,
+    val itemName: String,
+    val basePrice: Double,
+    val fabricCost: Double,
+    val designCost: Double,
+    val additionalCost: Double,
+    val expressCharge: Double,
+    val totalPrice: Double,
+    val applicableGarment: Int,
+    val status: Boolean
+)
+
+
+data class GarmentPricingDetailDto(
+    @SerializedName("_id")
+    val id: String = "",
+
+    @SerializedName("garmentCategory")
+    val applicableGarmentId: String = "",
+
+    val basePrice: Double = 0.0,
+
+    val fabricAdjustments: List<PriceAdjustmentDto> = emptyList(),
+    val designAdjustments: List<PriceAdjustmentDto> = emptyList(),
+    val additionalCharges: List<PriceAdjustmentDto> = emptyList(),
+    val expressCharge: Double = 0.0,
+    val bulkRules: List<BulkRuleDto> = emptyList(),
+
+    @SerializedName("isActive")
+    val status: Boolean = true,
+
+    // ✅ Backend never sends these — keep nullable/defaulted, don't rely on them
+    val itemName: String? = null,
+    val totalPrice: Double? = null
+)

@@ -16,7 +16,7 @@ import com.cuso.mobile.viewmodel.Authenticate
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
-
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ResendForgotOtpSection(
     onResendClick: () -> Unit,
@@ -33,7 +33,7 @@ fun ResendForgotOtpSection(
             timer--
         }
     }
-    Row() {
+    Row {
         Text("")
         Spacer(modifier = Modifier.weight(1f))
         TextButton(

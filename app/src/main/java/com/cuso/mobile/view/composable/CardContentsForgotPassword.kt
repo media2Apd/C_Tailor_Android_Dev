@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,7 +17,6 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -55,18 +53,18 @@ fun CardContentsForgotPassword(navController: NavController,activity: Activity) 
     var submittedEmail by remember { mutableStateOf("") }
     var isSubmitted by remember { mutableStateOf(false) }
     var isPasswordVisible by remember { mutableStateOf(false) }
-    var accountState by remember { mutableStateOf("") }
+//    var accountState by remember { mutableStateOf("") }
     val forgotPasswordState by authViewModel.forgotPasswordState.collectAsState()
     val uiState by authViewModel.forgotPasswordState.collectAsState()
     Column(
         Modifier.padding(25.dp)
     ) {
-        AnimatedErrorBanner(
-            message = if (false)
-                (accountState as UiState.Error).message
-            else "",
-            visible = false
-        )
+//        AnimatedErrorBanner(
+//            message = if (false)
+//                (accountState as UiState.Error).message
+//            else "",
+//            visible = false
+//        )
         if (!isSubmitted) {
             Text("Forgot Password", fontSize = 20.sp, color = Color.Black)
             Spacer(Modifier.padding(top = 10.dp))
@@ -128,11 +126,7 @@ fun CardContentsForgotPassword(navController: NavController,activity: Activity) 
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (uiState is UiState.Loading) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    CirculerProgressIndicatorReuse()
                     Spacer(Modifier.padding(horizontal = 10.dp))
                     Text(
                         "Sending Reset Code", Modifier
@@ -169,8 +163,8 @@ fun CardContentsForgotPassword(navController: NavController,activity: Activity) 
 
             Spacer(Modifier.padding(top = 10.dp))
             if (isSubmitted) {
-                Row() {
-                    Column() {
+                Row {
+                    Column {
                         Row(
                             Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -196,7 +190,7 @@ fun CardContentsForgotPassword(navController: NavController,activity: Activity) 
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CustomFieldColors()
+                            colors = customFieldColors()
                         )
                     }
 

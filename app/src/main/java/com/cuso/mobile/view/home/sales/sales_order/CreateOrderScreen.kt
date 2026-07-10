@@ -1,6 +1,7 @@
 package com.cuso.mobile.view.home.sales.sales_order
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
@@ -74,6 +75,7 @@ import java.io.File
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 
@@ -899,7 +901,7 @@ fun CreateOrderScreen(
                                 modifier = Modifier.fillMaxWidth().height(80.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                CircularProgressIndicator(modifier = Modifier.size(22.dp))
+                                CirculerProgressIndicatorReuse()
                             }
                         }
 
@@ -1701,6 +1703,7 @@ fun PreviousMeasurementsDialog(
 // GARMENT DETAIL PANEL (matches uploaded design reference)
 // ─────────────────────────────────────────────────────────────
 
+@SuppressLint("MutableCollectionMutableState")
 @Composable
 private fun InlineGarmentPanel(
     garment: SelectedGarment,

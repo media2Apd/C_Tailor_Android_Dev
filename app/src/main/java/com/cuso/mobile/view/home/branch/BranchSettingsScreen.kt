@@ -30,7 +30,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -42,13 +41,10 @@ import com.cuso.mobile.model.BranchItem
 import com.cuso.mobile.model.StaffDto
 import com.cuso.mobile.model.UpdateBranchAddress
 import com.cuso.mobile.model.UpdateBranchRequest
-import com.cuso.mobile.view.home.reusablecomposables.ActionDropdownMenu
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.ui.draw.shadow
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.viewmodel.BranchUiState
@@ -67,6 +63,7 @@ import kotlinx.coroutines.launch
 //  3) ADD new composable: BranchCardItem (new, paste anywhere below BranchTableRow)
 // Everything else in that file (BranchTableRow, dialogs, fields, data classes) stays unchanged.
 // ─────────────────────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 fun BranchSettingsScreen(
@@ -249,7 +246,9 @@ fun BranchSettingsScreen(
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when (val state = uiState) {
                     is BranchUiState.Loading -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CirculerProgressIndicatorReuse()
+                        }
                     }
                     is BranchUiState.Error -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -384,6 +383,7 @@ fun BranchSettingsScreen(
 // ─────────────────────────────────────────────────────────────
 // Plan Limit Dialog - Slides from Top like Notification
 // ─────────────────────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 fun BranchPlanLimitDialog(
@@ -910,11 +910,8 @@ fun AddBranchDialog(
                             .height(48.dp)
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
+                            CirculerProgressIndicatorReuse()
+
                         } else {
                             Text(
                                 "Create",
@@ -1181,11 +1178,8 @@ fun EditBranchDialog(
                             .height(48.dp)
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
+                            CirculerProgressIndicatorReuse()
+
                         } else {
                             Text(
                                 "Update",

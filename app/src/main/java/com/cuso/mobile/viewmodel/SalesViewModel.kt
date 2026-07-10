@@ -28,7 +28,6 @@ import kotlinx.coroutines.launch
 import android.util.Log
 import com.cuso.mobile.database.dao.SelectedGarmentDao
 import com.cuso.mobile.database.entities.SelectedGarment
-import com.cuso.mobile.model.CreateOrderRequest
 import com.cuso.mobile.model.OrderItem
 import com.cuso.mobile.model.StatusData
 import javax.inject.Inject

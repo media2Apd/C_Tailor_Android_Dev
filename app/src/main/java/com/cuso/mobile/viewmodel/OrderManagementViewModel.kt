@@ -21,7 +21,7 @@ sealed class OrderManagementUiState {
     ) : OrderManagementUiState()
     data class Error(val message: String) : OrderManagementUiState()
 }
-
+@Suppress("UNUSED_PARAMETER")
 @HiltViewModel
 class OrderManagementViewModel @Inject constructor(
     private val repository: SalesRepository   // ✅ class directly, same as OrderOverviewViewModel

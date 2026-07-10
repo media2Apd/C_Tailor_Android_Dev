@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -30,7 +29,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -41,13 +39,10 @@ import androidx.navigation.NavController
 import com.cuso.mobile.model.DepartmentItem
 import com.cuso.mobile.model.StaffDto
 import com.cuso.mobile.view.home.branch.PlanLimits
-import com.cuso.mobile.view.home.reusablecomposables.ActionDropdownMenu
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.ui.draw.shadow
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.viewmodel.DepartmentUiState
@@ -66,6 +61,7 @@ import kotlinx.coroutines.launch
 //  3) ADD new composable: DepartmentCardItem (new, paste anywhere below DepartmentTableRow)
 // Everything else in that file (DepartmentTableRow, dialogs, fields, data classes) stays unchanged.
 // ─────────────────────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 fun DepartmentSettingsScreen(
@@ -218,7 +214,9 @@ fun DepartmentSettingsScreen(
 
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when (val state = uiState) {
-                    is DepartmentUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                    is DepartmentUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CirculerProgressIndicatorReuse()
+                    }
                     is DepartmentUiState.Error -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -335,10 +333,10 @@ fun DepartmentSettingsScreen(
 }
 
 
-
 // ─────────────────────────────────────────────────────────────
 // Plan Limit Dialog - Slides from Top
 // ─────────────────────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 fun DepartmentPlanLimitDialog(
@@ -598,7 +596,7 @@ fun EditDepartmentDialog(
                         modifier = Modifier.weight(0.6f).height(48.dp)
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                            CirculerProgressIndicatorReuse()
                         } else {
                             Text("Update", fontSize = 14.sp, color = Color.White)
                         }
@@ -761,7 +759,7 @@ fun AddDepartmentDialog(
                         modifier = Modifier.weight(0.6f).height(48.dp)
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                            CirculerProgressIndicatorReuse()
                         } else {
                             Text("Create", fontSize = 14.sp, color = Color.White)
                         }

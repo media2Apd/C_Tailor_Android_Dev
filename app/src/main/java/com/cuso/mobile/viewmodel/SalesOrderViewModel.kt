@@ -39,7 +39,7 @@ sealed class OrderActionState {
 // ─────────────────────────────────────────────────────────────
 // ViewModel
 // ─────────────────────────────────────────────────────────────
-
+@Suppress("UNUSED_PARAMETER")
 @HiltViewModel
 class SalesOrderViewModel @Inject constructor(
     private val repository: SalesRepository

@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.PrimaryBorder
-
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ContinueWithApple(activity: Activity, navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }

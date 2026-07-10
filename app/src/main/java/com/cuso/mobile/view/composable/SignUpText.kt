@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 fun SignUpText(navController: NavController){

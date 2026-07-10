@@ -43,6 +43,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Popup
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ForgotOtpInput(
     otpLength: Int = 6,

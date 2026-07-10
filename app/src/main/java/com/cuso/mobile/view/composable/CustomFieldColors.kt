@@ -12,7 +12,7 @@ import com.cuso.mobile.ui.theme.PrimaryBorder
 
 
 @Composable
-fun CustomFieldColors() = TextFieldDefaults.colors(
+fun customFieldColors() = TextFieldDefaults.colors(
     disabledTextColor = Color.Black,
     disabledContainerColor = Color.White,
     disabledIndicatorColor = Color.Gray,
@@ -32,7 +32,7 @@ fun CustomFieldColors() = TextFieldDefaults.colors(
 )
 
 @Composable
-fun CustomFieldOutlinedColors() = OutlinedTextFieldDefaults.colors(
+fun customFieldOutlinedColors() = OutlinedTextFieldDefaults.colors(
     disabledTextColor = Color.Black,
     disabledContainerColor = Color.White,
     disabledLabelColor = Color.Gray,
@@ -51,7 +51,7 @@ fun CustomFieldOutlinedColors() = OutlinedTextFieldDefaults.colors(
 
 // ✅ NEW — Outlined Button custom colors (same theme as text fields)
 @Composable
-fun CustomOutlinedButtonColors() = ButtonDefaults.outlinedButtonColors(
+fun customOutlinedButtonColors() = ButtonDefaults.outlinedButtonColors(
     contentColor = Color.Black,
     containerColor = Color.White,
     disabledContentColor = Color.Gray,

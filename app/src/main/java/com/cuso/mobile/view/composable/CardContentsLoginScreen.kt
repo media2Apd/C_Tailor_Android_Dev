@@ -5,7 +5,6 @@
     import androidx.compose.foundation.border
     import androidx.compose.foundation.clickable
     import androidx.compose.foundation.interaction.MutableInteractionSource
-    import androidx.compose.foundation.layout.Arrangement
     import androidx.compose.foundation.layout.Box
     import androidx.compose.foundation.layout.Column
     import androidx.compose.foundation.layout.PaddingValues
@@ -14,7 +13,6 @@
     import androidx.compose.foundation.layout.fillMaxSize
     import androidx.compose.foundation.layout.fillMaxWidth
     import androidx.compose.foundation.layout.height
-    import androidx.compose.foundation.layout.heightIn
     import androidx.compose.foundation.layout.padding
     import androidx.compose.foundation.layout.size
     import androidx.compose.foundation.layout.width
@@ -30,16 +28,11 @@
     import androidx.compose.material.icons.filled.VisibilityOff
     import androidx.compose.material3.Button
     import androidx.compose.material3.ButtonDefaults
-    import androidx.compose.material3.CircularProgressIndicator
-    import androidx.compose.material3.DividerDefaults
-    import androidx.compose.material3.HorizontalDivider
     import androidx.compose.material3.Icon
     import androidx.compose.material3.IconButton
     import androidx.compose.material3.LocalMinimumInteractiveComponentSize
-    import androidx.compose.material3.OutlinedTextField
     import androidx.compose.material3.OutlinedTextFieldDefaults
     import androidx.compose.material3.Text
-    import androidx.compose.material3.TextFieldDefaults
     import androidx.compose.runtime.Composable
     import androidx.compose.runtime.CompositionLocalProvider
     import androidx.compose.runtime.LaunchedEffect
@@ -61,7 +54,6 @@
     import androidx.compose.ui.text.input.KeyboardType
     import androidx.compose.ui.text.input.PasswordVisualTransformation
     import androidx.compose.ui.text.input.VisualTransformation
-    import androidx.compose.ui.text.style.TextDecoration
     import androidx.compose.ui.text.style.TextOverflow
     import androidx.compose.ui.unit.dp
     import androidx.compose.ui.unit.sp
@@ -112,7 +104,7 @@
                         interactionSource = interactionSource,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(40.dp)   // exact 40dp, mela pogaadhu
+                            .height(40.dp)
                             .semantics { contentType = ContentType.EmailAddress },
                         decorationBox = { innerTextField ->
                             OutlinedTextFieldDefaults.DecorationBox(
@@ -141,7 +133,7 @@
                                         )
                                     }
                                 },
-                                colors = CustomFieldOutlinedColors(),
+                                colors = customFieldOutlinedColors(),
                                 contentPadding = PaddingValues(
                                     start = 12.dp,
                                     end = 12.dp,
@@ -153,7 +145,7 @@
                                         enabled = true,
                                         isError = isError,
                                         interactionSource = interactionSource,
-                                        colors = CustomFieldOutlinedColors(),
+                                        colors = customFieldOutlinedColors(),
                                         shape = OutlinedTextFieldDefaults.shape
                                     )
                                 }
@@ -279,8 +271,8 @@
 
             Spacer(Modifier.padding(top=20.dp))
             if (isSubmitted){
-                Row() {
-                    Column() {
+                Row {
+                    Column {
                         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
                             BasicTextField(
                                 value = password,
@@ -337,7 +329,7 @@
                                                 )
                                             }
                                         },
-                                        colors = CustomFieldOutlinedColors(),
+                                        colors = customFieldOutlinedColors(),
                                         contentPadding = PaddingValues(
                                             start = 12.dp,
                                             end = 8.dp,
@@ -349,7 +341,7 @@
                                                 enabled = true,
                                                 isError = isPasswordError,
                                                 interactionSource = passwordInteractionSource,
-                                                colors = CustomFieldOutlinedColors(),
+                                                colors = customFieldOutlinedColors(),
                                                 shape = OutlinedTextFieldDefaults.shape
                                             )
                                         }
@@ -427,11 +419,7 @@
                         contentAlignment = Alignment.Center
                     ) {
                         if (accountState is UiState.Loading) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            CirculerProgressIndicatorReuse()
                         } else {
                             Text(
                                 text = if (isSubmitted) "Continue" else "Verify Mail",

@@ -14,7 +14,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.OrgSettingsRequest
 import com.cuso.mobile.model.organizationSetUpRequest
 import com.cuso.mobile.view.composable.AppLogo
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.CountryAndStatePicker
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
@@ -363,11 +363,8 @@ fun OrganizationProfile(
                 shape = RoundedCornerShape(8.dp)
             ) {
                 if (isSubmitting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
+                    CirculerProgressIndicatorReuse()
+
                 } else {
                     Text("Get Started")
                 }

@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.home.sales.pricing_and_quotation
+package com.cuso.mobile.view.home.sales.pricing
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,13 +9,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,31 +25,33 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.mobile.model.PricingCategoryItem
-import com.cuso.mobile.model.PricingStatValue
+import com.cuso.mobile.model.GarmentPricingListItemDto
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
-import com.cuso.mobile.viewmodel.PricingQuotationUiState
+import com.cuso.mobile.viewmodel.GarmentPricingListUiState
 import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 
 private val Primary = Color(0xFF3B3BF9)
 private val PrimaryLight = Color(0xFFEEF0FF)
 private val TextMuted = Color(0xFF9CA3AF)
 private val TextDark = Color(0xFF111827)
-private val Success = Color(0xFF22C55E)
 private val CardBorder = Color(0xFFF0F0F0)
 private val StripBg = Color(0xFFF9FAFB)
 
 @Composable
-fun PricingQuotationScreen(
+fun PricingScreen(
     onClose: () -> Unit,
-    onCategoryClick: (PricingCategoryItem) -> Unit = {},
-    onAddNewPricing: () -> Unit = {}   // ✅ NEW — FAB click callback
+    onAddNewPricing: () -> Unit = {},
+    onCardClick: (String) -> Unit = {}   // ✅ NEW — navigates to AddGarmentPricingScreen(pricingId = item.id) for Edit
 ) {
     val viewModel: PricingQuotationViewModel = hiltViewModel()
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val listState by viewModel.garmentPricingListState.collectAsStateWithLifecycle()
 
-    // ✅ NEW — wraps everything so the FAB floats above the scrollable content
+    LaunchedEffect(Unit) {
+        viewModel.fetchGarmentPricingList()
+    }
+
     FabScaffold(
         fab = FabConfig(
             label = "Add New Pricing",
@@ -78,7 +80,9 @@ fun PricingQuotationScreen(
                     Icons.Default.Close,
                     contentDescription = "Close",
                     tint = TextDark,
-                    modifier = Modifier.size(22.dp).clickable { onClose() }
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clickable { onClose() }
                 )
             }
             HorizontalDivider(color = CardBorder)
@@ -102,104 +106,128 @@ fun PricingQuotationScreen(
             }
             HorizontalDivider(color = CardBorder)
 
-            when (val state = uiState) {
-                is PricingQuotationUiState.Loading -> {
+            when (val state = listState) {
+                is GarmentPricingListUiState.Loading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Primary)
+                        CirculerProgressIndicatorReuse()
                     }
                 }
-                is PricingQuotationUiState.Error -> {
+                is GarmentPricingListUiState.Error -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(40.dp))
                             Spacer(Modifier.height(8.dp))
                             Text(state.message, color = Color.Red, fontSize = 13.sp)
                             Spacer(Modifier.height(12.dp))
-                            Button(onClick = { viewModel.loadPricingQuotation() }) { Text("Retry") }
+                            Button(onClick = { viewModel.fetchGarmentPricingList() }) { Text("Retry") }
                         }
                     }
                 }
-                is PricingQuotationUiState.Success -> {
-                    PricingQuotationContent(
-                        stats = state.data.stats,
-                        categories = state.data.categories,
-                        onCategoryClick = onCategoryClick
-                    )
+                is GarmentPricingListUiState.Success -> {
+                    if (state.items.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No pricing records yet", color = TextMuted, fontSize = 14.sp)
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(16.dp)
+                        ) {
+                            PricingDashboard(items = state.items)
+
+                            Spacer(Modifier.height(20.dp))
+
+                            state.items.forEach { item ->
+                                GarmentPricingCard(
+                                    item = item,
+                                    onClick = { onCardClick(item.id) }
+                                )
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            Spacer(Modifier.height(90.dp)) // space for FAB
+                        }
+                    }
                 }
             }
         }
     }
 }
-
+// ── Dashboard — quick stats derived from the loaded list ──
 @Composable
-private fun PricingQuotationContent(
-    stats: com.cuso.mobile.model.PricingStats,
-    categories: List<PricingCategoryItem>,
-    onCategoryClick: (PricingCategoryItem) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        // Stats grid - 2x2
+private fun PricingDashboard(items: List<GarmentPricingListItemDto>) {
+    val totalItems = items.size
+    val avgTotalPrice = if (items.isNotEmpty()) items.sumOf { it.totalPrice } / items.size else 0.0
+    val avgBasePrice = if (items.isNotEmpty()) items.sumOf { it.basePrice } / items.size else 0.0
+    val highestPriced = items.maxOfOrNull { it.totalPrice } ?: 0.0
+
+    Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard(label = "Active Quotations", stat = stats.activeQuotations, modifier = Modifier.weight(1f))
-            StatCard(label = "Avg. Quote Value", stat = stats.avgQuoteValue, modifier = Modifier.weight(1f))
+            DashboardStatCard(
+                label = "Active Quotations",
+                value = totalItems.toString(),
+                modifier = Modifier.weight(1f)
+            )
+            DashboardStatCard(
+                label = "Avg. Quote Value",
+                value = "₹${avgBasePrice.toInt()}",
+                modifier = Modifier.weight(1f)
+            )
         }
         Spacer(Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard(label = "Approval Rate", stat = stats.approvalRate, modifier = Modifier.weight(1f))
-            StatCard(label = "This Month", stat = stats.thisMonth, modifier = Modifier.weight(1f))
+            DashboardStatCard(
+                label = "Approval Rate",
+                value = "₹${avgTotalPrice.toInt()}",
+                modifier = Modifier.weight(1f)
+            )
+            DashboardStatCard(
+                label = "This Month",
+                value = "₹${highestPriced.toInt()}",
+                modifier = Modifier.weight(1f)
+            )
         }
-
-        Spacer(Modifier.height(20.dp))
-
-        // Pricing category list
-        categories.forEach { category ->
-            PricingCategoryCard(category = category, onClick = { onCategoryClick(category) })
-            Spacer(Modifier.height(12.dp))
-        }
-
-        // ✅ NEW — extra bottom space so last card isn't hidden behind the floating FAB
-        Spacer(Modifier.height(90.dp))
     }
 }
 
 @Composable
-private fun StatCard(label: String, stat: PricingStatValue, modifier: Modifier = Modifier) {
+private fun DashboardStatCard(label: String, value: String, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text(label, fontSize = 12.sp, color = TextMuted)
-            Spacer(Modifier.height(6.dp))
-            Text(stat.value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark)
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .background(PrimaryLight, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
-                    Icons.Default.ArrowUpward,
+                    Icons.Default.BarChart,
                     contentDescription = null,
-                    tint = Success,
-                    modifier = Modifier.size(12.dp)
+                    tint = Primary,
+                    modifier = Modifier.size(16.dp)
                 )
-                Spacer(Modifier.width(2.dp))
-                Text(
-                    "+${stat.changePercent.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }}% ${stat.changeLabel}",
-                    fontSize = 11.sp,
-                    color = Success
-                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(label, fontSize = 11.sp, color = TextMuted)
+                Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
             }
         }
     }
 }
 
+// ── Garment Pricing Card — shows Base Price + Total Price ──
 @Composable
-private fun PricingCategoryCard(category: PricingCategoryItem, onClick: () -> Unit) {
+private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -215,23 +243,24 @@ private fun PricingCategoryCard(category: PricingCategoryItem, onClick: () -> Un
                     .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .background(PrimaryLight, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.BarChart,
-                        contentDescription = null,
-                        tint = Primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(category.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
-                    Text(category.subtitle, fontSize = 12.sp, color = TextMuted)
+                    Text(
+                        item.itemName.ifBlank { "-" },
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextDark
+                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Garment Pricing",
+                            fontSize = 12.sp,
+                            color = Color.Black
+                        )
+
+                    }
                 }
                 Icon(
                     Icons.Default.ChevronRight,
@@ -241,7 +270,7 @@ private fun PricingCategoryCard(category: PricingCategoryItem, onClick: () -> Un
                 )
             }
 
-            // Base price strip
+            // Total price strip
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -249,13 +278,22 @@ private fun PricingCategoryCard(category: PricingCategoryItem, onClick: () -> Un
                     .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Base Price Range", fontSize = 12.sp, color = TextMuted)
-                Text(
-                    "₹${category.basePriceMin.toInt()}–₹${category.basePriceMax.toInt()}",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextDark
-                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Base Range ₹",
+                        fontSize = 12.sp,
+                        color = Color.Black
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        "${item.basePrice.toInt()}-${item.totalPrice.toInt()}",
+                        fontSize = 12.sp,
+                        color = Color.Black
+                    )
+                }
             }
         }
     }

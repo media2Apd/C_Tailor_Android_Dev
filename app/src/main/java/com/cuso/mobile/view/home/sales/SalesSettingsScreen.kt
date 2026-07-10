@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.viewmodel.SaleState
 import com.cuso.mobile.viewmodel.SalesViewModel
 import kotlinx.coroutines.launch
@@ -57,6 +58,8 @@ fun SalesSettingsScreen(
 //   added   = selectedIds - originalIds  → addOrgGarmentCategory() one by one
 //   removed = originalIds - selectedIds  → removeOrgGarmentCategory() one by one
 // ─────────────────────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
+
 @Composable
 fun GarmentTypeContent(
     onClose: () -> Unit = {},
@@ -300,7 +303,9 @@ fun GarmentTypeContent(
                     Box(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
                         contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator() }
+                    ) {
+                        CirculerProgressIndicatorReuse()
+                    }
                 }
                 loadError != null -> {
                     Box(

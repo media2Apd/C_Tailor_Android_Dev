@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.home
+package com.cuso.mobile.view.home.profile
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -42,6 +42,7 @@ private data class SettingsMenuItem(
     val subtitle: String,
     val onClick: () -> Unit
 )
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 fun ProfileSettingsScreen(
@@ -100,6 +101,7 @@ fun ProfileSettingsScreen(
         )
     }
 }
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 private fun ProfileSettingsContent(

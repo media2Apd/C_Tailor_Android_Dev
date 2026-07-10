@@ -106,7 +106,7 @@ object SidebarConfig {
                 isPanel = true,
                 categories = listOf(
                     "Lead Management", "Customer", "Measurements",
-                    "Sales & Orders", "Order Management", "Pricing & Quotations"
+                    "Sales & Orders", "Order Management", "Pricing Overview", "Quotation"
                 ),
                 subItems = mapOf(
                     "Lead Management"          to listOf("Lead"),
@@ -114,7 +114,8 @@ object SidebarConfig {
                     "Measurements"             to listOf("Measurements"),
                     "Sales & Orders"           to listOf("Sales Orders"),
                     "Order Management"         to listOf("Orders"),
-                    "Pricing & Quotations"     to listOf("Pricing & Quotations")
+                    "Pricing Overview"         to listOf("Pricing Overview"),
+                    "Quotation"                to listOf("Quotation")
                 )
             ),
             MenuItem(
@@ -295,6 +296,7 @@ fun SalesSideBar(
 // ─────────────────────────────────────────────────────────────
 // 🧩 Reusable Sidebar Content
 // ─────────────────────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 private fun AppSidebarContent(

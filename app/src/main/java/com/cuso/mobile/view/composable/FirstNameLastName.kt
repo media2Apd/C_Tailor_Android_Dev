@@ -36,7 +36,7 @@ fun FirstNameLastName(
                     .height(60.dp),
                 shape = RoundedCornerShape(5.dp),
                 singleLine = true,
-                colors = CustomFieldColors()
+                colors = customFieldColors()
             )
         }
 
@@ -53,7 +53,7 @@ fun FirstNameLastName(
                     .height(60.dp),
                 shape = RoundedCornerShape(5.dp),
                 singleLine = true,
-                colors = CustomFieldColors()
+                colors = customFieldColors()
             )
         }
     }

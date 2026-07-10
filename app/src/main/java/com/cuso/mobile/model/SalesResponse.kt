@@ -59,5 +59,13 @@ data class CategoryItem(
 
 data class CategoryDetail(
     @SerializedName("_id")          val id:           String,
-    @SerializedName("categoryName") val categoryName: String
+    @SerializedName("categoryName") val categoryName: String,
+    @SerializedName("models")       val models: List<GarmentModel> = emptyList()
+)
+
+data class GarmentModel(
+    @SerializedName("modelName")  val modelName:  String,
+    @SerializedName("pieceRate")  val pieceRate:  Int,
+    @SerializedName("modelIcon")  val modelIcon:  String? = null,
+    @SerializedName("_id")        val id:         String
 )

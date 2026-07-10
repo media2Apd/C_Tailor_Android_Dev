@@ -15,7 +15,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -121,12 +120,16 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.ui.graphics.ColorFilter
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DatePickerField
+import com.cuso.mobile.view.home.profile.ProfileSettingsScreen
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.sales.customer.CustomerDetailScreen
 import com.cuso.mobile.view.home.sales.ordermanagement.OrderManagementScreen
-import com.cuso.mobile.view.home.sales.pricing_and_quotation.PricingQuotationScreen
+import com.cuso.mobile.view.home.sales.pricing.PricingScreen
+import com.cuso.mobile.view.home.sales.quotation.CreateQuotationScreen
+import com.cuso.mobile.view.home.sales.quotation.QuotationScreen
 import com.cuso.mobile.view.home.sales.sales_order.toOrderReviewData
 import com.cuso.mobile.viewmodel.CustomerDeleteState
 import com.cuso.mobile.viewmodel.SettingsViewModel
@@ -153,7 +156,7 @@ val LeadTextMuted = Color(0xFF9CA3AF)
 // HomeScreen
 // ─────────────────────────────────────────────────────────────
 
-@Suppress("UnusedMaterial3ScaffoldPaddingParameter")
+@Suppress("UnusedMaterial3ScaffoldPaddingParameter","UNUSED_PARAMETER")
 @Composable
 fun HomeScreen(navController: NavHostController) {
     val viewModel: HomeViewModel = hiltViewModel()
@@ -181,6 +184,7 @@ fun HomeScreen(navController: NavHostController) {
     val orderOverviewViewModel: com.cuso.mobile.viewmodel.OrderOverviewViewModel = hiltViewModel()
     val editOverviewState by orderOverviewViewModel.overviewState.collectAsStateWithLifecycle()
     var editOrderId by remember { mutableStateOf<String?>(null) }
+    var editingPricingId by remember { mutableStateOf<String?>(null) }   // ✅ ADD THIS — fixes "Unresolved reference"
     LaunchedEffect(editOrderId) {
         editOrderId?.let { orderOverviewViewModel.fetchSalesOverview(it) }
     }
@@ -321,70 +325,81 @@ fun HomeScreen(navController: NavHostController) {
                         }
                     },
                     onMenuItemClick = { route ->
-                        when {
-                            route == "home_organization_profile" -> {
+                        when (route) {
+                            "home_organization_profile" -> {
                                 currentScreen = "home_organization_profile"
                                 isDrawerOpen = false
                             }
-                            route == "home_branch_management" -> {
+
+                            "home_branch_management" -> {
                                 currentScreen = "home_branch_management"
                                 isDrawerOpen = false
                             }
-                            route == "home_department_teams" -> {
+
+                            "home_department_teams" -> {
                                 currentScreen = "home_department_teams"
                                 isDrawerOpen = false
                             }
-                            route == "home_designation" -> {
+
+                            "home_designation" -> {
                                 currentScreen = "home_designation"
                                 isDrawerOpen = false
                             }
-                            route == "sales_lead" -> {
+
+                            "sales_lead" -> {
                                 isSalesSettingsMode = false
                                 currentScreen = "sales_lead"
                                 isDrawerOpen = false
                             }
-                            route == "sales_customers" -> {
+
+                            "sales_customers" -> {
                                 isSalesSettingsMode = false
                                 currentScreen = "sales_customers"
                                 isDrawerOpen = false
                             }
-                            route == "sales_measurements" -> {
+
+                            "sales_measurements" -> {
                                 isSalesSettingsMode = false
                                 currentScreen = "sales_measurements"
                                 isDrawerOpen = false
                             }
-                            route == "sales_sales_orders" ||
-                                    route == "sales_sales_&_orders" -> {
+
+                            "sales_sales_orders", "sales_sales_&_orders" -> {
                                 isSalesSettingsMode = false
                                 currentScreen = "sales_sales_orders"
                                 isDrawerOpen = false
                             }
-                            route == "sales_orders" -> {
+
+                            "sales_orders" -> {
                                 isSalesSettingsMode = false
                                 currentScreen = "sales_orders"
                                 isDrawerOpen = false
                             }
-                            route == "sales_garment_type" -> {
+
+                            "sales_garment_type" -> {
                                 currentScreen = "sales_garment_type"
                                 isDrawerOpen = false
                             }
-                            route == "sales_pricing_quotation" ||
-                                    route == "sales_pricing_and_quotations" ||   // ✅ ADD THIS — actual buildNavigationKey output
-                                    route == "sales_pricing_&_quotations" -> {
+
+                            "sales_pricing_quotation", "sales_pricing_and_quotations",   // ✅ ADD THIS — actual buildNavigationKey output
+                            "sales_pricing_&_quotations" -> {
                                 isSalesSettingsMode = false
                                 currentScreen = "sales_pricing_quotation"
                                 isDrawerOpen = false
                             }
-                            route == "home" -> {
+
+                            "home" -> {
                                 isSalesSettingsMode = false
                                 currentScreen =
                                     if (showHomePanel) "settings" else "home"
                                 isDrawerOpen = false
                             }
-                            route == "settings" -> {
+
+                            "settings" -> {
                                 currentScreen = "settings"
                                 isDrawerOpen = false
                             }
+
                             else -> {
                                 android.util.Log.d("NAV_DEBUG", "Unhandled route: $route")
                                 try {
@@ -581,23 +596,46 @@ fun HomeScreen(navController: NavHostController) {
                             )
                         } ?: run { currentScreen = "sales_orders" }
                     }
-                    "sales_pricing_quotation" -> PricingQuotationScreen(
-                        onClose = {
-                            isSalesSettingsMode = false
-                            currentScreen = "home"   // or "sales_lead" if this should return to the Sales section
-                        },
-                        onCategoryClick = { category ->
-                            // TODO: navigate to category detail screen when built, e.g.:
-                            // currentScreen = "sales_pricing_${category.categoryType}"
-                        },
-                        onAddNewPricing = { currentScreen = "create_garment_pricing" }
-
+                    "sales_pricing_quotation" -> QuotationScreen(
+                        onClose = { isSalesSettingsMode = false; currentScreen = "home" },
+                        onAddNe = { editingPricingId = null; currentScreen = "create_quotation" },   // 👈 navigates
+                        onCardClick = { pricingId -> editingPricingId = pricingId; currentScreen = "create_quotation" }
                     )
-                    "create_garment_pricing" -> com.cuso.mobile.view.home.sales.pricing_and_quotation.AddGarmentPricingScreen(
-                        onClose = { currentScreen = "sales_pricing_quotation" },
-                        onSave = {
-                            // TODO: call ViewModel to submit pricing, then:
+
+                    "create_quotation" -> CreateQuotationScreen(
+                        onClose = { currentScreen = "sales_pricing_quotation" }
+                        // editingPricingId (null = new pricing, non-null = editing) is available here
+                        // if CreateQuotationScreen needs to know which mode it's in, pass it in:
+                        // pricingId = editingPricingId
+                    )
+// ✅ NEW — "Pricing Overview" menu item navigates here (separate from Quotation)
+                    "sales_pricing_overview" -> PricingScreen(
+                        onClose = { isSalesSettingsMode = false; currentScreen = "home" },
+                        onAddNewPricing = { editingPricingId = null; currentScreen = "create_garment_pricing" },
+                        onCardClick = { pricingId -> editingPricingId = pricingId; currentScreen = "create_garment_pricing" }
+                    )
+
+                    "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
+                        onBack = { currentScreen = "sales_pricing_quotation" },
+                        onAddNewPricing = { editingPricingId = null; currentScreen = "create_garment_pricing" },
+                        onCardClick = { pricingId -> editingPricingId = pricingId; currentScreen = "create_garment_pricing" }
+                    )
+
+                    "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
+                        onBack = { currentScreen = "sales_pricing_quotation" },   // ✅ no token line
+                        onAddNewPricing = { editingPricingId = null; currentScreen = "create_garment_pricing" },
+                        onCardClick = { pricingId -> editingPricingId = pricingId; currentScreen = "create_garment_pricing" }
+                    )
+
+                    "create_garment_pricing" -> com.cuso.mobile.view.home.sales.pricing.AddGarmentPricingScreen(
+                        pricingId = editingPricingId,             // ✅ null = Add, non-null = Edit
+                        onClose = {
+                            editingPricingId = null
                             currentScreen = "sales_pricing_quotation"
+                        },
+                        onSave = {
+                            editingPricingId = null
+                            currentScreen = "sales_pricing_quotation"   // ✅ already navigates to PricingQuotationScreen!
                         }
                     )
                     "sales_customers" -> CustomerScreen(
@@ -891,6 +929,8 @@ fun TopBar(
         }
     }
 }
+@Suppress("UNUSED_PARAMETER")
+
 @Composable
 fun BottomBar(
     navController: NavController,
@@ -1204,6 +1244,7 @@ fun HomeScreenContent(
         HomeScreenContentBody(navController = navController, onNavigate = onNavigate)
     }
 }
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 private fun HomeScreenContentBody(
@@ -1314,7 +1355,7 @@ private fun HomeScreenContentBody(
             }
         }
         else -> {
-            CircularProgressIndicator()
+            CirculerProgressIndicatorReuse()
         }
     }
 }
@@ -1380,7 +1421,7 @@ private fun DashboardStatCard(stat: DashboardStat, modifier: Modifier = Modifier
             .background(Color.White, RoundedCornerShape(14.dp))
             .padding(14.dp)
     ) {
-        Row() {
+        Row {
             Box(
                 modifier = Modifier
                     .size(34.dp)
@@ -1713,6 +1754,7 @@ fun LeadInfoBanner(text: String) {
         }
     }
 }
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 fun LeadAccordionSection(
@@ -1826,7 +1868,7 @@ fun LeadBottomBar(
                 contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp)
             ) {
                 if (rightLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                    CirculerProgressIndicatorReuse()
                 } else {
                     Text(rightLabel, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     if (rightIcon != null) {
@@ -2554,7 +2596,7 @@ fun LeadScreenContent(
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator()
+                                CirculerProgressIndicatorReuse()
                                 Spacer(Modifier.height(8.dp))
                                 Text("Loading leads...", color = Color.Gray)
                             }
@@ -2885,7 +2927,7 @@ fun ViewLeadScreen(
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(color = LeadPrimary)
+                CirculerProgressIndicatorReuse()
                 Spacer(Modifier.height(8.dp))
                 Text("Loading lead details...", color = Color.Gray, fontSize = 14.sp)
             }
@@ -3093,7 +3135,7 @@ fun ViewLeadScreen(
                             Spacer(Modifier.height(4.dp))
                             BudgetRangeSlider(value = l.budgetMin.toFloat(), onValueChange = {}, enabled = false)
                             Spacer(Modifier.height(4.dp))
-                            BudgetRangeLabels(currentValue = l.budgetMin, /* or whatever value you want shown in middle */)
+                            BudgetRangeLabels(currentValue = l.budgetMin/* or whatever value you want shown in middle */)
                         }
 
                         ViewFieldValue("Required Date", formatLeadDate(l.requiredDate))
@@ -3227,7 +3269,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(color = LeadPrimary)
+                CirculerProgressIndicatorReuse()
                 Spacer(Modifier.height(8.dp))
                 Text("Loading lead data...", color = Color.Gray, fontSize = 14.sp)
             }
@@ -3545,7 +3587,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = LeadPrimary)
+                                        CirculerProgressIndicatorReuse()
                                         Text("Loading categories...", fontSize = 14.sp, color = Color(0xFF6B7280))
                                     }
                                 }
@@ -3709,6 +3751,7 @@ fun formatIndianNumber(number: Number): String {
 }
 
 
+@SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimePickerField(
@@ -3832,6 +3875,7 @@ fun TimePickerField(
     }
 }
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun CustomTimePicker(
     hour: Int,
@@ -4095,29 +4139,47 @@ fun CustomTimePicker(
 
 
 
-
 @Composable
-fun FormLabel(text: String, isRequired: Boolean = false) {
+fun FormLabel(text: String?, isRequired: Boolean = false) {  // ✅ Made nullable
     Row {
-        Text(text = text, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.Gray)
+        Text(
+            text = text ?: "",  // ✅ Null-safe
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.Gray
+        )
         if (isRequired) {
-            Text(text = " *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.Red)
+            Text(
+                text = " *",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.Red
+            )
         }
     }
     Spacer(Modifier.height(6.dp))
 }
+
+@Suppress("UNUSED_PARAMETER")
 @Composable
-fun FormTextField(value: String,
-                  onValueChange: (String) -> Unit,
-                  keyboardType: KeyboardType = KeyboardType.Text ,
-                  placeholder: String = ""   // ✅ NEW — optional, old call-sites unaffected
+fun FormTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    placeholder: String = "",
+    isError: Boolean = false,          // ✅ NEW
+    errorMessage: String? = null       // ✅ NEW
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(40.dp)
             .background(Color.White, RoundedCornerShape(8.dp))
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+            .border(
+                1.dp,
+                if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),   // ✅ red border on error
+                RoundedCornerShape(8.dp)
+            )
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.CenterStart
     ) {
@@ -4129,6 +4191,11 @@ fun FormTextField(value: String,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151))
         )
+    }
+    // ✅ NEW — error message below the field
+    if (isError && !errorMessage.isNullOrEmpty()) {
+        Spacer(Modifier.height(4.dp))
+        Text(errorMessage, fontSize = 12.sp, color = Color(0xFFEF4444))
     }
 }
 @Composable
@@ -4217,21 +4284,30 @@ fun BudgetRangeLabels(
         Text("₹${formatIndianNumber(max)}", fontSize = 12.sp, color = Color(0xFF6B7280))
     }
 }
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun FormDropdown(
-    label: String,
+    label: String? = null,  // ✅ Made nullable
     value: String,
     expanded: Boolean,
     onExpandChange: (Boolean) -> Unit,
     options: List<String>,
     onOptionSelected: (String) -> Unit,
     isRequired: Boolean = false,
-    enabled: Boolean = true   // ✅ NEW — when false, field looks disabled and can't be opened (view mode)
+    enabled: Boolean = true,
+    isError: Boolean = false,          // ✅ NEW
+    errorMessage: String? = null
 ) {
-    FormLabel(label, isRequired)
+    // ✅ Null-safe label
+    if (!label.isNullOrEmpty()) {
+        FormLabel(label, isRequired)
+    } else {
+        // If no label, still add spacing for consistency
+        Spacer(Modifier.height(6.dp))
+    }
 
     val density = LocalDensity.current
-    var triggerWidthPx by remember { mutableStateOf(0) }
+    var triggerWidthPx by remember { mutableIntStateOf(0) }
 
     Box {
         Row(
@@ -4240,13 +4316,17 @@ fun FormDropdown(
                 .onGloballyPositioned { coordinates -> triggerWidthPx = coordinates.size.width }
                 .height(40.dp)
                 .background(
-                    if (enabled) Color.White else Color(0xFFF3F4F6),   // ✅ dimmed bg when disabled
+                    if (enabled) Color.White else Color(0xFFF3F4F6),
                     RoundedCornerShape(8.dp)
                 )
-                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                .clickable(enabled = enabled) { onExpandChange(true) }   // ✅ blocked when disabled
+                .border(
+                    1.dp,
+                    if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),   // ✅ red border on error
+                    RoundedCornerShape(8.dp)
+                )                .clickable(enabled = enabled) { onExpandChange(true) }
                 .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 value,
@@ -4284,7 +4364,7 @@ fun FormDropdown(
                                 onOptionSelected(option)
                                 onExpandChange(false)
                             }
-                            .padding(horizontal = 12.dp, vertical = 8.dp) // ← tune this
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
                     )
                 }
             }
@@ -4292,43 +4372,43 @@ fun FormDropdown(
     }
 }
 
-@SuppressLint("FrequentlyChangingValue")
-@Composable
-fun HorizontalScrollbar(state: LazyListState, modifier: Modifier = Modifier, trackColor: Color = Color(0xFFE5E7EB), thumbColor: Color = Color.Gray, height: androidx.compose.ui.unit.Dp = 4.dp) {
-    val layoutInfo       = state.layoutInfo
-    val visibleItemsInfo = layoutInfo.visibleItemsInfo
-    val totalItems       = layoutInfo.totalItemsCount
-    val canScroll        = state.canScrollForward || state.canScrollBackward
-
-    if (totalItems == 0 || visibleItemsInfo.isEmpty() || !canScroll) {
-        Box(modifier = modifier
-            .fillMaxWidth()
-            .height(height))
-        return
-    }
-
-    val viewportSize              = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).toFloat()
-    val averageItemSize           = visibleItemsInfo.sumOf { it.size }.toFloat() / visibleItemsInfo.size
-    val estimatedTotalContentSize = averageItemSize * totalItems
-    val thumbSizeFraction         = (viewportSize / estimatedTotalContentSize).coerceIn(0.1f, 1f)
-    val scrolledPixels            = state.firstVisibleItemIndex * averageItemSize + state.firstVisibleItemScrollOffset
-    val maxScrollPixels           = (estimatedTotalContentSize - viewportSize).coerceAtLeast(1f)
-    val scrollFraction            = (scrolledPixels / maxScrollPixels).coerceIn(0f, 1f)
-
-    BoxWithConstraints(modifier = modifier
-        .fillMaxWidth()
-        .height(height)
-        .background(trackColor, RoundedCornerShape(height / 2))) {
-        val trackWidth  = this@BoxWithConstraints.maxWidth
-        val thumbWidth  = trackWidth * thumbSizeFraction
-        val thumbOffset = (trackWidth - thumbWidth) * scrollFraction
-        Box(modifier = Modifier
-            .offset(x = thumbOffset)
-            .width(thumbWidth)
-            .height(height)
-            .background(thumbColor, RoundedCornerShape(height / 2)))
-    }
-}
+//@SuppressLint("FrequentlyChangingValue","UNUSED_PARAMETER")
+//@Composable
+//fun HorizontalScrollbar(state: LazyListState, modifier: Modifier = Modifier, trackColor: Color = Color(0xFFE5E7EB), thumbColor: Color = Color.Gray, height: androidx.compose.ui.unit.Dp = 4.dp) {
+//    val layoutInfo       = state.layoutInfo
+//    val visibleItemsInfo = layoutInfo.visibleItemsInfo
+//    val totalItems       = layoutInfo.totalItemsCount
+//    val canScroll        = state.canScrollForward || state.canScrollBackward
+//
+//    if (totalItems == 0 || visibleItemsInfo.isEmpty() || !canScroll) {
+//        Box(modifier = modifier
+//            .fillMaxWidth()
+//            .height(height))
+//        return
+//    }
+//
+//    val viewportSize              = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).toFloat()
+//    val averageItemSize           = visibleItemsInfo.sumOf { it.size }.toFloat() / visibleItemsInfo.size
+//    val estimatedTotalContentSize = averageItemSize * totalItems
+//    val thumbSizeFraction         = (viewportSize / estimatedTotalContentSize).coerceIn(0.1f, 1f)
+//    val scrolledPixels            = state.firstVisibleItemIndex * averageItemSize + state.firstVisibleItemScrollOffset
+//    val maxScrollPixels           = (estimatedTotalContentSize - viewportSize).coerceAtLeast(1f)
+//    val scrollFraction            = (scrolledPixels / maxScrollPixels).coerceIn(0f, 1f)
+//
+//    BoxWithConstraints(modifier = modifier
+//        .fillMaxWidth()
+//        .height(height)
+//        .background(trackColor, RoundedCornerShape(height / 2))) {
+//        val trackWidth  = this@BoxWithConstraints.maxWidth
+//        val thumbWidth  = trackWidth * thumbSizeFraction
+//        val thumbOffset = (trackWidth - thumbWidth) * scrollFraction
+//        Box(modifier = Modifier
+//            .offset(x = thumbOffset)
+//            .width(thumbWidth)
+//            .height(height)
+//            .background(thumbColor, RoundedCornerShape(height / 2)))
+//    }
+//}
 // ─────────────────────────────────────────────────────────────
 // Route alias normalizer — single source of truth for all
 // route-name variations that buildNavigationKey() or menu
@@ -4338,7 +4418,10 @@ fun normalizeRoute(route: String): String {
     return when (route) {
         "sales_pricing_quotation",
         "sales_pricing_and_quotations",
-        "sales_pricing_&_quotations" -> "sales_pricing_quotation"
+        "sales_pricing_&_quotations",
+        "sales_quotation" -> "sales_pricing_quotation"   // ✅ Quotation → quotation dashboard screen
+
+        "sales_pricing_overview" -> "sales_pricing_overview"   // ✅ NEW — separate route for overview
 
         "sales_sales_orders",
         "sales_sales_&_orders" -> "sales_sales_orders"

@@ -25,7 +25,7 @@ fun Address(
                 .fillMaxWidth()
                 .height(60.dp),
             singleLine = true,
-            colors = CustomFieldColors()
+            colors = customFieldColors()
         )
     }
 }

@@ -14,8 +14,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun Pincode(
-    pincodeValue: String,        // ← String not Int
-    onPincodeChange: (String) -> Unit  // ← String not Int
+    pincodeValue: String,
+    onPincodeChange: (String) -> Unit
 ) {
     Column {
         Text("Pincode/Zip/Postal", color = Color.Black)
@@ -33,7 +33,7 @@ fun Pincode(
                 .height(60.dp),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), // ← numbers only
-            colors = CustomFieldColors()
+            colors = customFieldColors()
         )
     }
 }

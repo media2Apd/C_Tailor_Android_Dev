@@ -8,7 +8,7 @@ fun isValidPhoneNumber(phone: String, isoCode: String): Boolean {
         val phoneUtil = PhoneNumberUtil.getInstance()
         val numberProto = phoneUtil.parse(phone, isoCode)
         phoneUtil.isValidNumber(numberProto)
-    } catch (e: NumberParseException) {
+    } catch (_: NumberParseException) {
         false
     }
 }

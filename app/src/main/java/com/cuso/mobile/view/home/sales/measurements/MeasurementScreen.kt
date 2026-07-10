@@ -28,8 +28,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
@@ -40,6 +40,7 @@ import com.cuso.mobile.viewmodel.MeasurementsViewModel
 // ─────────────────────────────────────────────────────────────
 // Measurements Screen
 // ─────────────────────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 fun MeasurementsScreen(
@@ -52,8 +53,8 @@ fun MeasurementsScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var typeFilter by remember { mutableStateOf("all") }
-    var page by remember { mutableStateOf(1) }
-    var itemsPerPage by remember { mutableStateOf(10) }
+    var page by remember { mutableIntStateOf(1) }
+    var itemsPerPage by remember { mutableIntStateOf(10) }
     var showTypeDropdown by remember { mutableStateOf(false) }
     var showItemsPerPageDropdown by remember { mutableStateOf(false) }
 
@@ -223,7 +224,7 @@ fun MeasurementsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(color = Color(0xFF3B3BF9))
+                            CirculerProgressIndicatorReuse()
                             Spacer(Modifier.height(8.dp))
                             Text("Loading measurements...", color = Color.Gray, fontSize = 14.sp)
                         }

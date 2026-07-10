@@ -27,7 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.cuso.mobile.view.composable.CardContentsLoginScreen
-import com.cuso.mobile.view.composable.SignUpText
 import com.cuso.mobile.view.composable.AppLogo
 import com.cuso.mobile.view.composable.LoginScreenTitle
 import com.cuso.mobile.viewmodel.UiState
@@ -35,7 +34,7 @@ import com.cuso.mobile.viewmodel.Authenticate
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
-
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun LoginScreen(activity: Activity,
                 navController: NavController,

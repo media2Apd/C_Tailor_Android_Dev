@@ -119,16 +119,7 @@ class OrderOverviewViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Quick Update button click aagumbodhu call aagum.
-     * stageId - local UI card tracking-ku (Compose la stage.id vachi match pannuvom)
-     * stageName - "cutting" / "stitching" / "qc" -> API path segment-ku
-     * status - "pending" / "in_progress" / "completed"
-     *
-     * PATCH /api/sales-orders/assign-worker-to-stage/{orderId}/{garmentItemId}/{stageName}
-     * mattum call aagum -- adhavadhu andha ஒரு stage மட்டும் update aagும், marabadi
-     * stages touch aagathu.
-     */
+
     fun updateStage(
         orderId: String,
         garmentItemId: String,

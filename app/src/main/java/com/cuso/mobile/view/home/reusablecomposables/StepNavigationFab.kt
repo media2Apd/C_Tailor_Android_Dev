@@ -16,7 +16,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -28,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorForButton
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 
 /**
  * Describes what the trailing (bottom-end) FAB should do/show.
@@ -159,11 +160,7 @@ fun TrailingFabButton(
             }
             is TrailingFabAction.Update -> {
                 if (action.isLoading) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    CirculerProgressIndicatorForButton()
                 } else {
                     Text(action.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 }

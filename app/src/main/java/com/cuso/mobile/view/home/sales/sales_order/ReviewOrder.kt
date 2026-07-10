@@ -2,7 +2,6 @@ package com.cuso.mobile.view.home.sales.sales_order
 
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,6 +29,7 @@ import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.*
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
@@ -40,6 +40,7 @@ import com.cuso.mobile.viewmodel.OrderOverviewViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+@Suppress("UNUSED_PARAMETER")
 
 // ─────────────────────────────────────────────────────────────────────────
 // THEME
@@ -140,7 +141,7 @@ fun OrderOverviewScreen(
     val state by viewModel.overviewState.collectAsStateWithLifecycle()
     val currentOrderData = (state as? OrderOverviewState.Success)?.data   // NEW
     val assignState by viewModel.assignWorkersState.collectAsStateWithLifecycle()
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context =LocalContext.current
 
     LaunchedEffect(orderId) {
         viewModel.fetchSalesOverview(orderId)
@@ -247,7 +248,7 @@ fun OrderOverviewScreen(
             when (val s = state) {
                 is OrderOverviewState.Loading, OrderOverviewState.Idle -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = TabActive)
+                        CirculerProgressIndicatorReuse()
                     }
                 }
                 is OrderOverviewState.Error -> {
@@ -388,7 +389,7 @@ private fun OverviewTab(data: OrderOverviewData) {
         SectionTitle("Customer Information")
         InfoRow("Name", customer.name)
         InfoRow("Phone", "+91 ${customer.mobile.takeLast(10)}")
-        InfoRow("Gender", customer.gender ?: "—")
+        InfoRow("Gender", customer.gender)
         InfoRow("Address", listOfNotNull(customer.address?.addressLine, customer.address?.city).joinToString(", ").ifBlank { "—" })
 
         Spacer(Modifier.height(10.dp))
@@ -900,9 +901,9 @@ private fun AssignTailorsSheet(
     }
     val staffNames = remember(staffList) { staffNameToStaff.keys.toList() }
 
-    var selectedCutting by remember { mutableStateOf<StaffDto?>(garment.assignment?.cuttingTailor) }
-    var selectedStitching by remember { mutableStateOf<StaffDto?>(garment.assignment?.stitchingTailor) }
-    var selectedQC by remember { mutableStateOf<StaffDto?>(garment.assignment?.qualityInspector) }
+    var selectedCutting by remember { mutableStateOf(garment.assignment?.cuttingTailor) }
+    var selectedStitching by remember { mutableStateOf(garment.assignment?.stitchingTailor) }
+    var selectedQC by remember { mutableStateOf(garment.assignment?.qualityInspector) }
     var priority by remember { mutableStateOf(garment.assignment?.priority?.ifBlank { "Low" } ?: "Low") }
     var completionDate by remember {
         mutableStateOf(
@@ -1108,7 +1109,7 @@ private fun AssignTailorsSheet(
                     enabled = !isAssigning
                 ) {
                     if (isAssigning) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                        CirculerProgressIndicatorReuse()
                     } else {
                         Text("Assign Workers", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
@@ -1119,6 +1120,7 @@ private fun AssignTailorsSheet(
         }
     }
 }
+@Suppress("UNUSED_PARAMETER")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1388,6 +1390,7 @@ private fun SmallSectionHeader(title: String, trailingIcon: androidx.compose.ui.
         }
     }
 }
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 private fun Tag(text: String, bg: Color, textColor: Color, bordered: Boolean = false) {

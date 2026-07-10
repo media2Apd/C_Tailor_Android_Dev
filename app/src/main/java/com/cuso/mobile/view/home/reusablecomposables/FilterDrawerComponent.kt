@@ -1,14 +1,12 @@
 package com.cuso.mobile.view.home.reusablecomposables
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -23,16 +21,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.CurrencyRupee
-import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.*
@@ -42,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -115,14 +106,16 @@ private fun priorityDotColor(id: String): Color = when (id) {
 private const val DrawerAnimDurationMs = 320
 
 // ── Full-Screen Filters Page ──
+@Suppress("UNUSED_PARAMETER")
+
 @Composable
 fun FilterDrawer(
+    modifier: Modifier = Modifier,
     state: FilterDrawerState,
     title: String = "Filters",
     sections: List<FilterSection>,
     onApply: (List<FilterSection>) -> Unit,
     onClearAll: () -> Unit,
-    modifier: Modifier = Modifier,
     content: @Composable (ColumnScope.() -> Unit)? = null
 ) {
     var currentSections by remember { mutableStateOf(sections) }
@@ -671,6 +664,7 @@ private fun PriorityDotsBody(section: FilterSection, onOptionToggle: (String) ->
         }
     }
 }
+@Suppress("UNUSED_PARAMETER")
 
 // ── Filter Chip (kept for backward-compat where referenced elsewhere) ──
 @Composable

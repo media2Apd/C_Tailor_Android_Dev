@@ -57,11 +57,12 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.ui.platform.LocalContext
-
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun SettingsScreen(
-    @Suppress("UNUSED_PARAMETER") navController: NavController,
-    @Suppress("UNUSED_PARAMETER") onMenuClick: () -> Unit = {},
+     navController: NavController,
+     onMenuClick: () -> Unit = {},
     onBack: () -> Unit = {}   // ✅ NEW
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -194,7 +195,7 @@ private fun uriToBase64(context: Context, uri: Uri): String? {
         val bytes = inputStream.readBytes()
         inputStream.close()
         Base64.encodeToString(bytes, Base64.NO_WRAP)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }
@@ -239,10 +240,10 @@ fun ProfileTab(
         if (uiState is ProfileUiState.Success) {
             val org = (uiState as ProfileUiState.Success).data.organization
             orgName = org.name
-            orgType = org.orgType ?: ""
-            businessType = org.businessType ?: ""
-            email = org.email ?: ""
-            mobile = org.mobile ?: ""
+            orgType = org.orgType
+            businessType = org.businessType
+            email = org.email
+            mobile = org.mobile
         }
     }
 
@@ -272,7 +273,7 @@ fun ProfileTab(
     when (val state = uiState) {
         is ProfileUiState.Loading -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                CirculerProgressIndicatorReuse()
             }
         }
 
@@ -353,11 +354,8 @@ fun ProfileTab(
                                                 shape = RoundedCornerShape(8.dp)
                                             ) {
                                                 if (isSaving) {
-                                                    CircularProgressIndicator(
-                                                        modifier = Modifier.size(20.dp),
-                                                        color = Color.White,
-                                                        strokeWidth = 2.dp
-                                                    )
+                                                    CirculerProgressIndicatorReuse()
+
                                                 } else {
                                                     Text("Save", color = Color.White, fontSize = 14.sp)
                                                 }
@@ -473,7 +471,7 @@ fun ProfileTab(
                                     HorizontalDivider(color = Color(0xFFF0F0F0))
                                     Spacer(Modifier.height(16.dp))
 
-                                    OrgInfoRow("Business ID", org.businessId ?: "-")
+                                    OrgInfoRow("Business ID", org.businessId )
                                     Spacer(Modifier.height(16.dp))
                                     HorizontalDivider(color = Color(0xFFF0F0F0))
                                     Spacer(Modifier.height(16.dp))
@@ -493,11 +491,11 @@ fun ProfileTab(
                                 } else {
                                     val rows = listOf(
                                         "Organization Name" to org.name,
-                                        "Organization Type" to (org.orgType ?: "-"),
-                                        "Business Type" to (org.businessType ?: "-"),
-                                        "Business ID" to (org.businessId ?: "-"),
-                                        "Email" to (org.email ?: "-"),
-                                        "Mobile" to (org.mobile ?: "-"),
+                                        "Organization Type" to (org.orgType ),
+                                        "Business Type" to (org.businessType ),
+                                        "Business ID" to (org.businessId ),
+                                        "Email" to (org.email ),
+                                        "Mobile" to (org.mobile ),
                                         "Plan Status" to org.subscription.status,
                                         "Status" to org.status
                                     )
@@ -600,15 +598,15 @@ fun LocalizationTab(
     LaunchedEffect(uiState) {
         if (uiState is ProfileUiState.Success) {
             val settings = (uiState as ProfileUiState.Success).data.organization.settings
-            country = settings.country ?: ""
-            state = settings.state ?: ""
-            city = settings.city ?: ""
-            postalCode = settings.pincode ?: ""
-            address = settings.address ?: ""
-            timezone = settings.timezone ?: ""
-            currency = settings.currency ?: ""
-            language = settings.language ?: ""
-            portalName = settings.portalName ?: "" // Initialize portal name
+            country = settings.country
+            state = settings.state
+            city = settings.city
+            postalCode = settings.pincode
+            address = settings.address
+            timezone = settings.timezone
+            currency = settings.currency
+            language = settings.language
+            portalName = settings.portalName
 
             // Set company size based on total members
             val org = (uiState as ProfileUiState.Success).data.organization
@@ -718,11 +716,8 @@ fun LocalizationTab(
                                         shape = RoundedCornerShape(8.dp)
                                     ) {
                                         if (isSaving) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(20.dp),
-                                                color = Color.White,
-                                                strokeWidth = 2.dp
-                                            )
+                                            CirculerProgressIndicatorReuse()
+
                                         } else {
                                             Text("Save", color = Color.White, fontSize = 14.sp)
                                         }
@@ -755,7 +750,7 @@ fun LocalizationTab(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator()
+                                    CirculerProgressIndicatorReuse()
                                 }
                             }
                             errorMessage != null -> {
@@ -829,7 +824,7 @@ fun LocalizationTab(
                                         "Portal Name" to settings.portalName // Add portal name to display
                                     )
                                     rows.forEachIndexed { index, (label, value) ->
-                                        OrgInfoRow(label, value ?: "-")
+                                        OrgInfoRow(label, value )
                                         if (index != rows.lastIndex) {
                                             Spacer(Modifier.height(16.dp))
                                             HorizontalDivider(color = Color(0xFFF0F0F0))
@@ -876,7 +871,7 @@ fun LocalizationTab(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator()
+                                    CirculerProgressIndicatorReuse()
                                 }
                             }
                             settings != null -> {
@@ -888,7 +883,7 @@ fun LocalizationTab(
                                         "Language" to settings.language
                                     )
                                     rows.forEachIndexed { index, (label, value) ->
-                                        OrgInfoRow(label, value ?: "-")
+                                        OrgInfoRow(label, value )
                                         if (index != rows.lastIndex) {
                                             Spacer(Modifier.height(16.dp))
                                             HorizontalDivider(color = Color(0xFFF0F0F0))
@@ -935,13 +930,13 @@ fun LocalizationTab(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator()
+                                    CirculerProgressIndicatorReuse()
                                 }
                             }
                             org != null && settings != null -> {
                                 if (!isEditing) {
 
-                                    OrgInfoRow("Portal Name", settings.portalName ?: "-")
+                                    OrgInfoRow("Portal Name", settings.portalName )
                                     Spacer(Modifier.height(16.dp))
                                     HorizontalDivider(color = Color(0xFFF0F0F0))
                                     Spacer(Modifier.height(16.dp))

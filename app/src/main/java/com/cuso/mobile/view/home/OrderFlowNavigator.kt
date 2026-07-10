@@ -22,7 +22,7 @@ fun OrderFlowNavigator(
     branchViewModel: BranchViewModel = hiltViewModel()
 ) {
     // step = 0 -> show CreateOrderScreen, step = 1 -> show CreateOrderNextStep
-    var step by remember { mutableStateOf(0) }
+    var step by remember { mutableIntStateOf(0) }
 
     // Holds whatever the user filled in step 1, so step 2 can read it.
     var reviewData by remember { mutableStateOf<OrderReviewData?>(null) }

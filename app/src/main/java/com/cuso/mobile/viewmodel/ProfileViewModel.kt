@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.OrganizationDataWrapper
 import com.cuso.mobile.model.UpdateOrganizationRequest
-import com.cuso.mobile.model.UpdateOrganizationResponse
 import com.cuso.mobile.repository.AuthRepository
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel

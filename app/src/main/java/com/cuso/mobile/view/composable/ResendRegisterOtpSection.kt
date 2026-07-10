@@ -16,7 +16,7 @@ import com.cuso.mobile.viewmodel.Authenticate
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
-
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ResendRegisterOtpSection(
     onResendClick: () -> Unit,

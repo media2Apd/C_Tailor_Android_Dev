@@ -25,14 +25,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
@@ -242,7 +240,7 @@ fun <T> DataCard(
                                 .padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                topBadgeText!!,
+                                topBadgeText,
                                 fontSize = 11.sp,
                                 color = topBadgeTextColor,
                                 fontWeight = FontWeight.Medium
@@ -414,6 +412,7 @@ fun <T> DataCard(
 // ✅ SINGLE HELPER FUNCTION - Simple and clean
 // User can customize text color and background color
 // ─────────────────────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
 
 /**
  * Create a badge with custom colors

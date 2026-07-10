@@ -57,8 +57,8 @@ private data class DatePickerPalette(
     val accent: Color,
     val divider: Color,
     val accentText: Color,
-    val fieldBackground: Color,   // ✅ NEW
-    val fieldBorder: Color        // ✅ NEW
+    val fieldBackground: Color,
+    val fieldBorder: Color
 )
 
 private val LightDatePalette = DatePickerPalette(
@@ -144,7 +144,7 @@ private fun CustomDatePickerDialog(
     val today = remember { java.util.Calendar.getInstance() }
     var displayMonth by remember { mutableIntStateOf(today.get(java.util.Calendar.MONTH)) }
     var displayYear by remember { mutableIntStateOf(today.get(java.util.Calendar.YEAR)) }
-    var selectedDay by remember { mutableStateOf(today.get(java.util.Calendar.DAY_OF_MONTH)) }
+    var selectedDay by remember { mutableIntStateOf(today.get(java.util.Calendar.DAY_OF_MONTH)) }
     var isManualEntry by remember { mutableStateOf(false) }
     var manualText by remember { mutableStateOf(initialDate) }
 
@@ -342,7 +342,7 @@ private fun parseManualDatePicked(text: String): Triple<Int, Int, Int>? {
         val year = parts[2].trim().toInt()
         if (month !in 1..12 || day !in 1..31) return null
         Triple(day, month, year)
-    } catch (e: NumberFormatException) {
+    } catch (_: NumberFormatException) {
         null
     }
 }

@@ -3,6 +3,7 @@ package com.cuso.mobile.view.home.sidebar
 import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.core.content.edit
 
 /**
  * Tracks MOST RECENTLY USED modules (Sales, Finance, Inventory, etc.) — not frequency.
@@ -38,9 +39,9 @@ object ModuleUsageTracker {
 
     private fun persist(context: Context) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_RECENT_ORDER, recentOrder.joinToString(","))
-            .apply()
+            .edit {
+                putString(KEY_RECENT_ORDER, recentOrder.joinToString(","))
+            }
     }
 
     /**

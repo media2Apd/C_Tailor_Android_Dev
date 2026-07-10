@@ -78,7 +78,7 @@ data class OrderReviewData(
     val fullName: String,
     val countryCode: String,
     val phone: String,
-    val gender: String,
+    val gender: String?=null,
     val dressFor: String,
     val address: String,
     val garments: List<SelectedGarment>,
@@ -807,6 +807,7 @@ private fun SectionCard(content: @Composable ColumnScope.() -> Unit) {
         )
     }
 }
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 private fun SectionHeader(

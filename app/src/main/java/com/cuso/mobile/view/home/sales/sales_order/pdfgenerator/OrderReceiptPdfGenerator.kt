@@ -1,12 +1,6 @@
 package com.cuso.mobile.view.home.sales.sales_order.pdfgenerator
 
 import android.content.Context
-import android.os.Bundle
-import android.os.CancellationSignal
-import android.os.ParcelFileDescriptor
-import android.print.PageRange
-import android.print.PrintAttributes
-import android.print.PrintDocumentAdapter
 import android.print.PrintManager
 import android.webkit.WebView
 import android.webkit.WebViewClient

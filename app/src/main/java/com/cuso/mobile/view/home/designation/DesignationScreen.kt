@@ -14,7 +14,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -25,7 +24,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -33,16 +31,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.model.DesignationItem
-import com.cuso.mobile.view.home.reusablecomposables.ActionDropdownMenu
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardBadge
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.ui.draw.shadow
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.viewmodel.DesignationCreateState
 import com.cuso.mobile.viewmodel.DesignationDeleteState
 import com.cuso.mobile.viewmodel.DesignationUiState
@@ -56,6 +51,7 @@ import kotlinx.coroutines.launch
 //  2) ADD new composable: DesignationCardItem (new, paste anywhere below DesignationRow)
 // Everything else in that file (DesignationRow, dialogs, fields) stays unchanged.
 // ─────────────────────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
 
 @Composable
 fun DesignationScreen(
@@ -176,7 +172,9 @@ fun DesignationScreen(
 
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when (val state = uiState) {
-                    is DesignationUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Color(0xFF3B3BF9)) }
+                    is DesignationUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CirculerProgressIndicatorReuse()
+                    }
                     is DesignationUiState.Error -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -349,11 +347,8 @@ fun AddDesignationDialog(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
+                            CirculerProgressIndicatorReuse()
+
                         } else {
                             Text("Create", color = Color.White)
                         }
@@ -421,11 +416,8 @@ fun EditDesignationDialog(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
+                            CirculerProgressIndicatorReuse()
+
                         } else {
                             Text("Update", color = Color.White)
                         }
@@ -474,11 +466,8 @@ fun DeleteConfirmationDialog(
                 shape = RoundedCornerShape(8.dp)
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
+                    CirculerProgressIndicatorReuse()
+
                 } else {
                     Text("Delete", color = Color.White)
                 }

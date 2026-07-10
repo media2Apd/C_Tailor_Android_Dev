@@ -11,8 +11,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
+@Suppress("UNUSED_PARAMETER")
 @Composable
-fun termsConditions(navController: NavController){
+fun TermsConditions(navController: NavController){
     Box(
         modifier = Modifier
             .background(Color.White)

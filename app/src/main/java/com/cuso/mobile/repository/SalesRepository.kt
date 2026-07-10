@@ -21,7 +21,6 @@ import com.cuso.mobile.model.CategoryItem
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
 import com.cuso.mobile.model.CreateOrderRequest
-import com.cuso.mobile.model.CustomerItem
 import com.cuso.mobile.model.CustomerListResponse
 import com.cuso.mobile.model.CustomerSearchResponse
 import com.cuso.mobile.model.CustomerViewData
@@ -51,6 +50,9 @@ import com.cuso.mobile.model.DesignationCreateResponse
 import com.cuso.mobile.model.DesignationUpdateRequest
 import com.cuso.mobile.model.DesignationUpdateResponse
 import com.cuso.mobile.model.DesignationDeleteResponse
+import com.cuso.mobile.model.GarmentPricingDetailDto
+import com.cuso.mobile.model.GarmentPricingItem
+import com.cuso.mobile.model.GarmentPricingListItemDto
 import com.cuso.mobile.model.GarmentStageDoc
 import com.cuso.mobile.model.MeasurementsResponse
 import com.cuso.mobile.model.OrderItem
@@ -60,6 +62,7 @@ import com.cuso.mobile.model.OrderResponse
 import com.cuso.mobile.model.OrderViewData
 import com.cuso.mobile.model.PricingQuotationSaveRequest
 import com.cuso.mobile.model.PricingQuotationSaveResponse
+import com.cuso.mobile.model.QuotationListResponse
 import com.cuso.mobile.model.StageAssignRequest
 import com.cuso.mobile.model.UpdateCustomerRequest
 import com.cuso.mobile.model.UpdateOrganizationRequest
@@ -962,6 +965,119 @@ class SalesRepository @Inject constructor(
                         response.errorBody()?.string()
                             ?: "Failed to save pricing: ${response.code()}"
                     )
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ══════════════════════════════════════════
+// FILE: repository/SalesRepository.kt (ADD these 2 functions to existing repository)
+// ══════════════════════════════════════════
+
+    // ── Dashboard: fetch all garment pricing cards ──
+    // ── Dashboard: fetch all garment pricing cards ──
+    suspend fun getGarmentPricingList(): Result<List<GarmentPricingListItemDto>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getGarmentPricingList(accessToken, csrfToken)
+            if (response.success && response.data != null) {
+                Result.success(response.data)
+            } else {
+                Result.failure(Exception(response.message ?: "Failed to fetch pricing list"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Edit screen: fetch single record detail to prefill fields ──
+    suspend fun getGarmentPricingDetail(id: String): Result<GarmentPricingDetailDto> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getGarmentPricingDetail(accessToken, csrfToken, id)
+            if (response.success && response.data != null) {
+                Result.success(response.data)
+            } else {
+                Result.failure(Exception(response.message ?: "Failed to fetch pricing detail"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updatePricingQuotation(
+        id: String,
+        request: PricingQuotationSaveRequest
+    ): Result<PricingQuotationSaveResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.updatePricingQuotation(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id,
+                request = request
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(
+                        response.errorBody()?.string()
+                            ?: "Failed to update pricing: ${response.code()}"
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Quotation List (Sales → Pricing & Quotations screen) ──
+
+    suspend fun getQuotations(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ): Result<QuotationListResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getQuotations(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search,
+                status = status
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch quotations: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
+    /**
+     * Fetch all garment pricing details
+     * GET /api/garment-pricing/view-all
+     */
+    suspend fun getGarmentPricing(): Result<List<GarmentPricingItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getGarmentPricing(accessToken, csrfToken)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch garment pricing: ${response.code()}")
                 )
             }
         } catch (e: Exception) {

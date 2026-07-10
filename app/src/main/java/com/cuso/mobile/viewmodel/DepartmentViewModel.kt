@@ -64,7 +64,7 @@ class DepartmentViewModel @Inject constructor(
 
     // ── Delete State ──
     private val _deleteState = MutableStateFlow<DepartmentDeleteUiState>(DepartmentDeleteUiState.Idle)
-    val deleteState: StateFlow<DepartmentDeleteUiState> = _deleteState.asStateFlow()
+//    val deleteState: StateFlow<DepartmentDeleteUiState> = _deleteState.asStateFlow()
 
     // ── Load Departments ──
     fun loadDepartments() {

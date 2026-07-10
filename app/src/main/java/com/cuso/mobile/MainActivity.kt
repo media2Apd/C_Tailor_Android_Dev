@@ -17,15 +17,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.cuso.mobile.repository.SessionManager
 import com.cuso.mobile.ui.theme.CusoTailorTheme
-import com.cuso.mobile.view.composable.OrganizationNotFoundScreen
 import com.cuso.mobile.view.forgot_password.ForgotUserPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
 import com.cuso.mobile.view.forgot_password.VerifyForgotPassword
 import com.cuso.mobile.view.login.LoginOtpScreen
 import com.cuso.mobile.view.login.LoginScreen
 import com.cuso.mobile.view.organization.OrganizationProfile
-import com.cuso.mobile.view.others.privacyPolicy
-import com.cuso.mobile.view.others.termsConditions
 import com.cuso.mobile.view.home.HomeScreen
 import com.cuso.mobile.view.home.LeadScreenContent
 import com.cuso.mobile.view.home.OrderFlowNavigator
@@ -33,6 +30,9 @@ import com.cuso.mobile.view.home.SettingsScreen
 import com.cuso.mobile.view.home.branch.BranchSettingsScreen
 import com.cuso.mobile.view.home.sales.sales_order.SalesOrderScreen
 import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
+import com.cuso.mobile.view.organization.OrganizationNotFoundScreen
+import com.cuso.mobile.view.others.PrivacyPolicy
+import com.cuso.mobile.view.others.TermsConditions
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -81,7 +81,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNav(activity: Activity, startLoggedIn: Boolean) {
     val navController = rememberNavController()
-    val localActivity = activity
 
     // 👇 No more null-check, no more spinner box - resolved before first frame
     val startDestination = if (startLoggedIn) "home" else "login?message={message}"
@@ -101,7 +100,7 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
         ) { backStackEntry ->
             val message = backStackEntry.arguments?.getString("message") ?: ""
             LoginScreen(
-                activity = localActivity,
+                activity = activity,
                 navController = navController,
                 onloginSuccess = {
                     navController.navigate("home") {
@@ -123,7 +122,7 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
         ) { backStackEntry ->
             val email = backStackEntry.arguments?.getString("email") ?: ""
             LoginScreen(
-                activity = localActivity,
+                activity = activity,
                 navController = navController,
                 onloginSuccess = {
                     navController.navigate("home") {
@@ -143,7 +142,7 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
             val email = backStackEntry.arguments?.getString("email") ?: ""
             LoginOtpScreen(
                 navController = navController,
-                activity = localActivity,
+                activity = activity,
                 submittedEmail = email
             )
         }
@@ -153,7 +152,7 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
                 navController = navController,
                 onSignUpSuccess = { navController.navigate("login") },
                 onNavigateToLogin = { navController.popBackStack() },
-                activity = localActivity
+                activity = activity
             )
         }
 
@@ -169,7 +168,7 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
         }
 
         composable("new-pass") {
-            ForgotUserPassword(activity = localActivity, navController = navController)
+            ForgotUserPassword(activity = activity, navController = navController)
         }
 
         composable("verify-forgot-pass/{email}",
@@ -192,8 +191,8 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
 
         // ── Static pages ──────────────────────────────────────
 
-        composable("terms")   { termsConditions(navController) }
-        composable("privacy") { privacyPolicy(navController) }
+        composable("terms")   { TermsConditions(navController) }
+        composable("privacy") { PrivacyPolicy(navController) }
 
         composable("org") {
             OrganizationProfile(

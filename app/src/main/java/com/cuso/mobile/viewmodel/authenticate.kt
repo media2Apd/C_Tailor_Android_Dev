@@ -70,7 +70,7 @@ class Authenticate @Inject constructor(
 
     // ── Login Data State ──
     private val _loginData = MutableStateFlow<LoginData?>(null)
-    val loginData: StateFlow<LoginData?> = _loginData.asStateFlow()
+//    val loginData: StateFlow<LoginData?> = _loginData.asStateFlow()
 
     // ── User State ──
     private val _user = MutableStateFlow<UserEntity?>(null)
@@ -98,7 +98,7 @@ class Authenticate @Inject constructor(
 
     // ── OTP States ──
     private val _otpSendResult = MutableLiveData<Result<otpSendResponse>>()
-    val otpSendResult: LiveData<Result<otpSendResponse>> = _otpSendResult
+//    val otpSendResult: LiveData<Result<otpSendResponse>> = _otpSendResult
 
     private val _otpVerifyResult = MutableLiveData<Result<otpVerifyResponse>>()
     val otpVerifyResult: LiveData<Result<otpVerifyResponse>> = _otpVerifyResult
@@ -151,11 +151,11 @@ class Authenticate @Inject constructor(
         _tokens.value = loginRepository.getTokens()
     }
 
-    fun loadTokensFromDb() {
-        viewModelScope.launch {
-            _tokens.value = loginRepository.getTokens()
-        }
-    }
+//    fun loadTokensFromDb() {
+//        viewModelScope.launch {
+//            _tokens.value = loginRepository.getTokens()
+//        }
+//    }
 
     // ─────────────────────────────────────────────────────────────
     // Login Function
@@ -359,7 +359,7 @@ class Authenticate @Inject constructor(
         }
     }
 
-    fun RegisterVerifyOtp(email: String, otp: String) {
+    fun registerVerifyOtp(email: String, otp: String) {
         viewModelScope.launch {
             _isLoading.value = true
             Log.d("OTP_API", "Calling API with $email $otp")
@@ -568,18 +568,18 @@ class Authenticate @Inject constructor(
     // Logout
     // ─────────────────────────────────────────────────────────────
 
-    fun logout(onLoggedOut: () -> Unit) {
-        viewModelScope.launch {
-            loginRepository.clearAll()
-            _user.value = null
-            _organization.value = null
-            _settings.value = null
-            _tokens.value = null
-            _loginData.value = null
-            _accountState.value = UiState.Idle
-            onLoggedOut()
-        }
-    }
+//    fun logout(onLoggedOut: () -> Unit) {
+//        viewModelScope.launch {
+//            loginRepository.clearAll()
+//            _user.value = null
+//            _organization.value = null
+//            _settings.value = null
+//            _tokens.value = null
+//            _loginData.value = null
+//            _accountState.value = UiState.Idle
+//            onLoggedOut()
+//        }
+//    }
 
     // ─────────────────────────────────────────────────────────────
     // Reset State
@@ -593,12 +593,12 @@ class Authenticate @Inject constructor(
     // Set Login Data (for external use)
     // ─────────────────────────────────────────────────────────────
 
-    fun setLoginData(data: LoginData) {
-        _loginData.value = data
-        viewModelScope.launch {
-            loadTokens()
-        }
-    }
+//    fun setLoginData(data: LoginData) {
+//        _loginData.value = data
+//        viewModelScope.launch {
+//            loadTokens()
+//        }
+//    }
 
     // Organization.kt — add this extension function at the bottom
 

@@ -27,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.OrderViewData
 import com.cuso.mobile.model.OrderViewGarmentItem
 import com.cuso.mobile.model.OrderViewStageGroup
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.viewmodel.OrderOverviewViewModel
 import com.cuso.mobile.viewmodel.OrderViewUiState
 import com.cuso.mobile.viewmodel.OrderViewViewModel
@@ -80,7 +81,7 @@ fun OrderDetailScreen(
         when (val state = uiState) {
             is OrderViewUiState.Loading, OrderViewUiState.Idle -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Primary)
+                    CirculerProgressIndicatorReuse()
                 }
             }
             is OrderViewUiState.Error -> {
@@ -542,11 +543,8 @@ private fun OrderDetailContent(
                         ),
                     ) {
                         if (isUpdating) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
+                            CirculerProgressIndicatorReuse()
+
                         } else {
                             Text(
                                 buttonText,

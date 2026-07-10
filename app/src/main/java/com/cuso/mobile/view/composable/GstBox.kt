@@ -20,9 +20,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun GstBoxValue(
-    GstValue: String,
+    gstValue: String,
     onGstChange: (String) -> Unit
 ) {
     var checked by remember { mutableStateOf(false) }
@@ -48,14 +49,14 @@ fun GstBoxValue(
     Column {
         Text(" GST/vat/TRN/Local Tax ID", color = Color.Black)
         OutlinedTextField(
-            value = GstValue,
+            value = gstValue,
             onValueChange = onGstChange,
             placeholder = { Text("..", color = Color.Gray) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(60.dp),
             singleLine = true,
-            colors = CustomFieldColors()
+            colors = customFieldColors()
         )
     }
 }

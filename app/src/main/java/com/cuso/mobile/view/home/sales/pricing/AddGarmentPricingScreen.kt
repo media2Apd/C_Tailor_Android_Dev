@@ -26,7 +26,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.BulkRuleDto
 import com.cuso.mobile.model.PriceAdjustmentDto
@@ -236,7 +236,7 @@ fun AddGarmentPricingScreen(
 
         if (isEditMode) {
             pricingViewModel.updatePricingQuotation(
-                id = pricingId!!,
+                id = pricingId,
                 garmentCategoryId = selectedGarmentCategoryId,
                 basePrice = baseStitchingPrice.toDoubleOrNull() ?: 0.0,
                 fabricAdjustments = fabricAdjustments,
@@ -658,7 +658,7 @@ private fun MiniNumberField(
         Row(verticalAlignment = Alignment.CenterVertically) {
             // ✅ Null-safe handling for label
             Text(
-                text = label ?: "",
+                text = label ,
                 fontSize = 11.sp,
                 color = if (isError) MaterialTheme.colorScheme.error else LeadTextMuted
             )

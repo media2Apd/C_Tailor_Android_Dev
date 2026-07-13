@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.cuso.mobile.database.entities.GarmentMeasurement
@@ -1725,7 +1725,9 @@ private fun InlineGarmentPanel(
     var fabricTypeExpanded by remember { mutableStateOf(false) }
     var patternExpanded by remember { mutableStateOf(false) }
 
-    var selectedModels by remember(garment.id) { mutableStateOf(garment.models.toMutableList()) }
+    var selectedModels by remember(garment.id) {
+        mutableStateOf(garment.models.toMutableList())
+    }
     var measurements by remember(garment.id) {
         mutableStateOf(
             if (garment.measurements.isNotEmpty())

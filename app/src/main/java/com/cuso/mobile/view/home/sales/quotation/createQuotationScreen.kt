@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,15 +21,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.AddonOption
 import com.cuso.mobile.model.DesignOption
 import com.cuso.mobile.model.FabricOption
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
@@ -38,8 +37,10 @@ import com.cuso.mobile.view.home.sales.sales_order.pdfgenerator.QuotationPdfGene
 import com.cuso.mobile.viewmodel.CustomerViewModel
 import com.cuso.mobile.viewmodel.GarmentPricingUiState
 import com.cuso.mobile.viewmodel.GarmentPricingViewModel
+import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.SalesOrderViewModel
-import com.cuso.mobile.viewmodel.SalesViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -57,7 +58,14 @@ private val TipBlue = Color(0xFF2563EB)
 private const val TAX_RATE = 0.18
 
 // ── Models ──
-data class CustomerOption(val id: String, val name: String, val phone: String)
+data class CustomerOption(
+    val id: String,
+    val name: String,
+    val phone: String,
+    val addressLine: String = "",
+    val city: String = "",
+    val pincode: String = ""
+)
 
 data class GarmentOption(
     val id: String,
@@ -76,16 +84,19 @@ private fun formatPrice(amount: Double): String =
 @Composable
 fun CreateQuotationScreen(
     onClose: () -> Unit = {},
-    onSave: () -> Unit = {}
+    onSave: () -> Unit = {},
+    token: String
 ) {
     val customerViewModel: CustomerViewModel = hiltViewModel()
-    val salesViewModel: SalesViewModel = hiltViewModel()
     val salesOrderViewModel: SalesOrderViewModel = hiltViewModel()
     val garmentPricingViewModel: GarmentPricingViewModel = hiltViewModel()
+    val quotationViewModel: com.cuso.mobile.viewmodel.QuotationViewModel = hiltViewModel()
+    val profileViewModel: ProfileViewModel = hiltViewModel()
 
     val customerState by customerViewModel.uiState.collectAsStateWithLifecycle()
     val orderState by salesOrderViewModel.orderState.collectAsStateWithLifecycle()
     val garmentPricingState by garmentPricingViewModel.uiState.collectAsStateWithLifecycle()
+    val profileState by profileViewModel.uiState.collectAsStateWithLifecycle()
 
     var currentStep by remember { mutableIntStateOf(1) }
     var customerLeadTab by remember { mutableStateOf("Customer") }
@@ -94,7 +105,7 @@ fun CreateQuotationScreen(
     var selectedFabric by remember { mutableStateOf<FabricOption?>(null) }
     var selectedDesign by remember { mutableStateOf<DesignOption?>(null) }
     var selectedAddons by remember { mutableStateOf<List<AddonOption>>(emptyList()) }
-    var quantity by remember { mutableStateOf(1) }
+    var quantity by remember { mutableIntStateOf(1) }
     var previewShown by remember { mutableStateOf(false) }
 
     val customers = remember(customerState) {
@@ -104,7 +115,10 @@ fun CreateQuotationScreen(
                     CustomerOption(
                         id = customer.id,
                         name = customer.name,
-                        phone = customer.mobile ?: ""
+                        phone = customer.mobile ?: "",
+                        addressLine = customer.address?.addressLine ?: "",
+                        city = customer.address?.city ?: "",
+                        pincode = customer.address?.pincode ?: ""
                     )
                 }
             }
@@ -167,6 +181,24 @@ fun CreateQuotationScreen(
         customerViewModel.loadCustomers()
         salesOrderViewModel.fetchOrders()
         garmentPricingViewModel.loadGarmentPricing()
+        profileViewModel.loadOrganization(token)
+    }
+    val organizationLogoUrl = remember(profileState) {
+        (profileState as? com.cuso.mobile.viewmodel.ProfileUiState.Success)
+            ?.data?.organization?.organizationPicture ?: ""
+    }
+    var logoBase64 by remember { mutableStateOf("") }
+    LaunchedEffect(organizationLogoUrl) {
+        if (organizationLogoUrl.isNotEmpty()) {
+            logoBase64 = withContext(Dispatchers.IO) {
+                try {
+                    val bytes = java.net.URL(organizationLogoUrl).readBytes()
+                    "data:image/png;base64," + android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                } catch (_: Exception) {
+                    ""
+                }
+            }
+        }
     }
 
     LaunchedEffect(selectedCustomerId) {
@@ -269,11 +301,13 @@ fun CreateQuotationScreen(
                 )
 
                 3 -> Step3PricingSummary(
+                    token = token,
                     previewShown = previewShown,
                     onPreview = { previewShown = true },
-                    onComplete = { onSave() },  // ✅ Add this line
+                    onComplete = { onSave() },
                     customerName = selectedCustomer?.name ?: "-",
                     garmentName = selectedGarment?.name ?: "-",
+                    logoBase64 = logoBase64,
                     fabricName = selectedFabric?.name ?: "-",
                     designName = selectedDesign?.name ?: "-",
                     quantity = quantity,
@@ -291,41 +325,70 @@ fun CreateQuotationScreen(
                             rate = if (quantity > 0) subtotal / quantity else 0.0,
                             amount = subtotal
                         )
-                    )
+                    ),
+                    customerId = selectedCustomerId,
+                    garmentCategoryId = selectedGarmentId,
+                    basePrice = basePrice,
+                    fabricOption = selectedFabric,
+                    designOption = selectedDesign,
+                    addonOptions = selectedAddons,
+                    quotationViewModel = quotationViewModel,
+                    customerSnapshotName = selectedCustomer?.name ?: "",
+                    customerSnapshotPhone = selectedCustomer?.phone ?: "",
+                    customerSnapshotAddressLine = selectedCustomer?.addressLine ?: "",
+                    customerSnapshotCity = selectedCustomer?.city ?: "",
+                    customerSnapshotPincode = selectedCustomer?.pincode ?: "",
+                    onEdit = {
+                        previewShown = false
+                        currentStep = 2
+                    }
                 )
             }
 
             Spacer(Modifier.height(90.dp))
         }
 
-        StepNavigationFab(
-            showBack = currentStep > 1,
-            onBack = { goToPreviousStep() },
-            backLabel = if (currentStep == 1) "Cancel" else "Back",
-            trailingAction = when {
-                currentStep == 3 && previewShown -> {
-                    TrailingFabAction.Update(
-                        isLoading = false,
-                        label = "Send Quotation",
-                        onClick = { onSave() }
-                    )
-                }
-                currentStep == 3 -> {
-                    TrailingFabAction.Next(
-                        label = "Preview",
-                        onClick = { previewShown = true }
-                    )
-                }
-                else -> {
-                    TrailingFabAction.Next(
-                        label = if (currentStep == 1) "Next" else "Next",
-                        onClick = { goToNextStep() }
-                    )
-                }
-            },
-            backWidthFraction = 0.30f,
-            trailingWidthFraction = 0.40f
-        )
+        if (!(currentStep == 3 && previewShown)) {
+            StepNavigationFab(
+                showBack = currentStep > 1,
+                onBack = { goToPreviousStep() },
+                backLabel = if (currentStep == 1) "Cancel" else "Back",
+                trailingAction = when (currentStep) {
+                    3 -> TrailingFabAction.Next(label = "Preview", onClick = { previewShown = true })
+                    else -> TrailingFabAction.Next(label = "Next", onClick = { goToNextStep() })
+                },
+                backWidthFraction = 0.30f,
+                trailingWidthFraction = 0.40f
+            )
+        }
+    }
+}
+
+@Composable
+private fun SendQuotationSection(
+    onEmail: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+        Text("Send Quotation", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TitleDark)
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+
+            Button(
+                onClick = onEmail,
+                modifier = Modifier.weight(1f).height(44.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Purple)
+            ) {
+                Icon(
+                    Icons.Default.Share,
+                    contentDescription = "Share",
+                    modifier = Modifier.size(16.dp),
+                    tint = Color.White
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("Share", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.White)
+            }
+        }
     }
 }
 
@@ -572,6 +635,7 @@ private fun Step2GarmentDetails(
     TipBanner("Tip: You can apply discounts in the next step.")
 }
 
+@Suppress("SameParameterValue")
 @Composable
 private fun OptionSelectionGrid(
     title: String,
@@ -628,6 +692,7 @@ private fun OptionSelectionGrid(
     }
 }
 
+@Suppress("SameParameterValue")
 @Composable
 private fun GarmentOptionGrid(
     title: String,
@@ -684,6 +749,7 @@ private fun GarmentOptionGrid(
     }
 }
 
+@Suppress("SameParameterValue")
 @Composable
 private fun AddonSelectionGrid(
     title: String,
@@ -778,17 +844,17 @@ private fun QuantitySelector(
 // ─────────────────────────────────────────────────────────────
 // STEP 3 — Pricing Summary with PDF Preview
 // ─────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────
-// STEP 3 — Pricing Summary with PDF Preview
-// ─────────────────────────────────────────────────────────────
+@Suppress("unused_parameter")
 @Composable
 private fun Step3PricingSummary(
+    token: String,
     previewShown: Boolean,
     onPreview: () -> Unit,
-    onComplete: () -> Unit = {},  // ✅ Add this parameter
+    onComplete: () -> Unit = {},
     customerName: String,
     garmentName: String,
     fabricName: String,
+    logoBase64: String = "",
     designName: String,
     quantity: Int,
     subtotal: Double,
@@ -807,32 +873,115 @@ private fun Step3PricingSummary(
         "First fitting will be provided after 7 days",
         "One free alteration included within 30 days",
         "Express delivery subject to fabric availability"
-    )
+    ),
+    onEdit: () -> Unit = {},
+    customerId: String? = null,
+    garmentCategoryId: String? = null,
+    basePrice: Double = 0.0,
+    fabricOption: FabricOption? = null,
+    designOption: DesignOption? = null,
+    addonOptions: List<AddonOption> = emptyList(),
+    quotationViewModel: com.cuso.mobile.viewmodel.QuotationViewModel? = null,
+    customerSnapshotName: String = "",
+    customerSnapshotPhone: String = "",
+    customerSnapshotAddressLine: String = "",
+    customerSnapshotCity: String = "",
+    customerSnapshotPincode: String = ""
 ) {
     var isDownloading by remember { mutableStateOf(false) }
+    var isSavingDraft by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val pdfGenerator = remember { QuotationPdfGenerator(context) }
 
+    val saveState = quotationViewModel?.saveState?.collectAsStateWithLifecycle()?.value
+
+    LaunchedEffect(saveState) {
+        when (saveState) {
+            is com.cuso.mobile.viewmodel.QuotationSaveUiState.Success -> {
+                isSavingDraft = false
+                Toast.makeText(context, "Saved as draft: ${saveState.quotation.quotationNumber}", Toast.LENGTH_LONG).show()
+                quotationViewModel.resetState()
+            }
+            is com.cuso.mobile.viewmodel.QuotationSaveUiState.Error -> {
+                isSavingDraft = false
+                Toast.makeText(context, "Failed to save draft: ${saveState.message}", Toast.LENGTH_SHORT).show()
+                quotationViewModel.resetState()
+            }
+            is com.cuso.mobile.viewmodel.QuotationSaveUiState.Loading -> {
+                isSavingDraft = true
+            }
+            else -> Unit
+        }
+    }
+
+    fun buildSaveDraftRequest(): com.cuso.mobile.model.CreateQuotationRequest? {
+        val custId = customerId ?: return null
+        val garmentId = garmentCategoryId ?: return null
+
+        val perUnitAmount = basePrice + (fabricOption?.price ?: 0.0) + (designOption?.price ?: 0.0) +
+                addonOptions.sumOf { it.price }
+        val itemAmount = perUnitAmount * quantity
+
+        return com.cuso.mobile.model.CreateQuotationRequest(
+            customerId = custId,
+            leadId = null,
+            customerSnapshot = com.cuso.mobile.model.CustomerSnapshot(
+                name = customerSnapshotName,
+                phone = customerSnapshotPhone,
+                email = "",
+                address = com.cuso.mobile.model.CustomerSnapshotAddress(
+                    addressLine = customerSnapshotAddressLine,
+                    city = customerSnapshotCity,
+                    pincode = customerSnapshotPincode
+                )
+            ),
+            items = listOf(
+                com.cuso.mobile.model.QuotationItemInput(
+                    garmentCategoryId = garmentId,
+                    garmentName = garmentName,
+                    quantity = quantity,
+                    basePrice = basePrice,
+                    fabric = fabricOption?.let { com.cuso.mobile.model.QuotationOptionInput(it.name, it.price) },
+                    design = designOption?.let { com.cuso.mobile.model.QuotationOptionInput(it.name, it.price) },
+                    addons = addonOptions.map { com.cuso.mobile.model.QuotationOptionInput(it.name, it.price) },
+                    expressCharge = 0.0,
+                    unitPrice = perUnitAmount,
+                    totalPrice = itemAmount
+                )
+            ),
+            subTotal = subtotal,
+            taxPercent = TAX_RATE * 100,
+            taxAmount = tax,
+            discountAmount = 0.0,
+            grandTotal = total,
+            status = "draft",
+            notes = ""
+        )
+    }
+
     val pdfData = remember(
-        customerName, garmentName, fabricName, designName, quantity, subtotal, total
+        customerName, garmentName, fabricName, designName, quantity, subtotal, total, logoBase64
     ) {
         QuotationPdfGenerator.QuotationData(
             quotationNumber = quotationNumber,
             quotationDate = quotationDate,
             customerName = customerName,
+            logoUrl = logoBase64.ifEmpty { null },
             customerAddress = customerAddress.ifEmpty { "4304 Liberty Avenue\n92680 Tustin, CA" },
             customerVat = customerVat,
             customerEmail = customerEmail,
             customerPhone = customerPhone,
-            items = if (items.isNotEmpty()) items else listOf(
-                QuotationPdfGenerator.QuotationItem(
-                    description = garmentName,
-                    quantity = quantity,
-                    rate = if (quantity > 0) subtotal / quantity else 0.0,
-                    amount = subtotal
+            items = items.ifEmpty {
+                listOf(
+                    QuotationPdfGenerator.QuotationItem(
+                        description = garmentName,
+                        quantity = quantity,
+                        rate = if (quantity > 0) subtotal / quantity else 0.0,
+                        amount = subtotal
+                    )
                 )
-            ),
+            },
             subtotal = subtotal,
             discountPercent = 0.0,
             discountAmount = 0.0,
@@ -841,6 +990,15 @@ private fun Step3PricingSummary(
             thankYouMessage = "Thank you for your business!",
             poweredBy = "This is a computer-generated quotation and does not require a signature."
         )
+    }
+
+    val saveDraftAction: () -> Unit = {
+        val request = buildSaveDraftRequest()
+        if (request == null) {
+            Toast.makeText(context, "Please select a customer and garment first", Toast.LENGTH_SHORT).show()
+        } else if (!isSavingDraft) {
+            quotationViewModel?.saveDraft(request)
+        }
     }
 
     if (!previewShown) {
@@ -869,11 +1027,12 @@ private fun Step3PricingSummary(
             quantity = quantity,
             showAllItems = false
         )
+
         TipBanner("Tip: You can apply discounts in the next step.")
         QuickActionsRow(
             onDiscount = {},
-            onEdit = {},
-            onSaveDraft = {}
+            onEdit = onEdit,
+            onSaveDraft = saveDraftAction
         )
     } else {
         Column(
@@ -881,88 +1040,83 @@ private fun Step3PricingSummary(
                 .fillMaxWidth()
                 .fillMaxHeight()
         ) {
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Download button la location um kattu
-                OutlinedButton(
-                    onClick = {
-                        if (!isDownloading) {
-                            isDownloading = true
-                            try {
-                                val file = pdfGenerator.downloadQuotationPdf(pdfData)
-                                if (file != null && file.exists()) {
-                                    // ✅ Show full path in toast
-                                    val filePath = file.absolutePath
-                                    Toast.makeText(
-                                        context,
-                                        "✅ Downloaded: ${file.name}\n📁 Location: $filePath",
-                                        Toast.LENGTH_LONG
-                                    ).show()
+                // Preview Title on the left
+                Text(
+                    text = "Preview",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TitleDark
+                )
 
-                                    // ✅ Optional: Open file location
-                                    // showFileLocation(context, file)
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        "❌ Failed to download PDF",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                // Icons on the right
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Download Icon Button
+                    IconButton(
+                        onClick = {
+                            if (!isDownloading) {
+                                isDownloading = true
+                                pdfGenerator.downloadQuotationPdf(pdfData) { saved ->
+                                    isDownloading = false
+                                    if (saved != null) {
+                                        Toast.makeText(
+                                            context,
+                                            "Downloaded: ${saved.displayName}",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            "Failed to download PDF",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                                 }
-                            } catch (e: Exception) {
-                                Toast.makeText(
-                                    context,
-                                    "❌ Error: ${e.message}",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                e.printStackTrace()
-                            } finally {
-                                isDownloading = false
                             }
+                        },
+                        enabled = !isDownloading,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        if (isDownloading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = Primary
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Download,
+                                contentDescription = "Download",
+                                modifier = Modifier.size(24.dp),
+                                tint = Primary
+                            )
                         }
-                    },
-                    modifier = Modifier.height(36.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    enabled = !isDownloading
-                ) {
-                    if (isDownloading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = Purple
-                        )
-                    } else {
-                        Icon(
-                            Icons.Default.Download,
-                            contentDescription = "Download",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text("Download", fontSize = 12.sp)
                     }
-                }
 
-                Spacer(Modifier.width(8.dp))
-
-                Button(
-                    onClick = {
-                        pdfGenerator.printQuotationPdf(pdfData)
-                    },
-                    modifier = Modifier.height(36.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Purple)
-                ) {
-                    Icon(
-                        Icons.Default.Print,
-                        contentDescription = "Print",
-                        modifier = Modifier.size(18.dp),
-                        tint = Color.White
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text("Print", fontSize = 12.sp, color = Color.White)
+                    // Print Icon Button
+                    IconButton(
+                        onClick = {
+                            pdfGenerator.printQuotationPdf(pdfData)
+                        },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Print,
+                            contentDescription = "Print",
+                            modifier = Modifier.size(24.dp),
+                            tint = Primary
+                        )
+                    }
                 }
             }
 
@@ -997,8 +1151,27 @@ private fun Step3PricingSummary(
 
             QuickActionsRow(
                 onDiscount = {},
-                onEdit = {},
-                onSaveDraft = {}
+                onEdit = onEdit,
+                onSaveDraft = saveDraftAction
+            )
+
+            SendQuotationSection(
+                onEmail = {
+                    pdfGenerator.downloadQuotationPdf(pdfData) { saved ->
+                        val uri = saved?.uri
+                        if (uri != null) {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "application/pdf"
+                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, "Quotation $quotationNumber")
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(android.content.Intent.createChooser(intent, "Send via Email"))
+                        } else {
+                            Toast.makeText(context, "Failed to prepare PDF", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             )
         }
     }
@@ -1016,7 +1189,11 @@ private fun SummaryRow(label: String, value: String) {
 }
 
 @Composable
-private fun QuickActionsRow(onDiscount: () -> Unit, onEdit: () -> Unit, onSaveDraft: () -> Unit) {
+private fun QuickActionsRow(
+    onDiscount: () -> Unit,
+    onEdit: () -> Unit,
+    onSaveDraft: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
         Text("Quick Actions", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TitleDark)
         Spacer(Modifier.height(10.dp))
@@ -1115,6 +1292,7 @@ private fun StepCircle(stepNum: Int, currentStep: Int) {
     }
 }
 
+@Suppress("unused_parameter")
 @Composable
 private fun PriceBreakdownCard(
     garment: String = "-",
@@ -1209,6 +1387,7 @@ private fun BreakdownRow(label: String, value: String) {
     }
 }
 
+@Suppress("SameParameterValue")
 @Composable
 private fun TipBanner(text: String) {
     Row(
@@ -1230,9 +1409,3 @@ data class OptionWithPrice(
     val name: String,
     val price: Double
 )
-
-@Preview(showBackground = true, widthDp = 360, heightDp = 780)
-@Composable
-private fun CreateQuotationScreenPreview() {
-    CreateQuotationScreen()
-}

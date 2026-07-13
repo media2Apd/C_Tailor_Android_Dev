@@ -900,9 +900,7 @@ private fun buildFrequentlyUsed(context: Context, menuItems: List<MenuItem>): Li
     // No usage history yet -> this is an "Explore" prompt, not "Frequently Used".
     // Show modules the user hasn't opened at all, so it genuinely invites exploration
     // rather than repeating whatever happens to be first in the menu config.
-    val labelsToShow = if (recentlyUsed.isNotEmpty()) {
-        recentlyUsed
-    } else {
+    val labelsToShow = recentlyUsed.ifEmpty {
         candidateLabels.take(3)
     }
 
@@ -960,6 +958,7 @@ fun ModulesPanel(
 // ─────────────────────────────────────────────────────────────
 // 🧩 Reusable Modules Panel Content
 // ─────────────────────────────────────────────────────────────
+@Suppress("SameParameterValue")
 
 @Composable
 private fun ModulesPanelContent(

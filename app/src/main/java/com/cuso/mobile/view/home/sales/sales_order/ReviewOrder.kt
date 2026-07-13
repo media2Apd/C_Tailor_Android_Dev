@@ -26,7 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.*
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
@@ -53,8 +53,6 @@ private val SectionBg = Color(0xFFF9FAFB)
 private val BorderLight = Color(0xFFF0F0F0)
 private val StatusGreenBg = Color(0xFFDCFCE7)
 private val StatusGreenText = Color(0xFF16A34A)
-private val StatusRedBg = Color(0xFFFEE2E2)
-private val StatusRedText = Color(0xFFDC2626)
 private val StatusOrangeBg = Color(0xFFFEF3C7)
 private val StatusOrangeText = Color(0xFFD97706)
 private val StatusGreyBg = Color(0xFFF3F4F6)
@@ -389,7 +387,7 @@ private fun OverviewTab(data: OrderOverviewData) {
         SectionTitle("Customer Information")
         InfoRow("Name", customer.name)
         InfoRow("Phone", "+91 ${customer.mobile.takeLast(10)}")
-        InfoRow("Gender", customer.gender)
+        InfoRow("Gender", customer.gender?:"_")
         InfoRow("Address", listOfNotNull(customer.address?.addressLine, customer.address?.city).joinToString(", ").ifBlank { "—" })
 
         Spacer(Modifier.height(10.dp))
@@ -1362,6 +1360,7 @@ private fun SectionTitle(title: String) {
             .padding(vertical = 10.dp)
     )
 }
+@Suppress("SameParameterValue")
 
 @Composable
 private fun SectionBlock(title: String, subtitle: String) {
@@ -1416,6 +1415,7 @@ private fun InfoRow(label: String, value: String, valueColor: Color = TextPrimar
     }
     HorizontalDivider(color = Color(0xFFF5F5F5))
 }
+@Suppress("SameParameterValue")
 
 @Composable
 private fun InfoRowWithBadge(label: String, status: String) {

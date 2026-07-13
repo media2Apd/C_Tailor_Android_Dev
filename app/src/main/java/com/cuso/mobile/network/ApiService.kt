@@ -16,6 +16,8 @@ import com.cuso.mobile.model.BranchListResponse
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
 import com.cuso.mobile.model.CreateOrderResponse
+import com.cuso.mobile.model.CreateQuotationRequest
+import com.cuso.mobile.model.CreateQuotationResponse
 import com.cuso.mobile.model.CustomerSearchResponse
 import com.cuso.mobile.model.DeleteLeadResponse
 import com.cuso.mobile.model.DepartmentCreateRequest
@@ -640,5 +642,12 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<GarmentPricingResponse>
+
+    @POST("/api/quotations/create")
+    suspend fun createQuotation(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: CreateQuotationRequest
+    ): Response<CreateQuotationResponse>
 
 }

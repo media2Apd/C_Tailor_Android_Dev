@@ -16,6 +16,7 @@ sealed class GarmentPricingUiState {
     data class Success(val items: List<GarmentPricingItem>) : GarmentPricingUiState()
     data class Error(val message: String) : GarmentPricingUiState()
 }
+@Suppress("unused_parameter")
 
 @HiltViewModel
 class GarmentPricingViewModel @Inject constructor(

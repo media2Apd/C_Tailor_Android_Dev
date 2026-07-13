@@ -1,7 +1,7 @@
 package com.cuso.mobile.view.home
 
 import androidx.compose.runtime.*
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.mobile.view.home.sales.sales_order.CreateOrderScreen
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel

@@ -2,6 +2,7 @@
 
 package com.cuso.mobile.view.home.sales
 
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,7 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
@@ -58,6 +59,7 @@ fun SalesSettingsScreen(
 //   added   = selectedIds - originalIds  → addOrgGarmentCategory() one by one
 //   removed = originalIds - selectedIds  → removeOrgGarmentCategory() one by one
 // ─────────────────────────────────────────────────────────────
+@SuppressLint("MutableCollectionMutableState")
 @Suppress("UNUSED_PARAMETER")
 
 @Composable

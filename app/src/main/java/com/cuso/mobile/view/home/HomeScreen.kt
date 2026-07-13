@@ -38,7 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.viewmodel.HomeViewModel
@@ -160,6 +160,8 @@ val LeadTextMuted = Color(0xFF9CA3AF)
 @Composable
 fun HomeScreen(navController: NavHostController) {
     val viewModel: HomeViewModel = hiltViewModel()
+    val authViewModel: Authenticate = hiltViewModel()   // ✅ if not already scoped here
+    val token: String = authViewModel.tokens.value?.accessToken ?: ""
     val isLoggedOut: Boolean by viewModel.isLoggedOut.collectAsStateWithLifecycle(initialValue = false)
     var currentScreen by remember { mutableStateOf("home") }
     var isDrawerOpen by remember { mutableStateOf(false) }
@@ -603,7 +605,9 @@ fun HomeScreen(navController: NavHostController) {
                     )
 
                     "create_quotation" -> CreateQuotationScreen(
-                        onClose = { currentScreen = "sales_pricing_quotation" }
+                        onClose = { currentScreen = "sales_pricing_quotation" },
+                        token = token
+
                         // editingPricingId (null = new pricing, non-null = editing) is available here
                         // if CreateQuotationScreen needs to know which mode it's in, pass it in:
                         // pricingId = editingPricingId
@@ -621,11 +625,11 @@ fun HomeScreen(navController: NavHostController) {
                         onCardClick = { pricingId -> editingPricingId = pricingId; currentScreen = "create_garment_pricing" }
                     )
 
-                    "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
-                        onBack = { currentScreen = "sales_pricing_quotation" },   // ✅ no token line
-                        onAddNewPricing = { editingPricingId = null; currentScreen = "create_garment_pricing" },
-                        onCardClick = { pricingId -> editingPricingId = pricingId; currentScreen = "create_garment_pricing" }
-                    )
+//                    "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
+//                        onBack = { currentScreen = "sales_pricing_quotation" },   // ✅ no token line
+//                        onAddNewPricing = { editingPricingId = null; currentScreen = "create_garment_pricing" },
+//                        onCardClick = { pricingId -> editingPricingId = pricingId; currentScreen = "create_garment_pricing" }
+//                    )
 
                     "create_garment_pricing" -> com.cuso.mobile.view.home.sales.pricing.AddGarmentPricingScreen(
                         pricingId = editingPricingId,             // ✅ null = Add, non-null = Edit

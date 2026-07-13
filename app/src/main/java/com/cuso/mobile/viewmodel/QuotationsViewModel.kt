@@ -2,6 +2,8 @@ package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.mobile.model.CreateQuotationRequest
+import com.cuso.mobile.model.QuotationCreatedData
 import com.cuso.mobile.model.QuotationItemDto
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,6 +19,13 @@ sealed class QuotationUiState {
     data class Error(val message: String) : QuotationUiState()
 }
 
+sealed class QuotationSaveUiState {
+    object Idle : QuotationSaveUiState()
+    object Loading : QuotationSaveUiState()
+    data class Success(val quotation: QuotationCreatedData) : QuotationSaveUiState()
+    data class Error(val message: String) : QuotationSaveUiState()
+}
+
 @HiltViewModel
 class QuotationViewModel @Inject constructor(
     private val salesRepository: SalesRepository
@@ -24,6 +33,11 @@ class QuotationViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<QuotationUiState>(QuotationUiState.Loading)
     val uiState: StateFlow<QuotationUiState> = _uiState.asStateFlow()
+
+    private val _saveState = MutableStateFlow<QuotationSaveUiState>(QuotationSaveUiState.Idle)
+    val saveState: StateFlow<QuotationSaveUiState> = _saveState.asStateFlow()
+
+
 
     private var currentPage = 1
     private var currentSearch: String? = null
@@ -46,6 +60,30 @@ class QuotationViewModel @Inject constructor(
                     _uiState.value = QuotationUiState.Error(e.message ?: "Failed to load quotations")
                 }
         }
+    }
+
+
+
+    fun saveDraft(request: CreateQuotationRequest) {
+        viewModelScope.launch {
+            _saveState.value = QuotationSaveUiState.Loading
+            salesRepository.createQuotation(request)
+                .onSuccess { response ->
+                    val data = response.data
+                    if (response.success && data != null) {
+                        _saveState.value = QuotationSaveUiState.Success(data)
+                    } else {
+                        _saveState.value = QuotationSaveUiState.Error("Failed to save quotation")
+                    }
+                }
+                .onFailure { e ->
+                    _saveState.value = QuotationSaveUiState.Error(e.message ?: "Unknown error")
+                }
+        }
+    }
+
+    fun resetState() {
+        _saveState.value = QuotationSaveUiState.Idle
     }
 
     // ✅ Call this from the search bar's onValueChange (debounce if needed)

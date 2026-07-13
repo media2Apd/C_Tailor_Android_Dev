@@ -21,6 +21,8 @@ import com.cuso.mobile.model.CategoryItem
 import com.cuso.mobile.model.CreateLeadFormRequest
 import com.cuso.mobile.model.CreateLeadFormResponse
 import com.cuso.mobile.model.CreateOrderRequest
+import com.cuso.mobile.model.CreateQuotationRequest
+import com.cuso.mobile.model.CreateQuotationResponse
 import com.cuso.mobile.model.CustomerListResponse
 import com.cuso.mobile.model.CustomerSearchResponse
 import com.cuso.mobile.model.CustomerViewData
@@ -1078,6 +1080,31 @@ class SalesRepository @Inject constructor(
             } else {
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to fetch garment pricing: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createQuotation(
+        request: CreateQuotationRequest
+    ): Result<CreateQuotationResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.createQuotation(
+                token = accessToken,
+                csrfToken = csrfToken,
+                request = request
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(
+                        response.errorBody()?.string()
+                            ?: "Failed to save quotation: ${response.code()}"
+                    )
                 )
             }
         } catch (e: Exception) {

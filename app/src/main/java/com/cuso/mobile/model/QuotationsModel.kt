@@ -77,3 +77,75 @@ data class AddonDetail(
     val label: String = "",
     val price: Double = 0.0
 )
+
+
+
+
+// ── Request ──
+data class CreateQuotationRequest(
+    val customerId: String,
+    val leadId: String? = null,
+    val customerSnapshot: CustomerSnapshot,   // ➕ ADD THIS LINE
+    val items: List<QuotationItemInput>,
+    val subTotal: Double,
+    val taxPercent: Double,
+    val taxAmount: Double,
+    val discountAmount: Double = 0.0,
+    val grandTotal: Double,
+    val status: String = "draft",
+    val notes: String = ""
+)
+
+data class QuotationItemInput(
+    val garmentCategoryId: String,
+    val garmentName: String,
+    val quantity: Int,
+    val basePrice: Double,
+    val fabric: QuotationOptionInput? = null,
+    val design: QuotationOptionInput? = null,
+    val addons: List<QuotationOptionInput> = emptyList(),
+    val expressCharge: Double = 0.0,
+    val unitPrice: Double,
+    val totalPrice: Double
+)
+
+data class QuotationOptionInput(
+    val label: String,
+    val price: Double
+)
+
+// ── Response ──
+data class CreateQuotationResponse(
+    val success: Boolean,
+    val data: QuotationCreatedData?
+)
+
+data class QuotationCreatedData(
+    val organizationId: String,
+    val quotationNumber: String,
+    val _id: String,
+    val customerId: String,
+    val items: List<QuotationItemInput>,
+    val subTotal: Double,
+    val taxPercent: Double,
+    val taxAmount: Double,
+    val discountAmount: Double,
+    val grandTotal: Double,
+    val status: String,
+    val notes: String,
+    val createdAt: String,
+    val updatedAt: String
+)
+
+data class CustomerSnapshotAddress(
+    val addressLine: String = "",
+    val city: String = "",
+    val pincode: String = ""
+)
+
+data class CustomerSnapshot(
+    val name: String,
+    val phone: String,              // ⚠️ "phone" — NOT "mobile"
+    val email: String = "",
+    val address: CustomerSnapshotAddress = CustomerSnapshotAddress()
+)

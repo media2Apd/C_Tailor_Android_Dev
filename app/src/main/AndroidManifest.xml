@@ -22,7 +22,7 @@
         android:theme="@style/Theme.App.Starting">
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
+            android:authorities="com.cuso.mobile.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data

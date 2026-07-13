@@ -37,7 +37,7 @@ data class OrderOverviewCustomer(
     val name: String,
     val email: String? = null,
     val mobile: String,
-    val gender: String,
+    val gender: String?=null,
     val dob: String? = null,
     val address: OrderOverviewAddress? = null
 )

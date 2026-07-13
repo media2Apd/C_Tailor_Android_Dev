@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -67,8 +67,8 @@ fun SalesOrderScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf("all") }
-    var page by remember { mutableStateOf(1) }
-    var itemsPerPage by remember { mutableStateOf(10) }
+    var page by remember { mutableIntStateOf(1) }
+    var itemsPerPage by remember { mutableIntStateOf(10) }
     var showStatusDropdown by remember { mutableStateOf(false) }
 
     LaunchedEffect(page, itemsPerPage, statusFilter, searchQuery) {

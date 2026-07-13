@@ -419,7 +419,7 @@
                         contentAlignment = Alignment.Center
                     ) {
                         if (accountState is UiState.Loading) {
-                            CirculerProgressIndicatorReuse()
+                            CirculerProgressIndicatorSmall()
                         } else {
                             Text(
                                 text = if (isSubmitted) "Continue" else "Verify Mail",

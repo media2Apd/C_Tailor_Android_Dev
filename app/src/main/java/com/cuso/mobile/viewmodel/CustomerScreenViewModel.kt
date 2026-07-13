@@ -38,6 +38,7 @@ class CustomerViewModel @Inject constructor(
     init {
         loadCustomers()
     }
+    
 
     fun loadCustomers(
         page: Int = currentPage,

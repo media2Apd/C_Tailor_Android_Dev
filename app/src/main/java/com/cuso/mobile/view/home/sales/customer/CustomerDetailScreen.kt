@@ -23,7 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.customFieldOutlinedColors
@@ -638,6 +638,8 @@ private fun MeasurementsStep(isEditMode: Boolean) {
 // ─────────────────────────────────────────────────────────────
 // Small row helper for label + value/badge pairs (Insights section)
 // ─────────────────────────────────────────────────────────────
+@Suppress("SameParameterValue")
+
 @Composable
 private fun InsightRow(label: String, value: String) {
     Row(

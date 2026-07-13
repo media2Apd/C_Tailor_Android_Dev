@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorForButton
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 
 /**
  * Describes what the trailing (bottom-end) FAB should do/show.

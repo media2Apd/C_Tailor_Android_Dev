@@ -44,6 +44,7 @@ sealed class DepartmentDeleteUiState {
     object Success : DepartmentDeleteUiState()
     data class Error(val message: String) : DepartmentDeleteUiState()
 }
+@Suppress("unused_parameter")
 
 @HiltViewModel
 class DepartmentViewModel @Inject constructor(
@@ -76,7 +77,7 @@ class DepartmentViewModel @Inject constructor(
                     if (response.success) {
                         _uiState.value = DepartmentUiState.Success(response.data)
                     } else {
-                        _uiState.value = DepartmentUiState.Error(response.toString() ?: "Failed to load departments")
+                        _uiState.value = DepartmentUiState.Error(response.toString() )
                     }
                 },
                 onFailure = { e ->
@@ -95,7 +96,7 @@ class DepartmentViewModel @Inject constructor(
                     if (response.success) {
                         _uiState.value = DepartmentUiState.Success(response.data)
                     } else {
-                        _uiState.value = DepartmentUiState.Error(response.toString() ?: "Failed to load departments")
+                        _uiState.value = DepartmentUiState.Error(response.toString() )
                     }
                 },
                 onFailure = { e ->

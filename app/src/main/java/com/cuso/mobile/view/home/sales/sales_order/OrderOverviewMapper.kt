@@ -12,21 +12,21 @@ fun OrderOverviewData.toOrderReviewData(): OrderReviewData {
         orderId = order._id,
         customerId = customer._id,
         branchId = order.branch._id,
-        fullName = customer.name ?: "",
+        fullName = customer.name ,
         countryCode = "+91",
         phone = customer.mobile.takeLast(10),
         gender = customer.gender ?: "",  // ✅ Already has null safety
-        dressFor = order.wearerType ?: "",
+        dressFor = order.wearerType ,
         address = customer.address?.addressLine ?: "",
         garments = this.items.map { item ->
             SelectedGarment(
                 category = item._id,
-                categoryName = item.categoryName ?: "",
+                categoryName = item.categoryName ,
                 categoryId = item._id,
-                quantity = item.quantity ?: 1,
-                price = item.stitchingCharge ?: 0.0,
-                priority = item.priority ?: "Low",
-                trialRequired = item.trialRequired ?: false,
+                quantity = item.quantity,
+                price = item.stitchingCharge ,
+                priority = item.priority ,
+                trialRequired = item.trialRequired ,
                 fabricSource = item.fabricDetails?.fabricSource ?: "In-House",
                 fabricType = item.fabricDetails?.fabricType ?: "",
                 colorTone = item.fabricDetails?.color ?: "",
@@ -36,11 +36,11 @@ fun OrderOverviewData.toOrderReviewData(): OrderReviewData {
             )
         },
         orderDate = flipToDdMmYyyy(order.orderDate.take(10)),
-        source = order.source ?: "Walk-in",
+        source = order.source,
         trialDate = order.trialDate?.take(10)?.let { flipToDdMmYyyy(it) } ?: "",
         deliveryDate = order.deliveryDate?.take(10)?.let { flipToDdMmYyyy(it) } ?: "",
-        discount = order.discount ?: 0.0,
-        paidSoFar = order.totalPaid ?: 0.0,
+        discount = order.discount,
+        paidSoFar = order.totalPaid ,
         designImages = emptyList(),
         existingImageUrls = emptyList()
     )

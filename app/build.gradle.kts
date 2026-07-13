@@ -10,18 +10,23 @@ plugins {
 android {
     namespace = "com.cuso.mobile"
 
-    // Recommended stable target (avoid preview SDK 37 unless required)
-    compileSdk = 36
+    compileSdk = 37
 
     packaging {
         resources {
-            excludes += "META-INF/*"
+            excludes += setOf(
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+                "META-INF/AL2.0",
+                "META-INF/LGPL2.1"
+            )
         }
     }
 
     defaultConfig {
         applicationId = "com.cuso.mobile"
         minSdk = 25
+        //noinspection OldTargetApi
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -38,7 +43,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    // ✅ FIX: Replace deprecated kotlinOptions
     kotlin {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
@@ -70,27 +74,22 @@ dependencies {
 
     // Core
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.foundation)
-    implementation(libs.androidx.foundation.layout)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.material3)
 
-    // Navigation (UPDATED)
+    // Navigation
     implementation(libs.androidx.navigation.compose)
 
-    // Splash (UPDATED)
+    // Splash
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.room3.common.jvm)
-    implementation(libs.androidx.runtime)
-    implementation(libs.compose.material3)
-    implementation(libs.foundation)
 
-    // Google Auth (UPDATED)
+    // Google Auth
+    //noinspection LoginCredentials
     implementation(libs.play.services.auth)
 
     implementation(libs.firebase.ai)
 
-    // Coroutines (UPDATED)
+    // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
     // Room
@@ -98,12 +97,12 @@ dependencies {
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
 
-    // Hilt (UPDATED)
+    // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
-    // Firebase (UPDATED BOM)
+    // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.auth)
@@ -111,22 +110,21 @@ dependencies {
     // Icons
     implementation(libs.androidx.compose.material.icons.extended)
 
-    // Gson (UPDATED)
+    // Gson
     implementation(libs.gson)
 
-    // Retrofit + OkHttp (UPDATED)
+    // Retrofit + OkHttp
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
     implementation(libs.logging.interceptor)
 
-    // Phone validation (UPDATED)
+    // Phone validation
     implementation(libs.libphonenumber)
 
     // Coil
     implementation(libs.coil.compose)
 
     // Charts
-    implementation(libs.vico.core)
     implementation(libs.vico.compose)
     implementation(libs.vico.compose.m3)
 
@@ -134,19 +132,18 @@ dependencies {
     testImplementation(libs.junit)
 
     // Instrumented tests
-    androidTestImplementation("androidx.test.ext:junit:1.3.0")
-    androidTestImplementation("androidx.test:runner:1.7.0")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.runner)
+    androidTestImplementation(libs.androidx.espresso.core)
 
-    implementation("com.google.accompanist:accompanist-permissions:0.37.3")
+    implementation(libs.accompanist.permissions)
 
-    implementation("com.github.skydoves:colorpicker-compose:1.1.2")
+    implementation(libs.colorpicker.compose)
 
     // iText7 for PDF generation
-    implementation("com.itextpdf:itext7-core:7.2.5")
-
-// For printing
-    implementation("androidx.print:print:1.0.0")
-// For file handling
-    implementation("androidx.core:core-ktx:1.10.1")
+    implementation(libs.itext.kernel)
+    implementation(libs.itext.io)
+    implementation(libs.itext.layout)
+    // For printing
+    implementation(libs.androidx.print)
 }

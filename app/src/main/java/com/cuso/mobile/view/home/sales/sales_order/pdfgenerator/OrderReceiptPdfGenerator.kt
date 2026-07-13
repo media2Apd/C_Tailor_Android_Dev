@@ -55,7 +55,7 @@ class OrderReceiptPdfGenerator(private val context: Context) {
             // Title
             document.add(Paragraph("ORDER SUMMARY")
                 .setFontSize(24f)
-                .setBold()
+                .simulateBold()
                 .setTextAlignment(TextAlignment.CENTER)
                 .setFontColor(ColorConstants.BLACK))
 
@@ -80,51 +80,51 @@ class OrderReceiptPdfGenerator(private val context: Context) {
             itemTable.setWidth(UnitValue.createPercentValue(100f))
 
             // Table Headers
-            val headerCell = Cell().add(Paragraph("Qty").setBold()).setTextAlignment(TextAlignment.CENTER)
+            val headerCell = Cell().add(Paragraph("Qty").simulateBold().setTextAlignment(TextAlignment.CENTER))
             itemTable.addCell(headerCell)
 
-            val headerCell2 = Cell().add(Paragraph("Item").setBold()).setTextAlignment(TextAlignment.LEFT)
+            val headerCell2 = Cell().add(Paragraph("Item").simulateBold().setTextAlignment(TextAlignment.LEFT))
             itemTable.addCell(headerCell2)
 
-            val headerCell3 = Cell().add(Paragraph("Price").setBold()).setTextAlignment(TextAlignment.RIGHT)
+            val headerCell3 = Cell().add(Paragraph("Price").simulateBold().setTextAlignment(TextAlignment.RIGHT))
             itemTable.addCell(headerCell3)
 
-            val headerCell4 = Cell().add(Paragraph("Total").setBold()).setTextAlignment(TextAlignment.RIGHT)
+            val headerCell4 = Cell().add(Paragraph("Total").simulateBold().setTextAlignment(TextAlignment.RIGHT))
             itemTable.addCell(headerCell4)
 
             // Table Rows
             data.items.forEach { item ->
                 val itemTotal = (item.quantity * item.price) + item.additionalCharge
 
-                val qtyCell = Cell().add(Paragraph(item.quantity.toString())).setTextAlignment(TextAlignment.CENTER)
+                val qtyCell = Cell().add(Paragraph(item.quantity.toString()).setTextAlignment(TextAlignment.CENTER))
                 itemTable.addCell(qtyCell)
 
-                val nameCell = Cell().add(Paragraph(item.name)).setTextAlignment(TextAlignment.LEFT)
+                val nameCell = Cell().add(Paragraph(item.name).setTextAlignment(TextAlignment.LEFT))
                 itemTable.addCell(nameCell)
 
-                val priceCell = Cell().add(Paragraph(String.format(Locale.US, "₹%.2f", item.price)))
-                    .setTextAlignment(TextAlignment.RIGHT)
+                val priceCell = Cell().add(Paragraph(String.format(Locale.US, "₹%.2f", item.price))
+                    .setTextAlignment(TextAlignment.RIGHT))
                 itemTable.addCell(priceCell)
 
-                val totalCell = Cell().add(Paragraph(String.format(Locale.US, "₹%.2f", itemTotal)))
-                    .setTextAlignment(TextAlignment.RIGHT)
+                val totalCell = Cell().add(Paragraph(String.format(Locale.US, "₹%.2f", itemTotal))
+                    .setTextAlignment(TextAlignment.RIGHT))
                 itemTable.addCell(totalCell)
 
                 // Add additional charge as sub-item if exists
                 if (item.additionalCharge > 0) {
-                    val emptyCell = Cell().add(Paragraph("")).setTextAlignment(TextAlignment.CENTER)
+                    val emptyCell = Cell().add(Paragraph("").setTextAlignment(TextAlignment.CENTER))
                     itemTable.addCell(emptyCell)
 
-                    val addLabel = Cell().add(Paragraph("  (Add1: )").setFontSize(10f))
-                        .setTextAlignment(TextAlignment.LEFT)
+                    val addLabel = Cell().add(Paragraph("  (Add1: )").setFontSize(10f)
+                        .setTextAlignment(TextAlignment.LEFT))
                     itemTable.addCell(addLabel)
 
                     val addPrice = Cell().add(Paragraph(String.format(Locale.US, "₹%.2f", item.additionalCharge))
-                        .setFontSize(10f))
-                        .setTextAlignment(TextAlignment.RIGHT)
+                        .setFontSize(10f)
+                        .setTextAlignment(TextAlignment.RIGHT))
                     itemTable.addCell(addPrice)
 
-                    val addTotal = Cell().add(Paragraph("")).setTextAlignment(TextAlignment.RIGHT)
+                    val addTotal = Cell().add(Paragraph("").setTextAlignment(TextAlignment.RIGHT))
                     itemTable.addCell(addTotal)
                 }
             }
@@ -146,7 +146,7 @@ class OrderReceiptPdfGenerator(private val context: Context) {
 
             document.add(Paragraph(String.format(Locale.US, "Total: ₹%.2f", data.totalAmount))
                 .setFontSize(16f)
-                .setBold()
+                .simulateBold()
                 .setFontColor(ColorConstants.BLACK))
 
             document.add(Paragraph(String.format(Locale.US, "Paid: ₹%.2f", data.paidAmount))
@@ -162,7 +162,7 @@ class OrderReceiptPdfGenerator(private val context: Context) {
             // Balance
             document.add(Paragraph(String.format(Locale.US, "BALANCE: ₹%.2f", data.balanceAmount))
                 .setFontSize(18f)
-                .setBold()
+                .simulateBold()
                 .setFontColor(ColorConstants.RED))
 
             document.add(Paragraph(" ").setFontSize(6f))

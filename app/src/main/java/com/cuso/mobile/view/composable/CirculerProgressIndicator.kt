@@ -15,3 +15,7 @@ fun CirculerProgressIndicatorReuse() {
 fun CirculerProgressIndicatorForButton() {
     CircularProgressIndicator(Modifier.size(24.dp),color = Color.White)
 }
+@Composable
+fun CirculerProgressIndicatorSmall() {
+    CircularProgressIndicator(Modifier.size(20.dp),color = Color.White)
+}

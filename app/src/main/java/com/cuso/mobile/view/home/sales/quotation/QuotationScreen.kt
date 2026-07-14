@@ -8,6 +8,7 @@ package com.cuso.mobile.view.home.sales.quotation
 //    the card layout, divider, and "⋯" menu all come from DataCard itself.
 // ═════════════════════════════════════════════════════════════════════════
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,17 +32,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.mobile.model.QuotationItemDto
+import com.cuso.mobile.model.sales.QuotationItemDto
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
+import com.cuso.mobile.view.home.reusablecomposables.FabConfig
+import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.viewmodel.CustomerViewModel
+import com.cuso.mobile.viewmodel.QuotationDeleteUiState
 import com.cuso.mobile.viewmodel.QuotationUiState
 import com.cuso.mobile.viewmodel.QuotationViewModel
 import com.cuso.mobile.viewmodel.SalesOrderViewModel
@@ -53,6 +58,7 @@ data class PricingItem(
     val title: String,
     val price: String,
     val isActive: Boolean,
+    val status: String = "",
     val applicableGarmentLabel: String = "Applicable Garment",
     val applicableGarmentValue: String,
     val fabricLabel: String = "N/A",  // Optional: if you want to show fabric info
@@ -68,6 +74,7 @@ private fun QuotationItemDto.toPricingItem(): PricingItem {
             ?: quotationNumber,
         price = "₹${String.format(java.util.Locale.US, "%.2f", grandTotal)}",
         isActive = status.equals("draft", ignoreCase = true).not(),
+        status = status.replaceFirstChar { it.uppercase() },
         applicableGarmentValue = firstItem?.garmentName ?: "-",
         // If you want to display fabric info:
         fabricLabel = firstItem?.fabric?.label ?: "N/A",
@@ -80,7 +87,8 @@ private fun QuotationItemDto.toPricingItem(): PricingItem {
 fun QuotationScreen(
     onClose: () -> Unit = {},
     onAddNe: () -> Unit = {},
-    onCardClick: (String) -> Unit = {}
+    onView: (String) -> Unit = {},
+    onEdit: (String) -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val customerScreenViewModel: CustomerViewModel = hiltViewModel()
@@ -88,250 +96,296 @@ fun QuotationScreen(
     val quotationViewModel: QuotationViewModel = hiltViewModel()   // 👈 add
     val quotationState by quotationViewModel.uiState.collectAsStateWithLifecycle()
 
+    val deleteState by quotationViewModel.deleteState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var quotationToDelete by remember { mutableStateOf<PricingItem?>(null) }
+    var isDeleting by remember { mutableStateOf(false) }
+
     // 👇 replaces samplePricingItems
     val items: List<PricingItem> = when (val state = quotationState) {
         is QuotationUiState.Success -> state.quotations.map { it.toPricingItem() }
         else -> emptyList()
     }
 
-    Scaffold(
-        containerColor = Color.White,
-        topBar = {
-            Column {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            "Quotation List",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF111827)
-                        )
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color.Black,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clickable(
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-                                ) { onClose() }
-                        )
-                    }
-                    Spacer(Modifier.height(8.dp))
-                }
-
-                Column(
-                    modifier = Modifier
-                        .background(Color(0xFFF8F9FF))
-                        .fillMaxWidth()
-                        .padding(vertical = 10.dp, horizontal = 16.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Sales", fontSize = 13.sp, color = Color(0xFF9CA3AF))
-                        Icon(
-                            Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = Color(0xFF9CA3AF),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            "Pricing & Quotations",
-                            fontSize = 13.sp,
-                            color = Color(0xFF3B3BF9),
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .background(Color.White, RoundedCornerShape(10.dp))
-                                .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                                .padding(horizontal = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
-                                tint = Color.Black,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            BasicTextField(
-                                value = searchQuery,
-                                onValueChange = {
-                                    searchQuery = it
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                                decorationBox = { innerTextField ->
-                                    if (searchQuery.isEmpty()) {
-                                        Text(
-                                            "Search Customers...",
-                                            fontSize = 14.sp,
-                                            color = Color.Black
-                                        )
-                                    }
-                                    innerTextField()
-                                }
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(Color.White, RoundedCornerShape(10.dp))
-                                .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                                .clickable { },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Filled.FilterList,
-                                "Filter",
-                                tint = Color.Black,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
+    LaunchedEffect(Unit) {
+        customerScreenViewModel.loadCustomers()
+        salesOrderViewModel.fetchOrders()
+        quotationViewModel.loadQuotations()
+    }
+    LaunchedEffect(deleteState) {
+        when (val state = deleteState) {
+            is QuotationDeleteUiState.Loading -> isDeleting = true
+            is QuotationDeleteUiState.Success -> {
+                isDeleting = false
+                Toast.makeText(context, "Quotation deleted successfully", Toast.LENGTH_SHORT).show()
+                quotationViewModel.resetDeleteState()
             }
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAddNe,
-                containerColor = Color(0xFF3B3BF9),
-                contentColor = Color.White,
-                shape = RoundedCornerShape(28.dp),
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Add New Pricing", fontWeight = FontWeight.Medium) }
-            )
-        }
-    ) { padding ->
-        LaunchedEffect(Unit) {
-            customerScreenViewModel.loadCustomers()
-            salesOrderViewModel.fetchOrders()
-            quotationViewModel.loadQuotations()
-
-        }
-        // 👇 debounce search → refetch from API instead of local filter
-        LaunchedEffect(searchQuery) {
-            kotlinx.coroutines.delay(400.milliseconds) // simple debounce
-            quotationViewModel.searchQuotations(searchQuery)
-        }
-        when {
-            quotationState is QuotationUiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+            is QuotationDeleteUiState.Error -> {
+                isDeleting = false
+                Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
+                quotationViewModel.resetDeleteState()
             }
+            else -> Unit
+        }
+    }
+    // 👇 debounce search → refetch from API instead of local filter
+    LaunchedEffect(searchQuery) {
+        kotlinx.coroutines.delay(400.milliseconds) // simple debounce
+        quotationViewModel.searchQuotations(searchQuery)
+    }
 
-            quotationState is QuotationUiState.Error -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center
+    FabScaffold(
+        fab = FabConfig(
+            label = "Add New Quotation",
+            icon = Icons.Default.Add,
+            onClick = onAddNe,
+            bottomPadding = 24.dp
+        ),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White)
+        ) {
+            // Header
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        (quotationState as QuotationUiState.Error).message,
-                        color = Color(0xFFDC2626)
+                        "Quotation List",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF111827)
+                    )
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.Black,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { onClose() }
                     )
                 }
+                Spacer(Modifier.height(8.dp))
             }
 
-            items.isEmpty() -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center
+            // Breadcrumb + Search + Filter
+            Column(
+                modifier = Modifier
+                    .background(Color(0xFFF8F9FF))
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp, horizontal = 16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Sales", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = Color(0xFF9CA3AF),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        "Pricing & Quotations",
+                        fontSize = 13.sp,
+                        color = Color(0xFF3B3BF9),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text("No quotations found", color = Color(0xFF9CA3AF))
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .background(Color.White, RoundedCornerShape(10.dp))
+                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
+                            .padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = Color.Black,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = {
+                                searchQuery = it
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
+                            decorationBox = { innerTextField ->
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        "Search Customers...",
+                                        fontSize = 14.sp,
+                                        color = Color.Black
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color.White, RoundedCornerShape(10.dp))
+                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
+                            .clickable { },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.FilterList,
+                            "Filter",
+                            tint = Color.Black,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(padding)
-                ) {
-                    items(items, key = { it.id }) { item ->
+            // Content
+            when {
+                quotationState is QuotationUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
 
-                        // 🔁 Reusing DataCard EXACTLY as defined in reusablecomposables
-                        DataCard(
-                            item = item,
-
-                            // top-right status badge — "Active" / "Inactive"
-                            topBadgeText = if (item.isActive) "Active" else "Inactive",
-                            topBadgeTextColor = if (item.isActive) Color(0xFF0AB83E) else Color(
-                                0xFFC10007
-                            ),
-                            topBadgeBgColor = if (item.isActive) Color(0xFFDBFCE7) else Color(
-                                0xFFFEE2E2
-                            ),
-                            topBadgeCornerRadius = 20.dp,
-                            topBadgeInline = false,
-
-                            title = item.title,
-
-                            // price + "Applicable Garment" + value — all via footerFields
-                            footerFields = listOf(
-                                DataCardField(
-                                    text = item.price,
-                                    textColor = Color(0xFF111827)
-                                ),
-                                DataCardField(
-                                    text = item.applicableGarmentLabel,
-                                    textColor = Color(0xFF9CA3AF)
-                                ),
-                                DataCardField(
-                                    text = item.applicableGarmentValue,
-                                    textColor = Color(0xFF111827)
-                                )
-                            ),
-
-                            // "⋯" action menu
-                            actions = listOf(
-                                MenuAction(
-                                    "View",
-                                    Icons.Default.Visibility,
-                                    onClick = { onCardClick(item.id) }),
-                                MenuAction(
-                                    "Edit",
-                                    Icons.Default.Edit,
-                                    onClick = { onCardClick(item.id) }),
-                                MenuAction(
-                                    "Delete",
-                                    Icons.Default.Delete,
-                                    tint = Color(0xFFDC2626),
-                                    textColor = Color(0xFFDC2626),
-                                    onClick = {  }
-                                )
-                            ),
-                            onClick = { onCardClick(item.id) }
+                quotationState is QuotationUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            (quotationState as QuotationUiState.Error).message,
+                            color = Color(0xFFDC2626)
                         )
                     }
-                    item { Spacer(modifier = Modifier.height(90.dp)) }
+                }
+
+                items.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("No quotations found", color = Color(0xFF9CA3AF))
+                    }
+                }
+
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(items, key = { it.id }) { item ->
+                            // 🔁 Reusing DataCard EXACTLY as defined in reusablecomposables
+                            DataCard(
+                                item = item,
+                                topBadgeText = item.status,
+                                topBadgeTextColor = if (item.isActive) Color(0xFF0AB83E) else Color(0xFFF44336),
+                                topBadgeBgColor = if (item.isActive) Color(0xFFDBFCE7) else Color(0xFFFEE2E2),
+                                topBadgeCornerRadius = 20.dp,
+                                topBadgeInline = false,
+                                title = item.title,
+                                footerFields = listOf(
+                                    DataCardField(text = item.price, textColor = Color(0xFF111827)),
+                                    DataCardField(text = item.applicableGarmentLabel, textColor = Color(0xFF9CA3AF)),
+                                    DataCardField(text = item.applicableGarmentValue, textColor = Color(0xFF111827))
+                                ),
+                                actions = listOf(
+                                    MenuAction("View", Icons.Default.Visibility, onClick = { onView(item.id) }),
+                                    MenuAction("Edit", Icons.Default.Edit, onClick = { onEdit(item.id) }),
+                                    MenuAction(
+                                        "Delete",
+                                        Icons.Default.Delete,
+                                        tint = Color(0xFFDC2626),
+                                        textColor = Color(0xFFDC2626),
+                                        onClick = { quotationToDelete = item }
+                                    )
+                                ),
+                                onClick = { onView(item.id) }
+                            )
+                        }
+                        item { Spacer(modifier = Modifier.height(90.dp)) }
+                    }
                 }
             }
         }
+    }
 
+    if (quotationToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { quotationToDelete = null },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(12.dp),
+            title = { Text("Delete Quotation", fontWeight = FontWeight.Bold, color = Color(0xFF111827)) },
+            text = { Text("Are you sure you want to delete this quotation? This action cannot be undone.", color = Color(0xFF6B7280)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        quotationViewModel.deleteQuotation(quotationToDelete!!.id)
+                        quotationToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                    shape = RoundedCornerShape(8.dp)
+                ) { Text("Delete", color = Color.White) }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { quotationToDelete = null },
+                    shape = RoundedCornerShape(8.dp)
+                ) { Text("Cancel", color = Color(0xFF374151)) }
+            }
+        )
+    }
+    if (quotationToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { quotationToDelete = null },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(12.dp),
+            title = { Text("Delete Quotation", fontWeight = FontWeight.Bold, color = Color(0xFF111827)) },
+            text = { Text("Are you sure you want to delete this quotation? This action cannot be undone.", color = Color(0xFF6B7280)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        quotationViewModel.deleteQuotation(quotationToDelete!!.id)
+                        quotationToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                    shape = RoundedCornerShape(8.dp)
+                ) { Text("Delete", color = Color.White) }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { quotationToDelete = null },
+                    shape = RoundedCornerShape(8.dp)
+                ) { Text("Cancel", color = Color(0xFF374151)) }
+            }
+        )
     }
 }

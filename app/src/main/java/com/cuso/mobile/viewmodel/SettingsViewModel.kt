@@ -4,7 +4,7 @@ package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cuso.mobile.model.myOrganizationResponse
+import com.cuso.mobile.model.sales.myOrganizationResponse
 import com.cuso.mobile.repository.AuthRepository
 import com.cuso.mobile.repository.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel

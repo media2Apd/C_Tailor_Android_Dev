@@ -28,7 +28,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.mobile.model.*
+import com.cuso.mobile.model.sales.OrderOverviewData
+import com.cuso.mobile.model.sales.OrderOverviewStageStep
+import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.home.FormDropdown
@@ -130,10 +132,10 @@ data class PaymentInfo(
 fun OrderOverviewScreen(
     orderId: String,
     onClose: () -> Unit = {},
-    onEditOrder: (OrderReviewData) -> Unit = {},   // CHANGED — was () -> Unit
+    onEditOrder: (OrderReviewData) -> Unit = {},
     onCreateNew: () -> Unit = {}
 ) {
-    val viewModel: OrderOverviewViewModel = hiltViewModel()
+    val viewModel: OrderOverviewViewModel = hiltViewModel(key = "order_overview_view_$orderId")
     val salesViewModel: SalesViewModel = hiltViewModel()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
     val state by viewModel.overviewState.collectAsStateWithLifecycle()

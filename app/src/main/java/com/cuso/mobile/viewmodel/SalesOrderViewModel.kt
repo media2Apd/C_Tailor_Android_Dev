@@ -2,9 +2,9 @@ package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cuso.mobile.model.CreateOrderRequest
-import com.cuso.mobile.model.OrderItem
-import com.cuso.mobile.model.toOrderItem
+import com.cuso.mobile.model.sales.CreateOrderRequest
+import com.cuso.mobile.model.sales.OrderItem
+import com.cuso.mobile.model.sales.toOrderItem
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job

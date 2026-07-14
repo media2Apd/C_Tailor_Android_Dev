@@ -26,9 +26,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.mobile.model.AddonOption
-import com.cuso.mobile.model.DesignOption
-import com.cuso.mobile.model.FabricOption
+import com.cuso.mobile.model.sales.AddonOption
+import com.cuso.mobile.model.sales.CreateQuotationRequest
+import com.cuso.mobile.model.sales.CustomerSnapshot
+import com.cuso.mobile.model.sales.CustomerSnapshotAddress
+import com.cuso.mobile.model.sales.DesignOption
+import com.cuso.mobile.model.sales.FabricOption
+import com.cuso.mobile.model.sales.QuotationItemInput
+import com.cuso.mobile.model.sales.QuotationOptionInput
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
@@ -83,6 +88,8 @@ private fun formatPrice(amount: Double): String =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateQuotationScreen(
+    quotationId: String? = null,
+    mode: String = "create",   // "create" | "view" | "edit"
     onClose: () -> Unit = {},
     onSave: () -> Unit = {},
     token: String
@@ -98,7 +105,7 @@ fun CreateQuotationScreen(
     val garmentPricingState by garmentPricingViewModel.uiState.collectAsStateWithLifecycle()
     val profileState by profileViewModel.uiState.collectAsStateWithLifecycle()
 
-    var currentStep by remember { mutableIntStateOf(1) }
+    var currentStep by remember { mutableIntStateOf(if (quotationId != null) 3 else 1) }
     var customerLeadTab by remember { mutableStateOf("Customer") }
     var selectedCustomerId by remember { mutableStateOf<String?>(null) }
     var selectedGarmentId by remember { mutableStateOf<String?>(null) }
@@ -106,7 +113,8 @@ fun CreateQuotationScreen(
     var selectedDesign by remember { mutableStateOf<DesignOption?>(null) }
     var selectedAddons by remember { mutableStateOf<List<AddonOption>>(emptyList()) }
     var quantity by remember { mutableIntStateOf(1) }
-    var previewShown by remember { mutableStateOf(false) }
+    var previewShown by remember { mutableStateOf(mode == "view") }
+    var isPrefilling by remember { mutableStateOf(quotationId != null) }
 
     val customers = remember(customerState) {
         when (customerState) {
@@ -177,11 +185,41 @@ fun CreateQuotationScreen(
     val tax = subtotal * TAX_RATE
     val total = subtotal + tax
 
+
     LaunchedEffect(Unit) {
         customerViewModel.loadCustomers()
         salesOrderViewModel.fetchOrders()
         garmentPricingViewModel.loadGarmentPricing()
         profileViewModel.loadOrganization(token)
+        if (quotationId != null) {
+            quotationViewModel.fetchQuotationById(quotationId)
+        }
+    }
+
+    val detailState by quotationViewModel.detailState.collectAsStateWithLifecycle()
+
+    // ── Prefill state once quotation detail + garment options are both ready ──
+    LaunchedEffect(detailState, garmentOptions) {
+        val state = detailState
+        if (state is com.cuso.mobile.viewmodel.QuotationDetailUiState.Success && garmentOptions.isNotEmpty()) {
+            val dto = state.quotation
+            val firstItem = dto.items.firstOrNull()
+
+            selectedCustomerId = dto.customerId
+            selectedGarmentId = firstItem?.garmentCategoryId
+            quantity = firstItem?.quantity ?: 1
+
+            val matchedGarment = garmentOptions.find { it.id == firstItem?.garmentCategoryId }
+            selectedFabric = matchedGarment?.fabricOptions?.find { it.name == firstItem?.fabric?.label }
+            selectedDesign = matchedGarment?.designOptions?.find { it.name == firstItem?.design?.label }
+            selectedAddons = matchedGarment?.addons?.filter { addon ->
+                firstItem?.addons?.any { it.label == addon.name } == true
+            } ?: emptyList()
+
+            isPrefilling = false
+        } else if (state is com.cuso.mobile.viewmodel.QuotationDetailUiState.Error) {
+            isPrefilling = false
+        }
     }
     val organizationLogoUrl = remember(profileState) {
         (profileState as? com.cuso.mobile.viewmodel.ProfileUiState.Success)
@@ -225,6 +263,15 @@ fun CreateQuotationScreen(
 
     fun goToPreviousStep() {
         if (currentStep > 1) currentStep--
+    }
+    if (isPrefilling) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color.White),
+            contentAlignment = Alignment.Center
+        ) {
+            CirculerProgressIndicatorReuse()
+        }
+        return
     }
 
     Scaffold(
@@ -348,7 +395,7 @@ fun CreateQuotationScreen(
             Spacer(Modifier.height(90.dp))
         }
 
-        if (!(currentStep == 3 && previewShown)) {
+        if (!(currentStep == 3 && previewShown) && mode != "view") {
             StepNavigationFab(
                 showBack = currentStep > 1,
                 onBack = { goToPreviousStep() },
@@ -828,6 +875,7 @@ private fun QuantitySelector(
             Text(
                 "$quantity",
                 fontSize = 16.sp,
+                color=Color.Black,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
@@ -902,6 +950,7 @@ private fun Step3PricingSummary(
                 isSavingDraft = false
                 Toast.makeText(context, "Saved as draft: ${saveState.quotation.quotationNumber}", Toast.LENGTH_LONG).show()
                 quotationViewModel.resetState()
+                onComplete()
             }
             is com.cuso.mobile.viewmodel.QuotationSaveUiState.Error -> {
                 isSavingDraft = false
@@ -915,7 +964,7 @@ private fun Step3PricingSummary(
         }
     }
 
-    fun buildSaveDraftRequest(): com.cuso.mobile.model.CreateQuotationRequest? {
+    fun buildSaveDraftRequest(): CreateQuotationRequest? {
         val custId = customerId ?: return null
         val garmentId = garmentCategoryId ?: return null
 
@@ -923,28 +972,28 @@ private fun Step3PricingSummary(
                 addonOptions.sumOf { it.price }
         val itemAmount = perUnitAmount * quantity
 
-        return com.cuso.mobile.model.CreateQuotationRequest(
+        return CreateQuotationRequest(
             customerId = custId,
             leadId = null,
-            customerSnapshot = com.cuso.mobile.model.CustomerSnapshot(
+            customerSnapshot = CustomerSnapshot(
                 name = customerSnapshotName,
                 phone = customerSnapshotPhone,
                 email = "",
-                address = com.cuso.mobile.model.CustomerSnapshotAddress(
+                address = CustomerSnapshotAddress(
                     addressLine = customerSnapshotAddressLine,
                     city = customerSnapshotCity,
                     pincode = customerSnapshotPincode
                 )
             ),
             items = listOf(
-                com.cuso.mobile.model.QuotationItemInput(
+                QuotationItemInput(
                     garmentCategoryId = garmentId,
                     garmentName = garmentName,
                     quantity = quantity,
                     basePrice = basePrice,
-                    fabric = fabricOption?.let { com.cuso.mobile.model.QuotationOptionInput(it.name, it.price) },
-                    design = designOption?.let { com.cuso.mobile.model.QuotationOptionInput(it.name, it.price) },
-                    addons = addonOptions.map { com.cuso.mobile.model.QuotationOptionInput(it.name, it.price) },
+                    fabric = fabricOption?.let { QuotationOptionInput(it.name, it.price) },
+                    design = designOption?.let { QuotationOptionInput(it.name, it.price) },
+                    addons = addonOptions.map { QuotationOptionInput(it.name, it.price) },
                     expressCharge = 0.0,
                     unitPrice = perUnitAmount,
                     totalPrice = itemAmount
@@ -1014,13 +1063,13 @@ private fun Step3PricingSummary(
 
         PriceBreakdownCard(
             garment = garmentName,
-            garmentPrice = 0.0,
+            garmentPrice = basePrice,
             fabric = fabricName,
-            fabricPrice = 0.0,
+            fabricPrice = fabricOption?.price ?: 0.0,
             design = designName,
-            designPrice = 0.0,
-            addons = "",
-            addonsPrice = 0.0,
+            designPrice = designOption?.price ?: 0.0,
+            addons = addonOptions.joinToString(", ") { it.name },
+            addonsPrice = addonOptions.sumOf { it.price },
             subtotal = formatPrice(subtotal),
             tax = formatPrice(tax),
             total = formatPrice(total),
@@ -1034,6 +1083,7 @@ private fun Step3PricingSummary(
             onEdit = onEdit,
             onSaveDraft = saveDraftAction
         )
+        Spacer(Modifier.height(50.dp))
     } else {
         Column(
             modifier = Modifier

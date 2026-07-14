@@ -1,4 +1,4 @@
-import com.cuso.mobile.model.CategoryItem
+import com.cuso.mobile.model.sales.CategoryItem
 
 // Garment Categories Response
 data class GarmentCategoriesResponse(

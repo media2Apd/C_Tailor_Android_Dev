@@ -8,6 +8,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavType
@@ -24,17 +28,21 @@ import com.cuso.mobile.view.login.LoginOtpScreen
 import com.cuso.mobile.view.login.LoginScreen
 import com.cuso.mobile.view.organization.OrganizationProfile
 import com.cuso.mobile.view.home.HomeScreen
-import com.cuso.mobile.view.home.LeadScreenContent
+import com.cuso.mobile.view.home.sales.lead.LeadScreenContent
 import com.cuso.mobile.view.home.OrderFlowNavigator
 import com.cuso.mobile.view.home.SettingsScreen
 import com.cuso.mobile.view.home.branch.BranchSettingsScreen
 import com.cuso.mobile.view.home.sales.sales_order.SalesOrderScreen
 import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
+import com.cuso.mobile.view.home.finance.CustomerDetailScreenStatic
 import com.cuso.mobile.view.organization.OrganizationNotFoundScreen
 import com.cuso.mobile.view.others.PrivacyPolicy
 import com.cuso.mobile.view.others.TermsConditions
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
+import com.cuso.mobile.view.home.finance.FinanceCustomerScreen
+import com.cuso.mobile.view.home.finance.FinanceInvoiceScreen
+import com.cuso.mobile.view.home.finance.InvoiceDetailScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
@@ -67,11 +75,61 @@ class MainActivity : ComponentActivity() {
         setContent {
             CusoTailorTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
-//                    val navController = rememberNavController()
+                    val navController = rememberNavController()
+                    var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
+
 //                    PricingQuotationScreen(onClose = {})
                     // 👇 isLoggedIn is guaranteed non-null here since splash already waited for it
-                    AppNav(activity = this, startLoggedIn = isLoggedIn == true)
-//                    OrderManagementScreen(navController = navController)
+//                    AppNav(activity = this, startLoggedIn = isLoggedIn == true)
+//                    FinanceCustomerScreen(
+//                        onClose = { navController.popBackStack() },
+//                        onCustomerClick = { customerId ->
+//                            navController.navigate("customer_detail/$customerId")
+//                        }
+//
+//                    )
+
+                //                    OrderManagementScreen(navController = navController)
+//
+//                    if (selectedCustomerId == null) {
+//                        FinanceCustomerScreen(
+//                            onClose = { /* navigate back or whatever */ },
+//                            onCustomerClick = { customerId ->
+//                                selectedCustomerId = customerId   // 👈 real id vandhudum idhu
+//                            }
+//                        )
+//                    } else {
+//                        CustomerDetailScreenStatic(
+//                            onClose = { selectedCustomerId = null },
+//                            customerId = selectedCustomerId!!
+//                        )
+//                    }
+//                    FinanceInvoiceScreen(
+//                        onClose = { navController.popBackStack() },
+//                        onInvoiceClick = { invoice ->
+//                            navController.navigate("invoice_detail/${invoice.id}")
+//                        }
+//                    )
+
+
+                    if (selectedInvoiceId == null) {
+                        FinanceInvoiceScreen(
+                            onClose = { navController.popBackStack() },
+                            onInvoiceClick = { invoice ->
+                                selectedInvoiceId = invoice.id
+                            }
+                        )
+                    } else {
+                        InvoiceDetailScreen(
+                            invoiceId = selectedInvoiceId!!,
+                            onClose = {
+                                selectedInvoiceId = null
+                            },
+                            onSharePdf = { /* Handle share PDF */ },
+                            onDownloadInvoice = { /* Handle download invoice */ }
+                        )
+                    }
+
                 }
             }
         }

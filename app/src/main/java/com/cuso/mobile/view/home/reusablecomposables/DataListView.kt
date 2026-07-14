@@ -176,7 +176,7 @@ fun ActionDropdownMenu(
 }
 
 /**
- * ✅ FULLY UPDATED: Reusable card with user customizable badge colors
+ * Reusable card with user customizable badge colors
  */
 @Composable
 fun <T> DataCard(

@@ -3,8 +3,8 @@ package com.cuso.mobile.database.entities
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.cuso.mobile.model.CreateLeadFormRequest
-import com.cuso.mobile.model.CreateLeadFormResponse
+import com.cuso.mobile.model.sales.CreateLeadFormRequest
+import com.cuso.mobile.model.sales.CreateLeadFormResponse
 
 @Entity(tableName = "leads")
 data class LeadEntity(
@@ -30,6 +30,7 @@ data class LeadEntity(
     val requiredDate: String,
     val source: String,
     val status: String,
+    val leadOwner: String = "",          // ✅ NEW — default "" so existing LeadEntity(...) calls don't break
     val appointmentRequired: Boolean,
     val appointmentDate: String,
     val appointmentTime: String,
@@ -101,6 +102,7 @@ fun CreateLeadFormResponse.toEntity(request: CreateLeadFormRequest): LeadEntity 
         enquiryDate = request.enquiryDate,
         requiredDate = request.requiredDate,
         source = request.source,
+        leadOwner = request.leadOwner,        // ✅ NEW — assuming CreateLeadFormRequest gets a leadOwner field
         appointmentRequired = request.appointment.isRequired,
         appointmentDate = request.appointment.date,
         appointmentTime = request.appointment.time,

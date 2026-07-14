@@ -37,7 +37,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.model.DepartmentItem
-import com.cuso.mobile.model.StaffDto
+import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.view.home.branch.PlanLimits
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField

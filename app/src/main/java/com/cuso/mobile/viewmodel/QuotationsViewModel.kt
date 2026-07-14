@@ -2,9 +2,9 @@ package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cuso.mobile.model.CreateQuotationRequest
-import com.cuso.mobile.model.QuotationCreatedData
-import com.cuso.mobile.model.QuotationItemDto
+import com.cuso.mobile.model.sales.CreateQuotationRequest
+import com.cuso.mobile.model.sales.QuotationCreatedData
+import com.cuso.mobile.model.sales.QuotationItemDto
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +26,20 @@ sealed class QuotationSaveUiState {
     data class Error(val message: String) : QuotationSaveUiState()
 }
 
+sealed class QuotationDeleteUiState {
+    object Idle : QuotationDeleteUiState()
+    object Loading : QuotationDeleteUiState()
+    object Success : QuotationDeleteUiState()
+    data class Error(val message: String) : QuotationDeleteUiState()
+}
+sealed class QuotationDetailUiState {
+    object Idle : QuotationDetailUiState()
+    object Loading : QuotationDetailUiState()
+    data class Success(val quotation: QuotationItemDto) : QuotationDetailUiState()
+    data class Error(val message: String) : QuotationDetailUiState()
+}
+
+
 @HiltViewModel
 class QuotationViewModel @Inject constructor(
     private val salesRepository: SalesRepository
@@ -36,6 +50,12 @@ class QuotationViewModel @Inject constructor(
 
     private val _saveState = MutableStateFlow<QuotationSaveUiState>(QuotationSaveUiState.Idle)
     val saveState: StateFlow<QuotationSaveUiState> = _saveState.asStateFlow()
+
+    private val _deleteState = MutableStateFlow<QuotationDeleteUiState>(QuotationDeleteUiState.Idle)
+    val deleteState: StateFlow<QuotationDeleteUiState> = _deleteState.asStateFlow()
+
+    private val _detailState = MutableStateFlow<QuotationDetailUiState>(QuotationDetailUiState.Idle)
+    val detailState: StateFlow<QuotationDetailUiState> = _detailState.asStateFlow()
 
 
 
@@ -93,5 +113,39 @@ class QuotationViewModel @Inject constructor(
 
     fun refresh() {
         loadQuotations(page = currentPage, search = currentSearch)
+    }
+
+    fun deleteQuotation(id: String) {
+        viewModelScope.launch {
+            _deleteState.value = QuotationDeleteUiState.Loading
+            salesRepository.deleteQuotation(id)
+                .onSuccess {
+                    _deleteState.value = QuotationDeleteUiState.Success
+                    refresh()   // list refresh aagum delete aana pinnadi
+                }
+                .onFailure { e ->
+                    _deleteState.value = QuotationDeleteUiState.Error(e.message ?: "Failed to delete quotation")
+                }
+        }
+    }
+
+    fun resetDeleteState() {
+        _deleteState.value = QuotationDeleteUiState.Idle
+    }
+    fun fetchQuotationById(id: String) {
+        viewModelScope.launch {
+            _detailState.value = QuotationDetailUiState.Loading
+            salesRepository.getQuotationById(id)
+                .onSuccess { quotation ->
+                    _detailState.value = QuotationDetailUiState.Success(quotation)
+                }
+                .onFailure { e ->
+                    _detailState.value = QuotationDetailUiState.Error(e.message ?: "Failed to load quotation")
+                }
+        }
+    }
+
+    fun resetDetailState() {
+        _detailState.value = QuotationDetailUiState.Idle
     }
 }

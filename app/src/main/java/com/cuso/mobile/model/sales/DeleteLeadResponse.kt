@@ -1,4 +1,4 @@
-package com.cuso.mobile.model
+package com.cuso.mobile.model.sales
 
 
 data class DeleteLeadResponse(

@@ -14,29 +14,31 @@ import com.cuso.mobile.database.entities.LeadEntity
 import com.cuso.mobile.database.entities.SalesStatusEntity
 import com.cuso.mobile.database.entities.SalesSummaryEntity
 import com.cuso.mobile.database.entities.toEntity
-import com.cuso.mobile.model.AssignStageResponse
+import com.cuso.mobile.model.sales.AssignStageResponse
 import com.cuso.mobile.model.BranchItem
 import com.cuso.mobile.model.BranchListResponse
-import com.cuso.mobile.model.CategoryItem
-import com.cuso.mobile.model.CreateLeadFormRequest
-import com.cuso.mobile.model.CreateLeadFormResponse
-import com.cuso.mobile.model.CreateOrderRequest
-import com.cuso.mobile.model.CreateQuotationRequest
-import com.cuso.mobile.model.CreateQuotationResponse
-import com.cuso.mobile.model.CustomerListResponse
-import com.cuso.mobile.model.CustomerSearchResponse
-import com.cuso.mobile.model.CustomerViewData
+import com.cuso.mobile.model.sales.CategoryItem
+import com.cuso.mobile.model.sales.CreateLeadFormRequest
+import com.cuso.mobile.model.sales.CreateLeadFormResponse
+import com.cuso.mobile.model.sales.CreateOrderRequest
+import com.cuso.mobile.model.sales.CreateQuotationRequest
+import com.cuso.mobile.model.sales.CreateQuotationResponse
+import com.cuso.mobile.model.sales.CustomerDetailV2
+import com.cuso.mobile.model.sales.CustomerListResponse
+import com.cuso.mobile.model.sales.CustomerListResponseV2
+import com.cuso.mobile.model.sales.CustomerSearchResponse
+import com.cuso.mobile.model.sales.CustomerViewData
 import com.cuso.mobile.model.DepartmentCreateRequest
 import com.cuso.mobile.model.DepartmentCreateResponse
 import com.cuso.mobile.model.DepartmentResponse
 import com.cuso.mobile.model.DepartmentUpdateRequest
 import com.cuso.mobile.model.DepartmentUpdateResponse
-import com.cuso.mobile.model.LeadTableItem
-import com.cuso.mobile.model.StaffDto
+import com.cuso.mobile.model.sales.LeadTableItem
+import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.model.UpdateBranchRequest
-import com.cuso.mobile.model.UpdateLeadResponse
-import com.cuso.mobile.model.ViewOneLeadData
-import com.cuso.mobile.model.toEntity
+import com.cuso.mobile.model.sales.UpdateLeadResponse
+import com.cuso.mobile.model.sales.ViewOneLeadData
+import com.cuso.mobile.model.sales.toEntity
 import com.cuso.mobile.network.ApiService
 import kotlinx.coroutines.flow.Flow
 import retrofit2.Response
@@ -52,25 +54,27 @@ import com.cuso.mobile.model.DesignationCreateResponse
 import com.cuso.mobile.model.DesignationUpdateRequest
 import com.cuso.mobile.model.DesignationUpdateResponse
 import com.cuso.mobile.model.DesignationDeleteResponse
-import com.cuso.mobile.model.GarmentPricingDetailDto
-import com.cuso.mobile.model.GarmentPricingItem
-import com.cuso.mobile.model.GarmentPricingListItemDto
-import com.cuso.mobile.model.GarmentStageDoc
-import com.cuso.mobile.model.MeasurementsResponse
-import com.cuso.mobile.model.OrderItem
-import com.cuso.mobile.model.OrderManagementResponse
-import com.cuso.mobile.model.OrderOverviewData
-import com.cuso.mobile.model.OrderResponse
-import com.cuso.mobile.model.OrderViewData
-import com.cuso.mobile.model.PricingQuotationSaveRequest
-import com.cuso.mobile.model.PricingQuotationSaveResponse
-import com.cuso.mobile.model.QuotationListResponse
-import com.cuso.mobile.model.StageAssignRequest
-import com.cuso.mobile.model.UpdateCustomerRequest
+import com.cuso.mobile.model.sales.GarmentPricingDetailDto
+import com.cuso.mobile.model.sales.GarmentPricingItem
+import com.cuso.mobile.model.sales.GarmentPricingListItemDto
+import com.cuso.mobile.model.sales.GarmentStageDoc
+import com.cuso.mobile.model.sales.MeasurementsResponse
+import com.cuso.mobile.model.sales.OrderItem
+import com.cuso.mobile.model.sales.OrderManagementResponse
+import com.cuso.mobile.model.sales.OrderOverviewData
+import com.cuso.mobile.model.sales.OrderResponse
+import com.cuso.mobile.model.sales.OrderViewData
+import com.cuso.mobile.model.sales.PricingQuotationSaveRequest
+import com.cuso.mobile.model.sales.PricingQuotationSaveResponse
+import com.cuso.mobile.model.sales.QuotationItemDto
+import com.cuso.mobile.model.sales.QuotationListResponse
+import com.cuso.mobile.model.sales.StageAssignRequest
+import com.cuso.mobile.model.sales.UpdateCustomerRequest
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationResponse
-import com.cuso.mobile.model.UpdateStageRequest
-import com.cuso.mobile.model.toOrderItem
+import com.cuso.mobile.model.sales.UpdateStageRequest
+import com.cuso.mobile.model.sales.toOrderItem
+
 
 @Singleton
 @Suppress("unused")
@@ -324,6 +328,22 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    suspend fun deleteQuotation(id: String): Result<Boolean> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.deleteQuotation(accessToken, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(true)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to delete quotation: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun updateLead(id: String, request: CreateLeadFormRequest): Response<UpdateLeadResponse> {
         val (accessToken, csrfToken) = getAuthHeaders()
         fun String.asRequestBody(): RequestBody =
@@ -429,6 +449,23 @@ class SalesRepository @Inject constructor(
                 Result.success(activeIds)
             } else {
                 Result.failure(Exception("Failed: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    suspend fun getQuotationById(id: String): Result<QuotationItemDto> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getQuotationById(accessToken, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data
+                    ?: return Result.failure(Exception("Quotation data is null"))
+                Result.success(data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch quotation: ${response.code()}")
+                )
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -1111,5 +1148,63 @@ class SalesRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    /**
+     * Get customers with pagination (V2 API)
+     * GET /api/customers
+     */
+    suspend fun getCustomersV2(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        type: String? = null
+    ): Result<CustomerListResponseV2> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getCustomersV2(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search,
+                type = type
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch customers: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get customer details by ID (V2 API)
+     * GET /api/customers/{id}
+     */
+    suspend fun getCustomerDetailV2(id: String): Result<CustomerDetailV2> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getCustomerDetailV2(accessToken, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch customer details: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     fun getLeads(): Flow<List<LeadEntity>> = leadDao.getAll()
 }
+
+sealed class ApiResult<out T> {
+    data class Success<T>(val data: T) : ApiResult<T>()
+    data class Error(val message: String) : ApiResult<Nothing>()
+}
+

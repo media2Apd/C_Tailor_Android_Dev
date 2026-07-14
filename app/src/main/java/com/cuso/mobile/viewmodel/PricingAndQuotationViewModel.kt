@@ -2,16 +2,16 @@
 
     import androidx.lifecycle.ViewModel
     import androidx.lifecycle.viewModelScope
-    import com.cuso.mobile.model.BulkRuleDto
-    import com.cuso.mobile.model.GarmentPricingDetailDto
-    import com.cuso.mobile.model.GarmentPricingListItemDto
-    import com.cuso.mobile.model.PriceAdjustmentDto
-    import com.cuso.mobile.model.PricingCategoryItem
-    import com.cuso.mobile.model.PricingQuotationData
-    import com.cuso.mobile.model.PricingQuotationSaveRequest
-    import com.cuso.mobile.model.PricingQuotationSaveResponse
-    import com.cuso.mobile.model.PricingStatValue
-    import com.cuso.mobile.model.PricingStats
+    import com.cuso.mobile.model.sales.BulkRuleDto
+    import com.cuso.mobile.model.sales.GarmentPricingDetailDto
+    import com.cuso.mobile.model.sales.GarmentPricingListItemDto
+    import com.cuso.mobile.model.sales.PriceAdjustmentDto
+    import com.cuso.mobile.model.sales.PricingCategoryItem
+    import com.cuso.mobile.model.sales.PricingQuotationData
+    import com.cuso.mobile.model.sales.PricingQuotationSaveRequest
+    import com.cuso.mobile.model.sales.PricingQuotationSaveResponse
+    import com.cuso.mobile.model.sales.PricingStatValue
+    import com.cuso.mobile.model.sales.PricingStats
     import com.cuso.mobile.repository.SalesRepository
     import dagger.hilt.android.lifecycle.HiltViewModel
     import kotlinx.coroutines.delay

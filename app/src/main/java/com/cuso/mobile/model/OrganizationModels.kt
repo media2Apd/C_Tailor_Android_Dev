@@ -1,6 +1,8 @@
 // OrganizationModels.kt - Add these models
 package com.cuso.mobile.model
 
+import com.cuso.mobile.model.sales.OrganizationDataWrapper
+
 data class UpdateOrganizationRequest(
     val name: String? = null,
     val orgType: String? = null,

@@ -1,6 +1,6 @@
 // com/cuso/mobile/model/ViewOneLeadResponse.kt
 
-package com.cuso.mobile.model
+package com.cuso.mobile.model.sales
 
 data class ViewOneLeadResponse(
     val success: Boolean,
@@ -13,14 +13,15 @@ data class ViewOneLeadData(
     val customerType: String,
     val person: PersonData?,
     val enquiryType: String,
-    val garmentCategory: List<String>?,  // ✅ List of garment IDs
+    val garmentCategory: List<String>?,
     val estimatedQuantity: Int?,
     val source: String,
+    val leadOwner: AssignedStaffData? = null,   // ✅ NEW — same shape as assignedStaff ({ _id })
     val budgetRange: BudgetRangeData?,
     val occasion: String?,
     val enquiryDate: String,
     val requiredDate: String?,
-    val status: StatusData,  // ✅ Now an object
+    val status: StatusData,
     val appointment: AppointmentData?,
     val followUpCount: Int?,
     val notes: List<NoteData>?,

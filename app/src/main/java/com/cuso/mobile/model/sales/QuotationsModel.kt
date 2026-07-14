@@ -1,4 +1,4 @@
-package com.cuso.mobile.model
+package com.cuso.mobile.model.sales
 
 import com.google.gson.annotations.SerializedName
 
@@ -15,6 +15,12 @@ data class QuotationPaginationDto(
     val page: Int = 1,
     val limit: Int = 10,
     val pages: Int = 1
+)
+
+data class QuotationDetailResponse(
+    val success: Boolean,
+    val data: QuotationItemDto? = null,
+    val message: String? = null
 )
 
 // ── Single quotation record ──
@@ -79,6 +85,10 @@ data class AddonDetail(
 )
 
 
+data class QuotationDeleteResponse(
+    val success: Boolean,
+    val message: String? = null
+)
 
 
 // ── Request ──

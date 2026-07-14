@@ -2,9 +2,9 @@ package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cuso.mobile.model.AssignStageResponse
-import com.cuso.mobile.model.GarmentStageDoc
-import com.cuso.mobile.model.OrderOverviewData
+import com.cuso.mobile.model.sales.AssignStageResponse
+import com.cuso.mobile.model.sales.GarmentStageDoc
+import com.cuso.mobile.model.sales.OrderOverviewData
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

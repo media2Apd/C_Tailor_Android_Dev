@@ -53,9 +53,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.cuso.mobile.database.entities.GarmentMeasurement
 import com.cuso.mobile.database.entities.SelectedGarment
-import com.cuso.mobile.model.Customer
-import com.cuso.mobile.model.CustomerGarment
-import com.cuso.mobile.model.CustomerOrder
+import com.cuso.mobile.model.sales.Customer
+import com.cuso.mobile.model.sales.CustomerGarment
+import com.cuso.mobile.model.sales.CustomerOrder
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.home.FormDropdown

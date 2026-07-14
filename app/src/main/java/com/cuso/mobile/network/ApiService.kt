@@ -10,16 +10,16 @@ import CreateBranchResponse
 import GarmentCategoriesResponse
 import OrgGarmentResponse
 import RemoveOrgGarmentResponse
-import com.cuso.mobile.model.ApiResponse
-import com.cuso.mobile.model.AssignStageResponse
+import com.cuso.mobile.model.sales.ApiResponse
+import com.cuso.mobile.model.sales.AssignStageResponse
 import com.cuso.mobile.model.BranchListResponse
-import com.cuso.mobile.model.CreateLeadFormRequest
-import com.cuso.mobile.model.CreateLeadFormResponse
-import com.cuso.mobile.model.CreateOrderResponse
-import com.cuso.mobile.model.CreateQuotationRequest
-import com.cuso.mobile.model.CreateQuotationResponse
-import com.cuso.mobile.model.CustomerSearchResponse
-import com.cuso.mobile.model.DeleteLeadResponse
+import com.cuso.mobile.model.sales.CreateLeadFormRequest
+import com.cuso.mobile.model.sales.CreateLeadFormResponse
+import com.cuso.mobile.model.sales.CreateOrderResponse
+import com.cuso.mobile.model.sales.CreateQuotationRequest
+import com.cuso.mobile.model.sales.CreateQuotationResponse
+import com.cuso.mobile.model.sales.CustomerSearchResponse
+import com.cuso.mobile.model.sales.DeleteLeadResponse
 import com.cuso.mobile.model.DepartmentCreateRequest
 import com.cuso.mobile.model.DepartmentCreateResponse
 import com.cuso.mobile.model.DepartmentResponse
@@ -34,24 +34,24 @@ import com.cuso.mobile.model.DesignationUpdateResponse
 import com.cuso.mobile.model.EmailResponse
 import com.cuso.mobile.model.EmailVerify
 import com.cuso.mobile.model.GoogleLoginRequest
-import com.cuso.mobile.model.LeadsTableResponse
-import com.cuso.mobile.model.OrderDetailResponse
-import com.cuso.mobile.model.OrderResponse
+import com.cuso.mobile.model.sales.LeadsTableResponse
+import com.cuso.mobile.model.sales.OrderDetailResponse
+import com.cuso.mobile.model.sales.OrderResponse
 import com.cuso.mobile.model.PasswordResponse
 import com.cuso.mobile.model.PasswordVerify
 import com.cuso.mobile.model.RegisterVerifyOtp
 import com.cuso.mobile.model.RegisterVerifyOtpResponse
-import com.cuso.mobile.model.SalesResponse
-import com.cuso.mobile.model.SalesSummaryResponse
+import com.cuso.mobile.model.sales.SalesResponse
+import com.cuso.mobile.model.sales.SalesSummaryResponse
 import com.cuso.mobile.model.SignupRequest
 import com.cuso.mobile.model.SignupResponse
-import com.cuso.mobile.model.StaffResponse
+import com.cuso.mobile.model.sales.StaffResponse
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.model.UpdateBranchResponse
-import com.cuso.mobile.model.UpdateLeadResponse
+import com.cuso.mobile.model.sales.UpdateLeadResponse
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationResponse
-import com.cuso.mobile.model.ViewOneLeadResponse
+import com.cuso.mobile.model.sales.ViewOneLeadResponse
 import com.cuso.mobile.model.forgotPasswordRequest
 import com.cuso.mobile.model.forgotPasswordResponse
 import com.cuso.mobile.model.otpSendRequest
@@ -60,9 +60,9 @@ import com.cuso.mobile.model.otpVerifyRequest
 import com.cuso.mobile.model.otpVerifyResponse
 import com.cuso.mobile.model.forgotPasswordVerifyRequest
 import com.cuso.mobile.model.forgotPasswordVerifyResponse
-import com.cuso.mobile.model.meResponse
-import com.cuso.mobile.model.myLayoutResponse
-import com.cuso.mobile.model.myOrganizationResponse
+import com.cuso.mobile.model.sales.meResponse
+import com.cuso.mobile.model.sales.myLayoutResponse
+import com.cuso.mobile.model.sales.myOrganizationResponse
 import com.cuso.mobile.model.organizationSetUpRequest
 import com.cuso.mobile.model.organizationSetUpResponse
 import com.cuso.mobile.model.resetNewPasswordRequest
@@ -82,25 +82,32 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
-import com.cuso.mobile.model.CustomerListResponse
+import com.cuso.mobile.model.sales.CustomerListResponse
+import com.cuso.mobile.model.sales.CustomerListResponseV2
 import com.cuso.mobile.model.DashboardResponse
-import com.cuso.mobile.model.DeleteCustomerResponse
-import com.cuso.mobile.model.GarmentPricingDetailDto
-import com.cuso.mobile.model.GarmentPricingListItemDto
-import com.cuso.mobile.model.GarmentPricingResponse
-import com.cuso.mobile.model.GetCustomerViewResponse
-import com.cuso.mobile.model.MeasurementsResponse
-import com.cuso.mobile.model.OrderManagementResponse
-import com.cuso.mobile.model.OrderOverviewApiResponse
-import com.cuso.mobile.model.OrderViewResponse
-import com.cuso.mobile.model.PricingQuotationSaveRequest
-import com.cuso.mobile.model.PricingQuotationSaveResponse
-import com.cuso.mobile.model.QuotationListResponse
-import com.cuso.mobile.model.StageAssignRequest
-import com.cuso.mobile.model.UpdateCustomerRequest
-import com.cuso.mobile.model.UpdateCustomerResponse
-import com.cuso.mobile.model.UpdateStageRequest
-import com.cuso.mobile.model.UpdateStageResponse
+import com.cuso.mobile.model.finance.InvoiceListResponse
+import com.cuso.mobile.model.finance.InvoiceViewOneResponse
+import com.cuso.mobile.model.sales.DeleteCustomerResponse
+import com.cuso.mobile.model.sales.GarmentPricingDetailDto
+import com.cuso.mobile.model.sales.GarmentPricingListItemDto
+import com.cuso.mobile.model.sales.GarmentPricingResponse
+import com.cuso.mobile.model.sales.GetCustomerDetailResponseV2
+import com.cuso.mobile.model.sales.GetCustomerViewResponse
+import com.cuso.mobile.model.sales.GetFinanceCustomerViewOneResponse
+import com.cuso.mobile.model.sales.MeasurementsResponse
+import com.cuso.mobile.model.sales.OrderManagementResponse
+import com.cuso.mobile.model.sales.OrderOverviewApiResponse
+import com.cuso.mobile.model.sales.OrderViewResponse
+import com.cuso.mobile.model.sales.PricingQuotationSaveRequest
+import com.cuso.mobile.model.sales.PricingQuotationSaveResponse
+import com.cuso.mobile.model.sales.QuotationDeleteResponse
+import com.cuso.mobile.model.sales.QuotationDetailResponse
+import com.cuso.mobile.model.sales.QuotationListResponse
+import com.cuso.mobile.model.sales.StageAssignRequest
+import com.cuso.mobile.model.sales.UpdateCustomerRequest
+import com.cuso.mobile.model.sales.UpdateCustomerResponse
+import com.cuso.mobile.model.sales.UpdateStageRequest
+import com.cuso.mobile.model.sales.UpdateStageResponse
 
 interface ApiService {
 
@@ -649,5 +656,72 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Body request: CreateQuotationRequest
     ): Response<CreateQuotationResponse>
+
+    @DELETE("/api/quotations/delete-one/{id}")
+    suspend fun deleteQuotation(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<QuotationDeleteResponse>
+
+    @GET("/api/quotations/view-one/{id}")
+    suspend fun getQuotationById(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<QuotationDetailResponse>
+
+    @GET("api/customers")
+    suspend fun getCustomersV2(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("type") type: String? = null
+    ): Response<CustomerListResponseV2>
+
+    @GET("api/customers/{id}")
+    suspend fun getCustomerDetailV2(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<GetCustomerDetailResponseV2>
+
+    @GET("/api/finance/customers/view-all")
+    suspend fun getCustomerForFinance(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("type") type: String? = null
+    ): Response<CustomerListResponseV2>
+
+    @GET("/api/finance/customers/view-overview/{id}")
+    suspend fun getFinanceCustomerViewOne(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<GetFinanceCustomerViewOneResponse>
+
+    @GET("/api/finance/sales-invoices/view-all")
+    suspend fun getInvoices(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<InvoiceListResponse>
+
+    // Add this endpoint to ApiService interface:
+
+    @GET("/api/finance/sales-invoices/view-one/{id}")
+    suspend fun getInvoiceViewOne(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<InvoiceViewOneResponse>
 
 }

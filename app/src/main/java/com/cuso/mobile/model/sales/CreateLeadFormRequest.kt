@@ -1,5 +1,5 @@
 // LeadModels.kt
-package com.cuso.mobile.model
+package com.cuso.mobile.model.sales
 
 
 // In CreateLeadFormRequest.kt - Add occasion field
@@ -13,13 +13,14 @@ data class CreateLeadFormRequest(
     val enquiryDate: String,
     val requiredDate: String,
     val source: String,
+    val leadOwner: String = "",   // ✅ NEW — staff ID, same convention as appointment.assignedStaff
     val person: LeadPerson,
     val contact: LeadContact,
     val appointment: LeadAppointment,
     val status: String,
     val statusName: String,
     val notes: List<LeadNote>,
-    val occasion: String = ""  // ✅ Added this field
+    val occasion: String = ""
 )
 
 data class BudgetRange(

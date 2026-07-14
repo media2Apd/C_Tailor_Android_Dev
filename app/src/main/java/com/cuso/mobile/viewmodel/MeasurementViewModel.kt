@@ -2,8 +2,8 @@ package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cuso.mobile.model.CustomerLastOrder
-import com.cuso.mobile.model.MeasurementItem
+import com.cuso.mobile.model.sales.CustomerLastOrder
+import com.cuso.mobile.model.sales.MeasurementItem
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

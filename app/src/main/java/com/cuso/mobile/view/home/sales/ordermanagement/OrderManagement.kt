@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.cuso.mobile.model.OrderManagementItem
+import com.cuso.mobile.model.sales.OrderManagementItem
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -279,8 +279,8 @@ private fun OrderManagementCard(
     onView: () -> Unit,
     onEdit: () -> Unit
 ) {
-    val ( orderTextColor) = orderStatusColors(order.orderStatus)             // ✅ CHANGED — order.status -> order.orderStatus
-    val ( paymentTextColor) = paymentStatusColors(order.paymentStatus)      // ✅ CHANGED — always non-null string now
+    val (orderBgColor, orderTextColor) = orderStatusColors(order.orderStatus)
+    val (paymentBgColor, paymentTextColor) = paymentStatusColors(order.paymentStatus)
 
     DataCard(
         item = order,
@@ -288,7 +288,7 @@ private fun OrderManagementCard(
         dateIcon = Icons.Default.Receipt,
         topBadgeText = order.orderStatus.replaceFirstChar { it.uppercase() },
         topBadgeTextColor = orderTextColor,
-        topBadgeBgColor = orderTextColor.copy(alpha = 0.14f),
+        topBadgeBgColor = orderBgColor,
         topBadgeInline = false,
         title = order.customerName?.takeIf { it.isNotBlank() } ?: "Unknown",
         subtitle = "+91 ${order.mobile?.takeLast(10) ?: "—"}",
@@ -299,7 +299,7 @@ private fun OrderManagementCard(
                 asRow = true,
                 label = order.paymentStatus.replaceFirstChar { it.uppercase() },
                 labelColor = paymentTextColor,
-                labelBackgroundColor = paymentTextColor,   // ✅ badge/pill background back-a
+                labelBackgroundColor = paymentBgColor,
                 text = "Total: ₹${formatIndianNumber((order.totalAmount ?: 0.0).toInt())}\n₹${formatIndianNumber(order.balanceAmount.toInt())} Due",
                 textColor = Color(0xFF111827)
             )

@@ -38,7 +38,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.model.BranchItem
-import com.cuso.mobile.model.StaffDto
+import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.model.UpdateBranchAddress
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.view.home.reusablecomposables.DataCard

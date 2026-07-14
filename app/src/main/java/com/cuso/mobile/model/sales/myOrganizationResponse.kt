@@ -1,4 +1,6 @@
-package com.cuso.mobile.model
+package com.cuso.mobile.model.sales
+
+import com.cuso.mobile.model.OrganizationDetails
 
 data class myOrganizationResponse(
     val success: Boolean,

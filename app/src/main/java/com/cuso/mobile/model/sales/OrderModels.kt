@@ -1,6 +1,9 @@
-package com.cuso.mobile.model
+package com.cuso.mobile.model.sales
 
 import com.google.gson.annotations.SerializedName
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 // ─────────────────────────────────────────────────────────────
 // API Response Models
@@ -224,8 +227,8 @@ private fun String.toEpochMillis(): Long? {
     )
     for (fmt in formats) {
         runCatching {
-            java.text.SimpleDateFormat(fmt, java.util.Locale.getDefault())
-                .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+            SimpleDateFormat(fmt, Locale.getDefault())
+                .apply { timeZone = TimeZone.getTimeZone("UTC") }
                 .parse(this)?.time
         }.getOrNull()?.let { return it }
     }

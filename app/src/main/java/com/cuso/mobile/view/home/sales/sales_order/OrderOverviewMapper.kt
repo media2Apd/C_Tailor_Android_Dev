@@ -2,7 +2,7 @@ package com.cuso.mobile.view.home.sales.sales_order
 
 
 import com.cuso.mobile.database.entities.SelectedGarment
-import com.cuso.mobile.model.OrderOverviewData
+import com.cuso.mobile.model.sales.OrderOverviewData
 
 fun OrderOverviewData.toOrderReviewData(): OrderReviewData {
     val order = this.order

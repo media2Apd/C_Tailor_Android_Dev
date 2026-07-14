@@ -1,8 +1,9 @@
 // model/LeadTableItem.kt
-package com.cuso.mobile.model
+package com.cuso.mobile.model.sales
 
 import com.cuso.mobile.database.entities.LeadEntity
 import com.google.gson.annotations.SerializedName
+import kotlin.collections.get
 
 data class LeadsTableResponse(
     @SerializedName("success") val success: Boolean,

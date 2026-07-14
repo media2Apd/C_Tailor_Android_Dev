@@ -21,9 +21,9 @@ import com.cuso.mobile.model.RegisterVerifyOtp
 import com.cuso.mobile.model.RegisterVerifyOtpResponse
 import com.cuso.mobile.model.forgotPasswordVerifyRequest
 import com.cuso.mobile.model.forgotPasswordVerifyResponse
-import com.cuso.mobile.model.meResponse
-import com.cuso.mobile.model.myLayoutResponse
-import com.cuso.mobile.model.myOrganizationResponse
+import com.cuso.mobile.model.sales.meResponse
+import com.cuso.mobile.model.sales.myLayoutResponse
+import com.cuso.mobile.model.sales.myOrganizationResponse
 import com.cuso.mobile.model.organizationSetUpRequest
 import com.cuso.mobile.model.organizationSetUpResponse
 import com.cuso.mobile.model.resetNewPasswordRequest

@@ -2,10 +2,10 @@ package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cuso.mobile.model.CustomerItem
-import com.cuso.mobile.model.CustomerViewAddress
-import com.cuso.mobile.model.CustomerViewData
-import com.cuso.mobile.model.UpdateCustomerRequest
+import com.cuso.mobile.model.sales.CustomerItem
+import com.cuso.mobile.model.sales.CustomerViewAddress
+import com.cuso.mobile.model.sales.CustomerViewData
+import com.cuso.mobile.model.sales.UpdateCustomerRequest
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -197,11 +197,11 @@ class CustomerViewModel @Inject constructor(
             referralCount = original.referralCount ?: 0,
             totalSpend = original.totalSpend ?: 0,
             pendingPayment = original.pendingPayment ?: 0,
-            _id = original._id,
+            id = original.id,
             organizationId = original.organizationId,
             createdAt = original.createdAt,
             updatedAt = original.updatedAt,
-            __v = original.__v
+            v = original.v
         )
 
         viewModelScope.launch {

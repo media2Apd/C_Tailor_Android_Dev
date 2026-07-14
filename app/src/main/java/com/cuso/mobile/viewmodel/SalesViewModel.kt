@@ -8,13 +8,13 @@ import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.database.entities.LeadEntity
 import com.cuso.mobile.database.entities.SalesStatusEntity
 import com.cuso.mobile.database.entities.SalesSummaryEntity
-import com.cuso.mobile.model.CategoryItem
-import com.cuso.mobile.model.CreateLeadFormRequest
-import com.cuso.mobile.model.CustomerSearchResponse
-import com.cuso.mobile.model.LeadData
-import com.cuso.mobile.model.LeadTableItem
-import com.cuso.mobile.model.StaffDto
-import com.cuso.mobile.model.ViewOneLeadData
+import com.cuso.mobile.model.sales.CategoryItem
+import com.cuso.mobile.model.sales.CreateLeadFormRequest
+import com.cuso.mobile.model.sales.CustomerSearchResponse
+import com.cuso.mobile.model.sales.LeadData
+import com.cuso.mobile.model.sales.LeadTableItem
+import com.cuso.mobile.model.sales.StaffDto
+import com.cuso.mobile.model.sales.ViewOneLeadData
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -28,8 +28,8 @@ import kotlinx.coroutines.launch
 import android.util.Log
 import com.cuso.mobile.database.dao.SelectedGarmentDao
 import com.cuso.mobile.database.entities.SelectedGarment
-import com.cuso.mobile.model.OrderItem
-import com.cuso.mobile.model.StatusData
+import com.cuso.mobile.model.sales.OrderItem
+import com.cuso.mobile.model.sales.StatusData
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -318,6 +318,7 @@ class SalesViewModel @Inject constructor(
             enquiryDate = data.enquiryDate,
             requiredDate = data.requiredDate ?: "",
             source = data.source,
+            leadOwner = data.leadOwner?._id ?: "",     // ✅ NEW
             appointmentRequired = data.appointment?.isRequired ?: false,
             appointmentDate = data.appointment?.date ?: "",
             appointmentTime = data.appointment?.time ?: "",

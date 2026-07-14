@@ -320,8 +320,38 @@ class QuotationPdfGenerator(private val context: Context) {
         webView.loadDataWithBaseURL(null, buildQuotationHtml(data), "text/html", "UTF-8", null)
     }
 
+    // ── Converts a drawable resource (company logo) into a Base64 data URI for WebView/PDF ──
+    private fun drawableToBase64(resId: Int): String {
+        return try {
+            val drawable = androidx.core.content.ContextCompat.getDrawable(context, resId) ?: return ""
+            val bitmap = if (drawable is android.graphics.drawable.BitmapDrawable) {
+                drawable.bitmap
+            } else {
+                val width = drawable.intrinsicWidth.coerceAtLeast(1)
+                val height = drawable.intrinsicHeight.coerceAtLeast(1)
+                val bmp = createBitmap(width, height)
+                val canvas = Canvas(bmp)
+                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                drawable.draw(canvas)
+                bmp
+            }
+            val outputStream = java.io.ByteArrayOutputStream()
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, outputStream)
+            val bytes = outputStream.toByteArray()
+            "data:image/png;base64," + android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        } catch (e: Exception) {
+            android.util.Log.e("QuotationPdfGenerator", "drawableToBase64 failed for resId=$resId", e)
+            ""
+        }
+    }
+
     // ── HTML for WebView (SAME html used for preview, download, print) ──
     fun buildQuotationHtml(data: QuotationData): String {
+        val companyLogoBase64 = drawableToBase64(com.cuso.mobile.R.drawable.logo)
+        val companyLogoTag = if (companyLogoBase64.isNotEmpty()) {
+            """<img src="$companyLogoBase64" class="footer-logo"/>"""
+        } else ""
+
         val itemsHtml = data.items.joinToString("") { item ->
             """
         <tr>
@@ -587,6 +617,13 @@ class QuotationPdfGenerator(private val context: Context) {
         font-size: 11.5px;
         color: #9ca3af;
       }
+      .footer-logo {
+        max-width: 90px;
+        max-height: 40px;
+        object-fit: contain;
+        margin-bottom: 10px;
+        opacity: 0.85;
+      }
     </style>
     </head>
     <body>
@@ -604,9 +641,7 @@ class QuotationPdfGenerator(private val context: Context) {
             </div>
             <div class="recipient-label">RECIPIENT</div>
             <div class="recipient-info">
-              ${data.customerName}<br>
-              ${data.customerAddress.replace("\n", "<br>")}
-              ${if (data.customerEmail.isNotEmpty()) "<br>${data.customerEmail}" else ""}
+              ${data.customerName}
               ${if (data.customerPhone.isNotEmpty()) "<br>${data.customerPhone}" else ""}
             </div>
           </div>
@@ -663,6 +698,7 @@ class QuotationPdfGenerator(private val context: Context) {
         """ else ""}
 
         <div class="footer">
+            ${companyLogoTag}
           <p>${data.thankYouMessage}</p>
           <p class="small">${data.poweredBy}</p>
           <img >

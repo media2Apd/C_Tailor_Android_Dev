@@ -24,9 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.mobile.model.OrderViewData
-import com.cuso.mobile.model.OrderViewGarmentItem
-import com.cuso.mobile.model.OrderViewStageGroup
+import com.cuso.mobile.model.sales.OrderViewData
+import com.cuso.mobile.model.sales.OrderViewGarmentItem
+import com.cuso.mobile.model.sales.OrderViewStageGroup
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.viewmodel.OrderOverviewViewModel
 import com.cuso.mobile.viewmodel.OrderViewUiState
@@ -101,7 +101,8 @@ fun OrderDetailScreen(
                     data = state.data,
                     onEditOrder = onEditOrder,
                     overviewViewModel = overviewViewModel,
-                    stageUpdateState = stageUpdateState
+                    stageUpdateState = stageUpdateState,
+                    onRefresh = { viewModel.getOrdersView(orderId) }
                 )
             }
         }
@@ -116,7 +117,8 @@ private fun OrderDetailContent(
     data: OrderViewData,
     onEditOrder: () -> Unit = {},
     overviewViewModel: OrderOverviewViewModel,
-    stageUpdateState: StageUpdateState
+    stageUpdateState: StageUpdateState,
+    onRefresh: () -> Unit
 ) {
     val order = data.order
     var garmentIndex by remember { mutableIntStateOf(0) }
@@ -409,8 +411,8 @@ private fun OrderDetailContent(
                 if (stageUpdateState is StageUpdateState.Success && stageUpdateState.stageId == stage.id) {
                     stageStatusOverrides[stage.id] = selectedStatus
                     overviewViewModel.resetStageUpdateState()
+                    onRefresh()
                 } else if (stageUpdateState is StageUpdateState.Error && stageUpdateState.stageId == stage.id) {
-                    // TODO: show a snackbar/toast with stageUpdateState.message
                     overviewViewModel.resetStageUpdateState()
                 }
             }

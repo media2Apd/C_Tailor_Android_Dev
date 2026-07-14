@@ -1,4 +1,4 @@
-package com.cuso.mobile.model
+package com.cuso.mobile.model.sales
 
 import com.cuso.mobile.database.entities.SalesStatusEntity
 import com.google.gson.annotations.SerializedName

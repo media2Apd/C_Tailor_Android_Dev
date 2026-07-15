@@ -72,8 +72,10 @@ import com.cuso.mobile.model.sales.StageAssignRequest
 import com.cuso.mobile.model.sales.UpdateCustomerRequest
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationResponse
+import com.cuso.mobile.model.UploadOrganizationPictureResponse
 import com.cuso.mobile.model.sales.UpdateStageRequest
 import com.cuso.mobile.model.sales.toOrderItem
+import okhttp3.RequestBody.Companion.asRequestBody
 
 
 @Singleton
@@ -83,7 +85,9 @@ class SalesRepository @Inject constructor(
     private val salesStatusDao: SalesStatusDao,
     private val salesSummaryDao: SalesSummaryDao,
     private val tokensDao: TokensDao,
-    private val leadDao: LeadDao
+    private val leadDao: LeadDao,
+    private val organizationDao: com.cuso.mobile.database.dao.OrganizationDao
+
 ) {
 
     private suspend fun getAuthHeaders(): Pair<String, String> {
@@ -663,19 +667,74 @@ class SalesRepository @Inject constructor(
      */
     suspend fun updateOrganization(
         token: String,
-        request: UpdateOrganizationRequest
+        request: UpdateOrganizationRequest,
+        logoPart: okhttp3.MultipartBody.Part? = null
     ): Result<UpdateOrganizationResponse> {
         return try {
             val (_, csrfToken) = getAuthHeaders()
+            val gson = com.google.gson.Gson()
+
+            fun String.asTextBody(): RequestBody =
+                this.toRequestBody("text/plain".toMediaTypeOrNull())
+
             val response = api.updateOrganization(
                 token = token,
                 csrfToken = csrfToken,
-                request = request
+                name = request.name?.asTextBody(),
+                orgType = request.orgType?.asTextBody(),
+                businessType = request.businessType?.asTextBody(),
+                email = request.email?.asTextBody(),
+                mobile = request.mobile?.asTextBody(),
+                settings = request.settings?.let { gson.toJson(it).asTextBody() },
+                organizationPicture = logoPart
             )
             if (response.success) {
                 Result.success(response)
             } else {
                 Result.failure(Exception(response.message ?: "Failed to update organization"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Upload Organization Picture ──
+
+    /**
+     * POST /api/organizations/upload-picture
+     * Upload only the organization's profile picture
+     */
+    suspend fun uploadOrganizationPicture(
+        token: String,
+        pictureFile: java.io.File
+    ): Result<UploadOrganizationPictureResponse> {
+        return try {
+            val (_, csrfToken) = getAuthHeaders()
+
+            val requestBody = pictureFile.asRequestBody("image/*".toMediaTypeOrNull())
+            val picturePart = okhttp3.MultipartBody.Part.createFormData(
+                "picture", pictureFile.name, requestBody
+            )
+
+            val response = api.uploadOrganizationPicture(token, csrfToken, picturePart)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val body = response.body()!!
+
+                // ✅ Now data is Organization (flat), fields accessed directly
+                body.data?.let { org ->
+                    organizationDao.updateOrganizationPicture(
+                        orgId = org._id,
+                        pictureUrl = org.organizationPicture,
+                        pictureId = org.organizationPictureId
+                    )
+                }
+
+                Result.success(body)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to upload picture: ${response.code()}")
+                )
             }
         } catch (e: Exception) {
             Result.failure(e)

@@ -15,6 +15,9 @@ interface OrganizationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSegments(segments: List<OrgSegmentEntity>)
 
+    @Query("UPDATE organization SET organizationPicture = :pictureUrl, organizationPictureId = :pictureId WHERE orgId = :orgId")
+    suspend fun updateOrganizationPicture(orgId: String, pictureUrl: String?, pictureId: String?)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBranches(branches: List<OrgBranchEntity>)
 

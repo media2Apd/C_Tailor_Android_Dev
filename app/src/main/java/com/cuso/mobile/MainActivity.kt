@@ -80,7 +80,7 @@ class MainActivity : ComponentActivity() {
 
 //                    PricingQuotationScreen(onClose = {})
                     // 👇 isLoggedIn is guaranteed non-null here since splash already waited for it
-//                    AppNav(activity = this, startLoggedIn = isLoggedIn == true)
+                    AppNav(activity = this, startLoggedIn = isLoggedIn == true)
 //                    FinanceCustomerScreen(
 //                        onClose = { navController.popBackStack() },
 //                        onCustomerClick = { customerId ->
@@ -111,7 +111,7 @@ class MainActivity : ComponentActivity() {
 //                        }
 //                    )
 
-
+/*
                     if (selectedInvoiceId == null) {
                         FinanceInvoiceScreen(
                             onClose = { navController.popBackStack() },
@@ -125,10 +125,10 @@ class MainActivity : ComponentActivity() {
                             onClose = {
                                 selectedInvoiceId = null
                             },
-                            onSharePdf = { /* Handle share PDF */ },
-                            onDownloadInvoice = { /* Handle download invoice */ }
+                            onSharePdf = { *//* Handle share PDF *//* },
+                            onDownloadInvoice = { *//* Handle download invoice *//* }
                         )
-                    }
+                    }*/
 
                 }
             }

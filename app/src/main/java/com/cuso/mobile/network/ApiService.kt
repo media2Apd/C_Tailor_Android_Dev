@@ -85,6 +85,13 @@ import retrofit2.http.Query
 import com.cuso.mobile.model.sales.CustomerListResponse
 import com.cuso.mobile.model.sales.CustomerListResponseV2
 import com.cuso.mobile.model.DashboardResponse
+import com.cuso.mobile.model.UploadOrganizationPictureResponse
+import com.cuso.mobile.model.finance.ChartOfAccountsResponse
+import com.cuso.mobile.model.finance.CreateChartOfAccountRequest
+import com.cuso.mobile.model.finance.CreateChartOfAccountResponse
+import com.cuso.mobile.model.finance.CreateExpenseResponse
+import com.cuso.mobile.model.finance.ExpenseListResponse
+import com.cuso.mobile.model.finance.ExpenseViewOneResponse
 import com.cuso.mobile.model.finance.InvoiceListResponse
 import com.cuso.mobile.model.finance.InvoiceViewOneResponse
 import com.cuso.mobile.model.sales.DeleteCustomerResponse
@@ -399,12 +406,28 @@ interface ApiService {
         @Path("id") id: String
     ): Response<DesignationDeleteResponse>
 
+    @Multipart
+    @POST("api/organizations/upload-picture")   // ⚠️ replace with actual endpoint
+    suspend fun uploadOrganizationPicture(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Part picture: MultipartBody.Part
+    ): Response<UploadOrganizationPictureResponse>
+
     // In ApiService.kt
+    // WITH this:
+    @Multipart
     @PUT("/api/organizations/update-one")
     suspend fun updateOrganization(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
-        @Body request: UpdateOrganizationRequest
+        @Part("name") name: RequestBody?,
+        @Part("orgType") orgType: RequestBody?,
+        @Part("businessType") businessType: RequestBody?,
+        @Part("email") email: RequestBody?,
+        @Part("mobile") mobile: RequestBody?,
+        @Part("settings") settings: RequestBody?,
+        @Part organizationPicture: MultipartBody.Part?
     ): UpdateOrganizationResponse
 
     // ── Sales/Order Endpoints ──
@@ -723,5 +746,55 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<InvoiceViewOneResponse>
+
+    // ── Chart of Accounts ──
+    @GET("/api/finance/chart-of-accounts/view-all")   // ⚠️ confirm exact path with backend
+    suspend fun getChartOfAccounts(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<ChartOfAccountsResponse>
+
+    // ── Expenses: list ──
+    @GET("/api/finance/expenses/view-all")   // ⚠️ confirm exact path
+    suspend fun getExpenses(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<ExpenseListResponse>
+
+    // ── Expenses: view one ──
+    @GET("api/finance/expenses/{id}")   // ⚠️ confirm exact path
+    suspend fun getExpenseViewOne(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<ExpenseViewOneResponse>
+
+    // ── Expenses: create (multipart — supports file upload like createOrder) ──
+    @Multipart
+    @POST("/api/finance/expenses/create")   // ⚠️ confirm exact path
+    suspend fun createExpense(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Part("branch") branch: RequestBody,
+        @Part("expenseDate") expenseDate: RequestBody,
+        @Part("accountId") accountId: RequestBody,
+        @Part("paymentAccountId") paymentAccountId: RequestBody,
+        @Part("amount") amount: RequestBody,
+        @Part("referenceNumber") referenceNumber: RequestBody?,
+        @Part("notes") notes: RequestBody?,
+        @Part("status") status: RequestBody?,
+        @Part files: List<MultipartBody.Part> = emptyList()
+    ): Response<CreateExpenseResponse>
+
+    @POST("api/finance/chart-of-accounts")
+    suspend fun createChartOfAccount(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: CreateChartOfAccountRequest
+    ): Response<CreateChartOfAccountResponse>
 
 }

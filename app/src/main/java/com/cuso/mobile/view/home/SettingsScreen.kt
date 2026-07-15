@@ -58,6 +58,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.ui.platform.LocalContext
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
+
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun SettingsScreen(
@@ -184,17 +189,27 @@ fun SettingsScreen(
 }
 
 
+// 1. Uri -> File (cache-la copy pannanum, since multipart-ku real file path venum)
+// REPLACE uriToBase64 with:
 
+
+// 2. File -> MultipartBody.Part
+private fun fileToMultipart(file: File, partName: String = "organizationPicture"): MultipartBody.Part {
+    val requestBody = file.asRequestBody("image/*".toMediaTypeOrNull())
+    return MultipartBody.Part.createFormData(partName, file.name, requestBody)
+}
 
 // ─────────────────────────────────────────────────────────────
 // Helper: Convert picked Uri -> Base64 string
 // ─────────────────────────────────────────────────────────────
-private fun uriToBase64(context: Context, uri: Uri): String? {
+// REPLACE uriToBase64 with:
+private fun uriToFile(context: Context, uri: Uri): File? {
     return try {
         val inputStream = context.contentResolver.openInputStream(uri) ?: return null
-        val bytes = inputStream.readBytes()
+        val tempFile = File.createTempFile("org_logo_", ".jpg", context.cacheDir)
+        tempFile.outputStream().use { output -> inputStream.copyTo(output) }
         inputStream.close()
-        Base64.encodeToString(bytes, Base64.NO_WRAP)
+        tempFile
     } catch (_: Exception) {
         null
     }
@@ -335,17 +350,15 @@ fun ProfileTab(
                                             }
                                             Button(
                                                 onClick = {
-                                                    // 👇 Convert picked image to Base64 (null if no new image picked)
-                                                    val base64Image = selectedImageUri?.let { uriToBase64(context, it) }
+                                                    val logoFile = selectedImageUri?.let { uriToFile(context, it) }
                                                     val request = UpdateOrganizationRequest(
                                                         name = orgName,
                                                         orgType = orgType,
                                                         businessType = businessType,
                                                         email = email,
-                                                        mobile = mobile,
-                                                        organizationPicture = base64Image
+                                                        mobile = mobile
                                                     )
-                                                    viewModel.updateOrganization(token, request)
+                                                    viewModel.updateOrganization(token, request, logoFile)
                                                 },
                                                 enabled = !isSaving,
                                                 colors = ButtonDefaults.buttonColors(
@@ -355,7 +368,6 @@ fun ProfileTab(
                                             ) {
                                                 if (isSaving) {
                                                     CirculerProgressIndicatorReuse()
-
                                                 } else {
                                                     Text("Save", color = Color.White, fontSize = 14.sp)
                                                 }

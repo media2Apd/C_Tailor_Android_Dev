@@ -38,7 +38,7 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
-import com.cuso.mobile.view.home.sales.sales_order.pdfgenerator.QuotationPdfGenerator
+import com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator
 import com.cuso.mobile.viewmodel.CustomerViewModel
 import com.cuso.mobile.viewmodel.GarmentPricingUiState
 import com.cuso.mobile.viewmodel.GarmentPricingViewModel

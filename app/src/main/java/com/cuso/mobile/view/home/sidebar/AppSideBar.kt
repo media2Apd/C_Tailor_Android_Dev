@@ -137,7 +137,10 @@ object SidebarConfig {
                 isPanel = true,
                 categories = listOf("Accounts Receivable", "Accounts Payable", "Expenses", "Finance Core"),
                 subItems = mapOf(
-                    "Accounts Receivable" to listOf("Customers", "Sales Invoices", "Payments Received"),
+                    // ✅ "Sales Invoices" moved first — so clicking "Accounts Receivable"
+                    // (both in ModulesPanel category tap and sidebar accordion default)
+                    // lands directly on the invoice list instead of "Customers".
+                    "Accounts Receivable" to listOf("Sales Invoices", "Customers", "Payments Received"),
                     "Accounts Payable"    to listOf("Suppliers", "Purchase Invoices", "Payments Mode"),
                     "Expenses"            to listOf("Expenses"),
                     "Finance Core"        to listOf("Chart of Accounts", "Journal Entries", "Trial Balance")

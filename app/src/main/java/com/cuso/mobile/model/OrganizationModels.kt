@@ -10,7 +10,6 @@ data class UpdateOrganizationRequest(
     val email: String? = null,
     val mobile: String? = null,
     val settings: UpdateOrganizationSettings? = null,
-    val organizationPicture: String? = null
 
 )
 
@@ -30,5 +29,5 @@ data class UpdateOrganizationSettings(
 data class UpdateOrganizationResponse(
     val success: Boolean,
     val message: String? = null,
-    val data: OrganizationDataWrapper? = null
+    val data: Organization? = null
 )

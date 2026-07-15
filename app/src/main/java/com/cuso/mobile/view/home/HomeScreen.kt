@@ -152,7 +152,11 @@ fun HomeScreen(navController: NavHostController) {
 
     var selectedManagementOrderId by remember { mutableStateOf<String?>(null) }
 
+    // ✅ NEW — Finance > Accounts Receivable > Sales Invoices flow
+    var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
+
     var isSalesSettingsMode by remember { mutableStateOf(false) }
+
     var showModulesPanel by remember { mutableStateOf(false) }   // ✅ NEW
     val orderOverviewViewModel: com.cuso.mobile.viewmodel.OrderOverviewViewModel = hiltViewModel()
     val editOverviewState by orderOverviewViewModel.overviewState.collectAsStateWithLifecycle()
@@ -256,6 +260,11 @@ fun HomeScreen(navController: NavHostController) {
             currentScreen == "sales_measurements" -> currentScreen = "home"
             currentScreen == "view_customer" -> currentScreen = "sales_customers"
             currentScreen == "edit_customer" -> currentScreen = "sales_customers"
+            currentScreen == "finance_sales_invoices" -> currentScreen = "home"   // ✅ NEW
+            currentScreen == "finance_invoice_detail" -> {                        // ✅ NEW
+                selectedInvoiceId = null
+                currentScreen = "finance_sales_invoices"
+            }
             currentScreen == "create_order_review" -> {
                 pendingOrderReviewData = null
                 currentScreen = "create_order"
@@ -337,6 +346,11 @@ fun HomeScreen(navController: NavHostController) {
                                 currentScreen = "sales_customers"
                                 isDrawerOpen = false
                             }
+                            "finance_expenses" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "finance_expenses"
+                                isDrawerOpen = false
+                            }
 
                             "sales_measurements" -> {
                                 isSalesSettingsMode = false
@@ -365,6 +379,13 @@ fun HomeScreen(navController: NavHostController) {
                             "sales_pricing_&_quotations" -> {
                                 isSalesSettingsMode = false
                                 currentScreen = "sales_pricing_quotation"
+                                isDrawerOpen = false
+                            }
+
+                            // ✅ NEW — Finance > Accounts Receivable > "Sales Invoices"
+                            "finance_sales_invoices", "finance_accounts_receivable" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "finance_sales_invoices"
                                 isDrawerOpen = false
                             }
 
@@ -647,6 +668,33 @@ fun HomeScreen(navController: NavHostController) {
                         },
                         onDelete ={ customer -> customerViewModel.deleteCustomer(customer.id) }
                     )
+                    "finance_expenses" -> com.cuso.mobile.view.home.finance.ExpensesScreen(
+                        onClose = { currentScreen = "home" }
+                    )
+
+                    // ✅ NEW — Finance > Accounts Receivable > Sales Invoices (list)
+                    "finance_sales_invoices" -> com.cuso.mobile.view.home.finance.FinanceInvoiceScreen(
+                        onClose = { currentScreen = "home" },
+                        onInvoiceClick = { invoice ->
+                            selectedInvoiceId = invoice.id
+                            currentScreen = "finance_invoice_detail"
+                        }
+                    )
+
+                    // ✅ NEW — Sales Invoice detail (view one)
+                    "finance_invoice_detail" -> {
+                        selectedInvoiceId?.let { id ->
+                            com.cuso.mobile.view.home.finance.InvoiceDetailScreen(
+                                invoiceId = id,
+                                onClose = {
+                                    selectedInvoiceId = null
+                                    currentScreen = "finance_sales_invoices"
+                                },
+                                token=token
+                            )
+                        } ?: run { currentScreen = "finance_sales_invoices" }
+                    }
+
                     "view_customer", "edit_customer" -> {
                         val customer = selectedCustomer
                         if (customer != null && customer.id.isNotBlank()) {

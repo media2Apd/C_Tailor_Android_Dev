@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.home.sales.sales_order.pdfgenerator
+package com.cuso.mobile.view.home.pdfgenerator
 
 import android.content.Context
 import android.print.PrintManager

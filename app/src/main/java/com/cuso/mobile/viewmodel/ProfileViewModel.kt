@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.asRequestBody
 import javax.inject.Inject
 
 // ─── UI State for loading organization ───
@@ -28,6 +30,14 @@ sealed class UpdateOrgUiState {
     data class Error(val message: String) : UpdateOrgUiState()
 }
 
+// ─── Upload Picture State ───
+sealed class UploadPictureUiState {
+    object Idle : UploadPictureUiState()
+    object Loading : UploadPictureUiState()
+    data class Success(val message: String) : UploadPictureUiState()
+    data class Error(val message: String) : UploadPictureUiState()
+}
+
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
@@ -39,6 +49,10 @@ class ProfileViewModel @Inject constructor(
 
     private val _updateState = MutableStateFlow<UpdateOrgUiState>(UpdateOrgUiState.Idle)
     val updateState: StateFlow<UpdateOrgUiState> = _updateState.asStateFlow()
+
+    private val _uploadPictureState = MutableStateFlow<UploadPictureUiState>(UploadPictureUiState.Idle)
+    val uploadPictureState: StateFlow<UploadPictureUiState> = _uploadPictureState.asStateFlow()
+
 
     // ─── Load Organization ───
     fun loadOrganization(token: String) {
@@ -76,18 +90,62 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    // ─── Upload Organization Picture ───
+    fun uploadOrganizationPicture(token: String, pictureFile: java.io.File) {
+        viewModelScope.launch {
+            _uploadPictureState.value = UploadPictureUiState.Loading
+
+            val result = salesRepository.uploadOrganizationPicture("Bearer $token", pictureFile)
+            result.fold(
+                onSuccess = { response ->
+                    _uploadPictureState.value = UploadPictureUiState.Success(
+                        response.message ?: "Organization picture uploaded"
+                    )
+                    refreshOrganization(token)   // fresh logo URL kaatikkaraduku
+                },
+                onFailure = { e ->
+                    _uploadPictureState.value = UploadPictureUiState.Error(
+                        e.message ?: "Something went wrong"
+                    )
+                }
+            )
+        }
+    }
+
     // ─── Update Organization (text fields + optional Base64 logo, all in one JSON request) ───
-    fun updateOrganization(token: String, request: UpdateOrganizationRequest) {
+    // ─── Update Organization (text fields) + Upload Picture (separate API) ───
+    fun updateOrganization(
+        token: String,
+        request: UpdateOrganizationRequest,
+        logoFile: java.io.File? = null
+    ) {
         viewModelScope.launch {
             _updateState.value = UpdateOrgUiState.Loading
-            val result = salesRepository.updateOrganization("Bearer $token", request)
+
+            // Step 1: If a new picture was picked, upload it FIRST via the dedicated upload API
+            if (logoFile != null) {
+                val uploadResult = salesRepository.uploadOrganizationPicture("Bearer $token", logoFile)
+                if (uploadResult.isFailure) {
+                    _updateState.value = UpdateOrgUiState.Error(
+                        uploadResult.exceptionOrNull()?.message ?: "Failed to upload picture"
+                    )
+                    return@launch   // stop here if picture upload itself failed
+                }
+            }
+
+            // Step 2: Update the remaining text fields (no image part sent here anymore)
+            val result = salesRepository.updateOrganization("Bearer $token", request, null)
             result.fold(
                 onSuccess = { response ->
                     if (response.success) {
-                        _updateState.value = UpdateOrgUiState.Success(response.message ?: "Organization updated successfully")
-                        refreshOrganization(token)
+                        _updateState.value = UpdateOrgUiState.Success(
+                            response.message ?: "Organization updated successfully"
+                        )
+                        refreshOrganization(token)   // pulls fresh org data incl. new picture URL
                     } else {
-                        _updateState.value = UpdateOrgUiState.Error(response.message ?: "Failed to update organization")
+                        _updateState.value = UpdateOrgUiState.Error(
+                            response.message ?: "Failed to update organization"
+                        )
                     }
                 },
                 onFailure = { e ->
@@ -100,5 +158,8 @@ class ProfileViewModel @Inject constructor(
     // ─── Reset Update State ───
     fun resetUpdateState() {
         _updateState.value = UpdateOrgUiState.Idle
+    }
+    fun resetUploadPictureState() {
+        _uploadPictureState.value = UploadPictureUiState.Idle
     }
 }

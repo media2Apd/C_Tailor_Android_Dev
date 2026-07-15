@@ -42,8 +42,27 @@ import java.util.Locale
 import java.util.TimeZone
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
+import android.Manifest
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+import coil.compose.rememberAsyncImagePainter
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.BorderStroke
+import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun OrganizationProfile(
     authViewModel: Authenticate = hiltViewModel(),
@@ -68,7 +87,46 @@ fun OrganizationProfile(
     var timezone by rememberSaveable { mutableStateOf("") }
     var taxEnabled by rememberSaveable { mutableStateOf(false) }
     var gst by rememberSaveable { mutableStateOf("") }
-    var isChecked by remember { mutableStateOf(false) }   // marketing emails checkbox — now actually wired below
+    var isChecked by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    // ── Organization Logo state ──
+    var selectedLogoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    var capturedLogoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+
+    val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
+
+    val logoGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { selectedLogoUri = it }
+    }
+
+    val logoCameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success) {
+            capturedLogoUri?.let { uri ->
+                selectedLogoUri = uri
+                capturedLogoUri = null
+            }
+        }
+    }
+
+    fun captureLogoImage() {
+        if (cameraPermissionState.status.isGranted) {
+            val tempFile = File.createTempFile("org_logo_", ".jpg", context.cacheDir)
+            capturedLogoUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                tempFile
+            )
+            capturedLogoUri?.let { logoCameraLauncher.launch(it) }
+        } else {
+            cameraPermissionState.launchPermissionRequest()
+        }
+    }
 
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val isSubmitting = accountState is UiState.Loading
@@ -162,6 +220,110 @@ fun OrganizationProfile(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AppLogo()
+
+        OrgLabel("Organization Logo")
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = { logoGalleryLauncher.launch("image/*") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+            ) {
+                Icon(
+                    Icons.Default.PhotoLibrary,
+                    null,
+                    tint = Color(0xFF3B3BF9),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("Browse Files", fontSize = 13.sp, color = Color(0xFF374151))
+            }
+
+            OutlinedButton(
+                onClick = {
+                    if (cameraPermissionState.status.isGranted) {
+                        captureLogoImage()
+                    } else {
+                        cameraPermissionState.launchPermissionRequest()
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+            ) {
+                Icon(
+                    Icons.Default.CameraAlt,
+                    null,
+                    tint = Color(0xFF3B3BF9),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("Camera", fontSize = 13.sp, color = Color(0xFF374151))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (selectedLogoUri != null) {
+            Box(
+                modifier = Modifier.size(90.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(90.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFF3F4F6))
+                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                ) {
+                    Image(
+                        painter = rememberAsyncImagePainter(selectedLogoUri),
+                        contentDescription = "Organization Logo",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(20.dp)
+                        .background(Color(0xFFEF4444), CircleShape)
+                        .clickable { selectedLogoUri = null },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Remove",
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(90.dp)
+                    .background(Color.White, RoundedCornerShape(8.dp))
+                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "No logo added",
+                    fontSize = 13.sp,
+                    color = Color(0xFF9CA3AF)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+        HorizontalDivider(color = Color(0xFFF2F2F2))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Spacer(modifier = Modifier.height(16.dp))
 

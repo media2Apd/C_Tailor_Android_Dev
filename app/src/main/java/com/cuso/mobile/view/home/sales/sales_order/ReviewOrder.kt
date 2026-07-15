@@ -35,7 +35,7 @@ import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
-import com.cuso.mobile.view.home.sales.sales_order.pdfgenerator.OrderReceiptPdfGenerator
+import com.cuso.mobile.view.home.pdfgenerator.OrderReceiptPdfGenerator
 import com.cuso.mobile.viewmodel.AssignWorkersState
 import com.cuso.mobile.viewmodel.OrderOverviewState
 import com.cuso.mobile.viewmodel.OrderOverviewViewModel

@@ -1,5 +1,6 @@
-package com.cuso.mobile.view.home.sales.sales_order.pdfgenerator
+package com.cuso.mobile.view.home.pdfgenerator
 
+import android.app.Activity
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.pdf.PdfDocument
@@ -13,9 +14,25 @@ import java.io.FileOutputStream
 import java.util.Locale
 import androidx.core.graphics.createBitmap
 import android.content.ContentValues
+import android.content.ContextWrapper
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.Rect
+import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
+import android.util.Base64
+import android.util.Log
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import androidx.core.content.ContextCompat
+import com.cuso.mobile.R
+import java.io.ByteArrayOutputStream
 
 
 @Suppress("unused_parameter")
@@ -70,10 +87,10 @@ class QuotationPdfGenerator(private val context: Context) {
     // to fire onPageFinished on some OEM builds (Samsung, MIUI, etc).
     // Attaching it invisibly to the Activity's decor view fixes this.
 
-    private fun Context.findActivity(): android.app.Activity? {
+    private fun Context.findActivity(): Activity? {
         var ctx = this
-        while (ctx is android.content.ContextWrapper) {
-            if (ctx is android.app.Activity) return ctx
+        while (ctx is ContextWrapper) {
+            if (ctx is Activity) return ctx
             ctx = ctx.baseContext
         }
         return null
@@ -81,21 +98,21 @@ class QuotationPdfGenerator(private val context: Context) {
 
     private fun attachToWindow(webView: WebView) {
         val activity = context.findActivity() ?: return
-        val decorView = activity.window?.decorView as? android.view.ViewGroup ?: return
-        webView.visibility = android.view.View.INVISIBLE
-        webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+        val decorView = activity.window?.decorView as? ViewGroup ?: return
+        webView.visibility = View.INVISIBLE
+        webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         try {
             decorView.addView(webView, 0) // index only — preserves existing LayoutParams
         } catch (e: Exception) {
-            android.util.Log.e("QuotationPdfGenerator", "attachToWindow failed", e)
+            Log.e("QuotationPdfGenerator", "attachToWindow failed", e)
         }
     }
 
     private fun detachFromWindow(webView: WebView) {
         try {
-            (webView.parent as? android.view.ViewGroup)?.removeView(webView)
+            (webView.parent as? ViewGroup)?.removeView(webView)
         } catch (e: Exception) {
-            android.util.Log.e("QuotationPdfGenerator", "detachFromWindow failed", e)
+            Log.e("QuotationPdfGenerator", "detachFromWindow failed", e)
         }
     }
 
@@ -116,9 +133,9 @@ class QuotationPdfGenerator(private val context: Context) {
         val webView = WebView(context)
         activeWebView = webView
 
-        webView.layoutParams = android.view.ViewGroup.LayoutParams(
+        webView.layoutParams = ViewGroup.LayoutParams(
             renderWidthPx,
-            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            ViewGroup.LayoutParams.WRAP_CONTENT
         )
         webView.settings.javaScriptEnabled = false
         webView.settings.loadWithOverviewMode = true
@@ -127,7 +144,7 @@ class QuotationPdfGenerator(private val context: Context) {
         // Guard so onComplete fires exactly once even if both the
         // WebViewClient callback and the timeout trigger
         var finished = false
-        val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+        val mainHandler = Handler(Looper.getMainLooper())
 
         fun finish(result: SavedPdf?) {
             if (finished) return
@@ -142,11 +159,11 @@ class QuotationPdfGenerator(private val context: Context) {
         mainHandler.postDelayed({
             if (!finished) {
                 try {
-                    android.util.Log.d("QuotationPdfGenerator", "onPageFinished never fired — using 8s timeout fallback")
+                    Log.d("QuotationPdfGenerator", "onPageFinished never fired — using 8s timeout fallback")
                     val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName, saveToDownloads)
                     finish(result)
                 } catch (e: Exception) {
-                    android.util.Log.e("QuotationPdfGenerator", "Render failed (timeout path)", e)
+                    Log.e("QuotationPdfGenerator", "Render failed (timeout path)", e)
                     finish(null)
                 }
             }
@@ -160,7 +177,7 @@ class QuotationPdfGenerator(private val context: Context) {
                         val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName, saveToDownloads)
                         finish(result)
                     } catch (e: Exception) {
-                        android.util.Log.e("QuotationPdfGenerator", "Render failed (onPageFinished path)", e)
+                        Log.e("QuotationPdfGenerator", "Render failed (onPageFinished path)", e)
                         finish(null)
                     }
                 }, 350)
@@ -168,8 +185,8 @@ class QuotationPdfGenerator(private val context: Context) {
 
             override fun onReceivedError(
                 view: WebView?,
-                request: android.webkit.WebResourceRequest?,
-                error: android.webkit.WebResourceError?
+                request: WebResourceRequest?,
+                error: WebResourceError?
             ) {
                 super.onReceivedError(view, request, error)
                 finish(null)
@@ -188,25 +205,25 @@ class QuotationPdfGenerator(private val context: Context) {
         saveToDownloads: Boolean
     ): SavedPdf? {
         webView.measure(
-            android.view.View.MeasureSpec.makeMeasureSpec(renderWidthPx, android.view.View.MeasureSpec.EXACTLY),
-            android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+            View.MeasureSpec.makeMeasureSpec(renderWidthPx, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
         )
         val contentHeightPx = (webView.contentHeight * density).toInt().coerceAtLeast(webView.measuredHeight)
 
         if (contentHeightPx <= 0) {
-            android.util.Log.e(
+            Log.e(
                 "QuotationPdfGenerator",
                 "contentHeightPx=$contentHeightPx (contentHeight=${webView.contentHeight}, measuredHeight=${webView.measuredHeight}) — aborting, WebView likely not attached/laid out"
             )
             return null
         }
 
-        android.util.Log.d("QuotationPdfGenerator", "Rendering PDF: widthPx=$renderWidthPx heightPx=$contentHeightPx")
+        Log.d("QuotationPdfGenerator", "Rendering PDF: widthPx=$renderWidthPx heightPx=$contentHeightPx")
         webView.layout(0, 0, renderWidthPx, contentHeightPx)
 
         val fullBitmap = createBitmap(renderWidthPx, contentHeightPx)
         val canvas = Canvas(fullBitmap)
-        canvas.drawColor(android.graphics.Color.WHITE)
+        canvas.drawColor(Color.WHITE)
         webView.draw(canvas)
 
         val pageHeightPx = (renderWidthPx.toFloat() * pageHeightPt / pageWidthPt).toInt()
@@ -219,8 +236,8 @@ class QuotationPdfGenerator(private val context: Context) {
             val pageInfo = PdfDocument.PageInfo.Builder(pageWidthPt, pageHeightPt, pageNumber).create()
             val page = pdfDocument.startPage(pageInfo)
 
-            val srcRect = android.graphics.Rect(0, yOffset, renderWidthPx, yOffset + sliceHeight)
-            val dstRect = android.graphics.Rect(
+            val srcRect = Rect(0, yOffset, renderWidthPx, yOffset + sliceHeight)
+            val dstRect = Rect(
                 0, 0, pageWidthPt,
                 (pageHeightPt.toFloat() * sliceHeight / pageHeightPx).toInt()
             )
@@ -231,7 +248,7 @@ class QuotationPdfGenerator(private val context: Context) {
             pageNumber++
         }
 
-        val outputStream = java.io.ByteArrayOutputStream()
+        val outputStream = ByteArrayOutputStream()
         pdfDocument.writeTo(outputStream)
         pdfDocument.close()
         fullBitmap.recycle()
@@ -276,7 +293,7 @@ class QuotationPdfGenerator(private val context: Context) {
                 SavedPdf(uri = Uri.fromFile(file), displayName = fileName, file = file)
             }
         } catch (e: Exception) {
-            android.util.Log.e("QuotationPdfGenerator", "writeBytesToDownloads failed for '$fileName'", e)
+            Log.e("QuotationPdfGenerator", "writeBytesToDownloads failed for '$fileName'", e)
             null
         }
     }
@@ -323,8 +340,8 @@ class QuotationPdfGenerator(private val context: Context) {
     // ── Converts a drawable resource (company logo) into a Base64 data URI for WebView/PDF ──
     private fun drawableToBase64(resId: Int): String {
         return try {
-            val drawable = androidx.core.content.ContextCompat.getDrawable(context, resId) ?: return ""
-            val bitmap = if (drawable is android.graphics.drawable.BitmapDrawable) {
+            val drawable = ContextCompat.getDrawable(context, resId) ?: return ""
+            val bitmap = if (drawable is BitmapDrawable) {
                 drawable.bitmap
             } else {
                 val width = drawable.intrinsicWidth.coerceAtLeast(1)
@@ -335,19 +352,19 @@ class QuotationPdfGenerator(private val context: Context) {
                 drawable.draw(canvas)
                 bmp
             }
-            val outputStream = java.io.ByteArrayOutputStream()
-            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, outputStream)
+            val outputStream = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
             val bytes = outputStream.toByteArray()
-            "data:image/png;base64," + android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+            "data:image/png;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
         } catch (e: Exception) {
-            android.util.Log.e("QuotationPdfGenerator", "drawableToBase64 failed for resId=$resId", e)
+            Log.e("QuotationPdfGenerator", "drawableToBase64 failed for resId=$resId", e)
             ""
         }
     }
 
     // ── HTML for WebView (SAME html used for preview, download, print) ──
     fun buildQuotationHtml(data: QuotationData): String {
-        val companyLogoBase64 = drawableToBase64(com.cuso.mobile.R.drawable.logo)
+        val companyLogoBase64 = drawableToBase64(R.drawable.logo)
         val companyLogoTag = if (companyLogoBase64.isNotEmpty()) {
             """<img src="$companyLogoBase64" class="footer-logo"/>"""
         } else ""

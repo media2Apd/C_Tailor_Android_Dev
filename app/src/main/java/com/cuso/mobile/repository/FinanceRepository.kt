@@ -5,10 +5,15 @@ import com.cuso.mobile.model.finance.ChartOfAccountItem
 import com.cuso.mobile.model.finance.CreateChartOfAccountRequest
 import com.cuso.mobile.model.finance.CreateChartOfAccountResponse
 import com.cuso.mobile.model.finance.CreateExpenseResponse
+import com.cuso.mobile.model.finance.CreateJournalEntryRequest
+import com.cuso.mobile.model.finance.CreateJournalEntryResponse
 import com.cuso.mobile.model.finance.ExpenseItem
 import com.cuso.mobile.model.finance.ExpenseListResponse
 import com.cuso.mobile.model.finance.InvoiceListResponse
 import com.cuso.mobile.model.finance.InvoiceViewOneData
+import com.cuso.mobile.model.finance.JournalEntryLineRequest
+import com.cuso.mobile.model.finance.JournalEntryListResponse
+import com.cuso.mobile.model.finance.TrialBalanceItem
 import com.cuso.mobile.model.sales.CustomerDetailV2
 import com.cuso.mobile.model.sales.CustomerListResponseV2
 import com.cuso.mobile.model.sales.GetFinanceCustomerViewOneResponse
@@ -274,7 +279,9 @@ class FinanceRepository @Inject constructor(
     // ── Chart of Accounts: create ──
     suspend fun createChartOfAccount(
         accountName: String,
-        accountType: String
+        accountType: String,
+        description: String? = null,
+        parentAccount: String? = null
     ): Result<CreateChartOfAccountResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -283,7 +290,9 @@ class FinanceRepository @Inject constructor(
                 csrfToken = csrfToken,
                 request = CreateChartOfAccountRequest(
                     accountName = accountName,
-                    accountType = accountType
+                    accountType = accountType,
+                    description = description,
+                    parentAccount = parentAccount
                 )
             )
             if (response.isSuccessful && response.body()?.success == true) {
@@ -298,6 +307,133 @@ class FinanceRepository @Inject constructor(
         }
     }
 
+    // ── Chart of Accounts: update ──
+    // ── Chart of Accounts: update ──
+    suspend fun updateChartOfAccount(
+        id: String,
+        accountName: String,
+        accountType: String,
+        description: String? = null,
+        parentAccount: String? = null
+    ): Result<CreateChartOfAccountResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.updateChartOfAccount(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id,
+                request = CreateChartOfAccountRequest(
+                    accountName = accountName,
+                    accountType = accountType,
+                    description = description,
+                    parentAccount = parentAccount
+                )
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to update account: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Chart of Accounts: delete ──
+    suspend fun deleteChartOfAccount(id: String): Result<CreateChartOfAccountResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.deleteChartOfAccount(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to delete account: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Trial Balance ──
+    suspend fun getTrialBalance(): Result<List<TrialBalanceItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getTrialBalance(accessToken, csrfToken)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch trial balance: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Journal Entries: list ──
+    suspend fun getJournalEntries(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ): Result<JournalEntryListResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getJournalEntries(accessToken, csrfToken, page, limit, search, status)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch journal entries: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createJournal(
+        branchId: String,
+        entryDate: String,
+        reference: String?,
+        notes: String?,
+        status: String,
+        lines: List<JournalEntryLineRequest>
+    ): Result<CreateJournalEntryResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.createJournalEntry(
+                token = accessToken,
+                csrfToken = csrfToken,
+                request = CreateJournalEntryRequest(
+                    branchId = branchId,
+                    entryDate = entryDate,
+                    reference = reference,
+                    notes = notes,
+                    status = status,
+                    lines = lines
+                )
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to create journal entry: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
 }
 

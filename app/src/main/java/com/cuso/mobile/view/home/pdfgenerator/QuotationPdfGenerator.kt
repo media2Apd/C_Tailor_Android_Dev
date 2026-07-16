@@ -715,7 +715,7 @@ class QuotationPdfGenerator(private val context: Context) {
         """ else ""}
 
         <div class="footer">
-            ${companyLogoTag}
+            $companyLogoTag
           <p>${data.thankYouMessage}</p>
           <p class="small">${data.poweredBy}</p>
           <img >

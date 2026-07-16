@@ -90,10 +90,14 @@ import com.cuso.mobile.model.finance.ChartOfAccountsResponse
 import com.cuso.mobile.model.finance.CreateChartOfAccountRequest
 import com.cuso.mobile.model.finance.CreateChartOfAccountResponse
 import com.cuso.mobile.model.finance.CreateExpenseResponse
+import com.cuso.mobile.model.finance.CreateJournalEntryRequest
+import com.cuso.mobile.model.finance.CreateJournalEntryResponse
 import com.cuso.mobile.model.finance.ExpenseListResponse
 import com.cuso.mobile.model.finance.ExpenseViewOneResponse
 import com.cuso.mobile.model.finance.InvoiceListResponse
 import com.cuso.mobile.model.finance.InvoiceViewOneResponse
+import com.cuso.mobile.model.finance.JournalEntryListResponse
+import com.cuso.mobile.model.finance.TrialBalanceResponse
 import com.cuso.mobile.model.sales.DeleteCustomerResponse
 import com.cuso.mobile.model.sales.GarmentPricingDetailDto
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
@@ -790,11 +794,50 @@ interface ApiService {
         @Part files: List<MultipartBody.Part> = emptyList()
     ): Response<CreateExpenseResponse>
 
-    @POST("api/finance/chart-of-accounts")
+    @POST("/api/finance/chart-of-accounts/create")
     suspend fun createChartOfAccount(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Body request: CreateChartOfAccountRequest
     ): Response<CreateChartOfAccountResponse>
 
+    @PUT("/api/finance/chart-of-accounts/update-one/{id}")   // ⚠️ CONFIRM this exact path + method (PUT vs PATCH) with your backend
+    suspend fun updateChartOfAccount(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: CreateChartOfAccountRequest   // same body shape as create
+    ): Response<CreateChartOfAccountResponse>          // same response shape as create
+
+    @DELETE("/api/finance/chart-of-accounts/delete-one/{id}")   // ⚠️ confirm exact path with backend
+    suspend fun deleteChartOfAccount(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<CreateChartOfAccountResponse>   // reusing same response shape (success + message)
+
+    // ── Trial Balance ──
+    @GET("api/finance/trial-balance")   // ✅ ungaloda real endpoint path-a check pannunga
+    suspend fun getTrialBalance(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<TrialBalanceResponse>
+
+    // ── Journal Entries ──
+    @GET("/api/finance/journal-entry/view-all")   // ✅ ungaloda real endpoint path check pannunga
+    suspend fun getJournalEntries(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<JournalEntryListResponse>
+
+    @POST("/api/finance/journal-entry/create")
+    suspend fun createJournalEntry(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,   // header name-ah existing finance endpoints la irukra pattern-oda match pannikonga
+        @Body request: CreateJournalEntryRequest
+    ): Response<CreateJournalEntryResponse>
 }

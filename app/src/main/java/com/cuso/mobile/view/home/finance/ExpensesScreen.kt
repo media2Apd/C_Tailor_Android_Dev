@@ -1,3 +1,6 @@
+@file:Suppress("UNUSED_PARAMETER", "UNUSED", "RedundantSuppression", "unused")
+
+
 package com.cuso.mobile.view.home.finance
 
 import androidx.compose.foundation.background

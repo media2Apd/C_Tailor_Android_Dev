@@ -1,6 +1,12 @@
 package com.cuso.mobile.model.finance
 
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
+import com.google.gson.annotations.JsonAdapter
+import com.google.gson.annotations.SerializedName
+import java.lang.reflect.Type
+
 
 data class ChartOfAccountsResponse(
     val success: Boolean,
@@ -8,57 +14,88 @@ data class ChartOfAccountsResponse(
 )
 
 data class ChartOfAccountItem(
-    val _id: String,
-    val organizationId: String,
-    val accountName: String,
-    val accountCode: String,
-    val accountType: String,
-    val category: String? = null,
-    val parentAccount: ParentAccountRef? = null,   // nested — one level deep, safe
-    val level: Int,
-    val isGroup: Boolean,
-    val isSystemAccount: Boolean,
-    val openingBalance: Double,
-    val normalBalance: String,
-    val currency: String,
-    val allowManualEntry: Boolean,
-    val reconciliation: Boolean,
-    val description: String? = null,
-    val status: String,
-    val createdBy: String,
-    val isEditable: Boolean,
-    val createdAt: String,
-    val updatedAt: String,
-    val __v: Int
-)
+    @SerializedName("_id") val _id: String,
+    @SerializedName("organizationId") val organizationId: String = "",
+    @SerializedName("accountName") val accountName: String = "",
+    @SerializedName("accountCode") val accountCode: String = "",
+    @SerializedName("accountType") val accountType: String = "",
+    @SerializedName("category") val category: String? = null,
 
-// ⚠️ Inside a ParentAccountRef, the backend sometimes sends ITS OWN
-// parentAccount as a plain String id (e.g. "Furniture".parentAccount.parentAccount)
-// instead of a full object. JsonElement absorbs either shape without crashing.
-data class ParentAccountRef(
-    val _id: String,
-    val organizationId: String? = null,
-    val accountName: String,
-    val accountCode: String,
-    val accountType: String,
-    val category: String? = null,
-    val parentAccount: JsonElement? = null,
-    val level: Int,
-    val isGroup: Boolean,
-    val isSystemAccount: Boolean,
-    val openingBalance: Double,
-    val normalBalance: String,
-    val currency: String,
-    val allowManualEntry: Boolean,
-    val reconciliation: Boolean,
-    val description: String? = null,
-    val status: String,
-    val createdBy: String,
-    val isEditable: Boolean,
-    val createdAt: String,
-    val updatedAt: String,
-    val __v: Int
+    // ✅ CHANGED — was a plain nested field before; now uses the custom
+    // adapter so BOTH "parentAccount": {...} and "parentAccount": "id"
+    // deserialize correctly without crashing.
+    @JsonAdapter(ParentAccountDeserializer::class)
+    @SerializedName("parentAccount") val parentAccount: ChartOfAccountItem? = null,
+
+    @SerializedName("level") val level: Int = 0,
+    @SerializedName("isGroup") val isGroup: Boolean = false,
+    @SerializedName("isSystemAccount") val isSystemAccount: Boolean = false,
+    @SerializedName("openingBalance") val openingBalance: Double = 0.0,
+    @SerializedName("normalBalance") val normalBalance: String = "",
+    @SerializedName("currency") val currency: String = "",
+    @SerializedName("allowManualEntry") val allowManualEntry: Boolean = false,
+    @SerializedName("reconciliation") val reconciliation: Boolean = false,
+    @SerializedName("description") val description: String = "",
+    @SerializedName("status") val status: String = "",
+    @SerializedName("createdBy") val createdBy: String? = null,
+    @SerializedName("isEditable") val isEditable: Boolean = true,
+    @SerializedName("createdAt") val createdAt: String = "",
+    @SerializedName("updatedAt") val updatedAt: String = "",
+    @SerializedName("updatedBy") val updatedBy: String? = null
 )
+class ParentAccountDeserializer : JsonDeserializer<ChartOfAccountItem?> {
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type?,
+        context: JsonDeserializationContext?
+    ): ChartOfAccountItem? {
+        if (json == null || json.isJsonNull) return null
+
+        return if (json.isJsonPrimitive) {
+            // Journal Entry shape: just the id string.
+            // Build a minimal placeholder with only the id populated —
+            // callers using parentAccount?._id (e.g. buildVisibleTree,
+            // "is this a sub-account" checks) keep working as-is.
+            ChartOfAccountItem(
+                _id = json.asString,
+                organizationId = "",
+                accountName = "",
+                accountCode = "",
+                accountType = "",
+                category = null,
+                parentAccount = null,
+                level = 0,
+                isGroup = false,
+                isSystemAccount = false,
+                openingBalance = 0.0,
+                normalBalance = "",
+                currency = "",
+                allowManualEntry = false,
+                reconciliation = false,
+                description = "",
+                status = "",
+                createdBy = null,
+                isEditable = true,
+                createdAt = "",
+                updatedAt = "",
+                updatedBy = null
+            )
+        } else {
+            // Chart of Accounts shape: full nested object — deserialize normally.
+            context?.deserialize(json, ChartOfAccountItem::class.java)
+        }
+    }
+}
+
+
+// ✅ FIXED — parentAccount.parentAccount is ChartOfAccountItem? now (not JsonElement?),
+// so a plain null check is enough; .isJsonNull doesn't exist on this type.
+fun ChartOfAccountItem.indentLevel(): Int = when {
+    parentAccount == null -> 0
+    parentAccount.parentAccount == null -> 1
+    else -> 2
+}
+
 
 // ═══════════════════════════════════════════════════
 // Expenses
@@ -145,13 +182,39 @@ data class CreateExpenseResponse(
 
 data class CreateChartOfAccountRequest(
     val accountName: String,
-    val accountType: String,       // "Expense", "Asset", etc.
-    val isGroup: Boolean = false,
-    val allowManualEntry: Boolean = true
+    val accountType: String,
+    val description: String? = null,
+    val parentAccount: String? = null
+)
+
+// Separate from ChartOfAccountItem because the CREATE endpoint returns
+// parentAccount as a plain string id, not a nested object (unlike the
+// GET /chart-of-accounts list endpoint, which nests the full parent object).
+data class CreatedChartOfAccountData(
+    val _id: String,
+    val organizationId: String,
+    val accountName: String,
+    val accountCode: String,
+    val accountType: String,
+    val parentAccount: String?,   // ✅ String, not ChartOfAccountItem
+    val level: Int,
+    val isGroup: Boolean,
+    val isSystemAccount: Boolean,
+    val openingBalance: Double,
+    val currency: String,
+    val allowManualEntry: Boolean,
+    val reconciliation: Boolean,
+    val description: String?,
+    val status: String,
+    val createdBy: String,
+    val isEditable: Boolean,
+    val createdAt: String,
+    val updatedAt: String,
+    val __v: Int
 )
 
 data class CreateChartOfAccountResponse(
     val success: Boolean,
     val message: String? = null,
-    val data: ChartOfAccountItem? = null
+    val data: CreatedChartOfAccountData? = null   // ✅ was ChartOfAccountItem — changed
 )

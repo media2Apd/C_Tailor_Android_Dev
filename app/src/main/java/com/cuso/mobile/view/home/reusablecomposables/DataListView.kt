@@ -2,7 +2,7 @@ package com.cuso.mobile.view.home.reusablecomposables
 
 // ═════════════════════════════════════════════════════════════════════════
 // 🔁 ONE shared Table + Card system used by ALL list screens:
-//    Measurements, SalesOrder, Department, Branch, Designation.
+//    Measurements, SalesOrder, Department, Branch, Designation, Chart of Account.
 //
 // Instead of every screen defining its own:
 //   - HeaderCell composable
@@ -17,6 +17,7 @@ package com.cuso.mobile.view.home.reusablecomposables
 // Add a column → header AND every row AND every card update together.
 // ═════════════════════════════════════════════════════════════════════════
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
@@ -32,7 +34,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -181,6 +185,7 @@ fun ActionDropdownMenu(
 @Composable
 fun <T> DataCard(
     item: T,
+    modifier: Modifier = Modifier, // NEW — lets the caller attach animateItemPlacement()/animateItem()
     image: DataCardImage? = null,
     dateText: String? = null,
     dateIcon: ImageVector = Icons.Default.CalendarMonth,
@@ -199,20 +204,40 @@ fun <T> DataCard(
     bottomBadgeCornerRadius: Dp = 20.dp,
 
     title: String,
+    titleFontWeight: FontWeight = FontWeight.SemiBold,
+    titleFontSize: androidx.compose.ui.unit.TextUnit = 18.sp,      // NEW — default unchanged
+    titleColor: Color = Color(0xFF111827),                          // NEW — default unchanged
     subtitle: String? = null,
     footerFields: List<DataCardField> = emptyList(),
     footerAsRows: Boolean = false,
     actions: List<MenuAction> = emptyList(),
-    onClick: ((T) -> Unit)? = null
+    onClick: ((T) -> Unit)? = null,
+    containerBrush: Brush? = null, // optional gradient background, null = plain white
+
+    // ── EXPAND/COLLAPSE CHEVRON (NEW) — shown at the end of the title row,
+    // right before the "⋮" actions menu. Only rendered when showChevron = true,
+    // so screens that don't need an accordion (Measurements, SalesOrder, etc.)
+    // are completely unaffected.
+    showChevron: Boolean = false,
+    chevronExpanded: Boolean = false,
+    onChevronClick: (() -> Unit)? = null,
+    trailingText:String?=null
 ) {
     Card(
-        modifier = Modifier
+        modifier = modifier // CHANGED — was Modifier, now starts from the passed-in modifier
             .fillMaxWidth()
             .let { m -> if (onClick != null) m.clickable { onClick(item) } else m },
         shape = RoundedCornerShape(0.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+        colors = CardDefaults.cardColors(
+            containerColor = if (containerBrush != null) Color.Transparent else Color.White
+        )
+    ){
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .let { m -> if (containerBrush != null) m.background(containerBrush) else m }
+                .padding(14.dp)
+        ) {
 
             // ── Top row: date (left) + top badge (right) ──
             val showTopBadgeInTopRow = topBadgeText != null && !topBadgeInline
@@ -251,7 +276,8 @@ fun <T> DataCard(
                 Spacer(Modifier.height(8.dp))
             }
 
-            // ── Main row: optional image + title/subtitle + inline top badge + "⋮" menu ──
+            // ── Main row: optional image + title/subtitle + inline top badge
+            //    + chevron + "⋮" menu — all at the end of the row ──
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
 
                 if (image != null) {
@@ -287,14 +313,29 @@ fun <T> DataCard(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF111827),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            title,
+                            fontSize = titleFontSize,   // CHANGED
+                            fontWeight = titleFontWeight,
+                            color = titleColor,          // CHANGED
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (trailingText != null) {
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                trailingText,
+                                fontSize = 14.sp,
+                                color = Color(0xFF6B7280),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                    }
                     if (subtitle != null) {
                         Spacer(Modifier.height(4.dp))
                         Text(
@@ -307,7 +348,7 @@ fun <T> DataCard(
                     }
                 }
 
-                // ── Inline top badge (next to title) ──
+                // ── Inline top badge (next to title, at row end) ──
                 if (topBadgeText != null && topBadgeInline) {
                     Box(
                         modifier = Modifier
@@ -323,6 +364,25 @@ fun <T> DataCard(
                         )
                     }
                     Spacer(Modifier.width(8.dp))
+                }
+
+                // ── Expand/collapse chevron — rotates 180° when expanded ──
+                if (showChevron) {
+                    val rotation by animateFloatAsState(
+                        targetValue = if (chevronExpanded) 180f else 0f,
+                        label = "chevronRotation"
+                    )
+                    IconButton(
+                        onClick = { onChevronClick?.invoke() },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = if (chevronExpanded) "Collapse" else "Expand",
+                            tint = Color(0xFF6B7280),
+                            modifier = Modifier.graphicsLayer { rotationZ = rotation }
+                        )
+                    }
                 }
 
                 if (actions.isNotEmpty()) {
@@ -414,13 +474,13 @@ fun <T> DataCard(
 // ─────────────────────────────────────────────────────────────
 @Suppress("UNUSED_PARAMETER")
 
-/**
- * Create a badge with custom colors
- * @param text The badge text
- * @param textColor Color of the text (default: White)
- * @param backgroundColor Background color of the badge (default: Blue)
- * @param cornerRadius Corner radius of the badge (default: 20.dp)
- */
+        /**
+         * Create a badge with custom colors
+         * @param text The badge text
+         * @param textColor Color of the text (default: White)
+         * @param backgroundColor Background color of the badge (default: Blue)
+         * @param cornerRadius Corner radius of the badge (default: 20.dp)
+         */
 fun createBadge(
     text: String,
     textColor: Color = Color.White,
@@ -434,170 +494,3 @@ fun createBadge(
         cornerRadius = cornerRadius
     )
 }
-
-// ─────────────────────────────────────────────────────────────
-// Usage Examples - How to use in your screens
-// ─────────────────────────────────────────────────────────────
-
-/*
-// ============================================================
-// EXAMPLE 1: Simple usage with custom colors
-// ============================================================
-
-DataCard(
-    item = order,
-    badge = createBadge(
-        text = "Confirmed",
-        textColor = Color(0xFF0AB83E),
-        backgroundColor = Color(0xFFDBFCE7)
-    ),
-    title = order.customerName,
-    subtitle = order.orderNumber,
-    // ...
-)
-
-// ============================================================
-// EXAMPLE 2: Using with status mapping (most common)
-// ============================================================
-
-val badge = when (order.status.lowercase()) {
-    "confirmed" -> createBadge(
-        text = "Confirmed",
-        textColor = Color(0xFF0AB83E),
-        backgroundColor = Color(0xFFDBFCE7)
-    )
-    "unpaid" -> createBadge(
-        text = "Unpaid",
-        textColor = Color(0xFFC10007),
-        backgroundColor = Color(0xFFFEE2E2)
-    )
-    "paid" -> createBadge(
-        text = "Paid",
-        textColor = Color(0xFF0AB83E),
-        backgroundColor = Color(0xFFDBFCE7)
-    )
-    "pending" -> createBadge(
-        text = "Pending",
-        textColor = Color(0xFF92400E),
-        backgroundColor = Color(0xFFFEF3C7)
-    )
-    "cancelled" -> createBadge(
-        text = "Cancelled",
-        textColor = Color(0xFF4B5563),
-        backgroundColor = Color(0xFFF3F4F6)
-    )
-    "completed" -> createBadge(
-        text = "Completed",
-        textColor = Color(0xFF065F46),
-        backgroundColor = Color(0xFFD1FAE5)
-    )
-    "draft" -> createBadge(
-        text = "Draft",
-        textColor = Color(0xFFD97706),
-        backgroundColor = Color(0xFFFFFBEB)
-    )
-    "active" -> createBadge(
-        text = "Active",
-        textColor = Color(0xFF1E40AF),
-        backgroundColor = Color(0xFFDBEAFE)
-    )
-    "inactive" -> createBadge(
-        text = "Inactive",
-        textColor = Color(0xFF991B1B),
-        backgroundColor = Color(0xFFFEE2E2)
-    )
-    else -> createBadge(
-        text = order.status,
-        textColor = Color(0xFF1F2937),
-        backgroundColor = Color(0xFFE5E7EB)
-    )
-}
-
-DataCard(
-    item = order,
-    badge = badge,
-    title = order.customerName,
-    subtitle = order.orderNumber,
-    // ...
-)
-
-// ============================================================
-// EXAMPLE 3: With custom corner radius
-// ============================================================
-
-val badge = createBadge(
-    text = "Completed",
-    textColor = Color(0xFF065F46),
-    backgroundColor = Color(0xFFD1FAE5),
-    cornerRadius = 8.dp  // Square corners
-)
-
-// ============================================================
-// EXAMPLE 4: Inline badge next to title
-// ============================================================
-
-DataCard(
-    item = order,
-    badge = createBadge(
-        text = "New",
-        textColor = Color(0xFF1E40AF),
-        backgroundColor = Color(0xFFDBEAFE)
-    ),
-    badgeInline = true,  // Badge appears next to title
-    title = order.customerName,
-    // ...
-)
-
-// ============================================================
-// EXAMPLE 5: Footer badge with custom colors
-// ============================================================
-
-DataCard(
-    item = order,
-    footerFields = listOf(
-        DataCardField(
-            asRow = true,
-            label = "Unpaid",
-            labelColor = Color(0xFFC10007),
-            labelBackgroundColor = Color(0xFFFEE2E2),
-            text = "Total: ₹480\n₹480 Due",
-            textColor = Color(0xFF111827)
-        )
-    ),
-    // ...
-)
-
-// ============================================================
-// EXAMPLE 6: Lead status badge
-// ============================================================
-
-val leadBadge = when (lead.status) {
-    "converted" -> createBadge(
-        text = "Converted",
-        textColor = Color(0xFF0AB83E),
-        backgroundColor = Color(0xFFDBFCE7)
-    )
-    "new" -> createBadge(
-        text = "New Enquiry",
-        textColor = Color(0xFF1E40AF),
-        backgroundColor = Color(0xFFDBEAFE)
-    )
-    "follow-up" -> createBadge(
-        text = "Follow-up",
-        textColor = Color(0xFF991B1B),
-        backgroundColor = Color(0xFFFEE2E2)
-    )
-    else -> createBadge(
-        text = lead.status,
-        textColor = Color(0xFF1F2937),
-        backgroundColor = Color(0xFFE5E7EB)
-    )
-}
-
-DataCard(
-    item = lead,
-    badge = leadBadge,
-    title = lead.person.name,
-    // ...
-)
-*/

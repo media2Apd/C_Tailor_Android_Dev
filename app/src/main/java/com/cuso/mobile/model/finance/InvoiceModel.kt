@@ -45,8 +45,8 @@ data class InvoiceItem(
     val displayCustomerName: String
         get() = customer?.name ?: customerId ?: "Walk-in Customer"
 
-    val displayStatus: String
-        get() = status.replaceFirstChar { it.uppercase() }
+//    val displayStatus: String
+//        get() = status.replaceFirstChar { it.uppercase() }
 }
 
 data class InvoiceLineItem(
@@ -174,18 +174,11 @@ data class JournalData(
     val version: Int? = null
 )
 
-data class JournalLine(
-    val accountId: AccountInfo,
-    val debit: Double,
-    val credit: Double,
-    val description: String,
-    @SerializedName("_id")
-    val id: String
-)
 
-data class AccountInfo(
-    @SerializedName("_id")
-    val id: String,
-    val accountName: String,
-    val accountCode: String
-)
+
+//data class AccountInfo(
+//    @SerializedName("_id")
+//    val id: String,
+//    val accountName: String,
+//    val accountCode: String
+//)

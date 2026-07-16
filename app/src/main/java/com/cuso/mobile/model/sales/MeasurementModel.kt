@@ -24,14 +24,14 @@ data class CustomerLastOrder(
     val pendingPayment: Int,
     val totalSpend: Int
 )
-
-data class MeasurementsData(
-    val totalAssigned: Int,
-    val active: Int,
-    val inactive: Int,
-    val availableSlots: Int?,
-    val categories: List<OrgGarmentCategory>
-)
+//
+//data class MeasurementsData(
+//    val totalAssigned: Int,
+//    val active: Int,
+//    val inactive: Int,
+//    val availableSlots: Int?,
+//    val categories: List<OrgGarmentCategory>
+//)
 
 // ── Garment Category ──
 data class OrgGarmentCategory(

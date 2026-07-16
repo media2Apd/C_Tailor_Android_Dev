@@ -1,3 +1,4 @@
+@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ", "UNUSED_PARAMETER", "UNUSED_VARIABLE")
 package com.cuso.mobile.view.login
 
 import android.app.Activity

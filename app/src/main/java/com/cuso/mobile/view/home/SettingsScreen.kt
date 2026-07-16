@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ")
+
 package com.cuso.mobile.view.home
 
 import androidx.compose.foundation.Canvas
@@ -51,16 +53,15 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import android.content.Context
 import android.net.Uri
-import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.ui.platform.LocalContext
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.asRequestBody
+//import okhttp3.MediaType.Companion.toMediaTypeOrNull
+//import okhttp3.MultipartBody
+//import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 
 @Suppress("UNUSED_PARAMETER")
@@ -192,12 +193,12 @@ fun SettingsScreen(
 // 1. Uri -> File (cache-la copy pannanum, since multipart-ku real file path venum)
 // REPLACE uriToBase64 with:
 
-
-// 2. File -> MultipartBody.Part
-private fun fileToMultipart(file: File, partName: String = "organizationPicture"): MultipartBody.Part {
-    val requestBody = file.asRequestBody("image/*".toMediaTypeOrNull())
-    return MultipartBody.Part.createFormData(partName, file.name, requestBody)
-}
+//
+//// 2. File -> MultipartBody.Part
+//private fun fileToMultipart(file: File, partName: String = "organizationPicture"): MultipartBody.Part {
+//    val requestBody = file.asRequestBody("image/*".toMediaTypeOrNull())
+//    return MultipartBody.Part.createFormData(partName, file.name, requestBody)
+//}
 
 // ─────────────────────────────────────────────────────────────
 // Helper: Convert picked Uri -> Base64 string

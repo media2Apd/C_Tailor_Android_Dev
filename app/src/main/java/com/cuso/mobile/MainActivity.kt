@@ -20,6 +20,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.cuso.mobile.repository.SessionManager
+import com.cuso.mobile.view.home.finance.ChartOfAccountScreen
 import com.cuso.mobile.ui.theme.CusoTailorTheme
 import com.cuso.mobile.view.forgot_password.ForgotUserPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
@@ -43,6 +44,8 @@ import com.cuso.mobile.view.signup_screen.SignUpScreen
 import com.cuso.mobile.view.home.finance.FinanceCustomerScreen
 import com.cuso.mobile.view.home.finance.FinanceInvoiceScreen
 import com.cuso.mobile.view.home.finance.InvoiceDetailScreen
+import com.cuso.mobile.view.home.finance.ManualJournalEntryScreen
+import com.cuso.mobile.view.home.finance.TrialBalanceScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
@@ -129,6 +132,7 @@ class MainActivity : ComponentActivity() {
                             onDownloadInvoice = { *//* Handle download invoice *//* }
                         )
                     }*/
+//                    ManualJournalEntryScreen()
 
                 }
             }

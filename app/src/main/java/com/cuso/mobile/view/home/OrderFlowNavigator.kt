@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ")
+
 package com.cuso.mobile.view.home
 
 import androidx.compose.runtime.*

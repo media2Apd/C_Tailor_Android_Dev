@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ")
+
 package com.cuso.mobile.view.home
 
 import android.annotation.SuppressLint
@@ -261,6 +263,8 @@ fun HomeScreen(navController: NavHostController) {
             currentScreen == "view_customer" -> currentScreen = "sales_customers"
             currentScreen == "edit_customer" -> currentScreen = "sales_customers"
             currentScreen == "finance_sales_invoices" -> currentScreen = "home"   // ✅ NEW
+            currentScreen == "finance_journal_screen" -> currentScreen = "home"
+
             currentScreen == "finance_invoice_detail" -> {                        // ✅ NEW
                 selectedInvoiceId = null
                 currentScreen = "finance_sales_invoices"
@@ -379,6 +383,11 @@ fun HomeScreen(navController: NavHostController) {
                             "sales_pricing_&_quotations" -> {
                                 isSalesSettingsMode = false
                                 currentScreen = "sales_pricing_quotation"
+                                isDrawerOpen = false
+                            }
+                            "finance_journal_entry" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "finance_journal_screen"
                                 isDrawerOpen = false
                             }
 
@@ -671,6 +680,10 @@ fun HomeScreen(navController: NavHostController) {
                     "finance_expenses" -> com.cuso.mobile.view.home.finance.ExpensesScreen(
                         onClose = { currentScreen = "home" }
                     )
+                    "finance_journal_screen" -> com.cuso.mobile.view.home.finance.ManualJournalEntryScreen(
+                        onClose = { currentScreen = "home" }
+
+                    )
 
                     // ✅ NEW — Finance > Accounts Receivable > Sales Invoices (list)
                     "finance_sales_invoices" -> com.cuso.mobile.view.home.finance.FinanceInvoiceScreen(
@@ -761,22 +774,22 @@ fun HomeScreen(navController: NavHostController) {
             isOpen = showModulesPanel,
             onClose = { showModulesPanel = false },
             onModuleCategoryClick = { menu, category ->
-                val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
-                val firstSubItem = menuItem?.subItems?.get(category)?.firstOrNull()
-
-                val rawNavKey = if (firstSubItem != null) {
-                    buildNavigationKey(menu, firstSubItem)
+                // ✅ NEW — direct shortcut, bypasses the normal sub-item lookup entirely
+                val navKey = if (menu == "Finance" && category == "Finance Core") {
+                    "finance_journal_screen"
                 } else {
-                    buildNavigationKey(menu, category)
+                    val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
+                    val firstSubItem = menuItem?.subItems?.get(category)?.firstOrNull()
+
+                    val rawNavKey = if (firstSubItem != null) {
+                        buildNavigationKey(menu, firstSubItem)
+                    } else {
+                        buildNavigationKey(menu, category)
+                    }
+                    normalizeRoute(rawNavKey)
                 }
 
-                // ✅ FIX — normalize aliases (e.g. "sales_pricing_and_quotations")
-                // to the exact key the `when(currentScreen)` block expects
-                // (e.g. "sales_pricing_quotation"), otherwise it falls into
-                // the `else -> { }` branch and nothing renders.
-                val navKey = normalizeRoute(rawNavKey)
-
-                isSalesSettingsMode = false   // ✅ also reset this, same as other nav paths do
+                isSalesSettingsMode = false
                 currentScreen = navKey
                 showModulesPanel = false
             }
@@ -2257,32 +2270,42 @@ fun FormTextField(
     onValueChange: (String) -> Unit,
     keyboardType: KeyboardType = KeyboardType.Text,
     placeholder: String = "",
-    isError: Boolean = false,          // ✅ NEW
-    errorMessage: String? = null       // ✅ NEW
+    isError: Boolean = false,
+    errorMessage: String? = null,
+    enabled: Boolean = true            // ✅ NEW
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(40.dp)
-            .background(Color.White, RoundedCornerShape(8.dp))
+            .background(
+                if (enabled) Color.White else Color(0xFFF3F4F6),   // ✅ greyed bg when disabled
+                RoundedCornerShape(8.dp)
+            )
             .border(
                 1.dp,
-                if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),   // ✅ red border on error
+                if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
                 RoundedCornerShape(8.dp)
             )
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.CenterStart
     ) {
+        if (value.isEmpty() && placeholder.isNotEmpty()) {
+            Text(placeholder, fontSize = 14.sp, color = Color(0xFF9CA3AF))
+        }
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,          // ✅ actually blocks focus/typing now
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151))
+            textStyle = TextStyle(
+                fontSize = 14.sp,
+                color = if (enabled) Color(0xFF374151) else Color(0xFF6B7280)
+            )
         )
     }
-    // ✅ NEW — error message below the field
     if (isError && !errorMessage.isNullOrEmpty()) {
         Spacer(Modifier.height(4.dp))
         Text(errorMessage, fontSize = 12.sp, color = Color(0xFFEF4444))

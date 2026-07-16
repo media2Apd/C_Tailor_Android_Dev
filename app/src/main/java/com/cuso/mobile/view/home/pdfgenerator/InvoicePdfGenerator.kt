@@ -1,5 +1,6 @@
 package com.cuso.mobile.view.home.pdfgenerator
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.graphics.Canvas
@@ -130,6 +131,7 @@ class InvoicePdfGenerator(private val context: Context) {
     // MAIN ENTRY: renders the SAME HTML used for preview into a WebView,
     // captures bitmap(s), writes into PdfDocument.
     // ────────────────────────────────────────────────────────────
+    @SuppressLint("SetJavaScriptEnabled")
     fun generatePdfFromHtml(
         data: InvoiceData,
         fileName: String = "invoice_${data.invoiceNumber}.pdf",

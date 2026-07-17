@@ -22,7 +22,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CurrencyRupee
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
@@ -685,5 +687,84 @@ fun FilterChip(
             color = if (option.isSelected) Color.White else Color(0xFF475569),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
+    }
+}
+
+private val DefaultBorderGray = Color(0xFFE8E8ED)
+private val DefaultTextSecondary = Color(0xFF9A9AA8)
+
+/**
+ * Reusable Search + Filter bar.
+ * Use anywhere: pass searchQuery + onQueryChange, optionally show filter icon.
+ *
+ * Example:
+ * SearchFilterBar(
+ *     query = searchQuery,
+ *     onQueryChange = { searchQuery = it },
+ *     placeholder = "Search Customers...",
+ *     onFilterClick = { /* open filter drawer */ }
+ * )
+ */
+@Composable
+fun SearchFilterBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String = "Search...",
+    showFilterIcon: Boolean = true,
+    onFilterClick: (() -> Unit)? = null,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+    borderColor: Color = DefaultBorderGray,
+    textSecondaryColor: Color = DefaultTextSecondary,
+    height: androidx.compose.ui.unit.Dp = 52.dp
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            placeholder = { Text(placeholder, color = textSecondaryColor) },
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = null, tint = textSecondaryColor)
+            },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Clear",
+                        tint = textSecondaryColor,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clickable { onQueryChange("") }
+                    )
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .weight(1f)
+                .height(height),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = borderColor,
+                focusedBorderColor = accentColor
+            )
+        )
+
+        if (showFilterIcon) {
+            Box(
+                modifier = Modifier
+                    .size(height)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White)
+                    .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+                    .clickable(enabled = onFilterClick != null) { onFilterClick?.invoke() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = Color(0xFF111827))
+            }
+        }
     }
 }

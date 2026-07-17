@@ -26,8 +26,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -50,6 +52,8 @@ private fun formatAmount(value: Double): String {
 @Composable
 fun TrialBalanceScreen(
     onClose: () -> Unit = {},
+    onAccountClick: (accountId: String, accountName: String) -> Unit = { _, _ -> },
+    onBreadcrumbClick: () -> Unit = {},   // ✅ NEW
     financeViewModel: FinanceViewModel = hiltViewModel()
 ) {
     val items by financeViewModel.trialBalanceList.collectAsStateWithLifecycle()
@@ -98,49 +102,22 @@ fun TrialBalanceScreen(
 
         Column(Modifier.background(PanelBg)) {
             // ── Breadcrumb ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(PanelBg)
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
-            ) {
-                Text("Finance", color = TextSecondary, fontSize = 13.sp)
-                Text("  >  ", color = TextSecondary, fontSize = 13.sp)
-                Text("Trial Balance", color = BluePrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            }
+            ScreenBreadcrumb(
+                segments = listOf("Finance", "Trial Balance"),
+                onClick = onBreadcrumbClick
+            )
 
             // ── Search + Filter ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search Customers...", color = TextSecondary) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = BorderGray,
-                        focusedBorderColor = BluePrimary
-                    )
-                )
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White)
-                        .border(1.dp, BorderGray, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = TextPrimary)
-                }
-            }
+            SearchFilterBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                placeholder = "Search Customers...",
+                accentColor = BluePrimary,
+                borderColor = BorderGray,
+                textSecondaryColor = TextSecondary,
+                onFilterClick = { /* open your filter drawer here */ },
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+            )
         }
 
         when {
@@ -167,34 +144,37 @@ fun TrialBalanceScreen(
                         // so DataCard renders each as a SpaceBetween row → label on
                         // the left, value on the right — all three values land on the
                         // exact same right-edge column, same as the header/title column.
-                        DataCard(
-                            item = item,
-                            title = item.account,
-                            trailingText = "Code: ${item.code}",
-                            titleColor = TextPrimary,
-                            titleFontSize = 16.sp,
-                            footerAsRows = true, // every field below renders as a full-width row
-                            footerFields = listOf(
-                                DataCardField(
-                                    label = "Debit",
-                                    text = formatAmount(item.debit),
-                                    textColor = Color.Black,      // ✅ value in black
-                                    labelColor = TextSecondary
-                                ),
-                                DataCardField(
-                                    label = "Credit",
-                                    text = formatAmount(item.credit),
-                                    textColor = Color.Black,      // ✅ value in black
-                                    labelColor = TextSecondary
-                                ),
-                                DataCardField(
-                                    label = "BAL",
-                                    text = "${formatAmount(item.balanceAbs)} ${item.balanceLabel}",
-                                    textColor = Color.Black,      // ✅ value in black
-                                    labelColor = TextSecondary
+                        Box(modifier = Modifier.clickable { onAccountClick(item.accountId, item.account) }) {
+
+                            DataCard(
+                                item = item,
+                                title = item.account,
+                                trailingText = "Code: ${item.code}",
+                                titleColor = TextPrimary,
+                                titleFontSize = 16.sp,
+                                footerAsRows = true, // every field below renders as a full-width row
+                                footerFields = listOf(
+                                    DataCardField(
+                                        label = "Debit",
+                                        text = formatAmount(item.debit),
+                                        textColor = Color.Black,      // ✅ value in black
+                                        labelColor = TextSecondary
+                                    ),
+                                    DataCardField(
+                                        label = "Credit",
+                                        text = formatAmount(item.credit),
+                                        textColor = Color.Black,      // ✅ value in black
+                                        labelColor = TextSecondary
+                                    ),
+                                    DataCardField(
+                                        label = "BAL",
+                                        text = "${formatAmount(item.balanceAbs)} ${item.balanceLabel}",
+                                        textColor = Color.Black,      // ✅ value in black
+                                        labelColor = TextSecondary
+                                    )
                                 )
                             )
-                        )
+                        }
                     }
 
                     // ── Total Summary card ──

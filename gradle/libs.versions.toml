@@ -14,6 +14,9 @@ foundationLayout = "1.11.4"
 foundation = "1.11.4"
 animation = "1.11.4"
 
+firebasePerfPlugin = "2.0.2"
+
+
 agp = "9.2.1"
 kotlin = "2.4.0"
 ksp = "2.3.2"
@@ -43,8 +46,13 @@ room3CommonJvm = "3.0.0"
 runtime = "1.11.4"
 composeMaterial = "1.6.2"
 material3Lint = "1.4.0"
+crashlytics = "3.0.2"   # check latest version below
+
 
 [libraries]
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
+firebase-perf = { module = "com.google.firebase:firebase-perf" }
 vico-compose = { group = "com.patrykandpatrick.vico", name = "compose", version.ref = "vico" }
 vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
@@ -106,3 +114,7 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 google-services = { id = "com.google.gms.google-services", version = "4.5.0" }
+
+google-firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlytics" }
+
+google-firebase-perf = { id = "com.google.firebase.firebase-perf", version.ref = "firebasePerfPlugin" }

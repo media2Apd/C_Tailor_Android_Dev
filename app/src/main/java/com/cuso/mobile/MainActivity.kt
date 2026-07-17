@@ -132,7 +132,7 @@ class MainActivity : ComponentActivity() {
                             onDownloadInvoice = { *//* Handle download invoice *//* }
                         )
                     }*/
-//                    ManualJournalEntryScreen()
+//                    TrialBalanceScreen()
 
                 }
             }

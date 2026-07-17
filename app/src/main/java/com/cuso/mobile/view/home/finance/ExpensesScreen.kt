@@ -66,6 +66,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.InsertDriveFile
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 
 private val ExpensePrimary = Color(0xFF3B3BF9)
 private val ExpenseBg = Color(0xFFF5F5F5)
@@ -139,16 +140,11 @@ fun ExpensesScreen(
         }
 
         // ── Breadcrumb ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Finance", fontSize = 13.sp, color = Color(0xFF9CA3AF))
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(14.dp))
-            Text("Expenses", fontSize = 13.sp, color = ExpensePrimary, fontWeight = FontWeight.SemiBold)
-        }
+        ScreenBreadcrumb(
+            segments = listOf("Finance", "Expenses"),
+            onClick = {},
+            backgroundColor = Color.White
+        )
 
         // ── Search + Filter ──
         Row(

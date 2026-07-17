@@ -27,6 +27,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.viewmodel.GarmentPricingListUiState
@@ -88,22 +89,11 @@ fun PricingScreen(
             HorizontalDivider(color = CardBorder)
 
             // Breadcrumb
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Sales", fontSize = 13.sp, color = TextMuted)
-                Icon(
-                    Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = TextMuted,
-                    modifier = Modifier.size(16.dp)
-                )
-                Text("Pricing & Quotations", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Primary)
-            }
+            ScreenBreadcrumb(
+                segments = listOf("Sales", "Pricing & Quotations"),
+                onClick = {},
+                backgroundColor = Color.White
+            )
             HorizontalDivider(color = CardBorder)
 
             when (val state = listState) {

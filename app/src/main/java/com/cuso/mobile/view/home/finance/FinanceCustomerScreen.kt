@@ -282,7 +282,7 @@ private fun StatusBadgeStatic(status: String) {
     }
 }
 
-private fun formatDate(dateString: String): String {
+fun formatDate(dateString: String): String {
     return try {
         val parts = dateString.split("T")[0].split("-")
         if (parts.size == 3) {

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.QuotationItemDto
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
@@ -182,86 +183,74 @@ fun QuotationScreen(
             }
 
             // Breadcrumb + Search + Filter
-            Column(
-                modifier = Modifier
-                    .background(Color(0xFFF8F9FF))
-                    .fillMaxWidth()
-                    .padding(vertical = 10.dp, horizontal = 16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Sales", fontSize = 13.sp, color = Color(0xFF9CA3AF))
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = Color(0xFF9CA3AF),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        "Pricing & Quotations",
-                        fontSize = 13.sp,
-                        color = Color(0xFF3B3BF9),
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                Spacer(Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                ScreenBreadcrumb(segments = listOf("Sales", "Pricing & Quotations"), onClick = {})
+                Column(
+                    modifier = Modifier
+                        .background(Color(0xFFF8F9FF))
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp, horizontal = 16.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                            .background(Color.White, RoundedCornerShape(10.dp))
-                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            tint = Color.Black,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = {
-                                searchQuery = it
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                            decorationBox = { innerTextField ->
-                                if (searchQuery.isEmpty()) {
-                                    Text(
-                                        "Search Customers...",
-                                        fontSize = 14.sp,
-                                        color = Color.Black
-                                    )
-                                }
-                                innerTextField()
-                            }
-                        )
-                    }
 
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(Color.White, RoundedCornerShape(10.dp))
-                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                            .clickable { },
-                        contentAlignment = Alignment.Center
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            Icons.Filled.FilterList,
-                            "Filter",
-                            tint = Color.Black,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                                .background(Color.White, RoundedCornerShape(10.dp))
+                                .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
+                                .padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = {
+                                    searchQuery = it
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
+                                decorationBox = { innerTextField ->
+                                    if (searchQuery.isEmpty()) {
+                                        Text(
+                                            "Search Customers...",
+                                            fontSize = 14.sp,
+                                            color = Color.Black
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(Color.White, RoundedCornerShape(10.dp))
+                                .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
+                                .clickable { },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Filled.FilterList,
+                                "Filter",
+                                tint = Color.Black,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }

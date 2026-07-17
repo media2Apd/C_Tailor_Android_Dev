@@ -96,8 +96,12 @@ import com.cuso.mobile.model.finance.ExpenseListResponse
 import com.cuso.mobile.model.finance.ExpenseViewOneResponse
 import com.cuso.mobile.model.finance.InvoiceListResponse
 import com.cuso.mobile.model.finance.InvoiceViewOneResponse
+import com.cuso.mobile.model.finance.JournalEntryDetailResponse
 import com.cuso.mobile.model.finance.JournalEntryListResponse
+import com.cuso.mobile.model.finance.LedgerResponse
 import com.cuso.mobile.model.finance.TrialBalanceResponse
+import com.cuso.mobile.model.finance.UpdateJournalEntryRequest
+import com.cuso.mobile.model.finance.UpdateJournalEntryResponse
 import com.cuso.mobile.model.sales.DeleteCustomerResponse
 import com.cuso.mobile.model.sales.GarmentPricingDetailDto
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
@@ -840,4 +844,36 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,   // header name-ah existing finance endpoints la irukra pattern-oda match pannikonga
         @Body request: CreateJournalEntryRequest
     ): Response<CreateJournalEntryResponse>
+
+    @GET("/api/finance/ledger/account/{accountId}")
+    suspend fun getLedger(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("accountId") accountId: String
+    ): Response<LedgerResponse>
+
+    @DELETE("api/finance/journal-entry/delete-one/{id}")
+    suspend fun deleteJournalEntry(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<CreateJournalEntryResponse>
+
+    @GET("api/finance/journal-entry/view-one/{id}")
+    suspend fun getJournalEntryDetail(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<JournalEntryDetailResponse>
+
+
+    @PUT("/api/finance/journal-entry/update-one/{id}")
+    suspend fun updateJournalEntry(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: UpdateJournalEntryRequest
+    ): Response<UpdateJournalEntryResponse>
+
+
 }

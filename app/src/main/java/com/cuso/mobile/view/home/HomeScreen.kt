@@ -108,6 +108,7 @@ import com.cuso.mobile.view.home.sales.lead.LeadScreenContent
 import com.cuso.mobile.view.home.sales.lead.CreateLeadScreen
 import com.cuso.mobile.view.home.sales.lead.ViewLeadScreen
 import com.cuso.mobile.view.home.sales.lead.EditLeadScreen
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 
 // ── Design tokens (Primary color used everywhere for icons / accents) ──
 val LeadPrimary = Color(0xFF3B3BF9)
@@ -146,6 +147,10 @@ fun HomeScreen(navController: NavHostController) {
     var selectedOrderId by remember { mutableStateOf<String?>(null) }   // ✅ ADD THIS LINE
     val context = LocalContext.current
 
+    // ✅ NEW — Finance > Trial Balance > Ledger flow
+    var selectedLedgerAccountId by remember { mutableStateOf<String?>(null) }
+    var selectedLedgerAccountName by remember { mutableStateOf("Ledger") }
+
 
     //delete
     val deleteState by customerViewModel.deleteState.collectAsState()   // ✅ this needs to exist
@@ -160,6 +165,7 @@ fun HomeScreen(navController: NavHostController) {
     var isSalesSettingsMode by remember { mutableStateOf(false) }
 
     var showModulesPanel by remember { mutableStateOf(false) }   // ✅ NEW
+    var modulesPanelInitialExpanded by remember { mutableStateOf<String?>(null) }   // ✅ NEW — set by breadcrumb clicks
     val orderOverviewViewModel: com.cuso.mobile.viewmodel.OrderOverviewViewModel = hiltViewModel()
     val editOverviewState by orderOverviewViewModel.overviewState.collectAsStateWithLifecycle()
     var editOrderId by remember { mutableStateOf<String?>(null) }
@@ -276,6 +282,14 @@ fun HomeScreen(navController: NavHostController) {
             currentScreen == "profile-settings" -> currentScreen = "home"
             // Fallback: any unmapped/unknown screen -> go home
             currentScreen != "home" -> currentScreen = "home"
+
+            currentScreen == "finance_trial_balance" -> currentScreen = "home"
+            currentScreen == "finance_ledger" -> {
+                selectedLedgerAccountId = null
+                currentScreen = "finance_trial_balance"
+            }
+            currentScreen == "finance_chart_of_accounts" -> currentScreen = "home"   // ✅ NEW
+            currentScreen == "finance_journal_entries" -> currentScreen = "home"    // ✅ NEW
         }
     }
 
@@ -385,13 +399,18 @@ fun HomeScreen(navController: NavHostController) {
                                 currentScreen = "sales_pricing_quotation"
                                 isDrawerOpen = false
                             }
-                            "finance_journal_entry" -> {
+                            "finance_journal_entry", "finance_journal_entries" -> {
                                 isSalesSettingsMode = false
                                 currentScreen = "finance_journal_screen"
                                 isDrawerOpen = false
                             }
 
-                            // ✅ NEW — Finance > Accounts Receivable > "Sales Invoices"
+                            "finance_chart_of_accounts" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "finance_chart_of_accounts"
+                                isDrawerOpen = false
+                            }
+
                             "finance_sales_invoices", "finance_accounts_receivable" -> {
                                 isSalesSettingsMode = false
                                 currentScreen = "finance_sales_invoices"
@@ -409,6 +428,11 @@ fun HomeScreen(navController: NavHostController) {
                                 currentScreen = "settings"
                                 isDrawerOpen = false
                             }
+                            "finance_trial_balance" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "finance_trial_balance"
+                                isDrawerOpen = false
+                            }
 
                             else -> {
                                 android.util.Log.d("NAV_DEBUG", "Unhandled route: $route")
@@ -423,7 +447,10 @@ fun HomeScreen(navController: NavHostController) {
                             }
                         }
                     },
-                    onModulesClick = { showModulesPanel = true },   // ✅ NEW
+                    onModulesClick = {
+                        modulesPanelInitialExpanded = null   // ✅ CHANGED — plain "Modules" tap defaults to first module, no forced expand
+                        showModulesPanel = true
+                    },
                     onLogout = {
                         navController.navigate("login") {
                             popUpTo(0) { inclusive = true }
@@ -606,6 +633,44 @@ fun HomeScreen(navController: NavHostController) {
                             )
                         } ?: run { currentScreen = "sales_orders" }
                     }
+                    // ✅ NEW — Finance > Trial Balance (list)
+                    "finance_trial_balance" -> com.cuso.mobile.view.home.finance.TrialBalanceScreen(
+                        onClose = { currentScreen = "home" },
+                        onAccountClick = { accountId, accountName ->
+                            selectedLedgerAccountId = accountId
+                            selectedLedgerAccountName = accountName
+                            currentScreen = "finance_ledger"
+                        },
+                        onBreadcrumbClick = {   // ✅ NEW
+                            modulesPanelInitialExpanded = "Finance"
+                            showModulesPanel = true
+                        }
+                    )
+
+                    "finance_ledger" -> {
+                        selectedLedgerAccountId?.let { id ->
+                            com.cuso.mobile.view.home.finance.LedgerScreen(
+                                accountId = id,
+                                accountName = selectedLedgerAccountName,
+                                onClose = {
+                                    selectedLedgerAccountId = null
+                                    currentScreen = "finance_trial_balance"
+                                },
+                                onBreadcrumbClick = {   // ✅ NEW
+                                    modulesPanelInitialExpanded = "Finance"
+                                    showModulesPanel = true
+                                }
+                            )
+                        } ?: run { currentScreen = "finance_trial_balance" }
+                    }
+
+                    "finance_chart_of_accounts" -> com.cuso.mobile.view.home.finance.ChartOfAccountScreen(
+                        onClose = { currentScreen = "home" },
+                        onBreadcrumbClick = {   // ✅ NEW
+                            modulesPanelInitialExpanded = "Finance"
+                            showModulesPanel = true
+                        }
+                    )
                     "sales_pricing_quotation" -> QuotationScreen(
                         onClose = { isSalesSettingsMode = false; currentScreen = "home" },
                         onAddNe = {
@@ -682,8 +747,8 @@ fun HomeScreen(navController: NavHostController) {
                     )
                     "finance_journal_screen" -> com.cuso.mobile.view.home.finance.ManualJournalEntryScreen(
                         onClose = { currentScreen = "home" }
-
                     )
+
 
                     // ✅ NEW — Finance > Accounts Receivable > Sales Invoices (list)
                     "finance_sales_invoices" -> com.cuso.mobile.view.home.finance.FinanceInvoiceScreen(
@@ -773,21 +838,19 @@ fun HomeScreen(navController: NavHostController) {
         ModulesPanel(
             isOpen = showModulesPanel,
             onClose = { showModulesPanel = false },
+            initialExpandedModule = modulesPanelInitialExpanded,   // ✅ NEW
             onModuleCategoryClick = { menu, category ->
-                // ✅ NEW — direct shortcut, bypasses the normal sub-item lookup entirely
-                val navKey = if (menu == "Finance" && category == "Finance Core") {
-                    "finance_journal_screen"
-                } else {
-                    val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
-                    val firstSubItem = menuItem?.subItems?.get(category)?.firstOrNull()
+                // ✅ CHANGED — "Finance Core" category no longer exists (split into 3),
+                // so this special-case shortcut is removed. Normal lookup handles all 3 now.
+                val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
+                val firstSubItem = menuItem?.subItems?.get(category)?.firstOrNull()
 
-                    val rawNavKey = if (firstSubItem != null) {
-                        buildNavigationKey(menu, firstSubItem)
-                    } else {
-                        buildNavigationKey(menu, category)
-                    }
-                    normalizeRoute(rawNavKey)
+                val rawNavKey = if (firstSubItem != null) {
+                    buildNavigationKey(menu, firstSubItem)
+                } else {
+                    buildNavigationKey(menu, category)
                 }
+                val navKey = normalizeRoute(rawNavKey)
 
                 isSalesSettingsMode = false
                 currentScreen = navKey
@@ -1407,6 +1470,15 @@ private fun HomeScreenContentBody(
                     }
                 }
                 item { Spacer(Modifier.height(8.dp)) }
+            }
+            Button(onClick = {
+                repeat(30) { index ->
+                    FirebaseCrashlytics.getInstance().recordException(
+                        RuntimeException("Test Crash #$index — Batch Test")
+                    )
+                }
+            }) {
+                Text("Send 30 Test Crashes")
             }
         }
         else -> {
@@ -2465,17 +2537,21 @@ fun normalizeRoute(route: String): String {
         "sales_pricing_quotation",
         "sales_pricing_and_quotations",
         "sales_pricing_&_quotations",
-        "sales_quotation" -> "sales_pricing_quotation"   // ✅ Quotation → quotation dashboard screen
+        "sales_quotation" -> "sales_pricing_quotation"
 
-        "sales_pricing_overview" -> "sales_pricing_overview"   // ✅ NEW — separate route for overview
+        "sales_pricing_overview" -> "sales_pricing_overview"
 
         "sales_sales_orders",
         "sales_sales_&_orders" -> "sales_sales_orders"
 
+        // ✅ NEW — sidebar-generated key ("finance_journal_entries", plural)
+        // must resolve to the actual screen key used in the when(currentScreen) block
+        "finance_journal_entry",
+        "finance_journal_entries" -> "finance_journal_screen"
+
         else -> route
     }
 }
-
 fun String.toIsoDate(): String {
     if (this.isEmpty() || this == "Select Date") return ""
     return try {

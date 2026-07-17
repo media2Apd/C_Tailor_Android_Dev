@@ -42,6 +42,7 @@
     import com.cuso.mobile.viewmodel.CreateAccountState
     import kotlinx.coroutines.launch
     import androidx.compose.material.icons.filled.Visibility
+    import com.cuso.mobile.view.composable.ScreenBreadcrumb
     import com.cuso.mobile.viewmodel.DeleteAccountState
     import com.cuso.mobile.viewmodel.UpdateAccountState
 
@@ -65,7 +66,9 @@
         onClose: () -> Unit = {},
         onEditAccount: (ChartOfAccountItem) -> Unit = {},
         onDeleteAccount: (ChartOfAccountItem) -> Unit = {},
-        financeViewModel: FinanceViewModel = hiltViewModel()
+        financeViewModel: FinanceViewModel = hiltViewModel(),
+        onBreadcrumbClick: () -> Unit = {},   // ✅ NEW
+
     )  {
         val accounts by financeViewModel.chartOfAccounts.collectAsStateWithLifecycle()
         val isLoading by financeViewModel.isLoadingChartOfAccounts.collectAsStateWithLifecycle()
@@ -200,21 +203,10 @@
                     Modifier.background(Color(0xFFF7F7FA))
                 ) {
                     // ── Breadcrumb ──
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFF7F7FA))
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
-                    ) {
-                        Text("Finance", color = TextSecondary, fontSize = 13.sp)
-                        Text("  >  ", color = TextSecondary, fontSize = 13.sp)
-                        Text(
-                            "Chart of Account",
-                            color = BluePrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    ScreenBreadcrumb(
+                        segments = listOf("Finance", "Chart of Accounts"),
+                        onClick = onBreadcrumbClick
+                    )
 
                     // ── Search + Filter ──
                     Row(

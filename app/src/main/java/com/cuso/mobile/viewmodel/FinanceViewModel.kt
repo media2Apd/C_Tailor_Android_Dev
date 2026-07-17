@@ -7,8 +7,10 @@ import com.cuso.mobile.model.finance.ExpenseItem
 import com.cuso.mobile.model.finance.ExpensePagination
 import com.cuso.mobile.model.finance.InvoiceItem
 import com.cuso.mobile.model.finance.InvoiceViewOneData
+import com.cuso.mobile.model.finance.JournalEntryDetailData
 import com.cuso.mobile.model.finance.JournalEntryItem
 import com.cuso.mobile.model.finance.JournalEntryPagination
+import com.cuso.mobile.model.finance.LedgerItem
 import com.cuso.mobile.model.finance.TrialBalanceItem
 import com.cuso.mobile.model.sales.CustomerListResponseV2
 import com.cuso.mobile.model.sales.FinanceCustomerViewOneData
@@ -76,8 +78,6 @@ class FinanceViewModel @Inject constructor(
     // ── Selected invoice (View One) — no separate API, reuses list item ──
     private val _selectedInvoice = MutableStateFlow<InvoiceItem?>(null)
     val selectedInvoice: StateFlow<InvoiceItem?> = _selectedInvoice.asStateFlow()
-
-    // Add these states and functions to FinanceViewModel:
 
     // ── Invoice View One (Detail) ──
     private val _invoiceDetail = MutableStateFlow<InvoiceViewOneData?>(null)
@@ -158,6 +158,34 @@ class FinanceViewModel @Inject constructor(
     private val _createJournalState = MutableStateFlow<CreateJournalState>(CreateJournalState.Idle)
     val createJournalState: StateFlow<CreateJournalState> = _createJournalState.asStateFlow()
 
+    // ✅ NEW — Journal Entries: update
+    private val _updateJournalState = MutableStateFlow<UpdateJournalState>(UpdateJournalState.Idle)
+    val updateJournalState: StateFlow<UpdateJournalState> = _updateJournalState.asStateFlow()
+
+    // ── Ledger ──
+    private val _ledgerList = MutableStateFlow<List<LedgerItem>>(emptyList())
+    val ledgerList: StateFlow<List<LedgerItem>> = _ledgerList.asStateFlow()
+
+    private val _isLoadingLedger = MutableStateFlow(false)
+    val isLoadingLedger: StateFlow<Boolean> = _isLoadingLedger.asStateFlow()
+
+    private val _ledgerError = MutableStateFlow<String?>(null)
+    val ledgerError: StateFlow<String?> = _ledgerError.asStateFlow()
+
+    private val _deleteJournalState = MutableStateFlow<DeleteJournalState>(DeleteJournalState.Idle)
+    val deleteJournalState: StateFlow<DeleteJournalState> = _deleteJournalState.asStateFlow()
+
+    // ── Journal Entry: view one (detail, for View/Edit prefill) ──
+    private val _journalEntryDetail = MutableStateFlow<JournalEntryDetailData?>(null)
+    val journalEntryDetail: StateFlow<JournalEntryDetailData?> = _journalEntryDetail.asStateFlow()
+
+    private val _isLoadingJournalDetail = MutableStateFlow(false)
+    val isLoadingJournalDetail: StateFlow<Boolean> = _isLoadingJournalDetail.asStateFlow()
+
+    private val _journalDetailError = MutableStateFlow<String?>(null)
+    val journalDetailError: StateFlow<String?> = _journalDetailError.asStateFlow()
+
+
     fun createJournal(
         branchId: String,
         entryDate: String,
@@ -196,6 +224,49 @@ class FinanceViewModel @Inject constructor(
 
     fun resetCreateJournalState() {
         _createJournalState.value = CreateJournalState.Idle
+    }
+
+    // ✅ NEW — updates an existing journal entry by id, then refreshes the list
+    fun updateJournal(
+        id: String,
+        branchId: String,
+        entryDate: String,
+        reference: String?,
+        notes: String?,
+        status: String = "Posted",
+        lines: List<com.cuso.mobile.model.finance.JournalEntryLineRequest>
+    ) {
+        viewModelScope.launch {
+            _updateJournalState.value = UpdateJournalState.Loading
+
+            val result = financeRepository.updateJournal(
+                id = id,
+                branchId = branchId,
+                entryDate = entryDate,
+                reference = reference,
+                notes = notes,
+                status = status,
+                lines = lines
+            )
+
+            result.fold(
+                onSuccess = { response ->
+                    _updateJournalState.value = UpdateJournalState.Success(
+                        response.message ?: "Journal entry updated successfully"
+                    )
+                    fetchJournalEntries()   // refresh list after updating
+                },
+                onFailure = { e ->
+                    _updateJournalState.value = UpdateJournalState.Error(
+                        e.message ?: "Failed to update journal entry"
+                    )
+                }
+            )
+        }
+    }
+
+    fun resetUpdateJournalState() {
+        _updateJournalState.value = UpdateJournalState.Idle
     }
 
     fun getFinanceCustomerViewOne(id: String) {
@@ -270,9 +341,6 @@ class FinanceViewModel @Inject constructor(
 
 
 
-    /**
-     * Fetch single invoice details by ID
-     */
     fun fetchInvoiceDetail(invoiceId: String) {
         viewModelScope.launch {
             _isLoadingInvoiceDetail.value = true
@@ -502,6 +570,65 @@ class FinanceViewModel @Inject constructor(
         }
     }
 
+    fun fetchLedger(accountId: String) {
+        viewModelScope.launch {
+            _isLoadingLedger.value = true
+            _ledgerError.value = null
+
+            val result = financeRepository.getLedger(accountId)
+            result.fold(
+                onSuccess = { _ledgerList.value = it },
+                onFailure = { _ledgerError.value = it.message ?: "Failed to fetch ledger" }
+            )
+            _isLoadingLedger.value = false
+        }
+    }
+
+    fun deleteJournalEntry(id: String) {
+        viewModelScope.launch {
+            _deleteJournalState.value = DeleteJournalState.Loading
+            val result = financeRepository.deleteJournalEntry(id)
+            result.fold(
+                onSuccess = { message ->
+                    _deleteJournalState.value = DeleteJournalState.Success(message)
+                    fetchJournalEntries()   // refresh list after delete
+                },
+                onFailure = { e ->
+                    _deleteJournalState.value = DeleteJournalState.Error(e.message ?: "Failed to delete journal entry")
+                }
+            )
+        }
+    }
+
+    fun fetchJournalEntryDetail(id: String) {
+        viewModelScope.launch {
+            _isLoadingJournalDetail.value = true
+            _journalDetailError.value = null
+            _journalEntryDetail.value = null
+
+            val result = financeRepository.getJournalEntryViewOne(id)
+            result.fold(
+                onSuccess = { _journalEntryDetail.value = it },
+                onFailure = { _journalDetailError.value = it.message ?: "Failed to fetch journal entry" }
+            )
+            _isLoadingJournalDetail.value = false
+        }
+    }
+
+    fun clearJournalEntryDetail() {
+        _journalEntryDetail.value = null
+        _journalDetailError.value = null
+    }
+
+    fun resetDeleteJournalState() {
+        _deleteJournalState.value = DeleteJournalState.Idle
+    }
+
+    fun clearLedger() {
+        _ledgerList.value = emptyList()
+        _ledgerError.value = null
+    }
+
     fun resetDeleteAccountState() {
         _deleteAccountState.value = DeleteAccountState.Idle
     }
@@ -514,9 +641,6 @@ class FinanceViewModel @Inject constructor(
         _createAccountState.value = CreateAccountState.Idle
     }
 
-    /**
-     * Clear invoice detail state
-     */
     fun clearInvoiceDetail() {
         _invoiceDetail.value = null
         _invoiceDetailError.value = null
@@ -570,4 +694,19 @@ sealed class CreateJournalState {
     object Loading : CreateJournalState()
     data class Success(val message: String) : CreateJournalState()
     data class Error(val message: String) : CreateJournalState()
+}
+
+// ✅ NEW
+sealed class UpdateJournalState {
+    object Idle : UpdateJournalState()
+    object Loading : UpdateJournalState()
+    data class Success(val message: String) : UpdateJournalState()
+    data class Error(val message: String) : UpdateJournalState()
+}
+
+sealed class DeleteJournalState {
+    object Idle : DeleteJournalState()
+    object Loading : DeleteJournalState()
+    data class Success(val message: String) : DeleteJournalState()
+    data class Error(val message: String) : DeleteJournalState()
 }

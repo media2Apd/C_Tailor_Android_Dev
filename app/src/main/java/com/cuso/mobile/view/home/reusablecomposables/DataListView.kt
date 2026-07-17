@@ -54,7 +54,7 @@ import androidx.compose.ui.unit.DpOffset
 // ── One action-menu item (View / Edit / Delete / View Teams ...) ──
 data class MenuAction(
     val label: String,
-    val icon: ImageVector,
+    val icon: ImageVector?=null,
     val tint: Color = Color(0xFF6B7280),
     val textColor: Color = Color(0xFF111827),
     val enabled: Boolean = true,
@@ -158,12 +158,14 @@ fun ActionDropdownMenu(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(
-                                action.icon,
-                                contentDescription = null,
-                                tint = action.tint,
-                                modifier = Modifier.size(15.dp)
-                            )
+                            action.icon?.let {
+                                Icon(
+                                    it,
+                                    contentDescription = null,
+                                    tint = action.tint,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
 
                             Text(
                                 text = action.label,

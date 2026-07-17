@@ -11,9 +11,14 @@ import com.cuso.mobile.model.finance.ExpenseItem
 import com.cuso.mobile.model.finance.ExpenseListResponse
 import com.cuso.mobile.model.finance.InvoiceListResponse
 import com.cuso.mobile.model.finance.InvoiceViewOneData
+import com.cuso.mobile.model.finance.JournalEntryDetailData
 import com.cuso.mobile.model.finance.JournalEntryLineRequest
 import com.cuso.mobile.model.finance.JournalEntryListResponse
+import com.cuso.mobile.model.finance.LedgerItem
 import com.cuso.mobile.model.finance.TrialBalanceItem
+// ✅ NEW imports for update journal entry
+import com.cuso.mobile.model.finance.UpdateJournalEntryRequest
+import com.cuso.mobile.model.finance.UpdateJournalEntryResponse
 import com.cuso.mobile.model.sales.CustomerDetailV2
 import com.cuso.mobile.model.sales.CustomerListResponseV2
 import com.cuso.mobile.model.sales.GetFinanceCustomerViewOneResponse
@@ -43,10 +48,6 @@ class FinanceRepository @Inject constructor(
     // Customer V2 API Methods
     // ═══════════════════════════════════════════════════════════
 
-    /**
-     * Get customers for Finance > All Customers card view (V2 API)
-     * GET /api/customers
-     */
     suspend fun getCustomerForFinance(
         page: Int = 1,
         limit: Int = 10,
@@ -75,13 +76,6 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    /**
-     * Get customer details by ID (V2 API)
-     * GET /api/customers/{id}
-     *
-     * @param id Customer ID
-     * @return Result containing CustomerDetailV2 or error
-     */
     suspend fun getCustomerDetailV2(id: String): Result<CustomerDetailV2> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -98,10 +92,6 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    /**
-     * Get customer detail for Finance > View One (V2 API)
-     * GET /api/customers/{id}
-     */
     suspend fun getFinanceCustomerViewOne(id: String): Result<GetFinanceCustomerViewOneResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -118,10 +108,6 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    /**
-     * Get invoices for Finance > Sales Invoice card view
-     * GET /api/finance/invoices/view-all
-     */
     suspend fun getInvoices(
         page: Int = 1,
         limit: Int = 10,
@@ -150,12 +136,6 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    // Add this function to FinanceRepository:
-
-    /**
-     * Get single invoice details by ID
-     * GET /api/finance/invoices/{id}
-     */
     suspend fun getInvoiceViewOne(id: String): Result<InvoiceViewOneData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -308,7 +288,6 @@ class FinanceRepository @Inject constructor(
     }
 
     // ── Chart of Accounts: update ──
-    // ── Chart of Accounts: update ──
     suspend fun updateChartOfAccount(
         id: String,
         accountName: String,
@@ -428,6 +407,97 @@ class FinanceRepository @Inject constructor(
             } else {
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to create journal entry: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ✅ NEW — Journal Entries: update
+    // PUT /api/finance/journal-entries/{id}
+    suspend fun updateJournal(
+        id: String,
+        branchId: String,
+        entryDate: String,
+        reference: String?,
+        notes: String?,
+        status: String,
+        lines: List<JournalEntryLineRequest>
+    ): Result<UpdateJournalEntryResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.updateJournalEntry(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id,
+                request = UpdateJournalEntryRequest(
+                    branchId = branchId,
+                    entryDate = entryDate,
+                    reference = reference,
+                    notes = notes,
+                    status = status,
+                    lines = lines
+                )
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to update journal entry: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Ledger (per-account transactions) ──
+    suspend fun getLedger(accountId: String): Result<List<LedgerItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getLedger(accessToken, csrfToken, accountId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch ledger: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteJournalEntry(id: String): Result<String> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.deleteJournalEntry(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.message ?: "Journal entry deleted successfully")
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to delete journal entry: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getJournalEntryViewOne(id: String): Result<JournalEntryDetailData> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = api.getJournalEntryDetail(accessToken, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch journal entry: ${response.code()}")
                 )
             }
         } catch (e: Exception) {

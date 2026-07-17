@@ -33,6 +33,7 @@ import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+import com.cuso.mobile.viewmodel.DeleteJournalState
 import com.cuso.mobile.viewmodel.FinanceViewModel
 
 private val BluePrimary = Color(0xFF3A2FCB)
@@ -53,19 +54,48 @@ private fun journalStatusColors(status: String): Pair<Color, Color> {
 @Composable
 fun ManualJournalEntryScreen(
     onClose: () -> Unit = {},
-    onViewJournal: (JournalEntryItem) -> Unit = {},
-    onEditJournal: (JournalEntryItem) -> Unit = {},
     financeViewModel: FinanceViewModel = hiltViewModel()
 ) {
-    // ✅ NEW — local flag, same pattern as ChartOfAccountScreen's showAddAccount
-    var showCreateJournal by remember { mutableStateOf(false) }
+    // one local state machine drives Create / View / Edit
+    var formMode by remember { mutableStateOf<String?>(null) }   // null = list, "create" | "view" | "edit"
+    var selectedEntry by remember { mutableStateOf<JournalEntryItem?>(null) }
+    var selectedEntryId by remember { mutableStateOf<String?>(null) }
+    var deleteTarget by remember { mutableStateOf<JournalEntryItem?>(null) }
 
-    if (showCreateJournal) {
+    val deleteJournalState by financeViewModel.deleteJournalState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(deleteJournalState) {
+        when (val s = deleteJournalState) {
+            is DeleteJournalState.Success -> {
+                deleteTarget = null                          // dialog closes immediately
+                financeViewModel.resetDeleteJournalState()
+                snackbarHostState.showSnackbar(s.message)     // snackbar shows after
+            }
+            is DeleteJournalState.Error -> {
+                deleteTarget = null
+                financeViewModel.resetDeleteJournalState()
+                snackbarHostState.showSnackbar(s.message)
+            }
+            else -> {}
+        }
+    }
+
+    // Create / View / Edit all reuse the same form screen
+    if (formMode != null) {
         JournalEntryFormScreen(
-            onClose = { showCreateJournal = false },
+            mode = formMode!!,
+            entryId = selectedEntryId,
+            onClose = {
+                formMode = null
+                selectedEntryId = null
+                selectedEntry = null
+            },
             onSaved = {
-                showCreateJournal = false
-                financeViewModel.fetchJournalEntries()   // refresh list after posting
+                formMode = null
+                selectedEntryId = null
+                selectedEntry = null
+                financeViewModel.fetchJournalEntries()
             }
         )
         return
@@ -92,157 +122,192 @@ fun ManualJournalEntryScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        // ── Title bar ──
-        Row(
+    // Scaffold wraps everything so the delete-confirmation snackbar can show
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = Color.White
+    ) { padding ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(padding)
+                .background(Color.White)
         ) {
-            Text("Manual Journal Entry", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color(0xFF111827),
-                modifier = Modifier
-                    .size(22.dp)
-                    .clickable { onClose() }
-            )
-        }
-
-        Column(Modifier.background(Color(0xFFF7F7FA))) {
-            // ── Breadcrumb ──
+            // ── Title bar ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFF7F7FA))
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Finance", color = TextSecondary, fontSize = 13.sp)
-                Text("  >  ", color = TextSecondary, fontSize = 13.sp)
-                Text("Journal Entry", color = BluePrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            }
-
-            // ── Search + Filter ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search Customers...", color = TextSecondary) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                Text("Manual Journal Entry", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Close",
+                    tint = Color(0xFF111827),
                     modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = BorderGray,
-                        focusedBorderColor = BluePrimary
-                    )
+                        .size(22.dp)
+                        .clickable { onClose() }
                 )
-                Box(
+            }
+
+            Column(Modifier.background(Color(0xFFF7F7FA))) {
+                // ── Breadcrumb ──
+                Row(
                     modifier = Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White)
-                        .border(1.dp, BorderGray, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .background(Color(0xFFF7F7FA))
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
                 ) {
-                    Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = TextPrimary)
+                    Text("Finance", color = TextSecondary, fontSize = 13.sp)
+                    Text("  >  ", color = TextSecondary, fontSize = 13.sp)
+                    Text("Journal Entry", color = BluePrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }
-            }
-        }
 
-        // ── Content ──
-        when {
-            isLoading -> {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f), contentAlignment = Alignment.Center) {
-                    CirculerProgressIndicatorReuse()
-                }
-            }
-            errorMessage != null -> {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f), contentAlignment = Alignment.Center) {
-                    Text(text = errorMessage ?: "Something went wrong", color = Color.Red)
-                }
-            }
-            filteredEntries.isEmpty() -> {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f), contentAlignment = Alignment.Center) {
-                    Text("No journal entries found", color = TextSecondary)
-                }
-            }
-            else -> {
-                FabScaffold(
-                    modifier = Modifier.weight(1f),
-                    fab = FabConfig(
-                        label = "New Journal",
-                        icon = Icons.Default.Add,
-                        onClick = { showCreateJournal = true }
+                // ── Search + Filter ──
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Search Customers...", color = TextSecondary) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = BorderGray,
+                            focusedBorderColor = BluePrimary
+                        )
                     )
-                ) {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(filteredEntries, key = { it.id }) { entry ->
-                            val (badgeBg, badgeFg) = journalStatusColors(entry.status)
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White)
+                            .border(1.dp, BorderGray, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = TextPrimary)
+                    }
+                }
+            }
 
-                            // ✅ Reusing the shared DataCard component — same pattern
-                            // as ChartOfAccountScreen. title/subtitle/status badge/
-                            // actions all come straight from the journal entry's
-                            // first line (representative account for the entry).
-                            DataCard(
-                                item = entry,
-                                // ✅ Entry No is now the title (matches website table's first column)
-                                title = entry.entryNumber,
-                                titleColor = Color(0xFF111827),
-                                titleFontSize = 18.sp,
-                                // ✅ CHANGED — subtitle now shows ONLY Account Name + Code + Type
-                                // (Sub/category removed — not one of the required fields)
-                                subtitle = "${entry.primaryAccountName}   •   Code: ${entry.primaryAccountCode}   •   Type: ${entry.primaryAccountType}",
-                                topBadgeText = entry.status,
-                                topBadgeTextColor = badgeFg,
-                                topBadgeBgColor = badgeBg,
-                                topBadgeInline = true,
-                                actions = listOf(
-                                    MenuAction(
-                                        label = "View",
-                                        icon = Icons.Default.Visibility,
-                                        onClick = { onViewJournal(entry) }
-                                    ),
-                                    MenuAction(
-                                        label = "Edit",
-                                        icon = Icons.Default.Edit,
-                                        onClick = { onEditJournal(entry) }
-                                    ),
-                                    MenuAction(
-                                        label = "Delete",
-                                        icon = Icons.Default.Delete,
-                                        tint = Color(0xFFDC2626),
-                                        textColor = Color(0xFFDC2626),
-                                        onClick = { /* TODO: delete journal entry API when available */ }
+            // ── Content ──
+            // FIX: FabScaffold is now called ONCE, always, regardless of state.
+            // The when{} that switches between loading/error/empty/list lives
+            // INSIDE it, as the scaffold's content lambda. Previously FabScaffold
+            // was only one branch of an outer when{}, so the FAB disappeared
+            // whenever loading/error/empty were true. Do NOT nest another
+            // when{} branch around FabScaffold — that's what caused the
+            // "Condition type mismatch: inferred type is Unit but Boolean was
+            // expected" error you just hit (a composable call with no
+            // condition sitting inside a `when { ... }`).
+            FabScaffold(
+                modifier = Modifier.weight(1f),
+                fab = FabConfig(
+                    label = "New Journal",
+                    icon = Icons.Default.Add,
+                    onClick = {
+                        selectedEntry = null
+                        selectedEntryId = null
+                        formMode = "create"
+                    }
+                )
+            ) {
+                when {
+                    isLoading -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CirculerProgressIndicatorReuse()
+                        }
+                    }
+                    errorMessage != null -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(text = errorMessage ?: "Something went wrong", color = Color.Red)
+                        }
+                    }
+                    filteredEntries.isEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No journal entries found", color = TextSecondary)
+                        }
+                    }
+                    else -> {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(filteredEntries, key = { it.id }) { entry ->
+                                val (badgeBg, badgeFg) = journalStatusColors(entry.status)
+
+                                DataCard(
+                                    item = entry,
+                                    title = entry.entryNumber,
+                                    titleColor = Color(0xFF111827),
+                                    titleFontSize = 18.sp,
+                                    subtitle = "${entry.primaryAccountName}   •   Code: ${entry.primaryAccountCode}   •   Type: ${entry.primaryAccountType}",
+                                    topBadgeText = entry.status,
+                                    topBadgeTextColor = badgeFg,
+                                    topBadgeBgColor = badgeBg,
+                                    topBadgeInline = true,
+                                    actions = listOf(
+                                        MenuAction(
+                                            label = "View",
+                                            icon = Icons.Default.Visibility,
+                                            onClick = {
+                                                selectedEntry = entry
+                                                selectedEntryId = entry.id
+                                                formMode = "view"
+                                            }
+                                        ),
+                                        MenuAction(
+                                            label = "Edit",
+                                            icon = Icons.Default.Edit,
+                                            onClick = {
+                                                selectedEntry = entry
+                                                selectedEntryId = entry.id
+                                                formMode = "edit"
+                                            }
+                                        ),
+                                        MenuAction(
+                                            label = "Delete",
+                                            icon = Icons.Default.Delete,
+                                            tint = Color(0xFFDC2626),
+                                            textColor = Color(0xFFDC2626),
+                                            onClick = { deleteTarget = entry }
+                                        )
                                     )
                                 )
-                            )
+                            }
+                            item { Spacer(modifier = Modifier.height(80.dp)) }
                         }
-                        item { Spacer(modifier = Modifier.height(80.dp)) }
                     }
                 }
             }
         }
+    }
+
+    // Delete confirmation dialog, sits outside the Scaffold body,
+    // shows on top of everything when deleteTarget is non-null.
+    // Closes immediately on success/error (see LaunchedEffect above).
+    deleteTarget?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            containerColor = Color.White,
+            title = { Text("Delete Journal Entry", fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to delete \"${entry.entryNumber}\"? This cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = { financeViewModel.deleteJournalEntry(entry.id) }) {
+                    Text("Delete", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) { Text("Cancel") }
+            }
+        )
     }
 }

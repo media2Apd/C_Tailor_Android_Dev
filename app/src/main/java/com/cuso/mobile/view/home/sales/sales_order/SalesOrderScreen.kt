@@ -34,6 +34,7 @@ import com.cuso.mobile.ui.theme.redtext
 import com.cuso.mobile.ui.theme.yellowBg
 import com.cuso.mobile.ui.theme.yellowtext
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
@@ -152,95 +153,125 @@ fun SalesOrderScreen(
             }
 
             // ── Breadcrumb + Search + Status filter ──
-            Column(
-                modifier = Modifier
-                    .background(Color(0xFFF8F9FF))
-                    .fillMaxWidth()
-                    .padding(vertical = 10.dp, horizontal = 16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Sales", fontSize = 13.sp, color = Color(0xFF9CA3AF))
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(16.dp))
-                    Text("Sales Orders", fontSize = 13.sp, color = Color(0xFF3B3BF9), fontWeight = FontWeight.SemiBold)
-                }
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                ScreenBreadcrumb(segments = listOf("Sales", "Sales Orders"), onClick = {})
+                Column(
+                    modifier = Modifier
+                        .background(Color(0xFFF8F9FF))
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp, horizontal = 16.dp)
                 ) {
+                    Spacer(Modifier.height(12.dp))
                     Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                            .background(Color.White, RoundedCornerShape(10.dp))
-                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it; page = 1 },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                            cursorBrush = SolidColor(Color(0xFF3B3BF9)),
-                            decorationBox = { inner ->
-                                if (searchQuery.isEmpty()) Text("Search orders...", fontSize = 14.sp, color = Color.Black)
-                                inner()
-                            }
-                        )
-                    }
-
-                    Box {
-                        Box(
+                        Row(
                             modifier = Modifier
-                                .size(48.dp)
+                                .weight(1f)
+                                .height(48.dp)
                                 .background(Color.White, RoundedCornerShape(10.dp))
                                 .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                                .clickable { showStatusDropdown = true },
-                            contentAlignment = Alignment.Center
+                                .padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Filled.FilterList, "Filter", tint = Color.Black, modifier = Modifier.size(20.dp))
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it; page = 1 },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
+                                cursorBrush = SolidColor(Color(0xFF3B3BF9)),
+                                decorationBox = { inner ->
+                                    if (searchQuery.isEmpty()) Text(
+                                        "Search orders...",
+                                        fontSize = 14.sp,
+                                        color = Color.Black
+                                    )
+                                    inner()
+                                }
+                            )
                         }
-                        DropdownMenu(
-                            expanded = showStatusDropdown,
-                            onDismissRequest = { showStatusDropdown = false },
-                            containerColor = Color.White,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            statusOptions.forEach { (value, label) ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                                            Text(label, color = Color(0xFF111827))
-                                            if (value == statusFilter) Icon(Icons.Default.Check, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
-                                        }
-                                    },
-                                    onClick = { statusFilter = value; page = 1; showStatusDropdown = false }
+
+                        Box {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(Color.White, RoundedCornerShape(10.dp))
+                                    .border(
+                                        1.dp,
+                                        Color(0xFFE2E8F0),
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .clickable { showStatusDropdown = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.FilterList,
+                                    "Filter",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(20.dp)
                                 )
+                            }
+                            DropdownMenu(
+                                expanded = showStatusDropdown,
+                                onDismissRequest = { showStatusDropdown = false },
+                                containerColor = Color.White,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                statusOptions.forEach { (value, label) ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(label, color = Color(0xFF111827))
+                                                if (value == statusFilter) Icon(
+                                                    Icons.Default.Check,
+                                                    null,
+                                                    tint = Color(0xFF3B3BF9),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            statusFilter = value; page = 1; showStatusDropdown =
+                                            false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
-                }
-                if (statusFilter != "all") {
-                    Spacer(Modifier.height(8.dp))
-                    Surface(color = Color(0xFFEEF2FF), shape = RoundedCornerShape(20.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                statusOptions.find { it.first == statusFilter }?.second ?: "",
-                                fontSize = 12.sp, color = Color(0xFF3B3BF9), fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                Icons.Default.Close, null, tint = Color(0xFF3B3BF9),
-                                modifier = Modifier.size(14.dp).clickable { statusFilter = "all"; page = 1 }
-                            )
+                    if (statusFilter != "all") {
+                        Spacer(Modifier.height(8.dp))
+                        Surface(color = Color(0xFFEEF2FF), shape = RoundedCornerShape(20.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    statusOptions.find { it.first == statusFilter }?.second ?: "",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF3B3BF9),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Icon(
+                                    Icons.Default.Close, null, tint = Color(0xFF3B3BF9),
+                                    modifier = Modifier.size(14.dp)
+                                        .clickable { statusFilter = "all"; page = 1 }
+                                )
+                            }
                         }
                     }
                 }

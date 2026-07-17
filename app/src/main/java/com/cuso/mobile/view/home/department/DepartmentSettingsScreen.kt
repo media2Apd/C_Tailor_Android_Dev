@@ -43,6 +43,7 @@ import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.viewmodel.DepartmentUiState
@@ -184,31 +185,42 @@ fun DepartmentSettingsScreen(
                 }
             }
 
-            Column(modifier = Modifier.background(Color(0xFFF8F9FF)).fillMaxWidth().padding(vertical = 10.dp, horizontal = 16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Settings", fontSize = 13.sp, color = Color(0xFF9CA3AF))
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(16.dp))
-                    Text("Department", fontSize = 13.sp, color = Color(0xFF3B3BF9), fontWeight = FontWeight.SemiBold)
-                }
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().height(48.dp).background(Color.White, RoundedCornerShape(10.dp))
-                        .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp)).padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            Column(modifier = Modifier.fillMaxWidth()) {
+                ScreenBreadcrumb(segments = listOf("Settings", "Department"), onClick = {})
+                Column(
+                    modifier = Modifier.background(Color(0xFFF8F9FF)).fillMaxWidth()
+                        .padding(vertical = 10.dp, horizontal = 16.dp)
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    BasicTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it; currentPage = 1 },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                        decorationBox = { inner ->
-                            if (searchQuery.isEmpty()) Text("Search departments...", fontSize = 14.sp, color = Color.Black)
-                            inner()
-                        }
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                            .background(Color.White, RoundedCornerShape(10.dp))
+                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
+                            .padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = Color.Black,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it; currentPage = 1 },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
+                            decorationBox = { inner ->
+                                if (searchQuery.isEmpty()) Text(
+                                    "Search departments...",
+                                    fontSize = 14.sp,
+                                    color = Color.Black
+                                )
+                                inner()
+                            }
+                        )
+                    }
                 }
             }
 

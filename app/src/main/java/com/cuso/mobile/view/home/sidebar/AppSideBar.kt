@@ -135,15 +135,17 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.finance, "Finance",
                 isPanel = true,
-                categories = listOf("Accounts Receivable", "Accounts Payable", "Expenses", "Finance Core"),
+                categories = listOf(
+                    "Accounts Receivable", "Accounts Payable", "Expenses",
+                    "Chart of Accounts", "Journal Entries", "Trial Balance"   // ✅ CHANGED — split "Finance Core" into 3 separate indented categories
+                ),
                 subItems = mapOf(
-                    // ✅ "Sales Invoices" moved first — so clicking "Accounts Receivable"
-                    // (both in ModulesPanel category tap and sidebar accordion default)
-                    // lands directly on the invoice list instead of "Customers".
                     "Accounts Receivable" to listOf("Sales Invoices", "Customers", "Payments Received"),
                     "Accounts Payable"    to listOf("Suppliers", "Purchase Invoices", "Payments Mode"),
                     "Expenses"            to listOf("Expenses"),
-                    "Finance Core"        to listOf("Chart of Accounts", "Journal Entries", "Trial Balance")
+                    "Chart of Accounts"   to listOf("Chart of Accounts"),   // ✅ NEW
+                    "Journal Entries"     to listOf("Journal Entries"),     // ✅ NEW
+                    "Trial Balance"       to listOf("Trial Balance")        // ✅ NEW
                 )
             ),
             MenuItem(
@@ -927,6 +929,7 @@ private const val FULL_FRACTION = 0.96f
 fun ModulesPanel(
     isOpen: Boolean,
     onClose: () -> Unit,
+    initialExpandedModule: String? = null,   // ✅ NEW — pre-expand + scroll to this module when opened
     onModuleCategoryClick: (menu: String, category: String) -> Unit
 ) {
     ModulesPanelContent(
@@ -934,7 +937,8 @@ fun ModulesPanel(
         onClose = onClose,
         onModuleCategoryClick = onModuleCategoryClick,
         menuItems = SidebarConfig.getFullMenuItems().filter { it.label != "Home" },
-        showFrequentlyUsed = true
+        showFrequentlyUsed = true,
+        initialExpandedModule = initialExpandedModule   // ✅ NEW
     )
 }
 
@@ -969,7 +973,8 @@ private fun ModulesPanelContent(
     onClose: () -> Unit,
     onModuleCategoryClick: (menu: String, category: String) -> Unit,
     menuItems: List<MenuItem>,
-    showFrequentlyUsed: Boolean
+    showFrequentlyUsed: Boolean,
+    initialExpandedModule: String? = null   // ✅ NEW
 ) {
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -978,7 +983,12 @@ private fun ModulesPanelContent(
 
     var searchQuery by remember { mutableStateOf("") }
     var expandedModule by remember { mutableStateOf(menuItems.firstOrNull()?.label) }
-
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()   // ✅ NEW — lets us scroll to the expanded module
+    val filteredModules = if (searchQuery.isBlank()) {
+        menuItems
+    } else {
+        menuItems.filter { it.label.contains(searchQuery, ignoreCase = true) }
+    }
     val candidateLabels = remember(menuItems) { menuItems.map { it.label } }
 
     // Reactive: recomputes automatically the instant recordUsage() changes the ranking,
@@ -991,15 +1001,30 @@ private fun ModulesPanelContent(
     val frequentlyUsed by remember(menuItems) {
         derivedStateOf { buildFrequentlyUsed(context, menuItems).take(3) }
     }
-    LaunchedEffect(isOpen) {
-        if (isOpen) heightFraction.snapTo(HALF_FRACTION)
+    LaunchedEffect(isOpen, initialExpandedModule) {
+        if (isOpen) {
+            heightFraction.snapTo(HALF_FRACTION)
+            searchQuery = ""
+            val target = initialExpandedModule ?: menuItems.firstOrNull()?.label
+            expandedModule = target
+            if (target != null) {
+                val idx = filteredModules.indexOfFirst { it.label == target }
+                if (idx >= 0) {
+                    val headerOffset =
+                        (if (showFrequentlyUsed) 1 else 0) + 1  // frequently-used block + "ALL MODULES" header
+                    scope.launch {
+                        listState.animateScrollToItem(
+                            (headerOffset + idx).coerceAtLeast(
+                                0
+                            )
+                        )
+                    }
+                }
+            }
+        }
     }
 
-    val filteredModules = if (searchQuery.isBlank()) {
-        menuItems
-    } else {
-        menuItems.filter { it.label.contains(searchQuery, ignoreCase = true) }
-    }
+
 
     val cornerRadius: Dp = lerp(
         24.dp, 0.dp,
@@ -1130,6 +1155,7 @@ private fun ModulesPanelContent(
                     Spacer(Modifier.height(20.dp))
 
                     LazyColumn(
+                        state = listState,   // ✅ NEW
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp)
                     ) {

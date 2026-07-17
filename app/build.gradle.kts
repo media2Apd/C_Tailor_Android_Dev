@@ -5,6 +5,10 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
+
+    alias(libs.plugins.google.firebase.crashlytics)
+    alias(libs.plugins.google.firebase.perf)   // replace this
+
 }
 
 android {
@@ -28,6 +32,8 @@ android {
         minSdk = 25
         //noinspection OldTargetApi
         targetSdk = 36
+
+        //VERSION
         versionCode = 1
         versionName = "1.0"
     }
@@ -145,6 +151,24 @@ dependencies {
     implementation(libs.itext.kernel)
     implementation(libs.itext.io)
     implementation(libs.itext.layout)
+
+
     // For printing
     implementation(libs.androidx.print)
+
+    //CRASHLYTICS
+
+    // build.gradle.kts (app level)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
+
+    //PERFOMANCE
+
+    // Import the BoM for the Firebase platform
+    implementation(platform(libs.firebase.bom))
+
+    // Add the dependency for the Performance Monitoring library
+    // When using the BoM, you don't specify versions in Firebase library dependencies
+    implementation(libs.firebase.perf)
 }

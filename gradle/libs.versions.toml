@@ -18,7 +18,7 @@ firebasePerfPlugin = "2.0.2"
 
 
 agp = "9.2.1"
-kotlin = "2.4.0"
+kotlin = "2.4.10"
 ksp = "2.3.2"
 
 composeBom = "2026.06.01"

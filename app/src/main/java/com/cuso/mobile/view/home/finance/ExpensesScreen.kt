@@ -15,13 +15,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -42,7 +38,6 @@ import com.cuso.mobile.model.finance.ChartOfAccountItem
 import com.cuso.mobile.model.finance.ExpenseItem
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.view.composable.DatePickerField
-import com.cuso.mobile.view.home.FormDateField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
@@ -66,7 +61,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.InsertDriveFile
+import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.ErrorFieldWrapper
+import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.ValidationField
+import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 
 private val ExpensePrimary = Color(0xFF3B3BF9)
 private val ExpenseBg = Color(0xFFF5F5F5)
@@ -138,66 +142,30 @@ fun ExpensesScreen(
                     .clickable { onClose() }
             )
         }
-
-        // ── Breadcrumb ──
-        ScreenBreadcrumb(
-            segments = listOf("Finance", "Expenses"),
-            onClick = {},
-            backgroundColor = Color.White
-        )
-
-        // ── Search + Filter ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(Modifier.fillMaxWidth()
+            .background(Color(0xFFF8F9FF))
         ) {
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(44.dp)
-                    .background(ExpenseBg, RoundedCornerShape(10.dp))
-                    .padding(horizontal = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                BasicTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                    decorationBox = { inner ->
-                        if (searchQuery.isEmpty()) {
-                            Text("Search Customers...", fontSize = 14.sp, color = Color(0xFF9CA3AF))
-                        }
-                        inner()
-                    }
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(Color.White, RoundedCornerShape(10.dp))
-                    .border(1.dp, ExpenseBorder, RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = Color(0xFF374151), modifier = Modifier.size(18.dp))
-            }
+
+            // ── Breadcrumb ──
+            ScreenBreadcrumb(
+                segments = listOf("Finance", "Expenses"),
+                onClick = {},
+                backgroundColor = Color.White
+            )
+
+            SearchFilterBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                placeholder = "Search Expenses...",
+                accentColor = BluePrimary,
+                borderColor = BorderGray,
+                textSecondaryColor = TextSecondary,
+                onFilterClick = { /* TODO: open filter drawer */ }
+            )
         }
 
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Transaction History",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF111827),
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        Spacer(Modifier.height(12.dp))
+
 
         val filtered = expenses.filter {
             searchQuery.isBlank() ||
@@ -479,6 +447,22 @@ fun AddExpenseScreen(
     val isSaving = createExpenseState is CreateExpenseState.Loading
     val isSavingAccount = createAccountState is com.cuso.mobile.viewmodel.CreateAccountState.Loading
 
+    // ── Dynamic Island error state ──
+    var showError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+
+    // ── Required field validation (Lead-screen pattern) ──
+    var errorField by remember { mutableStateOf<String?>(null) }
+
+    // ── Plan limit state for Documentation upload ──
+    var showPlanLimitDialog by remember { mutableStateOf(false) }
+
+    // TODO: replace this with the real plan coming from your org/session state
+    // e.g. organizationViewModel.organization.plan?.name
+    val currentPlanName = "starter" // "starter" | "light" | "pro" | "premium" etc.
+    val isUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
+            currentPlanName.equals("light", ignoreCase = true)
+
     val context = LocalContext.current
     var selectedDocumentUri by remember { mutableStateOf<Uri?>(null) }
     var selectedDocumentName by remember { mutableStateOf<String?>(null) }
@@ -498,6 +482,10 @@ fun AddExpenseScreen(
             is CreateExpenseState.Success -> {
                 financeViewModel.resetCreateExpenseState()
                 onSaved()
+            }
+            is CreateExpenseState.Error -> {
+                errorMessage = state.message
+                showError = true
             }
             else -> Unit
         }
@@ -541,14 +529,7 @@ fun AddExpenseScreen(
         }
         HorizontalDivider(color = Color(0xFFF0F0F0))
 
-        if ((createExpenseState as? CreateExpenseState.Error) != null) {
-            Text(
-                (createExpenseState as CreateExpenseState.Error).message,
-                color = Color.Red,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-            )
-        }
+
 
         Column(
             modifier = Modifier
@@ -559,11 +540,19 @@ fun AddExpenseScreen(
             Text("Expense Details", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
             Spacer(Modifier.height(14.dp))
 
-            FormLabel("Expense Date")
-            DatePickerField(
-                value = expenseDate,
-                onDateSelected = { expenseDate = it }
-            )
+            FormLabel("Expense Date", isRequired = true)
+            ErrorFieldWrapper(
+                isError = errorField == "expenseDate",
+                errorMessage = if (errorField == "expenseDate") "Expense date is required" else null
+            ) {
+                DatePickerField(
+                    value = expenseDate,
+                    onDateSelected = {
+                        expenseDate = it
+                        errorField = null
+                    }
+                )
+            }
             Spacer(Modifier.height(14.dp))
 
 
@@ -575,6 +564,8 @@ fun AddExpenseScreen(
             ) {
 
                 Box(modifier = Modifier.weight(1f)) {
+                    FormLabel("Expense Account")
+
                     FormDropdown(
                         label = "Expense Account",
                         value = selectedCategory?.accountName ?: if (isLoadingAccounts) "Loading..." else "Select An Option",
@@ -583,8 +574,12 @@ fun AddExpenseScreen(
                         options = categoryAccounts.map { it.accountName },
                         onOptionSelected = { name ->
                             selectedCategory = categoryAccounts.find { it.accountName == name }
+                            errorField = null
                         },
-                        enabled = !isLoadingAccounts
+                        enabled = !isLoadingAccounts,
+                        isRequired = true,
+                        isError = errorField == "expenseAccount",
+                        errorMessage = if (errorField == "expenseAccount") "Expense account is required" else null
                     )
                 }
                 Box(
@@ -612,20 +607,35 @@ fun AddExpenseScreen(
                 options = branchList.map { it.name.orEmpty() },
                 onOptionSelected = { name ->
                     selectedBranch = branchList.find { it.name == name }
+                    errorField = null
                 },
-                enabled = !isLoadingBranches
+                enabled = !isLoadingBranches,
+                isRequired = true,
+                isError = errorField == "branch",
+                errorMessage = if (errorField == "branch") "Branch is required" else null
             )
             Spacer(Modifier.height(14.dp))
 
             // ── Amount + Payment Mode ──
+            // ── Amount + Payment Mode ──
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(modifier = Modifier.weight(1f)) {
-                    FormLabel("Amount")
+                    FormLabel("Amount", isRequired = true)
                     FormTextField(
                         value = amount,
-                        onValueChange = { amount = it },
+                        onValueChange = { input ->
+                            // ✅ allow only digits + a single decimal point (e.g. "1250.50")
+                            val filtered = input
+                                .filterIndexed { index, c ->
+                                    c.isDigit() || (c == '.' && input.indexOf('.') == index)
+                                }
+                            amount = filtered
+                            errorField = null
+                        },
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
-                        placeholder = "Enter Amount"
+                        placeholder = "Enter Amount",
+                        isError = errorField == "amount",
+                        errorMessage = if (errorField == "amount") "Amount is required" else null
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -637,22 +647,26 @@ fun AddExpenseScreen(
                         options = paymentAccounts.map { it.accountName },
                         onOptionSelected = { name ->
                             selectedPaymentAccount = paymentAccounts.find { it.accountName == name }
+                            errorField = null
                         },
-                        enabled = !isLoadingAccounts
+                        enabled = !isLoadingAccounts,
+                        isRequired = true,
+                        isError = errorField == "paymentMode",
+                        errorMessage = if (errorField == "paymentMode") "Payment mode is required" else null
                     )
                 }
             }
             Spacer(Modifier.height(14.dp))
 
-            FormDropdown(
-                label = "Expense Type",
-                value = expenseType,
-                expanded = expenseTypeExpanded,
-                onExpandChange = { expenseTypeExpanded = it },
-                options = expenseTypeOptions,
-                onOptionSelected = { expenseType = it }
-            )
-            Spacer(Modifier.height(14.dp))
+//            FormDropdown(
+//                label = "Expense Type",
+//                value = expenseType,
+//                expanded = expenseTypeExpanded,
+//                onExpandChange = { expenseTypeExpanded = it },
+//                options = expenseTypeOptions,
+//                onOptionSelected = { expenseType = it }
+//            )
+//            Spacer(Modifier.height(14.dp))
 
             FormLabel("Reference Number")
             FormTextField(
@@ -736,7 +750,13 @@ fun AddExpenseScreen(
                         .height(110.dp)
                         .background(Color(0xFFF7F7FE), RoundedCornerShape(10.dp))
                         .border(1.dp, Color(0xFFD6D3FB), RoundedCornerShape(10.dp))
-                        .clickable { filePickerLauncher.launch("*/*") },
+                        .clickable {
+                            if (isUploadRestricted) {
+                                showPlanLimitDialog = true
+                            } else {
+                                filePickerLauncher.launch("*/*")
+                            }
+                        },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -761,24 +781,63 @@ fun AddExpenseScreen(
                 isLoading = isSaving,
                 label = "Save",
                 onClick = {
-                    val category = selectedCategory
-                    val paymentAccount = selectedPaymentAccount
-                    val branchItem = selectedBranch
-                    if (category != null && paymentAccount != null && branchItem != null && amount.isNotBlank()) {
-                        financeViewModel.createExpense(
-                            branch = branchItem.id,
-                            expenseDate = expenseDate.toIsoDateFromDDMMYYYY(),
-                            accountId = category._id,
-                            paymentAccountId = paymentAccount._id,
-                            amount = amount,
-                            referenceNumber = referenceNumber.ifBlank { null },
-                            notes = notes.ifBlank { null },
-                            status = "Paid"
-                        )
+                    val fields = listOf(
+                        ValidationField("expenseDate", expenseDate, "Expense date is required"),
+                        ValidationField(
+                            "expenseAccount",
+                            selectedCategory?.accountName ?: "",
+                            "Expense account is required"
+                        ),
+                        ValidationField("branch", selectedBranch?.name ?: "", "Branch is required"),
+                        ValidationField("amount", amount, "Amount is required"),
+                        ValidationField("paymentMode", selectedPaymentAccount?.accountName ?: "", "Payment mode is required")
+                    )
+
+                    val result = FieldValidator.validate(fields)
+                    if (result != null) {
+                        errorField = result.fieldKey
+                        errorMessage = result.message
+                        showError = true
+                        return@Update
                     }
+                    errorField = null
+
+                    val category = selectedCategory!!
+                    val paymentAccount = selectedPaymentAccount!!
+                    val branchItem = selectedBranch!!
+
+                    financeViewModel.createExpense(
+                        branch = branchItem.id,
+                        expenseDate = expenseDate.toIsoDateFromDDMMYYYY(),
+                        accountId = category._id,
+                        paymentAccountId = paymentAccount._id,
+                        amount = amount,
+                        referenceNumber = referenceNumber.ifBlank { null },
+                        notes = notes.ifBlank { null },
+                        status = "Paid"
+                    )
                 }
             )
         )
+        // ── Dynamic Island error toast ──
+        DynamicIslandError(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = if (showError) errorMessage else null,
+            onDismiss = { showError = false }
+        )
+
+        // ── Plan limit dialog for Documentation upload ──
+        if (showPlanLimitDialog) {
+            PlanLimitDialog(
+                title = "Feature restricted",
+                message = "You're on the ${currentPlanName.replaceFirstChar { it.uppercase() }} plan and can't upload documents or receipts. Upgrade your plan to unlock this feature.",
+                onDismiss = { showPlanLimitDialog = false },
+                onUpgrade = {
+                    showPlanLimitDialog = false
+                    // TODO: navigate to your upgrade/subscription screen
+                }
+            )
+        }
 
         if (showAddAccountDialog) {
             Dialog(onDismissRequest = { showAddAccountDialog = false }) {

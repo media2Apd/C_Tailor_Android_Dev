@@ -46,8 +46,9 @@ fun PhoneInputField(
     onCountryChange: (Country) -> Unit,
     enabled: Boolean = true,
     isLoading: Boolean = false ,
-    onRetry: () -> Unit = {}
-
+    onRetry: () -> Unit = {},
+    isError: Boolean = false,           // ✅ NEW
+    errorMessage: String? = null        // ✅ NEW
 ) {
     var expanded by remember { mutableStateOf(false) }
     var selectedCountry by remember {
@@ -63,7 +64,11 @@ fun PhoneInputField(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(40.dp)
-                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                .border(
+                    1.dp,
+                    if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),   // ✅ CHANGED — red border on error
+                    RoundedCornerShape(8.dp)
+                )
                 .background(
                     if (enabled) Color.White else Color(0xFFF2F2F2),
                     RoundedCornerShape(8.dp)
@@ -161,6 +166,7 @@ fun PhoneInputField(
             )
 
             // ── Loading indicator (inside the box, trailing end) ──
+// ── Loading indicator (inside the box, trailing end) ──
             if (isLoading) {
                 Spacer(modifier = Modifier.width(8.dp))
                 CirculerProgressIndicatorReuse()
@@ -172,6 +178,16 @@ fun PhoneInputField(
                     },
                     tint = Color.Gray)
             }
+        }
+
+        // ✅ NEW — inline error message below the field
+        if (isError && !errorMessage.isNullOrBlank()) {
+            Text(
+                text = errorMessage,
+                color = Color(0xFFEF4444),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+            )
         }
     }
 }

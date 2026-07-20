@@ -42,7 +42,14 @@
     import com.cuso.mobile.viewmodel.CreateAccountState
     import kotlinx.coroutines.launch
     import androidx.compose.material.icons.filled.Visibility
+    import com.cuso.mobile.ui.theme.BluePrimary
+    import com.cuso.mobile.ui.theme.BorderGray
+    import com.cuso.mobile.ui.theme.TextSecondary
+    import com.cuso.mobile.view.composable.DynamicIslandError
+    import com.cuso.mobile.view.composable.FieldValidator
     import com.cuso.mobile.view.composable.ScreenBreadcrumb
+    import com.cuso.mobile.view.composable.ValidationField
+    import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
     import com.cuso.mobile.viewmodel.DeleteAccountState
     import com.cuso.mobile.viewmodel.UpdateAccountState
 
@@ -200,7 +207,8 @@
                     )
                 }
                 Column(
-                    Modifier.background(Color(0xFFF7F7FA))
+                    Modifier.background(Color(0xFFF8F9FF))
+
                 ) {
                     // ── Breadcrumb ──
                     ScreenBreadcrumb(
@@ -208,50 +216,16 @@
                         onClick = onBreadcrumbClick
                     )
 
-                    // ── Search + Filter ──
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search Customers...", color = TextSecondary) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = null,
-                                    tint = TextSecondary
-                                )
-                            },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(52.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = BorderGray,
-                                focusedBorderColor = BluePrimary
-                            )
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White)
-                                .border(1.dp, BorderGray, RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.FilterList,
-                                contentDescription = "Filter",
-                                tint = TextPrimary
-                            )
-                        }
-                    }
+                    SearchFilterBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        placeholder = "Search account...",
+                        accentColor = BluePrimary,
+                        borderColor = BorderGray,
+                        textSecondaryColor = TextSecondary,
+                        onFilterClick = { /* TODO: open filter drawer */ }
+                    )
                 }
 
                 // ── Content ──
@@ -481,6 +455,11 @@
         var description by remember { mutableStateOf(existingAccount?.description.orEmpty()) }
         val subAccountEnabled = accountType.isNotBlank() && fieldsEnabled
 
+        // ── Dynamic Island error state ──
+        var showError by remember { mutableStateOf(false) }
+        var errorMessage2 by remember { mutableStateOf("") }
+        var errorField by remember { mutableStateOf<String?>(null) }
+
 // ✅ moved up — must be declared BEFORE isSaving references it
         val updateAccountState by financeViewModel.updateAccountState.collectAsStateWithLifecycle()
 
@@ -511,13 +490,14 @@
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White)
-        ) {
-            // ── Title bar ──
-            Row(
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White)
+            ) {
+                // ── Title bar ──
+                Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 16.dp),
@@ -564,18 +544,29 @@
                             isSubAccount = false      // reset checkbox
                             selectedParent = null     // clear stale parent
                         }
+                        errorField = null
                     },
-                    enabled = fieldsEnabled            // ✅ disabled in VIEW mode
+                    enabled = fieldsEnabled,            // ✅ disabled in VIEW mode
+                    isRequired = true,
+                    isError = errorField == "accountType",
+                    errorMessage = if (errorField == "accountType") "Account type is required" else null
                 )
                 Spacer(Modifier.height(14.dp))
 
-                FormLabel("Account Name")
+                FormLabel("Account Name", isRequired = true)
                 // ── Account Name (placeholder only, no label — matches design) ──
                 FormTextField(
                     value = accountName,
-                    onValueChange = { if (fieldsEnabled) accountName = it },
+                    onValueChange = {
+                        if (fieldsEnabled) {
+                            accountName = it
+                            errorField = null
+                        }
+                    },
                     placeholder = "Account Name",
-                    enabled = fieldsEnabled
+                    enabled = fieldsEnabled,
+                    isError = errorField == "accountName",
+                    errorMessage = if (errorField == "accountName") "Account name is required" else null
                 )
                 Spacer(Modifier.height(14.dp))
 
@@ -704,6 +695,23 @@
                     Spacer(Modifier.width(12.dp))
                     Button(
                         onClick = {
+                            val fields = listOf(
+                                ValidationField(
+                                    "accountType",
+                                    accountType,
+                                    "Account type is required"
+                                ),
+                                ValidationField("accountName", accountName, "Account name is required")
+                            )
+                            val result = FieldValidator.validate(fields)
+                            if (result != null) {
+                                errorField = result.fieldKey
+                                errorMessage2 = result.message
+                                showError = true
+                                return@Button
+                            }
+                            errorField = null
+
                             if (isEditMode) {
                                 financeViewModel.updateChartOfAccount(
                                     id = existingAccount?._id.orEmpty(),
@@ -722,7 +730,7 @@
                                 )
                             }
                         },
-                        enabled = isFormValid && !isSaving,
+                        enabled = !isSaving,
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
                     ) {
@@ -738,6 +746,14 @@
                     }
                 }
             }
-        }
+            }   // ← closes inner Column
+
+            // ── Dynamic Island error toast ──
+            DynamicIslandError(
+                modifier = Modifier.align(Alignment.TopCenter),
+                message = if (showError) errorMessage2 else null,
+                onDismiss = { showError = false }
+            )
+        }   // ← closes root Box
     }
 

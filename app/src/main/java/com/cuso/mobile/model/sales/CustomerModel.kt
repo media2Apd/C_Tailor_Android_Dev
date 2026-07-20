@@ -59,6 +59,7 @@ data class GetCustomerViewResponse(
 )
 
 data class CustomerViewData(
+    @SerializedName("_id")
     val id: String,
     val organizationId: String,
     val type: String,

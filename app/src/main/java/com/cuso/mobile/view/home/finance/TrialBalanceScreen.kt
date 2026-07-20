@@ -111,7 +111,7 @@ fun TrialBalanceScreen(
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
-                placeholder = "Search Customers...",
+                placeholder = "Search Trial balance...",
                 accentColor = BluePrimary,
                 borderColor = BorderGray,
                 textSecondaryColor = TextSecondary,

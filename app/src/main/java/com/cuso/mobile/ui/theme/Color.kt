@@ -25,3 +25,10 @@ val redtext=Color(0xFFC10007)
 val redBg=Color(0xFFFEE2E2)
 val yellowtext=Color(0xFFD97706)
 val yellowBg=Color(0xFFFFFBEB)
+
+
+val TextPrimary = Color(0xFF111827)
+val TextSecondary = Color(0xFF9A9AA8)
+val BorderGray = Color(0xFFE8E8ED)
+val BluePrimary = Color(0xFF3A2FCB)
+val PanelBg = Color(0xFFF7F7FA)

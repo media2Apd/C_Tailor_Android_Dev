@@ -38,15 +38,15 @@ import com.cuso.mobile.view.composable.CirculerProgressIndicatorForButton
  */
 // AFTER
 sealed class TrailingFabAction {
-    data class Next(val label: String = "Next", val onClick: () -> Unit) : TrailingFabAction()
-    data class Edit(val label: String = "Edit", val onClick: () -> Unit) : TrailingFabAction()
+    data class Next(val label: String = "Next", val enabled: Boolean = true, val onClick: () -> Unit) : TrailingFabAction()
+    data class Edit(val label: String = "Edit", val enabled: Boolean = true, val onClick: () -> Unit) : TrailingFabAction()
     data class Update(
         val isLoading: Boolean = false,
         val label: String = "Update",
+        val enabled: Boolean = true,   // ✅ NEW — controls button's clickable/disabled state
         val onClick: () -> Unit
     ) : TrailingFabAction()
 }
-
 /* AFTER
 * @param showBack whether to render the Back button at all (e.g. hide on step 0)
 * @param onBack invoked when Back is tapped
@@ -129,6 +129,13 @@ fun TrailingFabButton(
     action: TrailingFabAction,
     modifier: Modifier = Modifier
 ) {
+    // ✅ NEW — resolve enabled state from whichever action variant is passed in
+    val isEnabled = when (action) {
+        is TrailingFabAction.Next -> action.enabled
+        is TrailingFabAction.Edit -> action.enabled
+        is TrailingFabAction.Update -> action.enabled && !action.isLoading   // also block taps while loading
+    }
+
     Button(
         onClick = {
             when (action) {
@@ -137,10 +144,13 @@ fun TrailingFabButton(
                 is TrailingFabAction.Update -> action.onClick()
             }
         },
+        enabled = isEnabled,   // ✅ NEW
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = Primary,
-            contentColor = Color.White
+            contentColor = Color.White,
+            disabledContainerColor = Primary.copy(alpha = 0.4f),   // ✅ NEW — visual dim when disabled
+            disabledContentColor = Color.White.copy(alpha = 0.7f)
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),

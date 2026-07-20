@@ -322,7 +322,7 @@ class SalesViewModel @Inject constructor(
             appointmentRequired = data.appointment?.isRequired ?: false,
             appointmentDate = data.appointment?.date ?: "",
             appointmentTime = data.appointment?.time ?: "",
-            assignedStaff = data.appointment?.assignedStaff?._id ?: "",
+            assignedStaff = data.appointment?.assignedStaff as String?,  // ✅ Keep it nullable
             priority = data.appointment?.priority ?: "",
             followUpDate = data.appointment?.followUpDate ?: "",
             internalNotes = data.notes?.find { it.type == "internal" }?.content ?: "",

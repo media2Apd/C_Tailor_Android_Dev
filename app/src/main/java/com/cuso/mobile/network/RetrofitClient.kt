@@ -19,7 +19,7 @@ object NetworkModule {
 //DNBS
 //    private const val BASE_URL = "http://192.168.31.116:5000/"
 //APD Corporate 5g
-    private const val BASE_URL = "http://192.168.0.6:5000/"
+    private const val BASE_URL = "http://192.168.0.8:5000/"
 
     @Provides
     @Singleton

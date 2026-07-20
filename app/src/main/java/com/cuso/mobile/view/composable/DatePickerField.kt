@@ -92,16 +92,22 @@ private val DatePickerMonthNames = listOf(
 fun DatePickerField(
     value: String,
     onDateSelected: (String) -> Unit,
-    enabled: Boolean = true   // ✅ NEW — false = view mode, field can't be tapped/opened
+    enabled: Boolean = true,   // ✅ false = view mode, field can't be tapped/opened
+    isError: Boolean = false   // ✅ NEW — red border when validation fails
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
-    // ✅ NEW — Box wraps FormDateField so we can dim it and block clicks when disabled,
+    // ✅ Box wraps FormDateField so we can dim it and block clicks when disabled,
     // without needing FormDateField itself to support an `enabled` parameter.
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(if (enabled) 1f else 0.5f)   // visually looks disabled, like other fields
+            .then(
+                // ✅ NEW — red border overlay when isError, since FormDateField draws its own border internally
+                if (isError) Modifier.border(1.dp, Color(0xFFEF4444), RoundedCornerShape(8.dp))
+                else Modifier
+            )
     ) {
         FormDateField(
             value = value,

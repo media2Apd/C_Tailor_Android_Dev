@@ -23,11 +23,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.customFieldOutlinedColors
 import com.cuso.mobile.view.composable.DatePickerField
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.ErrorMapper
 import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.home.FormDropdown   // ✅ NEW — reuse the shared dropdown from Lead screens
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
@@ -46,6 +49,13 @@ private val stepLabels = listOf(
     "Order\n& Payment",
     "Preferences",
     "Notes\n& Tags"
+)
+
+// ✅ NEW — maps error field names to accordion section keys
+private val customerSectionFieldMap = mapOf(
+    "identity" to listOf("name", "gender", "dob", "type"),
+    "details" to listOf("email", "mobile", "status", "language", "contact"),
+    "location" to listOf("address", "areaZone", "city")
 )
 @Suppress("UNUSED_PARAMETER")
 
@@ -66,11 +76,46 @@ fun CustomerDetailScreen(
 
     var currentStep by remember { mutableIntStateOf(0) }
 
-
     var isEditMode by remember(startInEditMode) { mutableStateOf(startInEditMode) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+
+// ✅ NEW — shared error state, passed down into PersonalInformationStep
+    var apiErrorMessage by remember { mutableStateOf<String?>(null) }
+    var errorField by remember { mutableStateOf<String?>(null) }
+    var errorSection by remember { mutableStateOf<String?>(null) }
+    var email by remember { mutableStateOf("") }   // ✅ NEW — hoisted from PersonalInformationStep
+
+    fun validateStep(step: Int): Boolean {
+        return when (step) {
+            0 -> {
+                var valid = true
+                when {
+                    formState.name.isBlank() -> {
+                        errorField = "name"; apiErrorMessage = "Full Name is required"; valid = false
+                    }
+                    email.isBlank() -> {
+                        errorField = "email"; apiErrorMessage = "Email address is required"; valid = false
+                    }
+                    formState.addressLine.isBlank() -> {
+                        errorField = "address"; apiErrorMessage = "Address is required"; valid = false
+                    }
+                    formState.city.isBlank() -> {
+                        errorField = "city"; apiErrorMessage = "City is required"; valid = false
+                    }
+                }
+                if (!valid) {
+                    errorSection = customerSectionFieldMap.entries
+                        .firstOrNull { (_, fields) -> errorField in fields }?.key
+                } else {
+                    errorField = null
+                }
+                valid
+            }
+            else -> true
+        }
+    }
 
     LaunchedEffect(customerId) { viewModel.loadCustomerDetail(customerId) }
 
@@ -79,12 +124,19 @@ fun CustomerDetailScreen(
             is CustomerUpdateState.Success -> {
                 coroutineScope.launch { snackbarHostState.showSnackbar("Customer updated successfully") }
                 isEditMode = false
+                errorField = null                                     // ✅ NEW
+                errorSection = null                                    // ✅ NEW
                 onUpdateSuccess()
                 viewModel.resetUpdateState()
             }
             is CustomerUpdateState.Error -> {
-                coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
                 viewModel.resetUpdateState()
+                // ✅ CHANGED — custom mapped message instead of raw API string
+                apiErrorMessage = ErrorMapper.map(state.message)
+                errorField = ErrorMapper.fieldFor(state.message)
+                errorSection = customerSectionFieldMap.entries
+                    .firstOrNull { (_, fields) -> errorField in fields }?.key
+                currentStep = 0   // jump back to Personal Info step since that's where identity/details/location live
             }
             else -> {}
         }
@@ -99,6 +151,15 @@ fun CustomerDetailScreen(
                 .fillMaxSize()
                 .padding()
         ) {
+            // ✅ NEW — top banner, overlays everything
+            DynamicIslandError(
+                message = apiErrorMessage,
+                onDismiss = { apiErrorMessage = null },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .zIndex(10f)
+            )
+
             Column(modifier = Modifier.fillMaxSize()) {
                 // ── Header ──
                 Row(
@@ -173,7 +234,13 @@ fun CustomerDetailScreen(
                         .padding(bottom = 90.dp)     // reserve scroll space so content isn't hidden behind FABs
                 ) {
                     when (currentStep) {
-                        0 -> PersonalInformationStep(detailState, formState, viewModel, isEditMode)
+                        0 -> PersonalInformationStep(
+                            detailState, formState, viewModel, isEditMode,
+                            errorField = errorField,
+                            errorSection = errorSection,
+                            email = email,                          // ✅ NEW
+                            onEmailChange = { email = it }
+                        )
                         1 -> MeasurementsStep(isEditMode)
                         2 -> OrderPaymentStep()
                         3 -> PreferencesStep()
@@ -188,16 +255,25 @@ fun CustomerDetailScreen(
                 showBack = currentStep > 0,
                 onBack = { currentStep-- },
                 trailingAction = when {
-                    currentStep < stepLabels.lastIndex -> TrailingFabAction.Next { currentStep++ }
+                    currentStep < stepLabels.lastIndex -> TrailingFabAction.Next {
+                        if (validateStep(currentStep)) {          // ✅ NEW — only advance if valid
+                            currentStep++
+                        }
+                    }
                     !isEditMode -> TrailingFabAction.Edit { onRequestEdit() }
                     else -> TrailingFabAction.Update(
-                        onClick = { viewModel.updateCustomer(customerId) },
+                        onClick = {
+                            if (validateStep(0)) {                  // ✅ NEW — validate before final update too
+                                viewModel.updateCustomer(customerId)
+                            }
+                        },
                         isLoading = updateState is CustomerUpdateState.Loading
                     )
                 }
             )
         }
     }
+
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -205,11 +281,16 @@ fun CustomerDetailScreen(
 // ─────────────────────────────────────────────────────────────
 
 @Composable
+// PersonalInformationStep signature-ல add பண்ணுங்க:
 private fun PersonalInformationStep(
     detailState: CustomerDetailUiState,
     formState: com.cuso.mobile.viewmodel.CustomerFormState,
     viewModel: CustomerViewModel,
-    isEditMode: Boolean   // controls whether fields are editable
+    isEditMode: Boolean,
+    errorField: String? = null,
+    errorSection: String? = null,
+    email: String,                          // ✅ NEW
+    onEmailChange: (String) -> Unit          // ✅ NEW
 ) {
     when (detailState) {
         is CustomerDetailUiState.Loading -> {
@@ -234,11 +315,13 @@ private fun PersonalInformationStep(
         is CustomerDetailUiState.Success -> {
             // ── Accordion open/close state — only one section open at a time ──
             var expandedSection by remember { mutableStateOf("identity") }
+            LaunchedEffect(errorSection) {
+                if (errorSection != null) expandedSection = errorSection
+            }
 
             // ── UI-only fields (NOT sent to update API — backend doesn't support them yet) ──
             var gender by remember { mutableStateOf("") }
             var dob by remember { mutableStateOf("") }
-            var email by remember { mutableStateOf("") }
             var preferredContact by remember { mutableStateOf("") }
             var areaZone by remember { mutableStateOf("") }
 
@@ -300,7 +383,9 @@ private fun PersonalInformationStep(
                             value = formState.name,
                             onValueChange = viewModel::onNameChange,
                             placeholder = "Enter your name",
-                            enabled = isEditMode
+                            enabled = isEditMode,
+                            isError = errorField == "name",                                        // ✅ NEW
+                            errorMessage = if (errorField == "name") "Please check the name" else null  // ✅ NEW
                         )
                     }
                     FormDropdown(
@@ -342,9 +427,11 @@ private fun PersonalInformationStep(
                     LabeledField("Email address *") {
                         CustomerOutlinedField(
                             value = email,
-                            onValueChange = { email = it },
+                            onValueChange = onEmailChange,
                             placeholder = "Enter your email",
-                            enabled = isEditMode
+                            enabled = isEditMode,
+                            isError = errorField == "email",                                        // ✅ NEW
+                            errorMessage = if (errorField == "email") "Please check the email" else null  // ✅ NEW
                         )
                     }
                     FormDropdown(
@@ -392,7 +479,9 @@ private fun PersonalInformationStep(
                             value = formState.addressLine,
                             onValueChange = viewModel::onAddressLineChange,
                             placeholder = "Enter your address",
-                            enabled = isEditMode
+                            enabled = isEditMode,
+                            isError = errorField == "address",                                          // ✅ NEW
+                            errorMessage = if (errorField == "address") "Please check the address" else null  // ✅ NEW
                         )
                     }
                     LabeledField("Area/Zone *") {
@@ -400,7 +489,9 @@ private fun PersonalInformationStep(
                             value = areaZone,
                             onValueChange = { areaZone = it },
                             placeholder = "Select Status",
-                            enabled = isEditMode
+                            enabled = isEditMode,
+                            isError = errorField == "areaZone",                                          // ✅ NEW
+                            errorMessage = if (errorField == "areaZone") "Please check this field" else null  // ✅ NEW
                         )
                     }
                     LabeledField("City *") {
@@ -408,7 +499,9 @@ private fun PersonalInformationStep(
                             value = formState.city,
                             onValueChange = viewModel::onCityChange,
                             placeholder = "Enter your City",
-                            enabled = isEditMode
+                            enabled = isEditMode,
+                            isError = errorField == "city",                                          // ✅ NEW
+                            errorMessage = if (errorField == "city") "Please check the city" else null  // ✅ NEW
                         )
                     }
                 }
@@ -475,53 +568,66 @@ private fun AccordionSectionCard(
 }
 
 @Composable
- fun CustomerOutlinedField(
+fun CustomerOutlinedField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    isError: Boolean = false,          // ✅ NEW
+    errorMessage: String? = null       // ✅ NEW
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val colors = customFieldOutlinedColors()
 
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(40.dp),                      // exact fixed height
-        enabled = enabled,
-        singleLine = true,
-        textStyle = LocalTextStyle.current.copy(
-            fontSize = 14.sp,
-            color = if (enabled) Color(0xFF111827) else Color(0xFF9CA3AF)
-        ),
-        cursorBrush = SolidColor(Color(0xFF3B3BF9)),
-        interactionSource = interactionSource,
-        decorationBox = { innerTextField ->
-            OutlinedTextFieldDefaults.DecorationBox(
-                value = value,
-                innerTextField = innerTextField,
-                enabled = enabled,
-                singleLine = true,
-                visualTransformation = VisualTransformation.None,
-                interactionSource = interactionSource,
-                placeholder = { Text(placeholder, fontSize = 14.sp) },
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),  // centers text in 40dp
-                colors = colors,
-                container = {
-                    OutlinedTextFieldDefaults.Container(
-                        enabled = enabled,
-                        isError = false,
-                        interactionSource = interactionSource,
-                        colors = colors,
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                }
+    Column {
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = modifier
+                .fillMaxWidth()
+                .height(40.dp),
+            enabled = enabled,
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(
+                fontSize = 14.sp,
+                color = if (enabled) Color(0xFF111827) else Color(0xFF9CA3AF)
+            ),
+            cursorBrush = SolidColor(Color(0xFF3B3BF9)),
+            interactionSource = interactionSource,
+            decorationBox = { innerTextField ->
+                OutlinedTextFieldDefaults.DecorationBox(
+                    value = value,
+                    innerTextField = innerTextField,
+                    enabled = enabled,
+                    singleLine = true,
+                    visualTransformation = VisualTransformation.None,
+                    interactionSource = interactionSource,
+                    isError = isError,                                     // ✅ CHANGED
+                    placeholder = { Text(placeholder, fontSize = 14.sp) },
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    colors = colors,
+                    container = {
+                        OutlinedTextFieldDefaults.Container(
+                            enabled = enabled,
+                            isError = isError,                             // ✅ CHANGED
+                            interactionSource = interactionSource,
+                            colors = colors,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                    }
+                )
+            }
+        )
+        if (isError && !errorMessage.isNullOrBlank()) {                    // ✅ NEW
+            Text(
+                text = errorMessage,
+                fontSize = 11.sp,
+                color = Color(0xFFEF4444),
+                modifier = Modifier.padding(top = 4.dp, start = 4.dp)
             )
         }
-    )
+    }
 }
 
 // ─────────────────────────────────────────────────────────────

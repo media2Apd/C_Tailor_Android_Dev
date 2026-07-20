@@ -40,12 +40,16 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.QuotationItemDto
+import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.CustomerViewModel
 import com.cuso.mobile.viewmodel.QuotationDeleteUiState
 import com.cuso.mobile.viewmodel.QuotationUiState
@@ -183,76 +187,20 @@ fun QuotationScreen(
             }
 
             // Breadcrumb + Search + Filter
-            Column(modifier = Modifier.fillMaxWidth()) {
-                ScreenBreadcrumb(segments = listOf("Sales", "Pricing & Quotations"), onClick = {})
-                Column(
-                    modifier = Modifier
-                        .background(Color(0xFFF8F9FF))
-                        .fillMaxWidth()
-                        .padding(vertical = 10.dp, horizontal = 16.dp)
+            Column(modifier = Modifier.fillMaxWidth()
+                .background(Color(0xFFF8F9FF))
                 ) {
-
-                    Spacer(Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .background(Color.White, RoundedCornerShape(10.dp))
-                                .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                                .padding(horizontal = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
-                                tint = Color.Black,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            BasicTextField(
-                                value = searchQuery,
-                                onValueChange = {
-                                    searchQuery = it
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                                decorationBox = { innerTextField ->
-                                    if (searchQuery.isEmpty()) {
-                                        Text(
-                                            "Search Customers...",
-                                            fontSize = 14.sp,
-                                            color = Color.Black
-                                        )
-                                    }
-                                    innerTextField()
-                                }
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(Color.White, RoundedCornerShape(10.dp))
-                                .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                                .clickable { },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Filled.FilterList,
-                                "Filter",
-                                tint = Color.Black,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
+                ScreenBreadcrumb(segments = listOf("Sales", "Pricing & Quotations"), onClick = {})
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    placeholder = "Search Customers...",
+                    accentColor = BluePrimary,
+                    borderColor = BorderGray,
+                    textSecondaryColor = TextSecondary,
+                    onFilterClick = { /* TODO: open filter drawer */ }
+                )
             }
 
             // Content

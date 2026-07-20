@@ -28,12 +28,17 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.MeasurementsUiState
 import com.cuso.mobile.viewmodel.MeasurementsViewModel
 
@@ -105,113 +110,24 @@ fun MeasurementsScreen(
                     )
                 }
             }
+            Column(
+               Modifier.fillMaxWidth()
+                   .background(Color(0xFFF8F9FF))
 
-            // ── Filter Row ──────────────────────────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                            .clickable { showTypeDropdown = true }
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.FilterList,
-                            contentDescription = null,
-                            tint = Color(0xFF6B7280),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            typeOptions.find { it.first == typeFilter }?.second ?: "All Customers",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF374151)
-                        )
-                        Icon(
-                            Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = Color(0xFF6B7280),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showTypeDropdown,
-                        onDismissRequest = { showTypeDropdown = false },
-                        containerColor = Color.White,
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        typeOptions.forEach { (value, label) ->
-                            DropdownMenuItem(
-                                text = {
-                                    Row(
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text(label, color = Color(0xFF111827))
-                                        if (value == typeFilter) {
-                                            Icon(Icons.Default.Check, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
-                                        }
-                                    }
-                                },
-                                onClick = {
-                                    typeFilter = value
-                                    page = 1
-                                    showTypeDropdown = false
-                                }
-                            )
-                        }
-                    }
-                }
+                ScreenBreadcrumb(segments = listOf("Sales", "Measurements"), onClick = {})
 
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(40.dp)
-                        .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            tint = Color(0xFF9CA3AF),
-                            modifier = Modifier.padding(start = 12.dp, end = 8.dp)
-                        )
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = {
-                                searchQuery = it
-                                page = 1
-                            },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(end = 12.dp),
-                            singleLine = true,
-                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF111827)),
-                            cursorBrush = SolidColor(Color(0xFF3B3BF9)),
-                            decorationBox = { innerTextField ->
-                                Box {
-                                    if (searchQuery.isEmpty()) {
-                                        Text("", fontSize = 14.sp, color = Color(0xFF9CA3AF))
-                                    }
-                                    innerTextField()
-                                }
-                            }
-                        )
-                    }
-                }
+                // ── Filter Row ──────────────────────────────────────
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    placeholder = "Search Measurements...",
+                    accentColor = BluePrimary,
+                    borderColor = BorderGray,
+                    textSecondaryColor = TextSecondary,
+                    onFilterClick = { /* TODO: open filter drawer */ }
+                )
             }
 
             HorizontalDivider(color = Color(0xFFF0F0F0))

@@ -33,6 +33,7 @@ import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.DeleteJournalState
 import com.cuso.mobile.viewmodel.FinanceViewModel
 
@@ -125,7 +126,8 @@ fun ManualJournalEntryScreen(
     // Scaffold wraps everything so the delete-confirmation snackbar can show
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color.White
+        containerColor = Color.White,
+        contentWindowInsets = WindowInsets(0)
     ) { padding ->
         Column(
             modifier = Modifier
@@ -165,40 +167,16 @@ fun ManualJournalEntryScreen(
                     Text("Journal Entry", color = BluePrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }
 
-                // ── Search + Filter ──
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { Text("Search Customers...", color = TextSecondary) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(52.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = BorderGray,
-                            focusedBorderColor = BluePrimary
-                        )
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White)
-                            .border(1.dp, BorderGray, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = TextPrimary)
-                    }
-                }
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    placeholder = "Search Journals...",
+                    accentColor = BluePrimary,
+                    borderColor = BorderGray,
+                    textSecondaryColor = TextSecondary,
+                    onFilterClick = { /* TODO: open filter drawer */ }
+                )
             }
 
             // ── Content ──

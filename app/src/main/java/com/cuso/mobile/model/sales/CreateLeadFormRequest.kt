@@ -45,13 +45,12 @@ data class LeadContact(
 
 data class LeadAppointment(
     val isRequired: Boolean,
-    val date: String,
-    val time: String,
-    val assignedStaff: String,
-    val priority: String,
-    val followUpDate: String
+    val date: String? = null,
+    val time: String? = null,
+    val assignedStaff: String? = null,
+    val priority: String? = null,
+    val followUpDate: String? = null
 )
-
 data class LeadNote(
     val message: String,
     val type: String   // "internal" or "customer"

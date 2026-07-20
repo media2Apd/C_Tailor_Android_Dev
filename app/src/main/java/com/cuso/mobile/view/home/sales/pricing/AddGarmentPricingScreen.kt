@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.BulkRuleDto
 import com.cuso.mobile.model.sales.PriceAdjustmentDto
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
@@ -199,6 +200,8 @@ fun AddGarmentPricingScreen(
         }
 
         if (hasBasicError) {
+            errorMessage = "Please fill all required fields"   // ✅ trigger Dynamic Island too
+            showError = true
             expandedSection = "basic_info"   // ✅ auto-open Basic Information
             return
         }
@@ -539,6 +542,13 @@ fun AddGarmentPricingScreen(
                 label = if (isEditMode) "Update Pricing" else "Save",
                 onClick = { handleSave() }
             )
+        )
+
+        // ── Dynamic Island error toast ──
+        DynamicIslandError(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = if (showError) errorMessage else null,
+            onDismiss = { showError = false }
         )
     }
 

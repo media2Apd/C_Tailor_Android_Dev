@@ -3,6 +3,7 @@
 package com.cuso.mobile.view.home
 
 import android.annotation.SuppressLint
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -92,7 +93,11 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.ui.graphics.ColorFilter
+import com.cuso.mobile.ui.inventory.InventoryViewOne
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.home.finance.ChartOfAccountScreen
+import com.cuso.mobile.view.home.inventory.CreateItemScreen
+import com.cuso.mobile.view.home.inventory.InventoryScreen
 import com.cuso.mobile.view.home.profile.ProfileSettingsScreen
 import com.cuso.mobile.view.home.sales.customer.CustomerDetailScreen
 import com.cuso.mobile.view.home.sales.ordermanagement.OrderManagementScreen
@@ -108,7 +113,7 @@ import com.cuso.mobile.view.home.sales.lead.LeadScreenContent
 import com.cuso.mobile.view.home.sales.lead.CreateLeadScreen
 import com.cuso.mobile.view.home.sales.lead.ViewLeadScreen
 import com.cuso.mobile.view.home.sales.lead.EditLeadScreen
-import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.cuso.mobile.viewmodel.ProfileViewModel
 
 // ── Design tokens (Primary color used everywhere for icons / accents) ──
 val LeadPrimary = Color(0xFF3B3BF9)
@@ -138,6 +143,10 @@ fun HomeScreen(navController: NavHostController) {
     val token: String = authViewModel.tokens.value?.accessToken ?: ""
     val isLoggedOut: Boolean by viewModel.isLoggedOut.collectAsStateWithLifecycle(initialValue = false)
     var currentScreen by remember { mutableStateOf("home") }
+
+
+    val profileViewModel: ProfileViewModel = hiltViewModel()
+
     var isDrawerOpen by remember { mutableStateOf(false) }
     var pendingOrderReviewData by remember { mutableStateOf<OrderReviewData?>(null) }
     val customerViewModel: CustomerViewModel = hiltViewModel()
@@ -160,7 +169,11 @@ fun HomeScreen(navController: NavHostController) {
     var selectedManagementOrderId by remember { mutableStateOf<String?>(null) }
 
     // ✅ NEW — Finance > Accounts Receivable > Sales Invoices flow
+    // ✅ NEW — Finance > Accounts Receivable > Sales Invoices flow
     var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
+
+    // ✅ NEW — Inventory > Item Detail flow
+    var selectedInventoryItemId by remember { mutableStateOf<String?>(null) }
 
     var isSalesSettingsMode by remember { mutableStateOf(false) }
 
@@ -175,6 +188,18 @@ fun HomeScreen(navController: NavHostController) {
 
     LaunchedEffect(editOrderId) {
         editOrderId?.let { orderOverviewViewModel.fetchSalesOverview(it) }
+    }
+    LaunchedEffect(Unit) {
+        profileViewModel.loadOrganization("")
+    }
+    LaunchedEffect(token) {
+        if (token.isNotEmpty()) {
+            Log.d("ORG", "Calling loadOrganization from Home")
+            profileViewModel.loadOrganization(token)
+        }
+    }
+    LaunchedEffect(profileViewModel.uiState.collectAsState().value) {
+        Log.d("ORG_STATE", profileViewModel.uiState.value.toString())
     }
 
     LaunchedEffect(editOverviewState) {
@@ -262,16 +287,16 @@ fun HomeScreen(navController: NavHostController) {
             currentScreen == "view_lead" -> currentScreen = "sales_lead"
             currentScreen == "edit_lead" -> currentScreen = "sales_lead"
             currentScreen == "create_order" -> currentScreen = "sales_sales_orders"
-            currentScreen == "sales_sales_orders" -> currentScreen = "home"        // ✅ CHANGED — was "sales_lead"
+            currentScreen == "sales_sales_orders" -> currentScreen = "home"
             currentScreen == "sales_orders" -> currentScreen = "home"
-            currentScreen == "sales_customers" -> currentScreen = "home"          // ✅ CHANGED — was "sales_lead"
+            currentScreen == "sales_customers" -> currentScreen = "home"
             currentScreen == "sales_measurements" -> currentScreen = "home"
             currentScreen == "view_customer" -> currentScreen = "sales_customers"
             currentScreen == "edit_customer" -> currentScreen = "sales_customers"
-            currentScreen == "finance_sales_invoices" -> currentScreen = "home"   // ✅ NEW
+            currentScreen == "finance_sales_invoices" -> currentScreen = "home"
             currentScreen == "finance_journal_screen" -> currentScreen = "home"
 
-            currentScreen == "finance_invoice_detail" -> {                        // ✅ NEW
+            currentScreen == "finance_invoice_detail" -> {
                 selectedInvoiceId = null
                 currentScreen = "finance_sales_invoices"
             }
@@ -280,16 +305,24 @@ fun HomeScreen(navController: NavHostController) {
                 currentScreen = "create_order"
             }
             currentScreen == "profile-settings" -> currentScreen = "home"
-            // Fallback: any unmapped/unknown screen -> go home
-            currentScreen != "home" -> currentScreen = "home"
 
             currentScreen == "finance_trial_balance" -> currentScreen = "home"
             currentScreen == "finance_ledger" -> {
                 selectedLedgerAccountId = null
                 currentScreen = "finance_trial_balance"
             }
-            currentScreen == "finance_chart_of_accounts" -> currentScreen = "home"   // ✅ NEW
-            currentScreen == "finance_journal_entries" -> currentScreen = "home"    // ✅ NEW
+            currentScreen == "finance_chart_of_accounts" -> currentScreen = "home"
+            currentScreen == "finance_journal_entries" -> currentScreen = "home"
+            currentScreen == "inventory_items" -> currentScreen = "home"
+            currentScreen == "inventory_item_detail" -> {
+                selectedInventoryItemId = null
+                currentScreen = "inventory_items"
+            }
+            currentScreen == "inventory_create_item" -> currentScreen = "inventory_items"
+
+            // Fallback: any unmapped/unknown screen -> go home
+            currentScreen != "home" -> currentScreen = "home"
+
         }
     }
 
@@ -434,8 +467,14 @@ fun HomeScreen(navController: NavHostController) {
                                 isDrawerOpen = false
                             }
 
+                            "inventory_items", "inventory_all_items" -> {   // ✅ NEW
+                                isSalesSettingsMode = false
+                                currentScreen = "inventory_items"
+                                isDrawerOpen = false
+                            }
+
                             else -> {
-                                android.util.Log.d("NAV_DEBUG", "Unhandled route: $route")
+                                Log.d("NAV_DEBUG", "Unhandled route: $route")
                                 try {
                                     navController.navigate(route)
                                 } catch (_: Exception) {
@@ -664,13 +703,75 @@ fun HomeScreen(navController: NavHostController) {
                         } ?: run { currentScreen = "finance_trial_balance" }
                     }
 
-                    "finance_chart_of_accounts" -> com.cuso.mobile.view.home.finance.ChartOfAccountScreen(
+                    "finance_chart_of_accounts" -> ChartOfAccountScreen(
                         onClose = { currentScreen = "home" },
                         onBreadcrumbClick = {   // ✅ NEW
                             modulesPanelInitialExpanded = "Finance"
                             showModulesPanel = true
                         }
                     )
+                    // ✅ NEW — Inventory > All Items
+                    "inventory_items" -> InventoryScreen(
+                        onClose = { currentScreen = "home" },
+                        onAddItem = {
+                            currentScreen = "inventory_create_item"
+                        },
+                        onViewItem = { item ->
+                            selectedInventoryItemId = item._id
+                            currentScreen = "inventory_item_detail"
+                        },
+                        onEditItem = { currentScreen = "inventory_create_item" }
+
+                    )
+
+                    "inventory_create_item" -> CreateItemScreen(
+                        onDismiss = { currentScreen = "inventory_items" },
+                        onItemCreated = { currentScreen = "inventory_items" }
+                    )
+
+                    // ✅ NEW — Inventory > Item Detail (own page, not a popup)
+                    "inventory_item_detail" -> {
+                        selectedInventoryItemId?.let { id ->
+                            val itemDetailViewModel: com.cuso.mobile.viewmodel.InventoryViewModel = hiltViewModel()
+                            val selectedItem by itemDetailViewModel.selectedItem.collectAsStateWithLifecycle()
+                            val isLoadingDetail by itemDetailViewModel.isLoadingItemDetail.collectAsStateWithLifecycle()
+                            val detailError by itemDetailViewModel.itemDetailError.collectAsStateWithLifecycle()
+
+                            LaunchedEffect(id) {
+                                itemDetailViewModel.fetchInventoryItemDetail(id)
+                            }
+
+                            InventoryViewOne(
+                                item = selectedItem,
+                                isLoading = isLoadingDetail,
+                                errorMessage = detailError,
+                                onDismiss = {
+                                    selectedInventoryItemId = null
+                                    currentScreen = "inventory_items"
+                                },
+                                onAdjustStock = { /* legacy no-op, superseded by onAdjustStockSubmit */ },
+                                onAdjustStockSubmit = { type, quantity, reason, notes ->   // ✅ NEW
+                                    val apiType = when (type) {
+                                        com.cuso.mobile.ui.inventory.AdjustmentType.INCREASE -> "increase"
+                                        com.cuso.mobile.ui.inventory.AdjustmentType.DECREASE -> "decrease"
+                                        com.cuso.mobile.ui.inventory.AdjustmentType.SET_EXACT -> "set"
+                                    }
+                                    itemDetailViewModel.adjustStock(
+                                        itemId = id,
+                                        adjustmentType = apiType,
+                                        quantity = quantity,
+                                        reason = reason,
+                                        notes = notes
+                                    )
+                                },
+                                onWarehouseTransfer = { /* TODO: wire warehouse transfer screen */ },
+                                onReorderStock = { /* TODO: wire reorder screen */ },
+                                onMarkInactive = { /* TODO: call mark-inactive API */ },
+                                onEdit = { /* TODO: wire edit item screen */ },
+                                onShare = { /* TODO: trigger share intent */ }
+                            )
+                        } ?: run { currentScreen = "inventory_items" }
+                    }
                     "sales_pricing_quotation" -> QuotationScreen(
                         onClose = { isSalesSettingsMode = false; currentScreen = "home" },
                         onAddNe = {
@@ -1471,15 +1572,14 @@ private fun HomeScreenContentBody(
                 }
                 item { Spacer(Modifier.height(8.dp)) }
             }
-            Button(onClick = {
-                repeat(30) { index ->
-                    FirebaseCrashlytics.getInstance().recordException(
-                        RuntimeException("Test Crash #$index — Batch Test")
-                    )
-                }
-            }) {
-                Text("Send 30 Test Crashes")
-            }
+            //TEST CRASH
+//            Button(
+//                onClick = {
+//                    throw RuntimeException("Test Crash — Crashlytics Verification")
+//                }
+//            ) {
+//                Text("Test Crash")
+//            }
         }
         else -> {
             CirculerProgressIndicatorReuse()
@@ -1900,8 +2000,8 @@ fun buildFilterSections(
 // ─────────────────────────────────────────────────────────────
 //
 
-fun formatLeadDate(raw: String): String {
-    if (raw.isBlank()) return "—"
+fun formatLeadDate(raw: String?): String {
+    if (raw.isNullOrBlank()) return "—"
     return try {
         val datePart = raw.take(10)
         val parts = datePart.split("-")
@@ -2378,9 +2478,13 @@ fun FormTextField(
             )
         )
     }
-    if (isError && !errorMessage.isNullOrEmpty()) {
-        Spacer(Modifier.height(4.dp))
-        Text(errorMessage, fontSize = 12.sp, color = Color(0xFFEF4444))
+    if (isError && !errorMessage.isNullOrBlank()) {
+        Text(
+            errorMessage,
+            fontSize = 11.sp,
+            color = Color(0xFFEF4444),
+            modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+        )
     }
 }
 @Composable
@@ -2546,8 +2650,14 @@ fun normalizeRoute(route: String): String {
 
         // ✅ NEW — sidebar-generated key ("finance_journal_entries", plural)
         // must resolve to the actual screen key used in the when(currentScreen) block
+        // ✅ NEW — sidebar-generated key ("finance_journal_entries", plural)
+        // must resolve to the actual screen key used in the when(currentScreen) block
         "finance_journal_entry",
         "finance_journal_entries" -> "finance_journal_screen"
+
+        // ✅ NEW — Inventory module aliases
+        "inventory_items",
+        "inventory_all_items" -> "inventory_items"
 
         else -> route
     }

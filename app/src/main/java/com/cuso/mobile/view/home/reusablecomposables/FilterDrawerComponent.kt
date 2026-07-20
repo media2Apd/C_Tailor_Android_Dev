@@ -1,5 +1,6 @@
 package com.cuso.mobile.view.home.reusablecomposables
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -40,8 +41,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 import com.cuso.mobile.ui.theme.Primary
 
 // ── Filter Section Data ──
@@ -159,42 +159,33 @@ fun FilterDrawer(
         label = "scrimAlpha"
     ) { open -> if (open) 0.4f else 0f }
 
+    BackHandler(enabled = state.isOpen) { state.close() }
+
+
 // Keep Dialog composed while opening OR while close animation is still running
     if (!visibleState.isIdle || visibleState.currentState) {
-        Dialog(
-            onDismissRequest = { state.close() },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false
-            )
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .zIndex(20f)   // ✅ ensures it draws above everything else in the same Box
+                .background(Color.Black.copy(alpha = scrimAlpha))
         ) {
-            // ✅ scrim background — behind the sliding panel, fades to fully transparent
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = scrimAlpha))
+            transition.AnimatedVisibility(
+                visible = { it },
+                enter = slideInHorizontally(
+                    initialOffsetX = { fullWidth -> -fullWidth },
+                    animationSpec = tween(DrawerAnimDurationMs, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(DrawerAnimDurationMs)),
+                exit = slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> -fullWidth },
+                    animationSpec = tween(DrawerAnimDurationMs, easing = FastOutLinearInEasing)
+                ) + fadeOut(animationSpec = tween(DrawerAnimDurationMs))
             ) {
-                transition.AnimatedVisibility(
-                    visible = { it },
-                    // ✅ Enter: panel starts fully off-screen to the LEFT (-fullWidth)
-                    // and slides RIGHT into position → left-to-right open.
-                    enter = slideInHorizontally(
-                        initialOffsetX = { fullWidth -> -fullWidth },
-                        animationSpec = tween(DrawerAnimDurationMs, easing = FastOutSlowInEasing)
-                    ) + fadeIn(animationSpec = tween(DrawerAnimDurationMs)),
-                    // ✅ Exit: panel slides LEFT off-screen (-fullWidth) → right-to-left close.
-                    exit = slideOutHorizontally(
-                        targetOffsetX = { fullWidth -> -fullWidth },
-                        animationSpec = tween(DrawerAnimDurationMs, easing = FastOutLinearInEasing)
-                    ) + fadeOut(animationSpec = tween(DrawerAnimDurationMs))
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color(0xFFf8f9ff)
                 ) {
-
-                    // ✅ FULL SCREEN page — not a side drawer
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = Color(0xFFf8f9ff)
-                    ) {
-                        Column(modifier = Modifier.fillMaxSize()) {
+                    Column(modifier = Modifier.fillMaxSize()) {
 
                             // ── Header: back arrow + title + Reset ──
                             Box(Modifier.background(Color.White).fillMaxWidth()) {
@@ -361,9 +352,11 @@ fun FilterDrawer(
                     }
                 } // AnimatedVisibility close
             } // scrim Box close
+
         }
     }
-}
+
+
 // ── Section Card: header row (icon + title + chevron) + expandable body ──
 @Composable
 private fun FilterSectionCard(
@@ -720,7 +713,6 @@ fun SearchFilterBar(
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         OutlinedTextField(
@@ -745,11 +737,12 @@ fun SearchFilterBar(
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
-                .weight(1f)
-                .height(height),
+                .weight(1f),
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = borderColor,
-                focusedBorderColor = accentColor
+                focusedBorderColor = accentColor,
+                focusedContainerColor=Color.White,
+                unfocusedContainerColor = Color.White
             )
         )
 

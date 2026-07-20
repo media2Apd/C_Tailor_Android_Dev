@@ -7,9 +7,10 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -43,6 +44,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Popup
+
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun ForgotOtpInput(
@@ -58,7 +60,10 @@ fun ForgotOtpInput(
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
     Box(
-        modifier = Modifier.fillMaxWidth(),
+        // ✅ Side padding so boxes never touch screen edges on narrow devices.
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center
     ) {
         BasicTextField(
@@ -80,15 +85,26 @@ fun ForgotOtpInput(
             decorationBox = { it() }
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        // ✅ Boxes were fixed at 55.dp with 10.dp gaps (~380dp total) which
+        // overflowed on narrow phones (~320dp wide) and looked tiny/cramped
+        // relative to the screen on tablets. Using weight(1f) + aspectRatio(1f)
+        // makes each box a flexible, always-square fraction of the available
+        // width, so all 6 fit correctly on any screen. widthIn(max = 380.dp)
+        // caps how large they can grow on wide screens/tablets.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 380.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             repeat(otpLength) { index ->
                 val char = textFieldValue.text.getOrNull(index)?.toString() ?: ""
                 val isFocused = textFieldValue.text.length == index
 
                 Box(
                     modifier = Modifier
-                        .width(55.dp)
-                        .height(55.dp)
+                        .weight(1f)
+                        .aspectRatio(1f)
                         .border(
                             width = if (isFocused) 2.dp else 1.5.dp,
                             color = when {
@@ -175,6 +191,4 @@ fun ForgotOtpInput(
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
-
-
 }

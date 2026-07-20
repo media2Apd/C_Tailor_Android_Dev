@@ -29,12 +29,16 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.finance.InvoiceItem
 import com.cuso.mobile.model.finance.InvoiceViewOneData
+import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.pdfgenerator.InvoicePdfGenerator
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.ProfileUiState
@@ -111,49 +115,16 @@ fun FinanceInvoiceScreen(
         }
         HorizontalDivider(color = Color(0xFFEEEEEE))
 
-        // ── Search ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFF3F4F6))
-                    .padding(horizontal = 12.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Search, null, tint = InvTextMuted, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    androidx.compose.foundation.text.BasicTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = InvTextDark),
-                        decorationBox = { inner ->
-                            if (searchQuery.isEmpty()) Text("Search Customers...", fontSize = 14.sp, color = InvTextMuted)
-                            inner()
-                        }
-                    )
-                }
-            }
-            Spacer(Modifier.width(10.dp))
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFF3F4F6)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.FilterList, null, tint = InvTextDark, modifier = Modifier.size(18.dp))
-            }
-        }
+        SearchFilterBar(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            placeholder = "Search Invoices...",
+            accentColor = BluePrimary,
+            borderColor = BorderGray,
+            textSecondaryColor = TextSecondary,
+            onFilterClick = { /* TODO: open filter drawer */ }
+        )
 
         // ── Body ──
         Box(modifier = Modifier.fillMaxSize()) {

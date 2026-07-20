@@ -1,9 +1,13 @@
 package com.cuso.mobile.view.home.finance
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +37,7 @@ import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
 import com.cuso.mobile.view.home.reusablecomposables.BackFabButton
+import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabButton
 import com.cuso.mobile.view.home.toIsoDate
@@ -124,8 +129,15 @@ fun JournalEntryFormScreen(
 
     var currency by remember { mutableStateOf("") }
 
-    var date by remember { mutableStateOf("") }
-
+    var date by remember {
+        mutableStateOf(
+            // ✅ default to today's date in create mode; view/edit modes
+            // overwrite this from journalDetail in the LaunchedEffect below
+            if (mode == "create")
+                java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault()).format(java.util.Date())
+            else ""
+        )
+    }
     var company by remember { mutableStateOf("Select an option") }
     var companyExpanded by remember { mutableStateOf(false) }
 
@@ -143,10 +155,40 @@ fun JournalEntryFormScreen(
 
     var journalRef by remember { mutableStateOf("") }
 
+// ✅ NEW — Documentation & Receipts upload state
+    // ✅ NEW — Documentation & Receipts upload state
+    var uploadedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
+
+    val documentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            uploadedFiles = uploadedFiles + uris
+        }
+    }
+
+// ✅ NEW — Plan gating for document upload
+    var showPlanLimitDialog by remember { mutableStateOf(false) }
+
+// TODO: replace this with the real plan coming from your org/session state
+// e.g. organizationViewModel.organization.plan?.name
+    val currentPlanName = "starter" // "starter" | "light" | "pro" | "premium" etc.
+    val isUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
+            currentPlanName.equals("light", ignoreCase = true)
+
     val totalDebit = remember(lines) { lines.sumOf { it.debit.toDoubleOrNull() ?: 0.0 } }
     val totalCredit = remember(lines) { lines.sumOf { it.credit.toDoubleOrNull() ?: 0.0 } }
     val isBalanced = remember(totalDebit, totalCredit) {
         kotlin.math.abs(totalDebit - totalCredit) < 0.001
+    }
+    // ✅ NEW — every line must have an Account selected before posting
+    val allLinesHaveAccount = remember(lines) {
+        lines.isNotEmpty() && lines.all { it.account.isNotBlank() }
+    }
+    // ✅ NEW — button should stay disabled if totals are zero (nothing entered),
+    // debit/credit aren't balanced, or any line is missing an Account selection
+    val canPost = remember(totalDebit, totalCredit, isBalanced, allLinesHaveAccount) {
+        isBalanced && (totalDebit > 0.0 || totalCredit > 0.0) && allLinesHaveAccount
     }
     val createJournalState by financeViewModel.createJournalState.collectAsStateWithLifecycle()
 
@@ -450,13 +492,72 @@ fun JournalEntryFormScreen(
                             .fillMaxWidth()
                             .height(120.dp)
                             .background(PanelBg, RoundedCornerShape(8.dp))
-                            .border(1.dp, BorderGray, RoundedCornerShape(8.dp)),
+                            .border(1.dp, BorderGray, RoundedCornerShape(8.dp))
+                            .clickable(enabled = !isReadOnly) {
+                                if (isUploadRestricted) {
+                                    showPlanLimitDialog = true
+                                } else {
+                                    documentPickerLauncher.launch(arrayOf("image/*", "application/pdf"))
+                                }
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.CloudUpload, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(28.dp))
                             Spacer(Modifier.height(6.dp))
-                            Text("Drag and drop files here", fontSize = 13.sp, color = TextSecondary)
+                            Text(
+                                if (isReadOnly) "No files attached" else "Tap to upload files",
+                                fontSize = 13.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    // ✅ NEW — show selected files with a remove option
+                    if (uploadedFiles.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            uploadedFiles.forEachIndexed { index, uri ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(PanelBg, RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.InsertDriveFile,
+                                            contentDescription = null,
+                                            tint = BluePrimary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            uri.lastPathSegment ?: "File ${index + 1}",
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF374151),
+                                            maxLines = 1
+                                        )
+                                    }
+                                    if (!isReadOnly) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Remove file",
+                                            tint = RedText,
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .clickable {
+                                                    uploadedFiles = uploadedFiles.toMutableList().also { it.removeAt(index) }
+                                                }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -530,6 +631,22 @@ fun JournalEntryFormScreen(
                                 fontWeight = FontWeight.Medium
                             )
                         }
+                    } else if (!allLinesHaveAccount) {
+                        Spacer(Modifier.height(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(RedBg)
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                        ) {
+                            Text(
+                                "Select an account for every line before posting",
+                                color = RedText,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
 
@@ -557,9 +674,10 @@ fun JournalEntryFormScreen(
                         // ✅ CHANGED — loading now reflects whichever operation is in flight
                         isLoading = createJournalState is CreateJournalState.Loading ||
                                 updateJournalState is com.cuso.mobile.viewmodel.UpdateJournalState.Loading,
+                        enabled = canPost,   // ✅ NEW — disabled until debit/credit are entered and balanced
                         label = if (mode == "edit") "Update Journal" else "Post Journal",
                         onClick = {
-                            if (isBalanced) {
+                            if (canPost) {
                                 val lineRequests = lines.mapNotNull { line ->
                                     val matchedAccount = accounts.find { "${it.accountCode} - ${it.accountName}" == line.account }
                                     val accountId = matchedAccount?._id
@@ -598,13 +716,7 @@ fun JournalEntryFormScreen(
                 )
             }
 
-            if (createJournalState is CreateJournalState.Error) {
-                Text(
-                    (createJournalState as CreateJournalState.Error).message,
-                    color = RedText,
-                    fontSize = 12.sp
-                )
-            }
+
             // ✅ NEW — surfaces update-specific errors the same way create errors are shown
             if (updateJournalState is com.cuso.mobile.viewmodel.UpdateJournalState.Error) {
                 Text(
@@ -614,6 +726,19 @@ fun JournalEntryFormScreen(
                 )
             }
         }
+    }
+
+    // ✅ NEW — Plan limit dialog for document upload
+    if (showPlanLimitDialog) {
+        PlanLimitDialog(
+            title = "Feature restricted",
+            message = "You're on the ${currentPlanName.replaceFirstChar { it.uppercase() }} plan and can't upload documents or receipts. Upgrade your plan to unlock this feature.",
+            onDismiss = { showPlanLimitDialog = false },
+            onUpgrade = {
+                showPlanLimitDialog = false
+                // TODO: navigate to your subscription/upgrade screen
+            }
+        )
     }
 }
 

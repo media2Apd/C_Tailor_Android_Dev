@@ -38,7 +38,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.model.DepartmentItem
 import com.cuso.mobile.model.sales.StaffDto
-import com.cuso.mobile.view.home.branch.PlanLimits
+import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.view.home.reusablecomposables.PlanLimits
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
@@ -46,6 +49,8 @@ import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
+import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.DepartmentUiState
 import com.cuso.mobile.viewmodel.DepartmentViewModel
 import com.cuso.mobile.viewmodel.DesignationCreateState
@@ -187,41 +192,17 @@ fun DepartmentSettingsScreen(
 
             Column(modifier = Modifier.fillMaxWidth()) {
                 ScreenBreadcrumb(segments = listOf("Settings", "Department"), onClick = {})
-                Column(
-                    modifier = Modifier.background(Color(0xFFF8F9FF)).fillMaxWidth()
-                        .padding(vertical = 10.dp, horizontal = 16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().height(48.dp)
-                            .background(Color.White, RoundedCornerShape(10.dp))
-                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            tint = Color.Black,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it; currentPage = 1 },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                            decorationBox = { inner ->
-                                if (searchQuery.isEmpty()) Text(
-                                    "Search departments...",
-                                    fontSize = 14.sp,
-                                    color = Color.Black
-                                )
-                                inner()
-                            }
-                        )
-                    }
-                }
+
+                    SearchFilterBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        placeholder = "Search Departments...",
+                        accentColor = BluePrimary,
+                        borderColor = BorderGray,
+                        textSecondaryColor = TextSecondary,
+                        onFilterClick = { /* TODO: open filter drawer */ }
+                    )
             }
 
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -308,13 +289,11 @@ fun DepartmentSettingsScreen(
         }
 
         if (showPlanLimitDialog) {
-            DepartmentPlanLimitDialog(
+            PlanLimitDialog(
                 title = "Plan Limit Reached",
-                message = "Department limit exceeded ($currentDepartments/${planLimits?.departmentLimit ?: 0}). Upgrade your plan to add more departments.",
-                currentCount = currentDepartments,
-                maxLimit = planLimits?.departmentLimit ?: 0,
+                message = "Employee limit exceeded ($currentDepartments/${planLimits?.employeeLimit ?: 0}). Upgrade your plan to add more employees.",
                 onDismiss = { showPlanLimitDialog = false },
-                onUpgrade = { showPlanLimitDialog = false; navController.navigate("subscription") }
+                onUpgrade = { /* navigate to upgrade screen */ }
             )
         }
     }
@@ -343,136 +322,6 @@ fun DepartmentSettingsScreen(
         )
     }
 }
-
-
-// ─────────────────────────────────────────────────────────────
-// Plan Limit Dialog - Slides from Top
-// ─────────────────────────────────────────────────────────────
-@Suppress("UNUSED_PARAMETER")
-
-@Composable
-fun DepartmentPlanLimitDialog(
-    title: String,
-    message: String,
-    currentCount: Int,
-    maxLimit: Int,
-    onDismiss: () -> Unit,
-    onUpgrade: () -> Unit
-) {
-    var isVisible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        isVisible = true
-    }
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.3f))
-                .clickable { onDismiss() },
-            contentAlignment = Alignment.TopCenter
-        ) {
-            AnimatedVisibility(
-                visible = isVisible,
-                enter = slideInVertically(
-                    initialOffsetY = { -it },
-                    animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(durationMillis = 300)),
-                exit = slideOutVertically(
-                    targetOffsetY = { -it },
-                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(durationMillis = 200))
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 40.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { /* Prevent click through */ },
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = title,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827),
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = message,
-                            fontSize = 14.sp,
-                            color = Color(0xFF6B7280),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        Text(
-                            text = "Limit reached",
-                            fontSize = 12.sp,
-                            color = Color(0xFFEF4444),
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = onDismiss,
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = Color.White,
-                                    contentColor = Color(0xFF374151)
-                                ),
-                                modifier = Modifier.weight(0.4f)
-                            ) {
-                                Text("Close", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-                            }
-
-                            Button(
-                                onClick = onUpgrade,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF3B3BF9),
-                                    contentColor = Color.White
-                                ),
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.weight(0.6f)
-                            ) {
-                                Text("Upgrade Plan", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// DepartmentTable
-// ─────────────────────────────────────────────────────────────
 
 
 

@@ -87,7 +87,7 @@ fun ForgotOtpSelection(
         enabled = isOtpComplete && accountState !is UiState.Loading,
         modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp),
+            .height(40.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = Color.Blue,
             contentColor = Color.White
@@ -95,11 +95,11 @@ fun ForgotOtpSelection(
         shape = RoundedCornerShape(8.dp)
     ) {
         if (accountState is UiState.Loading) {
-            CirculerProgressIndicatorReuse()
+            CirculerProgressIndicatorSmall()
         } else {
             Text(
                 text = "Verify and continue",
-                fontSize = 20.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
         }

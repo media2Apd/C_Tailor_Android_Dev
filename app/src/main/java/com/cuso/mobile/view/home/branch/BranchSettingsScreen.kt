@@ -2,8 +2,7 @@ package com.cuso.mobile.view.home.branch
 
 import CreateBranchAddress
 import CreateBranchRequest
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,17 +22,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -41,6 +37,9 @@ import com.cuso.mobile.model.BranchItem
 import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.model.UpdateBranchAddress
 import com.cuso.mobile.model.UpdateBranchRequest
+import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
@@ -48,6 +47,8 @@ import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
+import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.BranchUiState
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.CreateBranchUiState
@@ -110,7 +111,7 @@ fun BranchSettingsScreen(
             )
         }
     }
-
+    Log.d("PLAN", "Plan Response = $planLimits")
     LaunchedEffect(createState) {
         when (val state = createState) {
             is CreateBranchUiState.Success -> {
@@ -211,45 +212,16 @@ fun BranchSettingsScreen(
                     segments = listOf("Settings", "Branches"),
                     onClick = { /* TODO: hook to modules panel if needed, else {} */ }
                 )
-                Column(
-                    modifier = Modifier
-                        .background(Color(0xFFF8F9FF))
-                        .fillMaxWidth()
-                        .padding(vertical = 10.dp, horizontal = 16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .background(Color.White, RoundedCornerShape(10.dp))
-                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            tint = Color.Black,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it; currentPage = 1 },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                            decorationBox = { inner ->
-                                if (searchQuery.isEmpty()) Text(
-                                    "Search branches...",
-                                    fontSize = 14.sp,
-                                    color = Color.Black
-                                )
-                                inner()
-                            }
-                        )
-                    }
-                }
+                SearchFilterBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        placeholder = "Search Branches...",
+                        accentColor = BluePrimary,
+                        borderColor = BorderGray,
+                        textSecondaryColor = TextSecondary,
+                        onFilterClick = { /* TODO: open filter drawer */ }
+                )
             }
 
             // ── Content ──
@@ -339,11 +311,9 @@ fun BranchSettingsScreen(
         }
 
         if (showPlanLimitDialog) {
-            BranchPlanLimitDialog(
+            PlanLimitDialog(
                 title = "Plan Limit Reached",
                 message = "Branch limit exceeded ($currentBranchesCount/${planLimits?.branchLimit ?: 0}). Upgrade your plan to add more branches.",
-                currentCount = currentBranchesCount,
-                maxLimit = planLimits?.branchLimit ?: 0,
                 onDismiss = { showPlanLimitDialog = false },
                 onUpgrade = { showPlanLimitDialog = false }
             )
@@ -385,202 +355,6 @@ fun BranchSettingsScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// BranchTable
-// ─────────────────────────────────────────────────────────────
-
-
-// ─────────────────────────────────────────────────────────────
-// Plan Limit Dialog - Slides from Top like Notification
-// ─────────────────────────────────────────────────────────────
-@Suppress("UNUSED_PARAMETER")
-
-@Composable
-fun BranchPlanLimitDialog(
-    title: String,
-    message: String,
-    currentCount: Int,
-    maxLimit: Int,
-    onDismiss: () -> Unit,
-    onUpgrade: () -> Unit
-) {
-    // Animation state for sliding from top
-    var isVisible by remember { mutableStateOf(false) }
-
-    // Trigger animation when dialog appears
-    LaunchedEffect(Unit) {
-        isVisible = true
-    }
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.3f))
-                .clickable { onDismiss() },
-            contentAlignment = Alignment.TopCenter
-        ) {
-            AnimatedVisibility(
-                visible = isVisible,
-                enter = slideInVertically(
-                    initialOffsetY = { -it },
-                    animationSpec = tween(
-                        durationMillis = 400,
-                        easing = FastOutSlowInEasing
-                    )
-                ) + fadeIn(
-                    animationSpec = tween(durationMillis = 300)
-                ),
-                exit = slideOutVertically(
-                    targetOffsetY = { -it },
-                    animationSpec = tween(
-                        durationMillis = 300,
-                        easing = FastOutSlowInEasing
-                    )
-                ) + fadeOut(
-                    animationSpec = tween(durationMillis = 200)
-                )
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 40.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { /* Prevent click through */ },
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White
-                    ),
-                    elevation = CardDefaults.cardElevation(
-                        defaultElevation = 8.dp
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-
-                        // ── Title ──
-                        Text(
-                            text = title,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFEF4444),
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // ── Message ──
-                        Text(
-                            text = message,
-                            fontSize = 14.sp,
-                            color = Color(0xFF6B7280),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // ── Progress Indicator ──
-//                        Row(
-//                            verticalAlignment = Alignment.CenterVertically,
-//                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-//                        ) {
-//                            Text(
-//                                text = "$currentCount",
-//                                fontSize = 16.sp,
-//                                fontWeight = FontWeight.Bold,
-//                                color = Color(0xFF111827)
-//                            )
-//                            Box(
-//                                modifier = Modifier
-//                                    .width(120.dp)
-//                                    .height(8.dp)
-//                                    .background(Color(0xFFE5E7EB), RoundedCornerShape(4.dp))
-//                            ) {
-//                                val progress = if (maxLimit > 0) currentCount.toFloat() / maxLimit else 0f
-//                                Box(
-//                                    modifier = Modifier
-//                                        .fillMaxWidth(progress.coerceAtMost(1f))
-//                                        .fillMaxHeight()
-//                                        .background(
-//                                            if (progress >= 1f) Color(0xFFEF4444) else Color(0xFF3B3BF9),
-//                                            RoundedCornerShape(4.dp)
-//                                        )
-//                                )
-//                            }
-//                            Text(
-//                                text = "$maxLimit",
-//                                fontSize = 16.sp,
-//                                fontWeight = FontWeight.Bold,
-//                                color = Color(0xFF111827)
-//                            )
-//                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-//                        Text(
-//                            text = "Limit reached",
-//                            fontSize = 12.sp,
-//                            color = Color(0xFFEF4444),
-//                            fontWeight = FontWeight.Medium
-//                        )
-//
-//                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // ── Action Buttons ──
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = onDismiss,
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = Color.White,
-                                    contentColor = Color(0xFF374151)
-                                ),
-                                modifier = Modifier.weight(0.4f)
-                            ) {
-                                Text(
-                                    "Close",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF374151)
-                                )
-                            }
-
-                            Button(
-                                onClick = onUpgrade,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF3B3BF9),
-                                    contentColor = Color.White
-                                ),
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.weight(0.6f)
-                            ) {
-                                Text(
-                                    "Upgrade Plan",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 // ── Plan Limits Data Class ──
 data class PlanLimits(
@@ -591,10 +365,6 @@ data class PlanLimits(
     val categoryLimit: Int
 )
 
-
-// ─────────────────────────────────────────────────────────────
-// BranchTableRow
-// ─────────────────────────────────────────────────────────────
 
 
 // ─────────────────────────────────────────────────────────────

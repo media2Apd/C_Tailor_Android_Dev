@@ -1,10 +1,13 @@
 package com.cuso.mobile.view.forgot_password
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -15,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -24,15 +28,16 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.AppLogo
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.customFieldColors
-import com.cuso.mobile.view.composable.ResetPasswordText
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
+
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun ResetPassword(
-    resetToken:String,
+    resetToken: String,
     navController: NavController,
     onResetClick: (newPassword: String) -> Unit = {},
 ) {
@@ -51,97 +56,140 @@ fun ResetPassword(
             && passwordsMatch
             && newPassword.length >= 8
 
-    // ✅ Box(contentAlignment = Center) had no scroll path at all — on a
-    // shorter screen, or once the keyboard opened, the card could overflow
-    // both the top and bottom of the screen with no way to reach the
-    // clipped fields. A Column with verticalScroll + imePadding fixes both:
-    // it centers when content fits, and scrolls when it doesn't.
+    val newPasswordInteractionSource = remember { MutableInteractionSource() }
+    val confirmPasswordInteractionSource = remember { MutableInteractionSource() }
+    val isConfirmError = confirmPassword.isNotBlank() && !passwordsMatch
+
+    // ✅ Column with verticalScroll + imePadding: centers when content fits,
+    // scrolls when it doesn't, and clears the keyboard — same base as
+    // ForgotUserPassword / VerifyForgotPassword.
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Color(0xFFf5f5f5)) // ✅ matches the other forgot-password screens' page background
             .verticalScroll(rememberScrollState())
             .imePadding(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        AppLogo()
+        Spacer(modifier = Modifier.height(10.dp))
 
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+        // ✅ Title styled the same as ForgotUserPassword / VerifyForgotPassword
+        Text(
+            text = "Reset Password",
+            fontSize = 25.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = "Create a new password for your account",
+            fontSize = 14.sp,
+            color = Color(0xFF6B7280)
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // ✅ Card wrapped in a Box(padding 20dp) with a 2dp white border and
+        // 15dp corner radius — same treatment as the other forgot-password screens.
+        Box(
+            Modifier.padding(20.dp)
         ) {
-            Column(
-                Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-
-            ) {
-                AppLogo()
-                Spacer(Modifier.padding(top=10.dp))
-                ResetPasswordText()
-            }
-            Column(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(28.dp)
+                    .border(
+                        width = 2.dp,
+                        color = Color.White,
+                        shape = RoundedCornerShape(15.dp)
+                    ),
+                shape = RoundedCornerShape(15.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
-
-                // Title & subtitle
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(28.dp)
                 ) {
-                    Text(
-                        text = "Reset Password",
-                        fontSize = 25.sp,
-                        color = Color.Black
-                    )
-
-
-                    Spacer(modifier = Modifier.height(15.dp))
 
                     Text(
                         text = "New Password",
-                        fontSize = 16.sp,
-                        fontWeight= FontWeight.Bold,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
                         color = Color.Black
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
-                }
+                    // ✅ New Password field — BasicTextField + DecorationBox instead
+                    // of OutlinedTextField, because this Material3 version's
+                    // OutlinedTextField(value: String, ...) overload has no
+                    // `contentPadding` param, which is required to make text fit
+                    // cleanly inside a 40dp-tall field.
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                        BasicTextField(
+                            value = newPassword,
+                            onValueChange = {
+                                newPassword = it
+                                errorMessage = null
+                            },
+                            singleLine = true,
+                            textStyle = TextStyle(color = Color.Black, fontSize = 13.sp),
+                            visualTransformation = if (newPasswordVisible)
+                                VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            interactionSource = newPasswordInteractionSource,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp),
+                            decorationBox = { innerTextField ->
+                                OutlinedTextFieldDefaults.DecorationBox(
+                                    value = newPassword,
+                                    innerTextField = innerTextField,
+                                    enabled = true,
+                                    singleLine = true,
+                                    visualTransformation = if (newPasswordVisible)
+                                        VisualTransformation.None else PasswordVisualTransformation(),
+                                    interactionSource = newPasswordInteractionSource,
+                                    isError = false,
+                                    placeholder = {
+                                        Text("..", color = Color.LightGray, fontSize = 13.sp)
+                                    },
+                                    trailingIcon = {
+                                        IconButton(
+                                            onClick = { newPasswordVisible = !newPasswordVisible },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (newPasswordVisible)
+                                                    Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                                contentDescription = if (newPasswordVisible)
+                                                    "Hide password" else "Show password",
+                                                tint = Color(0xFF9CA3AF),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    },
+                                    colors = customFieldColors(),
+                                    contentPadding = PaddingValues(
+                                        start = 12.dp,
+                                        end = 8.dp,
+                                        top = 0.dp,
+                                        bottom = 0.dp
+                                    ),
+                                    container = {
+                                        OutlinedTextFieldDefaults.Container(
+                                            enabled = true,
+                                            isError = false,
+                                            interactionSource = newPasswordInteractionSource,
+                                            colors = customFieldColors(),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                    }
+                                )
+                            }
+                        )
+                    }
 
-
-                // New Password field
-                OutlinedTextField(
-                    value = newPassword,
-                    onValueChange = {
-                        newPassword = it
-                        errorMessage = null
-                    },
-                    placeholder = { Text("..",color=Color.LightGray) },
-                    trailingIcon = {
-                        IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
-                            Icon(
-                                imageVector = if (newPasswordVisible)
-                                    Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = if (newPasswordVisible)
-                                    "Hide password" else "Show password",
-                                tint = Color(0xFF9CA3AF)
-                            )
-                        }
-                    },
-                    visualTransformation = if (newPasswordVisible)
-                        VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = customFieldColors()
-                )
-                Column(verticalArrangement = Arrangement.Center)
-                {
                     Spacer(modifier = Modifier.height(20.dp))
 
                     Text(
@@ -152,112 +200,150 @@ fun ResetPassword(
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
-                }
-
-                // Confirm Password field
-                OutlinedTextField(
-                    value = confirmPassword,
-                    onValueChange = {
-                        confirmPassword = it
-                        errorMessage = null
-                    },
-                    placeholder = { Text("..",color=Color.LightGray) },
-                    trailingIcon = {
-                        IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
-                            Icon(
-                                imageVector = if (confirmPasswordVisible)
-                                    Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = if (confirmPasswordVisible)
-                                    "Hide password" else "Show password",
-                                tint = Color(0xFF9CA3AF)
-                            )
-                        }
-                    },
-                    visualTransformation = if (confirmPasswordVisible)
-                        VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true,
-                    isError = confirmPassword.isNotBlank() && !passwordsMatch,
-                    supportingText = {
-                        if (confirmPassword.isNotBlank() && !passwordsMatch) {
-                            Text(
-                                text = "Passwords don't match",
-                                color = MaterialTheme.colorScheme.error,
-                                fontSize = 12.sp
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = customFieldColors()
-                )
-
-                // Error message (e.g. from API)
-                errorMessage?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 13.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-// React to state
-                LaunchedEffect(resetPasswordState) {
-                    when (resetPasswordState) {
-                        is UiState.Success -> {
-                            navController.navigate("login?message=Password changed successfully")
-                        }
-                        is UiState.Error -> {
-                            // show error message
-                        }
-                        else -> {}
+                    // ✅ Confirm Password field — same BasicTextField + DecorationBox
+                    // conversion, with the match-error state wired into isError.
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                        BasicTextField(
+                            value = confirmPassword,
+                            onValueChange = {
+                                confirmPassword = it
+                                errorMessage = null
+                            },
+                            singleLine = true,
+                            textStyle = TextStyle(color = Color.Black, fontSize = 13.sp),
+                            visualTransformation = if (confirmPasswordVisible)
+                                VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            interactionSource = confirmPasswordInteractionSource,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp),
+                            decorationBox = { innerTextField ->
+                                OutlinedTextFieldDefaults.DecorationBox(
+                                    value = confirmPassword,
+                                    innerTextField = innerTextField,
+                                    enabled = true,
+                                    singleLine = true,
+                                    visualTransformation = if (confirmPasswordVisible)
+                                        VisualTransformation.None else PasswordVisualTransformation(),
+                                    interactionSource = confirmPasswordInteractionSource,
+                                    isError = isConfirmError,
+                                    placeholder = {
+                                        Text("..", color = Color.LightGray, fontSize = 13.sp)
+                                    },
+                                    trailingIcon = {
+                                        IconButton(
+                                            onClick = { confirmPasswordVisible = !confirmPasswordVisible },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (confirmPasswordVisible)
+                                                    Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                                contentDescription = if (confirmPasswordVisible)
+                                                    "Hide password" else "Show password",
+                                                tint = Color(0xFF9CA3AF),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    },
+                                    // ✅ 8dp to match the New Password field above and the
+                                    // field shape used across the other forgot-password screens
+                                    colors = customFieldColors(),
+                                    contentPadding = PaddingValues(
+                                        start = 12.dp,
+                                        end = 8.dp,
+                                        top = 0.dp,
+                                        bottom = 0.dp
+                                    ),
+                                    container = {
+                                        OutlinedTextFieldDefaults.Container(
+                                            enabled = true,
+                                            isError = isConfirmError,
+                                            interactionSource = confirmPasswordInteractionSource,
+                                            colors = customFieldColors(),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                    }
+                                )
+                            }
+                        )
                     }
-                }
-
-                // Show error message
-                if (resetPasswordState is UiState.Error) {
-                    Text(
-                        text = (resetPasswordState as UiState.Error).message,
-                        color = Color.Red,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                // Reset Password button
-                Button(
-                    onClick = {
-                        authViewModel.resetNewPassword(
-                            token = resetToken,
-                            newPassword = newPassword,
-                            confirmPassword = confirmPassword
-                        )
-                    },
-                    enabled = isFormValid,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4F46E5),
-                        disabledContainerColor = Color(0xFFC7D2FE)
-                    )
-                ) {
-                    if (resetPasswordState is UiState.Loading) {
-                        CirculerProgressIndicatorReuse()
-
+                    if (isConfirmError) {
                         Text(
-                            text = "Resetting Password",
-                            fontSize = 20.sp,
-                            color=Color.White
+                            text = "Passwords don't match",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
                         )
-                    } else {
+                    }
+
+                    // Error message (e.g. from API)
+                    errorMessage?.let {
                         Text(
-                            text = "Reset Password",
-                            fontSize = 20.sp,
-                            color=Color.White
+                            text = it,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 13.sp
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // React to state
+                    LaunchedEffect(resetPasswordState) {
+                        when (resetPasswordState) {
+                            is UiState.Success -> {
+                                navController.navigate("login?message=Password changed successfully")
+                            }
+                            is UiState.Error -> {
+                                // show error message
+                            }
+                            else -> {}
+                        }
+                    }
+
+                    // Show error message
+                    if (resetPasswordState is UiState.Error) {
+                        Text(
+                            text = (resetPasswordState as UiState.Error).message,
+                            color = Color.Red,
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    // Reset Password button
+                    Button(
+                        onClick = {
+                            authViewModel.resetNewPassword(
+                                token = resetToken,
+                                newPassword = newPassword,
+                                confirmPassword = confirmPassword
+                            )
+                        },
+                        enabled = isFormValid,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4F46E5),
+                            disabledContainerColor = Color(0xFFC7D2FE)
+                        )
+                    ) {
+                        if (resetPasswordState is UiState.Loading) {
+                            CirculerProgressIndicatorSmall()
+
+                            Text(
+                                text = "Resetting Password",
+                                fontSize = 14.sp,
+                                color = Color.White
+                            )
+                        } else {
+                            Text(
+                                text = "Reset Password",
+                                fontSize = 14.sp,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }

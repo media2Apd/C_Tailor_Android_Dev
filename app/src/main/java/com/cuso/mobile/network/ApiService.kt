@@ -102,6 +102,10 @@ import com.cuso.mobile.model.finance.LedgerResponse
 import com.cuso.mobile.model.finance.TrialBalanceResponse
 import com.cuso.mobile.model.finance.UpdateJournalEntryRequest
 import com.cuso.mobile.model.finance.UpdateJournalEntryResponse
+import com.cuso.mobile.model.inventory.AdjustStockRequest
+import com.cuso.mobile.model.inventory.InventoryItemDetailResponse
+import com.cuso.mobile.model.inventory.InventoryItemListResponse
+import com.cuso.mobile.model.inventory.InventoryViewOneResponse
 import com.cuso.mobile.model.sales.DeleteCustomerResponse
 import com.cuso.mobile.model.sales.GarmentPricingDetailDto
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
@@ -123,6 +127,7 @@ import com.cuso.mobile.model.sales.UpdateCustomerRequest
 import com.cuso.mobile.model.sales.UpdateCustomerResponse
 import com.cuso.mobile.model.sales.UpdateStageRequest
 import com.cuso.mobile.model.sales.UpdateStageResponse
+import retrofit2.http.PartMap
 
 interface ApiService {
 
@@ -875,5 +880,63 @@ interface ApiService {
         @Body request: UpdateJournalEntryRequest
     ): Response<UpdateJournalEntryResponse>
 
+    // ── Inventory: list items ──
+    @GET("/api/inventory/item/view-all")
+    suspend fun getInventoryItems(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<InventoryItemListResponse>
+
+    // ── Inventory Items: get single item by id ──
+    // Matches: repository.getInventoryItemById(id)
+    // Used by the "View" button -> Item Details popup
+    @GET("/api/inventory/item/view-one/{id}")
+    suspend fun getInventoryItemById(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<InventoryItemDetailResponse>
+
+    // ── Inventory Items: recent ──
+    // Same response shape as the list endpoint (count + data: [...]),
+    // just a different route -> reuses InventoryItemListResponse.
+    @GET("/api/inventory/item/recent")
+    suspend fun getRecentInventoryItems(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("limit") limit: Int = 10
+    ): Response<InventoryItemListResponse>
+
+
+    @POST("/api/inventory/item/adjust-stock")
+    suspend fun adjustStock(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: AdjustStockRequest
+    ): Response<InventoryItemDetailResponse>
+
+
+
+    // ── Inventory Items: create (multipart — text fields + optional image) ──
+    @Multipart
+    @POST("/api/inventory/item/create")
+    suspend fun createInventoryItem(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @PartMap fields: Map<String, @JvmSuppressWildcards okhttp3.RequestBody>,
+        @Part image: okhttp3.MultipartBody.Part?
+    ): Response<InventoryItemDetailResponse>
+
+    // ── Inventory: View One (single item details) ──
+    @GET("/api/inventory/item/view-one/{id}")   // ASSUMPTION: confirm exact path with backend team
+    suspend fun getInventoryViewOne(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<InventoryViewOneResponse>
 
 }

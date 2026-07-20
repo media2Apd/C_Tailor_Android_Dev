@@ -30,7 +30,6 @@ fun ScreenBreadcrumb(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(backgroundColor)
             .clickable { onClick() }
             .padding(horizontal = 20.dp, vertical = 12.dp)
     ) {

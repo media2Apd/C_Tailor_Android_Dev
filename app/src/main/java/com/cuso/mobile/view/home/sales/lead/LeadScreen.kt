@@ -35,7 +35,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -51,13 +50,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -91,7 +88,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -107,10 +103,17 @@ import com.cuso.mobile.model.sales.LeadNote
 import com.cuso.mobile.model.sales.LeadPerson
 import com.cuso.mobile.model.sales.LeadTableItem
 import com.cuso.mobile.model.sales.toLeadEntity
+import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DatePickerField
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.PhoneInputField
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.ValidationField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
@@ -128,6 +131,7 @@ import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.FilterDrawer
 import com.cuso.mobile.view.home.reusablecomposables.FilterSection
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.viewmodel.SaleState
@@ -335,6 +339,57 @@ fun LeadBottomBar(
     }
 }
 
+private fun validateLeadFields(
+    leadSource: String,
+    enquiryDate: String,
+    leadOwner: String,
+    leadStatus: String,
+    fullName: String,
+    phone: String,
+    email: String,
+    gender: String,
+    dob: String,
+    preferredContact: String,
+    enquiryType: String,
+    estimatedQuantity: String,
+    garmentCategory: String,
+    requiredDate: String,
+    appointmentRequired: Boolean,
+    appointmentDate: String,
+    appointmentTime: String?,
+    assignedStaff: String?,
+    followUpDate: String,
+    priority: String?
+): String? {
+    val missing = mutableListOf<String>()
+
+    if (leadSource.isBlank()) missing += "Lead Source"
+    if (enquiryDate.isBlank()) missing += "Enquiry Date"
+    if (leadOwner.isBlank()) missing += "Lead Owner"
+    if (leadStatus.isBlank()) missing += "Lead Status"
+    if (fullName.isBlank()) missing += "Full Name"
+    if (phone.isBlank()) missing += "Mobile Number"
+    if (email.isBlank()) missing += "Email"
+    if (gender.isBlank()) missing += "Gender"
+    if (dob.isBlank()) missing += "Date of Birth"
+    if (preferredContact.isBlank()) missing += "Preferred Contact Method"
+    if (enquiryType.isBlank()) missing += "Enquiry Type"
+    if (estimatedQuantity.isBlank()) missing += "Estimated Quantity"
+    if (garmentCategory.isBlank()) missing += "Garment Category"
+    if (requiredDate.isBlank()) missing += "Required Date"
+
+    if (appointmentRequired) {
+        if (appointmentDate.isBlank()) missing += "Appointment Date"
+        if (appointmentTime.isNullOrBlank()) missing += "Appointment Time"
+        if (assignedStaff.isNullOrBlank()) missing += "Assigned Staff"
+        if (followUpDate.isBlank()) missing += "Follow-up Date"
+        if (priority.isNullOrBlank()) missing += "Priority"
+    }
+
+    if (missing.isEmpty()) return null
+    return "Missing: ${missing.first()}" + if (missing.size > 1) " (+${missing.size - 1} more)" else ""
+}
+
 // ─────────────────────────────────────────────────────────────
 // CreateLeadScreen
 // ─────────────────────────────────────────────────────────────
@@ -383,6 +438,20 @@ fun CreateLeadScreen(onBack: () -> Unit) {
 
     var expandedSection by remember { mutableStateOf("lead_info") }
 
+// ✅ NEW — error tracking state
+    var errorField by remember { mutableStateOf<String?>(null) }
+    var validationError by remember { mutableStateOf<String?>(null) }
+
+// ✅ NEW — maps field key -> accordion section key
+    val leadSectionFieldMap = remember {
+        mapOf(
+            "lead_info" to listOf("leadSource", "enquiryDate", "leadOwner", "leadStatus"),
+            "customer" to listOf("fullName", "phone", "email", "gender", "dob"),
+            "location" to listOf("preferredContact"),
+            "enquiry" to listOf("enquiryType", "estimatedQuantity", "garmentCategory", "requiredDate"),
+            "appointment" to listOf("appointmentDate", "appointmentTime", "assignedStaff", "followUpDate", "priority")
+        )
+    }
     val leadSourceOptions       = listOf("Walk-in", "Instagram", "Facebook Ads", "Website")
     val genderOptions           = listOf("Male", "Female", "Other")
     val preferredContactOptions = listOf("WhatsApp", "Call")
@@ -406,6 +475,8 @@ fun CreateLeadScreen(onBack: () -> Unit) {
     val garmentIdMap       = garmentCategories.associate { it.categoryId.categoryName to it.id }
     val garmentOptions     = garmentCategories.map { it.categoryId.categoryName }
 
+
+
     fun clearAllFields() {
         leadSource = ""; enquiryDate = ""; leadStatus = ""; customerType = "Individual"
         fullName = ""; email = ""; gender = ""; dob = ""; address = ""; areaZone = ""; city = ""
@@ -417,6 +488,55 @@ fun CreateLeadScreen(onBack: () -> Unit) {
     }
 
     fun submitLead() {
+
+        val baseFields = listOf(
+            ValidationField("leadSource", leadSource, "Lead Source is required"),
+            ValidationField("enquiryDate", enquiryDate, "Enquiry Date is required"),
+            ValidationField("leadOwner", leadOwner, "Lead Owner is required"),
+            ValidationField("leadStatus", leadStatus, "Lead Status is required"),
+            ValidationField("fullName", fullName, "Full Name is required"),
+            ValidationField("phone", phone, "Mobile Number is required"),
+            ValidationField("email", email, "Email is required"),
+            ValidationField("gender", gender, "Gender is required"),
+            ValidationField("dob", dob, "Date of Birth is required"),
+            ValidationField("preferredContact", preferredContact, "Preferred Contact Method is required"),
+            ValidationField("enquiryType", enquiryType, "Enquiry Type is required"),
+            ValidationField("estimatedQuantity", estimatedQuantity, "Estimated Quantity is required"),
+            ValidationField("garmentCategory", garmentCategory, "Garment Category is required"),
+            ValidationField("requiredDate", requiredDate, "Required Date is required")
+        )
+        val appointmentFields = if (appointmentRequired) {
+            listOf(
+                ValidationField("appointmentDate", appointmentDate, "Appointment Date is required"),
+                ValidationField("appointmentTime", appointmentTime, "Appointment Time is required"),
+                ValidationField("assignedStaff", assignedStaff, "Assigned Staff is required"),
+                ValidationField("followUpDate", followUpDate, "Follow-up Date is required"),
+                ValidationField("priority", priority, "Priority is required")
+            )
+        } else emptyList()
+
+        val result = FieldValidator.validate(baseFields + appointmentFields)
+        if (result != null) {
+            errorField = result.fieldKey
+            validationError = result.message
+            expandedSection = FieldValidator.resolveSection(result.fieldKey, leadSectionFieldMap) ?: expandedSection
+            return   // ✅ stop — don't submit
+        }
+        errorField = null
+        val error = validateLeadFields(
+            leadSource = leadSource, enquiryDate = enquiryDate, leadOwner = leadOwner,
+            leadStatus = leadStatus, fullName = fullName, phone = phone, email = email,
+            gender = gender, dob = dob, preferredContact = preferredContact,
+            enquiryType = enquiryType, estimatedQuantity = estimatedQuantity,
+            garmentCategory = garmentCategory, requiredDate = requiredDate,
+            appointmentRequired = appointmentRequired, appointmentDate = appointmentDate,
+            appointmentTime = appointmentTime, assignedStaff = assignedStaff,
+            followUpDate = followUpDate, priority = priority
+        )
+        if (error != null) {
+            validationError = error
+            return
+        }
         val request = CreateLeadFormRequest(
             customerType = customerType.lowercase(),
             enquiryType = enquiryType,
@@ -444,11 +564,11 @@ fun CreateLeadScreen(onBack: () -> Unit) {
             ),
             appointment = LeadAppointment(
                 isRequired = appointmentRequired,
-                date = appointmentDate.toIsoDate(),
-                time = appointmentTime,
-                assignedStaff = assignedStaff,
-                priority = priority,
-                followUpDate = followUpDate.toIsoDate()
+                date = if (appointmentRequired) appointmentDate.toIsoDate() else null,
+                time = if (appointmentRequired) appointmentTime.takeIf { it.isNotBlank() } else null,
+                assignedStaff = assignedStaff.takeIf { it.isNotBlank() },
+                priority = if (appointmentRequired) priority.takeIf { it.isNotBlank() } else null,
+                followUpDate = if (appointmentRequired) followUpDate.toIsoDate() else null
             ),
             status = statusIdMap[leadStatus] ?: "",
             statusName = leadStatus,
@@ -472,281 +592,445 @@ fun CreateLeadScreen(onBack: () -> Unit) {
             onBack()
         }
     }
+    Box(modifier = Modifier.fillMaxSize()) {
 
-    Scaffold(
-        containerColor = Color(0xFFF5F5F7),
-        contentWindowInsets = WindowInsets(0)
-    ) { padding ->
-        FabScaffold(
-            fab = FabConfig(
-                label = "Create Lead",
-                icon = Icons.AutoMirrored.Filled.ArrowForward,
-                onClick = { submitLead() },
-                bottomPadding = 50.dp
-            ),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                LeadFormTopBar(
-                    title = "Create Lead",
-                    badgeText = leadStatus.ifEmpty { "New Enquiry" },
-                    onClose = onBack
-                )
-                HorizontalDivider(color = Color(0xFFF0F0F0))
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item {
-                        LeadInfoBanner("Fill the details below to create a new lead.")
-                    }
+        Scaffold(
+            containerColor = Color(0xFFF5F5F7),
+            contentWindowInsets = WindowInsets(0)
+        ) { padding ->
+            FabScaffold(
+                fab = FabConfig(
+                    label = "Create Lead",
+                    icon = Icons.AutoMirrored.Filled.ArrowForward,
+                    onClick = { submitLead() },
+                    bottomPadding = 50.dp
+                ),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    LeadFormTopBar(
+                        title = "Create Lead",
+                        badgeText = leadStatus.ifEmpty { "New Enquiry" },
+                        onClose = onBack
+                    )
+                    HorizontalDivider(color = Color(0xFFF0F0F0))
 
-                    item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.Description,
-                            title = "Lead Information",
-                            subtitle = "",
-                            expanded = expandedSection == "lead_info",
-                            onExpandChange = { expandedSection = if (expandedSection == "lead_info") "" else "lead_info" }
-                        ) {
-                            FormDropdown("Lead Source", leadSource.ifEmpty { "Select an option" }, leadSourceExpanded, { leadSourceExpanded = it }, leadSourceOptions, { leadSource = it }, isRequired = true)
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Enquiry Date", isRequired = true)
-                            DatePickerField(value = enquiryDate.ifEmpty { "Select Date" }, onDateSelected = { enquiryDate = it })
-                            Spacer(Modifier.height(14.dp))
-
-                            // ✅ Lead Owner - populated from API
-                            FormDropdown(
-                                "Lead Owner",
-                                selectedStaffLabel.ifEmpty {
-                                    if (isLoadingStaff) "Loading staff..." else "Select an option"
-                                },
-                                leadOwnerExpanded,
-                                { leadOwnerExpanded = it },
-                                staffDisplayList,
-                                { label ->
-                                    leadOwner = staffIdMap[label] ?: ""  // ✅ Store the staff ID
-                                },
-                                isRequired = true
-                            )
-
-                            Spacer(Modifier.height(14.dp))
-                            FormDropdown("Lead Status", leadStatus.ifEmpty { "Select an option" }, leadStatusExpanded, { leadStatusExpanded = it }, statusOptions, { leadStatus = it }, isRequired = true)
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item {
+                            LeadInfoBanner("Fill the details below to create a new lead.")
                         }
-                    }
 
-                    item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.Person,
-                            title = "Customer Identity",
-                            subtitle = "Who is this lead for?",
-                            expanded = expandedSection == "customer",
-                            onExpandChange = { expandedSection = if (expandedSection == "customer") "" else "customer" }
-                        ) {
-                            Row(modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                                .padding(4.dp)) {
-                                listOf("Individual", "Corporate").forEach { type ->
-                                    val isSelected = customerType == type
-                                    Row(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(if (isSelected) Color.White else Color.Transparent)
-                                            .clickable { customerType = type }
-                                            .padding(vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            if (type == "Individual") Icons.Default.Person else Icons.Default.Business,
-                                            type,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = if (isSelected) LeadPrimary else Color(0xFF6B7280)
-                                        )
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(
-                                            type,
-                                            fontSize = 14.sp,
-                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                            color = if (isSelected) Color.Black else Color(0xFF6B7280)
-                                        )
-                                    }
+                        item {
+                            LeadAccordionSection(
+                                icon = Icons.Default.Description,
+                                title = "Lead Information",
+                                subtitle = "",
+                                expanded = expandedSection == "lead_info",
+                                onExpandChange = {
+                                    expandedSection =
+                                        if (expandedSection == "lead_info") "" else "lead_info"
                                 }
-                            }
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel(if (customerType == "Corporate") "Company Name" else "Full Name", isRequired = true)
-                            FormTextField(value = fullName, onValueChange = { fullName = it })
-                            Spacer(Modifier.height(14.dp))
-                            PhoneInputField(phoneValue = phone, onPhoneChange = { phone = it }, onCountryChange = { selectedIso = it.iso })
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Email")
-                            FormTextField(value = email, onValueChange = { email = it })
-                            if (customerType == "Individual") {
+                            ) {
+                                FormDropdown(
+                                    "Lead Source", leadSource.ifEmpty { "Select an option" },
+                                    leadSourceExpanded, { leadSourceExpanded = it },
+                                    leadSourceOptions, { leadSource = it },
+                                    isRequired = true,
+                                    isError = errorField == "leadSource",                                      // ✅ NEW
+                                    errorMessage = if (errorField == "leadSource") "Lead Source is required" else null  // ✅ NEW
+                                )
                                 Spacer(Modifier.height(14.dp))
-                                FormDropdown("Gender", gender.ifEmpty { "Select an option" }, genderExpanded, { genderExpanded = it }, genderOptions, { gender = it })
+                                FormLabel("Enquiry Date", isRequired = true)
+                                DatePickerField(
+                                    value = enquiryDate.ifEmpty { "Select Date" },
+                                    onDateSelected = { enquiryDate = it })
                                 Spacer(Modifier.height(14.dp))
-                                FormLabel("Date of Birth")
-                                DatePickerField(value = dob.ifEmpty { "Select Date" }, onDateSelected = { dob = it })
-                            }
-                        }
-                    }
 
-                    item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.LocationOn,
-                            title = "Location & Communication",
-                            subtitle = "Contact details and preferences",
-                            expanded = expandedSection == "location",
-                            onExpandChange = { expandedSection = if (expandedSection == "location") "" else "location" }
-                        ) {
-                            FormLabel("Address")
-                            FormTextField(value = address, onValueChange = { address = it })
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Area / Zone")
-                            FormTextField(value = areaZone, onValueChange = { areaZone = it })
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("City")
-                            FormTextField(value = city, onValueChange = { city = it })
-                            Spacer(Modifier.height(14.dp))
-                            FormDropdown("Preferred Contact Method", preferredContact.ifEmpty { "Select an option" }, preferredContactExpanded, { preferredContactExpanded = it }, preferredContactOptions, { preferredContact = it })
-                        }
-                    }
+                                // ✅ Lead Owner - populated from API
+                                FormDropdown(
+                                    "Lead Owner",
+                                    selectedStaffLabel.ifEmpty {
+                                        if (isLoadingStaff) "Loading staff..." else "Select an option"
+                                    },
+                                    leadOwnerExpanded,
+                                    { leadOwnerExpanded = it },
+                                    staffDisplayList,
+                                    { label ->
+                                        leadOwner = staffIdMap[label] ?: ""  // ✅ Store the staff ID
+                                    },
+                                    isRequired = true
+                                )
 
-                    item {
-                        LeadAccordionSection(
-                            icon = Icons.AutoMirrored.Filled.Assignment,
-                            title = "Enquiry Details",
-                            subtitle = "What are they looking for?",
-                            expanded = expandedSection == "enquiry",
-                            onExpandChange = { expandedSection = if (expandedSection == "enquiry") "" else "enquiry" }
-                        ) {
-                            FormDropdown("Enquiry Type", enquiryType.ifEmpty { "Select an option" }, enquiryTypeExpanded, { enquiryTypeExpanded = it }, enquiryTypeOptions, { enquiryType = it })
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Estimated Quantity")
-                            FormTextField(value = estimatedQuantity, onValueChange = { estimatedQuantity = it }, keyboardType = KeyboardType.Number)
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Garment Category")
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(garmentOptions) { option ->
-                                    val isSelected = garmentCategory == option
-                                    Box(
-                                        modifier = Modifier
-                                            .border(1.dp, if (isSelected) Primary else Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
-                                            .background(if (isSelected) LeadPrimarySoft else Color.White, RoundedCornerShape(50.dp))
-                                            .clickable { garmentCategory = if (garmentCategory == option) "" else option }
-                                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                                    ) {
-                                        Text(option, fontSize = 13.sp, color = if (isSelected) LeadPrimary else Color(0xFF374151), fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.height(14.dp))
-
-                            //SLIDER BUDGET RANGE
-                            FormLabel("Budget Range")
-                            BudgetRangeSlider(value = budgetRange, onValueChange = { budgetRange = it })
-                            Spacer(Modifier.height(4.dp))
-                            BudgetRangeLabels(currentValue = budgetRange.toInt())
-
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Required Date")
-                            DatePickerField(value = requiredDate.ifEmpty { "Select Date" }, onDateSelected = { requiredDate = it })
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Occasion")
-                            FormTextField(value = occasion, onValueChange = { occasion = it })
-                        }
-                    }
-
-                    item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.CalendarMonth,
-                            title = "Appointment & Follow-Up",
-                            subtitle = "Schedule interactions",
-                            expanded = expandedSection == "appointment",
-                            onExpandChange = { expandedSection = if (expandedSection == "appointment") "" else "appointment" },
-                            trailing = {
-                                MiniSwitch(
-                                    checked = appointmentRequired,
-                                    onCheckedChange = {
-                                        appointmentRequired = it
-                                        if (it) expandedSection = "appointment"
-                                    }
+                                Spacer(Modifier.height(14.dp))
+                                FormDropdown(
+                                    "Lead Status",
+                                    leadStatus.ifEmpty { "Select an option" },
+                                    leadStatusExpanded,
+                                    { leadStatusExpanded = it },
+                                    statusOptions,
+                                    { leadStatus = it },
+                                    isRequired = true
                                 )
                             }
-                        ) {
-                            if (appointmentRequired) {
-                                FormLabel("Appointment Date")
-                                DatePickerField(value = appointmentDate.ifEmpty { "Select Date" }, onDateSelected = { appointmentDate = it })
+                        }
+
+                        item {
+                            LeadAccordionSection(
+                                icon = Icons.Default.Person,
+                                title = "Customer Identity",
+                                subtitle = "Who is this lead for?",
+                                expanded = expandedSection == "customer",
+                                onExpandChange = {
+                                    expandedSection =
+                                        if (expandedSection == "customer") "" else "customer"
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                                        .padding(4.dp)
+                                ) {
+                                    listOf("Individual", "Corporate").forEach { type ->
+                                        val isSelected = customerType == type
+                                        Row(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(if (isSelected) Color.White else Color.Transparent)
+                                                .clickable { customerType = type }
+                                                .padding(vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                if (type == "Individual") Icons.Default.Person else Icons.Default.Business,
+                                                type,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = if (isSelected) LeadPrimary else Color(
+                                                    0xFF6B7280
+                                                )
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(
+                                                type,
+                                                fontSize = 14.sp,
+                                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                                color = if (isSelected) Color.Black else Color(
+                                                    0xFF6B7280
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
                                 Spacer(Modifier.height(14.dp))
-                                FormLabel("Appointment Time")
-                                TimePickerField(value = appointmentTime, onTimeSelected = { appointmentTime = it })
-                                FormDropdown("Assigned Staff", selectedStaffLabel.ifEmpty { if (isLoadingStaff) "Loading staff..." else "Select an option" }, assignedStaffExpanded && !isLoadingStaff, { assignedStaffExpanded = it }, staffDisplayList, { label -> assignedStaff = staffIdMap[label] ?: "" })
+                                FormLabel(
+                                    if (customerType == "Corporate") "Company Name" else "Full Name",
+                                    isRequired = true
+                                )
+                                FormTextField(
+                                    value = fullName,
+                                    onValueChange = { fullName = it },
+                                    isError = errorField == "fullName",
+                                    errorMessage = if (errorField == "fullName") "Full Name is required" else null
+                                )
                                 Spacer(Modifier.height(14.dp))
-                                FormLabel("Follow-up Date", isRequired = true)
-                                DatePickerField(value = followUpDate.ifEmpty { "Select Date" }, onDateSelected = { followUpDate = it })
+                                PhoneInputField(
+                                    phoneValue = phone,
+                                    onPhoneChange = { phone = it },
+                                    onCountryChange = { selectedIso = it.iso })
                                 Spacer(Modifier.height(14.dp))
-                                FormDropdown("Priority", priority.ifEmpty { "Select an option" }, priorityExpanded, { priorityExpanded = it }, priorityOptions, { priority = it }, isRequired = true)
-                            } else {
-                                Text("No appointment scheduled.", fontSize = 13.sp, color = LeadTextMuted)
+                                FormLabel("Email")
+                                FormTextField(value = email, onValueChange = { email = it })
+                                if (customerType == "Individual") {
+                                    Spacer(Modifier.height(14.dp))
+                                    FormDropdown(
+                                        "Gender",
+                                        gender.ifEmpty { "Select an option" },
+                                        genderExpanded,
+                                        { genderExpanded = it },
+                                        genderOptions,
+                                        { gender = it })
+                                    Spacer(Modifier.height(14.dp))
+                                    FormLabel("Date of Birth")
+                                    DatePickerField(
+                                        value = dob.ifEmpty { "Select Date" },
+                                        onDateSelected = { dob = it })
+                                }
                             }
                         }
-                    }
 
-                    item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.Description,
-                            title = "Notes & References",
-                            subtitle = "Additional information and attachments",
-                            expanded = expandedSection == "notes",
-                            onExpandChange = { expandedSection = if (expandedSection == "notes") "" else "notes" }
-                        ) {
-                            FormLabel("Internal Notes")
-                            OutlinedTextField(value = internalNotes, onValueChange = { internalNotes = it }, modifier = Modifier
-                                .fillMaxWidth()
-                                .height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = LeadPrimary, unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Customer Notes")
-                            OutlinedTextField(value = customerNotes, onValueChange = { customerNotes = it }, modifier = Modifier
-                                .fillMaxWidth()
-                                .height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = LeadPrimary, unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
-                        }
-                    }
-
-                    item {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clickable(
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-                                ) { clearAllFields() }
-                                .padding(horizontal = 15.dp, vertical = 8.dp)
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Clear All", fontSize = 13.sp, color = Primary, fontWeight = FontWeight.Medium)
-                        }
-                    }
-
-                    if (leadState is SaleState.Error) {
                         item {
-                            Text(
-                                (leadState as SaleState.Error).message,
-                                color = Color.Red,
-                                fontSize = 12.sp
-                            )
+                            LeadAccordionSection(
+                                icon = Icons.Default.LocationOn,
+                                title = "Location & Communication",
+                                subtitle = "Contact details and preferences",
+                                expanded = expandedSection == "location",
+                                onExpandChange = {
+                                    expandedSection =
+                                        if (expandedSection == "location") "" else "location"
+                                }
+                            ) {
+                                FormLabel("Address")
+                                FormTextField(value = address, onValueChange = { address = it })
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Area / Zone")
+                                FormTextField(value = areaZone, onValueChange = { areaZone = it })
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("City")
+                                FormTextField(value = city, onValueChange = { city = it })
+                                Spacer(Modifier.height(14.dp))
+                                FormDropdown(
+                                    "Preferred Contact Method",
+                                    preferredContact.ifEmpty { "Select an option" },
+                                    preferredContactExpanded,
+                                    { preferredContactExpanded = it },
+                                    preferredContactOptions,
+                                    { preferredContact = it })
+                            }
                         }
-                    }
 
-                    item { Spacer(Modifier.height(90.dp)) }
+                        item {
+                            LeadAccordionSection(
+                                icon = Icons.AutoMirrored.Filled.Assignment,
+                                title = "Enquiry Details",
+                                subtitle = "What are they looking for?",
+                                expanded = expandedSection == "enquiry",
+                                onExpandChange = {
+                                    expandedSection =
+                                        if (expandedSection == "enquiry") "" else "enquiry"
+                                }
+                            ) {
+                                FormDropdown(
+                                    "Enquiry Type",
+                                    enquiryType.ifEmpty { "Select an option" },
+                                    enquiryTypeExpanded,
+                                    { enquiryTypeExpanded = it },
+                                    enquiryTypeOptions,
+                                    { enquiryType = it })
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Estimated Quantity")
+                                FormTextField(
+                                    value = estimatedQuantity,
+                                    onValueChange = { estimatedQuantity = it },
+                                    keyboardType = KeyboardType.Number,
+                                    isError = errorField == "estimatedQuantity",
+                                    errorMessage = if (errorField == "estimatedQuantity") "Estimated Quantity is required" else null
+                                )
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Garment Category")
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    items(garmentOptions) { option ->
+                                        val isSelected = garmentCategory == option
+                                        Box(
+                                            modifier = Modifier
+                                                .border(
+                                                    1.dp,
+                                                    if (isSelected) Primary else Color(0xFFE5E7EB),
+                                                    RoundedCornerShape(10.dp)
+                                                )
+                                                .background(
+                                                    if (isSelected) LeadPrimarySoft else Color.White,
+                                                    RoundedCornerShape(50.dp)
+                                                )
+                                                .clickable {
+                                                    garmentCategory =
+                                                        if (garmentCategory == option) "" else option
+                                                }
+                                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        ) {
+                                            Text(
+                                                option,
+                                                fontSize = 13.sp,
+                                                color = if (isSelected) LeadPrimary else Color(
+                                                    0xFF374151
+                                                ),
+                                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(14.dp))
+
+                                //SLIDER BUDGET RANGE
+                                FormLabel("Budget Range")
+                                BudgetRangeSlider(
+                                    value = budgetRange,
+                                    onValueChange = { budgetRange = it })
+                                Spacer(Modifier.height(4.dp))
+                                BudgetRangeLabels(currentValue = budgetRange.toInt())
+
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Required Date")
+                                DatePickerField(
+                                    value = requiredDate.ifEmpty { "Select Date" },
+                                    onDateSelected = { requiredDate = it })
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Occasion")
+                                FormTextField(value = occasion, onValueChange = { occasion = it })
+                            }
+                        }
+
+                        item {
+                            LeadAccordionSection(
+                                icon = Icons.Default.CalendarMonth,
+                                title = "Appointment & Follow-Up",
+                                subtitle = "Schedule interactions",
+                                expanded = expandedSection == "appointment",
+                                onExpandChange = {
+                                    expandedSection =
+                                        if (expandedSection == "appointment") "" else "appointment"
+                                },
+                                trailing = {
+                                    MiniSwitch(
+                                        checked = appointmentRequired,
+                                        onCheckedChange = {
+                                            appointmentRequired = it
+                                            if (it) expandedSection = "appointment"
+                                        }
+                                    )
+                                }
+                            ) {
+                                if (appointmentRequired) {
+                                    FormLabel("Appointment Date")
+                                    DatePickerField(
+                                        value = appointmentDate.ifEmpty { "Select Date" },
+                                        onDateSelected = { appointmentDate = it })
+                                    Spacer(Modifier.height(14.dp))
+                                    FormLabel("Appointment Time")
+                                    TimePickerField(
+                                        value = appointmentTime,
+                                        onTimeSelected = { appointmentTime = it })
+                                    FormDropdown(
+                                        "Assigned Staff",
+                                        selectedStaffLabel.ifEmpty { if (isLoadingStaff) "Loading staff..." else "Select an option" },
+                                        assignedStaffExpanded && !isLoadingStaff,
+                                        { assignedStaffExpanded = it },
+                                        staffDisplayList,
+                                        { label -> assignedStaff = staffIdMap[label] ?: "" })
+                                    Spacer(Modifier.height(14.dp))
+                                    FormLabel("Follow-up Date", isRequired = true)
+                                    DatePickerField(
+                                        value = followUpDate.ifEmpty { "Select Date" },
+                                        onDateSelected = { followUpDate = it })
+                                    Spacer(Modifier.height(14.dp))
+                                    FormDropdown(
+                                        "Priority",
+                                        priority.ifEmpty { "Select an option" },
+                                        priorityExpanded,
+                                        { priorityExpanded = it },
+                                        priorityOptions,
+                                        { priority = it },
+                                        isRequired = true
+                                    )
+                                } else {
+                                    Text(
+                                        "No appointment scheduled.",
+                                        fontSize = 13.sp,
+                                        color = LeadTextMuted
+                                    )
+                                }
+                            }
+                        }
+
+                        item {
+                            LeadAccordionSection(
+                                icon = Icons.Default.Description,
+                                title = "Notes & References",
+                                subtitle = "Additional information and attachments",
+                                expanded = expandedSection == "notes",
+                                onExpandChange = {
+                                    expandedSection =
+                                        if (expandedSection == "notes") "" else "notes"
+                                }
+                            ) {
+                                FormLabel("Internal Notes")
+                                OutlinedTextField(
+                                    value = internalNotes,
+                                    onValueChange = { internalNotes = it },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(100.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        unfocusedBorderColor = Color(0xFFE5E7EB),
+                                        focusedBorderColor = LeadPrimary,
+                                        unfocusedContainerColor = Color.White,
+                                        focusedContainerColor = Color.White
+                                    )
+                                )
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Customer Notes")
+                                OutlinedTextField(
+                                    value = customerNotes,
+                                    onValueChange = { customerNotes = it },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(100.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        unfocusedBorderColor = Color(0xFFE5E7EB),
+                                        focusedBorderColor = LeadPrimary,
+                                        unfocusedContainerColor = Color.White,
+                                        focusedContainerColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+
+                        item {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clickable(
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ) { clearAllFields() }
+                                    .padding(horizontal = 15.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = Primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    "Clear All",
+                                    fontSize = 13.sp,
+                                    color = Primary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        if (leadState is SaleState.Error) {
+                            item {
+                                Text(
+                                    (leadState as SaleState.Error).message,
+                                    color = Color.Red,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+
+                        item { Spacer(Modifier.height(90.dp)) }
+                    }
                 }
             }
+            // ✅ NEW — floats above everything, respects camera bump
+            DynamicIslandError(
+                modifier = Modifier.align(Alignment.TopCenter),
+                message = validationError,
+                onDismiss = { validationError = null }
+            )
         }
     }
 }
@@ -999,61 +1283,19 @@ fun LeadScreenContent(
                 modifier = Modifier
                     .background(Color(0xFFF8F9FF))
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp, horizontal = 16.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Sales", fontSize = 13.sp, color = Color(0xFF9CA3AF))
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(16.dp))
-                    Text("Lead Management", fontSize = 13.sp, color = Color(0xFF3B3BF9), fontWeight = FontWeight.SemiBold)
-                }
+                ScreenBreadcrumb(listOf("Sales","Lead Management"), onClick = {})
 
-                Spacer(Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                            .background(Color.White, RoundedCornerShape(10.dp))
-                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = {
-                                searchQuery = it
-                                currentPage = 1
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                            decorationBox = { innerTextField ->
-                                if (searchQuery.isEmpty()) {
-                                    Text("Search leads...", fontSize = 14.sp, color = Color.Black)
-                                }
-                                innerTextField()
-                            }
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(Color.White, RoundedCornerShape(10.dp))
-                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                            .clickable { filterDrawerState.open() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Filled.FilterList, "Filter", tint = Color.Black, modifier = Modifier.size(20.dp))
-                    }
-                }
+                    SearchFilterBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        placeholder = "Search Leads...",
+                        accentColor = BluePrimary,
+                        borderColor = BorderGray,
+                        textSecondaryColor = TextSecondary,
+                        onFilterClick = { filterDrawerState.open() }
+                    )
             }
 
             Box(
@@ -1382,7 +1624,7 @@ fun ViewLeadScreen(
     // ✅ Assigned Staff — resolve staff ID to display name safely (non-null String field)
     val assignedStaffDisplay = remember(l.assignedStaff, staffDisplayMap) {
         val staffId = l.assignedStaff
-        if (staffId.isBlank()) {
+        if (staffId.isNullOrBlank()) {
             "—"
         } else {
             staffDisplayMap[staffId] ?: staffId
@@ -1580,10 +1822,11 @@ fun ViewLeadScreen(
                     ) {
                         if (appointmentRequired) {
                             ViewFieldValue("Appointment Date", formatLeadDate(l.appointmentDate))
-                            ViewFieldValue("Appointment Time", l.appointmentTime.ifEmpty { "--:--" })
+                            ViewFieldValue("Appointment Time",
+                                l.appointmentTime?.ifEmpty { "--:--" })
                             ViewFieldValue("Assigned Staff", assignedStaffDisplay)   // ✅ resolved from API staff list
                             ViewFieldValue("Follow-up Date", formatLeadDate(l.followUpDate))
-                            ViewFieldValue("Priority", l.priority.ifEmpty { "Select an option" })
+                            ViewFieldValue("Priority", l.priority?.ifEmpty { "Select an option" })
                         } else {
                             Text("No appointment scheduled.", fontSize = 13.sp, color = LeadTextMuted)
                         }
@@ -1644,7 +1887,7 @@ fun MiniSwitch(
 }
 
 @Composable
-fun ViewFieldValue(label: String, value: String) {
+fun ViewFieldValue(label: String, value: String?) {
     Column(modifier = Modifier
         .fillMaxWidth()
         .padding(vertical = 6.dp)) {
@@ -1655,12 +1898,14 @@ fun ViewFieldValue(label: String, value: String) {
             fontWeight = FontWeight.Medium
         )
         Spacer(Modifier.height(2.dp))
-        Text(
-            value,
-            fontSize = 14.sp,
-            color = Color(0xFF111827),
-            fontWeight = FontWeight.Normal
-        )
+        if (value != null) {
+            Text(
+                value,
+                fontSize = 14.sp,
+                color = Color(0xFF111827),
+                fontWeight = FontWeight.Normal
+            )
+        }
     }
     HorizontalDivider(
         color = Color(0xFFF5F5F5),
@@ -1671,6 +1916,7 @@ fun ViewFieldValue(label: String, value: String) {
 // ─────────────────────────────────────────────────────────────
 // EditLeadScreen
 // ─────────────────────────────────────────────────────────────
+
 @Composable
 fun EditLeadScreen(onBack: () -> Unit) {
     val salesViewModel: SalesViewModel = hiltViewModel()
@@ -1683,6 +1929,8 @@ fun EditLeadScreen(onBack: () -> Unit) {
     val salesStatuses by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
     val isLoadingLead by salesViewModel.isLoadingLeadDetails.collectAsStateWithLifecycle()
+
+    var validationError by remember { mutableStateOf<String?>(null) }
 
     if (isLoadingLead) {
         Box(
@@ -1718,7 +1966,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
     var leadSource by remember { mutableStateOf(l.source) }
     var enquiryDate by remember { mutableStateOf(formatLeadDate(l.enquiryDate)) }
-    var leadOwner by remember { mutableStateOf(l.leadOwner) }   // ✅ NEW — prefill from loaded lead
+    var leadOwner by remember { mutableStateOf(l.leadOwner) }
     var leadStatus by remember { mutableStateOf(l.status) }
     var customerType by remember { mutableStateOf(l.customerType.replaceFirstChar { it.uppercase() }) }
     var fullName by remember { mutableStateOf(l.fullName) }
@@ -1736,7 +1984,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
     var appointmentRequired by remember { mutableStateOf(l.appointmentRequired) }
     var appointmentDate by remember { mutableStateOf(formatLeadDate(l.appointmentDate)) }
     var appointmentTime by remember { mutableStateOf(l.appointmentTime) }
-    var assignedStaff by remember { mutableStateOf(l.assignedStaff) }
+    var assignedStaff by remember { mutableStateOf(l.assignedStaff) }   // String? — nullable
     var followUpDate by remember { mutableStateOf(formatLeadDate(l.followUpDate)) }
     var priority by remember { mutableStateOf(l.priority) }
     var internalNotes by remember { mutableStateOf(l.internalNotes) }
@@ -1747,8 +1995,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
     var showGarmentError by remember { mutableStateOf(false) }
 
     var leadSourceExpanded by remember { mutableStateOf(false) }
-    var leadOwnerExpanded by remember { mutableStateOf(false) }   // ✅ NEW
-
+    var leadOwnerExpanded by remember { mutableStateOf(false) }
     var leadStatusExpanded by remember { mutableStateOf(false) }
     var genderExpanded by remember { mutableStateOf(false) }
     var preferredContactExpanded by remember { mutableStateOf(false) }
@@ -1756,12 +2003,12 @@ fun EditLeadScreen(onBack: () -> Unit) {
     var assignedStaffExpanded by remember { mutableStateOf(false) }
     var priorityExpanded by remember { mutableStateOf(false) }
 
-    var sectionLeadInfo    by remember { mutableStateOf(true) }
-    var sectionCustomer    by remember { mutableStateOf(false) }
-    var sectionLocation    by remember { mutableStateOf(false) }
-    var sectionEnquiry     by remember { mutableStateOf(false) }
+    var sectionLeadInfo by remember { mutableStateOf(true) }
+    var sectionCustomer by remember { mutableStateOf(false) }
+    var sectionLocation by remember { mutableStateOf(false) }
+    var sectionEnquiry by remember { mutableStateOf(false) }
     var sectionAppointment by remember { mutableStateOf(false) }
-    var sectionNotes       by remember { mutableStateOf(false) }
+    var sectionNotes by remember { mutableStateOf(false) }
 
     val leadSourceOptions = listOf("Walk-in", "Instagram", "Facebook Ads", "Website")
     val genderOptions = listOf("Male", "Female", "Other")
@@ -1801,6 +2048,23 @@ fun EditLeadScreen(onBack: () -> Unit) {
     }
 
     fun validateAndUpdate() {
+
+        val error = validateLeadFields(
+            leadSource = leadSource, enquiryDate = enquiryDate, leadOwner = leadOwner,
+            leadStatus = leadStatus, fullName = fullName, phone = phone, email = email,
+            gender = gender, dob = dob, preferredContact = preferredContact,
+            enquiryType = enquiryType, estimatedQuantity = estimatedQuantity,
+            garmentCategory = selectedGarmentCategories.joinToString(","),
+            requiredDate = requiredDate,
+            appointmentRequired = appointmentRequired, appointmentDate = appointmentDate,
+            appointmentTime = appointmentTime, assignedStaff = assignedStaff,
+            followUpDate = followUpDate, priority = priority
+        )
+        if (error != null) {
+            validationError = error
+            return
+        }
+
         if (selectedGarmentCategories.isEmpty()) {
             showGarmentError = true
             return
@@ -1825,11 +2089,11 @@ fun EditLeadScreen(onBack: () -> Unit) {
             contact = LeadContact(address = address, area = areaZone, city = city, preferredContactMethod = preferredContact),
             appointment = LeadAppointment(
                 isRequired = appointmentRequired,
-                date = appointmentDate.toIsoDate(),
-                time = appointmentTime,
-                assignedStaff = assignedStaff,
-                priority = priority,
-                followUpDate = followUpDate.toIsoDate()
+                date = if (appointmentRequired) appointmentDate.toIsoDate() else null,
+                time = if (appointmentRequired) appointmentTime?.takeIf { it.isNotBlank() } else null,
+                assignedStaff = assignedStaff?.takeIf { it.isNotBlank() },
+                priority = if (appointmentRequired) priority?.takeIf { it.isNotBlank() } else null,
+                followUpDate = if (appointmentRequired) followUpDate.toIsoDate() else null
             ),
             status = statusIdMap[leadStatus] ?: "",
             statusName = leadStatus,
@@ -1846,316 +2110,492 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
     val currentUpdateState = updateState
 
-    Scaffold(
-        containerColor = Color(0xFFF5F5F7),
-        contentWindowInsets = WindowInsets(0),
-        bottomBar = {
-            Column {
-                LeadBottomBar(
-                    leftLabel = "Cancel",
-                    leftIcon = Icons.Default.Close,
-                    onLeftClick = onBack,
-                    rightLabel = if (currentUpdateState is SaleState.Loading) "" else "Update Lead",
-                    rightIcon = Icons.Default.Check,
-                    rightEnabled = currentUpdateState !is SaleState.Loading && selectedGarmentCategories.isNotEmpty(),
-                    rightLoading = currentUpdateState is SaleState.Loading,
-                    onRightClick = { validateAndUpdate() }
-                )
-                if (showGarmentError) {
-                    Text("Please select at least one garment category", color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-                }
-                if (currentUpdateState is SaleState.Error) {
-                    Text(currentUpdateState.message, color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        Scaffold(
+            containerColor = Color(0xFFF5F5F7),
+            contentWindowInsets = WindowInsets(0),
+            bottomBar = {
+                Column {
+                    LeadBottomBar(
+                        leftLabel = "Cancel",
+                        leftIcon = Icons.Default.Close,
+                        onLeftClick = onBack,
+                        rightLabel = if (currentUpdateState is SaleState.Loading) "" else "Update Lead",
+                        rightIcon = Icons.Default.Check,
+                        rightEnabled = currentUpdateState !is SaleState.Loading && selectedGarmentCategories.isNotEmpty(),
+                        rightLoading = currentUpdateState is SaleState.Loading,
+                        onRightClick = { validateAndUpdate() }
+                    )
+                    if (showGarmentError) {
+                        Text(
+                            "Please select at least one garment category",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+                    if (currentUpdateState is SaleState.Error) {
+                        Text(
+                            currentUpdateState.message,
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            LeadFormTopBar(
-                title = "Edit Lead",
-                badgeText = leadStatus.ifEmpty { "—" },
-                onClose = onBack
-            )
-            HorizontalDivider(color = Color(0xFFF0F0F0))
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
             ) {
-                item {
-                    LeadInfoBanner("Edit the details below and save your changes.")
-                }
+                LeadFormTopBar(
+                    title = "Edit Lead",
+                    badgeText = leadStatus.ifEmpty { "—" },
+                    onClose = onBack
+                )
+                HorizontalDivider(color = Color(0xFFF0F0F0))
 
-                item {
-                    LeadAccordionSection(
-                        icon = Icons.Default.Description,
-                        title = "Lead Information",
-                        subtitle = "Basic details about this lead",
-                        expanded = sectionLeadInfo,
-                        onExpandChange = { sectionLeadInfo = it }
-                    ) {
-                        FormDropdown("Lead Source", leadSource.ifEmpty { "Select an option" }, leadSourceExpanded, { leadSourceExpanded = it }, leadSourceOptions, { leadSource = it }, isRequired = true)
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Enquiry Date", isRequired = true)
-                        DatePickerField(value = enquiryDate.ifEmpty { "Select Date" }, onDateSelected = { enquiryDate = it })
-                        Spacer(Modifier.height(14.dp))
-
-                        // ✅ Lead Owner — same pattern as CreateLeadScreen
-                        val selectedLeadOwnerLabel = staffIdMap.entries.firstOrNull { it.value == leadOwner }?.key ?: ""
-                        FormDropdown(
-                            "Lead Owner",
-                            selectedLeadOwnerLabel.ifEmpty { if (isLoadingStaff) "Loading staff..." else "Select an option" },
-                            leadOwnerExpanded,
-                            { leadOwnerExpanded = it },
-                            staffDisplayList,
-                            { label -> leadOwner = staffIdMap[label] ?: "" },
-                            isRequired = true
-                        )
-
-                        Spacer(Modifier.height(14.dp))
-                        FormDropdown("Lead Status", leadStatus.ifEmpty { "Select an option" }, leadStatusExpanded, { leadStatusExpanded = it }, statusOptions, { leadStatus = it }, isRequired = true)
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item {
+                        LeadInfoBanner("Edit the details below and save your changes.")
                     }
-                }
 
-                item {
-                    LeadAccordionSection(
-                        icon = Icons.Default.Person,
-                        title = "Customer Identity",
-                        subtitle = "Who is this lead for?",
-                        expanded = sectionCustomer,
-                        onExpandChange = { sectionCustomer = it }
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                                .padding(4.dp)
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.Description,
+                            title = "Lead Information",
+                            subtitle = "Basic details about this lead",
+                            expanded = sectionLeadInfo,
+                            onExpandChange = { sectionLeadInfo = it }
                         ) {
-                            listOf("Individual", "Corporate").forEach { type ->
-                                val isSelected = customerType == type
-                                Row(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(if (isSelected) Color.White else Color.Transparent)
-                                        .clickable { customerType = type }
-                                        .padding(vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        if (type == "Individual") Icons.Default.Person else Icons.Default.Business,
-                                        type,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = if (isSelected) LeadPrimary else Color(0xFF6B7280)
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(type, fontSize = 14.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, color = if (isSelected) Color.Black else Color(0xFF6B7280))
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Full Name", isRequired = true)
-                        FormTextField(value = fullName, onValueChange = { fullName = it })
-                        Spacer(Modifier.height(14.dp))
-                        PhoneInputField(phoneValue = phone, onPhoneChange = { phone = it }, onCountryChange = {})
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Email")
-                        FormTextField(value = email, onValueChange = { email = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormDropdown("Gender", gender.ifEmpty { "Select an option" }, genderExpanded, { genderExpanded = it }, genderOptions, { gender = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Date of Birth")
-                        DatePickerField(value = dob.ifEmpty { "Select Date" }, onDateSelected = { dob = it })
-                    }
-                }
+                            FormDropdown(
+                                "Lead Source",
+                                leadSource.ifEmpty { "Select an option" },
+                                leadSourceExpanded,
+                                { leadSourceExpanded = it },
+                                leadSourceOptions,
+                                { leadSource = it },
+                                isRequired = true
+                            )
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Enquiry Date", isRequired = true)
+                            DatePickerField(
+                                value = enquiryDate.ifEmpty { "Select Date" },
+                                onDateSelected = { enquiryDate = it })
+                            Spacer(Modifier.height(14.dp))
 
-                item {
-                    LeadAccordionSection(
-                        icon = Icons.Default.LocationOn,
-                        title = "Location & Communication",
-                        subtitle = "Contact details and preferences",
-                        expanded = sectionLocation,
-                        onExpandChange = { sectionLocation = it }
-                    ) {
-                        FormLabel("Address")
-                        FormTextField(value = address, onValueChange = { address = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Area / Zone")
-                        FormTextField(value = areaZone, onValueChange = { areaZone = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("City")
-                        FormTextField(value = city, onValueChange = { city = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormDropdown("Preferred Contact Method", preferredContact.ifEmpty { "Select an option" }, preferredContactExpanded, { preferredContactExpanded = it }, preferredContactOptions, { preferredContact = it })
-                    }
-                }
+                            val selectedLeadOwnerLabel =
+                                staffIdMap.entries.firstOrNull { it.value == leadOwner }?.key ?: ""
+                            FormDropdown(
+                                "Lead Owner",
+                                selectedLeadOwnerLabel.ifEmpty { if (isLoadingStaff) "Loading staff..." else "Select an option" },
+                                leadOwnerExpanded,
+                                { leadOwnerExpanded = it },
+                                staffDisplayList,
+                                { label -> leadOwner = staffIdMap[label] ?: "" },
+                                isRequired = true
+                            )
 
-                item {
-                    LeadAccordionSection(
-                        icon = Icons.AutoMirrored.Filled.Assignment,
-                        title = "Enquiry Details",
-                        subtitle = "What are they looking for?",
-                        expanded = sectionEnquiry,
-                        onExpandChange = { sectionEnquiry = it }
-                    ) {
-                        FormDropdown("Enquiry Type", enquiryType.ifEmpty { "Select an option" }, enquiryTypeExpanded, { enquiryTypeExpanded = it }, enquiryTypeOptions, { enquiryType = it })
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Estimated Quantity")
-                        FormTextField(value = estimatedQuantity, onValueChange = { estimatedQuantity = it }, keyboardType = KeyboardType.Number)
-                        Spacer(Modifier.height(14.dp))
-
-                        Column {
-                            Row {
-                                Text("Garment Categories", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = if (showGarmentError) Color.Red else Color.Gray)
-                                Text(" *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.Red)
-                                Text(" (Select one or more)", fontSize = 11.sp, color = Color.Gray)
-                            }
-                            Spacer(Modifier.height(6.dp))
-
-                            if (garmentCategories.isEmpty()) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                                        .padding(14.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        CirculerProgressIndicatorReuse()
-                                        Text("Loading categories...", fontSize = 14.sp, color = Color(0xFF6B7280))
-                                    }
-                                }
-                            } else {
-                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                    items(garmentOptions) { option ->
-                                        val isSelected = selectedGarmentCategories.contains(option)
-                                        Box(
-                                            modifier = Modifier
-                                                .border(1.dp, if (isSelected) LeadPrimary else Color(0xFFE5E7EB), RoundedCornerShape(50.dp))
-                                                .background(if (isSelected) LeadPrimarySoft else Color.White, RoundedCornerShape(50.dp))
-                                                .clickable {
-                                                    selectedGarmentCategories = if (isSelected) {
-                                                        selectedGarmentCategories.filter { it != option }
-                                                    } else {
-                                                        selectedGarmentCategories + option
-                                                    }
-                                                    showGarmentError = false
-                                                }
-                                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                if (isSelected) {
-                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp), tint = LeadPrimary)
-                                                    Spacer(Modifier.width(4.dp))
-                                                }
-                                                Text(option, fontSize = 13.sp, color = if (isSelected) LeadPrimary else Color(0xFF374151), fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
-                                            }
-                                        }
-                                    }
-                                }
-                                if (selectedGarmentCategories.isNotEmpty()) {
-                                    Spacer(Modifier.height(4.dp))
-                                    Text("Selected: ${selectedGarmentCategories.joinToString(", ")}", fontSize = 12.sp, color = Color(0xFF6B7280))
-                                }
-                            }
-
-                            if (showGarmentError) {
-                                Spacer(Modifier.height(4.dp))
-                                Text("Please select at least one garment category", fontSize = 12.sp, color = Color.Red)
-                            }
-                        }
-
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Budget Range")
-                        BudgetRangeSlider(value = budgetRange, onValueChange = { budgetRange = it })
-                        Spacer(Modifier.height(4.dp))
-                        BudgetRangeLabels(currentValue = budgetRange.toInt())
-
-//                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-//                            Text("₹1000", fontSize = 12.sp, color = Color(0xFF6B7280))
-//                            Text("₹${formatIndianNumber(budgetRange.toInt())}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
-//                            Text("₹250000", fontSize = 12.sp, color = Color(0xFF6B7280))
-//                        }
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Required Date")
-                        DatePickerField(value = requiredDate.ifEmpty { "Select Date" }, onDateSelected = { requiredDate = it })
-                    }
-                }
-
-                item {
-                    LeadAccordionSection(
-                        icon = Icons.Default.CalendarMonth,
-                        title = "Appointment & Follow-Up",
-                        subtitle = "Schedule interactions",
-                        expanded = sectionAppointment && appointmentRequired,
-                        onExpandChange = { sectionAppointment = it },
-                        trailing = {
-                            Switch(
-                                checked = appointmentRequired,
-                                onCheckedChange = {
-                                    appointmentRequired = it
-                                    sectionAppointment = it
-                                },
-                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Primary)
+                            Spacer(Modifier.height(14.dp))
+                            FormDropdown(
+                                "Lead Status",
+                                leadStatus.ifEmpty { "Select an option" },
+                                leadStatusExpanded,
+                                { leadStatusExpanded = it },
+                                statusOptions,
+                                { leadStatus = it },
+                                isRequired = true
                             )
                         }
-                    ) {
-                        if (appointmentRequired) {
-                            FormLabel("Appointment Date")
-                            DatePickerField(value = appointmentDate.ifEmpty { "Select Date" }, onDateSelected = { appointmentDate = it })
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Appointment Time")
+                    }
+
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.Person,
+                            title = "Customer Identity",
+                            subtitle = "Who is this lead for?",
+                            expanded = sectionCustomer,
+                            onExpandChange = { sectionCustomer = it }
+                        ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 12.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                    .padding(4.dp)
                             ) {
-                                Text(appointmentTime, color = Color(0xFF374151), fontSize = 14.sp)
-                                Icon(Icons.Default.Schedule, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+                                listOf("Individual", "Corporate").forEach { type ->
+                                    val isSelected = customerType == type
+                                    Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(if (isSelected) Color.White else Color.Transparent)
+                                            .clickable { customerType = type }
+                                            .padding(vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            if (type == "Individual") Icons.Default.Person else Icons.Default.Business,
+                                            type,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = if (isSelected) LeadPrimary else Color(0xFF6B7280)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            type,
+                                            fontSize = 14.sp,
+                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                            color = if (isSelected) Color.Black else Color(
+                                                0xFF6B7280
+                                            )
+                                        )
+                                    }
+                                }
                             }
-                            FormDropdown("Assigned Staff", selectedStaffLabel.ifEmpty { if (isLoadingStaff) "Loading..." else "Select an option" }, assignedStaffExpanded && !isLoadingStaff, { assignedStaffExpanded = it }, staffDisplayList, { label -> assignedStaff = staffIdMap[label] ?: "" })
                             Spacer(Modifier.height(14.dp))
-                            FormLabel("Follow-up Date")
-                            DatePickerField(value = followUpDate.ifEmpty { "Select Date" }, onDateSelected = { followUpDate = it })
+                            FormLabel("Full Name", isRequired = true)
+                            FormTextField(value = fullName, onValueChange = { fullName = it })
                             Spacer(Modifier.height(14.dp))
-                            FormDropdown("Priority", priority.ifEmpty { "Select an option" }, priorityExpanded, { priorityExpanded = it }, priorityOptions, { priority = it })
-                        } else {
-                            Text("No appointment scheduled.", fontSize = 13.sp, color = LeadTextMuted)
+                            PhoneInputField(
+                                phoneValue = phone,
+                                onPhoneChange = { phone = it },
+                                onCountryChange = {})
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Email")
+                            FormTextField(value = email, onValueChange = { email = it })
+                            Spacer(Modifier.height(14.dp))
+                            FormDropdown(
+                                "Gender",
+                                gender.ifEmpty { "Select an option" },
+                                genderExpanded,
+                                { genderExpanded = it },
+                                genderOptions,
+                                { gender = it })
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Date of Birth")
+                            DatePickerField(
+                                value = dob.ifEmpty { "Select Date" },
+                                onDateSelected = { dob = it })
                         }
                     }
-                }
 
-                item {
-                    LeadAccordionSection(
-                        icon = Icons.Default.Description,
-                        title = "Notes & References",
-                        subtitle = "Additional information",
-                        expanded = sectionNotes,
-                        onExpandChange = { sectionNotes = it }
-                    ) {
-                        FormLabel("Internal Notes")
-                        OutlinedTextField(value = internalNotes, onValueChange = { internalNotes = it }, modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = LeadPrimary, unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
-                        Spacer(Modifier.height(14.dp))
-                        FormLabel("Customer Notes")
-                        OutlinedTextField(value = customerNotes, onValueChange = { customerNotes = it }, modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp), shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = LeadPrimary, unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.LocationOn,
+                            title = "Location & Communication",
+                            subtitle = "Contact details and preferences",
+                            expanded = sectionLocation,
+                            onExpandChange = { sectionLocation = it }
+                        ) {
+                            FormLabel("Address")
+                            FormTextField(value = address, onValueChange = { address = it })
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Area / Zone")
+                            FormTextField(value = areaZone, onValueChange = { areaZone = it })
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("City")
+                            FormTextField(value = city, onValueChange = { city = it })
+                            Spacer(Modifier.height(14.dp))
+                            FormDropdown(
+                                "Preferred Contact Method",
+                                preferredContact.ifEmpty { "Select an option" },
+                                preferredContactExpanded,
+                                { preferredContactExpanded = it },
+                                preferredContactOptions,
+                                { preferredContact = it })
+                        }
                     }
-                }
 
-                item { Spacer(Modifier.height(8.dp)) }
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.AutoMirrored.Filled.Assignment,
+                            title = "Enquiry Details",
+                            subtitle = "What are they looking for?",
+                            expanded = sectionEnquiry,
+                            onExpandChange = { sectionEnquiry = it }
+                        ) {
+                            FormDropdown(
+                                "Enquiry Type",
+                                enquiryType.ifEmpty { "Select an option" },
+                                enquiryTypeExpanded,
+                                { enquiryTypeExpanded = it },
+                                enquiryTypeOptions,
+                                { enquiryType = it })
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Estimated Quantity")
+                            FormTextField(
+                                value = estimatedQuantity,
+                                onValueChange = { estimatedQuantity = it },
+                                keyboardType = KeyboardType.Number
+                            )
+                            Spacer(Modifier.height(14.dp))
+
+                            Column {
+                                Row {
+                                    Text(
+                                        "Garment Categories",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (showGarmentError) Color.Red else Color.Gray
+                                    )
+                                    Text(
+                                        " *",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.Red
+                                    )
+                                    Text(
+                                        " (Select one or more)",
+                                        fontSize = 11.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                                Spacer(Modifier.height(6.dp))
+
+                                if (garmentCategories.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                                            .padding(14.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            CirculerProgressIndicatorReuse()
+                                            Text(
+                                                "Loading categories...",
+                                                fontSize = 14.sp,
+                                                color = Color(0xFF6B7280)
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        items(garmentOptions) { option ->
+                                            val isSelected =
+                                                selectedGarmentCategories.contains(option)
+                                            Box(
+                                                modifier = Modifier
+                                                    .border(
+                                                        1.dp,
+                                                        if (isSelected) LeadPrimary else Color(
+                                                            0xFFE5E7EB
+                                                        ),
+                                                        RoundedCornerShape(50.dp)
+                                                    )
+                                                    .background(
+                                                        if (isSelected) LeadPrimarySoft else Color.White,
+                                                        RoundedCornerShape(50.dp)
+                                                    )
+                                                    .clickable {
+                                                        selectedGarmentCategories =
+                                                            if (isSelected) {
+                                                                selectedGarmentCategories.filter { it != option }
+                                                            } else {
+                                                                selectedGarmentCategories + option
+                                                            }
+                                                        showGarmentError = false
+                                                    }
+                                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    if (isSelected) {
+                                                        Icon(
+                                                            Icons.Default.Check,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(14.dp),
+                                                            tint = LeadPrimary
+                                                        )
+                                                        Spacer(Modifier.width(4.dp))
+                                                    }
+                                                    Text(
+                                                        option,
+                                                        fontSize = 13.sp,
+                                                        color = if (isSelected) LeadPrimary else Color(
+                                                            0xFF374151
+                                                        ),
+                                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (selectedGarmentCategories.isNotEmpty()) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            "Selected: ${selectedGarmentCategories.joinToString(", ")}",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF6B7280)
+                                        )
+                                    }
+                                }
+
+                                if (showGarmentError) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        "Please select at least one garment category",
+                                        fontSize = 12.sp,
+                                        color = Color.Red
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Budget Range")
+                            BudgetRangeSlider(
+                                value = budgetRange,
+                                onValueChange = { budgetRange = it })
+                            Spacer(Modifier.height(4.dp))
+                            BudgetRangeLabels(currentValue = budgetRange.toInt())
+
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Required Date")
+                            DatePickerField(
+                                value = requiredDate.ifEmpty { "Select Date" },
+                                onDateSelected = { requiredDate = it })
+                        }
+                    }
+
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.CalendarMonth,
+                            title = "Appointment & Follow-Up",
+                            subtitle = "Schedule interactions",
+                            expanded = sectionAppointment && appointmentRequired,
+                            onExpandChange = { sectionAppointment = it },
+                            trailing = {
+                                Switch(
+                                    checked = appointmentRequired,
+                                    onCheckedChange = {
+                                        appointmentRequired = it
+                                        sectionAppointment = it
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = Primary
+                                    )
+                                )
+                            }
+                        ) {
+                            if (appointmentRequired) {
+                                FormLabel("Appointment Date")
+                                DatePickerField(
+                                    value = appointmentDate.ifEmpty { "Select Date" },
+                                    onDateSelected = { appointmentDate = it })
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Appointment Time")
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 12.dp, vertical = 14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        appointmentTime.orEmpty(),
+                                        color = Color(0xFF374151),
+                                        fontSize = 14.sp
+                                    )
+                                    Icon(
+                                        Icons.Default.Schedule,
+                                        contentDescription = null,
+                                        tint = Color.Gray,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                FormDropdown(
+                                    "Assigned Staff",
+                                    selectedStaffLabel.ifEmpty { if (isLoadingStaff) "Loading..." else "Select an option" },
+                                    assignedStaffExpanded && !isLoadingStaff,
+                                    { assignedStaffExpanded = it },
+                                    staffDisplayList,
+                                    { label -> assignedStaff = staffIdMap[label] ?: "" })
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Follow-up Date")
+                                DatePickerField(
+                                    value = followUpDate.ifEmpty { "Select Date" },
+                                    onDateSelected = { followUpDate = it })
+                                Spacer(Modifier.height(14.dp))
+                                FormDropdown(
+                                    "Priority",
+                                    priority?.ifEmpty { "Select an option" } ?: "Select an option",
+                                    priorityExpanded,
+                                    { priorityExpanded = it },
+                                    priorityOptions,
+                                    { priority = it }
+                                )
+                            } else {
+                                Text(
+                                    "No appointment scheduled.",
+                                    fontSize = 13.sp,
+                                    color = LeadTextMuted
+                                )
+                            }
+                        }
+                    }
+
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.Description,
+                            title = "Notes & References",
+                            subtitle = "Additional information",
+                            expanded = sectionNotes,
+                            onExpandChange = { sectionNotes = it }
+                        ) {
+                            FormLabel("Internal Notes")
+                            OutlinedTextField(
+                                value = internalNotes,
+                                onValueChange = { internalNotes = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(100.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color(0xFFE5E7EB),
+                                    focusedBorderColor = LeadPrimary,
+                                    unfocusedContainerColor = Color.White,
+                                    focusedContainerColor = Color.White
+                                )
+                            )
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Customer Notes")
+                            OutlinedTextField(
+                                value = customerNotes,
+                                onValueChange = { customerNotes = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(100.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color(0xFFE5E7EB),
+                                    focusedBorderColor = LeadPrimary,
+                                    unfocusedContainerColor = Color.White,
+                                    focusedContainerColor = Color.White
+                                )
+                            )
+                        }
+                    }
+
+                    item { Spacer(Modifier.height(8.dp)) }
+                }
             }
+            DynamicIslandError(
+                modifier = Modifier.align(Alignment.TopCenter),
+                message = validationError,
+                onDismiss = { validationError = null }
+            )
         }
     }
 }

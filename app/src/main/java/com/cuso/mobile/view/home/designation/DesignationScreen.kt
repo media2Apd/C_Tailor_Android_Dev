@@ -36,9 +36,12 @@ import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Search
+import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.DesignationCreateState
 import com.cuso.mobile.viewmodel.DesignationDeleteState
 import com.cuso.mobile.viewmodel.DesignationUiState
@@ -145,43 +148,20 @@ fun DesignationScreen(
 
             Column(modifier = Modifier.fillMaxWidth()) {
                 ScreenBreadcrumb(segments = listOf("Settings", "Designation"), onClick = {})
-                Column(
-                    modifier = Modifier.background(Color(0xFFF8F9FF)).fillMaxWidth()
-                        .padding(vertical = 10.dp, horizontal = 16.dp)
-                ) {
+
 
                     Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth().height(48.dp)
-                            .background(Color.White, RoundedCornerShape(10.dp))
-                            .border(1.dp, Color(0xFFE2E8F0), shape = RoundedCornerShape(10.dp))
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            tint = Color.Black,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it; currentPage = 1 },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                            decorationBox = { inner ->
-                                if (searchQuery.isEmpty()) Text(
-                                    "Search designations...",
-                                    fontSize = 14.sp,
-                                    color = Color.Black
-                                )
-                                inner()
-                            }
-                        )
-                    }
-                }
+                    SearchFilterBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        placeholder = "Search Designations...",
+                        accentColor = BluePrimary,
+                        borderColor = BorderGray,
+                        textSecondaryColor = TextSecondary,
+                        onFilterClick = { /* TODO: open filter drawer */ }
+                    )
+
             }
 
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {

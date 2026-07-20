@@ -23,21 +23,23 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.finance.LedgerItem
+import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.PanelBg
+import com.cuso.mobile.ui.theme.TextPrimary
+import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
-private val TextPrimary = Color(0xFF111827)
-private val TextSecondary = Color(0xFF9A9AA8)
-private val BorderGray = Color(0xFFE8E8ED)
-private val BluePrimary = Color(0xFF3A2FCB)
-private val PanelBg = Color(0xFFF7F7FA)
+
 
 private fun formatLedgerAmount(value: Double): String {
     val nf = NumberFormat.getNumberInstance(Locale.Builder().setLanguage("en").setRegion("IN").build())
@@ -115,38 +117,16 @@ fun LedgerScreen(
                 onClick = onBreadcrumbClick
             )
 
-            // ── Search + Filter ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search Customers...", color = TextSecondary) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = BorderGray,
-                        focusedBorderColor = BluePrimary
-                    )
-                )
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White)
-                        .border(1.dp, BorderGray, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = TextPrimary)
-                }
-            }
+            SearchFilterBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                placeholder = "Search Ledgers...",
+                accentColor = BluePrimary,
+                borderColor = BorderGray,
+                textSecondaryColor = TextSecondary,
+                onFilterClick = { /* TODO: open filter drawer */ }
+            )
         }
 
         when {

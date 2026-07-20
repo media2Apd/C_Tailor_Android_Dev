@@ -25,6 +25,7 @@ import com.cuso.mobile.database.entities.TokensEntity
 import com.cuso.mobile.database.entities.UserEntity
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.async
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 
 sealed class UiState {
     object Idle : UiState()
@@ -119,7 +120,20 @@ class Authenticate @Inject constructor(
     // ─────────────────────────────────────────────────────────────
 
     init {
-        loadAllData()
+        viewModelScope.launch {
+            loadUser()
+            loadOrganization()
+            loadSettings()
+            loadTokens()
+
+            // for when app reopens the crashlytic loggedin analysis
+            _user.value?.let { user ->
+                FirebaseCrashlytics.getInstance().apply {
+                    setUserId(user.userId ?: "")
+                    setCustomKey("user_email", user.email ?: "unknown")
+                }
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -211,6 +225,13 @@ class Authenticate @Inject constructor(
                         orgToken = response.data.tokens.orgToken,
                         organization = response.data.user.organizationId
                     )
+
+                    //get user id for crashlytics
+                    FirebaseCrashlytics.getInstance().apply {
+                        setUserId(response.data.user.userId)
+                        setCustomKey("user_email", response.data.user.email)
+                        setCustomKey("user_name", "${response.data.user.firstName} ${response.data.user.lastName}")
+                    }
                 }
             } else {
                 _accountState.value = UiState.Error(
@@ -314,6 +335,13 @@ class Authenticate @Inject constructor(
                         lastName = googleData.user.lastName,
                         message = result.response.message
                     )
+
+                    //crashlytics user id get for crash
+                    FirebaseCrashlytics.getInstance().apply {
+                        setUserId(googleData.user.userId)
+                        setCustomKey("user_email", googleData.user.email)
+                        setCustomKey("user_name", "${googleData.user.firstName} ${googleData.user.lastName}")
+                    }
                 }
                 is GoogleLoginResult.NewUser -> {
                     val profile = result.response.googleProfile

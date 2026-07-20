@@ -229,8 +229,16 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
             )
         }
 
-        composable("new-pass") {
-            ForgotUserPassword(activity = activity, navController = navController)
+        composable(
+            "new-pass/{email}",
+            arguments = listOf(navArgument("email") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+            ForgotUserPassword(
+                activity = activity,
+                navController = navController,
+                prefilledEmail = email
+            )
         }
 
         composable("verify-forgot-pass/{email}",

@@ -17,6 +17,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,10 +29,14 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
+import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.GarmentPricingListUiState
 import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 
@@ -48,6 +55,7 @@ fun PricingScreen(
 ) {
     val viewModel: PricingQuotationViewModel = hiltViewModel()
     val listState by viewModel.garmentPricingListState.collectAsStateWithLifecycle()
+    var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         viewModel.fetchGarmentPricingList()
@@ -87,13 +95,28 @@ fun PricingScreen(
                 )
             }
             HorizontalDivider(color = CardBorder)
+            Column(
+                Modifier.fillMaxWidth()
+                    .background(Color(0xFFF8F9FF))
+            ) {
 
-            // Breadcrumb
-            ScreenBreadcrumb(
-                segments = listOf("Sales", "Pricing & Quotations"),
-                onClick = {},
-                backgroundColor = Color.White
-            )
+                // Breadcrumb
+                ScreenBreadcrumb(
+                    segments = listOf("Sales", "Pricing & Quotations"),
+                    onClick = {},
+                    backgroundColor = Color.White
+                )
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    placeholder = "Search Prices...",
+                    accentColor = BluePrimary,
+                    borderColor = BorderGray,
+                    textSecondaryColor = TextSecondary,
+                    onFilterClick = { /* TODO: open filter drawer */ }
+                )
+            }
             HorizontalDivider(color = CardBorder)
 
             when (val state = listState) {

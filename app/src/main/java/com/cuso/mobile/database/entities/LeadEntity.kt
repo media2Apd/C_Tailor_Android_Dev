@@ -33,9 +33,9 @@ data class LeadEntity(
     val leadOwner: String = "",          // ✅ NEW — default "" so existing LeadEntity(...) calls don't break
     val appointmentRequired: Boolean,
     val appointmentDate: String,
-    val appointmentTime: String,
-    val assignedStaff: String,
-    val priority: String,
+    val appointmentTime: String?,
+    val assignedStaff: String?,
+    val priority: String?,
     val followUpDate: String,
     val internalNotes: String,
     val customerNotes: String,
@@ -104,11 +104,11 @@ fun CreateLeadFormResponse.toEntity(request: CreateLeadFormRequest): LeadEntity 
         source = request.source,
         leadOwner = request.leadOwner,        // ✅ NEW — assuming CreateLeadFormRequest gets a leadOwner field
         appointmentRequired = request.appointment.isRequired,
-        appointmentDate = request.appointment.date,
+        appointmentDate = request.appointment.date ?: "",
         appointmentTime = request.appointment.time,
         assignedStaff = request.appointment.assignedStaff,
         priority = request.appointment.priority,
-        followUpDate = request.appointment.followUpDate,
+        followUpDate = request.appointment.followUpDate ?: "",
         internalNotes = request.notes.firstOrNull { it.type == "internal" }?.message ?: "",
         customerNotes = request.notes.firstOrNull { it.type == "customer" }?.message ?: ""
     )

@@ -57,7 +57,10 @@ import com.cuso.mobile.model.sales.Customer
 import com.cuso.mobile.model.sales.CustomerGarment
 import com.cuso.mobile.model.sales.CustomerOrder
 import com.cuso.mobile.view.composable.DatePickerField
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.PhoneInputField
+import com.cuso.mobile.view.composable.ValidationField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.sales.customer.CustomerOutlinedField
 import com.cuso.mobile.view.home.sales.customer.LabeledField
@@ -76,6 +79,7 @@ import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 
@@ -94,6 +98,13 @@ data class MeasurementField(
     val label: String,
     val value: String = "",
     val unit: String = "inch"
+)
+
+// ✅ NEW — maps field key -> accordion section key (same idea as leadSectionFieldMap in CreateLeadScreen)
+private val orderSectionFieldMap = mapOf(
+    "customer" to listOf("mobile", "fullName", "gender", "dressFor", "source"),
+    "garment" to listOf("garments"),
+    "delivery" to listOf("orderDate", "trialDate", "deliveryDate", "branch")
 )
 
 // ─────────────────────────────────────────────────────────────
@@ -171,6 +182,20 @@ fun CreateOrderScreen(
     // ── Customer state ──
     var showImagePickerOptions by rememberSaveable { mutableStateOf(false) }
     var capturedImageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+
+    // ✅ Plan gating for media upload
+    var showPlanLimitDialog by rememberSaveable { mutableStateOf(false) }
+
+    // TODO: replace this with the real plan coming from your org/session state
+    // e.g. organizationViewModel.organization.plan?.name
+    val currentPlanName = "starter" // "starter" | "light" | "pro" | "premium" etc.
+    val isMediaUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
+            currentPlanName.equals("light", ignoreCase = true)
+
+    // ✅ NEW — Form validation state (mirrors CreateLeadScreen's pattern)
+    var errorField by remember { mutableStateOf<String?>(null) }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    var garmentsError by remember { mutableStateOf(false) }
 
     var dressForExpanded by rememberSaveable { mutableStateOf(false) }
     var sourceExpanded by rememberSaveable { mutableStateOf(false) }
@@ -457,7 +482,6 @@ fun CreateOrderScreen(
     }
 
     fun openGarmentDialog(categoryName: String, category: String) {
-        android.util.Log.d("GARMENT_DEBUG", "categoryName param=$categoryName | category param=$category")
         tempGarment = SelectedGarment(
             category = category,
             categoryName = categoryName,
@@ -485,6 +509,7 @@ fun CreateOrderScreen(
     fun saveGarment() {
         salesViewModel.addOrUpdateGarment(tempGarment)
         showGarmentDialog = false
+        garmentsError = false   // ✅ clear garment error once a garment is saved
     }
 
     fun deleteGarment(garmentId: String) {
@@ -508,6 +533,52 @@ fun CreateOrderScreen(
             )
             salesViewModel.addOrUpdateGarment(garment)
         }
+        garmentsError = false
+    }
+
+    // ✅ NEW — Validation function, same pattern as CreateLeadScreen.submitLead()
+    fun validateOrderForm(): Boolean {
+        val fields = listOf(
+            ValidationField("mobile", phone, "Mobile Number is required"),
+            ValidationField("fullName", fullName, "Full Name is required"),
+            ValidationField("gender", gender, "Gender is required"),
+            ValidationField("dressFor", dressFor, "Dress For is required"),
+            ValidationField("source", source, "Source is required"),
+            ValidationField("orderDate", orderDate, "Order Date is required"),
+            ValidationField("trialDate", trialDate, "Trial Date is required"),
+            ValidationField("deliveryDate", deliveryDate, "Target Delivery Date is required"),
+            ValidationField("branch", selectedBranchId, "Assigned Branch is required")
+        )
+
+        val result = FieldValidator.validate(fields)
+        if (result != null) {
+            errorField = result.fieldKey
+            validationError = result.message
+            expandedSection = FieldValidator.resolveSection(result.fieldKey, orderSectionFieldMap) ?: expandedSection
+            return false
+        }
+
+        // ✅ Garments need their own check — at least one garment,
+        // with fabric type, color/tone, pattern, model & measurements filled
+        val hasIncompleteGarment = selectedGarments.isEmpty() || selectedGarments.any { g ->
+            g.fabricType.isBlank() ||
+                    g.colorTone.isBlank() ||
+                    g.pattern.isBlank() ||
+                    g.models.isEmpty() ||
+                    g.measurements.isEmpty() ||
+                    g.measurements.any { it.value.isBlank() }
+        }
+        if (hasIncompleteGarment) {
+            errorField = "garments"
+            garmentsError = true
+            validationError = "Add at least one garment with fabric, color, pattern, model & measurements"
+            expandedSection = "garment"
+            return false
+        }
+
+        errorField = null
+        garmentsError = false
+        return true
     }
 
     Scaffold(
@@ -541,82 +612,6 @@ fun CreateOrderScreen(
                 )
             }
         },
-//        bottomBar = {
-//            Row(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .padding(horizontal = 16.dp, vertical = 12.dp),
-//                horizontalArrangement = Arrangement.spacedBy(12.dp)
-//            ) {
-//                OutlinedButton(
-//                    onClick = {
-//                        salesViewModel.clearAllSelectedGarments()
-//                        salesViewModel.clearCustomerSearch()
-//                        onCancel()
-//                    },
-//                    modifier = Modifier.weight(1f).height(48.dp),
-//                    shape = RoundedCornerShape(10.dp),
-//                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-//                    colors = ButtonDefaults.outlinedButtonColors(
-//                        containerColor = Color.White,
-//                        contentColor = Color(0xFF374151)
-//                    ),
-//                    elevation = ButtonDefaults.buttonElevation(
-//                        defaultElevation = 3.dp,
-//                        pressedElevation = 1.dp
-//                    )
-//                ) {
-//                    Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.Medium)
-//                }
-//
-//                Button(
-//                    onClick = {
-//                        val data = OrderReviewData(
-//                            orderId = initialData?.orderId,
-//                            customerId = selectedCustomer?.id ?: initialData?.customerId ?: "",
-//                            branchId = selectedBranchId,
-//                            fullName = fullName,
-//                            countryCode = countryCode,
-//                            phone = phone,
-//                            gender = gender,
-//                            dressFor = dressFor,
-//                            address = address,
-//                            garments = selectedGarments,
-//                            orderDate = orderDate,
-//                            source = source,
-//                            trialDate = trialDate,
-//                            deliveryDate = deliveryDate,
-//                            discount = initialData?.discount ?: 0.0,
-//                            paidSoFar = initialData?.paidSoFar ?: 0.0,
-//                            designImages = selectedDesignImages,
-//                            existingImageUrls = initialData?.existingImageUrls ?: emptyList(),
-//                            voiceNoteUri = recordedVoiceNoteUri
-//                        )
-//                        onNextStep(data)
-//                    },
-//                    modifier = Modifier.weight(2f).height(48.dp),
-//                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-//                    shape = RoundedCornerShape(10.dp),
-//                    elevation = ButtonDefaults.buttonElevation(
-//                        defaultElevation = 6.dp,
-//                        pressedElevation = 3.dp
-//                    )
-//                ) {
-//                    Text(
-//                        if (isEditMode) "Update Order" else "Next Step",
-//                        color = Color.White,
-//                        fontWeight = FontWeight.SemiBold
-//                    )
-//                    Spacer(Modifier.width(6.dp))
-//                    Icon(
-//                        Icons.Default.ChevronRight,
-//                        null,
-//                        tint = Color.White,
-//                        modifier = Modifier.size(18.dp)
-//                    )
-//                }
-//            }
-//        },
         containerColor = Color(0xFFF3F4F6)
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -641,12 +636,14 @@ fun CreateOrderScreen(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.CenterEnd
                     ) {
+                        // ⚠️ Assumes PhoneInputField supports isError/errorMessage — share the file if not.
                         PhoneInputField(
                             phoneValue = phone,
                             onPhoneChange = { newPhone ->
                                 if (!isEditMode) {
                                     phone = newPhone
                                     if (newPhone.isEmpty()) salesViewModel.clearCustomerSearch()
+                                    if (errorField == "mobile" && newPhone.isNotBlank()) errorField = null
                                 }
                             },
                             onCountryChange = { country -> countryCode = country.code },
@@ -656,7 +653,9 @@ fun CreateOrderScreen(
                                     salesViewModel.searchCustomerByMobile(mobile = phone, countryCode = countryCode)
                                 }
                             },
-                            enabled = !isEditMode
+                            enabled = !isEditMode,
+                            isError = errorField == "mobile",
+                            errorMessage = if (errorField == "mobile") "Mobile Number is required" else null
                         )
                     }
 
@@ -794,11 +793,26 @@ fun CreateOrderScreen(
                     Spacer(Modifier.height(4.dp))
 
                     LabeledField("Full Name *") {
+                        // ⚠️ Assumes CustomerOutlinedField supports isError/errorMessage — share the file if not.
                         CustomerOutlinedField(
                             value = fullName,
-                            onValueChange = { if (!isEditMode) fullName = it },
+                            onValueChange = {
+                                if (!isEditMode) {
+                                    fullName = it
+                                    if (errorField == "fullName" && it.isNotBlank()) errorField = null
+                                }
+                            },
                             placeholder = "Enter your name",
-                            enabled = !isEditMode
+                            enabled = !isEditMode,
+                            isError = errorField == "fullName"
+                        )
+                    }
+                    if (errorField == "fullName") {
+                        Text(
+                            "Full Name is required",
+                            fontSize = 12.sp,
+                            color = Color(0xFFEF4444),
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
 
@@ -831,13 +845,20 @@ fun CreateOrderScreen(
 
                     FormDropdown(
                         label = "Gender",
-                        value = gender.ifEmpty { "Male" },
+                        value = gender.ifEmpty { "Select an option" },
                         expanded = genderExpanded,
                         onExpandChange = { genderExpanded = it },
                         options = listOf("Male", "Female", "Other"),
-                        onOptionSelected = { if (!isEditMode) gender = it },
+                        onOptionSelected = {
+                            if (!isEditMode) {
+                                gender = it
+                                if (errorField == "gender") errorField = null
+                            }
+                        },
                         isRequired = true,
-                        enabled = !isEditMode
+                        enabled = !isEditMode,
+                        isError = errorField == "gender",
+                        errorMessage = if (errorField == "gender") "Gender is required" else null
                     )
 
                     Spacer(Modifier.height(4.dp))
@@ -848,9 +869,15 @@ fun CreateOrderScreen(
                         expanded = dressForExpanded,
                         onExpandChange = { dressForExpanded = it },
                         options = listOf("Men", "Women", "Kids", "Unisex"),
-                        onOptionSelected = { if (!isEditMode) dressFor = it },
-                        isRequired = true
-
+                        onOptionSelected = {
+                            if (!isEditMode) {
+                                dressFor = it
+                                if (errorField == "dressFor") errorField = null
+                            }
+                        },
+                        isRequired = true,
+                        isError = errorField == "dressFor",
+                        errorMessage = if (errorField == "dressFor") "Dress For is required" else null
                     )
 
                     Spacer(Modifier.height(4.dp))
@@ -861,8 +888,15 @@ fun CreateOrderScreen(
                         expanded = sourceExpanded,
                         onExpandChange = { sourceExpanded = it },
                         options = listOf("Walk-in", "Phone", "WhatsApp", "Referral", "Online"),
-                        onOptionSelected = { if (!isEditMode) source = it },
-                        isRequired = true
+                        onOptionSelected = {
+                            if (!isEditMode) {
+                                source = it
+                                if (errorField == "source") errorField = null
+                            }
+                        },
+                        isRequired = true,
+                        isError = errorField == "source",
+                        errorMessage = if (errorField == "source") "Source is required" else null
                     )
                 }
 
@@ -971,13 +1005,27 @@ fun CreateOrderScreen(
                     )
                     Spacer(Modifier.height(8.dp))
 
+                    // ✅ NEW — inline error text for garments (no wrapper box, matches Lead-screen style)
+                    if (garmentsError) {
+                        Text(
+                            "Add at least one garment — with fabric type, color/tone, pattern, model, and Chest & Sleeve Length filled",
+                            fontSize = 12.sp,
+                            color = Color(0xFFEF4444),
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+
                     if (selectedGarments.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(80.dp)
                                 .background(Color.White, RoundedCornerShape(8.dp))
-                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp)),
+                                .border(
+                                    1.dp,
+                                    if (garmentsError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
+                                    RoundedCornerShape(8.dp)
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -1083,23 +1131,62 @@ fun CreateOrderScreen(
                     expanded = expandedSection == "delivery",
                     onToggle = { expandedSection = if (expandedSection == "delivery") "" else "delivery" }
                 ) {
-                    FormLabel("Order Date")
+                    FormLabel("Order Date", isRequired = true)
+                    // ⚠️ Assumes DatePickerField supports isError/errorMessage — share the file if not.
                     DatePickerField(
                         value = orderDate,
-                        onDateSelected = { orderDate = it }
+                        onDateSelected = {
+                            orderDate = it
+                            if (errorField == "orderDate") errorField = null
+                        },
+                        isError = errorField == "orderDate"
                     )
+                    if (errorField == "orderDate") {
+                        Text(
+                            "Order Date is required",
+                            fontSize = 12.sp,
+                            color = Color(0xFFEF4444),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                     Spacer(Modifier.height(4.dp))
-                    FormLabel("Trial Date")
+
+                    FormLabel("Trial Date", isRequired = true)
                     DatePickerField(
                         value = trialDate,
-                        onDateSelected = { trialDate = it }
+                        onDateSelected = {
+                            trialDate = it
+                            if (errorField == "trialDate") errorField = null
+                        },
+                        isError = errorField == "trialDate"
                     )
+                    if (errorField == "trialDate") {
+                        Text(
+                            "Trial Date is required",
+                            fontSize = 12.sp,
+                            color = Color(0xFFEF4444),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                     Spacer(Modifier.height(4.dp))
-                    FormLabel("Target Delivery Date")
+
+                    FormLabel("Target Delivery Date", isRequired = true)
                     DatePickerField(
                         value = deliveryDate,
-                        onDateSelected = { deliveryDate = it }
+                        onDateSelected = {
+                            deliveryDate = it
+                            if (errorField == "deliveryDate") errorField = null
+                        },
+                        isError = errorField == "deliveryDate"
                     )
+                    if (errorField == "deliveryDate") {
+                        Text(
+                            "Target Delivery Date is required",
+                            fontSize = 12.sp,
+                            color = Color(0xFFEF4444),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                     Spacer(Modifier.height(4.dp))
 
                     FormDropdown(
@@ -1113,9 +1200,14 @@ fun CreateOrderScreen(
                         onExpandChange = { branchExpanded = it },
                         options = if (branches.isEmpty()) listOf("No branches found") else branchNameToId.keys.toList(),
                         onOptionSelected = { selectedName ->
-                            branchNameToId[selectedName]?.let { id -> selectedBranchId = id }
+                            branchNameToId[selectedName]?.let { id ->
+                                selectedBranchId = id
+                                if (errorField == "branch") errorField = null
+                            }
                         },
-                        isRequired = true
+                        isRequired = true,
+                        isError = errorField == "branch",
+                        errorMessage = if (errorField == "branch") "Assigned Branch is required" else null
                     )
                 }
 
@@ -1132,25 +1224,28 @@ fun CreateOrderScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         OutlinedButton(
-                            onClick = { showImagePickerOptions = true },
+                            onClick = {
+                                if (isMediaUploadRestricted) {
+                                    showPlanLimitDialog = true
+                                } else {
+                                    showImagePickerOptions = true
+                                }
+                            },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
                             colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
                         ) {
-                            Icon(
-                                Icons.Default.FileUpload,
-                                null,
-                                tint = Color(0xFF3B3BF9),
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Icon(Icons.Default.FileUpload, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Browse Files", fontSize = 13.sp, color = Color(0xFF374151))
                         }
 
                         OutlinedButton(
                             onClick = {
-                                if (cameraPermissionState.status.isGranted) {
+                                if (isMediaUploadRestricted) {
+                                    showPlanLimitDialog = true
+                                } else if (cameraPermissionState.status.isGranted) {
                                     captureDesignImage()
                                 } else {
                                     cameraPermissionState.launchPermissionRequest()
@@ -1391,7 +1486,6 @@ fun CreateOrderScreen(
                 }
             }
 
-            // AFTER
             if (showImportDialog) {
                 customerSearchResult?.let { result ->
                     PreviousMeasurementsDialog(
@@ -1406,6 +1500,24 @@ fun CreateOrderScreen(
                 }
             }
 
+            if (showPlanLimitDialog) {
+                PlanLimitDialog(
+                    title = "Feature restricted",
+                    message = "You're on the ${currentPlanName.replaceFirstChar { it.uppercase() }} plan and can't upload design reference media. Upgrade your plan to unlock this feature.",
+                    onDismiss = { showPlanLimitDialog = false },
+                    onUpgrade = {
+                        showPlanLimitDialog = false
+                        // TODO: navigate to your subscription/upgrade screen
+                    }
+                )
+            }
+
+            // ✅ NEW — floats above everything, same as CreateLeadScreen
+            DynamicIslandError(
+                modifier = Modifier.align(Alignment.TopCenter),
+                message = validationError,
+                onDismiss = { validationError = null }
+            )
 
             StepNavigationFab(
                 showBack = true,
@@ -1420,35 +1532,36 @@ fun CreateOrderScreen(
                 trailingAction = TrailingFabAction.Next(
                     label = "Next Step",
                     onClick = {
-                        val data = OrderReviewData(
-                            orderId = initialData?.orderId,
-                            customerId = selectedCustomer?.id ?: initialData?.customerId ?: "",
-                            branchId = selectedBranchId,
-                            fullName = fullName,
-                            countryCode = countryCode,
-                            phone = phone,
-                            gender = gender,
-                            dressFor = dressFor,
-                            address = address,
-                            garments = selectedGarments,
-                            orderDate = orderDate,
-                            source = source,
-                            trialDate = trialDate,
-                            deliveryDate = deliveryDate,
-                            discount = initialData?.discount ?: 0.0,
-                            paidSoFar = initialData?.paidSoFar ?: 0.0,
-                            designImages = selectedDesignImages,
-                            existingImageUrls = initialData?.existingImageUrls ?: emptyList(),
-                            voiceNoteUri = recordedVoiceNoteUri
-                        )
-                        onNextStep(data)
+                        if (validateOrderForm()) {
+                            val data = OrderReviewData(
+                                orderId = initialData?.orderId,
+                                customerId = selectedCustomer?.id ?: initialData?.customerId ?: "",
+                                branchId = selectedBranchId,
+                                fullName = fullName,
+                                countryCode = countryCode,
+                                phone = phone,
+                                gender = gender,
+                                dressFor = dressFor,
+                                address = address,
+                                garments = selectedGarments,
+                                orderDate = orderDate,
+                                source = source,
+                                trialDate = trialDate,
+                                deliveryDate = deliveryDate,
+                                discount = initialData?.discount ?: 0.0,
+                                paidSoFar = initialData?.paidSoFar ?: 0.0,
+                                designImages = selectedDesignImages,
+                                existingImageUrls = initialData?.existingImageUrls ?: emptyList(),
+                                voiceNoteUri = recordedVoiceNoteUri
+                            )
+                            onNextStep(data)
+                        }
                     }
                 )
             )
         }
     }
 }
-
 
 // ─────────────────────────────────────────────────────────────
 // Previous Measurements Import Dialog
@@ -2350,14 +2463,19 @@ private fun SectionCard(
 }
 
 @Composable
-private fun FormLabel(text: String) {
-    Text(
-        text,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Medium,
-        color = Color(0xFF6B7280),
-        modifier = Modifier.padding(bottom = 6.dp)
-    )
+private fun FormLabel(text: String, isRequired: Boolean = false) {
+    Row {
+        Text(
+            text,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF6B7280),
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        if (isRequired) {
+            Text(" *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFFEF4444))
+        }
+    }
 }
 
 /**
@@ -2370,7 +2488,6 @@ fun ColorPickerField(
     placeholder: String = "Color name"
 ) {
     var showDialog by remember { mutableStateOf(false) }
-//    val currentColor = remember(value) { parseHexColorOrNull(value) }
 
     Row(
         modifier = Modifier

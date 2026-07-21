@@ -130,8 +130,8 @@ data class AdjustStockRequest(
 // ── Create Item: form state + item type ──
 
 object ItemType {
-    const val IN_HOUSE = "in_house"
-    const val CLIENT = "client"
+    const val IN_HOUSE = "goods"
+    const val CLIENT = "service"
 }
 
 // In com.cuso.mobile.model.inventory

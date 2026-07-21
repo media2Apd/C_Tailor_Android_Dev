@@ -96,6 +96,8 @@ import androidx.compose.ui.graphics.ColorFilter
 import com.cuso.mobile.ui.inventory.InventoryViewOne
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.finance.ChartOfAccountScreen
+import com.cuso.mobile.view.home.hr.AllEmployeesScreen
+import com.cuso.mobile.view.home.hr.EmployeeOnboardingScreen
 import com.cuso.mobile.view.home.inventory.CreateItemScreen
 import com.cuso.mobile.view.home.inventory.InventoryScreen
 import com.cuso.mobile.view.home.profile.ProfileSettingsScreen
@@ -113,6 +115,7 @@ import com.cuso.mobile.view.home.sales.lead.LeadScreenContent
 import com.cuso.mobile.view.home.sales.lead.CreateLeadScreen
 import com.cuso.mobile.view.home.sales.lead.ViewLeadScreen
 import com.cuso.mobile.view.home.sales.lead.EditLeadScreen
+import com.cuso.mobile.viewmodel.HrViewModel
 import com.cuso.mobile.viewmodel.ProfileViewModel
 
 // ── Design tokens (Primary color used everywhere for icons / accents) ──
@@ -139,7 +142,9 @@ val LeadTextMuted = Color(0xFF9CA3AF)
 @Composable
 fun HomeScreen(navController: NavHostController) {
     val viewModel: HomeViewModel = hiltViewModel()
-    val authViewModel: Authenticate = hiltViewModel()   // ✅ if not already scoped here
+    val authViewModel: Authenticate = hiltViewModel()
+    val hrViewModel: HrViewModel = hiltViewModel()
+
     val token: String = authViewModel.tokens.value?.accessToken ?: ""
     val isLoggedOut: Boolean by viewModel.isLoggedOut.collectAsStateWithLifecycle(initialValue = false)
     var currentScreen by remember { mutableStateOf("home") }
@@ -174,6 +179,9 @@ fun HomeScreen(navController: NavHostController) {
 
     // ✅ NEW — Inventory > Item Detail flow
     var selectedInventoryItemId by remember { mutableStateOf<String?>(null) }
+    // ✅ NEW — HR > Employee Onboarding flow (Create / View / Edit)
+    var employeeScreenMode by remember { mutableStateOf(com.cuso.mobile.view.home.hr.ScreenMode.CREATE) }
+    var selectedEmployeeId by remember { mutableStateOf<String?>(null) }
 
     var isSalesSettingsMode by remember { mutableStateOf(false) }
 
@@ -323,6 +331,11 @@ fun HomeScreen(navController: NavHostController) {
             // Fallback: any unmapped/unknown screen -> go home
             currentScreen != "home" -> currentScreen = "home"
 
+            currentScreen == "hr_all_employees" -> currentScreen = "home"
+            currentScreen == "hr_employee_onboarding" -> {   // ✅ NEW
+                selectedEmployeeId = null
+                currentScreen = "hr_all_employees"
+            }
         }
     }
 
@@ -470,6 +483,11 @@ fun HomeScreen(navController: NavHostController) {
                             "inventory_items", "inventory_all_items" -> {   // ✅ NEW
                                 isSalesSettingsMode = false
                                 currentScreen = "inventory_items"
+                                isDrawerOpen = false
+                            }
+                            "hr_all_employees", "hr_all_employees" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "hr_all_employees"
                                 isDrawerOpen = false
                             }
 
@@ -722,6 +740,48 @@ fun HomeScreen(navController: NavHostController) {
                         },
                         onEditItem = { currentScreen = "inventory_create_item" }
 
+                    )
+
+                    "hr_all_employees" -> AllEmployeesScreen(
+                        onDismiss = { currentScreen = "home" },
+                        onAddEmployee = {
+                            employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.CREATE
+                            selectedEmployeeId = null
+                            currentScreen = "hr_employee_onboarding"
+                        },
+                        onView = { employee ->
+                            employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.VIEW
+                            selectedEmployeeId = employee._id
+                            currentScreen = "hr_employee_onboarding"
+                        },
+                        onEdit = { employee ->
+                            employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.EDIT
+                            selectedEmployeeId = employee._id
+                            currentScreen = "hr_employee_onboarding"
+                        },
+                        onDelete = { employee ->
+                            // TODO: call delete API via a HR/Employee ViewModel
+                        },
+                        hrViewModel = hrViewModel
+                    )
+
+// ✅ NEW — Employee Onboarding screen (handles Create / View / Edit via mode)
+                    "hr_employee_onboarding" -> EmployeeOnboardingScreen(
+                        mode = employeeScreenMode,
+                        memberIdToLoad = selectedEmployeeId,
+                        onDismiss = {
+                            selectedEmployeeId = null
+                            currentScreen = "hr_all_employees"
+                        },
+                        onCreateEmployee = {
+                            selectedEmployeeId = null
+                            currentScreen = "hr_all_employees"
+                        },
+                        onUpdateEmployee = {
+                            selectedEmployeeId = null
+                            currentScreen = "hr_all_employees"
+                        },
+                        hrViewModel = hrViewModel
                     )
 
                     "inventory_create_item" -> CreateItemScreen(

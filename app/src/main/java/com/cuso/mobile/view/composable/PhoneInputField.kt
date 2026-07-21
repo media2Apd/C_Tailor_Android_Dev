@@ -47,8 +47,9 @@ fun PhoneInputField(
     enabled: Boolean = true,
     isLoading: Boolean = false ,
     onRetry: () -> Unit = {},
-    isError: Boolean = false,           // ✅ NEW
-    errorMessage: String? = null        // ✅ NEW
+    showRetryButton: Boolean = false,   // ✅ NEW — controls whether reload icon shows at all
+    isError: Boolean = false,
+    errorMessage: String? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
     var selectedCountry by remember {
@@ -58,7 +59,6 @@ fun PhoneInputField(
     }
 
     Column {
-        FormLabel("Mobile Number")
 
         Row(
             modifier = Modifier
@@ -166,17 +166,17 @@ fun PhoneInputField(
             )
 
             // ── Loading indicator (inside the box, trailing end) ──
-// ── Loading indicator (inside the box, trailing end) ──
+
             if (isLoading) {
                 Spacer(modifier = Modifier.width(8.dp))
-                CirculerProgressIndicatorReuse()
-            }
-            else{
-                Icon(Icons.Default.Refresh,null,
-                    modifier = Modifier.size(20.dp).clickable{
-                        onRetry()
-                    },
-                    tint = Color.Gray)
+                CirculerProgressIndicatorSmall()
+            } else if (showRetryButton) {          // ✅ CHANGED — only render reload icon when explicitly enabled
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    Icons.Default.Refresh, null,
+                    modifier = Modifier.size(20.dp).clickable { onRetry() },
+                    tint = Color.Gray
+                )
             }
         }
 

@@ -187,7 +187,7 @@ fun CreateItemScreen(
                         value = formState.unit.ifBlank { "Select Unit" },
                         expanded = unitExpanded,
                         onExpandChange = { unitExpanded = it },
-                        options = listOf("Meter", "Piece", "Kg", "Box"),
+                        options = listOf("Meter", "Piece", "Kg"),
                         onOptionSelected = { selectedUnit ->
                             viewModel.updateCreateItemForm { it.copy(unit = selectedUnit) }
                         }
@@ -204,6 +204,14 @@ fun CreateItemScreen(
                         titleFirst = true
                     )
 
+                    Spacer(Modifier.height(16.dp))
+                    FormLabel("Category")
+
+                    FormTextField(
+                        value = formState.category,
+                        onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(category = v) } },
+                        placeholder = "category",
+                    )
                     Spacer(Modifier.height(16.dp))
                     FormDropdown(
                         label = "Status",
@@ -389,7 +397,7 @@ fun CreateItemScreen(
                         value = formState.salesAccount.ifBlank { "General Revenue" },
                         expanded = salesAccountExpanded,
                         onExpandChange = { salesAccountExpanded = it },
-                        options = listOf("General Revenue", "Service Revenue"),
+                        options = listOf("General Revenue"),
                         onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(salesAccount = v) } }
                     )
                     Spacer(Modifier.height(16.dp))
@@ -420,17 +428,15 @@ fun CreateItemScreen(
                         value = formState.purchaseAccount.ifBlank { "Cost of Goods Sold" },
                         expanded = purchaseAccountExpanded,
                         onExpandChange = { purchaseAccountExpanded = it },
-                        options = listOf("Cost of Goods Sold", "Material Expenses"),
+                        options = listOf("Cost of Goods Sold"),
                         onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(purchaseAccount = v) } }
                     )
                     Spacer(Modifier.height(16.dp))
-                    FormDropdown(
-                        label = "Preferred Vendor",
-                        value = formState.preferredVendor.ifBlank { "Search or select vendor" },
-                        expanded = preferredVendorExpanded,
-                        onExpandChange = { preferredVendorExpanded = it },
-                        options = listOf("Thread & Co", "Fabric World"),
-                        onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(preferredVendor = v) } }
+                    FormLabel("Preferred Vendor")
+                    FormTextField(
+                        value = formState.preferredVendor,
+                        onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(preferredVendor = v) } },
+                        placeholder = "0.00"
                     )
                     Spacer(Modifier.height(16.dp))
                     FormLabel("Purchase Description")

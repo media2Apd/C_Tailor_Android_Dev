@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.utils.loadJsonFromAssets
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
@@ -108,7 +109,7 @@ fun SearchableDropdownContents(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .height(40.dp)                                    // ✅ height 40dp
                 .clickable { if (enabled) expanded = !expanded }
         ) {
             OutlinedTextField(
@@ -127,8 +128,8 @@ fun SearchableDropdownContents(
                     )
                 },
                 colors = OutlinedTextFieldDefaults.colors(
-                    disabledBorderColor = Color.LightGray,
-                    disabledContainerColor = Color(0xFFF2F2F2),
+                    disabledBorderColor = PrimaryBorder,      // ✅ BorderColor value
+                    disabledContainerColor = Color.White,          // ✅ white background
                     disabledTrailingIconColor = Color.LightGray
                 )
             )

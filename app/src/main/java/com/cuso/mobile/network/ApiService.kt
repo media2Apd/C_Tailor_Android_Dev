@@ -102,6 +102,12 @@ import com.cuso.mobile.model.finance.LedgerResponse
 import com.cuso.mobile.model.finance.TrialBalanceResponse
 import com.cuso.mobile.model.finance.UpdateJournalEntryRequest
 import com.cuso.mobile.model.finance.UpdateJournalEntryResponse
+import com.cuso.mobile.model.hr.CreateMemberRequest
+import com.cuso.mobile.model.hr.CreateMemberResponse
+import com.cuso.mobile.model.hr.MemberDetailResponse
+import com.cuso.mobile.model.hr.MemberListResponse
+import com.cuso.mobile.model.hr.RoleListResponse
+import com.cuso.mobile.model.hr.ShiftListResponse
 import com.cuso.mobile.model.inventory.AdjustStockRequest
 import com.cuso.mobile.model.inventory.InventoryItemDetailResponse
 import com.cuso.mobile.model.inventory.InventoryItemListResponse
@@ -938,5 +944,56 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<InventoryViewOneResponse>
+
+    // ── HR: Roles ──
+    @GET("/api/roles/view-all")   // ⚠️ confirm exact path with backend
+    suspend fun getRoles(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<RoleListResponse>
+
+    // ── HR: Members (Employees) ──
+    @GET("/api/members/view-all")   // ⚠️ confirm exact path with backend
+    suspend fun getMembers(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<MemberListResponse>
+
+    // ── HR: Shifts ──
+    @GET("/api/shifts/view-all")   // ⚠️ confirm exact path with backend
+    suspend fun getShifts(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<ShiftListResponse>
+
+    @Multipart
+    @POST("/api/members/create")
+    suspend fun createMember(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part userImage: MultipartBody.Part?
+    ): Response<CreateMemberResponse>
+
+    @Multipart
+    @PUT("/api/members/update-one/{id}")
+    suspend fun updateMember(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") memberId: String,
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part userImage: MultipartBody.Part?
+    ): Response<CreateMemberResponse>
+
+    @GET("/api/members/view-one/{id}")
+    suspend fun getMemberViewOne(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") memberId: String
+    ): Response<MemberDetailResponse>
 
 }

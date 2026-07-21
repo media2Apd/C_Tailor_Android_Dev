@@ -46,6 +46,7 @@ import com.cuso.mobile.view.home.finance.FinanceInvoiceScreen
 import com.cuso.mobile.view.home.finance.InvoiceDetailScreen
 import com.cuso.mobile.view.home.finance.ManualJournalEntryScreen
 import com.cuso.mobile.view.home.finance.TrialBalanceScreen
+import com.cuso.mobile.view.home.hr.EmployeeOnboardingScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
@@ -84,6 +85,7 @@ class MainActivity : ComponentActivity() {
 //                    PricingQuotationScreen(onClose = {})
                     // 👇 isLoggedIn is guaranteed non-null here since splash already waited for it
                     AppNav(activity = this, startLoggedIn = isLoggedIn == true)
+//                    EmployeeOnboardingScreen()
 //                    FinanceCustomerScreen(
 //                        onClose = { navController.popBackStack() },
 //                        onCustomerClick = { customerId ->

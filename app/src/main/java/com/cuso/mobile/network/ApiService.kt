@@ -991,7 +991,6 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") memberId: String,
         @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
-        @Part userImage: MultipartBody.Part?
     ): Response<CreateMemberResponse>
 
     @GET("/api/members/view-one/{id}")

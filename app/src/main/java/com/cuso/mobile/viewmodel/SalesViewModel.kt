@@ -297,6 +297,7 @@ class SalesViewModel @Inject constructor(
     private fun convertToLeadEntity(data: ViewOneLeadData): LeadEntity {
         fun extractGarmentIds(garments: List<String>?) = garments?.joinToString(",") ?: ""
         fun extractStatusName(status: StatusData) = status.name
+
         return LeadEntity(
             id = data._id,
             customerType = data.customerType,
@@ -322,11 +323,11 @@ class SalesViewModel @Inject constructor(
             appointmentRequired = data.appointment?.isRequired ?: false,
             appointmentDate = data.appointment?.date ?: "",
             appointmentTime = data.appointment?.time ?: "",
-            assignedStaff = data.appointment?.assignedStaff?._id,  // ✅ Keep it nullable
+            assignedStaff = data.appointment?.assignedStaff?._id,
             priority = data.appointment?.priority ?: "",
             followUpDate = data.appointment?.followUpDate ?: "",
-            internalNotes = data.notes?.find { it.type == "internal" }?.content ?: "",
-            customerNotes = data.notes?.find { it.type == "customer" }?.content ?: ""
+            internalNotes = data.notes?.find { it.type == "internal" }?.content ?: "",   // 👈 FIXED — .message
+            customerNotes = data.notes?.find { it.type == "customer" }?.content ?: ""    // 👈 FIXED — .message
         )
     }
 

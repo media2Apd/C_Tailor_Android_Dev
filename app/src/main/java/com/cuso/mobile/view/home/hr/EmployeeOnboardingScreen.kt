@@ -52,6 +52,7 @@ import com.cuso.mobile.viewmodel.DepartmentViewModel
 import com.cuso.mobile.viewmodel.DesignationViewModel
 import com.cuso.mobile.viewmodel.HrViewModel
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.Alignment
@@ -1440,6 +1441,9 @@ fun EmployeeOnboardingScreen(
                                 if (mode == ScreenMode.EDIT && memberIdToLoad != null) {
                                     hrViewModel.updateMember(memberIdToLoad, request, imageFile)
                                 } else {
+                                    Log.d("CreateMember", "First Name = $firstName")
+                                    Log.d("CreateMember", "Last Name = $lastName")
+                                    Log.d("CreateMember", request.toString())
                                     hrViewModel.createMember(request, imageFile)
                                 }
                             }

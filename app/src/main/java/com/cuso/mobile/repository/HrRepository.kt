@@ -12,6 +12,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -135,7 +136,7 @@ class HrRepository @Inject constructor(
 
     suspend fun createMember(
         request: CreateMemberRequest,
-        imageFile: java.io.File?
+        imageFile: File?
     ): Result<CreatedMemberFullData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -163,16 +164,18 @@ class HrRepository @Inject constructor(
     suspend fun updateMember(
         memberId: String,
         request: CreateMemberRequest,
-        imageFile: java.io.File?
+        imageFile: File?,
+//        imageFile: File?,
+//        imageFile: java.io.File?
     ): Result<CreatedMemberFullData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val fields = buildMemberFormFields(request)
-            val imagePart = imageFile?.let { file ->
-                val reqFile = file.asRequestBody("image/png".toMediaTypeOrNull())
-                MultipartBody.Part.createFormData("userImage", file.name, reqFile)
-            }
-            val response = api.updateMember(accessToken, csrfToken, memberId, fields, imagePart)
+//            val imagePart = imageFile?.let { file ->
+//                val reqFile = file.asRequestBody("image/png".toMediaTypeOrNull())
+//                MultipartBody.Part.createFormData("userImage", file.name, reqFile)
+//            }
+            val response = api.updateMember(accessToken, csrfToken, memberId, fields)
             if (response.isSuccessful && response.body()?.success == true) {
                 response.body()?.data?.let { Result.success(it) }
                     ?: Result.failure(Exception("Empty response data"))

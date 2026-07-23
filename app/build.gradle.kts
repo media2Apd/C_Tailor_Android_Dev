@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -164,7 +166,7 @@ dependencies {
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.analytics)
 
-    //PERFOMANCE
+    //PERFORMANCE
 
     // Import the BoM for the Firebase platform
     implementation(platform(libs.firebase.bom))

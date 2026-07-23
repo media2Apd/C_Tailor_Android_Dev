@@ -1,3 +1,13 @@
+@file:Suppress(
+    "UNUSED_PARAMETER",
+    "unused",
+    "UNCHECKED_CAST",
+    "DEPRECATION",
+    "AssignedValueIsNeverRead",
+    "GrazieInspection",
+    "SpellCheckingInspection",
+    "unusedvariable", "VariableNeverRead"
+)
 package com.cuso.mobile.view.composable
 
 import android.app.Activity

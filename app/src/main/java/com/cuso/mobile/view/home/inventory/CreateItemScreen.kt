@@ -1,3 +1,14 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "unused_variable",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "VariableNeverRead",
+    "unused",
+    "SameParameterValue"
+
+)
 package com.cuso.mobile.view.home.inventory
 
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -40,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.cuso.mobile.model.inventory.ItemType
+import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.viewmodel.CreateItemUiState
 import com.cuso.mobile.viewmodel.InventoryViewModel
 import com.cuso.mobile.viewmodel.ItemSection
@@ -84,6 +96,21 @@ fun CreateItemScreen(
     var purchaseAccountExpanded by remember { mutableStateOf(false) }
     var preferredVendorExpanded by remember { mutableStateOf(false) }
 
+    //errors
+    var errorItemName by remember { mutableStateOf(false) }
+    var errorUnit by remember { mutableStateOf(false) }
+    var errorCategory by remember { mutableStateOf(false) }
+    var errorSellingPrice by remember { mutableStateOf(false) }
+    var errorSalesAccount by remember { mutableStateOf(false) }
+    var errorCostPrice by remember { mutableStateOf(false) }
+    var errorPurchaseAccount by remember { mutableStateOf(false) }
+
+    var currentErrorField by remember { mutableStateOf<String?>(null) }
+    var currentError by remember { mutableStateOf<String?>(null) }
+
+    fun customError(message: String) {
+        currentError = message
+    }
     val isEditMode = formState.itemId != null
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -98,6 +125,31 @@ fun CreateItemScreen(
         }
     }
 
+    fun validateForm(): Boolean {
+        val missingField = when {
+            formState.name.isBlank() -> "itemName" to "Item name is required"
+            formState.unit.isBlank() -> "unit" to "Unit of measure is required"
+            formState.category.isBlank() -> "category" to "Category is required"
+            formState.sellingPrice.isBlank() -> "sellingPrice" to "Selling price is required"
+            formState.salesAccount.isBlank() -> "salesAccount" to "Sales account is required"
+            formState.costPrice.isBlank() -> "costPrice" to "Cost price is required"
+            formState.purchaseAccount.isBlank() -> "purchaseAccount" to "Purchase account is required"
+            else -> null
+        }
+
+        currentErrorField = missingField?.first   // 👈 only updates here, nowhere else
+
+        if (missingField != null) {
+            when (missingField.first) {
+                "itemName", "unit", "category" -> viewModel.toggleSection(ItemSection.ITEM_IDENTITY)
+                "sellingPrice", "salesAccount" -> viewModel.toggleSection(ItemSection.SALES_INFO)
+                "costPrice", "purchaseAccount" -> viewModel.toggleSection(ItemSection.PURCHASE_INFO)
+            }
+            customError(missingField.second)
+            return false
+        }
+        return true
+    }
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -159,7 +211,9 @@ fun CreateItemScreen(
                         onValueChange = { newValue ->
                             viewModel.updateCreateItemForm { it.copy(name = newValue) }
                         },
-                        placeholder = "e.g. Premium Woolen Fabric"
+                        placeholder = "e.g. Premium Woolen Fabric",
+                        isError = currentErrorField == "itemName",
+                        errorMessage = if (currentErrorField == "itemName") "Item name is required" else null
                     )
 
                     Spacer(Modifier.height(16.dp))
@@ -190,7 +244,9 @@ fun CreateItemScreen(
                         options = listOf("Meter", "Piece", "Kg"),
                         onOptionSelected = { selectedUnit ->
                             viewModel.updateCreateItemForm { it.copy(unit = selectedUnit) }
-                        }
+                        },
+                        isError = currentErrorField == "unit",
+                        errorMessage = if (currentErrorField == "unit") "Unit is required" else null
                     )
 
                     Spacer(Modifier.height(16.dp))
@@ -211,6 +267,8 @@ fun CreateItemScreen(
                         value = formState.category,
                         onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(category = v) } },
                         placeholder = "category",
+                        isError = currentErrorField == "category",
+                        errorMessage = if (currentErrorField == "category") "Category is required" else null
                     )
                     Spacer(Modifier.height(16.dp))
                     FormDropdown(
@@ -388,8 +446,10 @@ fun CreateItemScreen(
                     FormTextField(
                         value = formState.sellingPrice,
                         onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(sellingPrice = v) } },
-                        placeholder = "0.00",
-                        keyboardType = KeyboardType.Number
+                        placeholder = "Enter Selling Price",
+                        keyboardType = KeyboardType.Number,
+                        isError = currentErrorField == "sellingPrice",
+                        errorMessage = if (currentErrorField == "sellingPrice") "Selling price is required" else null
                     )
                     Spacer(Modifier.height(16.dp))
                     FormDropdown(
@@ -398,7 +458,9 @@ fun CreateItemScreen(
                         expanded = salesAccountExpanded,
                         onExpandChange = { salesAccountExpanded = it },
                         options = listOf("General Revenue"),
-                        onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(salesAccount = v) } }
+                        onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(salesAccount = v) } },
+                        isError = currentErrorField == "salesAccount",
+                        errorMessage = if (currentErrorField == "salesAccount") "Sales account is required" else null
                     )
                     Spacer(Modifier.height(16.dp))
                     FormLabel("Sales Description")
@@ -420,7 +482,9 @@ fun CreateItemScreen(
                         value = formState.costPrice,
                         onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(costPrice = v) } },
                         placeholder = "0.00",
-                        keyboardType = KeyboardType.Number
+                        keyboardType = KeyboardType.Number,
+                        isError = currentErrorField == "costPrice",
+                        errorMessage = if (currentErrorField == "costPrice") "Cost price is required" else null
                     )
                     Spacer(Modifier.height(16.dp))
                     FormDropdown(
@@ -429,7 +493,9 @@ fun CreateItemScreen(
                         expanded = purchaseAccountExpanded,
                         onExpandChange = { purchaseAccountExpanded = it },
                         options = listOf("Cost of Goods Sold"),
-                        onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(purchaseAccount = v) } }
+                        onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(purchaseAccount = v) } },
+                        isError = currentErrorField == "purchaseAccount",
+                        errorMessage = if (currentErrorField == "purchaseAccount") "Purchase account is required" else null
                     )
                     Spacer(Modifier.height(16.dp))
                     FormLabel("Preferred Vendor")
@@ -447,6 +513,12 @@ fun CreateItemScreen(
                 }
             }
         }
+        DynamicIslandError(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = currentError,
+            onDismiss = { currentError = null }
+        )
+
 
         // ── Floating Footer ──
         StepNavigationFab(
@@ -460,7 +532,11 @@ fun CreateItemScreen(
                 isLoading = uiState is CreateItemUiState.Loading,
                 label = if (isEditMode) "Update Item" else "Save Item",
                 enabled = uiState !is CreateItemUiState.Loading,
-                onClick = { viewModel.createInventoryItem(context) }
+                onClick = {
+                    if (validateForm()) {
+                        viewModel.createInventoryItem(context)
+                    }
+                }
             )
         )
     }

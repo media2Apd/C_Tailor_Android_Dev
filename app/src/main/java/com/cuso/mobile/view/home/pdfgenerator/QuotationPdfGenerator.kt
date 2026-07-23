@@ -362,7 +362,7 @@ class QuotationPdfGenerator(private val context: Context) {
         }
     }
 
-    // ── HTML for WebView (SAME html used for preview, download, print) ──
+    // ── HTML for WebView (SAME HTML used for preview, download, print) ──
     fun buildQuotationHtml(data: QuotationData): String {
         val companyLogoBase64 = drawableToBase64(R.drawable.logo)
         val companyLogoTag = if (companyLogoBase64.isNotEmpty()) {

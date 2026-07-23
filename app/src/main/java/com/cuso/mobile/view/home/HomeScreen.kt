@@ -1,4 +1,4 @@
-@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ")
+@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ","KotlinConstantConditions")
 
 package com.cuso.mobile.view.home
 
@@ -9,7 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -41,9 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -91,16 +88,24 @@ import com.cuso.mobile.viewmodel.DashboardUiState
 import com.cuso.mobile.viewmodel.DashboardViewModel
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.ColorFilter
-import com.cuso.mobile.ui.inventory.InventoryViewOne
+import com.cuso.mobile.view.home.inventory.InventoryViewOne
+import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.modelBg
+import com.cuso.mobile.ui.theme.modelBorder
+import com.cuso.mobile.ui.theme.statLogoBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.finance.ChartOfAccountScreen
 import com.cuso.mobile.view.home.hr.AllEmployeesScreen
 import com.cuso.mobile.view.home.hr.EmployeeOnboardingScreen
+import com.cuso.mobile.view.home.inventory.AdjustmentType
 import com.cuso.mobile.view.home.inventory.CreateItemScreen
 import com.cuso.mobile.view.home.inventory.InventoryScreen
 import com.cuso.mobile.view.home.profile.ProfileSettingsScreen
+import com.cuso.mobile.view.home.reusablecomposables.DashboardSkeleton
 import com.cuso.mobile.view.home.sales.customer.CustomerDetailScreen
 import com.cuso.mobile.view.home.sales.ordermanagement.OrderManagementScreen
 import com.cuso.mobile.view.home.sales.pricing.PricingScreen
@@ -115,6 +120,7 @@ import com.cuso.mobile.view.home.sales.lead.LeadScreenContent
 import com.cuso.mobile.view.home.sales.lead.CreateLeadScreen
 import com.cuso.mobile.view.home.sales.lead.ViewLeadScreen
 import com.cuso.mobile.view.home.sales.lead.EditLeadScreen
+import com.cuso.mobile.view.home.sales.sales_order.OrderOverviewScreen
 import com.cuso.mobile.viewmodel.HrViewModel
 import com.cuso.mobile.viewmodel.ProfileViewModel
 
@@ -594,7 +600,7 @@ fun HomeScreen(navController: NavHostController) {
                                     currentScreen = "sales_pricing_quotation"
                                 }
                                 else -> {
-                                    android.util.Log.d("NAV_DEBUG", "Unhandled home navigation: $route")
+                                    Log.d("NAV_DEBUG", "Unhandled home navigation: $route")
                                 }
                             }
                         }
@@ -650,7 +656,7 @@ fun HomeScreen(navController: NavHostController) {
                     )
                     "order_overview" -> {
                         selectedOrderId?.let { id ->
-                            com.cuso.mobile.view.home.sales.sales_order.OrderOverviewScreen(
+                            OrderOverviewScreen(
                                 orderId = id,
                                 onClose = {
                                     selectedOrderId = null
@@ -658,6 +664,11 @@ fun HomeScreen(navController: NavHostController) {
                                 },
                                 onEditOrder = { reviewData ->
                                     pendingOrderReviewData = reviewData
+                                    selectedOrderId = null
+                                    currentScreen = "create_order"
+                                },
+                                onCreateNew = {
+                                    pendingOrderReviewData = null   // clear so CreateOrderScreen opens blank, not pre-filled
                                     selectedOrderId = null
                                     currentScreen = "create_order"
                                 }
@@ -812,9 +823,9 @@ fun HomeScreen(navController: NavHostController) {
                                 onAdjustStock = { /* legacy no-op, superseded by onAdjustStockSubmit */ },
                                 onAdjustStockSubmit = { type, quantity, reason, notes ->   // ✅ NEW
                                     val apiType = when (type) {
-                                        com.cuso.mobile.ui.inventory.AdjustmentType.INCREASE -> "increase"
-                                        com.cuso.mobile.ui.inventory.AdjustmentType.DECREASE -> "decrease"
-                                        com.cuso.mobile.ui.inventory.AdjustmentType.SET_EXACT -> "set"
+                                        AdjustmentType.INCREASE -> "increase"
+                                        AdjustmentType.DECREASE -> "decrease"
+                                        AdjustmentType.SET_EXACT -> "set"
                                     }
                                     itemDetailViewModel.adjustStock(
                                         itemId = id,
@@ -1441,7 +1452,9 @@ private data class DashboardStat(
     val iconBg: Color,
     val iconTint: Color,
     val trendText: String,
-    val trendUp: Boolean?
+    val trendUp: Boolean?,
+    val isHighlighted: Boolean = false
+
 )
 
 private data class QuickModule(
@@ -1551,24 +1564,14 @@ private fun HomeScreenContentBody(
 
     when (val state = uiState) {
         is DashboardUiState.Loading -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFFF7F7FB)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Spacer(Modifier.height(8.dp))
-                    Text("Loading dashboard...", color = Color.Gray, fontSize = 14.sp)
-                }
-            }
+            DashboardSkeleton()
         }
 
         is DashboardUiState.Error -> {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFFF7F7FB)),
+                    .background(Color(0xFFfafafb)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1596,7 +1599,7 @@ private fun HomeScreenContentBody(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFFF7F7FB)),
+                    .background(Color.White),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
@@ -1647,7 +1650,7 @@ private fun HomeScreenContentBody(
     }
 }
 
-// ── Greeting card — purple gradient banner ──
+// ── Greeting card — solid purple banner ──
 @Composable
 private fun GreetingCard(
     userName: String,
@@ -1657,31 +1660,42 @@ private fun GreetingCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .height(100.dp)                       // fixed height — icon size affect pannathu
             .clip(RoundedCornerShape(20.dp))
-            .background(Brush.linearGradient(colors = listOf(Color(0xFF6C4FF6), Color(0xFF9333EA))))
-            .padding(20.dp)
+            .background(Color(0xFF2F27CE))
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             ) { onNavigate("sales_lead") }
     ) {
-        Box(
+        // Watermark trend icon — mostly visible, edge-la konjam matum crop
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+            contentDescription = null,
+            tint = Color(0xFFF8F7FF).copy(alpha = 0.25f),
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.18f)),
-            contentAlignment = Alignment.Center
+                .align(Alignment.BottomEnd)
+                .size(90.dp)
+                .offset(x = -(1).dp, y = 25.dp)
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.Center
         ) {
-            Icon(Icons.AutoMirrored.Filled.TrendingUp, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-        }
-        Column {
-            Text("Good Morning, $userName", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "Good Morning, $userName",
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(Modifier.height(6.dp))
             Text(
-                "You have $newLeadsCount new leads to review today",
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = 13.sp,
+                "You have $newLeadsCount new leads to review today.",
+                color = Color(0xFFF8F7FF).copy(alpha = 0.85f),
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Normal
             )
         }
@@ -1694,7 +1708,8 @@ private fun StatsGrid(stats: List<DashboardStat>) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         stats.chunked(2).forEach { rowStats ->
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                rowStats.forEach { stat -> DashboardStatCard(stat = stat, modifier = Modifier.weight(1f)) }
+                rowStats.forEach { stat -> DashboardStatCard(
+                    stat = stat, modifier = Modifier.weight(1f)) }
                 if (rowStats.size == 1) Spacer(Modifier.weight(1f))
             }
         }
@@ -1705,36 +1720,41 @@ private fun StatsGrid(stats: List<DashboardStat>) {
 private fun DashboardStatCard(stat: DashboardStat, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .background(Color.White, RoundedCornerShape(14.dp))
+            .background(Color(0xFFf8f9ff), RoundedCornerShape(20.dp))
+            .border(1.dp,Color(0xFFe8eaf4),RoundedCornerShape(20.dp))
+//            .shadow(elevation = 2.dp)
             .padding(14.dp)
     ) {
-        Row {
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(stat.iconBg),
-                contentAlignment = Alignment.Center
-            ) {
+        Row(Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start) {
+//            Box(
+//                modifier = Modifier
+//                    .size(34.dp)
+//                    .clip(RoundedCornerShape(10.dp))
+//                    .background(stat.iconBg),
+//                contentAlignment = Alignment.Center
+//            ) {
                 Image(
                     painter = painterResource(id = stat.icon),
                     contentDescription = null,
                     colorFilter = ColorFilter.tint(stat.iconTint),   // ✅ tints the PNG same as Icon would
                     modifier = Modifier.size(18.dp)
                 )
-            }
+//            }
             Spacer(Modifier.width(5.dp))
 
             Text(
                 stat.label,
                 fontSize = 13.sp,
-                color = Color(0xFF6B7280),
+                color = statLogoBg,
                 fontWeight = FontWeight.Medium
             )
         }
         Spacer(Modifier.height(10.dp))
         Spacer(Modifier.height(2.dp))
-        Text(stat.value, fontSize = 19.sp, color = Color(0xFF111827), fontWeight = FontWeight.Bold)
+
+        Text(stat.value, fontSize = 20.sp, color = if(stat.label=="Revenue"||stat.label=="Pending"){Color(0xFF2F27CE)}else{Color(0xFF0B1C30)}, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         when (stat.trendUp) {
             true -> TrendRow(icon = Icons.Default.ArrowUpward, text = stat.trendText, color = Color(0xFF16A34A))
@@ -1760,7 +1780,7 @@ private fun QuickModulesSection(
     onNavigate: (String) -> Unit
 ) {
     Column {
-        Text("Quick Modules", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+        Text("Quick Modules", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
         Spacer(Modifier.height(12.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             items(modules) { module ->
@@ -1787,11 +1807,11 @@ private fun QuickModulesSection(
                     Box(
                         modifier = Modifier
                             .size(52.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFFEDE9FE)),
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFFDCE9FF)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(module.icon, contentDescription = module.label, tint = Color(0xFF7C3AED), modifier = Modifier.size(24.dp))
+                        Icon(module.icon, contentDescription = module.label, tint = Color(0xFF2F27CE), modifier = Modifier.size(24.dp))
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -1811,13 +1831,13 @@ private fun QuickModulesSection(
 private fun statVisualsFor(title: String): Triple<Int, Color, Color> {
     return when {
         title.contains("Revenue", true) ->
-            Triple(R.drawable.revenue, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+            Triple(R.drawable.revenue, Color(0xFFEDE9FE), statLogoBg)
         title.contains("Order", true) ->
-            Triple(R.drawable.cart, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+            Triple(R.drawable.cart, Color(0xFFEDE9FE), statLogoBg)
         title.contains("Measurement", true) ->
-            Triple(R.drawable.customer, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+            Triple(R.drawable.customer, Color(0xFFEDE9FE), statLogoBg)
         title.contains("Pending", true) || title.contains("Payment", true) ->
-            Triple(R.drawable.pending, Color(0xFFEDE9FE), Color(0xFF7C3AED))
+            Triple(R.drawable.pending, Color(0xFFEDE9FE), statLogoBg)
         else ->
             Triple(R.drawable.cart, Color(0xFFEDE9FE), Color(0xFF7C3AED))
     }
@@ -1860,30 +1880,41 @@ private fun RecentActivitySection(
 ) {
     Column {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth()
+            ,
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Recent Activity", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Text(
-                "View All",
-                fontSize = 13.sp,
-                color = Color(0xFF7C3AED),
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { onNavigate("sales_sales_orders") }
-            )
+            Row(Modifier.fillMaxWidth()
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { onNavigate("sales_sales_orders") },
+                horizontalArrangement = Arrangement.End) {
+                Text(
+                    "View All",
+                    fontSize = 13.sp,
+                    color = Color(0xFF7C3AED),
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+
+                )
+                Icon(imageVector = Icons.Default.ChevronRight, "right")
+            }
         }
         Spacer(Modifier.height(12.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            activities.forEach { activity ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(modelBg, RoundedCornerShape(14.dp))
+                .border(1.dp, modelBorder,RoundedCornerShape((14.dp)))
+        ) {
+            activities.forEachIndexed { index, activity ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White, RoundedCornerShape(14.dp))
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
@@ -1920,6 +1951,15 @@ private fun RecentActivitySection(
                         Text(activity.amount, fontSize = 13.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Bold)
                     }
                 }
+
+                // 👇 divider between rows, not after the last one
+                if (index != activities.lastIndex) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 14.dp, end = 14.dp),
+                        thickness = 1.dp,
+                        color = modelBorder
+                    )
+                }
             }
         }
     }
@@ -1934,17 +1974,22 @@ private fun RecentCustomersSection(
     Column {
         Text("Recent Customers", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
         Spacer(Modifier.height(12.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            customers.forEach { customer ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(modelBg, RoundedCornerShape(14.dp))
+                .border(1.dp, modelBorder,RoundedCornerShape((14.dp)))// 👈 single outer card
+        ) {
+            customers.forEachIndexed { index, customer ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White, RoundedCornerShape(14.dp))
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
-                        ) { onNavigate("sales_customers") },
+                        ) { onNavigate("sales_customers") }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
@@ -1961,7 +2006,16 @@ private fun RecentCustomersSection(
                         Text(customer.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
                         Text(customer.role, fontSize = 12.sp, color = Color(0xFF9CA3AF))
                     }
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(25.dp))
+                }
+
+                // 👇 divider between rows, not after the last one
+                if (index != customers.lastIndex) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 14.dp, end = 14.dp),
+                        thickness = 1.dp,
+                        color = modelBorder
+                    )
                 }
             }
         }
@@ -2134,9 +2188,10 @@ fun TimePickerField(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+            .background(Color.White, RoundedCornerShape(8.dp))
+            .border(1.dp, PrimaryBorder, RoundedCornerShape(8.dp))
             .clickable { showPicker = true }
-            .padding(horizontal = 12.dp, vertical = 14.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -2220,8 +2275,15 @@ fun CustomTimePicker(
     onMinuteChange: (Int) -> Unit,
     onAmPmChange: (Boolean) -> Unit
 ) {
-    val hourOptions = (1..12).toList()
-    val minuteOptions = (0..59).map { String.format("%02d", it) }
+    val hourOptions = (1..12).toList()          // 12 values
+    val minuteOptions = (0..59).map { String.format("%02d", it) }  // 60 values
+
+    // ✅ NEW — repeat each list many times so scrolling in either
+    // direction never hits a hard edge; feels like infinite/circular scroll.
+    val hourRepeatCount = 1000
+    val minuteRepeatCount = 1000
+    val totalHourItems = hourOptions.size * hourRepeatCount
+    val totalMinuteItems = minuteOptions.size * minuteRepeatCount
 
     val displayHour = when {
         hour == 0 -> 12
@@ -2230,12 +2292,17 @@ fun CustomTimePicker(
     }
     val displayMinute = String.format("%02d", minute)
 
-    val hourScrollState = rememberLazyListState(
-        initialFirstVisibleItemIndex = hourOptions.indexOf(displayHour).coerceAtLeast(0)
-    )
-    val minuteScrollState = rememberLazyListState(
-        initialFirstVisibleItemIndex = minuteOptions.indexOf(displayMinute).coerceAtLeast(0)
-    )
+    // ✅ NEW — start near the middle of the repeated list, not at index 0,
+    // so the user has "room" to scroll up or down before ever hitting an edge.
+    val initialHourIndex = remember {
+        (hourRepeatCount / 2) * hourOptions.size + hourOptions.indexOf(displayHour).coerceAtLeast(0)
+    }
+    val initialMinuteIndex = remember {
+        (minuteRepeatCount / 2) * minuteOptions.size + minuteOptions.indexOf(displayMinute).coerceAtLeast(0)
+    }
+
+    val hourScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialHourIndex)
+    val minuteScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialMinuteIndex)
 
     val hourCenterIndex by remember {
         derivedStateOf {
@@ -2263,9 +2330,10 @@ fun CustomTimePicker(
         }
     }
 
+    // ✅ NEW — map the repeated-list index back to the real 1-12 hour value
     LaunchedEffect(hourCenterIndex) {
-        if (hourCenterIndex in hourOptions.indices) {
-            val newHour = hourOptions[hourCenterIndex]
+        if (hourCenterIndex in 0 until totalHourItems) {
+            val newHour = hourOptions[hourCenterIndex % hourOptions.size]
             val hour24 = when {
                 newHour == 12 && isAm -> 0
                 newHour == 12 && !isAm -> 12
@@ -2276,9 +2344,10 @@ fun CustomTimePicker(
         }
     }
 
+    // ✅ NEW — map the repeated-list index back to the real 00-59 minute value
     LaunchedEffect(minuteCenterIndex) {
-        if (minuteCenterIndex in minuteOptions.indices) {
-            onMinuteChange(minuteOptions[minuteCenterIndex].toInt())
+        if (minuteCenterIndex in 0 until totalMinuteItems) {
+            onMinuteChange(minuteOptions[minuteCenterIndex % minuteOptions.size].toInt())
         }
     }
 
@@ -2294,19 +2363,10 @@ fun CustomTimePicker(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                "Hour",
-                fontSize = 12.sp,
-                color = LeadTextMuted,
-                fontWeight = FontWeight.Medium
-            )
+            Text("Hour", fontSize = 12.sp, color = LeadTextMuted, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(4.dp))
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-            ) {
+            Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2324,8 +2384,10 @@ fun CustomTimePicker(
                         lazyListState = hourScrollState
                     )
                 ) {
-                    items(hourOptions) { h ->
-                        val isSelected = h == hourOptions[hourCenterIndex]
+                    // ✅ NEW — items(count) over the repeated total, value derived via modulo
+                    items(totalHourItems) { i ->
+                        val h = hourOptions[i % hourOptions.size]
+                        val isSelected = i == hourCenterIndex
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2345,31 +2407,16 @@ fun CustomTimePicker(
             }
         }
 
-        Text(
-            ":",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF111827),
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
+        Text(":", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827), modifier = Modifier.padding(horizontal = 4.dp))
 
         Column(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                "Minute",
-                fontSize = 12.sp,
-                color = LeadTextMuted,
-                fontWeight = FontWeight.Medium
-            )
+            Text("Minute", fontSize = 12.sp, color = LeadTextMuted, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(4.dp))
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-            ) {
+            Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2387,8 +2434,10 @@ fun CustomTimePicker(
                         lazyListState = minuteScrollState
                     )
                 ) {
-                    items(minuteOptions) { m ->
-                        val isSelected = m == minuteOptions[minuteCenterIndex]
+                    // ✅ NEW — items(count) over the repeated total, value derived via modulo
+                    items(totalMinuteItems) { i ->
+                        val m = minuteOptions[i % minuteOptions.size]
+                        val isSelected = i == minuteCenterIndex
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2409,24 +2458,14 @@ fun CustomTimePicker(
         }
 
         Column(
-            modifier = Modifier
-                .weight(0.8f)
-                .padding(start = 8.dp),
+            modifier = Modifier.weight(0.8f).padding(start = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                "AM/PM",
-                fontSize = 12.sp,
-                color = LeadTextMuted,
-                fontWeight = FontWeight.Medium
-            )
+            Text("AM/PM", fontSize = 12.sp, color = LeadTextMuted, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(4.dp))
 
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .padding(vertical = 20.dp),
+                modifier = Modifier.fillMaxWidth().height(200.dp).padding(vertical = 20.dp),
                 verticalArrangement = Arrangement.Center
             ) {
                 Box(
@@ -2439,12 +2478,7 @@ fun CustomTimePicker(
                         .padding(8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "AM",
-                        fontSize = 16.sp,
-                        fontWeight = if (isAm) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isAm) Color.White else Color(0xFF6B7280)
-                    )
+                    Text("AM", fontSize = 16.sp, fontWeight = if (isAm) FontWeight.Bold else FontWeight.Normal, color = if (isAm) Color.White else Color(0xFF6B7280))
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -2459,12 +2493,7 @@ fun CustomTimePicker(
                         .padding(8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "PM",
-                        fontSize = 16.sp,
-                        fontWeight = if (!isAm) FontWeight.Bold else FontWeight.Normal,
-                        color = if (!isAm) Color.White else Color(0xFF6B7280)
-                    )
+                    Text("PM", fontSize = 16.sp, fontWeight = if (!isAm) FontWeight.Bold else FontWeight.Normal, color = if (!isAm) Color.White else Color(0xFF6B7280))
                 }
             }
         }

@@ -2,7 +2,6 @@
 package com.cuso.mobile.view.home.finance
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,8 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,10 +22,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
 import java.text.NumberFormat
@@ -122,9 +119,7 @@ fun TrialBalanceScreen(
 
         when {
             isLoading -> {
-                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    CirculerProgressIndicatorReuse()
-                }
+                ListSkeleton()
             }
             errorMessage != null -> {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
@@ -229,11 +224,11 @@ private fun TotalSummaryCard(totalDebit: Double, totalCredit: Double, imbalance:
         ) {
             Column {
                 Text("Total Debit", fontSize = 12.sp, color = TextSecondary)
-                Text(formatAmount(totalDebit), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Text(formatAmount(totalDebit), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = RedText)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("Total Credit", fontSize = 12.sp, color = TextSecondary)
-                Text(formatAmount(totalCredit), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = RedText)
+                Text(formatAmount(totalCredit), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Green)
             }
         }
 

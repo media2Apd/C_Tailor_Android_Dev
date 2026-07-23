@@ -30,7 +30,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.BulkRuleDto
 import com.cuso.mobile.model.sales.PriceAdjustmentDto
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
@@ -39,6 +38,7 @@ import com.cuso.mobile.view.home.sales.lead.LeadAccordionSection
 import com.cuso.mobile.view.home.sales.lead.LeadFormTopBar
 import com.cuso.mobile.view.home.LeadPrimary
 import com.cuso.mobile.view.home.LeadTextMuted
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 import com.cuso.mobile.viewmodel.GarmentPricingDetailUiState
@@ -56,6 +56,8 @@ fun AddGarmentPricingScreen(
     pricingId: String? = null   // ✅ null = Add mode, non-null = Edit mode
 ) {
     val isEditMode = pricingId != null
+    android.util.Log.d("PricingDebug", "SCREEN OPENED with pricingId=$pricingId, isEditMode=$isEditMode")
+
 
     val salesViewModel: SalesViewModel = hiltViewModel()
     val pricingViewModel: PricingQuotationViewModel = hiltViewModel()
@@ -73,7 +75,7 @@ fun AddGarmentPricingScreen(
     var showGarmentTypeError by remember { mutableStateOf(false) }
     var showBasePriceError by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(pricingId) {
         if (garmentCategories.isEmpty()) salesViewModel.fetchGarmentCategories()
         if (isEditMode) {
             pricingViewModel.fetchGarmentPricingDetail(pricingId)
@@ -121,15 +123,22 @@ fun AddGarmentPricingScreen(
     var isLoadingDetail by remember { mutableStateOf(isEditMode) }
 
     // ── Prefill fields once detail data arrives (edit mode only) ──
-    LaunchedEffect(detailState, garmentCategories) {
+// ── Prefill fields once detail data arrives (edit mode only) ──
+    LaunchedEffect(detailState, garmentCategories, pricingId) {   // ✅ CHANGED — pricingId-ஐயும் key-ல சேர்த்துருக்கேன்
         if (isEditMode && !prefilled) {
             when (val ds = detailState) {
                 is GarmentPricingDetailUiState.Success -> {
                     val detail = ds.detail
 
+                    // ✅ NEW — CRITICAL GUARD: fetched detail, current pricingId-க்கே சொந்தமான தானா nu check பண்ணுங்க
+                    if (detail.id != pricingId) {
+                        android.util.Log.d("PricingDebug", "IGNORING STALE detail (id=${detail.id}) for pricingId=$pricingId")
+                        return@LaunchedEffect   // ✅ stale state ah use பண்ணாம skip பண்ணுங்க
+                    }
+
+                    android.util.Log.d("PricingDebug", "PREFILL for pricingId=$pricingId -> detail.applicableGarmentId=${detail.applicableGarmentId}, basePrice=${detail.basePrice}")
+
                     selectedGarmentCategoryId = detail.applicableGarmentId
-                    // ✅ Category label resolves once garmentCategories loads;
-                    // falls back gracefully instead of blocking the whole prefill.
                     garmentType = garmentCategories
                         .firstOrNull { it.id == detail.applicableGarmentId }
                         ?.categoryId?.categoryName
@@ -137,30 +146,22 @@ fun AddGarmentPricingScreen(
 
                     baseStitchingPrice = detail.basePrice.toString()
 
-                    if (detail.fabricAdjustments.isNotEmpty()) {
-                        fabricRows = detail.fabricAdjustments.map {
-                            PriceAdjustmentRow(newId(), it.name, it.price.toString())
-                        }
-                    }
-                    if (detail.designAdjustments.isNotEmpty()) {
-                        styleRows = detail.designAdjustments.map {
-                            PriceAdjustmentRow(newId(), it.name, it.price.toString())
-                        }
-                    }
-                    if (detail.additionalCharges.isNotEmpty()) {
-                        additionalChargeRows = detail.additionalCharges.map {
-                            PriceAdjustmentRow(newId(), it.name, it.price.toString())
-                        }
-                    }
-                    if (detail.bulkRules.isNotEmpty()) {
-                        discountRules = detail.bulkRules.map {
-                            DiscountRuleRow(newId(), it.minQuantity.toString(), it.discountPercent.toString())
-                        }
-                    }
+                    fabricRows = if (detail.fabricAdjustments.isNotEmpty()) {
+                        detail.fabricAdjustments.map { PriceAdjustmentRow(newId(), it.name, it.price.toString()) }
+                    } else emptyList()
 
-                    // ✅ Only mark fully-prefilled (and stop the loader) once categories
-                    // are also available, so the dropdown label gets one more chance
-                    // to resolve on the next recomposition if it isn't ready yet.
+                    styleRows = if (detail.designAdjustments.isNotEmpty()) {
+                        detail.designAdjustments.map { PriceAdjustmentRow(newId(), it.name, it.price.toString()) }
+                    } else emptyList()
+
+                    additionalChargeRows = if (detail.additionalCharges.isNotEmpty()) {
+                        detail.additionalCharges.map { PriceAdjustmentRow(newId(), it.name, it.price.toString()) }
+                    } else emptyList()
+
+                    discountRules = if (detail.bulkRules.isNotEmpty()) {
+                        detail.bulkRules.map { DiscountRuleRow(newId(), it.minQuantity.toString(), it.discountPercent.toString()) }
+                    } else emptyList()
+
                     if (garmentCategories.isNotEmpty()) {
                         prefilled = true
                     }
@@ -175,7 +176,6 @@ fun AddGarmentPricingScreen(
             }
         }
     }
-
     fun updatePrice(rows: List<PriceAdjustmentRow>, id: Int, newValue: String): List<PriceAdjustmentRow> =
         rows.map { if (it.id == id) it.copy(price = newValue) else it }
 
@@ -187,6 +187,9 @@ fun AddGarmentPricingScreen(
         // ✅ Reset field errors first
         showGarmentTypeError = false
         showBasePriceError = false
+
+        android.util.Log.d("PricingDebug", "SUBMIT for pricingId=$pricingId -> selectedGarmentCategoryId=$selectedGarmentCategoryId, garmentType=$garmentType, basePrice=$baseStitchingPrice")
+
 
         var hasBasicError = false
 
@@ -278,13 +281,8 @@ fun AddGarmentPricingScreen(
 
     // ── Full-screen loader while fetching detail in edit mode ──
     if (isEditMode && isLoadingDetail) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CirculerProgressIndicatorReuse()
-                Spacer(Modifier.height(8.dp))
-                Text("Loading pricing details...", color = Color.Gray, fontSize = 14.sp)
-            }
-        }
+        ListSkeleton()
+
         return
     }
 

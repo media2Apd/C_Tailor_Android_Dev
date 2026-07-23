@@ -26,16 +26,15 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.inventory.InventoryItem
-import com.cuso.mobile.ui.inventory.InventoryViewOne
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.InventoryViewModel
@@ -148,12 +147,7 @@ fun InventoryScreen(
 
         when {
             isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().background(InventoryBg),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CirculerProgressIndicatorReuse()
-                }
+                ListSkeleton()
             }
 
             errorMessage != null -> {

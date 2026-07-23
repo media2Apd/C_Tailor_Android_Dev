@@ -1,4 +1,4 @@
-package com.cuso.mobile.ui.inventory
+package com.cuso.mobile.view.home.inventory
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,7 +19,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.model.inventory.InventoryItem
-import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.view.home.FormDropdown
 

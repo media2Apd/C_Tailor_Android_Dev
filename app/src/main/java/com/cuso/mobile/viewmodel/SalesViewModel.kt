@@ -318,11 +318,11 @@ class SalesViewModel @Inject constructor(
             enquiryDate = data.enquiryDate,
             requiredDate = data.requiredDate ?: "",
             source = data.source,
-            leadOwner = data.leadOwner?._id ?: "",     // ✅ NEW
+            leadOwner = data.leadOwner?._id ?: "",
             appointmentRequired = data.appointment?.isRequired ?: false,
             appointmentDate = data.appointment?.date ?: "",
             appointmentTime = data.appointment?.time ?: "",
-            assignedStaff = data.appointment?.assignedStaff as String?,  // ✅ Keep it nullable
+            assignedStaff = data.appointment?.assignedStaff?._id,  // ✅ Keep it nullable
             priority = data.appointment?.priority ?: "",
             followUpDate = data.appointment?.followUpDate ?: "",
             internalNotes = data.notes?.find { it.type == "internal" }?.content ?: "",

@@ -7,6 +7,7 @@ import com.cuso.mobile.model.BranchItem
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+//import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -58,6 +59,7 @@ class BranchViewModel @Inject constructor(
         if (_uiState.value is BranchUiState.Success) return
         viewModelScope.launch {
             _uiState.value = BranchUiState.Loading
+//            delay(300000)
             salesRepository.getBranches().fold(
                 onSuccess = { response ->
                     if (response.success) {

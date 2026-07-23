@@ -1,4 +1,14 @@
-package com.cuso.mobile.ui.inventory
+@file:Suppress(
+    "UNUSED_VALUE",
+    "unused_variable",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "VariableNeverRead",
+    "unused"
+
+)
+package com.cuso.mobile.view.home.inventory
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,7 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -23,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.toHealthDisplay
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -55,7 +65,7 @@ fun InventoryViewOne(
     onShare: (InventoryItem) -> Unit = {}
 ) {
 
-    var selectedTab by remember { mutableStateOf(0) } // 0 = Overview, 1 = Transactions
+    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Overview, 1 = Transactions
     var showAdjustStockSheet by remember { mutableStateOf(false) }   // ✅ NEW
 
     Column(
@@ -79,10 +89,7 @@ fun InventoryViewOne(
 
             when {
                 isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 60.dp),
-                        contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator(color = PurplePrimary) }
+                    ListSkeleton()
                 }
                 errorMessage != null -> {
                     Box(
@@ -486,13 +493,17 @@ private fun TransactionsPlaceholder() {
 
 // ── Formatting helpers ──
 private fun formatCurrency(value: Double): String {
-    val format = NumberFormat.getNumberInstance(Locale("en", "IN"))
+    val format = NumberFormat.getNumberInstance(
+        Locale.Builder().setLanguage("en").setRegion("IN").build()
+    )
     format.maximumFractionDigits = 0
     return "\u20B9${format.format(value)}"
 }
 
 private fun formatQty(value: Double): String {
-    val format = NumberFormat.getNumberInstance(Locale("en", "IN"))
+    val format = NumberFormat.getNumberInstance(
+        Locale.Builder().setLanguage("en").setRegion("IN").build()
+    )
     format.maximumFractionDigits = if (value % 1.0 == 0.0) 0 else 1
     return format.format(value)
 }

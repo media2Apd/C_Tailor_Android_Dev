@@ -28,6 +28,7 @@ import com.cuso.mobile.model.sales.OrderViewData
 import com.cuso.mobile.model.sales.OrderViewGarmentItem
 import com.cuso.mobile.model.sales.OrderViewStageGroup
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.viewmodel.OrderOverviewViewModel
 import com.cuso.mobile.viewmodel.OrderViewUiState
 import com.cuso.mobile.viewmodel.OrderViewViewModel
@@ -80,9 +81,8 @@ fun OrderDetailScreen(
 
         when (val state = uiState) {
             is OrderViewUiState.Loading, OrderViewUiState.Idle -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CirculerProgressIndicatorReuse()
-                }
+                ListSkeleton()
+
             }
             is OrderViewUiState.Error -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

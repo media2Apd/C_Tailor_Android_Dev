@@ -1,4 +1,9 @@
-@file:Suppress("UNUSED_PARAMETER", "UNUSED", "RedundantSuppression", "unused")
+@file:Suppress("UNUSED_PARAMETER",
+    "UNUSED",
+    "RedundantSuppression",
+    "unused_variable",
+    "AssignedValueIsNeverRead", "VariableNeverRead"
+)
 
 
 package com.cuso.mobile.view.home.finance
@@ -13,7 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudUpload
@@ -59,8 +63,9 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material.icons.filled.InsertDriveFile
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
@@ -69,6 +74,7 @@ import com.cuso.mobile.view.composable.ErrorFieldWrapper
 import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.ValidationField
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 
@@ -175,11 +181,7 @@ fun ExpensesScreen(
 
         when {
             isLoadingExpenses -> {
-                Box(modifier = Modifier
-                    .fillMaxSize()
-                    .background(ExpenseBg), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = ExpensePrimary)
-                }
+                ListSkeleton()
             }
 
             expenseError != null -> {
@@ -281,7 +283,7 @@ fun ExpensesScreen(
     }
 }
 // ─────────────────────────────────────────────────────────────
-// 👁️ EXPENSE DETAIL SCREEN — read-only view
+//  EXPENSE DETAIL SCREEN — read-only view
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -717,7 +719,7 @@ fun AddExpenseScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            Icons.Default.InsertDriveFile,
+                            Icons.AutoMirrored.Filled.InsertDriveFile,
                             contentDescription = null,
                             tint = ExpensePrimary,
                             modifier = Modifier.size(22.dp)

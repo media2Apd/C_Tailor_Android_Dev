@@ -1,4 +1,10 @@
-    package com.cuso.mobile.view.home.finance
+@file:Suppress("UNUSED_PARAMETER",
+    "UNUSED",
+    "RedundantSuppression",
+    "unused_variable",
+    "AssignedValueIsNeverRead", "VariableNeverRead"
+)
+package com.cuso.mobile.view.home.finance
 
     import androidx.compose.foundation.background
     import androidx.compose.foundation.border
@@ -14,22 +20,17 @@
     import androidx.compose.material.icons.filled.Close
     import androidx.compose.material.icons.filled.Delete
     import androidx.compose.material.icons.filled.Edit
-    import androidx.compose.material.icons.filled.FilterList
-    import androidx.compose.material.icons.filled.Search
     import androidx.compose.material3.*
     import androidx.compose.runtime.*
     import androidx.compose.ui.Alignment
     import androidx.compose.ui.Modifier
-    import androidx.compose.ui.draw.clip
     import androidx.compose.ui.graphics.Color
     import androidx.compose.ui.text.font.FontWeight
     import androidx.compose.ui.unit.dp
     import androidx.compose.ui.unit.sp
     import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
     import androidx.lifecycle.compose.collectAsStateWithLifecycle
-    import androidx.lint.kotlin.metadata.Visibility
     import com.cuso.mobile.model.finance.ChartOfAccountItem
-    import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
     import com.cuso.mobile.view.home.reusablecomposables.DataCard
     import com.cuso.mobile.view.home.reusablecomposables.MenuAction
     import com.cuso.mobile.viewmodel.FinanceViewModel
@@ -49,15 +50,12 @@
     import com.cuso.mobile.view.composable.FieldValidator
     import com.cuso.mobile.view.composable.ScreenBreadcrumb
     import com.cuso.mobile.view.composable.ValidationField
+    import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
     import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
     import com.cuso.mobile.viewmodel.DeleteAccountState
     import com.cuso.mobile.viewmodel.UpdateAccountState
 
-    // ── Theme colors (adjust to your app's palette / Theme.kt) ──
-    private val BluePrimary = Color(0xFF3A2FCB)
-    private val TextPrimary = Color(0xFF1A1A2E)
-    private val TextSecondary = Color(0xFF9A9AA8)
-    private val BorderGray = Color(0xFFE8E8ED)
+
     private val GreenBg = Color(0xFFE3F7EA)
     private val GreenText = Color(0xFF1FA751)
     private val OrangeBg = Color(0xFFFDEFE0)
@@ -231,12 +229,7 @@
                 // ── Content ──
                 when {
                     isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CirculerProgressIndicatorReuse()
-                        }
+                        ListSkeleton()
                     }
 
                     errorMessage != null -> {

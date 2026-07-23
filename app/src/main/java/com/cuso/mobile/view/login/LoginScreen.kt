@@ -1,4 +1,10 @@
-@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ", "UNUSED_PARAMETER", "UNUSED_VARIABLE")
+@file:Suppress(
+    "UNUSED_VALUE",
+    "ASSIGNED_VALUE_IS_NEVER_READ",
+    "unused",
+    "SpellCheckingInspection",
+    "GrazieInspection"
+)
 package com.cuso.mobile.view.login
 
 import android.app.Activity
@@ -35,7 +41,7 @@ import com.cuso.mobile.viewmodel.Authenticate
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
-@Suppress("UNUSED_PARAMETER")
+@Suppress("UNUSED_PARAMETER", "VariableNeverRead")
 @Composable
 fun LoginScreen(activity: Activity,
                 navController: NavController,

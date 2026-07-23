@@ -1,38 +1,11 @@
 @file:Suppress(
+    "UNUSED_VALUE",
+    "AssignedValueIsNeverRead",
     "unused",
-    "UNUSED_VARIABLE",
-    "UNUSED_PARAMETER",
-    "ASSIGNED_BUT_NEVER_REFERENCED_VARIABLE",
     "NAME_SHADOWING",
-    "SpellCheckingInspection",
-    "CanBeParameter",
-    "CanBeVal",
-    "LocalVariableName",
-    "PrivatePropertyName",
-    "FunctionName",
-    "PropertyName",
-    "VariableName",
-    "RemoveEmptyClassBody",
-    "RemoveEmptyPrimaryConstructor",
-    "UNUSED_ANONYMOUS_PARAMETER",
-    "UNUSED_PROPERTY",
-    "SameParameterValue",
-    "RemoveRedundantQualifierName",
-    "RedundantSuppression",    "RegExpRedundantEscape",
-    "MayBeConstant",
-    "RemoveEmptySecondaryConstructorBody",
-    "RemoveEmptyParenthesesFromLambdaCall",
-    "RemoveEmptyPrimaryConstructorParameters",
-    "RemoveEmptyClassInitializer",
-    "RemoveEmptyLambdaBody",
-    "SimplifyBooleanWith",
-    "RemoveExplicitTypeArguments",
-    "ReplacePutWithAssignment",
-    "UNUSED_CHANGED_VALUE",
-    "BlockingMethodInNonBlockingContext"
+    "GrazieInspection",
+    "SpellCheckingInspection", "VariableNeverRead"
 )
-
-
 package com.cuso.mobile.view.home.hr
 
 
@@ -97,6 +70,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import com.cuso.mobile.model.Country
 import com.cuso.mobile.model.hr.AddressRequest
 import com.cuso.mobile.model.hr.CreateMemberRequest
@@ -167,6 +141,7 @@ fun EmployeeOnboardingScreen(
     var workPhoneCountry by remember { mutableStateOf<Country?>(null) }
 
     var personalPhone by remember { mutableStateOf("") }
+
     var personalPhoneCountry by remember { mutableStateOf<Country?>(null) }
 
     var dob by remember { mutableStateOf("Select Date") }
@@ -868,7 +843,7 @@ fun EmployeeOnboardingScreen(
                             value = aadhaar,
                             onValueChange = {
                                 if (!isReadOnly) {
-                                    val newValue = it.filter { it.isDigit() }.take(12)
+                                    val newValue = it.filter { char -> char.isDigit() }.take(12)
                                     aadhaar = newValue
                                     if (newValue.length >= 12) {
                                         validateAadhaarNumber(newValue)
@@ -890,15 +865,28 @@ fun EmployeeOnboardingScreen(
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                                 keyboardType = KeyboardType.Number
                             ),
-                            visualTransformation = { text ->
-                                // Format as XXXX XXXX XXXX
-                                val cleaned = text.text.filter { it.isDigit() }
-                                val chunks = cleaned.chunked(4)
-                                val formatted = chunks.joinToString(" ")
-                                TransformedText(
-                                    text = AnnotatedString(formatted),
-                                    offsetMapping = OffsetMapping.Identity
-                                )
+                            visualTransformation = remember {
+                                VisualTransformation { text ->
+                                    val trimmed = text.text.take(12)
+                                    val formatted = trimmed.chunked(4).joinToString(" ")
+
+                                    val offsetMapping = object : OffsetMapping {
+                                        override fun originalToTransformed(offset: Int): Int {
+                                            val o = offset.coerceIn(0, trimmed.length)
+                                            val spacesBefore = (o - 1).coerceAtLeast(0) / 4
+                                            return (o + spacesBefore).coerceIn(0, formatted.length)
+                                        }
+
+                                        override fun transformedToOriginal(offset: Int): Int {
+                                            val o = offset.coerceIn(0, formatted.length)
+                                            val spacesBefore =
+                                                formatted.substring(0, o).count { it == ' ' }
+                                            return (o - spacesBefore).coerceIn(0, trimmed.length)
+                                        }
+                                    }
+
+                                    TransformedText(AnnotatedString(formatted), offsetMapping)
+                                }
                             }
                         )
                         if (aadhaarError != null) {
@@ -936,7 +924,7 @@ fun EmployeeOnboardingScreen(
                             value = uan,
                             onValueChange = {
                                 if (!isReadOnly) {
-                                    val newValue = it.filter { it.isDigit() }.take(12)
+                                    val newValue = it.filter { char -> char.isDigit() }.take(12)
                                     uan = newValue
                                     if (newValue.length >= 12) {
                                         validateUanNumber(newValue)

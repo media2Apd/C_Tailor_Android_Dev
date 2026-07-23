@@ -25,8 +25,9 @@ data class InvoiceItem(
     val branchId: String? = null,
     val invoiceNumber: String,
     val salesOrderId: String? = null,
-    val customerId: String? = null,
-    val customer: CustomerInfo? = null,          // 🆕 populated customer object (name/address/phone/email)
+    @com.google.gson.annotations.JsonAdapter(InvoiceCustomerRefDeserializer::class)
+    val customerId: InvoiceCustomerRef? = null,   // ← was String?
+    val customer: CustomerInfo? = null,
     val invoiceDate: String,
     val dueDate: String? = null,
     val items: List<InvoiceLineItem> = emptyList(),
@@ -35,20 +36,44 @@ data class InvoiceItem(
     val totalAmount: Double = 0.0,
     val paidAmount: Double = 0.0,
     val balanceAmount: Double = 0.0,
-    val status: String,                           // "paid" / "partial" / "unpaid" / "overdue"
+    val status: String,
     val createdAt: String? = null,
     val updatedAt: String? = null,
     @SerializedName("__v")
     val version: Int? = null
 ) {
-    // 🔁 real customer name from API — no more hardcoded "Ravi"
     val displayCustomerName: String
-        get() = customer?.name ?: customerId ?: "Walk-in Customer"
-
-//    val displayStatus: String
-//        get() = status.replaceFirstChar { it.uppercase() }
+        get() = customer?.name ?: customerId?.name ?: customerId?.id ?: "Walk-in Customer"
 }
+data class InvoiceCustomerRef(
+    @SerializedName("_id") val id: String? = null,
+    val name: String? = null,
+    val mobile: String? = null,
+    val email: String? = null
+)
 
+class InvoiceCustomerRefDeserializer : com.google.gson.JsonDeserializer<InvoiceCustomerRef?> {
+    override fun deserialize(
+        json: com.google.gson.JsonElement?,
+        typeOfT: java.lang.reflect.Type?,
+        context: com.google.gson.JsonDeserializationContext?
+    ): InvoiceCustomerRef? {
+        if (json == null || json.isJsonNull) return null
+        return when {
+            json.isJsonObject -> {
+                val obj = json.asJsonObject
+                InvoiceCustomerRef(
+                    id = obj.get("_id")?.asString,
+                    name = obj.get("name")?.asString,
+                    mobile = obj.get("mobile")?.asString,
+                    email = obj.get("email")?.asString
+                )
+            }
+            json.isJsonPrimitive -> InvoiceCustomerRef(id = json.asString)
+            else -> null
+        }
+    }
+}
 data class InvoiceLineItem(
     @SerializedName("_id")
     val id: String? = null,
@@ -60,6 +85,8 @@ data class InvoiceLineItem(
     val tax: Double = 0.0,
     val total: Double
 )
+
+
 
 // ─────────────────────────────────────────────────────────────
 // UI State
@@ -88,7 +115,7 @@ data class InvoiceViewOneData(
     val branchId: String,
     val invoiceNumber: String,
     val salesOrderId: String? = null,
-    val customerId: String? = null,
+    val customerId: InvoiceCustomerRef? = null,   // ← was String?
     val customer: CustomerInfo? = null,           // 🆕
     val invoiceDate: String,
     val dueDate: String? = null,

@@ -1,3 +1,10 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead"
+)
+
 package com.cuso.mobile.view.home.sales.sales_order
 
 import android.Manifest
@@ -18,6 +25,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -82,6 +90,7 @@ import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
+import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 
 // ─────────────────────────────────────────────────────────────
 // Data Models
@@ -217,6 +226,8 @@ fun CreateOrderScreen(
             selectedDesignImages = selectedDesignImages + it
         }
     }
+
+    var showAddCategoryDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(initialData) {
         initialData?.garments?.let { garments ->
@@ -924,7 +935,11 @@ fun CreateOrderScreen(
                             "+ Add Category",
                             fontSize = 11.sp,
                             color = Primary,
-                            letterSpacing = 0.5.sp
+                            letterSpacing = 0.5.sp,
+                            modifier = Modifier.clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { showAddCategoryDialog = true }
                         )
                     }
                     Spacer(Modifier.height(8.dp))
@@ -1225,11 +1240,11 @@ fun CreateOrderScreen(
                     ) {
                         OutlinedButton(
                             onClick = {
-                                if (isMediaUploadRestricted) {
-                                    showPlanLimitDialog = true
-                                } else {
+//                                if (isMediaUploadRestricted) {
+//                                    showPlanLimitDialog = true
+//                                } else {
                                     showImagePickerOptions = true
-                                }
+//                                }
                             },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
@@ -1560,6 +1575,32 @@ fun CreateOrderScreen(
                 )
             )
         }
+        if (showAddCategoryDialog) {
+            ModalBottomSheet(
+                onDismissRequest = { showAddCategoryDialog = false },
+                sheetState = rememberModalBottomSheetState(
+                    skipPartiallyExpanded = true,
+                    confirmValueChange = { true }
+                ),
+                containerColor = Color.White,
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                dragHandle = {
+                    BottomSheetDefaults.DragHandle(modifier = Modifier.padding(vertical = 8.dp))
+                }
+            ) {
+                InlineGarmentPanel(
+                    garment = tempGarment,
+                    categories = quickCategories,
+                    isEditing = editingGarmentId != null,
+                    onGarmentChange = { tempGarment = it },
+                    onSave = {
+                        saveGarment()
+                        showGarmentDialog = false
+                    },
+                    onCancel = { showGarmentDialog = false }
+                )
+            }
+        }
     }
 }
 
@@ -1821,6 +1862,7 @@ fun PreviousMeasurementsDialog(
 private fun InlineGarmentPanel(
     garment: SelectedGarment,
     categories: List<Pair<String, String>>,
+    isEditing: Boolean = false,
     onGarmentChange: (SelectedGarment) -> Unit,
     onSave: () -> Unit,
     onCancel: () -> Unit
@@ -1830,8 +1872,8 @@ private fun InlineGarmentPanel(
     val fabricTypeOptions = listOf("Cotton", "Polyester", "Silk", "Wool", "Linen", "Denim", "Satin", "Velvet", "Jersey", "Chiffon")
     val patternOptions = listOf("Solid", "Striped", "Checked", "Printed", "Plain", "Plaid", "Floral")
     val availableModels = listOf(
-        GarmentModel("1", "Slim Fit"),
-        GarmentModel("2", "Shirt")
+        GarmentModel("1", "Ankle Fit"),
+        GarmentModel("2", "Mom Fit")
     )
 
     var priorityExpanded by remember { mutableStateOf(false) }
@@ -1857,7 +1899,7 @@ private fun InlineGarmentPanel(
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                "ADD NEW GARMENT",
+                if (isEditing) "EDIT GARMENT" else "ADD NEW GARMENT",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF111827),
@@ -1927,17 +1969,9 @@ private fun InlineGarmentPanel(
                         Text("Trial Required", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
                         Text("Schedule fitting?", fontSize = 12.sp, color = Color(0xFF9CA3AF))
                     }
-                    Switch(
+                    MiniSwitch(
                         checked = garment.trialRequired,
                         onCheckedChange = { onGarmentChange(garment.copy(trialRequired = it)) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF3B3BF9),
-                            checkedBorderColor = Color.Transparent,
-                            uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = Color(0xFFD1D5DB),
-                            uncheckedBorderColor = Color.Transparent
-                        )
                     )
                 }
             }
@@ -2001,19 +2035,20 @@ private fun InlineGarmentPanel(
                     selectedModels = selectedModels,
                     onModelToggle = { modelName ->
                         val wasEmpty = selectedModels.isEmpty()
-                        if (selectedModels.contains(modelName)) {
-                            selectedModels.clear()
+                        val updatedModels = if (selectedModels.contains(modelName)) {
+                            mutableListOf()
                         } else {
-                            selectedModels.clear()
-                            selectedModels.add(modelName)
+                            mutableListOf(modelName)
                         }
-                        if (wasEmpty && selectedModels.isNotEmpty() && measurements.isEmpty()) {
-                            measurements = defaultMeasurementsFor(selectedModels)
+                        selectedModels = updatedModels
+                        measurements = if (updatedModels.isEmpty()) {
+                            emptyList()
+                        } else if (wasEmpty || measurements.isEmpty()) {
+                            defaultMeasurementsFor(updatedModels)
+                        } else {
+                            measurements
                         }
-                        if (selectedModels.isEmpty()) {
-                            measurements = emptyList()
-                        }
-                        onGarmentChange(garment.copy(models = selectedModels.toList()))
+                        onGarmentChange(garment.copy(models = updatedModels.toList()))
                     }
                 )
 
@@ -2263,7 +2298,7 @@ fun MeasurementsSection(
     }
 }
 
-// ── Measurement text field (Chest, Sleeve Length etc with unit dropdown) ──
+// ── Measurement text field (Chest, Sleeve Length etc. with unit dropdown) ──
 @Composable
 fun MeasurementInputField(
     label: String,

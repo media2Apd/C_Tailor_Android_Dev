@@ -49,7 +49,6 @@ import com.cuso.mobile.model.sales.StaffResponse
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.model.UpdateBranchResponse
 import com.cuso.mobile.model.sales.UpdateLeadResponse
-import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationResponse
 import com.cuso.mobile.model.sales.ViewOneLeadResponse
 import com.cuso.mobile.model.forgotPasswordRequest
@@ -102,7 +101,6 @@ import com.cuso.mobile.model.finance.LedgerResponse
 import com.cuso.mobile.model.finance.TrialBalanceResponse
 import com.cuso.mobile.model.finance.UpdateJournalEntryRequest
 import com.cuso.mobile.model.finance.UpdateJournalEntryResponse
-import com.cuso.mobile.model.hr.CreateMemberRequest
 import com.cuso.mobile.model.hr.CreateMemberResponse
 import com.cuso.mobile.model.hr.MemberDetailResponse
 import com.cuso.mobile.model.hr.MemberListResponse
@@ -112,6 +110,8 @@ import com.cuso.mobile.model.inventory.AdjustStockRequest
 import com.cuso.mobile.model.inventory.InventoryItemDetailResponse
 import com.cuso.mobile.model.inventory.InventoryItemListResponse
 import com.cuso.mobile.model.inventory.InventoryViewOneResponse
+import com.cuso.mobile.model.sales.ConvertToInvoiceRequest
+import com.cuso.mobile.model.sales.ConvertToInvoiceResponse
 import com.cuso.mobile.model.sales.DeleteCustomerResponse
 import com.cuso.mobile.model.sales.GarmentPricingDetailDto
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
@@ -274,6 +274,11 @@ interface ApiService {
         @Part("person[phone]") personPhone: RequestBody,
         @Part("person[email]") personEmail: RequestBody,
         @Part("appointment[isRequired]") appointmentIsRequired: RequestBody,
+        @Part("appointment[date]") appointmentDate: RequestBody? = null,             // 👈 ADD
+        @Part("appointment[time]") appointmentTime: RequestBody? = null,             // 👈 ADD
+        @Part("appointment[assignedStaff]") appointmentAssignedStaff: RequestBody? = null,  // 👈 ADD
+        @Part("appointment[priority]") appointmentPriority: RequestBody? = null,     // 👈 ADD
+        @Part("appointment[followUpDate]") appointmentFollowUpDate: RequestBody? = null,    // 👈 ADD
         @Part("notes[0][message]") noteMessage: RequestBody,
         @Part("notes[0][type]") noteType: RequestBody,
         @Part("person[gender]") personGender: RequestBody,
@@ -933,8 +938,8 @@ interface ApiService {
     suspend fun createInventoryItem(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
-        @PartMap fields: Map<String, @JvmSuppressWildcards okhttp3.RequestBody>,
-        @Part image: okhttp3.MultipartBody.Part?
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part image: MultipartBody.Part?
     ): Response<InventoryItemDetailResponse>
 
     // ── Inventory: View One (single item details) ──
@@ -995,5 +1000,15 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") memberId: String
     ): Response<MemberDetailResponse>
+
+    // ── Convert Sales Order to Invoice ──
+// ⚠️ CONFIRM exact path with backend team — this is the assumed convention based on existing finance endpoints
+    @POST("/api/sales-orders/convert-to-invoice/{orderId}")
+    suspend fun convertToInvoice(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("orderId") orderId: String,
+        @Body request: ConvertToInvoiceRequest
+    ): Response<ConvertToInvoiceResponse>
 
 }

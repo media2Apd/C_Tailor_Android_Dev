@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.DashboardData
 import com.cuso.mobile.repository.DashboardRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+//import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +34,8 @@ class DashboardViewModel @Inject constructor(
     fun loadDashboard() {
         viewModelScope.launch {
             _uiState.value = DashboardUiState.Loading
+//            delay(300000)
+
 
             dashboardRepository.getAdvancedDashboard()
                 .onSuccess { data ->

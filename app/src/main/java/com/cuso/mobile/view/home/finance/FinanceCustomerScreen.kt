@@ -29,6 +29,7 @@ import com.cuso.mobile.model.sales.CustomerItemV2
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.viewmodel.FinanceViewModel
 
@@ -170,9 +171,7 @@ fun FinanceCustomerScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             when {
                 isLoading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = CustPrimary)
-                    }
+                    ListSkeleton()
                 }
                 error != null -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

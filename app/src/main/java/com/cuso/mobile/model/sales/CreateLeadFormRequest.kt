@@ -1,6 +1,8 @@
 // LeadModels.kt
 package com.cuso.mobile.model.sales
 
+import com.google.gson.annotations.SerializedName
+
 
 // In CreateLeadFormRequest.kt - Add occasion field
 
@@ -9,6 +11,7 @@ data class CreateLeadFormRequest(
     val enquiryType: String,
     val estimatedQuantity: Int,
     val budgetRange: BudgetRange,
+    @SerializedName("garmentCategory")   // ✅ backend expects "garmentCategory", not "garments"
     val garments: List<String>,
     val enquiryDate: String,
     val requiredDate: String,

@@ -3,6 +3,7 @@ package com.cuso.mobile.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.sales.AssignStageResponse
+import com.cuso.mobile.model.sales.ConvertToInvoiceData
 import com.cuso.mobile.model.sales.GarmentStageDoc
 import com.cuso.mobile.model.sales.OrderOverviewData
 import com.cuso.mobile.repository.SalesRepository
@@ -31,6 +32,14 @@ sealed class AssignWorkersState {
     data class Error(val message: String) : AssignWorkersState()
 }
 
+// ── Convert to Invoice state ──
+sealed class ConvertToInvoiceState {
+    object Idle : ConvertToInvoiceState()
+    object Loading : ConvertToInvoiceState()
+    data class Success(val data: ConvertToInvoiceData) : ConvertToInvoiceState()
+    data class Error(val message: String) : ConvertToInvoiceState()
+}
+
 // Stage status update state (Quick Update button) — uses the PATCH
 // /assign-worker-to-stage/{orderId}/{garmentItemId}/{stageName} endpoint.
 sealed class StageUpdateState {
@@ -53,6 +62,11 @@ class OrderOverviewViewModel @Inject constructor(
 
     private val _stageUpdateState = MutableStateFlow<StageUpdateState>(StageUpdateState.Idle)
     val stageUpdateState: StateFlow<StageUpdateState> = _stageUpdateState.asStateFlow()
+
+    // ✅ NEW — Convert to Invoice state
+    private val _convertToInvoiceState = MutableStateFlow<ConvertToInvoiceState>(ConvertToInvoiceState.Idle)
+    val convertToInvoiceState: StateFlow<ConvertToInvoiceState> = _convertToInvoiceState.asStateFlow()
+
 
     fun fetchSalesOverview(orderId: String) {
         viewModelScope.launch {
@@ -144,6 +158,25 @@ class OrderOverviewViewModel @Inject constructor(
                 }
         }
     }
+
+    // ✅ NEW — call this when "Convert to Invoice" button is clicked
+    fun convertToInvoice(salesOrderId: String, dueDate: String? = null) {
+        viewModelScope.launch {
+            _convertToInvoiceState.value = ConvertToInvoiceState.Loading
+            repository.convertToInvoice(salesOrderId, dueDate)
+                .onSuccess { data ->
+                    _convertToInvoiceState.value = ConvertToInvoiceState.Success(data)
+                }
+                .onFailure { e ->
+                    _convertToInvoiceState.value = ConvertToInvoiceState.Error(e.message ?: "Failed to convert to invoice")
+                }
+        }
+    }
+
+//    fun resetConvertToInvoiceState() {
+//        _convertToInvoiceState.value = ConvertToInvoiceState.Idle
+//    }
+
 
     fun resetStageUpdateState() {
         _stageUpdateState.value = StageUpdateState.Idle

@@ -37,6 +37,7 @@ import com.cuso.mobile.view.home.pdfgenerator.InvoicePdfGenerator
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
@@ -130,9 +131,7 @@ fun FinanceInvoiceScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             when {
                 isLoading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = InvPrimary)
-                    }
+                    ListSkeleton()
                 }
                 error != null -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -347,8 +346,7 @@ fun InvoiceDetailScreen(
             invoiceDate = formatInvoiceDate(invoiceDate),
             dueDate = formatInvoiceDate(dueDate ?: invoiceDate),
             status = status,
-            customerName = customer?.name ?: customerId ?: "Walk-in Customer",
-            billToAddress = customer?.billingAddress ?: "",
+            customerName = customer?.name ?: customerId?.name ?: customerId?.id ?: "Walk-in Customer",            billToAddress = customer?.billingAddress ?: "",
             billToPhone = customer?.phone ?: "",
             billToEmail = customer?.email ?: "",
             shipToAddress = customer?.shippingAddress ?: customer?.billingAddress ?: "",

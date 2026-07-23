@@ -1,28 +1,22 @@
 package com.cuso.mobile.view.home.hr
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,7 +24,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.hr.MemberItem
-import com.cuso.mobile.model.hr.displayInitials
 import com.cuso.mobile.model.hr.displayName
 import com.cuso.mobile.model.hr.displayRole
 import com.cuso.mobile.model.hr.displayStatus
@@ -51,6 +44,7 @@ import com.cuso.mobile.viewmodel.HrViewModel
 import kotlinx.coroutines.delay
 import com.cuso.mobile.view.home.reusablecomposables.FilterSection
 import com.cuso.mobile.view.home.reusablecomposables.FilterSectionType
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 
 // ── Design tokens (match screenshot) ──
 private val AccentColor = Color(0xFF4F39F6)
@@ -169,9 +163,7 @@ fun AllEmployeesScreen(
 
             when {
                 isLoading && members.isEmpty() -> {
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = AccentColor)
-                    }
+                    ListSkeleton()
                 }
                 error != null && members.isEmpty() -> {
                     Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {

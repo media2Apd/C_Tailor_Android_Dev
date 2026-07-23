@@ -1,3 +1,9 @@
+@file:Suppress("UNUSED_PARAMETER",
+    "UNUSED",
+    "RedundantSuppression",
+    "unused_variable",
+    "AssignedValueIsNeverRead", "VariableNeverRead"
+)
 package com.cuso.mobile.view.home.sales.pricing
 
 import androidx.compose.foundation.background
@@ -29,14 +35,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
-import com.cuso.mobile.ui.theme.BluePrimary
-import com.cuso.mobile.ui.theme.BorderGray
-import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.viewmodel.GarmentPricingListUiState
 import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 
@@ -106,24 +108,13 @@ fun PricingScreen(
                     onClick = {},
                     backgroundColor = Color.White
                 )
-                SearchFilterBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                    placeholder = "Search Prices...",
-                    accentColor = BluePrimary,
-                    borderColor = BorderGray,
-                    textSecondaryColor = TextSecondary,
-                    onFilterClick = { /* TODO: open filter drawer */ }
-                )
+
             }
             HorizontalDivider(color = CardBorder)
 
             when (val state = listState) {
                 is GarmentPricingListUiState.Loading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CirculerProgressIndicatorReuse()
-                    }
+                    ListSkeleton()
                 }
                 is GarmentPricingListUiState.Error -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -137,7 +128,9 @@ fun PricingScreen(
                     }
                 }
                 is GarmentPricingListUiState.Success -> {
-                    if (state.items.isEmpty()) {
+                    val uniqueItems = state.items.distinctBy { it.id }   // ✅ NEW — dedupe by id
+
+                    if (uniqueItems.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("No pricing records yet", color = TextMuted, fontSize = 14.sp)
                         }
@@ -148,11 +141,11 @@ fun PricingScreen(
                                 .verticalScroll(rememberScrollState())
                                 .padding(16.dp)
                         ) {
-                            PricingDashboard(items = state.items)
+                            PricingDashboard(items = uniqueItems)   // ✅ CHANGED — dashboard stats layum unique items base ah
 
                             Spacer(Modifier.height(20.dp))
 
-                            state.items.forEach { item ->
+                            uniqueItems.forEach { item ->   // ✅ CHANGED
                                 GarmentPricingCard(
                                     item = item,
                                     onClick = { onCardClick(item.id) }
@@ -241,10 +234,14 @@ private fun DashboardStatCard(label: String, value: String, modifier: Modifier =
 // ── Garment Pricing Card — shows Base Price + Total Price ──
 @Composable
 private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> Unit) {
+    var clicked by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(enabled = !clicked) {
+                clicked = true
+                onClick()
+            },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)

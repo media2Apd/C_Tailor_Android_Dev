@@ -1,4 +1,13 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter"
+)
 package com.cuso.mobile.viewmodel
+
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

@@ -1,5 +1,11 @@
-// com/cuso/mobile/viewmodel/Authenticate.kt
-
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter"
+)
 package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.LiveData
@@ -129,8 +135,8 @@ class Authenticate @Inject constructor(
             // for when app reopens the crashlytic loggedin analysis
             _user.value?.let { user ->
                 FirebaseCrashlytics.getInstance().apply {
-                    setUserId(user.userId ?: "")
-                    setCustomKey("user_email", user.email ?: "unknown")
+                    setUserId(user.userId )
+                    setCustomKey("user_email", user.email )
                 }
             }
         }

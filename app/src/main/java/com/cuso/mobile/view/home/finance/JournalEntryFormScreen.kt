@@ -1,4 +1,15 @@
+@file:Suppress(
+    "UNUSED_PARAMETER",
+    "unused",
+    "UNCHECKED_CAST",
+    "DEPRECATION",
+    "AssignedValueIsNeverRead",
+    "GrazieInspection",
+    "SpellCheckingInspection",
+    "unusedvariable"
+)
 package com.cuso.mobile.view.home.finance
+
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -32,11 +43,11 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.view.composable.DatePickerField
-import com.cuso.mobile.view.home.FormDateField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
 import com.cuso.mobile.view.home.reusablecomposables.BackFabButton
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabButton
@@ -279,9 +290,7 @@ fun JournalEntryFormScreen(
         HorizontalDivider(color = BorderGray)
 
         if (isPrefillMode && isLoadingDetail) {
-            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = BluePrimary)
-            }
+            ListSkeleton()
         }
         if (isPrefillMode && journalDetailError != null) {
             Text(

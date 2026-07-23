@@ -43,10 +43,7 @@ fun LoginOtpScreen(navController: NavController, activity: Activity, submittedEm
 
         Card(
             modifier = Modifier
-                // ❌ was height(500.dp) — a fixed height card has no idea
-                // how tall the device screen actually is, so on a shorter
-                // screen it just ran off the bottom. fillMaxWidth() lets it
-                // size to its actual content instead.
+
                 .fillMaxWidth()
                 .padding(20.dp),
             colors = CardDefaults.cardColors(

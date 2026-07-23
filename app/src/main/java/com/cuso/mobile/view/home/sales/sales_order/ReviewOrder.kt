@@ -1,9 +1,17 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "Unused_parameter"
+)
 package com.cuso.mobile.view.home.sales.sales_order
 
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -32,17 +40,20 @@ import com.cuso.mobile.model.sales.OrderOverviewData
 import com.cuso.mobile.model.sales.OrderOverviewStageStep
 import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.pdfgenerator.OrderReceiptPdfGenerator
+import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
+import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 import com.cuso.mobile.viewmodel.AssignWorkersState
+import com.cuso.mobile.viewmodel.ConvertToInvoiceState
 import com.cuso.mobile.viewmodel.OrderOverviewState
 import com.cuso.mobile.viewmodel.OrderOverviewViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
-@Suppress("UNUSED_PARAMETER")
 
 // ─────────────────────────────────────────────────────────────────────────
 // THEME
@@ -93,6 +104,7 @@ data class GarmentDetail(
     val total: Double get() = baseCost + additionalCharges - discount
 }
 
+
 data class GarmentAssignment(
     val cuttingTailor: StaffDto? = null,
     val stitchingTailor: StaffDto? = null,
@@ -106,7 +118,9 @@ data class GarmentAssignment(
 data class PaymentRecord(
     val date: String,
     val amount: Double,
-    val method: String
+    val method: String,
+    val refNo: String = "-"
+
 )
 
 data class PaymentInfo(
@@ -141,7 +155,7 @@ fun OrderOverviewScreen(
     val state by viewModel.overviewState.collectAsStateWithLifecycle()
     val currentOrderData = (state as? OrderOverviewState.Success)?.data   // NEW
     val assignState by viewModel.assignWorkersState.collectAsStateWithLifecycle()
-    val context =LocalContext.current
+    val context = LocalContext.current
 
     LaunchedEffect(orderId) {
         viewModel.fetchSalesOverview(orderId)
@@ -212,33 +226,8 @@ fun OrderOverviewScreen(
                 }
                 HorizontalDivider(color = BorderLight)
             }
-        },
-        bottomBar = {
-            Column {
-                HorizontalDivider(color = BorderLight)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
-                        enabled = currentOrderData != null,
-                        modifier = Modifier.weight(1f).height(40.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary)
-                    ) { Text("Edit Order", fontWeight = FontWeight.Medium) }
-                    Button(
-                        onClick = onCreateNew,
-                        modifier = Modifier.weight(1f).height(40.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = TabActive)
-                    ) { Text("Create New", fontWeight = FontWeight.Medium, color = Color.White) }
-                }
-            }
         }
+        // ❌ bottomBar removed — replaced with a floating StepNavigationFab inside the content Box below
     ) { padding ->
         Box(
             modifier = Modifier
@@ -283,11 +272,26 @@ fun OrderOverviewScreen(
                         "Payment" -> PaymentTab(
                             payment = payment,
                             context = context,
-                            orderData = s.data
+                            orderData = s.data,
+                            viewModel = viewModel
                         )
                     }
                 }
             }
+
+            // ── Fixed, floating action buttons (transparent bg, same pattern as CreateOrderScreen) ──
+            StepNavigationFab(
+                showBack = true,
+                onBack = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
+                backEnabled = currentOrderData != null,
+                backLabel = "Edit Order",
+                backWidthFraction = 0.45f,
+                trailingWidthFraction = 0.45f,
+                trailingAction = TrailingFabAction.Next(
+                    label = "Create New",
+                    onClick = onCreateNew
+                )
+            )
         }
     }
 }
@@ -363,7 +367,12 @@ private fun extractPayment(data: OrderOverviewData): PaymentInfo {
         paidAmount = order.totalPaid,
         history = payments.mapNotNull { p ->
             p.amount?.let { amt ->
-                PaymentRecord(date = "—", amount = amt, method = "Payment")
+                PaymentRecord(
+                    date = p.paymentDate?.let { formatOverviewDate(it) } ?: "—",
+                    amount = amt,
+                    method = p.method?.replaceFirstChar { it.uppercase() } ?: "Payment",
+                    refNo = p.transactionId?.takeIf { it.isNotBlank() } ?: "-"
+                )
             }
         },
         additionalCharges = order.summaryAdditionalCharges.sumOf { it.amount },
@@ -1184,6 +1193,7 @@ private fun PaymentTab(
     payment: PaymentInfo,
     context: Context,
     orderData: OrderOverviewData,
+    viewModel: OrderOverviewViewModel,   // ← add this
     onConvertToInvoice: () -> Unit = {}
 ) {
     val (statusBg, statusText) = when (payment.status) {
@@ -1255,33 +1265,11 @@ private fun PaymentTab(
         }
 
         Spacer(Modifier.height(24.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Description, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("Payment History", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-        }
-        Spacer(Modifier.height(12.dp))
-        if (payment.history.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(Icons.Default.Inbox, contentDescription = null, tint = TextMuted, modifier = Modifier.size(28.dp))
-                Spacer(Modifier.height(8.dp))
-                Text("No payments recorded for this order yet.", fontSize = 13.sp, color = TextMuted)
-            }
-        } else {
-            payment.history.forEach { record ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column {
-                        Text(record.method, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
-                        Text(record.date, fontSize = 11.sp, color = TextMuted)
-                    }
-                    Text("₹${formatOverviewNumber(record.amount)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = PaidGreen)
-                }
-                HorizontalDivider(color = BorderLight)
-            }
-        }
+        PaymentHistorySection(
+            history = payment.history,
+            onView = { record ->  },
+            onPrint = { record ->  }
+        )
 
         Spacer(Modifier.height(20.dp))
         Text("Documents & Actions", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
@@ -1295,8 +1283,12 @@ private fun PaymentTab(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Convert to Invoice", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TabActive)
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = TabActive, modifier = Modifier.size(16.dp))
+            ConvertToInvoiceButton(
+                viewModel = viewModel,
+                salesOrderId = orderData.order._id,
+                isPaymentDone = orderData.order.balanceAmount == 0.0,
+                invoiceAlreadyExists = !orderData.order.invoiceId.isNullOrBlank()
+            )
         }
         Spacer(Modifier.height(4.dp))
         ActionRow(
@@ -1346,6 +1338,213 @@ private fun PaymentTab(
     }
 }
 
+@Composable
+private fun PaymentHistorySection(
+    history: List<PaymentRecord>,
+    onView: (PaymentRecord) -> Unit,
+    onPrint: (PaymentRecord) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // ── Header ──
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(ChipPurpleBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Receipt,
+                    contentDescription = null,
+                    tint = ChipPurpleText,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Text("Payment History", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        if (history.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(SectionBg, RoundedCornerShape(12.dp))
+                    .padding(vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(Icons.Default.Inbox, contentDescription = null, tint = TextMuted, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.height(8.dp))
+                Text("No payments recorded for this order yet.", fontSize = 13.sp, color = TextMuted)
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White)
+                    .border(1.dp, BorderLight, RoundedCornerShape(14.dp))
+            ) {
+                history.forEachIndexed { idx, record ->
+                    PaymentHistoryRow(
+                        record = record,
+                        onView = { onView(record) },
+                        onPrint = { onPrint(record) }
+                    )
+                    if (idx != history.lastIndex) HorizontalDivider(color = BorderLight)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaymentHistoryRow(
+    record: PaymentRecord,
+    onView: () -> Unit,
+    onPrint: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // ── Method + Date + Ref No ──
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(record.method, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .background(SectionBg, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(record.date, fontSize = 10.sp, color = TextMutedDark)
+                }
+            }
+            Spacer(Modifier.height(3.dp))
+            Text(
+                if (record.refNo != "-") "Ref: ${record.refNo}" else "No reference number",
+                fontSize = 11.sp,
+                color = TextMuted
+            )
+        }
+
+        // ── Amount ──
+        Text(
+            "₹${formatOverviewNumber(record.amount)}",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = PaidGreen,
+            modifier = Modifier.padding(end = 10.dp)
+        )
+
+        // ── Actions ──
+        PaymentActionIcon(icon = Icons.Default.Visibility, onClick = onView)
+        Spacer(Modifier.width(6.dp))
+        PaymentActionIcon(icon = Icons.Default.Print, onClick = onPrint)
+    }
+}
+
+@Composable
+private fun PaymentActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(SectionBg)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = TabActive, modifier = Modifier.size(16.dp))
+    }
+}
+
+@Composable
+fun ConvertToInvoiceButton(
+    viewModel: OrderOverviewViewModel,
+    salesOrderId: String,
+    isPaymentDone: Boolean,
+    invoiceAlreadyExists: Boolean,   // ← NEW: true if orderData.order.invoiceId is non-blank
+    modifier: Modifier = Modifier
+) {
+    val convertState by viewModel.convertToInvoiceState.collectAsState()
+
+    // Local flag catches the case where conversion just succeeded in THIS session
+    // (before the screen has refetched order data with the new invoiceId).
+    var invoiceGeneratedLocally by remember(salesOrderId) { mutableStateOf(false) }
+
+    LaunchedEffect(convertState) {
+        if (convertState is ConvertToInvoiceState.Success) {
+            invoiceGeneratedLocally = true
+        }
+    }
+
+    val invoiceExists = invoiceAlreadyExists || invoiceGeneratedLocally
+    val isLoading = convertState is ConvertToInvoiceState.Loading
+    val isEnabled = isPaymentDone && !invoiceExists && !isLoading
+
+    val bgColor = when {
+        invoiceExists -> Color(0xFFDCFCE7)
+        !isPaymentDone -> Color(0xFFF3F4F6)
+        else -> Color(0xFFEEF0FF)
+    }
+    val contentColor = when {
+        invoiceExists -> Color(0xFF16A34A)
+        !isPaymentDone -> Color(0xFF9CA3AF)
+        else -> Color(0xFF4F46E5)
+    }
+
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(bgColor)
+                .clickable(
+                    enabled = isEnabled,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { viewModel.convertToInvoice(salesOrderId) }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = when {
+                    isLoading -> "Converting..."
+                    invoiceExists -> "Invoice Generated"
+                    else -> "Convert to Invoice"
+                },
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = contentColor
+            )
+
+            when {
+                isLoading -> CirculerProgressIndicatorSmall()
+                invoiceExists -> Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(18.dp)
+                )
+                else -> Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
 // ─────────────────────────────────────────────────────────────────────────
 // SHARED UI HELPERS
 // ─────────────────────────────────────────────────────────────────────────

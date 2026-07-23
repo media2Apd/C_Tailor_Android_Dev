@@ -1,5 +1,7 @@
 package com.cuso.mobile.model.sales
 
+import com.google.gson.annotations.SerializedName
+
 data class OrderOverviewApiResponse(
     val success: Boolean,
     val data: OrderOverviewData
@@ -29,9 +31,9 @@ data class OrderOverviewOrder(
     val status: String,
     val summaryAdditionalCharges: List<OrderOverviewCharge> = emptyList(),
     val discount: Double = 0.0,
-    val totalAmount: Double
+    val totalAmount: Double,
+    val invoiceId: String? = null   // ← add this
 )
-
 data class OrderOverviewCustomer(
     val _id: String,
     val name: String,
@@ -90,13 +92,60 @@ data class OrderOverviewStageStep(
     val failedQuantity: Int,
     val assignedTo: List<StaffDto> = emptyList()
 )
-
 data class OrderOverviewPayment(
     val _id: String? = null,
-    val amount: Double? = null
+    val paymentNumber: String? = null,
+    val amount: Double? = null,
+    val paymentDate: String? = null,
+    val method: String? = null,
+    val transactionId: String? = null,
+    val notes: String? = null
 )
-
 data class OrderOverviewDelivery(
     val _id: String? = null,
     val status: String? = null
+)
+
+
+
+// ── Request ──
+data class ConvertToInvoiceRequest(
+    @SerializedName("salesOrderId") val salesOrderId: String,
+    @SerializedName("dueDate") val dueDate: String? = null   // optional — backend can default if not sent
+)
+
+// ── Response ──
+data class ConvertToInvoiceResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String,
+    @SerializedName("data") val data: ConvertToInvoiceData?
+)
+
+data class ConvertToInvoiceData(
+    @SerializedName("_id") val id: String,
+    @SerializedName("organizationId") val organizationId: String,
+    @SerializedName("branchId") val branchId: String,
+    @SerializedName("invoiceNumber") val invoiceNumber: String,
+    @SerializedName("salesOrderId") val salesOrderId: String,
+    @SerializedName("customerId") val customerId: String,
+    @SerializedName("invoiceDate") val invoiceDate: String,
+    @SerializedName("dueDate") val dueDate: String,
+    @SerializedName("items") val items: List<ConvertToInvoiceItem>,
+    @SerializedName("subtotal") val subtotal: Double,
+    @SerializedName("taxAmount") val taxAmount: Double,
+    @SerializedName("totalAmount") val totalAmount: Double,
+    @SerializedName("paidAmount") val paidAmount: Double,
+    @SerializedName("balanceAmount") val balanceAmount: Double,
+    @SerializedName("status") val status: String,
+    @SerializedName("createdAt") val createdAt: String,
+    @SerializedName("updatedAt") val updatedAt: String
+)
+
+data class ConvertToInvoiceItem(
+    @SerializedName("_id") val id: String,
+    @SerializedName("description") val description: String,
+    @SerializedName("quantity") val quantity: Int,
+    @SerializedName("unitPrice") val unitPrice: Double,
+    @SerializedName("tax") val tax: Double,
+    @SerializedName("total") val total: Double
 )

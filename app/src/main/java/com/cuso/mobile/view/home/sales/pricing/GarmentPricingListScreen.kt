@@ -1,3 +1,9 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead"
+)
 package com.cuso.mobile.view.home.sales.pricing
 
 import androidx.compose.foundation.background
@@ -15,6 +21,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,9 +33,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.viewmodel.GarmentPricingListUiState
 import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 
@@ -86,9 +95,8 @@ fun GarmentPricingListScreen(
 
             when (val state = listState) {
                 is GarmentPricingListUiState.Loading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CirculerProgressIndicatorReuse()
-                    }
+                    ListSkeleton()
+
                 }
                 is GarmentPricingListUiState.Error -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -102,7 +110,9 @@ fun GarmentPricingListScreen(
                     }
                 }
                 is GarmentPricingListUiState.Success -> {
-                    if (state.items.isEmpty()) {
+                    val uniqueItems = state.items.distinctBy { it.id }   // ✅ NEW — dedupe by id
+
+                    if (uniqueItems.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("No pricing records yet", color = TextMuted, fontSize = 14.sp)
                         }
@@ -113,7 +123,7 @@ fun GarmentPricingListScreen(
                                 .verticalScroll(rememberScrollState())
                                 .padding(16.dp)
                         ) {
-                            state.items.forEach { item ->
+                            uniqueItems.forEach { item ->   // ✅ CHANGED
                                 GarmentPricingCard(
                                     item = item,
                                     onClick = { onCardClick(item.id) }
@@ -131,10 +141,14 @@ fun GarmentPricingListScreen(
 
 @Composable
 private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> Unit) {
+    var clicked by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(enabled = !clicked) {
+                clicked = true
+                onClick()
+            },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)

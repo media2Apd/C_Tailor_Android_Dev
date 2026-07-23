@@ -1,5 +1,14 @@
 // com/cuso/mobile/utils/GovernmentIdValidator.kt
+@file:Suppress(
+    "UNUSED_VALUE",
+    "unused_variable",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "VariableNeverRead",
+    "unused"
 
+)
 package com.cuso.mobile.view.home.reusablecomposables
 
 import java.util.regex.Pattern
@@ -9,7 +18,7 @@ object GovernmentIdValidator {
     // ── PAN Card Validation ──
     // Format: ABCDE1234F (5 letters, 4 digits, 1 letter)
     // Pattern: [A-Z]{5}[0-9]{4}[A-Z]{1}
-    private val PAN_PATTERN = Pattern.compile("^[A-Z]{5}[0-9]{4}[A-Z]{1}$")
+    private val PAN_PATTERN = Pattern.compile("^[A-Z]{5}[0-9]{4}[A-Z]$")
 
     fun validatePan(pan: String): ValidationResult {
         val cleaned = pan.trim().uppercase()
@@ -149,10 +158,10 @@ object GovernmentIdValidator {
 
         // Check if starts with valid prefix
         val prefix = cleaned.substring(0, 2).toIntOrNull()
-        if (prefix != null && prefix !in 10..30) {
-            // Some UANs may start with other numbers, so this is a soft warning
-            // Not a hard error
-        }
+//        if (prefix != null && prefix !in 10..30) {
+//            // Some UANs may start with other numbers, so this is a soft warning
+//            // Not a hard error
+//        }
 
         return ValidationResult(true, "Valid UAN number")
     }

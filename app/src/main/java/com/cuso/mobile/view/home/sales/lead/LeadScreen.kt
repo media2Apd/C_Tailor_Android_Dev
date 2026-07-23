@@ -1,3 +1,13 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "unused_variable",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "VariableNeverRead",
+    "unused"
+
+)
 package com.cuso.mobile.view.home.sales.lead
 
 import android.annotation.SuppressLint
@@ -37,7 +47,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Add
@@ -54,7 +63,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -70,8 +78,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -130,8 +136,11 @@ import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.FilterDrawer
 import com.cuso.mobile.view.home.reusablecomposables.FilterSection
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
+import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.viewmodel.SaleState
@@ -281,69 +290,13 @@ fun LeadAccordionSection(
     }
 }
 
-@Composable
-fun LeadBottomBar(
-    leftLabel: String,
-    leftIcon: androidx.compose.ui.graphics.vector.ImageVector,
-    onLeftClick: () -> Unit,
-    rightLabel: String,
-    rightIcon: androidx.compose.ui.graphics.vector.ImageVector?,
-    onRightClick: () -> Unit,
-    rightEnabled: Boolean = true,
-    rightLoading: Boolean = false
-) {
-    Column {
-        HorizontalDivider(color = Color(0xFFF0F0F0))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { onLeftClick() }
-                    .padding(vertical = 6.dp, horizontal = 4.dp)
-            ) {
-                Icon(leftIcon, contentDescription = null, tint = Color(0xFF6B7280), modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(leftLabel, fontSize = 13.sp, color = Color(0xFF6B7280), fontWeight = FontWeight.Medium)
-            }
-            Button(
-                onClick = onRightClick,
-                enabled = rightEnabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = LeadPrimary,
-                    disabledContainerColor = LeadPrimary.copy(alpha = 0.5f)
-                ),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp)
-            ) {
-                if (rightLoading) {
-                    CirculerProgressIndicatorReuse()
-                } else {
-                    Text(rightLabel, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    if (rightIcon != null) {
-                        Spacer(Modifier.width(6.dp))
-                        Icon(rightIcon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                    }
-                }
-            }
-        }
-    }
-}
 
 private fun validateLeadFields(
     leadSource: String,
     enquiryDate: String,
     leadOwner: String,
     leadStatus: String,
+    customerType: String,
     fullName: String,
     phone: String,
     email: String,
@@ -370,8 +323,11 @@ private fun validateLeadFields(
     if (fullName.isBlank()) missing += "Full Name"
     if (phone.isBlank()) missing += "Mobile Number"
     if (email.isBlank()) missing += "Email"
-    if (gender.isBlank()) missing += "Gender"
-    if (dob.isBlank()) missing += "Date of Birth"
+    // ✅ Gender & DOB required only for Individual
+    if (customerType.equals("Individual", ignoreCase = true)) {
+        if (gender.isBlank()) missing += "Gender"
+        if (dob.isBlank()) missing += "Date of Birth"
+    }
     if (preferredContact.isBlank()) missing += "Preferred Contact Method"
     if (enquiryType.isBlank()) missing += "Enquiry Type"
     if (estimatedQuantity.isBlank()) missing += "Estimated Quantity"
@@ -412,7 +368,7 @@ fun CreateLeadScreen(onBack: () -> Unit) {
     var preferredContact by remember { mutableStateOf("") }
     var enquiryType      by remember { mutableStateOf("") }
     var estimatedQuantity by remember { mutableStateOf("") }
-    var garmentCategory  by remember { mutableStateOf("") }
+    var selectedGarmentCategories by remember { mutableStateOf<List<String>>(emptyList()) }
     var budgetRange      by remember { mutableFloatStateOf(1000f) }
     var requiredDate     by remember { mutableStateOf("") }
     var occasion         by remember { mutableStateOf("") }
@@ -468,7 +424,7 @@ fun CreateLeadScreen(onBack: () -> Unit) {
     // ✅ Staff list for dropdown
     val staffDisplayList   = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
     val staffIdMap         = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
-    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == leadOwner }?.key ?: ""
+    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == leadOwner }?.key ?: "Select an option"
 
     val statusOptions      = salesStatuses.map { it.name }
     val statusIdMap        = salesStatuses.associate { it.name to it.id }
@@ -480,7 +436,7 @@ fun CreateLeadScreen(onBack: () -> Unit) {
     fun clearAllFields() {
         leadSource = ""; enquiryDate = ""; leadStatus = ""; customerType = "Individual"
         fullName = ""; email = ""; gender = ""; dob = ""; address = ""; areaZone = ""; city = ""
-        preferredContact = ""; enquiryType = ""; estimatedQuantity = ""; garmentCategory = ""
+        preferredContact = ""; enquiryType = ""; estimatedQuantity = ""; selectedGarmentCategories = emptyList()
         budgetRange = 1000f; requiredDate = ""; occasion = ""; appointmentRequired = false
         appointmentDate = ""; appointmentTime = ""; assignedStaff = ""; followUpDate = ""
         priority = ""; internalNotes = ""; customerNotes = ""; phone = ""
@@ -489,22 +445,25 @@ fun CreateLeadScreen(onBack: () -> Unit) {
 
     fun submitLead() {
 
-        val baseFields = listOf(
-            ValidationField("leadSource", leadSource, "Lead Source is required"),
-            ValidationField("enquiryDate", enquiryDate, "Enquiry Date is required"),
-            ValidationField("leadOwner", leadOwner, "Lead Owner is required"),
-            ValidationField("leadStatus", leadStatus, "Lead Status is required"),
-            ValidationField("fullName", fullName, "Full Name is required"),
-            ValidationField("phone", phone, "Mobile Number is required"),
-            ValidationField("email", email, "Email is required"),
-            ValidationField("gender", gender, "Gender is required"),
-            ValidationField("dob", dob, "Date of Birth is required"),
-            ValidationField("preferredContact", preferredContact, "Preferred Contact Method is required"),
-            ValidationField("enquiryType", enquiryType, "Enquiry Type is required"),
-            ValidationField("estimatedQuantity", estimatedQuantity, "Estimated Quantity is required"),
-            ValidationField("garmentCategory", garmentCategory, "Garment Category is required"),
-            ValidationField("requiredDate", requiredDate, "Required Date is required")
-        )
+        val baseFields = buildList {
+            add(ValidationField("leadSource", leadSource, "Lead Source is required"))
+            add(ValidationField("enquiryDate", enquiryDate, "Enquiry Date is required"))
+            add(ValidationField("leadOwner", leadOwner, "Lead Owner is required"))
+            add(ValidationField("leadStatus", leadStatus, "Lead Status is required"))
+            add(ValidationField("fullName", fullName, "Full Name is required"))
+            add(ValidationField("phone", phone, "Mobile Number is required"))
+            add(ValidationField("email", email, "Email is required"))
+            // ✅ Gender & DOB required only when Individual
+            if (customerType.equals("Individual", ignoreCase = true)) {
+                add(ValidationField("gender", gender, "Gender is required"))
+                add(ValidationField("dob", dob, "Date of Birth is required"))
+            }
+            add(ValidationField("preferredContact", preferredContact, "Preferred Contact Method is required"))
+            add(ValidationField("enquiryType", enquiryType, "Enquiry Type is required"))
+            add(ValidationField("estimatedQuantity", estimatedQuantity, "Estimated Quantity is required"))
+            add(ValidationField("garmentCategory", selectedGarmentCategories.joinToString(","), "Garment Category is required"))
+            add(ValidationField("requiredDate", requiredDate, "Required Date is required"))
+        }
         val appointmentFields = if (appointmentRequired) {
             listOf(
                 ValidationField("appointmentDate", appointmentDate, "Appointment Date is required"),
@@ -525,10 +484,11 @@ fun CreateLeadScreen(onBack: () -> Unit) {
         errorField = null
         val error = validateLeadFields(
             leadSource = leadSource, enquiryDate = enquiryDate, leadOwner = leadOwner,
-            leadStatus = leadStatus, fullName = fullName, phone = phone, email = email,
+            leadStatus = leadStatus, customerType = customerType, fullName = fullName,
+            phone = phone, email = email,
             gender = gender, dob = dob, preferredContact = preferredContact,
             enquiryType = enquiryType, estimatedQuantity = estimatedQuantity,
-            garmentCategory = garmentCategory, requiredDate = requiredDate,
+            garmentCategory = selectedGarmentCategories.joinToString(","), requiredDate = requiredDate,
             appointmentRequired = appointmentRequired, appointmentDate = appointmentDate,
             appointmentTime = appointmentTime, assignedStaff = assignedStaff,
             followUpDate = followUpDate, priority = priority
@@ -542,9 +502,7 @@ fun CreateLeadScreen(onBack: () -> Unit) {
             enquiryType = enquiryType,
             estimatedQuantity = estimatedQuantity.toIntOrNull() ?: 0,
             budgetRange = BudgetRange(min = budgetRange.toInt(), max = 250000),
-            garments = listOfNotNull(garmentIdMap[garmentCategory]?.takeIf {
-                garmentCategory.isNotBlank()
-            }),
+            garments = selectedGarmentCategories.mapNotNull { garmentIdMap[it] },
             enquiryDate = enquiryDate.toIsoDate(),
             requiredDate = requiredDate.toIsoDate(),
             source = leadSource,
@@ -828,32 +786,47 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                 FormLabel("Garment Category")
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     items(garmentOptions) { option ->
-                                        val isSelected = garmentCategory == option
+                                        val isSelected = selectedGarmentCategories.contains(option)
                                         Box(
                                             modifier = Modifier
                                                 .border(
                                                     1.dp,
                                                     if (isSelected) Primary else Color(0xFFE5E7EB),
-                                                    RoundedCornerShape(10.dp)
+                                                    RoundedCornerShape(50.dp)
                                                 )
                                                 .background(
                                                     if (isSelected) LeadPrimarySoft else Color.White,
                                                     RoundedCornerShape(50.dp)
                                                 )
                                                 .clickable {
-                                                    garmentCategory =
-                                                        if (garmentCategory == option) "" else option
+                                                    selectedGarmentCategories =
+                                                        if (isSelected) {
+                                                            selectedGarmentCategories.filter { it != option }
+                                                        } else {
+                                                            selectedGarmentCategories + option
+                                                        }
                                                 }
                                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                                         ) {
-                                            Text(
-                                                option,
-                                                fontSize = 13.sp,
-                                                color = if (isSelected) LeadPrimary else Color(
-                                                    0xFF374151
-                                                ),
-                                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                                            )
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                if (isSelected) {
+                                                    Icon(
+                                                        Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(14.dp),
+                                                        tint = LeadPrimary
+                                                    )
+                                                    Spacer(Modifier.width(4.dp))
+                                                }
+                                                Text(
+                                                    option,
+                                                    fontSize = 13.sp,
+                                                    color = if (isSelected) LeadPrimary else Color(
+                                                        0xFF374151
+                                                    ),
+                                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -907,7 +880,10 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                     FormLabel("Appointment Time")
                                     TimePickerField(
                                         value = appointmentTime,
-                                        onTimeSelected = { appointmentTime = it })
+                                        onTimeSelected = { appointmentTime = it }
+                                    )
+                                    Spacer(Modifier.height(14.dp))
+
                                     FormDropdown(
                                         "Assigned Staff",
                                         selectedStaffLabel.ifEmpty { if (isLoadingStaff) "Loading staff..." else "Select an option" },
@@ -1305,18 +1281,7 @@ fun LeadScreenContent(
             ) {
                 when {
                     isLoading -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.White, RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CirculerProgressIndicatorReuse()
-                                Spacer(Modifier.height(8.dp))
-                                Text("Loading leads...", color = Color.Gray)
-                            }
-                        }
+                        ListSkeleton()
                     }
                     tableError != null -> {
                         Box(
@@ -1614,7 +1579,7 @@ fun ViewLeadScreen(
     // ✅ Lead Owner — resolve staff ID to display name safely (nullable-safe)
     val leadOwnerDisplay = remember(l.leadOwner, staffDisplayMap) {
         val ownerId = l.leadOwner
-        if (ownerId.isNullOrBlank()) {
+        if (ownerId.isBlank()) {
             "—"
         } else {
             staffDisplayMap[ownerId] ?: ownerId
@@ -1638,56 +1603,41 @@ fun ViewLeadScreen(
         l.garments.split(",").filter { it.isNotBlank() }
     } else emptyList()
 
-    Scaffold(
-        containerColor = Color(0xFFF5F5F7),
-        contentWindowInsets = WindowInsets(0),
-        bottomBar = {
-            LeadBottomBar(
-                leftLabel = "Back",
-                leftIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                onLeftClick = onBack,
-                rightLabel = "Edit Lead",
-                rightIcon = Icons.Default.Edit,
-                onRightClick = {
-                    salesViewModel.fetchLeadDetails(l.id) { success ->
-                        if (!success) {
-                            Toast.makeText(context, "Failed to refresh lead data", Toast.LENGTH_SHORT).show()
-                        }
-                        onEditLead()
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            LeadFormTopBar(
-                title = "View Lead",
-                badgeText = l.status.ifEmpty { "—" },
-                onClose = onBack
-            )
-            HorizontalDivider(color = Color(0xFFF0F0F0))
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Color(0xFFF5F5F7),
+            contentWindowInsets = WindowInsets(0)
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
             ) {
-                item {
-                    LeadAccordionSection(
-                        icon = Icons.Default.Description,
-                        title = "Lead Information",
-                        subtitle = "Basic details about this lead",
-                        expanded = sectionLeadInfo,
-                        onExpandChange = { sectionLeadInfo = it }
-                    ) {
-                        ViewFieldValue("Lead Source", l.source.ifEmpty { "—" })
-                        ViewFieldValue("Enquiry Date", formatLeadDate(l.enquiryDate))
-                        ViewFieldValue("Lead Owner", leadOwnerDisplay)   // ✅ resolved from API staff list
-                        ViewFieldValue("Lead Status", l.status.ifEmpty { "—" })
+                LeadFormTopBar(
+                    title = "View Lead",
+                    badgeText = l.status.ifEmpty { "—" },
+                    onClose = onBack
+                )
+                HorizontalDivider(color = Color(0xFFF0F0F0))
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 90.dp)   // ✅ NEW — room so floating FABs don't cover last item
+                ) {
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.Description,
+                            title = "Lead Information",
+                            subtitle = "Basic details about this lead",
+                            expanded = sectionLeadInfo,
+                            onExpandChange = { sectionLeadInfo = it }
+                        ) {
+                            ViewFieldValue("Lead Source", l.source.ifEmpty { "—" })
+                            ViewFieldValue("Enquiry Date", formatLeadDate(l.enquiryDate))
+                            ViewFieldValue("Lead Owner", leadOwnerDisplay)   // ✅ resolved from API staff list
+                            ViewFieldValue("Lead Status", l.status.ifEmpty { "—" })
+                        }
                     }
-                }
 
                 item {
                     LeadAccordionSection(
@@ -1729,8 +1679,10 @@ fun ViewLeadScreen(
                         ViewFieldValue("Full Name", l.fullName.ifEmpty { "—" })
                         ViewFieldValue("Phone", l.phone.ifEmpty { "—" })
                         ViewFieldValue("Email", l.email.ifEmpty { "—" })
-                        ViewFieldValue("Gender", l.gender.ifEmpty { "—" })
-                        ViewFieldValue("Date of Birth", formatLeadDate(l.dob))
+                        if (l.customerType.equals("Individual", ignoreCase = true)) {
+                            ViewFieldValue("Gender", l.gender.ifEmpty { "—" })
+                            ViewFieldValue("Date of Birth", formatLeadDate(l.dob))
+                        }
                     }
                 }
 
@@ -1846,12 +1798,30 @@ fun ViewLeadScreen(
                     }
                 }
 
-                item { Spacer(Modifier.height(8.dp)) }
+                    item { Spacer(Modifier.height(8.dp)) }
+                }
             }
         }
+
+        // ✅ NEW — floating, transparent, fixed-position FAB nav (replaces LeadBottomBar)
+        StepNavigationFab(
+            showBack = true,
+            onBack = onBack,
+            backLabel = "Back",
+            trailingAction = TrailingFabAction.Edit(
+                label = "Edit Lead",
+                onClick = {
+                    salesViewModel.fetchLeadDetails(l.id) { success ->
+                        if (!success) {
+                            Toast.makeText(context, "Failed to refresh lead data", Toast.LENGTH_SHORT).show()
+                        }
+                        onEditLead()
+                    }
+                }
+            )
+        )
     }
 }
-
 @Composable
 fun MiniSwitch(
     checked: Boolean,
@@ -2051,7 +2021,8 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
         val error = validateLeadFields(
             leadSource = leadSource, enquiryDate = enquiryDate, leadOwner = leadOwner,
-            leadStatus = leadStatus, fullName = fullName, phone = phone, email = email,
+            leadStatus = leadStatus, customerType = customerType, fullName = fullName,
+            phone = phone, email = email,
             gender = gender, dob = dob, preferredContact = preferredContact,
             enquiryType = enquiryType, estimatedQuantity = estimatedQuantity,
             garmentCategory = selectedGarmentCategories.joinToString(","),
@@ -2114,37 +2085,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
         Scaffold(
             containerColor = Color(0xFFF5F5F7),
-            contentWindowInsets = WindowInsets(0),
-            bottomBar = {
-                Column {
-                    LeadBottomBar(
-                        leftLabel = "Cancel",
-                        leftIcon = Icons.Default.Close,
-                        onLeftClick = onBack,
-                        rightLabel = if (currentUpdateState is SaleState.Loading) "" else "Update Lead",
-                        rightIcon = Icons.Default.Check,
-                        rightEnabled = currentUpdateState !is SaleState.Loading && selectedGarmentCategories.isNotEmpty(),
-                        rightLoading = currentUpdateState is SaleState.Loading,
-                        onRightClick = { validateAndUpdate() }
-                    )
-                    if (showGarmentError) {
-                        Text(
-                            "Please select at least one garment category",
-                            color = Color.Red,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                        )
-                    }
-                    if (currentUpdateState is SaleState.Error) {
-                        Text(
-                            currentUpdateState.message,
-                            color = Color.Red,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-            }
+            contentWindowInsets = WindowInsets(0)
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -2160,8 +2101,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    contentPadding = PaddingValues(16.dp, bottom = 90.dp),
                 ) {
                     item {
                         LeadInfoBanner("Edit the details below and save your changes.")
@@ -2271,19 +2211,25 @@ fun EditLeadScreen(onBack: () -> Unit) {
                             Spacer(Modifier.height(14.dp))
                             FormLabel("Email")
                             FormTextField(value = email, onValueChange = { email = it })
-                            Spacer(Modifier.height(14.dp))
-                            FormDropdown(
-                                "Gender",
-                                gender.ifEmpty { "Select an option" },
-                                genderExpanded,
-                                { genderExpanded = it },
-                                genderOptions,
-                                { gender = it })
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Date of Birth")
-                            DatePickerField(
-                                value = dob.ifEmpty { "Select Date" },
-                                onDateSelected = { dob = it })
+                            if (customerType == "Individual") {
+
+                                Spacer(Modifier.height(14.dp))
+                                FormDropdown(
+                                    "Gender",
+                                    gender.ifEmpty { "Select an option" },
+                                    genderExpanded,
+                                    { genderExpanded = it },
+                                    genderOptions,
+                                    { gender = it }
+                                )
+
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Date of Birth")
+                                DatePickerField(
+                                    value = dob.ifEmpty { "Select Date" },
+                                    onDateSelected = { dob = it }
+                                )
+                            }
                         }
                     }
 
@@ -2475,16 +2421,12 @@ fun EditLeadScreen(onBack: () -> Unit) {
                             expanded = sectionAppointment && appointmentRequired,
                             onExpandChange = { sectionAppointment = it },
                             trailing = {
-                                Switch(
+                                MiniSwitch(
                                     checked = appointmentRequired,
                                     onCheckedChange = {
                                         appointmentRequired = it
-                                        sectionAppointment = it
-                                    },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = Primary
-                                    )
+                                        sectionAppointment = it   // ✅ existing edit-screen behavior retain pannirukken
+                                    }
                                 )
                             }
                         ) {
@@ -2495,26 +2437,10 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                     onDateSelected = { appointmentDate = it })
                                 Spacer(Modifier.height(14.dp))
                                 FormLabel("Appointment Time")
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 12.dp, vertical = 14.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        appointmentTime.orEmpty(),
-                                        color = Color(0xFF374151),
-                                        fontSize = 14.sp
-                                    )
-                                    Icon(
-                                        Icons.Default.Schedule,
-                                        contentDescription = null,
-                                        tint = Color.Gray,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                                TimePickerField(
+                                    value = appointmentTime.orEmpty(),
+                                    onTimeSelected = { appointmentTime = it }
+                                )
                                 FormDropdown(
                                     "Assigned Staff",
                                     selectedStaffLabel.ifEmpty { if (isLoadingStaff) "Loading..." else "Select an option" },
@@ -2597,6 +2523,17 @@ fun EditLeadScreen(onBack: () -> Unit) {
                 onDismiss = { validationError = null }
             )
         }
+        StepNavigationFab(
+            showBack = true,
+            onBack = onBack,
+            backLabel = "Cancel",
+            trailingAction = TrailingFabAction.Update(
+                isLoading = currentUpdateState is SaleState.Loading,
+                label = "Update Lead",
+                enabled = currentUpdateState !is SaleState.Loading && selectedGarmentCategories.isNotEmpty(),
+                onClick = { validateAndUpdate() }
+            )
+        )
     }
 }
 

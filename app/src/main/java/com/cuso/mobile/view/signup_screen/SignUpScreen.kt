@@ -1,3 +1,11 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "unused_variable",
+    "unused_parameter",
+    "ASSIGNED_VALUE_IS_NEVER_READ"
+)
 package com.cuso.mobile.view.signup_screen
 
 import android.app.Activity
@@ -156,14 +164,15 @@ fun SignUpScreen(
                             organizationName = organization,
                             password = password,
                             termsAccepted = true
-                        ) },
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Blue,
                         contentColor = Color.White
                     ),
                     shape = RoundedCornerShape(10.dp),
-                    enabled = state !is UiState.Loading
+                    enabled = state !is UiState.Loading && isTermsAccepted
                 ) {
                     if (state is UiState.Loading) {
                         CirculerProgressIndicatorReuse()

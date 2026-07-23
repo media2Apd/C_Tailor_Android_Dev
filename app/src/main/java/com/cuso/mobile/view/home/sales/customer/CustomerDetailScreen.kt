@@ -88,6 +88,7 @@ fun CustomerDetailScreen(
     var email by remember { mutableStateOf("") }   // ✅ NEW — hoisted from PersonalInformationStep
 
     fun validateStep(step: Int): Boolean {
+        if (!isEditMode) return true
         return when (step) {
             0 -> {
                 var valid = true

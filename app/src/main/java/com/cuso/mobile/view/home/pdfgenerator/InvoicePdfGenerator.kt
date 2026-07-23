@@ -347,7 +347,7 @@ class InvoicePdfGenerator(private val context: Context) {
         }
     }
 
-    // ── HTML for WebView (SAME html used for preview, download, print) ──
+    // ── HTML for WebView (SAME HTML used for preview, download, print) ──
     // Design: exact match of the "RELDA" wide-layout invoice (logo-row, gst-bar,
     // parties-box, QR code, script signature, footer-brand) — every value below
     // comes from `data`, which is populated from the API response.
@@ -356,11 +356,13 @@ class InvoicePdfGenerator(private val context: Context) {
         fun money(v: Double) = "₹" + String.format(Locale.US, "%,.2f", v)
 
         val companyInitial = data.companyName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "C"
-        val logoBlockHtml = if (!data.logoUrl.isNullOrEmpty()) {
-            """<img src="${data.logoUrl}" class="logo-icon-img" />"""
-        } else {
-            """<div class="logo-icon">$companyInitial</div>"""
-        }
+        val logoBlockHtml ="""<div class="logo-icon">$companyInitial</div>"""
+
+//            if (!data.logoUrl.isNullOrEmpty()) {
+//            """<img src="${data.logoUrl}" class="logo-icon-img" />"""
+//        } else {
+//
+//        }
         val footerLogoBase64 = drawableToBase64(R.drawable.cuso_technologies_logo)   // 🔁 replace R.drawable.logo with your actual drawable name
         val footerLogoTag = if (footerLogoBase64.isNotEmpty()) {
             """<img src="$footerLogoBase64" class="footer-logo"/>"""
@@ -441,29 +443,29 @@ class InvoicePdfGenerator(private val context: Context) {
       .logo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 
       .logo-icon {
-        width: 200px;
-        height: 200px;
+        width: 100px;
+        height: 100px;
         border-radius: 50%;
-        background: #DC2626;
+        background: #4F46E5;
         display: flex;
         align-items: center;
         justify-content: center;
         color: #ffffff;
-        font-size: 90px;
+        font-size: 50px;
         font-weight: 700;
         font-family: Georgia, serif;
         flex-shrink: 0;
       }
 
       .logo-icon-img {
-        width: 200px;
-        height: 200px;
+        width: 56px;
+        height: 56px;
         object-fit: contain;
         border-radius: 8px;
         flex-shrink: 0;
       }
 
-      .logo-text { font-size: 28px; font-weight: 800; color: #DC2626; letter-spacing: 0.5px; }
+     
       .invoice-title { font-size: 34px; font-weight: 800; color: #111827; letter-spacing: 0.5px; margin-bottom: 12px; }
 
       .company-meta { font-size: 13px; color: #6b7280; line-height: 1.85; }
@@ -641,7 +643,6 @@ class InvoicePdfGenerator(private val context: Context) {
         <div class="inv-top-col left">
           <div class="logo-row">
             $logoBlockHtml
-            <div class="logo-text">${data.companyName.ifEmpty { "-" }}</div>
           </div>
           <div class="company-meta">
             ${data.companyAddress}<br>

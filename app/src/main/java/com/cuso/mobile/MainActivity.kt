@@ -1,3 +1,12 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter"
+)
+
 package com.cuso.mobile
 
 import android.app.Activity
@@ -20,7 +29,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.cuso.mobile.repository.SessionManager
-import com.cuso.mobile.view.home.finance.ChartOfAccountScreen
 import com.cuso.mobile.ui.theme.CusoTailorTheme
 import com.cuso.mobile.view.forgot_password.ForgotUserPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
@@ -35,18 +43,11 @@ import com.cuso.mobile.view.home.SettingsScreen
 import com.cuso.mobile.view.home.branch.BranchSettingsScreen
 import com.cuso.mobile.view.home.sales.sales_order.SalesOrderScreen
 import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
-import com.cuso.mobile.view.home.finance.CustomerDetailScreenStatic
 import com.cuso.mobile.view.organization.OrganizationNotFoundScreen
 import com.cuso.mobile.view.others.PrivacyPolicy
 import com.cuso.mobile.view.others.TermsConditions
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
-import com.cuso.mobile.view.home.finance.FinanceCustomerScreen
-import com.cuso.mobile.view.home.finance.FinanceInvoiceScreen
-import com.cuso.mobile.view.home.finance.InvoiceDetailScreen
-import com.cuso.mobile.view.home.finance.ManualJournalEntryScreen
-import com.cuso.mobile.view.home.finance.TrialBalanceScreen
-import com.cuso.mobile.view.home.hr.EmployeeOnboardingScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject

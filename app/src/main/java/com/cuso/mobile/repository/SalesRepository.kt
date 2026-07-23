@@ -73,6 +73,8 @@ import com.cuso.mobile.model.sales.UpdateCustomerRequest
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationResponse
 import com.cuso.mobile.model.UploadOrganizationPictureResponse
+import com.cuso.mobile.model.sales.ConvertToInvoiceData
+import com.cuso.mobile.model.sales.ConvertToInvoiceRequest
 import com.cuso.mobile.model.sales.UpdateStageRequest
 import com.cuso.mobile.model.sales.toOrderItem
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -374,6 +376,11 @@ class SalesRepository @Inject constructor(
             personPhone = request.person.phone.asRequestBody(),
             personEmail = request.person.email.asRequestBody(),
             appointmentIsRequired = request.appointment.isRequired.toString().asRequestBody(),
+            appointmentDate = request.appointment.date?.asRequestBody(),
+            appointmentTime = request.appointment.time?.asRequestBody(),
+            appointmentAssignedStaff = request.appointment.assignedStaff?.asRequestBody(),
+            appointmentPriority = request.appointment.priority?.asRequestBody(),
+            appointmentFollowUpDate = request.appointment.followUpDate?.asRequestBody(),
             personGender = request.person.gender.asRequestBody(),
             personDob = request.person.dob.asRequestBody(),
             contactAddress = request.contact.address.asRequestBody(),
@@ -1253,6 +1260,32 @@ class SalesRepository @Inject constructor(
             } else {
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to fetch customer details: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Convert Sales Order to Invoice ──
+
+    /**
+     * POST /api/finance/sales-invoices/convert-to-invoice
+     * Converts a fully-paid sales order into a sales invoice.
+     * Should only be called once payment is complete (balanceAmount == 0).
+     */
+    suspend fun convertToInvoice(salesOrderId: String, dueDate: String? = null): Result<ConvertToInvoiceData> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val request = ConvertToInvoiceRequest(salesOrderId = salesOrderId, dueDate = dueDate)
+            val response = api.convertToInvoice(accessToken, csrfToken, salesOrderId, request)
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data
+                    ?: return Result.failure(Exception("Invoice data is null"))
+                Result.success(data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to convert to invoice: ${response.code()}")
                 )
             }
         } catch (e: Exception) {

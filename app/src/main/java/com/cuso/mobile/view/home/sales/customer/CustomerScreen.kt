@@ -1,13 +1,21 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "unused_variable",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "VariableNeverRead",
+    "unused"
+
+)
 package com.cuso.mobile.view.home.sales.customer
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -16,7 +24,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -26,12 +33,13 @@ import com.cuso.mobile.model.sales.CustomerItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
+import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
+import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
@@ -91,12 +99,11 @@ fun CustomerScreen(
 //    )
 
     FabScaffold(
-//        fab = FabConfig(
-//            label = "Create Customer",
-//            icon = Icons.Default.Add,
-//            onClick = onCreateCustomer
-//        )
-        fab=null,
+        fab = FabConfig(
+            label = "Create Customer",
+            icon = Icons.Default.Add,
+            onClick = onCreateCustomer
+        ),
         snackbarHostState = snackbarHostState
     ) {
         Column(
@@ -118,7 +125,7 @@ fun CustomerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.White)
-                        .padding(horizontal = 16.dp, )
+                        .padding(horizontal = 16.dp )
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -171,12 +178,7 @@ fun CustomerScreen(
             // ── Content ──────────────────────────────────────────
             when {
                 isLoading -> {
-                    Box(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CirculerProgressIndicatorReuse()
-                    }
+                    ListSkeleton()
                 }
 
                 customerState is CustomerUiState.Error -> {

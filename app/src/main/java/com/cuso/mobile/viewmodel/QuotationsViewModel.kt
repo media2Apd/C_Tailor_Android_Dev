@@ -121,7 +121,7 @@ class QuotationViewModel @Inject constructor(
             salesRepository.deleteQuotation(id)
                 .onSuccess {
                     _deleteState.value = QuotationDeleteUiState.Success
-                    refresh()   // list refresh aagum delete aana pinnadi
+                    refresh()
                 }
                 .onFailure { e ->
                     _deleteState.value = QuotationDeleteUiState.Error(e.message ?: "Failed to delete quotation")
@@ -145,7 +145,7 @@ class QuotationViewModel @Inject constructor(
         }
     }
 
-    fun resetDetailState() {
-        _detailState.value = QuotationDetailUiState.Idle
-    }
+//    fun resetDetailState() {
+//        _detailState.value = QuotationDetailUiState.Idle
+//    }
 }

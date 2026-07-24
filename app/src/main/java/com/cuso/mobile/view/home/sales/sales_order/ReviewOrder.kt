@@ -404,10 +404,10 @@ private fun OverviewTab(data: OrderOverviewData) {
         Spacer(Modifier.height(10.dp))
         SectionTitle("Order Information")
         InfoRow("Order Number", "#${order.orderNumber}")
-        InfoRow("Order Date", formatOverviewDate(order.orderDate))
+        InfoRow("Order Date", order.orderDate?.let { formatOverviewDate(it) } ?: "—")
         InfoRow("Trial Date", order.trialDate?.let { formatOverviewDate(it) } ?: "—")
         InfoRow("Delivery Date", order.deliveryDate?.let { formatOverviewDate(it) } ?: "—")
-        InfoRow("Branch", order.branch.name)
+        InfoRow("Branch", order.branch?.name ?: "Not Assigned")
         InfoRowWithBadge("Status", order.status)
 
         Spacer(Modifier.height(10.dp))

@@ -142,6 +142,12 @@ class LoginRepository @Inject constructor(
             )
         }
     }
+    // LoginRepository.kt la
+    suspend fun updateProfilePicture(newUrl: String?) {
+        val currentUser = db.userDao().getUser() ?: return
+        db.userDao().updateUser(currentUser.copy(profilePicture = newUrl))
+    }
+
 
     suspend fun clearAll() {
         db.userDao().clearUser()

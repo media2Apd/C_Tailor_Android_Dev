@@ -63,6 +63,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -78,7 +79,9 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -99,6 +102,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.BudgetRange
@@ -114,6 +118,7 @@ import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.FieldValidator
@@ -143,6 +148,7 @@ import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
 import com.cuso.mobile.view.home.toIsoDate
+import com.cuso.mobile.viewmodel.ConvertOrderState
 import com.cuso.mobile.viewmodel.SaleState
 import com.cuso.mobile.viewmodel.SalesViewModel
 import kotlin.collections.get
@@ -157,7 +163,9 @@ fun LeadFormTopBar(
     title: String,
     badgeText: String,
     badgeColor: Color = LeadPrimary,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    isConverted: Boolean = true,          // true = show badge, false = show Convert button
+    onConvertToOrder: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -168,16 +176,47 @@ fun LeadFormTopBar(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (badgeText.isNotBlank()) {
-                Box(
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+
+            if (isConverted) {
+                // ---- Badge (shown after successful conversion) ----
+                if (badgeText.isNotBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .background(badgeColor.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(badgeText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = badgeColor)
+                    }
+                }
+            } else {
+                // ---- Convert to Order button (shown before conversion) ----
+                Row(
                     modifier = Modifier
-                        .background(badgeColor.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .background(LeadPrimary, RoundedCornerShape(20.dp))
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { onConvertToOrder() }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(badgeText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = badgeColor)
+                    Icon(
+                        Icons.Default.SwapHoriz,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        "Convert to Order",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
                 }
             }
+
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Close",
@@ -189,6 +228,58 @@ fun LeadFormTopBar(
                         interactionSource = remember { MutableInteractionSource() }
                     ) { onClose() }
             )
+        }
+    }
+}
+
+@Composable
+fun ConvertToOrderDialog(
+    leadName: String,
+    isLoading: Boolean = false,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = { if (!isLoading) onDismiss() }) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    "Convert Lead to Order",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    leadName,
+                    fontSize = 14.sp,
+                    color = Color(0xFF6B7280)
+                )
+                Spacer(Modifier.height(20.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss, enabled = !isLoading) {
+                        Text("Cancel", color = Color(0xFF6B7280))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = onConfirm,
+                        enabled = !isLoading,
+                        colors = ButtonDefaults.buttonColors(containerColor = LeadPrimary)
+                    ) {
+                        if (isLoading) {
+                            CirculerProgressIndicatorSmall()
+                        } else {
+                            Text("Convert", color = Color.White)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1386,7 +1477,10 @@ fun LeadScreenContent(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color.White, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                                    .background(
+                                        Color.White,
+                                        RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+                                    )
                             ) {
                                 Column {
                                     HorizontalDivider(color = Color(0xFFF0F0F0))
@@ -1575,6 +1669,7 @@ fun ViewLeadScreen(
 
     val l = lead!!
 
+
     var appointmentRequired by remember(l.id) { mutableStateOf(l.appointmentRequired) }
 
     // ✅ Lead Owner — resolve staff ID to display name safely (nullable-safe)
@@ -1723,8 +1818,15 @@ fun ViewLeadScreen(
                                     garmentNames.forEach { garment ->
                                         Box(
                                             modifier = Modifier
-                                                .border(1.dp, LeadPrimary, RoundedCornerShape(50.dp))
-                                                .background(LeadPrimarySoft, RoundedCornerShape(50.dp))
+                                                .border(
+                                                    1.dp,
+                                                    LeadPrimary,
+                                                    RoundedCornerShape(50.dp)
+                                                )
+                                                .background(
+                                                    LeadPrimarySoft,
+                                                    RoundedCornerShape(50.dp)
+                                                )
                                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1893,6 +1995,12 @@ fun EditLeadScreen(onBack: () -> Unit) {
     val salesViewModel: SalesViewModel = hiltViewModel()
     val context = LocalContext.current
 
+    var showConvertDialog by remember { mutableStateOf(false) }
+    var isConverted by remember { mutableStateOf(false) }
+
+
+    val convertOrderState by salesViewModel.convertOrderState.collectAsStateWithLifecycle()
+
     val lead by salesViewModel.selectedLead.collectAsStateWithLifecycle()
     val updateState by salesViewModel.updateState.collectAsStateWithLifecycle()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
@@ -1929,10 +2037,35 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
     val l = lead!!
 
+
+
+
+
     LaunchedEffect(Unit) {
         if (staffList.isEmpty()) salesViewModel.fetchStaff()
         if (garmentCategories.isEmpty()) salesViewModel.fetchGarmentCategories()
         if (salesStatuses.isEmpty()) salesViewModel.fetchSalesData()
+    }
+
+    LaunchedEffect(convertOrderState) {
+        when (val state = convertOrderState) {
+            is ConvertOrderState.Success -> {
+                showConvertDialog = false
+                Toast.makeText(
+                    context,
+                    state.data.message.ifBlank { "Order created: ${state.data.orderId}" },
+                    Toast.LENGTH_LONG
+                ).show()
+                salesViewModel.resetConvertOrderState()
+            }
+            is ConvertOrderState.Error -> {
+                Toast.makeText(context, "Conversion failed: ${state.message}", Toast.LENGTH_LONG).show()
+                salesViewModel.resetConvertOrderState()
+                salesViewModel.fetchLeadDetails(l.id) { }
+
+            }
+            else -> Unit
+        }
     }
 
     var leadSource by remember { mutableStateOf(l.source) }
@@ -2001,6 +2134,11 @@ fun EditLeadScreen(onBack: () -> Unit) {
             val names = ids.mapNotNull { id -> garmentCategories.find { it.id == id }?.categoryId?.categoryName }
             if (names.isNotEmpty()) selectedGarmentCategories = names
         }
+    }
+    LaunchedEffect(l.status) {
+        isConverted = l.status.equals("Converted to order", ignoreCase = true)
+        leadStatus=l.status
+
     }
 
     LaunchedEffect(updateState) {
@@ -2096,7 +2234,9 @@ fun EditLeadScreen(onBack: () -> Unit) {
                 LeadFormTopBar(
                     title = "Edit Lead",
                     badgeText = leadStatus.ifEmpty { "—" },
-                    onClose = onBack
+                    onClose = onBack,
+                    isConverted = isConverted,
+                    onConvertToOrder = { showConvertDialog = true }
                 )
                 HorizontalDivider(color = Color(0xFFF0F0F0))
 
@@ -2522,6 +2662,15 @@ fun EditLeadScreen(onBack: () -> Unit) {
                 modifier = Modifier.align(Alignment.TopCenter),
                 message = validationError,
                 onDismiss = { validationError = null }
+            )
+        }
+        if (showConvertDialog) {
+            ConvertToOrderDialog(
+                leadName = fullName,
+                onDismiss = { showConvertDialog = false },
+                onConfirm = {
+                    salesViewModel.convertLeadToOrder(l.id)
+                }
             )
         }
         StepNavigationFab(

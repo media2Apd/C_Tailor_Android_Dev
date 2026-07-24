@@ -112,3 +112,19 @@ fun LeadTableItem.toLeadEntity(): LeadEntity {
         createdAt = this.createdAt
     )
 }
+
+//convert to order
+data class ConvertLeadToOrderResponse(
+    @SerializedName("success")
+    val success: Boolean,
+    @SerializedName("data")
+    val data:ConvertToOrderData
+)
+data class ConvertToOrderData(
+    @SerializedName("message")
+    val message:String,
+    @SerializedName("customerId")
+    val customerId:String,
+    @SerializedName("orderId")
+    val orderId:String
+)

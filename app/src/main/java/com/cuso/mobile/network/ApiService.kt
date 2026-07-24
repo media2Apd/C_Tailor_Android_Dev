@@ -101,15 +101,21 @@ import com.cuso.mobile.model.finance.LedgerResponse
 import com.cuso.mobile.model.finance.TrialBalanceResponse
 import com.cuso.mobile.model.finance.UpdateJournalEntryRequest
 import com.cuso.mobile.model.finance.UpdateJournalEntryResponse
+import com.cuso.mobile.model.hr.CreateMemberRequest
 import com.cuso.mobile.model.hr.CreateMemberResponse
+import com.cuso.mobile.model.hr.DeleteProfilePictureResponse
+
 import com.cuso.mobile.model.hr.MemberDetailResponse
 import com.cuso.mobile.model.hr.MemberListResponse
 import com.cuso.mobile.model.hr.RoleListResponse
 import com.cuso.mobile.model.hr.ShiftListResponse
+import com.cuso.mobile.model.hr.UpdateMemberRequest
+import com.cuso.mobile.model.hr.UploadProfilePictureResponse
 import com.cuso.mobile.model.inventory.AdjustStockRequest
 import com.cuso.mobile.model.inventory.InventoryItemDetailResponse
 import com.cuso.mobile.model.inventory.InventoryItemListResponse
 import com.cuso.mobile.model.inventory.InventoryViewOneResponse
+import com.cuso.mobile.model.sales.ConvertLeadToOrderResponse
 import com.cuso.mobile.model.sales.ConvertToInvoiceRequest
 import com.cuso.mobile.model.sales.ConvertToInvoiceResponse
 import com.cuso.mobile.model.sales.DeleteCustomerResponse
@@ -254,6 +260,13 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Body request: CreateLeadFormRequest
     ): Response<CreateLeadFormResponse>
+
+    @POST("/api/sales-leads/convert-to-order/{leadId}")
+    suspend fun convertedToOrder(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path ("leadId") leadId: String
+    ): Response<ConvertLeadToOrderResponse>
 
     @Multipart
     @PUT("/api/sales-leads/update-one/{id}")
@@ -975,22 +988,35 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<ShiftListResponse>
 
-    @Multipart
     @POST("/api/members/create")
     suspend fun createMember(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
-        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
-        @Part userImage: MultipartBody.Part?
+        @Body request: CreateMemberRequest
     ): Response<CreateMemberResponse>
 
     @Multipart
+    @PUT("/api/members/update/profile-picture/{memberId}")
+    suspend fun uploadProfilePicture(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("memberId") memberId: String,
+        @Part file: MultipartBody.Part
+    ): Response<UploadProfilePictureResponse>
+
+    @DELETE("/api/members/delete/profile-picture/{memberId}")   // ⚠️ confirm exact path with backend
+    suspend fun deleteProfilePicture(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("memberId") memberId: String
+    ): Response<DeleteProfilePictureResponse>
+
     @PUT("/api/members/update-one/{id}")
     suspend fun updateMember(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") memberId: String,
-        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Body request: UpdateMemberRequest,   // reuse the same request shape if fields match, or make an UpdateMemberRequest
     ): Response<CreateMemberResponse>
 
     @GET("/api/members/view-one/{id}")

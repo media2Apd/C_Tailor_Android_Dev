@@ -1,3 +1,13 @@
+@file:Suppress(
+    "UNUSED_PARAMETER",
+    "unused",
+    "UNCHECKED_CAST",
+    "DEPRECATION",
+    "AssignedValueIsNeverRead",
+    "GrazieInspection",
+    "SpellCheckingInspection",
+    "unusedvariable"
+)
 package com.cuso.mobile.model.hr
 
 // ═══════════════════════════════════════════════════════════
@@ -270,6 +280,32 @@ data class WorkExperienceResponseItem(
     val _id: String? = null
 )
 
+data class UpdateMemberRequest(
+    val firstName: String,
+    val lastName: String,
+    val personalEmail: String,
+    val personalMobile: String,
+    val workMobile: String,
+    val dob: String,
+    val gender: String,
+    val martialStatus: String,
+    val doj: String,
+    val branchId: String?,
+    val departmentId: String?,
+    val designationId: String?,
+    val customRoleId: String?,
+    val shiftId: String?,
+    val workingDistrict: String?,
+    val employmentType: String,
+    val reportingTo: String?,
+    val secondaryReportingTo: String?,
+    val permanentAddress: AddressRequest,
+    val hasTemporaryAddress: Boolean,
+    val temporaryAddress: AddressRequest? = null,
+    val education: List<EducationRequestItem> = emptyList(),
+    val workExperience: List<WorkExperienceRequestItem> = emptyList()
+)
+
 data class CreatedMemberFullData(
     val _id: String,
     val userId: String? = null,
@@ -377,7 +413,7 @@ data class MemberWorkExperienceDetail(
 
 data class MemberDetail(
     val _id: String,
-    val userId: String? = null,
+    val userId: MemberUserRef? = null,
     val organizationId: MemberOrganizationRef? = null,
     val role: String? = null,
     val customRoleId: MemberCustomRoleRef? = null,
@@ -412,4 +448,23 @@ data class MemberDetail(
     val createdAt: String? = null,
     val updatedAt: String? = null,
     val memberId: String? = null
+)
+
+//upload picture
+data class UploadProfilePictureResponse(
+    val message: String?,
+    val member: UploadedMemberInfo
+)
+
+//delete profile
+data class DeleteProfilePictureResponse(
+    val message: String?,
+    val member: UploadedMemberInfo
+)
+
+data class UploadedMemberInfo(
+    val _id: String?,
+    val profilePicture: String?,
+    val profilePictureId: String?
+
 )

@@ -161,7 +161,7 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.logistics, "Logistics",
                 isPanel = true,
-                categories = listOf("Delivery", "Returns"),
+                categories = listOf("Delivery", "Returns","Order Tracking"),
                 subItems = mapOf(
                     "Delivery" to listOf("Delivery"),
                     "Returns"  to listOf("Returns")

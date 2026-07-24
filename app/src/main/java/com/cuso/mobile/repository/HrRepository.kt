@@ -1,11 +1,15 @@
+@file:Suppress("unused")
 package com.cuso.mobile.repository
 
 import com.cuso.mobile.model.hr.CreateMemberRequest
 import com.cuso.mobile.model.hr.CreatedMemberFullData
+import com.cuso.mobile.model.hr.DeleteProfilePictureResponse
 import com.cuso.mobile.model.hr.MemberDetail
 import com.cuso.mobile.model.hr.MemberListResponse
 import com.cuso.mobile.model.hr.RoleItem
 import com.cuso.mobile.model.hr.ShiftItem
+import com.cuso.mobile.model.hr.UpdateMemberRequest
+import com.cuso.mobile.model.hr.UploadProfilePictureResponse
 import com.cuso.mobile.network.ApiService
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -134,54 +138,32 @@ class HrRepository @Inject constructor(
         return fields
     }
 
-    suspend fun createMember(
-        request: CreateMemberRequest,
-        imageFile: File?
-    ): Result<CreatedMemberFullData> {
+    suspend fun createMember(request: CreateMemberRequest): Result<CreatedMemberFullData> {
         return try {
-            val (accessToken, csrfToken) = getAuthHeaders()
+            val (authHeader, csrfToken) = getAuthHeaders()
+            val response = api.createMember(authHeader, csrfToken, request)
+            val body = response.body()
 
-            val fields = buildMemberFormFields(request)
-            val imagePart: MultipartBody.Part? = imageFile?.let { file ->
-                val reqFile = file.asRequestBody("image/png".toMediaTypeOrNull())
-                MultipartBody.Part.createFormData("userImage", file.name, reqFile)
-            }
-
-            val response = api.createMember(accessToken, csrfToken, fields, imagePart)
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                response.body()?.data?.let { Result.success(it) }
-                    ?: Result.failure(Exception("Empty response data"))
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
             } else {
-                val errorBody = response.errorBody()?.string()
-                Result.failure(Exception(errorBody ?: "Failed to create employee: ${response.code()}"))
+                Result.failure(Exception(body?.message ?: "Failed to create member"))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun updateMember(
-        memberId: String,
-        request: CreateMemberRequest,
-        imageFile: File?,
-//        imageFile: File?,
-//        imageFile: java.io.File?
-    ): Result<CreatedMemberFullData> {
+    suspend fun updateMember(memberId: String, request: UpdateMemberRequest): Result<CreatedMemberFullData> {
         return try {
-            val (accessToken, csrfToken) = getAuthHeaders()
-            val fields = buildMemberFormFields(request)
-//            val imagePart = imageFile?.let { file ->
-//                val reqFile = file.asRequestBody("image/png".toMediaTypeOrNull())
-//                MultipartBody.Part.createFormData("userImage", file.name, reqFile)
-//            }
-            val response = api.updateMember(accessToken, csrfToken, memberId, fields)
-            if (response.isSuccessful && response.body()?.success == true) {
-                response.body()?.data?.let { Result.success(it) }
-                    ?: Result.failure(Exception("Empty response data"))
+            val (authHeader, csrfToken) = getAuthHeaders()
+            val response = api.updateMember(authHeader, csrfToken, memberId, request)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
             } else {
-                val errorBody = response.errorBody()?.string()
-                Result.failure(Exception(errorBody ?: "Failed to update employee: ${response.code()}"))
+                Result.failure(Exception(body?.message ?: "Failed to update member"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -199,6 +181,54 @@ class HrRepository @Inject constructor(
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to fetch employee detail: ${response.code()}")
                 )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun uploadProfilePicture(memberId: String, file: File): Result<UploadProfilePictureResponse> {
+        return try {
+            val (authHeader, csrfToken) = getAuthHeaders()
+
+            val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+            val filePart = MultipartBody.Part.createFormData(
+                "profilePicture",   // 👈 backend expect panra file field name confirm pannunga
+                file.name,
+                requestFile
+            )
+
+            val response = api.uploadProfilePicture(
+                token = authHeader,
+                csrfToken = csrfToken,
+                memberId = memberId,
+                file = filePart
+            )
+
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Upload failed: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteProfilePicture(memberId: String): Result<DeleteProfilePictureResponse> {
+        return try {
+            val (authHeader, csrfToken) = getAuthHeaders()
+
+            val response = api.deleteProfilePicture(
+                token = authHeader,
+                csrfToken = csrfToken,
+                memberId = memberId
+            )
+
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Delete failed: ${response.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

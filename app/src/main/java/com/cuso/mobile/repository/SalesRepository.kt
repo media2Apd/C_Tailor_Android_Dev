@@ -75,6 +75,7 @@ import com.cuso.mobile.model.UpdateOrganizationResponse
 import com.cuso.mobile.model.UploadOrganizationPictureResponse
 import com.cuso.mobile.model.sales.ConvertToInvoiceData
 import com.cuso.mobile.model.sales.ConvertToInvoiceRequest
+import com.cuso.mobile.model.sales.ConvertToOrderData
 import com.cuso.mobile.model.sales.UpdateStageRequest
 import com.cuso.mobile.model.sales.toOrderItem
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -328,6 +329,26 @@ class SalesRepository @Inject constructor(
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to delete: ${response.code()}")
                 )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun convertLeadToOrder(leadId: String): Result<ConvertToOrderData> {
+        return try {
+            val (authHeader, csrfToken) = getAuthHeaders()
+            val response = api.convertedToOrder(authHeader, csrfToken, leadId)
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && body.success) {
+                    Result.success(body.data)
+                } else {
+                    Result.failure(Exception(body?.data?.message ?: "Conversion failed"))
+                }
+            } else {
+                Result.failure(Exception("Error: ${response.code()} ${response.message()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

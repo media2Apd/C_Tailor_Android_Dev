@@ -17,12 +17,14 @@ import com.cuso.mobile.model.hr.MemberDetail
 import com.cuso.mobile.model.hr.MemberItem
 import com.cuso.mobile.model.hr.RoleItem
 import com.cuso.mobile.model.hr.ShiftItem
+import com.cuso.mobile.model.hr.UpdateMemberRequest
 import com.cuso.mobile.repository.HrRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 /**
@@ -136,6 +138,45 @@ class HrViewModel @Inject constructor(
     private val _memberDetailError = MutableStateFlow<String?>(null)
     val memberDetailError: StateFlow<String?> = _memberDetailError.asStateFlow()
 
+    private val _uploadPictureState = MutableStateFlow<UploadPictureState>(UploadPictureState.Idle)
+    val uploadPictureState: StateFlow<UploadPictureState> = _uploadPictureState
+
+    private val _deletePictureState = MutableStateFlow<DeletePictureState>(DeletePictureState.Idle)
+    val deletePictureState: StateFlow<DeletePictureState> = _deletePictureState
+
+    fun uploadProfilePicture(memberId: String, file: File) {
+        viewModelScope.launch {
+            _uploadPictureState.value = UploadPictureState.Loading
+            val result = hrRepository.uploadProfilePicture(memberId, file)
+            result.onSuccess { response ->
+                val url = response.member.profilePicture.orEmpty()
+                _uploadPictureState.value = UploadPictureState.Success(url)
+            }.onFailure { e ->
+                _uploadPictureState.value = UploadPictureState.Error(e.message ?: "Upload failed")
+            }
+        }
+    }
+
+    fun resetUploadPictureState() {
+        _uploadPictureState.value = UploadPictureState.Idle
+    }
+
+    fun deleteProfilePicture(memberId: String) {
+        viewModelScope.launch {
+            _deletePictureState.value = DeletePictureState.Loading
+            val result = hrRepository.deleteProfilePicture(memberId)
+            result.onSuccess {
+                _deletePictureState.value = DeletePictureState.Success
+            }.onFailure { e ->
+                _deletePictureState.value = DeletePictureState.Error(e.message ?: "Delete failed")
+            }
+        }
+    }
+
+    fun resetDeletePictureState() {
+        _deletePictureState.value = DeletePictureState.Idle
+    }
+
     fun fetchMemberDetail(memberId: String) {
         viewModelScope.launch {
             _isLoadingMemberDetail.value = true
@@ -154,23 +195,15 @@ class HrViewModel @Inject constructor(
         _memberDetail.value = null
     }
 
-    // ═══════════════════════════════════════════════
-    // ── Create / Update Member ──
-    // ═══════════════════════════════════════════════
-    sealed class CreateMemberState {
-        object Idle : CreateMemberState()
-        object Loading : CreateMemberState()
-        data class Success(val member: CreatedMemberFullData) : CreateMemberState()
-        data class Error(val message: String) : CreateMemberState()
-    }
+
 
     private val _createMemberState = MutableStateFlow<CreateMemberState>(CreateMemberState.Idle)
     val createMemberState: StateFlow<CreateMemberState> = _createMemberState.asStateFlow()
 
-    fun createMember(request: CreateMemberRequest, imageFile: java.io.File?) {
+    fun createMember(request: CreateMemberRequest) {
         viewModelScope.launch {
             _createMemberState.value = CreateMemberState.Loading
-            val result = hrRepository.createMember(request, imageFile)
+            val result = hrRepository.createMember(request)
             result.fold(
                 onSuccess = { _createMemberState.value = CreateMemberState.Success(it) },
                 onFailure = { e -> _createMemberState.value = CreateMemberState.Error(e.message ?: "Failed to create employee") }
@@ -178,10 +211,10 @@ class HrViewModel @Inject constructor(
         }
     }
 
-    fun updateMember(memberId: String, request: CreateMemberRequest, imageFile: java.io.File?) {
+    fun updateMember(memberId: String, request: UpdateMemberRequest) {
         viewModelScope.launch {
             _createMemberState.value = CreateMemberState.Loading
-            val result = hrRepository.updateMember(memberId, request, imageFile)
+            val result = hrRepository.updateMember(memberId, request)
             result.fold(
                 onSuccess = { _createMemberState.value = CreateMemberState.Success(it) },
                 onFailure = { e -> _createMemberState.value = CreateMemberState.Error(e.message ?: "Failed to update employee") }
@@ -192,5 +225,29 @@ class HrViewModel @Inject constructor(
 
     fun resetCreateMemberState() {
         _createMemberState.value = CreateMemberState.Idle
+    }
+
+    sealed class UploadPictureState {
+        object Idle : UploadPictureState()
+        object Loading : UploadPictureState()
+        data class Success(val pictureUrl: String) : UploadPictureState()
+        data class Error(val message: String) : UploadPictureState()
+    }
+
+    sealed class DeletePictureState {
+        object Idle : DeletePictureState()
+        object Loading : DeletePictureState()
+        object Success : DeletePictureState()
+        data class Error(val message: String) : DeletePictureState()
+    }
+
+    // ═══════════════════════════════════════════════
+    // ── Create / Update Member ──
+    // ═══════════════════════════════════════════════
+    sealed class CreateMemberState {
+        object Idle : CreateMemberState()
+        object Loading : CreateMemberState()
+        data class Success(val member: CreatedMemberFullData) : CreateMemberState()
+        data class Error(val message: String) : CreateMemberState()
     }
 }

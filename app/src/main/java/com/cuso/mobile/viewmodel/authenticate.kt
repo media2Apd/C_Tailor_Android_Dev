@@ -599,6 +599,17 @@ class Authenticate @Inject constructor(
     }
 
     // ─────────────────────────────────────────────────────────────
+// Update Profile Picture (after upload/delete in HR module)
+// ─────────────────────────────────────────────────────────────
+
+    fun updateUserProfilePicture(newUrl: String?) {
+        viewModelScope.launch {
+            loginRepository.updateProfilePicture(newUrl)   // Room DB update pannudhu
+            loadUser()                                       // ✅ fresh value DB la irundhu reload — StateFlow update aagum, TopBar recompose aagum
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // Logout
     // ─────────────────────────────────────────────────────────────
 

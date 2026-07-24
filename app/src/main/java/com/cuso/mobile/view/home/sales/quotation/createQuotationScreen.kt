@@ -201,7 +201,8 @@ fun CreateQuotationScreen(
     // ── Prefill state once quotation detail + garment options are both ready ──
     LaunchedEffect(detailState, garmentOptions) {
         val state = detailState
-        if (state is com.cuso.mobile.viewmodel.QuotationDetailUiState.Success && garmentOptions.isNotEmpty()) {
+        // ✅ quotationId != null-னு explicit-ஆ check பண்ணுங்க — edit mode-ல மட்டும் prefill ஆகணும்
+        if (quotationId != null && state is com.cuso.mobile.viewmodel.QuotationDetailUiState.Success && garmentOptions.isNotEmpty()) {
             val dto = state.quotation
             val firstItem = dto.items.firstOrNull()
 
@@ -218,6 +219,9 @@ fun CreateQuotationScreen(
 
             isPrefilling = false
         } else if (state is com.cuso.mobile.viewmodel.QuotationDetailUiState.Error) {
+            isPrefilling = false
+        } else if (quotationId == null) {
+            // ✅ create mode-ல immediate-ஆ prefilling stop பண்ணுங்க
             isPrefilling = false
         }
     }
@@ -555,7 +559,7 @@ private fun CustomerSelectionCard(customer: CustomerOption, selected: Boolean, o
         RadioButton(
             selected = selected,
             onClick = onSelect,
-            colors = RadioButtonDefaults.colors(selectedColor = Purple)
+            colors = RadioButtonDefaults.colors(selectedColor = Purple, disabledSelectedColor = BorderGray)
         )
         Spacer(Modifier.width(4.dp))
         Column {

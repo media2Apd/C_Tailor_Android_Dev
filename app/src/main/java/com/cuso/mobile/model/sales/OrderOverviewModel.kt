@@ -19,20 +19,20 @@ data class OrderOverviewOrder(
     val _id: String,
     val orderNumber: String,
     val customerId: OrderOverviewCustomer,
-    val branch: OrderOverviewBranch,
-    val totalPaid: Double,
-    val balanceAmount: Double,
-    val paymentStatus: String,
-    val source: String,
-    val wearerType: String,
-    val orderDate: String,
-    val trialDate: String?,
-    val deliveryDate: String?,
-    val status: String,
+    val branch: OrderOverviewBranch? = null,      // ✅ nullable + default
+    val totalPaid: Double = 0.0,
+    val balanceAmount: Double = 0.0,
+    val paymentStatus: String = "unpaid",
+    val source: String? = null,                   // ✅ nullable
+    val wearerType: String? = null,                // ✅ nullable
+    val orderDate: String? = null,                 // ✅ nullable
+    val trialDate: String? = null,
+    val deliveryDate: String? = null,
+    val status: String = "draft",
     val summaryAdditionalCharges: List<OrderOverviewCharge> = emptyList(),
     val discount: Double = 0.0,
-    val totalAmount: Double,
-    val invoiceId: String? = null   // ← add this
+    val totalAmount: Double = 0.0,
+    val invoiceId: String? = null
 )
 data class OrderOverviewCustomer(
     val _id: String,

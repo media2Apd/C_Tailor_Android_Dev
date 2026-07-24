@@ -76,11 +76,15 @@ import com.cuso.mobile.model.Country
 import com.cuso.mobile.model.hr.AddressRequest
 import com.cuso.mobile.model.hr.CreateMemberRequest
 import com.cuso.mobile.model.hr.EducationRequestItem
+import com.cuso.mobile.model.hr.UpdateMemberRequest
 import com.cuso.mobile.model.hr.WorkExperienceRequestItem
 import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.ErrorFieldWrapper
 import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.home.reusablecomposables.GovernmentIdValidator
+import com.cuso.mobile.view.home.toIsoDate
+import com.cuso.mobile.viewmodel.Authenticate
 
 // ── Design tokens (match screenshot) ──
 private val AccentColor = Color(0xFF4F39F6)
@@ -128,7 +132,18 @@ fun EmployeeOnboardingScreen(
     departmentViewModel: DepartmentViewModel = hiltViewModel(),
     designationViewModel: DesignationViewModel = hiltViewModel()
 ) {
+    val authViewModel: Authenticate = hiltViewModel()
+
+
+    DisposableEffect(Unit) {
+        Log.d("LIFECYCLE_DEBUG", "EmployeeOnboardingScreen ENTERED composition")
+        onDispose {
+            Log.d("LIFECYCLE_DEBUG", "EmployeeOnboardingScreen LEFT composition")
+        }
+    }
     val isReadOnly = mode == ScreenMode.VIEW
+
+    var topSuccess by remember { mutableStateOf<String?>(null) }
 
     var expandedSection by remember { mutableStateOf("Basic Information") }
 
@@ -229,10 +244,55 @@ fun EmployeeOnboardingScreen(
     var currentErrorField by remember { mutableStateOf<String?>(null) }
     var topError by remember { mutableStateOf<String?>(null) }
 
+    val uploadPictureState by hrViewModel.uploadPictureState.collectAsState()
+
+    val deletePictureState by hrViewModel.deletePictureState.collectAsState()
+
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let { profileImageUri = it }
+        uri?.let {
+            profileImageUri = it
+            if (mode == ScreenMode.EDIT && memberIdToLoad != null) {
+                val file = uriToFile(context, it)
+                hrViewModel.uploadProfilePicture(memberIdToLoad, file)
+            }
+        }
+    }
+
+    LaunchedEffect(uploadPictureState) {
+        when (val state = uploadPictureState) {
+            is HrViewModel.UploadPictureState.Success -> {
+                existingProfilePictureUrl = state.pictureUrl
+                profileImageUri = null
+                topSuccess="Profile Uploaded Successfully"
+                authViewModel.updateUserProfilePicture(state.pictureUrl)
+                hrViewModel.resetUploadPictureState()
+            }
+            is HrViewModel.UploadPictureState.Error -> {
+                topError = state.message
+                hrViewModel.resetUploadPictureState()
+            }
+            else -> Unit
+        }
+    }
+
+    LaunchedEffect(deletePictureState) {
+        when (val state = deletePictureState) {
+            is HrViewModel.DeletePictureState.Success -> {
+                existingProfilePictureUrl = null   // 👈 idhu dhaan fix — old URL clear pannudhu
+                profileImageUri = null
+                topSuccess="Profile Deleted Successfully"
+                authViewModel.updateUserProfilePicture(null)
+                hrViewModel.resetDeletePictureState()
+            }
+            is HrViewModel.DeletePictureState.Error -> {
+                topError = state.message
+                hrViewModel.resetDeletePictureState()
+            }
+            else -> Unit
+        }
     }
 
     var selectedRoleId by remember { mutableStateOf<String?>(null) }
@@ -252,6 +312,14 @@ fun EmployeeOnboardingScreen(
     var isPanValid by remember { mutableStateOf(false) }
     var isAadhaarValid by remember { mutableStateOf(false) }
     var isUanValid by remember { mutableStateOf(false) }
+
+    val memberDetailError by hrViewModel.memberDetailError.collectAsState()
+
+    LaunchedEffect(memberDetailError) {
+        if (memberDetailError != null) {
+            topError = memberDetailError
+        }
+    }
 
     // ── Validation functions ──
     fun validatePanNumber(value: String): Boolean {
@@ -298,8 +366,8 @@ fun EmployeeOnboardingScreen(
         return try {
             // Try multiple formats
             val formats = listOf(
-                "dd MMM yyyy",
                 "dd-MM-yyyy",
+                "dd MMM yyy",
                 "dd/MM/yyyy",
                 "yyyy-MM-dd"
             )
@@ -324,13 +392,12 @@ fun EmployeeOnboardingScreen(
         if (isoDate.isBlank()) return "Select Date"
         return try {
             val input = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault())
-            val output = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+            val output = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())   // ✅ changed
             output.format(input.parse(isoDate)!!)
         } catch (e: Exception) {
-            // Try fallback format
             try {
                 val input = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                val output = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+                val output = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())   // ✅ changed
                 output.format(input.parse(isoDate)!!)
             } catch (e2: Exception) {
                 isoDate
@@ -361,7 +428,12 @@ fun EmployeeOnboardingScreen(
         branchViewModel.loadBranches()
         departmentViewModel.loadDepartments()
         designationViewModel.loadDesignations()
+    }
 
+// ✅ NEW — separate effect, keyed on memberIdToLoad so it re-fires
+// every time a DIFFERENT employee is opened, and clears stale data first
+    LaunchedEffect(memberIdToLoad) {
+        hrViewModel.clearMemberDetail()   // wipe old employee's data immediately
         if (mode != ScreenMode.CREATE && memberIdToLoad != null) {
             hrViewModel.fetchMemberDetail(memberIdToLoad)
         }
@@ -379,7 +451,13 @@ fun EmployeeOnboardingScreen(
         shifts,
         members
     ) {
-        val m = memberDetail ?: return@LaunchedEffect
+        Log.d("PREFILL_DEBUG", "Effect fired. memberIdToLoad=$memberIdToLoad, memberDetail=$memberDetail")
+        val m = memberDetail ?: run {
+            Log.d("PREFILL_DEBUG", "memberDetail is NULL — skipping prefill")
+            return@LaunchedEffect
+        }
+        Log.d("PREFILL_DEBUG", "Prefilling with firstName=${m.firstName}")
+//        val m = memberDetail ?: return@LaunchedEffect
 
         // Basic Information
         firstName = m.firstName.orEmpty()
@@ -503,6 +581,11 @@ fun EmployeeOnboardingScreen(
         when (val state = createMemberState) {
             is HrViewModel.CreateMemberState.Success -> {
                 hrViewModel.resetCreateMemberState()
+
+                topSuccess = if (mode == ScreenMode.EDIT)
+                    "Employee updated successfully"      // ✅ NEW
+                else
+                    "Employee created successfully"
                 if (mode == ScreenMode.EDIT) onUpdateEmployee() else onCreateEmployee()
             }
             is HrViewModel.CreateMemberState.Error -> {
@@ -541,7 +624,10 @@ fun EmployeeOnboardingScreen(
                     Icons.Filled.Close,
                     contentDescription = "Close",
                     tint = LabelColor,
-                    modifier = Modifier.clickable(onClick = onDismiss)
+                    modifier = Modifier.clickable {
+                        hrViewModel.clearMemberDetail()
+                        onDismiss()
+                    }
                 )
             }
             HorizontalDivider(color = BorderColor)
@@ -1403,7 +1489,7 @@ fun EmployeeOnboardingScreen(
                                 currentErrorField = null
                                 topError = null
 
-                                val request = CreateMemberRequest(
+                                val createRequest = CreateMemberRequest(
                                     firstName = firstName,
                                     lastName = lastName,
                                     email = workEmail,
@@ -1435,16 +1521,45 @@ fun EmployeeOnboardingScreen(
                                         WorkExperienceRequestItem(it.companyName, it.jobTitle, toApiDate(it.fromDate), it.jobDescription, it.isCurrentRole)
                                     }
                                 )
+                                val updateRequest = UpdateMemberRequest(
+                                    firstName = firstName,
+                                    lastName = lastName,
+                                    personalEmail = personalEmail,
+                                    personalMobile = personalPhone,
+                                    workMobile = workPhone,
+                                    dob = dob.toIsoDate(),
+                                    gender = gender.lowercase(),
+                                    martialStatus = maritalStatus,
+                                    doj = doj.toIsoDate(),
+                                    branchId = selectedBranchId,
+                                    departmentId = selectedDepartmentId,
+                                    designationId = selectedDesignationId,
+                                    customRoleId = selectedRoleId,
+                                    shiftId = selectedShiftId,
+                                    workingDistrict = workLocation,
+                                    employmentType = employmentType.lowercase(),
+                                    reportingTo = selectedReportingToId,
+                                    secondaryReportingTo = selectedSecondaryReportingToId,
+                                    permanentAddress = AddressRequest(country, state, city, streetAddress, postalCode),
+                                    hasTemporaryAddress = addressTab == "Temporary",
+                                    temporaryAddress = if (addressTab == "Temporary")
+                                        AddressRequest(tempCountry, tempState, tempCity, tempStreetAddress, tempPostalCode)
+                                    else null,
+                                    education = educationList.map {
+                                        EducationRequestItem(it.instituteName, it.degree, it.specialization, toApiDate(it.completionDate))
+                                    },
+                                    workExperience = experienceList.map {
+                                        WorkExperienceRequestItem(it.companyName, it.jobTitle, toApiDate(it.fromDate), it.jobDescription, it.isCurrentRole)
+                                    }
+                                )
+
 
                                 val imageFile = profileImageUri?.let { uriToFile(context, it) }
 
                                 if (mode == ScreenMode.EDIT && memberIdToLoad != null) {
-                                    hrViewModel.updateMember(memberIdToLoad, request, imageFile)
+                                    hrViewModel.updateMember(memberIdToLoad, updateRequest)
                                 } else {
-                                    Log.d("CreateMember", "First Name = $firstName")
-                                    Log.d("CreateMember", "Last Name = $lastName")
-                                    Log.d("CreateMember", request.toString())
-                                    hrViewModel.createMember(request, imageFile)
+                                    hrViewModel.createMember(createRequest)
                                 }
                             }
                         }
@@ -1468,6 +1583,12 @@ fun EmployeeOnboardingScreen(
             message = topError,
             onDismiss = { topError = null }
         )
+
+        DynamicIslandSuccess(                                    // ✅ NEW
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = topSuccess,
+            onDismiss = { topSuccess = null }
+        )
     }
 
     if (showProfileOptionsDialog && !isReadOnly) {
@@ -1485,9 +1606,14 @@ fun EmployeeOnboardingScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
-                    profileImageUri = null
-                    existingProfilePictureUrl = null
                     showProfileOptionsDialog = false
+                    if (memberIdToLoad != null) {
+                        hrViewModel.deleteProfilePicture(memberIdToLoad)   // ✅ backend call
+                    } else {
+                        // CREATE mode la member illa, local ah mattum clear pannunga
+                        profileImageUri = null
+                        existingProfilePictureUrl = null
+                    }
                 }) {
                     Text("Delete Profile", color = Color(0xFFDC2626), fontWeight = FontWeight.Medium)
                 }

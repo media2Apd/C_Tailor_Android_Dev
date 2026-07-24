@@ -104,6 +104,7 @@ import com.cuso.mobile.view.home.hr.EmployeeOnboardingScreen
 import com.cuso.mobile.view.home.inventory.AdjustmentType
 import com.cuso.mobile.view.home.inventory.CreateItemScreen
 import com.cuso.mobile.view.home.inventory.InventoryScreen
+import com.cuso.mobile.view.home.logistics.OrderTrackingScreen
 import com.cuso.mobile.view.home.profile.ProfileSettingsScreen
 import com.cuso.mobile.view.home.reusablecomposables.DashboardSkeleton
 import com.cuso.mobile.view.home.sales.customer.CustomerDetailScreen
@@ -123,6 +124,7 @@ import com.cuso.mobile.view.home.sales.lead.EditLeadScreen
 import com.cuso.mobile.view.home.sales.sales_order.OrderOverviewScreen
 import com.cuso.mobile.viewmodel.HrViewModel
 import com.cuso.mobile.viewmodel.ProfileViewModel
+import com.example.tracking.TrackingOverviewScreen
 
 // ── Design tokens (Primary color used everywhere for icons / accents) ──
 val LeadPrimary = Color(0xFF3B3BF9)
@@ -775,8 +777,16 @@ fun HomeScreen(navController: NavHostController) {
                         },
                         hrViewModel = hrViewModel
                     )
-
-// ✅ NEW — Employee Onboarding screen (handles Create / View / Edit via mode)
+                    "logistics_order_tracking" -> OrderTrackingScreen(
+                        onClose = { currentScreen = "home" },
+                        onViewOrder = { order ->
+                            selectedOrderId = order.id          // if TrackingOverviewScreen needs the order id
+                            currentScreen = "tracking_overview"
+                        }
+                    )
+                    "tracking_overview" -> TrackingOverviewScreen(
+                        onClose = { currentScreen = "logistics_order_tracking" }
+                    )
                     "hr_employee_onboarding" -> EmployeeOnboardingScreen(
                         mode = employeeScreenMode,
                         memberIdToLoad = selectedEmployeeId,

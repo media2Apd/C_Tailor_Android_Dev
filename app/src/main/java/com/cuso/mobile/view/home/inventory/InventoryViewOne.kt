@@ -81,9 +81,9 @@ fun InventoryViewOne(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Item Details", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text("Item Details", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color=Color.Black)
             IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, contentDescription = "Back")
+                Icon(Icons.Default.Close, contentDescription = "Back", tint = Color.Black)
             }
         }
 
@@ -136,7 +136,7 @@ fun InventoryViewOne(
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)
                         ) {
-                            Text("Adjust Stock", fontWeight = FontWeight.Medium)
+                            Text("Adjust Stock", fontWeight = FontWeight.Medium, color = Color.White)
                         }
 
                         Spacer(Modifier.height(16.dp))
@@ -290,7 +290,7 @@ private fun OverviewContent(
     ) {
         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(6.dp))
-        Text("Adjust Stock", fontWeight = FontWeight.Medium)
+        Text("Adjust Stock", fontWeight = FontWeight.Medium, color = Color.White)
     }
     Spacer(Modifier.height(10.dp))
     OutlinedActionButton(
@@ -322,7 +322,7 @@ private fun SectionHeader(icon: androidx.compose.ui.graphics.vector.ImageVector,
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
     }
 }
 
@@ -333,7 +333,7 @@ private fun InfoRow(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, color = TextGray, fontSize = 13.sp)
-        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextGray)
     }
 }
 
@@ -470,7 +470,7 @@ private fun QuickInsightCard(item: InventoryItem) {
         Icon(Icons.Outlined.Lightbulb, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(10.dp))
         Column {
-            Text("Quick Insight", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text("Quick Insight", fontWeight = FontWeight.SemiBold, fontSize = 14.sp,color=Color.White)
             Spacer(Modifier.height(4.dp))
             Text(
                 "Demand for ${item.name} has been changing recently. Review reorder point and current stock to avoid stockouts.",

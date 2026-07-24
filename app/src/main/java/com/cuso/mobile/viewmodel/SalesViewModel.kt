@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import android.util.Log
 import com.cuso.mobile.database.dao.SelectedGarmentDao
 import com.cuso.mobile.database.entities.SelectedGarment
+import com.cuso.mobile.model.sales.ConvertToOrderData
 import com.cuso.mobile.model.sales.OrderItem
 import com.cuso.mobile.model.sales.StatusData
 import javax.inject.Inject
@@ -172,6 +173,9 @@ class SalesViewModel @Inject constructor(
     private val _updateOrderState = MutableStateFlow<SaleState<OrderItem>>(SaleState.Idle)
     val updateOrderState: StateFlow<SaleState<OrderItem>> = _updateOrderState.asStateFlow()
 
+    //convert to order
+    private val _convertOrderState = MutableStateFlow<ConvertOrderState>(ConvertOrderState.Idle)
+    val convertOrderState: StateFlow<ConvertOrderState> = _convertOrderState.asStateFlow()
 
     fun searchCustomerByMobile(mobile: String, countryCode: String) {
         searchJob?.cancel()
@@ -330,6 +334,38 @@ class SalesViewModel @Inject constructor(
             customerNotes = data.notes?.find { it.type == "customer" }?.content ?: ""    // 👈 FIXED — .message
         )
     }
+    fun silentRefreshLead(leadId: String) {
+        viewModelScope.launch {
+            try {
+                repository.fetchFullLeadDetails(leadId)
+                    .onSuccess { _selectedLead.value = convertToLeadEntity(it) }
+                    .onFailure { Log.e(TAG, "Silent lead refresh failed: ${it.message}") }
+            } catch (e: Exception) {
+                Log.e(TAG, "Silent lead refresh exception: ${e.message}")
+            }
+        }
+    }
+
+    fun convertLeadToOrder(leadId: String) {
+        viewModelScope.launch {
+            _convertOrderState.value = ConvertOrderState.Loading
+            val result = repository.convertLeadToOrder(leadId)
+            result.fold(
+                onSuccess = { data ->
+                    _convertOrderState.value = ConvertOrderState.Success(data)
+                    fetchLeadDetails(leadId) { success ->
+                        if (!success) {
+                            Log.e(TAG, "Failed to refresh lead after conversion")
+                        }
+                    }
+                },
+                onFailure = { e ->
+                    _convertOrderState.value = ConvertOrderState.Error(e.message ?: "Something went wrong")
+                }
+            )
+        }
+    }
+
 
     // ── Lead CRUD ─────────────────────────────────────────────────
     fun createLead(request: CreateLeadFormRequest) {
@@ -491,6 +527,11 @@ class SalesViewModel @Inject constructor(
     }
 
 
+    fun resetConvertOrderState() {
+        _convertOrderState.value = ConvertOrderState.Idle
+    }
+
+
 
 }
 
@@ -499,4 +540,11 @@ sealed class SaleState<out T> {
     object Loading : SaleState<Nothing>()
     data class Success<T>(val data: T) : SaleState<T>()
     data class Error(val message: String) : SaleState<Nothing>()
+}
+
+sealed class ConvertOrderState {
+    object Idle : ConvertOrderState()
+    object Loading : ConvertOrderState()
+    data class Success(val data: ConvertToOrderData) : ConvertOrderState()
+    data class Error(val message: String) : ConvertOrderState()
 }

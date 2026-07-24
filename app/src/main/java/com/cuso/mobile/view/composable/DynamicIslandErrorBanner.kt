@@ -1,3 +1,13 @@
+@file:Suppress(
+    "UNUSED_PARAMETER",
+    "unused",
+    "UNCHECKED_CAST",
+    "DEPRECATION",
+    "AssignedValueIsNeverRead",
+    "GrazieInspection",
+    "SpellCheckingInspection",
+    "unusedvariable"
+)
 package com.cuso.mobile.view.composable
 
 import androidx.compose.animation.core.*
@@ -12,19 +22,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.border
+import androidx.compose.material.icons.filled.CheckCircle
 
 import androidx.compose.runtime.Composable
 
@@ -79,15 +86,53 @@ fun DynamicIslandError(
     }
 }
 
-// Small helper extension to apply scale+alpha together
-private fun Modifier.graphicsLayerScaleAlpha(scale: Float, alpha: Float): Modifier =
-    this.then(
-        Modifier.graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-            this.alpha = alpha
+@Composable
+fun DynamicIslandSuccess(
+    modifier: Modifier,
+    message: String?,
+    onDismiss: () -> Unit,
+    durationMillis: Long = 3000
+) {
+    LaunchedEffect(message) {
+        if (message != null) {
+            delay(durationMillis)
+            onDismiss()
         }
-    )
+    }
+
+    AnimatedVisibility(
+        visible = message != null,
+        modifier = modifier,
+        enter = fadeIn(tween(200)) + slideInVertically(
+            initialOffsetY = { -it },
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+        ),
+        exit = fadeOut(tween(150)) + slideOutVertically(targetOffsetY = { -it })
+    ) {
+        Row(
+            modifier = Modifier
+                .statusBarsPadding()
+                .padding(top = 8.dp, start = 24.dp, end = 24.dp)
+                .background(Color(0xFF1C1C1E), RoundedCornerShape(24.dp))
+                .padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = Color(0xFF4ADE80),   // green tick
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = message ?: "",
+                color = Color.White,
+                fontSize = 13.sp,
+                maxLines = 2
+            )
+        }
+    }
+}
 
 
 // Central place to map raw backend error strings to user-friendly messages

@@ -1,6 +1,5 @@
 package com.cuso.mobile.view.composable
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -13,7 +12,6 @@ import androidx.compose.ui.unit.sp
 
 private val CrumbInactive = Color(0xFF9A9AA8)
 private val CrumbActive = Color(0xFF3A2FCB)
-private val CrumbBg = Color(0xFFF7F7FA)
 
 /**
  * Dynamic breadcrumb — pass ordered segments, e.g. listOf("Finance", "Trial Balance").
@@ -24,8 +22,7 @@ private val CrumbBg = Color(0xFFF7F7FA)
 fun ScreenBreadcrumb(
     segments: List<String>,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    backgroundColor: Color = CrumbBg
+    modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier

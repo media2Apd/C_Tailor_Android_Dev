@@ -26,11 +26,16 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.CustomerItemV2
+import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
 
 private val CustPrimary = Color(0xFF3B3BF9)
@@ -127,7 +132,7 @@ private val mockCustomers = listOf(
 fun FinanceCustomerScreen(
     onClose: () -> Unit,
     onCustomerClick: (String) -> Unit,
-    onCustomerEdit: (String) -> Unit = onCustomerClick   // 👈 NEW — default falls back to view if not provided
+    onCustomerEdit: (String) -> Unit = onCustomerClick
 
 ) {
     val viewModel: FinanceViewModel = hiltViewModel()
@@ -165,14 +170,14 @@ fun FinanceCustomerScreen(
             .fillMaxSize()
             .background(CustBgLight)
     ) {
-        // Top bar (unchanged) ...
-        // Search + Filter (unchanged) ...
+
 
         Box(modifier = Modifier.fillMaxSize()) {
             when {
                 isLoading -> {
                     ListSkeleton()
                 }
+
                 error != null -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -182,10 +187,16 @@ fun FinanceCustomerScreen(
                         }
                     }
                 }
+
                 filteredCustomers.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.PersonOff, null, tint = CustTextMuted, modifier = Modifier.size(48.dp))
+                            Icon(
+                                Icons.Default.PersonOff,
+                                null,
+                                tint = CustTextMuted,
+                                modifier = Modifier.size(48.dp)
+                            )
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 if (searchQuery.isNotBlank() || selectedFilter != "All")
@@ -197,18 +208,84 @@ fun FinanceCustomerScreen(
                         }
                     }
                 }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 16.dp)
-                    ) {
-                        items(filteredCustomers, key = { it._id }) { customer ->
-                            CustomerCardItem(
-                                customer = customer,
-                                onClick = { onCustomerClick(customer._id) },
-                                onEdit = { onCustomerEdit(customer._id) }     // 👈 NEW
 
-                            )
+                else -> {
+                    var searchQuery by remember { mutableStateOf("") }
+
+                    Column(modifier = Modifier.fillMaxSize()) {
+
+                        // ── Fixed header (scroll ஆகாது) ──
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White)
+                        ) {
+
+                            // Title row
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "All Customers",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF111827)
+                                )
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Close",
+                                    tint = Color(0xFF111827),
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .clickable { onClose() }
+                                )
+                            }
+
+                            // ── Breadcrumb + SearchFilterBar — F8F9FF background block ──
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFF8F9FF))
+                            ) {
+                                ScreenBreadcrumb(
+                                    segments = listOf("Finance", "Customer"),
+                                    onClick = {}
+                                )
+
+                                SearchFilterBar(
+                                    query = searchQuery,
+                                    onQueryChange = { searchQuery = it },
+                                    modifier = Modifier.padding(
+                                        horizontal = 20.dp,
+                                        vertical = 12.dp
+                                    ),
+                                    placeholder = "Search Customers...",
+                                    accentColor = BluePrimary,
+                                    borderColor = BorderGray,
+                                    textSecondaryColor = TextSecondary,
+                                    onFilterClick = { }
+                                )
+                            }
+                        }
+
+                        // ── Scrollable list ──
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f),
+                            contentPadding = PaddingValues(bottom = 16.dp)
+                        ) {
+                            items(filteredCustomers, key = { it._id }) { customer ->
+                                CustomerCardItem(
+                                    customer = customer,
+                                    onClick = { onCustomerClick(customer._id) },
+                                    onEdit = { onCustomerEdit(customer._id) }
+                                )
+                            }
                         }
                     }
                 }

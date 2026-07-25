@@ -13,6 +13,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -746,14 +747,19 @@ private fun SidebarAccordionPanel(
                                 .background(if (isExpanded) Color(0xFFE9E7FC) else Color.Transparent)
                                 .clickable {
                                     if (isHomeMenu) {
-                                        // Home categories navigate directly
                                         onSubItemClick(category, category)
                                     } else {
-                                        // Other menus: expand/collapse if has sub-items, else navigate
-                                        if (hasSubItems) {
+                                        val subItemsForCategory = activeSubItems[category].orEmpty()
+                                        // ✅ NEW — category has exactly one sub-item with the SAME name
+                                        // (e.g. Reports > "Sales Reports" > "Sales Reports") → skip the
+                                        // expand step and navigate straight away, like Home categories do.
+                                        val isSingleSameNamed = subItemsForCategory.size == 1 &&
+                                                subItemsForCategory[0] == category
+
+                                        if (hasSubItems && !isSingleSameNamed) {
                                             onCategoryClick(category)
                                         } else {
-                                            onSubItemClick(category, category)
+                                            onSubItemClick(category, subItemsForCategory.firstOrNull() ?: category)
                                         }
                                     }
                                 }
@@ -929,7 +935,8 @@ private const val FULL_FRACTION = 0.96f
 fun ModulesPanel(
     isOpen: Boolean,
     onClose: () -> Unit,
-    initialExpandedModule: String? = null,   // ✅ NEW — pre-expand + scroll to this module when opened
+    initialExpandedModule: String? = null,
+    initialExpandedCategory: String? = null,   // ✅ NEW
     onModuleCategoryClick: (menu: String, category: String) -> Unit
 ) {
     ModulesPanelContent(
@@ -938,7 +945,9 @@ fun ModulesPanel(
         onModuleCategoryClick = onModuleCategoryClick,
         menuItems = SidebarConfig.getFullMenuItems().filter { it.label != "Home" },
         showFrequentlyUsed = true,
-        initialExpandedModule = initialExpandedModule   // ✅ NEW
+        initialExpandedModule = initialExpandedModule,
+        initialExpandedCategory = initialExpandedCategory   // ✅ NEW
+
     )
 }
 
@@ -974,7 +983,8 @@ private fun ModulesPanelContent(
     onModuleCategoryClick: (menu: String, category: String) -> Unit,
     menuItems: List<MenuItem>,
     showFrequentlyUsed: Boolean,
-    initialExpandedModule: String? = null   // ✅ NEW
+    initialExpandedModule: String? = null,
+    initialExpandedCategory: String? = null
 ) {
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -983,6 +993,8 @@ private fun ModulesPanelContent(
 
     var searchQuery by remember { mutableStateOf("") }
     var expandedModule by remember { mutableStateOf(menuItems.firstOrNull()?.label) }
+    var activeCategory by remember { mutableStateOf<String?>(null) }   // ✅ NEW — the highlighted category
+
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()   // ✅ NEW — lets us scroll to the expanded module
     val filteredModules = if (searchQuery.isBlank()) {
         menuItems
@@ -1007,6 +1019,8 @@ private fun ModulesPanelContent(
             searchQuery = ""
             val target = initialExpandedModule ?: menuItems.firstOrNull()?.label
             expandedModule = target
+            activeCategory = initialExpandedCategory   // ✅ NEW
+
             if (target != null) {
                 val idx = filteredModules.indexOfFirst { it.label == target }
                 if (idx >= 0) {
@@ -1276,10 +1290,14 @@ private fun ModulesPanelContent(
                                             .padding(start = 48.dp, end = 16.dp, bottom = 12.dp)
                                     ) {
                                         module.categories.forEach { category ->
+                                            val categorySubItems = module.subItems[category].orEmpty()
+                                            val isCategoryActive = category == activeCategory
+
                                             Text(
                                                 "•  $category",
                                                 fontSize = 13.sp,
-                                                color = Color(0xFF4B5563),
+                                                fontWeight = if (isCategoryActive) FontWeight.Bold else FontWeight.SemiBold,
+                                                color = if (isCategoryActive) Color(0xFF4338CA) else Color(0xFF4B5563),
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .clickable {
@@ -1288,6 +1306,33 @@ private fun ModulesPanelContent(
                                                     }
                                                     .padding(vertical = 6.dp)
                                             )
+                                            if (categorySubItems.isNotEmpty()) {
+                                                Column(modifier = Modifier.padding(start = 14.dp)) {
+                                                    categorySubItems.forEach { subItem ->
+                                                        val isSubActive = isCategoryActive   // adjust below if you track sub-item separately
+
+                                                        Text(
+                                                            "-  $subItem",
+                                                            fontSize = 12.sp,
+                                                            fontWeight = if (isSubActive) FontWeight.SemiBold else FontWeight.Normal,
+                                                            color = if (isSubActive) Color(0xFF4338CA) else Color(0xFF6B7280),
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .clickable {
+                                                                    ModuleUsageTracker.recordUsage(
+                                                                        context,
+                                                                        module.label
+                                                                    )
+                                                                    onModuleCategoryClick(
+                                                                        module.label,
+                                                                        subItem
+                                                                    )
+                                                                }
+                                                                .padding(vertical = 5.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }

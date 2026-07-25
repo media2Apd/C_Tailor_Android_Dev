@@ -10,14 +10,14 @@ fun OrderOverviewData.toOrderReviewData(): OrderReviewData {
 
     return OrderReviewData(
         orderId = order._id,
-        customerId = customer._id,
+        customerId = customer?._id?:"",
         branchId = order.branch?._id ?: "",
-        fullName = customer.name ,
+        fullName = customer?.name?:"_" ,
         countryCode = "+91",
-        phone = customer.mobile.takeLast(10),
-        gender = customer.gender ?: "",  // ✅ Already has null safety
+        phone = customer?.mobile?.takeLast(10)?:"",
+        gender = customer?.gender ?: "",  // ✅ Already has null safety
         dressFor = order.wearerType ?: "",              // ✅ fix
-        address = customer.address?.addressLine ?: "",
+        address = customer?.address?.addressLine ?: "",
         garments = this.items.map { item ->
             SelectedGarment(
                 category = item._id,

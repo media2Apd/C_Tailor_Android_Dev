@@ -1,4 +1,17 @@
-@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ","KotlinConstantConditions")
+@file:Suppress(
+    "UNUSED_VALUE",
+    "UNUSED_PARAMETER",
+    "unused",
+    "UNCHECKED_CAST",
+    "DEPRECATION",
+    "AssignedValueIsNeverRead",
+    "GrazieInspection",
+    "SpellCheckingInspection",
+    "unusedvariable",
+    "AssignedVariableIsNeverRead",
+    "UNUSED_VARIABLE",
+    "KotlinConstantConditions", "VariableNeverRead"
+)
 
 package com.cuso.mobile.view.home
 
@@ -98,14 +111,25 @@ import com.cuso.mobile.ui.theme.modelBg
 import com.cuso.mobile.ui.theme.modelBorder
 import com.cuso.mobile.ui.theme.statLogoBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.home.finance.AllSuppliersScreen
 import com.cuso.mobile.view.home.finance.ChartOfAccountScreen
+import com.cuso.mobile.view.home.finance.FinanceCustomerScreen
+import com.cuso.mobile.view.home.finance.LedgerScreen
+import com.cuso.mobile.view.home.finance.SupplierDetailScreen
+import com.cuso.mobile.view.home.finance.SupplierRow
+import com.cuso.mobile.view.home.finance.TrialBalanceScreen
 import com.cuso.mobile.view.home.hr.AllEmployeesScreen
 import com.cuso.mobile.view.home.hr.EmployeeOnboardingScreen
 import com.cuso.mobile.view.home.inventory.AdjustmentType
+import com.cuso.mobile.view.home.inventory.AllItemGroupScreen
+import com.cuso.mobile.view.home.inventory.CreateItemGroupScreen
 import com.cuso.mobile.view.home.inventory.CreateItemScreen
 import com.cuso.mobile.view.home.inventory.InventoryScreen
+import com.cuso.mobile.view.home.logistics.DeliveryDetailScreen
+import com.cuso.mobile.view.home.logistics.DeliveryManagementScreen
 import com.cuso.mobile.view.home.logistics.OrderTrackingScreen
 import com.cuso.mobile.view.home.profile.ProfileSettingsScreen
+import com.cuso.mobile.view.home.reports.SalesOrderReportsScreen
 import com.cuso.mobile.view.home.reusablecomposables.DashboardSkeleton
 import com.cuso.mobile.view.home.sales.customer.CustomerDetailScreen
 import com.cuso.mobile.view.home.sales.ordermanagement.OrderManagementScreen
@@ -121,7 +145,10 @@ import com.cuso.mobile.view.home.sales.lead.LeadScreenContent
 import com.cuso.mobile.view.home.sales.lead.CreateLeadScreen
 import com.cuso.mobile.view.home.sales.lead.ViewLeadScreen
 import com.cuso.mobile.view.home.sales.lead.EditLeadScreen
+import com.cuso.mobile.view.home.sales.ordermanagement.OrderDetailScreen
 import com.cuso.mobile.view.home.sales.sales_order.OrderOverviewScreen
+import com.cuso.mobile.view.home.services.CustomerFeedbackScreen
+import com.cuso.mobile.view.home.services.FeedbackDetailScreen
 import com.cuso.mobile.viewmodel.HrViewModel
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.example.tracking.TrackingOverviewScreen
@@ -201,6 +228,14 @@ fun HomeScreen(navController: NavHostController) {
     var editingPricingId by remember { mutableStateOf<String?>(null) }   // ✅ ADD THIS — fixes "Unresolved reference"
 
     var quotationScreenMode by remember { mutableStateOf("create") }
+
+    var selectedSupplier by remember { mutableStateOf<SupplierRow?>(null) }
+
+    // ✅ NEW — Services > Customer Feedback flow
+    var selectedFeedbackId by remember { mutableStateOf<String?>(null) }
+
+    // ✅ NEW — Inventory > Item Groups flow
+    var selectedItemGroupId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(editOrderId) {
         editOrderId?.let { orderOverviewViewModel.fetchSalesOverview(it) }
@@ -299,6 +334,7 @@ fun HomeScreen(navController: NavHostController) {
                 isSalesSettingsMode = false
                 currentScreen = "home"
             }
+
             currentScreen == "create_lead" -> currentScreen = "sales_lead"
             currentScreen == "view_lead" -> currentScreen = "sales_lead"
             currentScreen == "edit_lead" -> currentScreen = "sales_lead"
@@ -328,6 +364,11 @@ fun HomeScreen(navController: NavHostController) {
                 currentScreen = "finance_trial_balance"
             }
             currentScreen == "finance_chart_of_accounts" -> currentScreen = "home"
+            currentScreen == "finance_suppliers" -> currentScreen = "home"
+            currentScreen == "finance_supplier_detail" -> {
+                selectedSupplier = null
+                currentScreen = "finance_suppliers"
+            }
             currentScreen == "finance_journal_entries" -> currentScreen = "home"
             currentScreen == "inventory_items" -> currentScreen = "home"
             currentScreen == "inventory_item_detail" -> {
@@ -336,18 +377,32 @@ fun HomeScreen(navController: NavHostController) {
             }
             currentScreen == "inventory_create_item" -> currentScreen = "inventory_items"
 
+            currentScreen == "inventory_item_groups" -> currentScreen = "home"
+            currentScreen == "inventory_create_item_group" -> {
+                selectedItemGroupId = null
+                currentScreen = "inventory_item_groups"
+            }
+
             // Fallback: any unmapped/unknown screen -> go home
             currentScreen != "home" -> currentScreen = "home"
 
             currentScreen == "hr_all_employees" -> currentScreen = "home"
-            currentScreen == "hr_employee_onboarding" -> {   // ✅ NEW
+            currentScreen == "hr_employee_onboarding" -> {
                 selectedEmployeeId = null
                 currentScreen = "hr_all_employees"
             }
+            currentScreen == "services_customer_feedback" -> currentScreen = "home"
+            currentScreen == "feedback_detail" -> {
+                selectedFeedbackId = null
+                currentScreen = "services_customer_feedback"
+            }
+            currentScreen == "logistics_delivery" -> currentScreen = "home"
+
+            currentScreen == "reports_sales_reports" -> currentScreen = "home"
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {   // ✅ NEW — wraps Scaffold so panel can overlay everything
+    Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
@@ -493,12 +548,32 @@ fun HomeScreen(navController: NavHostController) {
                                 currentScreen = "inventory_items"
                                 isDrawerOpen = false
                             }
+
+                            "inventory_item_groups" -> {   // ✅ NEW
+                                isSalesSettingsMode = false
+                                currentScreen = "inventory_item_groups"
+                                isDrawerOpen = false
+                            }
                             "hr_all_employees", "hr_all_employees" -> {
                                 isSalesSettingsMode = false
                                 currentScreen = "hr_all_employees"
                                 isDrawerOpen = false
                             }
-
+                            "logistics_delivery" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "logistics_delivery"
+                                isDrawerOpen = false
+                            }
+                            "reports_sales_reports", "reports_finance_reports" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "reports_sales_reports"
+                                isDrawerOpen = false
+                            }
+                            "reports" -> {
+                                isSalesSettingsMode = false
+                                currentScreen = "reports_sales_reports"
+                                isDrawerOpen = false
+                            }
                             else -> {
                                 Log.d("NAV_DEBUG", "Unhandled route: $route")
                                 try {
@@ -513,7 +588,7 @@ fun HomeScreen(navController: NavHostController) {
                         }
                     },
                     onModulesClick = {
-                        modulesPanelInitialExpanded = null   // ✅ CHANGED — plain "Modules" tap defaults to first module, no forced expand
+                        modulesPanelInitialExpanded = menuForScreen(currentScreen)
                         showModulesPanel = true
                     },
                     onLogout = {
@@ -600,6 +675,13 @@ fun HomeScreen(navController: NavHostController) {
                                 "sales_pricing_&_quotations" -> {
                                     isSalesSettingsMode = false
                                     currentScreen = "sales_pricing_quotation"
+                                }
+
+
+                                "services_customer_feedback", "customer_feedback" -> {   // ✅ NEW
+                                    isSalesSettingsMode = false
+                                    currentScreen = "services_customer_feedback"
+                                    isDrawerOpen = false
                                 }
                                 else -> {
                                     Log.d("NAV_DEBUG", "Unhandled home navigation: $route")
@@ -689,7 +771,7 @@ fun HomeScreen(navController: NavHostController) {
                     )
                     "order_management_overview" -> {
                         selectedManagementOrderId?.let { id ->
-                            com.cuso.mobile.view.home.sales.ordermanagement.OrderDetailScreen(
+                            OrderDetailScreen(
                                 orderId = id,
                                 onClose = {
                                     selectedManagementOrderId = null
@@ -704,7 +786,7 @@ fun HomeScreen(navController: NavHostController) {
                         } ?: run { currentScreen = "sales_orders" }
                     }
                     // ✅ NEW — Finance > Trial Balance (list)
-                    "finance_trial_balance" -> com.cuso.mobile.view.home.finance.TrialBalanceScreen(
+                    "finance_trial_balance" -> TrialBalanceScreen(
                         onClose = { currentScreen = "home" },
                         onAccountClick = { accountId, accountName ->
                             selectedLedgerAccountId = accountId
@@ -719,7 +801,7 @@ fun HomeScreen(navController: NavHostController) {
 
                     "finance_ledger" -> {
                         selectedLedgerAccountId?.let { id ->
-                            com.cuso.mobile.view.home.finance.LedgerScreen(
+                            LedgerScreen(
                                 accountId = id,
                                 accountName = selectedLedgerAccountName,
                                 onClose = {
@@ -741,6 +823,32 @@ fun HomeScreen(navController: NavHostController) {
                             showModulesPanel = true
                         }
                     )
+                    "finance_suppliers" -> AllSuppliersScreen(
+                         onClose = { currentScreen = "home" },
+                         onBreadcrumbClick = {
+                                 modulesPanelInitialExpanded = "Finance"
+                                 showModulesPanel = true
+                             },
+                         onSupplierClick = { supplier ->
+                             selectedSupplier = supplier
+                             currentScreen = "finance_supplier_detail"
+                            }
+                    )
+                    "finance_supplier_detail" -> {
+                        selectedSupplier?.let { supplier ->
+                                SupplierDetailScreen(
+                                        supplier = supplier,
+                                        onClose = {
+                                                selectedSupplier = null
+                                                currentScreen = "finance_suppliers"
+                                            },
+                                        onBreadcrumbClick = {
+                                                modulesPanelInitialExpanded = "Finance"
+                                                showModulesPanel = true
+                                            }
+                                            )
+                            } ?: run { currentScreen = "finance_suppliers" }
+                    }
                     // ✅ NEW — Inventory > All Items
                     "inventory_items" -> InventoryScreen(
                         onClose = { currentScreen = "home" },
@@ -787,6 +895,8 @@ fun HomeScreen(navController: NavHostController) {
                     "tracking_overview" -> TrackingOverviewScreen(
                         onClose = { currentScreen = "logistics_order_tracking" }
                     )
+
+
                     "hr_employee_onboarding" -> EmployeeOnboardingScreen(
                         mode = employeeScreenMode,
                         memberIdToLoad = selectedEmployeeId,
@@ -853,6 +963,27 @@ fun HomeScreen(navController: NavHostController) {
                             )
                         } ?: run { currentScreen = "inventory_items" }
                     }
+
+                    // ✅ NEW — Services > Customer Feedback (list)
+                    "services_customer_feedback" -> CustomerFeedbackScreen(
+                        onDismiss = { currentScreen = "home" },
+                        onView = { feedbackId ->
+                            selectedFeedbackId = feedbackId
+                            currentScreen = "feedback_detail"
+                        },
+                        onEdit = { feedbackId ->
+                        },
+                        onDelete = { feedbackId ->
+                        }
+                    )
+
+// ✅ NEW — Feedback Details (single feedback)
+                    "feedback_detail" -> FeedbackDetailScreen(
+                        onDismiss = {
+                            selectedFeedbackId = null
+                            currentScreen = "services_customer_feedback"
+                        }
+                    )
                     "sales_pricing_quotation" -> QuotationScreen(
                         onClose = { isSalesSettingsMode = false; currentScreen = "home" },
                         onAddNe = {
@@ -878,6 +1009,32 @@ fun HomeScreen(navController: NavHostController) {
                         onClose = { currentScreen = "sales_pricing_quotation" },
                         onSave = { currentScreen = "sales_pricing_quotation" },
                         token = token
+                    )
+                    "inventory_item_groups" -> AllItemGroupScreen(
+                        onDismiss = { currentScreen = "home" },
+                        onAddItemGroup = { currentScreen = "inventory_create_item_group" },
+                        onView = { groupId ->
+                            selectedItemGroupId = groupId
+
+                        },
+                        onEdit = { groupId ->
+                            selectedItemGroupId = groupId
+                            currentScreen = "inventory_create_item_group"
+                        },
+                        onDelete = { groupId ->
+
+                        }
+                    )
+
+                    "inventory_create_item_group" -> CreateItemGroupScreen(
+                        onDismiss = {
+                            selectedItemGroupId = null
+                            currentScreen = "inventory_item_groups"
+                        },
+                        onSave = {
+                            selectedItemGroupId = null
+                            currentScreen = "inventory_item_groups"
+                        }
                     )
 // ✅ NEW — "Pricing Overview" menu item navigates here (separate from Quotation)
                     "sales_pricing_overview" -> PricingScreen(
@@ -924,6 +1081,11 @@ fun HomeScreen(navController: NavHostController) {
                         },
                         onDelete ={ customer -> customerViewModel.deleteCustomer(customer.id) }
                     )
+                    "finance_customers" -> FinanceCustomerScreen(
+                        onClose = { currentScreen = "home" },
+                        onCustomerEdit = {},
+                        onCustomerClick = {}
+                    )
                     "finance_expenses" -> com.cuso.mobile.view.home.finance.ExpensesScreen(
                         onClose = { currentScreen = "home" }
                     )
@@ -954,6 +1116,13 @@ fun HomeScreen(navController: NavHostController) {
                             )
                         } ?: run { currentScreen = "finance_sales_invoices" }
                     }
+                    "logistics_delivery" -> DeliveryManagementScreen(
+                        onDismiss = { currentScreen = "home" },
+                        onView = { currentScreen = "delivery_detail" }
+                    )
+                    "delivery_detail" -> DeliveryDetailScreen(
+                        onDismiss = { currentScreen = "logistics_delivery" }
+                    )
 
                     "view_customer", "edit_customer" -> {
                         val customer = selectedCustomer
@@ -1009,6 +1178,10 @@ fun HomeScreen(navController: NavHostController) {
                                 }
                             }
                         }
+                    )
+
+                    "reports_sales_reports" -> SalesOrderReportsScreen(
+                        onClose = { currentScreen = "home" }
                     )
                     else -> { }
                 }
@@ -2596,10 +2769,38 @@ fun FormDateField(value: String, onClick: () -> Unit) {
             .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
             .clickable { onClick() }
             .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(value, fontSize = 14.sp, color = if (value == "Select Date") Color(0xFF9CA3AF) else Color(0xFF374151))
-        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+        BasicTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            textStyle = TextStyle(
+                fontSize = 14.sp,
+                color = Color(0xFF374151)
+            ),
+            modifier = Modifier.weight(1f),
+            decorationBox = { innerTextField ->
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (value.isEmpty()) {
+                        Text(
+                            text = "dd-mm-yyyy",
+                            fontSize = 14.sp,
+                            color = Color(0xFF9CA3AF)
+                        )
+                    }
+                    innerTextField()
+                }
+            }
+        )
+        Icon(
+            Icons.Default.CalendarMonth,
+            contentDescription = null,
+            tint = Color.Gray,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 
@@ -2760,6 +2961,26 @@ fun normalizeRoute(route: String): String {
 
         else -> route
     }
+}
+
+fun menuForScreen(screen: String): String = when {
+    screen == "home" || screen == "settings" || screen == "profile-settings" ||
+            screen.startsWith("home_") -> "Home"
+
+    screen.startsWith("sales_") || screen in setOf(
+        "create_lead", "view_lead", "edit_lead",
+        "create_order", "order_overview", "create_order_review",
+        "view_customer", "edit_customer",
+        "create_quotation", "create_garment_pricing", "garment_pricing_list",
+        "order_management_overview"
+    ) -> "Sales"
+
+    screen.startsWith("finance_") -> "Finance"
+    screen.startsWith("inventory_") -> "Inventory"
+    screen.startsWith("hr_") -> "HR"
+    screen.startsWith("logistics_") || screen == "tracking_overview" -> "Logistics"
+
+    else -> "Home"
 }
 fun String.toIsoDate(): String {
     if (this.isEmpty() || this == "Select Date") return ""

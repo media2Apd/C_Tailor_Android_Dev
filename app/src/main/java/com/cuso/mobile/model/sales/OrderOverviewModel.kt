@@ -18,7 +18,7 @@ data class OrderOverviewData(
 data class OrderOverviewOrder(
     val _id: String,
     val orderNumber: String,
-    val customerId: OrderOverviewCustomer,
+    val customerId: OrderOverviewCustomer?,
     val branch: OrderOverviewBranch? = null,      // ✅ nullable + default
     val totalPaid: Double = 0.0,
     val balanceAmount: Double = 0.0,

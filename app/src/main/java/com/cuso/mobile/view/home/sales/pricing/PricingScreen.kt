@@ -105,8 +105,7 @@ fun PricingScreen(
                 // Breadcrumb
                 ScreenBreadcrumb(
                     segments = listOf("Sales", "Pricing & Quotations"),
-                    onClick = {},
-                    backgroundColor = Color.White
+                    onClick = {}
                 )
 
             }

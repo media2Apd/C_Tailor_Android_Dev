@@ -155,8 +155,7 @@ fun ExpensesScreen(
             // ── Breadcrumb ──
             ScreenBreadcrumb(
                 segments = listOf("Finance", "Expenses"),
-                onClick = {},
-                backgroundColor = Color.White
+                onClick = {}
             )
 
             SearchFilterBar(

@@ -1,3 +1,15 @@
+
+@file:Suppress(
+    "UNUSED_PARAMETER",
+    "unused",
+    "UNCHECKED_CAST",
+    "DEPRECATION",
+    "AssignedValueIsNeverRead",
+    "GrazieInspection",
+    "SpellCheckingInspection",
+    "unusedvariable",
+    "UNNECESSARY_SAFE_CALL"
+)
 package com.cuso.mobile.view.home.sales.ordermanagement
 
 import androidx.compose.foundation.background
@@ -168,13 +180,13 @@ private fun OrderDetailContent(
         ) {
             Column {
                 Text(
-                    order.customerId.name ?: "—",
+                    order.customerId?.name ?: "—",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextDark
                 )
                 Text(
-                    order.customerId.mobile ?: "—",
+                    order.customerId?.mobile ?: "—",
                     fontSize = 13.sp,
                     color = TextMuted
                 )

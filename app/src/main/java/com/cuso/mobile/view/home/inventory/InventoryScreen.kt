@@ -129,8 +129,7 @@ fun InventoryScreen(
             // ── Breadcrumb ──
             ScreenBreadcrumb(
                 segments = listOf("Inventory", "All Items"),
-                onClick = {},
-                backgroundColor = Color.White
+                onClick = {}
             )
 
             SearchFilterBar(

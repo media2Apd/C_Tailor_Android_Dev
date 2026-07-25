@@ -149,7 +149,7 @@ fun CreateOrderScreen(
     }
 
     var gender by rememberSaveable {
-        mutableStateOf(initialData?.gender ?: "")
+        mutableStateOf(initialData?.gender ?: "Male")
     }
 
     var dressFor by rememberSaveable {
@@ -552,7 +552,7 @@ fun CreateOrderScreen(
         val fields = listOf(
             ValidationField("mobile", phone, "Mobile Number is required"),
             ValidationField("fullName", fullName, "Full Name is required"),
-            ValidationField("gender", gender, "Gender is required"),
+//            ValidationField("gender", gender, "Gender is required"),
             ValidationField("dressFor", dressFor, "Dress For is required"),
             ValidationField("source", source, "Source is required"),
             ValidationField("orderDate", orderDate, "Order Date is required"),
@@ -881,16 +881,13 @@ fun CreateOrderScreen(
                         onExpandChange = { dressForExpanded = it },
                         options = listOf("Men", "Women", "Kids", "Unisex"),
                         onOptionSelected = {
-                            if (!isEditMode) {
-                                dressFor = it
-                                if (errorField == "dressFor") errorField = null
-                            }
+                            dressFor = it
+                            if (errorField == "dressFor") errorField = null
                         },
                         isRequired = true,
                         isError = errorField == "dressFor",
                         errorMessage = if (errorField == "dressFor") "Dress For is required" else null
                     )
-
                     Spacer(Modifier.height(4.dp))
 
                     FormDropdown(
@@ -900,10 +897,8 @@ fun CreateOrderScreen(
                         onExpandChange = { sourceExpanded = it },
                         options = listOf("Walk-in", "Phone", "WhatsApp", "Referral", "Online"),
                         onOptionSelected = {
-                            if (!isEditMode) {
                                 source = it
                                 if (errorField == "source") errorField = null
-                            }
                         },
                         isRequired = true,
                         isError = errorField == "source",
@@ -1240,11 +1235,11 @@ fun CreateOrderScreen(
                     ) {
                         OutlinedButton(
                             onClick = {
-//                                if (isMediaUploadRestricted) {
-//                                    showPlanLimitDialog = true
-//                                } else {
+                                if (isMediaUploadRestricted) {
+                                    showPlanLimitDialog = true
+                                } else {
                                     showImagePickerOptions = true
-//                                }
+                                }
                             },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
@@ -1417,13 +1412,15 @@ fun CreateOrderScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Button(
                                 onClick = {
-                                    if (isRecording) {
-                                        stopRecording()
-                                    } else if (micPermissionState.status.isGranted) {
-                                        startRecording()
-                                    } else {
-                                        micPermissionState.launchPermissionRequest()
-                                    }
+//                                    if (isMediaUploadRestricted) {
+                                        if (isRecording) {
+                                            stopRecording()
+                                        } else if (micPermissionState.status.isGranted) {
+                                            startRecording()
+                                        } else {
+                                            micPermissionState.launchPermissionRequest()
+                                        }
+//                                    }
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (isRecording) Color(0xFFEF4444) else Color(0xFFEEF2FF)

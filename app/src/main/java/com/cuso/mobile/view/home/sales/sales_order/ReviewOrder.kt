@@ -396,10 +396,10 @@ private fun OverviewTab(data: OrderOverviewData) {
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         SectionTitle("Customer Information")
-        InfoRow("Name", customer.name)
-        InfoRow("Phone", "+91 ${customer.mobile.takeLast(10)}")
-        InfoRow("Gender", customer.gender?:"_")
-        InfoRow("Address", listOfNotNull(customer.address?.addressLine, customer.address?.city).joinToString(", ").ifBlank { "—" })
+        InfoRow("Name", customer?.name ?:"_")
+        InfoRow("Phone", "+91 ${customer?.mobile?.takeLast(10)}")
+        InfoRow("Gender", customer?.gender?:"_")
+        InfoRow("Address", listOfNotNull(customer?.address?.addressLine, customer?.address?.city).joinToString(", ").ifBlank { "—" })
 
         Spacer(Modifier.height(10.dp))
         SectionTitle("Order Information")
@@ -1208,7 +1208,7 @@ private fun PaymentTab(
     val receiptData = remember(orderData) {
         OrderReceiptPdfGenerator.OrderReceiptData(
             orderNumber = orderData.order.orderNumber,
-            customerName = orderData.order.customerId.name,
+            customerName = orderData.order.customerId?.name?:"_",
             items = orderData.items.map {
                 OrderReceiptPdfGenerator.OrderItem(
                     quantity = it.quantity,

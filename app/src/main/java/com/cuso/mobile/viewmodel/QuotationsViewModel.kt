@@ -6,6 +6,7 @@ import com.cuso.mobile.model.sales.CreateQuotationRequest
 import com.cuso.mobile.model.sales.QuotationCreatedData
 import com.cuso.mobile.model.sales.QuotationItemDto
 import com.cuso.mobile.repository.SalesRepository
+import com.cuso.mobile.view.home.sales.customer.toDisplayDate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,9 +43,9 @@ sealed class QuotationDetailUiState {
 
 @HiltViewModel
 class QuotationViewModel @Inject constructor(
-    private val salesRepository: SalesRepository
+    private val salesRepository: SalesRepository,
+    private val organizationDao: com.cuso.mobile.database.dao.OrganizationDao   // ✅ ADD — actual package path use pannunga
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow<QuotationUiState>(QuotationUiState.Loading)
     val uiState: StateFlow<QuotationUiState> = _uiState.asStateFlow()
 
@@ -61,6 +62,8 @@ class QuotationViewModel @Inject constructor(
 
     private var currentPage = 1
     private var currentSearch: String? = null
+
+
 
     fun loadQuotations(
         page: Int = 1,
@@ -145,7 +148,111 @@ class QuotationViewModel @Inject constructor(
         }
     }
 
+    // ─────────────────────────────────────────────
+    // PDF DOWNLOAD
+    // ─────────────────────────────────────────────
+
+    private val _pdfState = MutableStateFlow<QuotationPdfUiState>(QuotationPdfUiState.Idle)
+    val pdfState: StateFlow<QuotationPdfUiState> = _pdfState.asStateFlow()
+
+    fun downloadQuotationPdf(
+        quotationId: String,
+        pdfGenerator: com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator
+    ) {
+        viewModelScope.launch {
+            _pdfState.value = QuotationPdfUiState.Loading
+            val quotationResult = salesRepository.getQuotationById(quotationId)
+
+            quotationResult.fold(
+                onSuccess = { quotation ->
+                    val organization = organizationDao.getOrganization()
+                    val quotationData = com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator.QuotationData(
+                        quotationNumber = quotation.quotationNumber ?: "",
+                        logoUrl = organization?.organizationPicture,
+                        quotationDate = quotation.createdAt.toDisplayDate(),
+                        customerName = quotation.customerSnapshot?.name ?: "",
+                        customerAddress = "",
+                        customerEmail = quotation.customerSnapshot?.email ?: "",
+                        customerPhone = quotation.customerSnapshot?.phone ?: "",
+                        items = quotation.items.map { item ->
+                            com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator.QuotationItem(
+                                description = item.garmentName?:"",
+                                quantity = item.quantity,
+                                rate = item.unitPrice,
+                                amount = item.totalPrice
+                            )
+                        },
+                        subtotal = quotation.subTotal,
+                        discountAmount = quotation.discountAmount,
+                        total = quotation.grandTotal
+                    )
+
+                    pdfGenerator.downloadQuotationPdf(quotationData) { saved ->
+                        _pdfState.value = if (saved != null && saved.exists() && saved.length() > 0) {
+                            QuotationPdfUiState.Success(saved)
+                        } else {
+                            QuotationPdfUiState.Error("Failed to generate PDF")
+                        }
+                    }
+                },
+                onFailure = { e ->
+                    _pdfState.value = QuotationPdfUiState.Error(e.message ?: "Failed to load quotation")
+                }
+            )
+        }
+    }
+    // ─────────────────────────────────────────────
+// PDF PREVIEW (same logo/org logic as download)
+// ─────────────────────────────────────────────
+
+    private val _previewData = MutableStateFlow<com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator.QuotationData?>(null)
+    val previewData: StateFlow<com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator.QuotationData?> = _previewData.asStateFlow()
+
+    fun loadPreviewData(quotationId: String) {
+        viewModelScope.launch {
+            salesRepository.getQuotationById(quotationId)
+                .onSuccess { quotation ->
+                    val organization = organizationDao.getOrganization()   // ✅ same fetch as download
+                    _previewData.value = com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator.QuotationData(
+                        quotationNumber = quotation.quotationNumber ?: "",
+                        logoUrl = organization?.organizationPicture,       // ✅ this was missing in preview
+                        quotationDate = quotation.createdAt.toDisplayDate(),
+                        customerName = quotation.customerSnapshot?.name ?: "",
+                        customerAddress = "",
+                        customerEmail = quotation.customerSnapshot?.email ?: "",
+                        customerPhone = quotation.customerSnapshot?.phone ?: "",
+                        items = quotation.items.map { item ->
+                            com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator.QuotationItem(
+                                description = item.garmentName ?: "",
+                                quantity = item.quantity,
+                                rate = item.unitPrice,
+                                amount = item.totalPrice
+                            )
+                        },
+                        subtotal = quotation.subTotal,
+                        discountAmount = quotation.discountAmount,
+                        total = quotation.grandTotal
+                    )
+                }
+        }
+    }
+
+    fun resetPreviewData() {
+        _previewData.value = null
+    }
+
+    fun resetPdfState() {
+        _pdfState.value = QuotationPdfUiState.Idle
+    }
+
 //    fun resetDetailState() {
 //        _detailState.value = QuotationDetailUiState.Idle
 //    }
+}
+
+sealed class QuotationPdfUiState {
+    object Idle : QuotationPdfUiState()
+    object Loading : QuotationPdfUiState()
+    data class Success(val saved: com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator.SavedPdf) : QuotationPdfUiState()
+    data class Error(val message: String) : QuotationPdfUiState()
 }

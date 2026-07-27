@@ -149,3 +149,45 @@ data class ConvertToInvoiceItem(
     @SerializedName("tax") val tax: Double,
     @SerializedName("total") val total: Double
 )
+
+
+// ── Request body for "Receive Payment" ──
+data class ReceivePaymentRequest(
+    val amount: Double,
+    val method: String,              // "cash", "card", "upi", "bank_transfer" etc.
+    val transactionId: String = "",  // Reference No. (Optional)
+    val notes: String = "",
+    val paymentDate: String? = null, // ISO date string, e.g. "2026-07-27". null => backend defaults to today
+    val paymentType: String = "full" // ← ADD THIS: "full" or "partial"
+)
+// ── Full API response wrapper ──
+data class ReceivePaymentResponse(
+    val success: Boolean,
+    val message: String,
+    val data: ReceivePaymentData
+)
+
+data class ReceivePaymentData(
+    val order: PaymentOrderInfo,
+    val payment: PaymentInfo
+)
+
+data class PaymentOrderInfo(
+    @SerializedName("_id") val id: String,
+    val orderNumber: String,
+    val totalPaid: Double,
+    val balanceAmount: Double,
+    val paymentStatus: String,
+    val totalAmount: Double,
+    val discount: Double
+)
+
+data class PaymentInfo(
+    @SerializedName("_id") val id: String,
+    val paymentNumber: String,
+    val amount: Double,
+    val paymentDate: String,
+    val method: String,
+    val transactionId: String,
+    val notes: String
+)

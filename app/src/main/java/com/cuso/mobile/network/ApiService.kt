@@ -134,6 +134,8 @@ import com.cuso.mobile.model.sales.PricingQuotationSaveResponse
 import com.cuso.mobile.model.sales.QuotationDeleteResponse
 import com.cuso.mobile.model.sales.QuotationDetailResponse
 import com.cuso.mobile.model.sales.QuotationListResponse
+import com.cuso.mobile.model.sales.ReceivePaymentRequest
+import com.cuso.mobile.model.sales.ReceivePaymentResponse
 import com.cuso.mobile.model.sales.StageAssignRequest
 import com.cuso.mobile.model.sales.UpdateCustomerRequest
 import com.cuso.mobile.model.sales.UpdateCustomerResponse
@@ -1035,5 +1037,12 @@ interface ApiService {
         @Path("orderId") orderId: String,
         @Body request: ConvertToInvoiceRequest
     ): Response<ConvertToInvoiceResponse>
+    @PUT("/api/sales-orders/receive-payment/{orderId}")
+    suspend fun receivePayment(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("orderId") orderId: String,
+        @Body request: ReceivePaymentRequest
+    ): Response<ReceivePaymentResponse>
 
 }

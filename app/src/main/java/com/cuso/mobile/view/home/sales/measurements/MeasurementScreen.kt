@@ -94,22 +94,24 @@ fun MeasurementsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clickable { onBack() },
-                        tint = Color(0xFF111827)
-                    )
+
                     Text(
                         "Measurements",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF111827)
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable { onBack() },
+                        tint = Color(0xFF111827)
                     )
                 }
             }

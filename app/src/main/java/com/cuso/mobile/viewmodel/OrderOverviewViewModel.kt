@@ -6,6 +6,7 @@ import com.cuso.mobile.model.sales.AssignStageResponse
 import com.cuso.mobile.model.sales.ConvertToInvoiceData
 import com.cuso.mobile.model.sales.GarmentStageDoc
 import com.cuso.mobile.model.sales.OrderOverviewData
+import com.cuso.mobile.model.sales.ReceivePaymentData
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,6 +50,13 @@ sealed class StageUpdateState {
     data class Error(val stageId: String, val message: String) : StageUpdateState()
 }
 
+sealed class ReceivePaymentState {
+    object Idle : ReceivePaymentState()
+    object Loading : ReceivePaymentState()
+    data class Success(val data: ReceivePaymentData) : ReceivePaymentState()
+    data class Error(val message: String) : ReceivePaymentState()
+}
+
 @HiltViewModel
 class OrderOverviewViewModel @Inject constructor(
     private val repository: SalesRepository
@@ -67,6 +75,9 @@ class OrderOverviewViewModel @Inject constructor(
     private val _convertToInvoiceState = MutableStateFlow<ConvertToInvoiceState>(ConvertToInvoiceState.Idle)
     val convertToInvoiceState: StateFlow<ConvertToInvoiceState> = _convertToInvoiceState.asStateFlow()
 
+    // 2) Add this StateFlow inside the OrderOverviewViewModel class, alongside the others
+    private val _receivePaymentState = MutableStateFlow<ReceivePaymentState>(ReceivePaymentState.Idle)
+    val receivePaymentState: StateFlow<ReceivePaymentState> = _receivePaymentState.asStateFlow()
 
     fun fetchSalesOverview(orderId: String) {
         viewModelScope.launch {
@@ -157,6 +168,40 @@ class OrderOverviewViewModel @Inject constructor(
                     _stageUpdateState.value = StageUpdateState.Error(stageId, e.message ?: "Failed to update stage")
                 }
         }
+    }
+
+    fun receivePayment(
+        orderId: String,
+        amount: Double,
+        method: String,
+        transactionId: String = "",
+        notes: String = "",
+        paymentDate: String? = null,
+        paymentType: String = "full"  // ← ADD THIS PARAMETER
+    ) {
+        viewModelScope.launch {
+            _receivePaymentState.value = ReceivePaymentState.Loading
+            repository.receivePayment(
+                orderId = orderId,
+                amount = amount,
+                method = method,
+                transactionId = transactionId,
+                notes = notes,
+                paymentDate = paymentDate,
+                paymentType = paymentType  // ← PASS IT HERE
+            )
+                .onSuccess { data ->
+                    _receivePaymentState.value = ReceivePaymentState.Success(data)
+                }
+                .onFailure { e ->
+                    _receivePaymentState.value = ReceivePaymentState.Error(e.message ?: "Failed to record payment")
+                }
+        }
+    }
+
+    // 4) Reset function — call after dialog closes / navigates away
+    fun resetReceivePaymentState() {
+        _receivePaymentState.value = ReceivePaymentState.Idle
     }
 
     // ✅ NEW — call this when "Convert to Invoice" button is clicked

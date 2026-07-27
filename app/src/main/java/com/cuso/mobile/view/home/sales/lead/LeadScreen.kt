@@ -700,7 +700,8 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                 FormLabel("Enquiry Date", isRequired = true)
                                 DatePickerField(
                                     value = enquiryDate.ifEmpty { "Select Date" },
-                                    onDateSelected = { enquiryDate = it })
+                                    onDateSelected = { enquiryDate = it },
+                                    isError = errorField =="enquiryDate")
                                 Spacer(Modifier.height(14.dp))
 
                                 // ✅ Lead Owner - populated from API
@@ -715,7 +716,10 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                     { label ->
                                         leadOwner = staffIdMap[label] ?: ""  // ✅ Store the staff ID
                                     },
-                                    isRequired = true
+                                    isRequired = true,
+                                    isError = errorField == "leadOwner",
+                                    errorMessage = if (errorField == "leadOwner") "Lead Owner is required" else null
+
                                 )
 
                                 Spacer(Modifier.height(14.dp))
@@ -726,7 +730,10 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                     { leadStatusExpanded = it },
                                     statusOptions,
                                     { leadStatus = it },
-                                    isRequired = true
+                                    isRequired = true,
+                                    isError = errorField == "leadStatus",
+                                    errorMessage = if (errorField == "leadStatus") "Lead Status is required" else null
+
                                 )
                             }
                         }
@@ -795,10 +802,17 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                 PhoneInputField(
                                     phoneValue = phone,
                                     onPhoneChange = { phone = it },
-                                    onCountryChange = { selectedIso = it.iso })
+                                    onCountryChange = { selectedIso = it.iso },
+                                    isError = errorField == "phone",
+                                    errorMessage = if (errorField == "phone") "Mobile Number is required" else null
+                                )
                                 Spacer(Modifier.height(14.dp))
                                 FormLabel("Email")
-                                FormTextField(value = email, onValueChange = { email = it })
+                                FormTextField(value = email,
+                                    onValueChange = { email = it },
+                                    isError = errorField == "email",
+                                    errorMessage = if (errorField == "email") "Email id is required" else null
+                                )
                                 if (customerType == "Individual") {
                                     Spacer(Modifier.height(14.dp))
                                     FormDropdown(
@@ -807,7 +821,11 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                         genderExpanded,
                                         { genderExpanded = it },
                                         genderOptions,
-                                        { gender = it })
+                                        { gender = it },
+                                        isError = errorField == "gender",
+                                        errorMessage = if (errorField == "gender") "Gender is required" else null
+
+                                    )
                                     Spacer(Modifier.height(14.dp))
                                     FormLabel("Date of Birth")
                                     DatePickerField(
@@ -843,7 +861,11 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                     preferredContactExpanded,
                                     { preferredContactExpanded = it },
                                     preferredContactOptions,
-                                    { preferredContact = it })
+                                    { preferredContact = it },
+                                    isError = errorField == "preferredContact",
+                                    errorMessage = if (errorField == "preferredContact") "Preferred Contact Method is required" else null
+
+                                )
                             }
                         }
 
@@ -864,7 +886,10 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                     enquiryTypeExpanded,
                                     { enquiryTypeExpanded = it },
                                     enquiryTypeOptions,
-                                    { enquiryType = it })
+                                    { enquiryType = it },
+                                    isError = errorField == "enquiryType",
+                                    errorMessage = if (errorField == "enquiryType") "Enquiry Type is required" else null
+                                )
                                 Spacer(Modifier.height(14.dp))
                                 FormLabel("Estimated Quantity")
                                 FormTextField(
@@ -982,7 +1007,11 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                         assignedStaffExpanded && !isLoadingStaff,
                                         { assignedStaffExpanded = it },
                                         staffDisplayList,
-                                        { label -> assignedStaff = staffIdMap[label] ?: "" })
+                                        { label -> assignedStaff = staffIdMap[label] ?: "" },
+                                        isError = errorField == "assignedStaff",
+                                        errorMessage = if (errorField == "assignedStaff") "Assigned Staff is required" else null
+
+                                    )
                                     Spacer(Modifier.height(14.dp))
                                     FormLabel("Follow-up Date", isRequired = true)
                                     DatePickerField(
@@ -996,7 +1025,10 @@ fun CreateLeadScreen(onBack: () -> Unit) {
                                         { priorityExpanded = it },
                                         priorityOptions,
                                         { priority = it },
-                                        isRequired = true
+                                        isRequired = true,
+                                        isError = errorField == "priority",
+                                        errorMessage = if (errorField == "priority") "Priority is required" else null
+
                                     )
                                 } else {
                                     Text(
@@ -2345,10 +2377,13 @@ fun EditLeadScreen(onBack: () -> Unit) {
                             FormLabel("Full Name", isRequired = true)
                             FormTextField(value = fullName, onValueChange = { fullName = it })
                             Spacer(Modifier.height(14.dp))
+                            FormLabel("Full Name", isRequired = true)
+
                             PhoneInputField(
                                 phoneValue = phone,
                                 onPhoneChange = { phone = it },
-                                onCountryChange = {})
+                                onCountryChange = {},
+                                )
                             Spacer(Modifier.height(14.dp))
                             FormLabel("Email")
                             FormTextField(value = email, onValueChange = { email = it })

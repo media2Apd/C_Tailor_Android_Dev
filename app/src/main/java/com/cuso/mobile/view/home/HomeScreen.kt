@@ -111,10 +111,15 @@ import com.cuso.mobile.ui.theme.modelBg
 import com.cuso.mobile.ui.theme.modelBorder
 import com.cuso.mobile.ui.theme.statLogoBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.home.finance.AllPaymentScreen
 import com.cuso.mobile.view.home.finance.AllSuppliersScreen
 import com.cuso.mobile.view.home.finance.ChartOfAccountScreen
+import com.cuso.mobile.view.home.finance.ExpensesScreen
 import com.cuso.mobile.view.home.finance.FinanceCustomerScreen
+import com.cuso.mobile.view.home.finance.FinanceInvoiceScreen
 import com.cuso.mobile.view.home.finance.LedgerScreen
+import com.cuso.mobile.view.home.finance.ManualJournalEntryScreen
+import com.cuso.mobile.view.home.finance.PaymentDetailScreen
 import com.cuso.mobile.view.home.finance.SupplierDetailScreen
 import com.cuso.mobile.view.home.finance.SupplierRow
 import com.cuso.mobile.view.home.finance.TrialBalanceScreen
@@ -180,9 +185,12 @@ fun HomeScreen(navController: NavHostController) {
     val authViewModel: Authenticate = hiltViewModel()
     val hrViewModel: HrViewModel = hiltViewModel()
 
+
+
     val token: String = authViewModel.tokens.value?.accessToken ?: ""
     val isLoggedOut: Boolean by viewModel.isLoggedOut.collectAsStateWithLifecycle(initialValue = false)
-    var currentScreen by remember { mutableStateOf("home") }
+    val screenStack = remember { mutableStateListOf("home") }
+    val currentScreen: String = screenStack.last()
 
 
     val profileViewModel: ProfileViewModel = hiltViewModel()
@@ -237,6 +245,21 @@ fun HomeScreen(navController: NavHostController) {
     // ✅ NEW — Inventory > Item Groups flow
     var selectedItemGroupId by remember { mutableStateOf<String?>(null) }
 
+    fun navigateTo(screen: String) {
+        if (screenStack.lastOrNull() != screen) screenStack.add(screen)
+    }
+
+    // Pop the stack — automatically returns to whatever screen was visited last
+    fun goBack() {
+        if (screenStack.size > 1) screenStack.removeAt(screenStack.lastIndex)
+    }
+
+    // Used only for bottom-nav tab taps (Home/Orders/Reports) — resets stack to a fresh root
+    fun resetToHome() {
+        screenStack.clear()
+        screenStack.add("home")
+    }
+
     LaunchedEffect(editOrderId) {
         editOrderId?.let { orderOverviewViewModel.fetchSalesOverview(it) }
     }
@@ -262,7 +285,7 @@ fun HomeScreen(navController: NavHostController) {
         when (val s = editOverviewState) {
             is com.cuso.mobile.viewmodel.OrderOverviewState.Success -> {
                 pendingOrderReviewData = s.data.toOrderReviewData()
-                currentScreen = "create_order"
+                navigateTo("create_order")
                 editOrderId = null
             }
             is com.cuso.mobile.viewmodel.OrderOverviewState.Error -> {
@@ -298,6 +321,8 @@ fun HomeScreen(navController: NavHostController) {
         }
     }
 
+
+
     val showHomePanel = currentScreen == "settings" ||
             currentScreen == "home_organization_profile" ||
             currentScreen == "home_branch_management" ||
@@ -307,98 +332,79 @@ fun HomeScreen(navController: NavHostController) {
     val showSalesPanel = isSalesSettingsMode
 
     // ✅ NEW — System back button handling
-    BackHandler(enabled = isDrawerOpen || showModulesPanel || currentScreen != "home") {
+    BackHandler(enabled = isDrawerOpen || showModulesPanel || screenStack.size > 1) {
         when {
             // Priority 1: close overlays first
             showModulesPanel -> showModulesPanel = false
             isDrawerOpen -> isDrawerOpen = false
-            // Priority 2: mimic each screen's own onBack/onClose logic
-            currentScreen == "settings" -> currentScreen = "profile-settings"
-            currentScreen == "home_organization_profile" -> currentScreen = "profile-settings"
-            currentScreen == "home_branch_management" -> currentScreen = "profile-settings"
-            currentScreen == "home_department_teams" -> currentScreen = "profile-settings"
-            currentScreen == "home_designation" -> currentScreen = "profile-settings"
+
+            // Priority 2: clear any screen-specific selection state before popping back
+            currentScreen == "sales_garment_type" -> {
+                isSalesSettingsMode = true
+                goBack()
+            }
             currentScreen == "sales_settings" -> {
                 isSalesSettingsMode = false
-                currentScreen = "sales_lead"
-            }
-            currentScreen == "sales_garment_type" -> {
-                currentScreen = "sales_settings"
-                isSalesSettingsMode = true
+                goBack()
             }
             currentScreen == "sales_lead" -> {
                 isSalesSettingsMode = false
-                currentScreen = "home"
+                goBack()
             }
             currentScreen == "sales_pricing_quotation" -> {
                 isSalesSettingsMode = false
-                currentScreen = "home"
-            }
-
-            currentScreen == "create_lead" -> currentScreen = "sales_lead"
-            currentScreen == "view_lead" -> currentScreen = "sales_lead"
-            currentScreen == "edit_lead" -> currentScreen = "sales_lead"
-            currentScreen == "create_order" -> currentScreen = "sales_sales_orders"
-            currentScreen == "sales_sales_orders" -> currentScreen = "home"
-            currentScreen == "sales_orders" -> currentScreen = "home"
-            currentScreen == "sales_customers" -> currentScreen = "home"
-            currentScreen == "sales_measurements" -> currentScreen = "home"
-            currentScreen == "view_customer" -> currentScreen = "sales_customers"
-            currentScreen == "edit_customer" -> currentScreen = "sales_customers"
-            currentScreen == "finance_sales_invoices" -> currentScreen = "home"
-            currentScreen == "finance_journal_screen" -> currentScreen = "home"
-
-            currentScreen == "finance_invoice_detail" -> {
-                selectedInvoiceId = null
-                currentScreen = "finance_sales_invoices"
+                goBack()
             }
             currentScreen == "create_order_review" -> {
                 pendingOrderReviewData = null
-                currentScreen = "create_order"
+                goBack()
             }
-            currentScreen == "profile-settings" -> currentScreen = "home"
-
-            currentScreen == "finance_trial_balance" -> currentScreen = "home"
+            currentScreen == "finance_invoice_detail" -> {
+                selectedInvoiceId = null
+                goBack()
+            }
             currentScreen == "finance_ledger" -> {
                 selectedLedgerAccountId = null
-                currentScreen = "finance_trial_balance"
+                goBack()
             }
-            currentScreen == "finance_chart_of_accounts" -> currentScreen = "home"
-            currentScreen == "finance_suppliers" -> currentScreen = "home"
             currentScreen == "finance_supplier_detail" -> {
                 selectedSupplier = null
-                currentScreen = "finance_suppliers"
+                goBack()
             }
-            currentScreen == "finance_journal_entries" -> currentScreen = "home"
-            currentScreen == "inventory_items" -> currentScreen = "home"
             currentScreen == "inventory_item_detail" -> {
                 selectedInventoryItemId = null
-                currentScreen = "inventory_items"
+                goBack()
             }
-            currentScreen == "inventory_create_item" -> currentScreen = "inventory_items"
-
-            currentScreen == "inventory_item_groups" -> currentScreen = "home"
             currentScreen == "inventory_create_item_group" -> {
                 selectedItemGroupId = null
-                currentScreen = "inventory_item_groups"
+                goBack()
             }
-
-            // Fallback: any unmapped/unknown screen -> go home
-            currentScreen != "home" -> currentScreen = "home"
-
-            currentScreen == "hr_all_employees" -> currentScreen = "home"
             currentScreen == "hr_employee_onboarding" -> {
                 selectedEmployeeId = null
-                currentScreen = "hr_all_employees"
+                goBack()
             }
-            currentScreen == "services_customer_feedback" -> currentScreen = "home"
             currentScreen == "feedback_detail" -> {
                 selectedFeedbackId = null
-                currentScreen = "services_customer_feedback"
+                goBack()
             }
-            currentScreen == "logistics_delivery" -> currentScreen = "home"
+            currentScreen == "view_customer" || currentScreen == "edit_customer" -> {
+                selectedCustomer = null
+                goBack()
+            }
+            currentScreen == "order_overview" -> {
+                selectedOrderId = null
+                goBack()
+            }
+            currentScreen == "order_management_overview" -> {
+                selectedManagementOrderId = null
+                goBack()
+            }
+            currentScreen == "payment_detail_screen" -> {
+                goBack()
+            }
 
-            currentScreen == "reports_sales_reports" -> currentScreen = "home"
+            // Default — just pop the stack, lands on whatever was visited before
+            else -> goBack()
         }
     }
 
@@ -409,8 +415,8 @@ fun HomeScreen(navController: NavHostController) {
             contentWindowInsets = WindowInsets(0),
             topBar = {
                 TopBar(
-                    onProfileClick={
-                        currentScreen="profile-settings"
+                    onProfileClick = {
+                        navigateTo("profile-settings")
                     }
                 )
             },
@@ -430,148 +436,147 @@ fun HomeScreen(navController: NavHostController) {
                             currentScreen == "edit_lead"
                         ) {
                             isSalesSettingsMode = true
-                            currentScreen = "sales_settings"
+                            navigateTo("sales_settings")
                         } else {
                             if (showHomePanel || showSalesPanel) {
                                 isSalesSettingsMode = false
-                                currentScreen = "home"
+                                resetToHome()   // closing the settings panel — treat as returning to a fresh home, not "back one step"
                             } else {
-                                currentScreen = "settings"
+                                navigateTo("settings")
                             }
                         }
                     },
                     onMenuItemClick = { route ->
                         when (route) {
                             "home_organization_profile" -> {
-                                currentScreen = "home_organization_profile"
+                                navigateTo("home_organization_profile")
                                 isDrawerOpen = false
                             }
 
                             "home_branch_management" -> {
-                                currentScreen = "home_branch_management"
+                                navigateTo("home_branch_management")
                                 isDrawerOpen = false
                             }
 
                             "home_department_teams" -> {
-                                currentScreen = "home_department_teams"
+                                navigateTo("home_department_teams")
                                 isDrawerOpen = false
                             }
 
                             "home_designation" -> {
-                                currentScreen = "home_designation"
+                                navigateTo("home_designation")
                                 isDrawerOpen = false
                             }
 
                             "sales_lead" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "sales_lead"
+                                navigateTo("sales_lead")
                                 isDrawerOpen = false
                             }
 
                             "sales_customers" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "sales_customers"
+                                navigateTo("sales_customers")
                                 isDrawerOpen = false
                             }
                             "finance_expenses" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "finance_expenses"
+                                navigateTo("finance_expenses")
                                 isDrawerOpen = false
                             }
 
                             "sales_measurements" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "sales_measurements"
+                                navigateTo("sales_measurements")
                                 isDrawerOpen = false
                             }
 
                             "sales_sales_orders", "sales_sales_&_orders" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "sales_sales_orders"
+                                navigateTo("sales_sales_orders")
                                 isDrawerOpen = false
                             }
 
                             "sales_orders" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "sales_orders"
+                                navigateTo("sales_orders")
                                 isDrawerOpen = false
                             }
 
                             "sales_garment_type" -> {
-                                currentScreen = "sales_garment_type"
+                                navigateTo("sales_garment_type")
                                 isDrawerOpen = false
                             }
 
-                            "sales_pricing_quotation", "sales_pricing_and_quotations",   // ✅ ADD THIS — actual buildNavigationKey output
+                            "sales_pricing_quotation", "sales_pricing_and_quotations",
                             "sales_pricing_&_quotations" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "sales_pricing_quotation"
+                                navigateTo("sales_pricing_quotation")
                                 isDrawerOpen = false
                             }
                             "finance_journal_entry", "finance_journal_entries" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "finance_journal_screen"
+                                navigateTo("finance_journal_screen")
                                 isDrawerOpen = false
                             }
 
                             "finance_chart_of_accounts" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "finance_chart_of_accounts"
+                                navigateTo("finance_chart_of_accounts")
                                 isDrawerOpen = false
                             }
 
                             "finance_sales_invoices", "finance_accounts_receivable" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "finance_sales_invoices"
+                                navigateTo("finance_sales_invoices")
                                 isDrawerOpen = false
                             }
 
                             "home" -> {
                                 isSalesSettingsMode = false
-                                currentScreen =
-                                    if (showHomePanel) "settings" else "home"
+                                if (showHomePanel) navigateTo("settings") else resetToHome()
                                 isDrawerOpen = false
                             }
 
                             "settings" -> {
-                                currentScreen = "settings"
+                                navigateTo("settings")
                                 isDrawerOpen = false
                             }
                             "finance_trial_balance" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "finance_trial_balance"
+                                navigateTo("finance_trial_balance")
                                 isDrawerOpen = false
                             }
 
-                            "inventory_items", "inventory_all_items" -> {   // ✅ NEW
+                            "inventory_items", "inventory_all_items" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "inventory_items"
+                                navigateTo("inventory_items")
                                 isDrawerOpen = false
                             }
 
-                            "inventory_item_groups" -> {   // ✅ NEW
+                            "inventory_item_groups" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "inventory_item_groups"
+                                navigateTo("inventory_item_groups")
                                 isDrawerOpen = false
                             }
-                            "hr_all_employees", "hr_all_employees" -> {
+                            "hr_all_employees" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "hr_all_employees"
+                                navigateTo("hr_all_employees")
                                 isDrawerOpen = false
                             }
                             "logistics_delivery" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "logistics_delivery"
+                                navigateTo("logistics_delivery")
                                 isDrawerOpen = false
                             }
                             "reports_sales_reports", "reports_finance_reports" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "reports_sales_reports"
+                                navigateTo("reports_sales_reports")
                                 isDrawerOpen = false
                             }
                             "reports" -> {
                                 isSalesSettingsMode = false
-                                currentScreen = "reports_sales_reports"
+                                navigateTo("reports_sales_reports")
                                 isDrawerOpen = false
                             }
                             else -> {
@@ -580,7 +585,7 @@ fun HomeScreen(navController: NavHostController) {
                                     navController.navigate(route)
                                 } catch (_: Exception) {
                                     if (route.startsWith("sales_")) {
-                                        currentScreen = route
+                                        navigateTo(route)
                                     }
                                 }
                                 isDrawerOpen = false
@@ -612,7 +617,7 @@ fun HomeScreen(navController: NavHostController) {
                     "settings" -> SettingsScreen(
                         navController = navController,
                         onMenuClick = { isDrawerOpen = true },
-                        onBack = { currentScreen = "profile-settings" }
+                        onBack = { goBack() }
                     )
                     "home_organization_profile" -> SettingsScreen(
                         navController = navController,
@@ -621,31 +626,31 @@ fun HomeScreen(navController: NavHostController) {
                     "home_branch_management" -> BranchSettingsScreen(
                         navController = navController,
                         onMenuClick = { isDrawerOpen = true },
-                        onBack = { currentScreen = "profile-settings" }
+                        onBack = { goBack() }
                     )
                     "home_department_teams" -> DepartmentSettingsScreen(
                         navController = navController,
                         onMenuClick = { isDrawerOpen = true },
-                        onBack = { currentScreen = "profile-settings" }
+                        onBack = { goBack() }
                     )
                     "home_designation" -> DesignationScreen(
                         navController = navController,
                         onMenuClick = { isDrawerOpen = true },
-                        onBack = { currentScreen = "profile-settings" }
+                        onBack = { goBack() }
                     )
 
                     "sales_settings" -> SalesSettingsScreen(
                         navController = navController,
                         onClose = {
                             isSalesSettingsMode = false
-                            currentScreen = "sales_lead"
+                            goBack()
                         },
                         onMenuClick = { isDrawerOpen = true }
                     )
                     "sales_garment_type" -> GarmentTypeContent(
                         onClose = {
-                            currentScreen = "sales_settings"
                             isSalesSettingsMode = true
+                            goBack()
                         },
                         onMenuClick = { isDrawerOpen = true }
                     )
@@ -655,32 +660,29 @@ fun HomeScreen(navController: NavHostController) {
                             when (route) {
                                 "sales_lead" -> {
                                     isSalesSettingsMode = false
-                                    currentScreen = "sales_lead"
+                                    navigateTo("sales_lead")
                                 }
                                 "sales_customers" -> {
                                     isSalesSettingsMode = false
-                                    currentScreen = "sales_customers"
+                                    navigateTo("sales_customers")
                                 }
                                 "sales_sales_orders" -> {
                                     isSalesSettingsMode = false
-                                    currentScreen = "sales_sales_orders"
+                                    navigateTo("sales_sales_orders")
                                 }
                                 "sales_measurements" -> {
                                     isSalesSettingsMode = false
-                                    currentScreen = "sales_measurements"
+                                    navigateTo("sales_measurements")
                                 }
-                                // ✅ ADD THIS
                                 "sales_pricing_quotation",
                                 "sales_pricing_and_quotations",
                                 "sales_pricing_&_quotations" -> {
                                     isSalesSettingsMode = false
-                                    currentScreen = "sales_pricing_quotation"
+                                    navigateTo("sales_pricing_quotation")
                                 }
-
-
-                                "services_customer_feedback", "customer_feedback" -> {   // ✅ NEW
+                                "services_customer_feedback", "customer_feedback" -> {
                                     isSalesSettingsMode = false
-                                    currentScreen = "services_customer_feedback"
+                                    navigateTo("services_customer_feedback")
                                     isDrawerOpen = false
                                 }
                                 else -> {
@@ -690,52 +692,49 @@ fun HomeScreen(navController: NavHostController) {
                         }
                     )
                     "sales_lead" -> LeadScreenContent(
-                        onCreateLead = { currentScreen = "create_lead" },
-                        onViewLead = { currentScreen = "view_lead" },
-                        onEditLead = { currentScreen = "edit_lead" },
+                        onCreateLead = { navigateTo("create_lead") },
+                        onViewLead = { navigateTo("view_lead") },
+                        onEditLead = { navigateTo("edit_lead") },
                         onClose = {
                             isSalesSettingsMode = false
-                            currentScreen = "home"
+                            goBack()
                         }
                     )
                     "create_lead" -> CreateLeadScreen(
-                        onBack = { currentScreen = "sales_lead" }
+                        onBack = { goBack() }
                     )
                     "view_lead" -> ViewLeadScreen(
-                        onBack = { currentScreen = "sales_lead" },
-                        onEditLead = { currentScreen = "edit_lead" }
+                        onBack = { goBack() },
+                        onEditLead = { navigateTo("edit_lead") }
                     )
-
-
-
                     "edit_lead" -> EditLeadScreen(
-                        onBack = { currentScreen = "sales_lead" }
+                        onBack = { goBack() }
                     )
                     "create_order" -> {
                         CreateOrderScreen(
                             initialData = pendingOrderReviewData,
-                            onBack = { currentScreen = "sales_sales_orders" },
+                            onBack = { goBack() },
                             onCancel = {
                                 pendingOrderReviewData = null
-                                currentScreen = "sales_sales_orders"
+                                goBack()
                             },
                             onNextStep = { orderReviewData ->
                                 pendingOrderReviewData = orderReviewData
-                                currentScreen = "create_order_review"
+                                navigateTo("create_order_review")
                             }
                         )
                     }
                     "sales_sales_orders" -> SalesOrderScreen(
                         navController = navController,
                         onMenuClick = { isDrawerOpen = true },
-                        onBack = { currentScreen = "home" },
-                        onCreateOrder = { currentScreen = "create_order" },
+                        onBack = { goBack() },
+                        onCreateOrder = { navigateTo("create_order") },
                         onViewOrder = { orderId ->
                             selectedOrderId = orderId
-                            currentScreen = "order_overview"
+                            navigateTo("order_overview")
                         },
                         onEditOrder = { orderId ->
-                            editOrderId = orderId   // ✅ triggers fetch → convert → create_order
+                            editOrderId = orderId
                         }
                     )
                     "order_overview" -> {
@@ -744,30 +743,29 @@ fun HomeScreen(navController: NavHostController) {
                                 orderId = id,
                                 onClose = {
                                     selectedOrderId = null
-                                    currentScreen = "sales_sales_orders"
+                                    goBack()
                                 },
                                 onEditOrder = { reviewData ->
                                     pendingOrderReviewData = reviewData
                                     selectedOrderId = null
-                                    currentScreen = "create_order"
+                                    navigateTo("create_order")
                                 },
                                 onCreateNew = {
-                                    pendingOrderReviewData = null   // clear so CreateOrderScreen opens blank, not pre-filled
+                                    pendingOrderReviewData = null
                                     selectedOrderId = null
-                                    currentScreen = "create_order"
+                                    navigateTo("create_order")
                                 }
                             )
-                        } ?: run { currentScreen = "sales_sales_orders" }
+                        } ?: run { goBack() }
                     }
                     "sales_orders" -> OrderManagementScreen(
                         navController = navController,
                         onMenuClick = { isDrawerOpen = true },
-                        onBack = { currentScreen = "home" },
+                        onBack = { goBack() },
                         onViewOrder = { orderId ->
                             selectedManagementOrderId = orderId
-                            currentScreen = "order_management_overview"
-                        },
-
+                            navigateTo("order_management_overview")
+                        }
                     )
                     "order_management_overview" -> {
                         selectedManagementOrderId?.let { id ->
@@ -775,25 +773,22 @@ fun HomeScreen(navController: NavHostController) {
                                 orderId = id,
                                 onClose = {
                                     selectedManagementOrderId = null
-                                    currentScreen = "sales_orders"
+                                    goBack()
                                 },
                                 onEditOrder = {
-                                    // When Edit Order is clicked, fetch data using OrderOverviewViewModel
                                     editOrderId = id
-                                    // Don't change screen here, let LaunchedEffect handle it
                                 }
                             )
-                        } ?: run { currentScreen = "sales_orders" }
+                        } ?: run { goBack() }
                     }
-                    // ✅ NEW — Finance > Trial Balance (list)
                     "finance_trial_balance" -> TrialBalanceScreen(
-                        onClose = { currentScreen = "home" },
+                        onClose = { goBack() },
                         onAccountClick = { accountId, accountName ->
                             selectedLedgerAccountId = accountId
                             selectedLedgerAccountName = accountName
-                            currentScreen = "finance_ledger"
+                            navigateTo("finance_ledger")
                         },
-                        onBreadcrumbClick = {   // ✅ NEW
+                        onBreadcrumbClick = {
                             modulesPanelInitialExpanded = "Finance"
                             showModulesPanel = true
                         }
@@ -806,79 +801,75 @@ fun HomeScreen(navController: NavHostController) {
                                 accountName = selectedLedgerAccountName,
                                 onClose = {
                                     selectedLedgerAccountId = null
-                                    currentScreen = "finance_trial_balance"
+                                    goBack()
                                 },
-                                onBreadcrumbClick = {   // ✅ NEW
+                                onBreadcrumbClick = {
                                     modulesPanelInitialExpanded = "Finance"
                                     showModulesPanel = true
                                 }
                             )
-                        } ?: run { currentScreen = "finance_trial_balance" }
+                        } ?: run { goBack() }
                     }
 
                     "finance_chart_of_accounts" -> ChartOfAccountScreen(
-                        onClose = { currentScreen = "home" },
-                        onBreadcrumbClick = {   // ✅ NEW
+                        onClose = { goBack() },
+                        onBreadcrumbClick = {
                             modulesPanelInitialExpanded = "Finance"
                             showModulesPanel = true
                         }
                     )
                     "finance_suppliers" -> AllSuppliersScreen(
-                         onClose = { currentScreen = "home" },
-                         onBreadcrumbClick = {
-                                 modulesPanelInitialExpanded = "Finance"
-                                 showModulesPanel = true
-                             },
-                         onSupplierClick = { supplier ->
-                             selectedSupplier = supplier
-                             currentScreen = "finance_supplier_detail"
-                            }
+                        onClose = { goBack() },
+                        onBreadcrumbClick = {
+                            modulesPanelInitialExpanded = "Finance"
+                            showModulesPanel = true
+                        },
+                        onSupplierClick = { supplier ->
+                            selectedSupplier = supplier
+                            navigateTo("finance_supplier_detail")
+                        }
                     )
                     "finance_supplier_detail" -> {
                         selectedSupplier?.let { supplier ->
-                                SupplierDetailScreen(
-                                        supplier = supplier,
-                                        onClose = {
-                                                selectedSupplier = null
-                                                currentScreen = "finance_suppliers"
-                                            },
-                                        onBreadcrumbClick = {
-                                                modulesPanelInitialExpanded = "Finance"
-                                                showModulesPanel = true
-                                            }
-                                            )
-                            } ?: run { currentScreen = "finance_suppliers" }
+                            SupplierDetailScreen(
+                                supplier = supplier,
+                                onClose = {
+                                    selectedSupplier = null
+                                    goBack()
+                                },
+                                onBreadcrumbClick = {
+                                    modulesPanelInitialExpanded = "Finance"
+                                    showModulesPanel = true
+                                }
+                            )
+                        } ?: run { goBack() }
                     }
-                    // ✅ NEW — Inventory > All Items
                     "inventory_items" -> InventoryScreen(
-                        onClose = { currentScreen = "home" },
-                        onAddItem = {
-                            currentScreen = "inventory_create_item"
-                        },
+                        onClose = { goBack() },
+                        onAddItem = { navigateTo("inventory_create_item") },
                         onViewItem = { item ->
                             selectedInventoryItemId = item._id
-                            currentScreen = "inventory_item_detail"
+                            navigateTo("inventory_item_detail")
                         },
-                        onEditItem = { currentScreen = "inventory_create_item" }
-
+                        onEditItem = { navigateTo("inventory_create_item") }
                     )
 
                     "hr_all_employees" -> AllEmployeesScreen(
-                        onDismiss = { currentScreen = "home" },
+                        onDismiss = { goBack() },
                         onAddEmployee = {
                             employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.CREATE
                             selectedEmployeeId = null
-                            currentScreen = "hr_employee_onboarding"
+                            navigateTo("hr_employee_onboarding")
                         },
                         onView = { employee ->
                             employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.VIEW
                             selectedEmployeeId = employee._id
-                            currentScreen = "hr_employee_onboarding"
+                            navigateTo("hr_employee_onboarding")
                         },
                         onEdit = { employee ->
                             employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.EDIT
                             selectedEmployeeId = employee._id
-                            currentScreen = "hr_employee_onboarding"
+                            navigateTo("hr_employee_onboarding")
                         },
                         onDelete = { employee ->
                             // TODO: call delete API via a HR/Employee ViewModel
@@ -886,41 +877,39 @@ fun HomeScreen(navController: NavHostController) {
                         hrViewModel = hrViewModel
                     )
                     "logistics_order_tracking" -> OrderTrackingScreen(
-                        onClose = { currentScreen = "home" },
+                        onClose = { goBack() },
                         onViewOrder = { order ->
-                            selectedOrderId = order.id          // if TrackingOverviewScreen needs the order id
-                            currentScreen = "tracking_overview"
+                            selectedOrderId = order.id
+                            navigateTo("tracking_overview")
                         }
                     )
                     "tracking_overview" -> TrackingOverviewScreen(
-                        onClose = { currentScreen = "logistics_order_tracking" }
+                        onClose = { goBack() }
                     )
-
 
                     "hr_employee_onboarding" -> EmployeeOnboardingScreen(
                         mode = employeeScreenMode,
                         memberIdToLoad = selectedEmployeeId,
                         onDismiss = {
                             selectedEmployeeId = null
-                            currentScreen = "hr_all_employees"
+                            goBack()
                         },
                         onCreateEmployee = {
                             selectedEmployeeId = null
-                            currentScreen = "hr_all_employees"
+                            goBack()
                         },
                         onUpdateEmployee = {
                             selectedEmployeeId = null
-                            currentScreen = "hr_all_employees"
+                            goBack()
                         },
                         hrViewModel = hrViewModel
                     )
 
                     "inventory_create_item" -> CreateItemScreen(
-                        onDismiss = { currentScreen = "inventory_items" },
-                        onItemCreated = { currentScreen = "inventory_items" }
+                        onDismiss = { goBack() },
+                        onItemCreated = { goBack() }
                     )
 
-                    // ✅ NEW — Inventory > Item Detail (own page, not a popup)
                     "inventory_item_detail" -> {
                         selectedInventoryItemId?.let { id ->
                             val itemDetailViewModel: com.cuso.mobile.viewmodel.InventoryViewModel = hiltViewModel()
@@ -938,10 +927,10 @@ fun HomeScreen(navController: NavHostController) {
                                 errorMessage = detailError,
                                 onDismiss = {
                                     selectedInventoryItemId = null
-                                    currentScreen = "inventory_items"
+                                    goBack()
                                 },
-                                onAdjustStock = { /* legacy no-op, superseded by onAdjustStockSubmit */ },
-                                onAdjustStockSubmit = { type, quantity, reason, notes ->   // ✅ NEW
+                                onAdjustStock = { },
+                                onAdjustStockSubmit = { type, quantity, reason, notes ->
                                     val apiType = when (type) {
                                         AdjustmentType.INCREASE -> "increase"
                                         AdjustmentType.DECREASE -> "decrease"
@@ -955,173 +944,167 @@ fun HomeScreen(navController: NavHostController) {
                                         notes = notes
                                     )
                                 },
-                                onWarehouseTransfer = { /* TODO: wire warehouse transfer screen */ },
-                                onReorderStock = { /* TODO: wire reorder screen */ },
-                                onMarkInactive = { /* TODO: call mark-inactive API */ },
-                                onEdit = { /* TODO: wire edit item screen */ },
-                                onShare = { /* TODO: trigger share intent */ }
+                                onWarehouseTransfer = { },
+                                onReorderStock = { },
+                                onMarkInactive = { },
+                                onEdit = { },
+                                onShare = { }
                             )
-                        } ?: run { currentScreen = "inventory_items" }
+                        } ?: run { goBack() }
                     }
 
-                    // ✅ NEW — Services > Customer Feedback (list)
                     "services_customer_feedback" -> CustomerFeedbackScreen(
-                        onDismiss = { currentScreen = "home" },
+                        onDismiss = { goBack() },
                         onView = { feedbackId ->
                             selectedFeedbackId = feedbackId
-                            currentScreen = "feedback_detail"
+                            navigateTo("feedback_detail")
                         },
-                        onEdit = { feedbackId ->
-                        },
-                        onDelete = { feedbackId ->
-                        }
+                        onEdit = { feedbackId -> },
+                        onDelete = { feedbackId -> }
                     )
 
-// ✅ NEW — Feedback Details (single feedback)
                     "feedback_detail" -> FeedbackDetailScreen(
                         onDismiss = {
                             selectedFeedbackId = null
-                            currentScreen = "services_customer_feedback"
+                            goBack()
                         }
                     )
                     "sales_pricing_quotation" -> QuotationScreen(
-                        onClose = { isSalesSettingsMode = false; currentScreen = "home" },
+                        onClose = { isSalesSettingsMode = false; goBack() },
                         onAddNe = {
                             editingPricingId = null
                             quotationScreenMode = "create"
-                            currentScreen = "create_quotation"
+                            navigateTo("create_quotation")
                         },
                         onView = { id ->
                             editingPricingId = id
                             quotationScreenMode = "view"
-                            currentScreen = "create_quotation"
+                            navigateTo("create_quotation")
                         },
                         onEdit = { id ->
                             editingPricingId = id
                             quotationScreenMode = "edit"
-                            currentScreen = "create_quotation"
+                            navigateTo("create_quotation")
                         }
                     )
 
                     "create_quotation" -> CreateQuotationScreen(
                         quotationId = editingPricingId,
                         mode = quotationScreenMode,
-                        onClose = { currentScreen = "sales_pricing_quotation" },
-                        onSave = { currentScreen = "sales_pricing_quotation" },
+                        onClose = { goBack() },
+                        onSave = { goBack() },
                         token = token
                     )
                     "inventory_item_groups" -> AllItemGroupScreen(
-                        onDismiss = { currentScreen = "home" },
-                        onAddItemGroup = { currentScreen = "inventory_create_item_group" },
+                        onDismiss = { goBack() },
+                        onAddItemGroup = { navigateTo("inventory_create_item_group") },
                         onView = { groupId ->
                             selectedItemGroupId = groupId
-
                         },
                         onEdit = { groupId ->
                             selectedItemGroupId = groupId
-                            currentScreen = "inventory_create_item_group"
+                            navigateTo("inventory_create_item_group")
                         },
-                        onDelete = { groupId ->
-
-                        }
+                        onDelete = { groupId -> }
                     )
 
                     "inventory_create_item_group" -> CreateItemGroupScreen(
                         onDismiss = {
                             selectedItemGroupId = null
-                            currentScreen = "inventory_item_groups"
+                            goBack()
                         },
                         onSave = {
                             selectedItemGroupId = null
-                            currentScreen = "inventory_item_groups"
+                            goBack()
                         }
                     )
-// ✅ NEW — "Pricing Overview" menu item navigates here (separate from Quotation)
                     "sales_pricing_overview" -> PricingScreen(
-                        onClose = { isSalesSettingsMode = false; currentScreen = "home" },
-                        onAddNewPricing = { editingPricingId = null; currentScreen = "create_garment_pricing" },
-                        onCardClick = { pricingId -> editingPricingId = pricingId; currentScreen = "create_garment_pricing" }
+                        onClose = { isSalesSettingsMode = false; goBack() },
+                        onAddNewPricing = { editingPricingId = null; navigateTo("create_garment_pricing") },
+                        onCardClick = { pricingId -> editingPricingId = pricingId; navigateTo("create_garment_pricing") }
                     )
 
                     "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
-                        onBack = { currentScreen = "sales_pricing_quotation" },
-                        onAddNewPricing = { editingPricingId = null; currentScreen = "create_garment_pricing" },
-                        onCardClick = { pricingId -> editingPricingId = pricingId; currentScreen = "create_garment_pricing" }
+                        onBack = { goBack() },
+                        onAddNewPricing = { editingPricingId = null; navigateTo("create_garment_pricing") },
+                        onCardClick = { pricingId -> editingPricingId = pricingId; navigateTo("create_garment_pricing") }
                     )
 
-//                    "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
-//                        onBack = { currentScreen = "sales_pricing_quotation" },   // ✅ no token line
-//                        onAddNewPricing = { editingPricingId = null; currentScreen = "create_garment_pricing" },
-//                        onCardClick = { pricingId -> editingPricingId = pricingId; currentScreen = "create_garment_pricing" }
-//                    )
-
                     "create_garment_pricing" -> com.cuso.mobile.view.home.sales.pricing.AddGarmentPricingScreen(
-                        pricingId = editingPricingId,             // ✅ null = Add, non-null = Edit
+                        pricingId = editingPricingId,
                         onClose = {
                             editingPricingId = null
-                            currentScreen = "sales_pricing_overview"
+                            goBack()
                         },
                         onSave = {
                             editingPricingId = null
-                            currentScreen = "sales_pricing_overview"
+                            goBack()
                         }
                     )
                     "sales_customers" -> CustomerScreen(
                         navController = navController,
                         customerState = customerUiState,
-                        onClose = { currentScreen = "home" },
-                        onCreateCustomer = { currentScreen = "create_customer" },
+                        onSearch = customerViewModel::onSearch,                          // ✅ ADD
+                        onTypeFilterChange = customerViewModel::onTypeFilterChange,      // ✅ ADD
+                        onPageChange = customerViewModel::onPageChange,                  // ✅ ADD — idhu illama Next/Prev API hit aagathu
+                        onItemsPerPageChange = customerViewModel::onItemsPerPageChange,  // ✅ ADD — idhu illama 20/50 dropdown API hit aagathu
+
+                        onClose = { goBack() },
+                        onCreateCustomer = { navigateTo("create_customer") },
                         onView = { customer ->
                             selectedCustomer = customer
-                            currentScreen = "view_customer"
+                            navigateTo("view_customer")
                         },
                         onEdit = { customer ->
                             selectedCustomer = customer
-                            currentScreen = "edit_customer"
+                            navigateTo("edit_customer")
                         },
-                        onDelete ={ customer -> customerViewModel.deleteCustomer(customer.id) }
+                        onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) }
                     )
                     "finance_customers" -> FinanceCustomerScreen(
-                        onClose = { currentScreen = "home" },
+                        onClose = { goBack() },
                         onCustomerEdit = {},
                         onCustomerClick = {}
                     )
-                    "finance_expenses" -> com.cuso.mobile.view.home.finance.ExpensesScreen(
-                        onClose = { currentScreen = "home" }
+                    "finance_expenses" -> ExpensesScreen(
+                        onClose = { goBack() }
                     )
-                    "finance_journal_screen" -> com.cuso.mobile.view.home.finance.ManualJournalEntryScreen(
-                        onClose = { currentScreen = "home" }
+                    "finance_journal_screen" -> ManualJournalEntryScreen(
+                        onClose = { goBack() }
+                    )
+                    "finance_payments_received" -> AllPaymentScreen(
+                        onViewPayment = { navigateTo("payment_detail_screen") }
+                    )
+                    "payment_detail_screen" -> PaymentDetailScreen(
+                        onClose = { goBack() }
                     )
 
-
-                    // ✅ NEW — Finance > Accounts Receivable > Sales Invoices (list)
-                    "finance_sales_invoices" -> com.cuso.mobile.view.home.finance.FinanceInvoiceScreen(
-                        onClose = { currentScreen = "home" },
+                    "finance_sales_invoices" -> FinanceInvoiceScreen(
+                        onClose = { goBack() },
                         onInvoiceClick = { invoice ->
                             selectedInvoiceId = invoice.id
-                            currentScreen = "finance_invoice_detail"
+                            navigateTo("finance_invoice_detail")
                         }
                     )
 
-                    // ✅ NEW — Sales Invoice detail (view one)
                     "finance_invoice_detail" -> {
                         selectedInvoiceId?.let { id ->
                             com.cuso.mobile.view.home.finance.InvoiceDetailScreen(
                                 invoiceId = id,
                                 onClose = {
                                     selectedInvoiceId = null
-                                    currentScreen = "finance_sales_invoices"
+                                    goBack()
                                 },
-                                token=token
+                                token = token
                             )
-                        } ?: run { currentScreen = "finance_sales_invoices" }
+                        } ?: run { goBack() }
                     }
                     "logistics_delivery" -> DeliveryManagementScreen(
-                        onDismiss = { currentScreen = "home" },
-                        onView = { currentScreen = "delivery_detail" }
+                        onDismiss = { goBack() },
+                        onView = { navigateTo("delivery_detail") }
                     )
                     "delivery_detail" -> DeliveryDetailScreen(
-                        onDismiss = { currentScreen = "logistics_delivery" }
+                        onDismiss = { goBack() }
                     )
 
                     "view_customer", "edit_customer" -> {
@@ -1130,47 +1113,50 @@ fun HomeScreen(navController: NavHostController) {
                             CustomerDetailScreen(
                                 navController = navController,
                                 customerId = customer.id,
-                                startInEditMode = currentScreen == "edit_customer",   // ✅ NEW — route decides the mode, same as Lead's View/Edit screens
-                                onClose = { currentScreen = "sales_customers" },
+                                startInEditMode = currentScreen == "edit_customer",
+                                onClose = {
+                                    selectedCustomer = null
+                                    goBack()
+                                },
                                 onUpdateSuccess = {
                                     customerViewModel.refresh()
-                                    currentScreen = "sales_customers"
+                                    selectedCustomer = null
+                                    goBack()
                                 },
-                                onRequestEdit = { currentScreen = "edit_customer" }   // ✅ NEW — tapping "Edit" while viewing jumps to the edit route
+                                onRequestEdit = { navigateTo("edit_customer") }
                             )
                         } else {
                             LaunchedEffect(Unit) {
                                 Toast.makeText(context, "Unable to load customer details", Toast.LENGTH_SHORT).show()
                             }
-                            currentScreen = "sales_customers"
+                            goBack()
                         }
                     }
 
                     "sales_measurements" -> MeasurementsScreen(
                         navController = navController,
-                        onBack = { currentScreen = "home" },
-                        onCreateOrder = { currentScreen = "create_order" }
+                        onBack = { goBack() },
+                        onCreateOrder = { navigateTo("create_order") }
                     )
                     "create_order_review" -> {
                         pendingOrderReviewData?.let { data ->
                             CreateOrderNextStep(
                                 orderData = data,
-                                onBack = { currentScreen = "create_order" },
+                                onBack = { goBack() },
                                 onSaveOrder = {
                                     pendingOrderReviewData = null
-                                    currentScreen = "sales_sales_orders"
+                                    goBack()
+                                    goBack()   // pops both create_order_review and create_order → lands on sales_sales_orders
                                 }
                             )
-                        } ?: run {
-                            currentScreen = "create_order"
-                        }
+                        } ?: run { goBack() }
                     }
                     "profile-settings" -> ProfileSettingsScreen(
-                        onClose = { currentScreen = "home" },
-                        onOrganizationSetup = { currentScreen = "home_organization_profile" },
-                        onBranchManagement = { currentScreen = "home_branch_management" },
-                        onDepartment = { currentScreen = "home_department_teams" },
-                        onDesignation = { currentScreen = "home_designation" },
+                        onClose = { goBack() },
+                        onOrganizationSetup = { navigateTo("home_organization_profile") },
+                        onBranchManagement = { navigateTo("home_branch_management") },
+                        onDepartment = { navigateTo("home_department_teams") },
+                        onDesignation = { navigateTo("home_designation") },
                         onLogout = {
                             settingsViewModel.logout {
                                 navController.navigate("login") {
@@ -1181,7 +1167,7 @@ fun HomeScreen(navController: NavHostController) {
                     )
 
                     "reports_sales_reports" -> SalesOrderReportsScreen(
-                        onClose = { currentScreen = "home" }
+                        onClose = { goBack() }
                     )
                     else -> { }
                 }
@@ -1208,7 +1194,7 @@ fun HomeScreen(navController: NavHostController) {
                 val navKey = normalizeRoute(rawNavKey)
 
                 isSalesSettingsMode = false
-                currentScreen = navKey
+                navigateTo(navKey)
                 showModulesPanel = false
             }
         )

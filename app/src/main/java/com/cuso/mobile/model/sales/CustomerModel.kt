@@ -11,10 +11,17 @@ import com.google.gson.annotations.SerializedName
 data class GetCustomerAddress(
     val addressLine: String? = null,
     val city: String? = null,
+    val area: String? = null,        // ✅ ADDED — payload has "area"
     val pincode: String? = null
 )
 
-
+// ✅ ADDED — was referenced by CustomerItem.address but never defined
+//data class CustomerAddress(
+//    val addressLine: String? = null,
+//    val city: String? = null,
+//    val area: String? = null,        // ✅ ADDED — payload has "area"
+//    val pincode: String? = null
+//)
 
 // ─────────────────────────────────────────────────────────────
 // Customer API Response Models
@@ -28,27 +35,44 @@ data class CustomerListResponse(
     val page: Int,
     val limit: Int
 )
+
 data class CustomerItem(
     @SerializedName("_id")
     val id: String,                 // _id
     val organizationId: String? = null,
-    val type: String? = null,       // "individual" / "business"
+    val type: String? = null,       // "individual" / "business" / "regular"
     val name: String,
     val email: String? = null,
     val mobile: String? = null,
     val gender: String? = null,
-    val dateOfBirth: Long? = null,
+    @SerializedName("dob")
+    val dateOfBirth: String? = null,
     val address: CustomerAddress? = null,
+    val preferences: CustomerPreferences? = null,
     val status: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null
 ) {
-    // "Location" column -> derive from address (city, or fallback to addressLine)
+    // "Location" column -> derive from address (city, then area, then addressLine)
     val location: String
         get() = address?.city?.takeIf { it.isNotBlank() }
+            ?: address?.area?.takeIf { it.isNotBlank() }
             ?: address?.addressLine?.takeIf { it.isNotBlank() }
             ?: "—"
+
+    val displayType: String
+        get() = when (type?.lowercase()) {
+            "business" -> "Business"
+            "individual" -> "Individual"
+            "regular" -> "Regular"
+            else -> "—"
+        }
 }
+
+data class CustomerPreferences(
+    val language: String? = null,
+    val contactMethod: String? = null
+)
 
 
 //view and update
@@ -65,20 +89,26 @@ data class CustomerViewData(
     val type: String,
     val name: String,
     val mobile: String,
+    val email: String? = null,
+    val gender: String? = null,
+    val dob: String? = null,
     val status: String,
     val address: CustomerViewAddress? = null,
+    val preferences: CustomerPreferences? = null,   // ✅ ADDED — was missing, payload has this
     val customFields: Map<String, @JvmSuppressWildcards Any>? = null,
     val referralCount: Int? = 0,
     val totalSpend: Int? = 0,
     val pendingPayment: Int? = 0,
     val createdAt: String? = null,
     val updatedAt: String? = null,
+    @SerializedName("__v")                          // ✅ FIXED — was missing, "v" never matched "__v"
     val v: Int? = null
 )
 
 data class CustomerViewAddress(
     val addressLine: String? = null,
     val city: String? = null,
+    val area: String? = null,        // ✅ ADDED — payload has "area"
     val pincode: String? = null
 )
 
@@ -87,18 +117,23 @@ data class UpdateCustomerRequest(
     val type: String,
     val name: String,
     val mobile: String,
+    val email: String? = null,          // ✅ ADD
+    val gender: String? = null,         // ✅ ADD
+    val dob: String? = null,            // ✅ ADD
     val status: String,
     val address: CustomerViewAddress,
+    val preferences: CustomerPreferences? = null,
     val referralCount: Int = 0,
     val totalSpend: Int = 0,
     val pendingPayment: Int = 0,
+    @SerializedName("_id")              // ✅ ADD — backend expects "_id" not "id"
     val id: String,
     val organizationId: String,
     val createdAt: String? = null,
     val updatedAt: String? = null,
+    @SerializedName("__v")
     val v: Int? = null
 )
-
 data class UpdateCustomerResponse(
     val success: Boolean,
     val data: CustomerViewData
@@ -144,9 +179,9 @@ data class CustomerItemV2(
     val lastInvoice: String? = null,
     val totalPaid: Int? = 0
 ) {
-    // Helper properties for display
     val location: String
         get() = address?.city?.takeIf { it.isNotBlank() }
+            ?: address?.area?.takeIf { it.isNotBlank() }     // ✅ ADDED for consistency
             ?: address?.addressLine?.takeIf { it.isNotBlank() }
             ?: "—"
 
@@ -166,6 +201,7 @@ data class CustomerItemV2(
 data class CustomerAddressV2(
     val addressLine: String? = null,
     val city: String? = null,
+    val area: String? = null,        // ✅ ADDED — payload has "area"
     val pincode: String? = null
 )
 
@@ -179,15 +215,16 @@ fun CustomerItemV2.toCustomerItem(): CustomerItem {
         organizationId = this.organizationId,
         type = this.type,
         name = this.name,
-        email = null,  // V2 doesn't have email
+        email = null,
         mobile = this.mobile,
-        gender = null, // V2 doesn't have gender
-        dateOfBirth = null, // V2 doesn't have DOB
+        gender = null,
+        dateOfBirth = null,
         address = this.address?.let {
             CustomerAddress(
-                addressLine = "",
-                city = "",
-                pincode = ""
+                addressLine = it.addressLine ?: "",   // ✅ FIXED — was hardcoded to "", now maps actual value
+                city = it.city ?: "",
+                area = it.area ?: "",                  // ✅ ADDED
+                pincode = it.pincode ?: ""
             )
         },
         status = this.status,
@@ -196,7 +233,6 @@ fun CustomerItemV2.toCustomerItem(): CustomerItem {
     )
 }
 
-// Add to model file:
 data class GetCustomerDetailResponseV2(
     val success: Boolean,
     val data: CustomerDetailV2
@@ -239,7 +275,7 @@ data class CustomerDetailV2(
 // ─────────────────────────────────────────────────────────────
 
 data class CreateCustomerRequestV2(
-    val type: String,          // "individual" or "business"
+    val type: String,
     val name: String,
     val mobile: String,
     val address: CustomerAddressV2,
@@ -331,9 +367,6 @@ data class FinanceFinancialSummary(
 data class FinanceAddress(
     val addressLine: String? = null,
     val city: String? = null,
+    val area: String? = null,        // ✅ ADDED — payload has "area"
     val pincode: String? = null
 )
-
-
-
-

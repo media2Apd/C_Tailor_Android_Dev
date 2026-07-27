@@ -1190,14 +1190,16 @@ private fun Step3PricingSummary(
                             settings.builtInZoomControls = true
                             settings.displayZoomControls = false
                             webViewClient = android.webkit.WebViewClient()
-                            loadDataWithBaseURL(
-                                null,
-                                pdfGenerator.buildQuotationHtml(pdfData),
-                                "text/html",
-                                "UTF-8",
-                                null
-                            )
                         }
+                    },
+                    update = { webView ->
+                        webView.loadDataWithBaseURL(
+                            null,
+                            pdfGenerator.buildQuotationHtml(pdfData),
+                            "text/html",
+                            "UTF-8",
+                            null
+                        )
                     },
                     modifier = Modifier.fillMaxSize()
                 )

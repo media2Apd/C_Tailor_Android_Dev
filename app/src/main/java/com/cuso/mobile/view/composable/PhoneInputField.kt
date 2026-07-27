@@ -30,7 +30,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.model.countries
@@ -38,6 +42,54 @@ import com.cuso.mobile.model.Country
 import com.cuso.mobile.view.home.FormLabel
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Refresh
+import com.google.i18n.phonenumbers.PhoneNumberUtil
+
+// ✅ NEW — library instance, no hardcoded data
+private val phoneUtil: PhoneNumberUtil = PhoneNumberUtil.getInstance()
+
+// ✅ NEW — returns max national number digit length for a given ISO country code
+fun maxDigitsFor(iso: String): Int {
+    return try {
+        val example = phoneUtil.getExampleNumber(iso.uppercase())
+        example?.nationalNumber?.toString()?.length ?: 15
+    } catch (e: Exception) {
+        15   // safe fallback for unsupported ISO codes
+    }
+}
+
+// ✅ NEW — optional full validation (not just length)
+fun isValidPhoneNumber(digits: String, iso: String): Boolean {
+    return try {
+        val parsed = phoneUtil.parse(digits, iso.uppercase())
+        phoneUtil.isValidNumber(parsed)
+    } catch (e: Exception) {
+        false
+    }
+}
+
+// ✅ NEW — inserts "-" after the 5th digit visually, underlying value stays plain digits
+class PhoneNumberVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val digits = text.text
+        val formatted = if (digits.length <= 5) {
+            digits
+        } else {
+            "${digits.substring(0, 5)}-${digits.substring(5)}"
+        }
+
+        val offsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                return if (offset <= 5) offset else offset + 1
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                return if (offset <= 5) offset else (offset - 1).coerceAtMost(digits.length)
+            }
+        }
+
+        return TransformedText(AnnotatedString(formatted), offsetMapping)
+    }
+}
 
 @Composable
 fun PhoneInputField(
@@ -57,6 +109,9 @@ fun PhoneInputField(
             countries.firstOrNull { it.iso == "IN" } ?: countries.first()
         )
     }
+
+    // ✅ NEW — per-country max digit limit, derived from libphonenumber (no hardcoding)
+    val maxDigits = maxDigitsFor(selectedCountry.iso)
 
     Column {
 
@@ -127,6 +182,11 @@ fun PhoneInputField(
                                 selectedCountry = country
                                 onCountryChange(country)
                                 expanded = false
+                                // ✅ NEW — trim number if it exceeds new country's max digit length
+                                val newMax = maxDigitsFor(country.iso)
+                                if (phoneValue.length > newMax) {
+                                    onPhoneChange(phoneValue.take(newMax))
+                                }
                             }
                         )
                     }
@@ -140,7 +200,7 @@ fun PhoneInputField(
                 value = phoneValue,
                 onValueChange = { input ->
                     val digitsOnly = input.filter { it.isDigit() }
-                    if (digitsOnly.length <= 15) onPhoneChange(digitsOnly)
+                    if (digitsOnly.length <= maxDigits) onPhoneChange(digitsOnly)   // ✅ CHANGED — country-specific cap
                 },
                 modifier = Modifier.weight(1f),
                 enabled = enabled,
@@ -151,6 +211,7 @@ fun PhoneInputField(
                 ),
                 cursorBrush = SolidColor(Color(0xFF374151)),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                visualTransformation = PhoneNumberVisualTransformation(),   // ✅ NEW — shows "-" after 5 digits
                 decorationBox = { inner ->
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (phoneValue.isEmpty()) {

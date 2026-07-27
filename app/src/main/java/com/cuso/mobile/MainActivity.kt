@@ -30,6 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.cuso.mobile.repository.SessionManager
 import com.cuso.mobile.ui.theme.CusoTailorTheme
+import com.cuso.mobile.ui.theme.NoRippleProvider
 import com.cuso.mobile.view.forgot_password.ForgotUserPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
 import com.cuso.mobile.view.forgot_password.VerifyForgotPassword
@@ -79,13 +80,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             CusoTailorTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
-                    val navController = rememberNavController()
-                    var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
+                NoRippleProvider {
+                    Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
+                        val navController = rememberNavController()
+                        var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
 
 //                    PricingQuotationScreen(onClose = {})
-                    // 👇 isLoggedIn is guaranteed non-null here since splash already waited for it
-                    AppNav(activity = this, startLoggedIn = isLoggedIn == true)
+                        // 👇 isLoggedIn is guaranteed non-null here since splash already waited for it
+                        AppNav(activity = this, startLoggedIn = isLoggedIn == true)
 //                    EmployeeOnboardingScreen()
 //                    FinanceCustomerScreen(
 //                        onClose = { navController.popBackStack() },
@@ -95,7 +97,7 @@ class MainActivity : ComponentActivity() {
 //
 //                    )
 
-                //                    OrderManagementScreen(navController = navController)
+                        //                    OrderManagementScreen(navController = navController)
 //
 //                    if (selectedCustomerId == null) {
 //                        FinanceCustomerScreen(
@@ -117,7 +119,7 @@ class MainActivity : ComponentActivity() {
 //                        }
 //                    )
 
-/*
+                        /*
                     if (selectedInvoiceId == null) {
                         FinanceInvoiceScreen(
                             onClose = { navController.popBackStack() },
@@ -138,6 +140,7 @@ class MainActivity : ComponentActivity() {
 //                    TrialBalanceScreen()
 //                    TrackingOverviewScreen ()
 
+                    }
                 }
             }
         }

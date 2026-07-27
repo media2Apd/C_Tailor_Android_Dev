@@ -36,6 +36,7 @@ import com.cuso.mobile.view.home.FormDropdown   // ✅ NEW — reuse the shared 
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 import com.cuso.mobile.view.home.reusablecomposables.dashedBorder
+import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.view.organization.OrgOptions
 import com.cuso.mobile.view.organization.OrganizationDropdown
 import com.cuso.mobile.viewmodel.CustomerDetailUiState
@@ -96,11 +97,17 @@ fun CustomerDetailScreen(
                     formState.name.isBlank() -> {
                         errorField = "name"; apiErrorMessage = "Full Name is required"; valid = false
                     }
-                    email.isBlank() -> {
+                    formState.email.isBlank() -> {                              // ✅ CHANGED — was local `email`
                         errorField = "email"; apiErrorMessage = "Email address is required"; valid = false
+                    }
+                    !formState.email.matches(Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$")) -> {  // ✅ ADD — basic format check
+                        errorField = "email"; apiErrorMessage = "Enter a valid email address"; valid = false
                     }
                     formState.addressLine.isBlank() -> {
                         errorField = "address"; apiErrorMessage = "Address is required"; valid = false
+                    }
+                    formState.area.isBlank() -> {                               // ✅ ADD — Area/Zone is marked * in UI
+                        errorField = "areaZone"; apiErrorMessage = "Area/Zone is required"; valid = false
                     }
                     formState.city.isBlank() -> {
                         errorField = "city"; apiErrorMessage = "City is required"; valid = false
@@ -117,7 +124,6 @@ fun CustomerDetailScreen(
             else -> true
         }
     }
-
     LaunchedEffect(customerId) { viewModel.loadCustomerDetail(customerId) }
 
     LaunchedEffect(updateState) {
@@ -321,10 +327,14 @@ private fun PersonalInformationStep(
             }
 
             // ── UI-only fields (NOT sent to update API — backend doesn't support them yet) ──
-            var gender by remember { mutableStateOf("") }
-            var dob by remember { mutableStateOf("") }
             var preferredContact by remember { mutableStateOf("") }
-            var areaZone by remember { mutableStateOf("") }
+
+            // ✅ NEW — populate local fields from API response the moment data loads
+            // (or when the customer record itself changes — guards against stale values across re-composition)
+            LaunchedEffect(detailState.customer.id) {
+                onEmailChange(detailState.customer.email.orEmpty())
+                // preferredContact / areaZone — backend doesn't return these yet, stay as-is
+            }
 
             // ✅ expanded state for each FormDropdown (it's a hoisted/controlled dropdown)
             var typeExpanded by remember { mutableStateOf(false) }
@@ -371,9 +381,9 @@ private fun PersonalInformationStep(
                         value = formState.type.replaceFirstChar { it.uppercase() }.ifEmpty { "Select an option" },
                         expanded = typeExpanded,
                         onExpandChange = { typeExpanded = it },
-                        options = listOf("Individual", "Business"),
+                        options = listOf("Individual", "Business", "Regular"),   // ✅ CHANGED — "regular" is a valid backend type
                         onOptionSelected = { label ->
-                            viewModel.onTypeChange(label.lowercase())   // maps back to "individual"/"business" for the API
+                            viewModel.onTypeChange(label.lowercase())
                         },
                         isRequired = true,
                         enabled = isEditMode
@@ -391,20 +401,22 @@ private fun PersonalInformationStep(
                     }
                     FormDropdown(
                         label = "Gender",
-                        value = gender.ifEmpty { "Select an option" },
+                        value = formState.gender.ifEmpty { "Select an option" },
                         expanded = genderExpanded,
                         onExpandChange = { genderExpanded = it },
                         options = listOf("Male", "Female", "Other"),
-                        onOptionSelected = { gender = it },
-                        isRequired = true,
+                        onOptionSelected = viewModel::onGenderChange,    // ✅ ViewModel ku pogum
                         enabled = isEditMode
                     )
+
                     Spacer(Modifier.height(14.dp))
-                    LabeledField("Date of Birth *") {
+                    LabeledField("Date of Birth ") {
                         DatePickerField(
-                            value = dob.ifEmpty { "Select date" },
-                            onDateSelected = { dob = it },
-                            enabled = isEditMode   // DatePickerField exposes an `enabled` param
+                            value = formState.dob.toDisplayDate().takeIf { it != "—" } ?: "Select date",
+                            onDateSelected = { selected ->
+                                viewModel.onDobChange(selected.toIsoDate())   // ✅ convert before sending
+                            },
+                            enabled = isEditMode
                         )
                     }
                 }
@@ -427,12 +439,12 @@ private fun PersonalInformationStep(
                     )
                     LabeledField("Email address *") {
                         CustomerOutlinedField(
-                            value = email,
-                            onValueChange = onEmailChange,
+                            value = formState.email,                    // ✅ CHANGED — formState-la irundhu display pannunga
+                            onValueChange = viewModel::onEmailChange,
                             placeholder = "Enter your email",
                             enabled = isEditMode,
-                            isError = errorField == "email",                                        // ✅ NEW
-                            errorMessage = if (errorField == "email") "Please check the email" else null  // ✅ NEW
+                            isError = errorField == "email",
+                            errorMessage = if (errorField == "email") "Please check the email" else null
                         )
                     }
                     FormDropdown(
@@ -442,7 +454,6 @@ private fun PersonalInformationStep(
                         onExpandChange = { statusExpanded = it },
                         options = listOf("Active", "Inactive"),
                         onOptionSelected = viewModel::onStatusChange,
-                        isRequired = true,
                         enabled = isEditMode
                     )
                     Spacer(Modifier.height(14.dp))
@@ -460,7 +471,6 @@ private fun PersonalInformationStep(
                         onExpandChange = { contactExpanded = it },
                         options = listOf("Call", "WhatsApp", "Email"),
                         onOptionSelected = { preferredContact = it },
-                        isRequired = true,
                         enabled = isEditMode
                     )
                 }
@@ -487,12 +497,11 @@ private fun PersonalInformationStep(
                     }
                     LabeledField("Area/Zone *") {
                         CustomerOutlinedField(
-                            value = areaZone,
-                            onValueChange = { areaZone = it },
-                            placeholder = "Select Status",
+                            value = formState.area,
+                            onValueChange = viewModel::onAreaChange,    // ✅ ViewModel ku pogum
+                            placeholder = "Enter area/zone",
                             enabled = isEditMode,
-                            isError = errorField == "areaZone",                                          // ✅ NEW
-                            errorMessage = if (errorField == "areaZone") "Please check this field" else null  // ✅ NEW
+                            errorMessage = if (errorField == "areaZone") "Please check this field" else null
                         )
                     }
                     LabeledField("City *") {

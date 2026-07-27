@@ -37,7 +37,7 @@ import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
-import com.cuso.mobile.view.home.reusablecomposables.FabConfig
+//import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
@@ -46,6 +46,38 @@ import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
 import com.cuso.mobile.view.home.sales.sales_order.toDisplayDate
 import com.cuso.mobile.viewmodel.CustomerUiState
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
+
+// ✅ NEW — overload for ISO-8601 date strings (e.g. "2004-04-08T00:00:00.000Z")
+fun String?.toDisplayDate(): String {
+    if (this.isNullOrBlank()) return "—"
+    return try {
+        val inputFormats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd"
+        )
+        var parsedDate: java.util.Date? = null
+        for (pattern in inputFormats) {
+            try {
+                val sdf = SimpleDateFormat(pattern, Locale.ENGLISH)
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                parsedDate = sdf.parse(this)
+                if (parsedDate != null) break
+            } catch (_: Exception) {
+                // try next pattern
+            }
+        }
+        parsedDate?.let {
+            val outputFormat = SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH)
+            outputFormat.format(it)
+        } ?: "—"
+    } catch (_: Exception) {
+        "—"
+    }
+}
 
 // ─────────────────────────────────────────────────────────────
 // Screen
@@ -56,6 +88,7 @@ import kotlinx.coroutines.launch
 fun CustomerScreen(
     navController: NavController,
     customerState: CustomerUiState,
+
     onSearch: (String) -> Unit = {},
     onTypeFilterChange: (String) -> Unit = {},
     onPageChange: (Int) -> Unit = {},
@@ -99,11 +132,12 @@ fun CustomerScreen(
 //    )
 
     FabScaffold(
-        fab = FabConfig(
-            label = "Create Customer",
-            icon = Icons.Default.Add,
-            onClick = onCreateCustomer
-        ),
+//        fab = FabConfig(
+//            label = "Create Customer",
+//            icon = Icons.Default.Add,
+//            onClick = onCreateCustomer
+//        ),
+        fab=null,
         snackbarHostState = snackbarHostState
     ) {
         Column(
@@ -222,10 +256,11 @@ fun CustomerScreen(
                             ) {
                                 Column(modifier = Modifier.fillMaxWidth()) {
                                     customers.forEach { customer ->
-                                        val (badgeText, badgeColor) = if (customer.type == "business")
-                                            "Business" to Color(0xFFD97706)
-                                        else
-                                            "Individual" to Color(0xFF3B3BF9)
+                                        val (badgeText, badgeColor) = when (customer.type?.lowercase()) {
+                                            "business" -> "Business" to Color(0xFFD97706)
+                                            "regular" -> "Regular" to Color(0xFF16A34A)     // ✅ NEW — handles "regular" type from real API
+                                            else -> "Individual" to Color(0xFF3B3BF9)
+                                        }
 
                                         DataCard(
                                             item = customer,
@@ -240,8 +275,10 @@ fun CustomerScreen(
                                             topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
                                             topBadgeInline = true,                       // ✅ badge next to name, not top row
                                             title = customer.name,
-                                            subtitle = "Date of Birth  ${customer.dateOfBirth.toDisplayDate()}",
-                                            footerAsRows = true,
+                                            subtitle = customer.dateOfBirth
+                                                ?.takeIf { it.isNotBlank() }
+                                                ?.let { "Date of Birth  ${it.toDisplayDate()}" }
+                                                ?: "Date of Birth  —",   // ✅ CHANGED — dob is often missing in real data, avoid crash/garbage text                                            footerAsRows = true,
                                             footerFields = listOf(
                                                 DataCardField(label = "Email", text = customer.email?.ifBlank { "—" } ?: "—"),
                                                 DataCardField(label = "Mobile", text = customer.mobile?.ifBlank { "—" } ?: "—"),

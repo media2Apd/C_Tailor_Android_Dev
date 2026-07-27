@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -55,11 +56,18 @@ import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.home.FormDropdown
+import com.cuso.mobile.view.home.FormLabel
+import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.home.reusablecomposables.BackFabButton
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
+import com.cuso.mobile.view.home.reusablecomposables.TrailingFabButton
+import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.BranchUiState
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.CreateBranchUiState
@@ -405,15 +413,19 @@ fun AddBranchDialog(
     // Staff dropdown data
     val staffDisplayList = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
     val staffIdMap = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
-    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: ""
+    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: "Select an option"
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false
+        )
+    ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
-                .padding(),
-
+                .padding(horizontal = 16.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
@@ -440,180 +452,97 @@ fun AddBranchDialog(
                     )
                 }
 
-                // ── Form Fields ──
+                // ── Branch Name ──
+                Column {
+                    FormLabel("Branch Name", isRequired = true)
+                    FormTextField(
+                        value = branchName,
+                        onValueChange = { branchName = it; nameError = false },
+                        placeholder = "Enter branch name",
+                        isError = nameError,
+                        errorMessage = "Branch name is required"
+                    )
+                }
 
-                // Branch Name
-                BranchField(
-                    label = "Branch Name",
-                    value = branchName,
-                    onValueChange = {
-                        branchName = it
-                        nameError = false
-                    },
-                    placeholder = "Enter branch name",
-                    isError = nameError,
-                    errorMessage = "Branch name is required"
-                )
+                // ── Street Address ──
+                Column {
+                    FormLabel("Street Address")
+                    FormTextField(
+                        value = street,
+                        onValueChange = { street = it },
+                        placeholder = "Enter street address"
+                    )
+                }
 
-                // Street Address
-                BranchField(
-                    label = "Street Address",
-                    value = street,
-                    onValueChange = { street = it },
-                    placeholder = "Enter street address"
-                )
+                // ── City ──
+                Column {
+                    FormLabel("City")
+                    FormTextField(
+                        value = city,
+                        onValueChange = { city = it },
+                        placeholder = "Enter city"
+                    )
+                }
 
-                // City
-                BranchField(
-                    label = "City",
-                    value = city,
-                    onValueChange = { city = it },
-                    placeholder = "Enter city"
-                )
+                // ── Postal Code ──
+                Column {
+                    FormLabel("Postal Code")
+                    FormTextField(
+                        value = postalCode,
+                        onValueChange = { postalCode = it },
+                        placeholder = "Enter postal code",
+                        keyboardType = KeyboardType.Number
+                    )
+                }
 
-                // Postal Code
-                BranchField(
-                    label = "Postal Code",
-                    value = postalCode,
-                    onValueChange = { postalCode = it },
-                    placeholder = "Enter postal code",
-                    keyboardType = KeyboardType.Number
-                )
+                // ── Contact Email ──
+                Column {
+                    FormLabel("Contact Email")
+                    FormTextField(
+                        value = contactEmail,
+                        onValueChange = { contactEmail = it },
+                        placeholder = "Enter contact email",
+                        keyboardType = KeyboardType.Email
+                    )
+                }
 
-                // Contact Email
-                BranchField(
-                    label = "Contact Email",
-                    value = contactEmail,
-                    onValueChange = { contactEmail = it },
-                    placeholder = "Enter contact email",
-                    keyboardType = KeyboardType.Email
-                )
-
-                // Contact Mobile
-                BranchField(
-                    label = "Contact Mobile",
-                    value = contactMobile,
-                    onValueChange = { contactMobile = it },
-                    placeholder = "Enter contact mobile",
-                    keyboardType = KeyboardType.Phone
-                )
+                // ── Contact Mobile ──
+                Column {
+                    FormLabel("Contact Mobile")
+                    FormTextField(
+                        value = contactMobile,
+                        onValueChange = { contactMobile = it },
+                        placeholder = "Enter contact mobile",
+                        keyboardType = KeyboardType.Phone
+                    )
+                }
 
                 // ── Branch Head Dropdown ──
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        "Branch Head",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF374151)
-                    )
-
-                    Box {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    if (staffError) Color(0xFFFFF3F3) else Color(0xFFF3F4F6),
-                                    RoundedCornerShape(8.dp)
-                                )
-                                .border(
-                                    width = if (staffError) 1.dp else 0.dp,
-                                    color = Color.Red,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .clickable {
-                                    if (staffList.isNotEmpty()) {
-                                        staffExpanded = true
-                                    }
-                                }
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = selectedStaffLabel.ifEmpty {
-                                    if (staffList.isEmpty()) "Loading..." else "Select branch head"
-                                },
-                                fontSize = 14.sp,
-                                color = if (selectedStaffLabel.isNotEmpty()) {
-                                    Color(0xFF111827)
-                                } else {
-                                    Color(0xFF9CA3AF)
-                                }
-                            )
-                            Icon(
-                                Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        DropdownMenu(
-                            expanded = staffExpanded,
-                            onDismissRequest = { staffExpanded = false },
-                            containerColor = Color.White,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth(0.9f)
-                        ) {
-                            if (staffList.isEmpty()) {
-                                DropdownMenuItem(
-                                    text = { Text("No staff available", color = Color(0xFF9CA3AF)) },
-                                    onClick = { staffExpanded = false }
-                                )
-                            } else {
-                                staffDisplayList.forEach { label ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                label,
-                                                color = Color(0xFF111827),
-                                                fontSize = 14.sp
-                                            )
-                                        },
-                                        onClick = {
-                                            selectedStaff = staffIdMap[label] ?: ""
-                                            staffError = false
-                                            staffExpanded = false
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(
-                                                if (selectedStaff == staffIdMap[label]) {
-                                                    Color(0xFFF3F4F6)
-                                                } else {
-                                                    Color.White
-                                                }
-                                            )
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    if (staffError) {
-                        Text(
-                            "Please select a branch head",
-                            fontSize = 12.sp,
-                            color = Color.Red,
-                            modifier = Modifier.padding(start = 4.dp)
-                        )
-                    }
-                }
+                FormDropdown(
+                    label = "Branch Head",
+                    value = selectedStaffLabel,
+                    expanded = staffExpanded,
+                    onExpandChange = { expanded ->
+                        if (staffList.isNotEmpty() || !expanded) staffExpanded = expanded
+                    },
+                    options = staffDisplayList,
+                    onOptionSelected = { label ->
+                        selectedStaff = staffIdMap[label] ?: ""
+                        staffError = false
+                    },
+                    isRequired = true,
+                    isError = staffError,
+                    errorMessage = "Please select a branch head"
+                )
 
                 // ── Is Main Branch Toggle ──
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Switch(
+                    MiniSwitch(
                         checked = isMainBranch,
-                        onCheckedChange = { isMainBranch = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF3B3BF9),
-                            uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = Color(0xFFD1D5DB)
-                        )
+                        onCheckedChange = { isMainBranch = it }
                     )
                     Column {
                         Text(
@@ -632,85 +561,51 @@ fun AddBranchDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // ── Action Buttons ──
+                // ── Action Buttons — StepNavigationFab design, inline (not fixed) ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedButton(
+                    BackFabButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White,
-                            contentColor = Color(0xFF374151)
-                        ),
-                        modifier = Modifier                            .weight(0.4f)
-                            .height(48.dp)
-                    ) {
-                        Text(
-                            "Cancel",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF374151)
-                        )
-                    }
+                        label = "Cancel"
+                    )
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    TrailingFabButton(
+                        action = TrailingFabAction.Update(
+                            isLoading = isLoading,
+                            label = "Create",
+                            enabled = branchName.isNotBlank(),
+                            onClick = {
+                                var hasError = false
+                                if (branchName.isBlank()) {
+                                    nameError = true
+                                    hasError = true
+                                }
+                                if (selectedStaff.isEmpty()) {
+                                    staffError = true
+                                    hasError = true
+                                }
+                                if (hasError) return@Update
 
-                    Button(
-                        onClick = {
-                            // Validate
-                            var hasError = false
-                            if (branchName.isBlank()) {
-                                nameError = true
-                                hasError = true
-                            }
-                            if (selectedStaff.isEmpty()) {
-                                staffError = true
-                                hasError = true
-                            }
-                            if (hasError) return@Button
-
-                            onCreate(
-                                CreateBranchRequest(
-                                    name = branchName,
-                                    address = CreateBranchAddress(
-                                        street = street,
-                                        city = city,
-                                        postalCode = postalCode
-                                    ),
-                                    branchHead = selectedStaff,
-                                    contactEmail = contactEmail,
-                                    contactMobile = contactMobile,
-                                    isMainBranch = isMainBranch
+                                onCreate(
+                                    CreateBranchRequest(
+                                        name = branchName,
+                                        address = CreateBranchAddress(
+                                            street = street,
+                                            city = city,
+                                            postalCode = postalCode
+                                        ),
+                                        branchHead = selectedStaff,
+                                        contactEmail = contactEmail,
+                                        contactMobile = contactMobile,
+                                        isMainBranch = isMainBranch
+                                    )
                                 )
-                            )
-                        },
-                        enabled = !isLoading,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF3B3BF9),
-                            contentColor = Color.White,
-                            disabledContainerColor = Color(0xFFD1D5DB)
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .weight(0.6f)
-                            .height(48.dp)
-                    ) {
-                        if (isLoading) {
-                            CirculerProgressIndicatorReuse()
-
-                        } else {
-                            Text(
-                                "Create",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color.White
-                            )
-                        }
-                    }
+                            }
+                        )
+                    )
                 }
             }
         }
@@ -808,16 +703,21 @@ fun EditBranchDialog(
     var city by remember { mutableStateOf(branch.address.city ?: "") }
     var state by remember { mutableStateOf(branch.address.state ?: "") }
     var postalCode by remember { mutableStateOf(branch.address.postalCode ?: "") }
-    var contactEmail by remember { mutableStateOf(branch.contactEmail ) }
-    var contactMobile by remember { mutableStateOf(branch.contactMobile ) }
+    var contactEmail by remember { mutableStateOf(branch.contactEmail) }
+    var contactMobile by remember { mutableStateOf(branch.contactMobile) }
     var selectedStaff by remember { mutableStateOf(branch.branchHead?.id ?: "") }
     var staffExpanded by remember { mutableStateOf(false) }
 
     val staffDisplayList = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
     val staffIdMap = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
-    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: ""
+    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: "Select an option"
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false
+        )
+    ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -841,144 +741,82 @@ fun EditBranchDialog(
                     color = Color(0xFF111827)
                 )
 
-                EditBranchField("Branch Name", branchName, { branchName = it })
-                EditBranchField("Street Address", street, { street = it })
-                EditBranchField("City", city, { city = it })
-                EditBranchField("State", state, { state = it })
-                EditBranchField("Postal Code", postalCode, { postalCode = it }, KeyboardType.Number)
-                EditBranchField("Contact Email", contactEmail, { contactEmail = it }, KeyboardType.Email)
-                EditBranchField("Contact Mobile", contactMobile, { contactMobile = it }, KeyboardType.Phone)
+                Column {
+                    FormLabel("Branch Name")
+                    FormTextField(value = branchName, onValueChange = { branchName = it }, placeholder = "Enter branch name")
+                }
+                Column {
+                    FormLabel("Street Address")
+                    FormTextField(value = street, onValueChange = { street = it }, placeholder = "Enter street address")
+                }
+                Column {
+                    FormLabel("City")
+                    FormTextField(value = city, onValueChange = { city = it }, placeholder = "Enter city")
+                }
+                Column {
+                    FormLabel("State")
+                    FormTextField(value = state, onValueChange = { state = it }, placeholder = "Enter state")
+                }
+                Column {
+                    FormLabel("Postal Code")
+                    FormTextField(value = postalCode, onValueChange = { postalCode = it }, placeholder = "Enter postal code", keyboardType = KeyboardType.Number)
+                }
+                Column {
+                    FormLabel("Contact Email")
+                    FormTextField(value = contactEmail, onValueChange = { contactEmail = it }, placeholder = "Enter contact email", keyboardType = KeyboardType.Email)
+                }
+                Column {
+                    FormLabel("Contact Mobile")
+                    FormTextField(value = contactMobile, onValueChange = { contactMobile = it }, placeholder = "Enter contact mobile", keyboardType = KeyboardType.Phone)
+                }
 
                 // ── Branch Head Dropdown ──
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        "Branch Head",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF374151)
-                    )
-                    Box {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                                .clickable { staffExpanded = true }
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = selectedStaffLabel.ifEmpty {
-                                    if (staffList.isEmpty()) "Loading..." else "Select Branch Head"
-                                },
-                                fontSize = 14.sp,
-                                color = if (selectedStaffLabel.isNotEmpty()) {
-                                    Color(0xFF111827)
-                                } else {
-                                    Color(0xFF9CA3AF)
-                                }
-                            )
-                            Icon(
-                                Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = staffExpanded,
-                            onDismissRequest = { staffExpanded = false },
-                            containerColor = Color.White,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth(0.9f)
-                        ) {
-                            staffDisplayList.forEach { label ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            label,
-                                            color = Color(0xFF111827),
-                                            fontSize = 14.sp
-                                        )
-                                    },
-                                    onClick = {
-                                        selectedStaff = staffIdMap[label] ?: ""
-                                        staffExpanded = false
-                                    }
-                                )
-                            }
-                        }
+                FormDropdown(
+                    label = "Branch Head",
+                    value = selectedStaffLabel,
+                    expanded = staffExpanded,
+                    onExpandChange = { expanded ->
+                        if (staffList.isNotEmpty() || !expanded) staffExpanded = expanded
+                    },
+                    options = staffDisplayList,
+                    onOptionSelected = { label ->
+                        selectedStaff = staffIdMap[label] ?: ""
                     }
-                }
+                )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // ── Buttons ──
+                // ── Buttons — StepNavigationFab design, inline ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedButton(
+                    BackFabButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White,
-                            contentColor = Color(0xFF374151)
-                        ),
-                        modifier = Modifier
-                            .weight(0.4f)
-                            .height(48.dp)
-                    ) {
-                        Text(
-                            "Cancel",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF374151)
-                        )
-                    }
+                        label = "Cancel"
+                    )
 
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Button(
-                        onClick = {
-                            onUpdate(
-                                EditBranchRequest(
-                                    name = branchName,
-                                    street = street,
-                                    city = city,
-                                    state = state,
-                                    postalCode = postalCode,
-                                    contactEmail = contactEmail,
-                                    contactMobile = contactMobile,
-                                    branchHead = selectedStaff
+                    TrailingFabButton(
+                        action = TrailingFabAction.Update(
+                            isLoading = isLoading,
+                            label = "Update",
+                            onClick = {
+                                onUpdate(
+                                    EditBranchRequest(
+                                        name = branchName,
+                                        street = street,
+                                        city = city,
+                                        state = state,
+                                        postalCode = postalCode,
+                                        contactEmail = contactEmail,
+                                        contactMobile = contactMobile,
+                                        branchHead = selectedStaff
+                                    )
                                 )
-                            )
-                        },
-                        enabled = !isLoading,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF3B3BF9),
-                            contentColor = Color.White,
-                            disabledContainerColor = Color(0xFFD1D5DB)
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .weight(0.6f)
-                            .height(48.dp)
-                    ) {
-                        if (isLoading) {
-                            CirculerProgressIndicatorReuse()
-
-                        } else {
-                            Text(
-                                "Update",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color.White
-                            )
-                        }
-                    }
+                            }
+                        )
+                    )
                 }
             }
         }

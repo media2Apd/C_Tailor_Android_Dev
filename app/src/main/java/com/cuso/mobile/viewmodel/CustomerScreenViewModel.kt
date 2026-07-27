@@ -38,7 +38,7 @@ class CustomerViewModel @Inject constructor(
     init {
         loadCustomers()
     }
-    
+
 
     fun loadCustomers(
         page: Int = currentPage,
@@ -48,8 +48,6 @@ class CustomerViewModel @Inject constructor(
     ) {
         currentPage = page
         currentLimit = limit
-        currentSearch = search
-        currentType = type
 
         viewModelScope.launch {
             _uiState.update { CustomerUiState.Loading }
@@ -143,9 +141,13 @@ class CustomerViewModel @Inject constructor(
                             type = data.type,
                             name = data.name,
                             mobile = data.mobile,
+                            email = data.email ?: "",              // ✅ ADD
+                            gender = data.gender ?: "",            // ✅ ADD
+                            dob = data.dob ?: "",                  // ✅ ADD
                             status = data.status,
                             addressLine = data.address?.addressLine ?: "",
                             city = data.address?.city ?: "",
+                            area = data.address?.area ?: "",       // ✅ ADD
                             pincode = data.address?.pincode ?: ""
                         )
                     }
@@ -164,6 +166,10 @@ class CustomerViewModel @Inject constructor(
 
     fun onTypeChange(value: String) = _formState.update { it.copy(type = value) }
     fun onNameChange(value: String) = _formState.update { it.copy(name = value) }
+    fun onEmailChange(value: String) = _formState.update { it.copy(email = value) }
+    fun onGenderChange(value: String) = _formState.update { it.copy(gender = value) }
+    fun onDobChange(value: String) = _formState.update { it.copy(dob = value) }
+    fun onAreaChange(value: String) = _formState.update { it.copy(area = value) }
     fun onMobileChange(value: String) = _formState.update { it.copy(mobile = value) }
     fun onStatusChange(value: String) = _formState.update { it.copy(status = value) }
     fun onAddressLineChange(value: String) = _formState.update { it.copy(addressLine = value) }
@@ -188,12 +194,17 @@ class CustomerViewModel @Inject constructor(
             type = form.type,
             name = form.name,
             mobile = form.mobile,
+            email = form.email.takeIf { it.isNotBlank() },      // ✅ ADD
+            gender = form.gender.takeIf { it.isNotBlank() },     // ✅ ADD
+            dob = form.dob.takeIf { it.isNotBlank() },           // ✅ ADD
             status = form.status,
             address = CustomerViewAddress(
                 addressLine = form.addressLine,
                 city = form.city,
+                area = form.area,                                 // ✅ ADD
                 pincode = form.pincode
             ),
+            preferences = original.preferences,                   // ✅ ADD — re-send untouched preferences
             referralCount = original.referralCount ?: 0,
             totalSpend = original.totalSpend ?: 0,
             pendingPayment = original.pendingPayment ?: 0,
@@ -266,6 +277,7 @@ sealed class CustomerUiState {
     data class Error(val message: String) : CustomerUiState()
 }
 
+
 sealed class CustomerDetailUiState {
     data object Loading : CustomerDetailUiState()
     data class Success(val customer: CustomerViewData) : CustomerDetailUiState()
@@ -283,9 +295,13 @@ data class CustomerFormState(
     val type: String = "individual",
     val name: String = "",
     val mobile: String = "",
+    val email: String = "",       // ✅ ADD
+    val gender: String = "",      // ✅ ADD
+    val dob: String = "",         // ✅ ADD
     val status: String = "Active",
     val addressLine: String = "",
     val city: String = "",
+    val area: String = "",        // ✅ ADD
     val pincode: String = ""
 )
 

@@ -86,6 +86,7 @@ import java.io.File
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.utils.safeDate
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
@@ -119,7 +120,16 @@ private val orderSectionFieldMap = mapOf(
 // ─────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────
-
+// ✅ NEW — returns list of missing field labels for a garment, empty list = complete
+private fun missingGarmentFields(g: SelectedGarment): List<String> {
+    return buildList {
+        if (g.fabricType.isBlank()) add("Fabric Type")
+        if (g.colorTone.isBlank()) add("Color/Tone")
+        if (g.pattern.isBlank()) add("Pattern")
+        if (g.models.isEmpty()) add("Model")
+        if (g.measurements.isEmpty() || g.measurements.any { it.value.isBlank() }) add("Measurements (Chest/Sleeve Length)")
+    }
+}
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CreateOrderScreen(
@@ -571,22 +581,17 @@ fun CreateOrderScreen(
 
         // ✅ Garments need their own check — at least one garment,
         // with fabric type, color/tone, pattern, model & measurements filled
-        val hasIncompleteGarment = selectedGarments.isEmpty() || selectedGarments.any { g ->
-            g.fabricType.isBlank() ||
-                    g.colorTone.isBlank() ||
-                    g.pattern.isBlank() ||
-                    g.models.isEmpty() ||
-                    g.measurements.isEmpty() ||
-                    g.measurements.any { it.value.isBlank() }
-        }
-        if (hasIncompleteGarment) {
+        val incompleteGarment = selectedGarments.firstOrNull { missingGarmentFields(it).isNotEmpty() }
+        if (selectedGarments.isEmpty() || incompleteGarment != null) {
             errorField = "garments"
             garmentsError = true
-            validationError = "Add at least one garment with fabric, color, pattern, model & measurements"
+            validationError = when {
+                selectedGarments.isEmpty() -> "Add at least one garment"
+                else -> "${incompleteGarment!!.categoryName}: missing ${missingGarmentFields(incompleteGarment).joinToString(", ")}"
+            }
             expandedSection = "garment"
             return false
         }
-
         errorField = null
         garmentsError = false
         return true
@@ -1076,12 +1081,25 @@ fun CreateOrderScreen(
                                             )
                                         }
                                         Column {
-                                            Text(
-                                                garment.categoryName,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF111827)
-                                            )
+                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                Text(
+                                                    garment.categoryName,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF111827)
+                                                )
+                                                // ✅ NEW — visible warning badge if this specific garment is incomplete
+                                                val missing = missingGarmentFields(garment)
+                                                if (missing.isNotEmpty()) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .background(Color(0xFFFEE2E2), RoundedCornerShape(4.dp))
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text("Incomplete", fontSize = 10.sp, color = Color(0xFFDC2626), fontWeight = FontWeight.SemiBold)
+                                                    }
+                                                }
+                                            }
                                             val subtitleParts = mutableListOf<String>()
                                             subtitleParts.add("Qty: ${garment.quantity}")
                                             if (garment.fabricType.isNotBlank()) subtitleParts.add(garment.fabricType)
@@ -1092,6 +1110,15 @@ fun CreateOrderScreen(
                                                 fontSize = 12.sp,
                                                 color = Color(0xFF6B7280)
                                             )
+                                            // ✅ NEW — tells exactly what's missing, right under the card
+                                            val missing = missingGarmentFields(garment)
+                                            if (missing.isNotEmpty()) {
+                                                Text(
+                                                    "Missing: ${missing.joinToString(", ")}",
+                                                    fontSize = 11.sp,
+                                                    color = Color(0xFFDC2626)
+                                                )
+                                            }
                                         }
                                     }
                                     Row(
@@ -1713,7 +1740,7 @@ fun PreviousMeasurementsDialog(
                                             }
                                         }
                                         Text(
-                                            "${order.orderDate.take(10)} • ${order.garments.size} Garment${if (order.garments.size != 1) "s" else ""}",
+                                            "${order.orderDate.safeDate()} • ${order.garments.size} Garment${if (order.garments.size != 1) "s" else ""}",
                                             fontSize = 12.sp,
                                             color = Color(0xFF6B7280)
                                         )

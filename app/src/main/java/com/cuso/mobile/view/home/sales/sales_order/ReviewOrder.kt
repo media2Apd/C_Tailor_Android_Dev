@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,6 +53,7 @@ import com.cuso.mobile.viewmodel.AssignWorkersState
 import com.cuso.mobile.viewmodel.ConvertToInvoiceState
 import com.cuso.mobile.viewmodel.OrderOverviewState
 import com.cuso.mobile.viewmodel.OrderOverviewViewModel
+import com.cuso.mobile.viewmodel.ReceivePaymentState
 import com.cuso.mobile.viewmodel.SalesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -1225,6 +1228,25 @@ private fun PaymentTab(
         )
     }
 
+    var showReceivePaymentSheet by remember { mutableStateOf(false) }
+    val receivePaymentState by viewModel.receivePaymentState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(receivePaymentState) {
+        when (val rs = receivePaymentState) {
+            is ReceivePaymentState.Success -> {
+                Toast.makeText(context, "Payment recorded successfully", Toast.LENGTH_SHORT).show()
+                showReceivePaymentSheet = false
+                viewModel.fetchSalesOverview(orderData.order._id)
+                viewModel.resetReceivePaymentState()
+            }
+            is ReceivePaymentState.Error -> {
+                Toast.makeText(context, "Payment failed: ${rs.message}", Toast.LENGTH_LONG).show()
+                viewModel.resetReceivePaymentState()
+            }
+            else -> Unit
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1261,6 +1283,26 @@ private fun PaymentTab(
                 Box(Modifier.size(8.dp).clip(CircleShape).background(BalanceRed))
                 Spacer(Modifier.width(6.dp))
                 Text("Remaining: ₹${formatOverviewNumber(payment.remainingAmount)}", fontSize = 12.sp, color = TextMutedDark)
+            }
+        }
+
+        // ── NEW: Receive Payment button (full width), shown only when there is a balance ──
+        if (payment.remainingAmount > 0.0) {
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = { showReceivePaymentSheet = true },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = TabActive)
+            ) {
+                Icon(
+                    Icons.Default.CurrencyRupee,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("Receive Payment", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             }
         }
 
@@ -1336,64 +1378,272 @@ private fun PaymentTab(
         InfoRow("Balance Pending", "₹${formatOverviewNumber(payment.balancePending)}", valueColor = BalanceRed)
         Spacer(Modifier.height(24.dp))
     }
+
+    // ── NEW: Receive Payment dialog ──
+    if (showReceivePaymentSheet) {
+        ReceivePaymentDialog(
+            orderId = orderData.order._id,
+            balanceDue = payment.remainingAmount,
+            viewModel = viewModel,
+            isSaving = receivePaymentState is ReceivePaymentState.Loading,
+            onDismiss = { showReceivePaymentSheet = false }
+        )
+    }
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// RECEIVE PAYMENT DIALOG (matches provided design)
+// ─────────────────────────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PaymentHistorySection(
-    history: List<PaymentRecord>,
-    onView: (PaymentRecord) -> Unit,
-    onPrint: (PaymentRecord) -> Unit
+private fun ReceivePaymentDialog(
+    orderId: String,
+    balanceDue: Double,
+    viewModel: OrderOverviewViewModel,
+    isSaving: Boolean,
+    onDismiss: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        // ── Header ──
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(ChipPurpleBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Receipt,
-                    contentDescription = null,
-                    tint = ChipPurpleText,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            Text("Payment History", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        }
+    var isFullAmount by remember { mutableStateOf(true) }
+    var amountText by remember { mutableStateOf(formatAmountPlain(balanceDue)) }
+    var selectedMethod by remember { mutableStateOf("Cash") }
+    var methodExpanded by remember { mutableStateOf(false) }
+    var referenceNo by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    var paymentDate by remember {
+        mutableStateOf(SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date()))
+    }
+    var shouldPrintAfterSave by remember { mutableStateOf(false) }
 
-        Spacer(Modifier.height(12.dp))
+    val methodOptions = listOf("Cash", "Card", "UPI", "Bank Transfer")
 
-        if (history.isEmpty()) {
+    LaunchedEffect(isFullAmount) {
+        if (isFullAmount) amountText = formatAmountPlain(balanceDue)
+    }
+
+    Dialog(onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false
+        )
+        ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(SectionBg, RoundedCornerShape(12.dp))
-                    .padding(vertical = 28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp)
             ) {
-                Icon(Icons.Default.Inbox, contentDescription = null, tint = TextMuted, modifier = Modifier.size(28.dp))
-                Spacer(Modifier.height(8.dp))
-                Text("No payments recorded for this order yet.", fontSize = 13.sp, color = TextMuted)
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color.White)
-                    .border(1.dp, BorderLight, RoundedCornerShape(14.dp))
-            ) {
-                history.forEachIndexed { idx, record ->
-                    PaymentHistoryRow(
-                        record = record,
-                        onView = { onView(record) },
-                        onPrint = { onPrint(record) }
+                // ── Header ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CurrencyRupee, contentDescription = null, tint = TabActive, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Receive Payment", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    }
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = TextMuted,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onDismiss() }
                     )
-                    if (idx != history.lastIndex) HorizontalDivider(color = BorderLight)
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // ── Balance Due card ──
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFEFF3FF), RoundedCornerShape(10.dp))
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Balance Due", fontSize = 13.sp, color = TextMutedDark)
+                    Text("₹${formatOverviewNumber(balanceDue)}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = BalanceRed)
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // ── Payment Type ──
+                FormLabel("Payment Type")
+                Spacer(Modifier.height(6.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PaymentTypeOption(
+                        label = "Full Amount",
+                        selected = isFullAmount,
+                        modifier = Modifier.weight(1f),
+                        onClick = { isFullAmount = true }
+                    )
+                    PaymentTypeOption(
+                        label = "Partial Amount",
+                        selected = !isFullAmount,
+                        modifier = Modifier.weight(1f),
+                        onClick = { isFullAmount = false }
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // ── Amount + Payment Method ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        FormLabel("Amount (₹)")
+                        Spacer(Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = amountText,
+                            onValueChange = { if (!isFullAmount) amountText = it },
+                            readOnly = isFullAmount,
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color(0xFFE5E7EB),
+                                focusedBorderColor = TabActive,
+                                disabledBorderColor = Color(0xFFE5E7EB),
+                                disabledTextColor = TextMutedDark,
+                                disabledContainerColor = SectionBg
+                            )
+                        )
+                    }
+                    Column(Modifier.weight(1f)) {
+                        FormLabel("Payment Method")
+                        Spacer(Modifier.height(6.dp))
+                        FormDropdown(
+                            label = "",
+                            value = selectedMethod,
+                            expanded = methodExpanded,
+                            onExpandChange = { methodExpanded = it },
+                            options = methodOptions,
+                            onOptionSelected = { selectedMethod = it }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // ── Reference No + Date ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        FormLabel("Reference No. (Opt)")
+                        Spacer(Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = referenceNo,
+                            onValueChange = { referenceNo = it },
+                            placeholder = { Text("TXN123...", color = TextMuted, fontSize = 13.sp) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color(0xFFE5E7EB),
+                                focusedBorderColor = TabActive
+                            )
+                        )
+                    }
+                    Column(Modifier.weight(1f)) {
+                        FormLabel("Date")
+                        Spacer(Modifier.height(6.dp))
+                        DatePickerField(
+                            value = paymentDate,
+                            onDateSelected = { paymentDate = it }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // ── Notes ──
+                FormLabel("Notes")
+                Spacer(Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    placeholder = { Text("Optional notes...", color = TextMuted, fontSize = 13.sp) },
+                    modifier = Modifier.fillMaxWidth().height(80.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color(0xFFE5E7EB),
+                        focusedBorderColor = TabActive
+                    )
+                )
+
+                Spacer(Modifier.height(20.dp))
+                HorizontalDivider(color = BorderLight)
+                Spacer(Modifier.height(16.dp))
+
+                // ── Footer buttons: Cancel / Save Only / Save & Print ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        enabled = !isSaving
+                    ) {
+                        Text("Cancel", color = TextPrimary, fontWeight = FontWeight.Medium)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    OutlinedButton(
+                        onClick = {
+                            shouldPrintAfterSave = false
+                            submitPayment(
+                                viewModel = viewModel,
+                                orderId = orderId,
+                                amountText = amountText,
+                                method = selectedMethod,
+                                referenceNo = referenceNo,
+                                notes = notes,
+                                paymentDate = paymentDate,
+                                paymentType = if (isFullAmount) "full" else "partial"  // ← ADD THIS
+                            )
+                        },
+                        enabled = !isSaving,
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, TabActive)
+                    ) {
+                        Text("Save Only", color = TabActive, fontWeight = FontWeight.SemiBold)
+                    }
+                    Button(
+                        onClick = {
+                            shouldPrintAfterSave = true
+                            submitPayment(
+                                viewModel = viewModel,
+                                orderId = orderId,
+                                amountText = amountText,
+                                method = selectedMethod,
+                                referenceNo = referenceNo,
+                                notes = notes,
+                                paymentDate = paymentDate,
+                                paymentType = if (isFullAmount) "full" else "partial"  // ← ADD THIS
+                            )
+                        },
+                        enabled = !isSaving,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = TabActive)
+                    ) {
+                        if (isSaving) {
+                            CirculerProgressIndicatorSmall()
+                        } else {
+                            Icon(Icons.Default.Print, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Save & Print", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
             }
         }
@@ -1401,150 +1651,85 @@ private fun PaymentHistorySection(
 }
 
 @Composable
-private fun PaymentHistoryRow(
-    record: PaymentRecord,
-    onView: () -> Unit,
-    onPrint: () -> Unit
+private fun PaymentTypeOption(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) TabActive else Color(0xFFE5E7EB),
+                shape = RoundedCornerShape(10.dp)
+            )
+            .background(Color.White)
+            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onClick() }
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // ── Method + Date + Ref No ──
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(record.method, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                Spacer(Modifier.width(8.dp))
+        Box(
+            modifier = Modifier
+                .size(18.dp)
+                .clip(CircleShape)
+                .border(1.5.dp, if (selected) TabActive else Color(0xFFD1D5DB), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            if (selected) {
                 Box(
                     modifier = Modifier
-                        .background(SectionBg, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(record.date, fontSize = 10.sp, color = TextMutedDark)
-                }
+                        .size(9.dp)
+                        .clip(CircleShape)
+                        .background(TabActive)
+                )
             }
-            Spacer(Modifier.height(3.dp))
-            Text(
-                if (record.refNo != "-") "Ref: ${record.refNo}" else "No reference number",
-                fontSize = 11.sp,
-                color = TextMuted
-            )
         }
-
-        // ── Amount ──
-        Text(
-            "₹${formatOverviewNumber(record.amount)}",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = PaidGreen,
-            modifier = Modifier.padding(end = 10.dp)
-        )
-
-        // ── Actions ──
-        PaymentActionIcon(icon = Icons.Default.Visibility, onClick = onView)
-        Spacer(Modifier.width(6.dp))
-        PaymentActionIcon(icon = Icons.Default.Print, onClick = onPrint)
+        Spacer(Modifier.width(8.dp))
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
     }
 }
 
-@Composable
-private fun PaymentActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(SectionBg)
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(icon, contentDescription = null, tint = TabActive, modifier = Modifier.size(16.dp))
-    }
-}
-
-@Composable
-fun ConvertToInvoiceButton(
+// ── Helpers for the Receive Payment dialog ──
+// ── Helpers for the Receive Payment dialog ──
+private fun submitPayment(
     viewModel: OrderOverviewViewModel,
-    salesOrderId: String,
-    isPaymentDone: Boolean,
-    invoiceAlreadyExists: Boolean,   // ← NEW: true if orderData.order.invoiceId is non-blank
-    modifier: Modifier = Modifier
+    orderId: String,
+    amountText: String,
+    method: String,
+    referenceNo: String,
+    notes: String,
+    paymentDate: String,
+    paymentType: String = "full"  // ← ADD THIS
 ) {
-    val convertState by viewModel.convertToInvoiceState.collectAsState()
+    val amount = amountText.trim().toDoubleOrNull() ?: return
+    if (amount <= 0.0) return
 
-    // Local flag catches the case where conversion just succeeded in THIS session
-    // (before the screen has refetched order data with the new invoiceId).
-    var invoiceGeneratedLocally by remember(salesOrderId) { mutableStateOf(false) }
+    viewModel.receivePayment(
+        orderId = orderId,
+        amount = amount,
+        method = method.lowercase().replace(" ", "_"), // "cash" / "card" / "upi" / "bank_transfer"
+        transactionId = referenceNo.trim(),
+        notes = notes.trim(),
+        paymentDate = ddMMyyyyToIso(paymentDate),
+        paymentType = paymentType  // ← PASS IT HERE
+    )
+}
 
-    LaunchedEffect(convertState) {
-        if (convertState is ConvertToInvoiceState.Success) {
-            invoiceGeneratedLocally = true
-        }
-    }
-
-    val invoiceExists = invoiceAlreadyExists || invoiceGeneratedLocally
-    val isLoading = convertState is ConvertToInvoiceState.Loading
-    val isEnabled = isPaymentDone && !invoiceExists && !isLoading
-
-    val bgColor = when {
-        invoiceExists -> Color(0xFFDCFCE7)
-        !isPaymentDone -> Color(0xFFF3F4F6)
-        else -> Color(0xFFEEF0FF)
-    }
-    val contentColor = when {
-        invoiceExists -> Color(0xFF16A34A)
-        !isPaymentDone -> Color(0xFF9CA3AF)
-        else -> Color(0xFF4F46E5)
-    }
-
-    Column(modifier = modifier) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(bgColor)
-                .clickable(
-                    enabled = isEnabled,
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) { viewModel.convertToInvoice(salesOrderId) }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = when {
-                    isLoading -> "Converting..."
-                    invoiceExists -> "Invoice Generated"
-                    else -> "Convert to Invoice"
-                },
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = contentColor
-            )
-
-            when {
-                isLoading -> CirculerProgressIndicatorSmall()
-                invoiceExists -> Icon(
-                    Icons.Default.Check,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(18.dp)
-                )
-                else -> Icon(
-                    Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
+private fun ddMMyyyyToIso(date: String): String {
+    return try {
+        val parts = date.split("-")
+        if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else date
+    } catch (_: Exception) {
+        date
     }
 }
+
+private fun formatAmountPlain(value: Double): String {
+    return if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // SHARED UI HELPERS
 // ─────────────────────────────────────────────────────────────────────────
@@ -1685,3 +1870,223 @@ private fun formatOverviewNumber(value: Double): String {
     val grouped = rest.reversed().chunked(2).joinToString(",").reversed()
     return "$grouped,$last3"
 }
+
+
+
+
+@Composable
+fun ConvertToInvoiceButton(
+    viewModel: OrderOverviewViewModel,
+    salesOrderId: String,
+    isPaymentDone: Boolean,
+    invoiceAlreadyExists: Boolean,   // ← NEW: true if orderData.order.invoiceId is non-blank
+    modifier: Modifier = Modifier
+) {
+    val convertState by viewModel.convertToInvoiceState.collectAsState()
+
+    // Local flag catches the case where conversion just succeeded in THIS session
+    // (before the screen has refetched order data with the new invoiceId).
+    var invoiceGeneratedLocally by remember(salesOrderId) { mutableStateOf(false) }
+
+    LaunchedEffect(convertState) {
+        if (convertState is ConvertToInvoiceState.Success) {
+            invoiceGeneratedLocally = true
+        }
+    }
+
+    val invoiceExists = invoiceAlreadyExists || invoiceGeneratedLocally
+    val isLoading = convertState is ConvertToInvoiceState.Loading
+    val isEnabled = isPaymentDone && !invoiceExists && !isLoading
+
+    val bgColor = when {
+        invoiceExists -> Color(0xFFDCFCE7)
+        !isPaymentDone -> Color(0xFFF3F4F6)
+        else -> Color(0xFFEEF0FF)
+    }
+    val contentColor = when {
+        invoiceExists -> Color(0xFF16A34A)
+        !isPaymentDone -> Color(0xFF9CA3AF)
+        else -> Color(0xFF4F46E5)
+    }
+
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(bgColor)
+                .clickable(
+                    enabled = isEnabled,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { viewModel.convertToInvoice(salesOrderId) }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = when {
+                    isLoading -> "Converting..."
+                    invoiceExists -> "Invoice Generated"
+                    else -> "Convert to Invoice"
+                },
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = contentColor
+            )
+
+            when {
+                isLoading -> CirculerProgressIndicatorSmall()
+                invoiceExists -> Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(18.dp)
+                )
+                else -> Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+
+
+
+@Composable
+private fun PaymentHistorySection(
+    history: List<PaymentRecord>,
+    onView: (PaymentRecord) -> Unit,
+    onPrint: (PaymentRecord) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // ── Header ──
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(ChipPurpleBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Receipt,
+                    contentDescription = null,
+                    tint = ChipPurpleText,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Text("Payment History", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        if (history.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(SectionBg, RoundedCornerShape(12.dp))
+                    .padding(vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(Icons.Default.Inbox, contentDescription = null, tint = TextMuted, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.height(8.dp))
+                Text("No payments recorded for this order yet.", fontSize = 13.sp, color = TextMuted)
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White)
+                    .border(1.dp, BorderLight, RoundedCornerShape(14.dp))
+            ) {
+                history.forEachIndexed { idx, record ->
+                    PaymentHistoryRow(
+                        record = record,
+                        onView = { onView(record) },
+                        onPrint = { onPrint(record) }
+                    )
+                    if (idx != history.lastIndex) HorizontalDivider(color = BorderLight)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaymentHistoryRow(
+    record: PaymentRecord,
+    onView: () -> Unit,
+    onPrint: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // ── Method + Date + Ref No ──
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(record.method, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .background(SectionBg, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(record.date, fontSize = 10.sp, color = TextMutedDark)
+                }
+            }
+            Spacer(Modifier.height(3.dp))
+            Text(
+                if (record.refNo != "-") "Ref: ${record.refNo}" else "No reference number",
+                fontSize = 11.sp,
+                color = TextMuted
+            )
+        }
+
+        // ── Amount ──
+        Text(
+            "₹${formatOverviewNumber(record.amount)}",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = PaidGreen,
+            modifier = Modifier.padding(end = 10.dp)
+        )
+
+        // ── Actions ──
+        PaymentActionIcon(icon = Icons.Default.Visibility, onClick = onView)
+        Spacer(Modifier.width(6.dp))
+        PaymentActionIcon(icon = Icons.Default.Print, onClick = onPrint)
+    }
+}
+
+@Composable
+private fun PaymentActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(SectionBg)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = TabActive, modifier = Modifier.size(16.dp))
+    }
+}
+
+
+
+
+
+

@@ -4,14 +4,22 @@ import android.content.Context
 import com.cuso.mobile.model.User
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +39,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -54,6 +63,7 @@ import coil.compose.AsyncImage
 import com.cuso.mobile.R
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 
 // ─────────────────────────────────────────────────────────────
@@ -138,15 +148,15 @@ object SidebarConfig {
                 isPanel = true,
                 categories = listOf(
                     "Accounts Receivable", "Accounts Payable", "Expenses",
-                    "Chart of Accounts", "Journal Entries", "Trial Balance"   // ✅ CHANGED — split "Finance Core" into 3 separate indented categories
+                    "Chart of Accounts", "Journal Entries", "Trial Balance"
                 ),
                 subItems = mapOf(
                     "Accounts Receivable" to listOf("Sales Invoices", "Customers", "Payments Received"),
                     "Accounts Payable"    to listOf("Suppliers", "Purchase Invoices", "Payments Mode"),
                     "Expenses"            to listOf("Expenses"),
-                    "Chart of Accounts"   to listOf("Chart of Accounts"),   // ✅ NEW
-                    "Journal Entries"     to listOf("Journal Entries"),     // ✅ NEW
-                    "Trial Balance"       to listOf("Trial Balance")        // ✅ NEW
+                    "Chart of Accounts"   to listOf("Chart of Accounts"),
+                    "Journal Entries"     to listOf("Journal Entries"),
+                    "Trial Balance"       to listOf("Trial Balance")
                 )
             ),
             MenuItem(
@@ -349,7 +359,6 @@ private fun AppSidebarContent(
                 onMenuItemClick(buildNavigationKey(label, firstSubItem))
             }
         } else {
-            // Simple item (e.g. Home in FullSideBar)
             onMenuItemClick(label.lowercase())
         }
     }
@@ -731,7 +740,6 @@ private fun SidebarAccordionPanel(
                 val isSettingsCategory = category == "Settings"
                 val hasSubItems       = activeSubItems[category]?.isNotEmpty() == true
 
-                // "Settings" category only shows when burger is expanded
                 val shouldShowCategory = !isSettingsCategory || burgerMenuExpanded
 
                 if (shouldShowCategory) {
@@ -745,14 +753,16 @@ private fun SidebarAccordionPanel(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(if (isExpanded) Color(0xFFE9E7FC) else Color.Transparent)
+                                .border(
+                                    width = if (isExpanded) 1.5.dp else 0.dp,
+                                    color = if (isExpanded) Color(0xFF4338CA) else Color.Transparent,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
                                 .clickable {
                                     if (isHomeMenu) {
                                         onSubItemClick(category, category)
                                     } else {
                                         val subItemsForCategory = activeSubItems[category].orEmpty()
-                                        // ✅ NEW — category has exactly one sub-item with the SAME name
-                                        // (e.g. Reports > "Sales Reports" > "Sales Reports") → skip the
-                                        // expand step and navigate straight away, like Home categories do.
                                         val isSingleSameNamed = subItemsForCategory.size == 1 &&
                                                 subItemsForCategory[0] == category
 
@@ -774,7 +784,6 @@ private fun SidebarAccordionPanel(
                                 color = if (isExpanded) Color(0xFF4338CA) else Color(0xFF374151)
                             )
 
-                            // Arrow only for non-Home menus that have sub-items
                             if (hasSubItems && !isHomeMenu) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     if (isSettingsCategory && !isExpanded) {
@@ -850,7 +859,17 @@ private fun SidebarAccordionPanel(
                                             modifier = Modifier
                                                 .align(Alignment.CenterStart)
                                                 .padding(start = 26.dp, top = 12.dp, bottom = 6.dp)
+                                                .background(
+                                                    color = if (isSubSelected) Color(0xFFEDEBFF) else Color.Transparent,
+                                                    shape = RoundedCornerShape(6.dp)
+                                                )
+                                                .border(
+                                                    width = if (isSubSelected) 1.dp else 0.dp,
+                                                    color = if (isSubSelected) Color(0xFF3B3BF9) else Color.Transparent,
+                                                    shape = RoundedCornerShape(6.dp)
+                                                )
                                                 .clickable { onSubItemClick(category, subItem) }
+                                                .padding(horizontal = if (isSubSelected) 8.dp else 0.dp, vertical = 2.dp)
                                         )
                                     }
                                 }
@@ -879,7 +898,6 @@ private val moduleDescriptions = mapOf(
     "Reports" to "Sales & finance reporting"
 )
 
-// Fixed accent color per module label, cycled if a module isn't in this map.
 private val moduleAccentColors = mapOf(
     "Sales"      to Color(0xFF6C4FF6),
     "Inventory"  to Color(0xFF10B981),
@@ -897,20 +915,15 @@ private val fallbackAccentColor = Color(0xFF6B7280)
 
 private data class FrequentModule(
     val label: String,
-    val icon: Int,   // drawable res id, reused from MenuItem.icon
+    val icon: Int,
     val bg: Color,
     val tint: Color = Color.White
 )
 
-/** Builds the Frequently Used tiles from real usage data, falling back to the first
- *  3 available modules if the user has no usage history yet (e.g. first app launch). */
 private fun buildFrequentlyUsed(context: Context, menuItems: List<MenuItem>): List<FrequentModule> {
     val candidateLabels = menuItems.map { it.label }
     val recentlyUsed = ModuleUsageTracker.getRecentlyUsed(context, candidateLabels, limit = 3)
 
-    // No usage history yet -> this is an "Explore" prompt, not "Frequently Used".
-    // Show modules the user hasn't opened at all, so it genuinely invites exploration
-    // rather than repeating whatever happens to be first in the menu config.
     val labelsToShow = recentlyUsed.ifEmpty {
         candidateLabels.take(3)
     }
@@ -928,7 +941,7 @@ private const val HALF_FRACTION = 0.55f
 private const val FULL_FRACTION = 0.96f
 
 // ─────────────────────────────────────────────────────────────
-// 🏠 FULL MODULES PANEL (Home nav bar-oda "Modules" bottom sheet)
+// 🏠 FULL MODULES PANEL
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -936,7 +949,8 @@ fun ModulesPanel(
     isOpen: Boolean,
     onClose: () -> Unit,
     initialExpandedModule: String? = null,
-    initialExpandedCategory: String? = null,   // ✅ NEW
+    initialExpandedCategory: String? = null,
+    initialActiveSubItem: String? = null,   // ✅ NEW — current screen's actual sub-item
     onModuleCategoryClick: (menu: String, category: String) -> Unit
 ) {
     ModulesPanelContent(
@@ -946,36 +960,15 @@ fun ModulesPanel(
         menuItems = SidebarConfig.getFullMenuItems().filter { it.label != "Home" },
         showFrequentlyUsed = true,
         initialExpandedModule = initialExpandedModule,
-        initialExpandedCategory = initialExpandedCategory   // ✅ NEW
-
+        initialExpandedCategory = initialExpandedCategory,
+        initialActiveSubItem = initialActiveSubItem   // ✅ NEW
     )
 }
-
-// ─────────────────────────────────────────────────────────────
-// 📊 SALES MODULES PANEL (Sales nav bar-oda "Modules" bottom sheet)
-// ─────────────────────────────────────────────────────────────
-
-//@Composable
-//fun SalesModulesPanel(
-//    isOpen: Boolean,
-//    onClose: () -> Unit,
-//    onModuleCategoryClick: (menu: String, category: String) -> Unit
-//) {
-//    ModulesPanelContent(
-//        isOpen = isOpen,
-//        onClose = onClose,
-//        onModuleCategoryClick = onModuleCategoryClick,
-//        menuItems = SidebarConfig.getSalesMenuItems()
-//            .filter { it.label != "Home" && it.enabled },
-//        showFrequentlyUsed = false
-//    )
-//}
 
 // ─────────────────────────────────────────────────────────────
 // 🧩 Reusable Modules Panel Content
 // ─────────────────────────────────────────────────────────────
 @Suppress("SameParameterValue")
-
 @Composable
 private fun ModulesPanelContent(
     isOpen: Boolean,
@@ -984,7 +977,8 @@ private fun ModulesPanelContent(
     menuItems: List<MenuItem>,
     showFrequentlyUsed: Boolean,
     initialExpandedModule: String? = null,
-    initialExpandedCategory: String? = null
+    initialExpandedCategory: String? = null,
+    initialActiveSubItem: String? = null   // ✅ NEW
 ) {
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -993,9 +987,10 @@ private fun ModulesPanelContent(
 
     var searchQuery by remember { mutableStateOf("") }
     var expandedModule by remember { mutableStateOf(menuItems.firstOrNull()?.label) }
-    var activeCategory by remember { mutableStateOf<String?>(null) }   // ✅ NEW — the highlighted category
+    var activeCategory by remember { mutableStateOf<String?>(null) }
+    var activeSubItem by remember { mutableStateOf<String?>(null) }
 
-    val listState = androidx.compose.foundation.lazy.rememberLazyListState()   // ✅ NEW — lets us scroll to the expanded module
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val filteredModules = if (searchQuery.isBlank()) {
         menuItems
     } else {
@@ -1003,8 +998,6 @@ private fun ModulesPanelContent(
     }
     val candidateLabels = remember(menuItems) { menuItems.map { it.label } }
 
-    // Reactive: recomputes automatically the instant recordUsage() changes the ranking,
-    // reordering (or relabeling) the tiles live without closing/reopening the panel.
     val hasUsageHistory by remember(menuItems) {
         derivedStateOf {
             ModuleUsageTracker.getRecentlyUsed(context, candidateLabels, limit = 3).isNotEmpty()
@@ -1013,24 +1006,23 @@ private fun ModulesPanelContent(
     val frequentlyUsed by remember(menuItems) {
         derivedStateOf { buildFrequentlyUsed(context, menuItems).take(3) }
     }
-    LaunchedEffect(isOpen, initialExpandedModule) {
+    LaunchedEffect(isOpen, initialExpandedModule, initialExpandedCategory, initialActiveSubItem) {
         if (isOpen) {
             heightFraction.snapTo(HALF_FRACTION)
             searchQuery = ""
             val target = initialExpandedModule ?: menuItems.firstOrNull()?.label
             expandedModule = target
-            activeCategory = initialExpandedCategory   // ✅ NEW
+            activeCategory = initialExpandedCategory   // ✅ always synced from current screen every time panel opens
+            activeSubItem = initialActiveSubItem
 
             if (target != null) {
                 val idx = filteredModules.indexOfFirst { it.label == target }
                 if (idx >= 0) {
                     val headerOffset =
-                        (if (showFrequentlyUsed) 1 else 0) + 1  // frequently-used block + "ALL MODULES" header
+                        (if (showFrequentlyUsed) 1 else 0) + 1
                     scope.launch {
                         listState.animateScrollToItem(
-                            (headerOffset + idx).coerceAtLeast(
-                                0
-                            )
+                            (headerOffset + idx).coerceAtLeast(0)
                         )
                     }
                 }
@@ -1038,31 +1030,40 @@ private fun ModulesPanelContent(
         }
     }
 
-
-
     val cornerRadius: Dp = lerp(
         24.dp, 0.dp,
         ((heightFraction.value - HALF_FRACTION) / (FULL_FRACTION - HALF_FRACTION)).coerceIn(0f, 1f)
     )
 
+    // ── Scrim — smooth fade ──
     AnimatedVisibility(
         visible = isOpen,
-        enter = androidx.compose.animation.fadeIn(),
-        exit = androidx.compose.animation.fadeOut(),
+        enter = fadeIn(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)),
+        exit = fadeOut(animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)),
         modifier = Modifier.zIndex(10f)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.35f))
-                .clickable { onClose() }
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { onClose() }
         )
     }
 
+    // ── Panel — smooth slide up/down ──
     AnimatedVisibility(
         visible = isOpen,
-        enter = slideInVertically(initialOffsetY = { fullHeight -> fullHeight }),
-        exit = slideOutVertically(targetOffsetY = { fullHeight -> fullHeight }),
+        enter = slideInVertically(
+            initialOffsetY = { fullHeight -> fullHeight },
+            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
+        ),
+        exit = slideOutVertically(
+            targetOffsetY = { fullHeight -> fullHeight },
+            animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+        ),
         modifier = Modifier
             .fillMaxSize()
             .zIndex(11f)
@@ -1082,11 +1083,22 @@ private fun ModulesPanelContent(
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
 
-                    // ── Drag handle ──
+                    // ── Drag handle — click to toggle + drag to resize ──
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onTap = {
+                                        scope.launch {
+                                            val target = if (heightFraction.value >= FULL_FRACTION - 0.05f)
+                                                HALF_FRACTION else FULL_FRACTION
+                                            heightFraction.animateTo(target, tween(250))
+                                        }
+                                    }
+                                )
+                            }
                             .pointerInput(Unit) {
                                 detectVerticalDragGestures(
                                     onDragEnd = {
@@ -1133,7 +1145,10 @@ private fun ModulesPanelContent(
                             tint = Color(0xFF111827),
                             modifier = Modifier
                                 .size(22.dp)
-                                .clickable { onClose() }
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onClose() }
                         )
                     }
 
@@ -1157,11 +1172,17 @@ private fun ModulesPanelContent(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
+                            cursorBrush = SolidColor(Color(0xFF3B3BF9)),
                             decorationBox = { inner ->
-                                if (searchQuery.isEmpty()) {
-                                    Text("Search modules...", fontSize = 14.sp, color = Color(0xFF9CA3AF))
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    if (searchQuery.isEmpty()) {
+                                        Text("Search modules...", fontSize = 14.sp, color = Color(0xFF9CA3AF))
+                                    }
+                                    inner()
                                 }
-                                inner()
                             }
                         )
                     }
@@ -1169,7 +1190,7 @@ private fun ModulesPanelContent(
                     Spacer(Modifier.height(20.dp))
 
                     LazyColumn(
-                        state = listState,   // ✅ NEW
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp)
                     ) {
@@ -1198,7 +1219,10 @@ private fun ModulesPanelContent(
                                                     .weight(1f)
                                                     .background(Color.White, RoundedCornerShape(14.dp))
                                                     .border1(Color(0xFFF0F0F0))
-                                                    .clickable {
+                                                    .clickable(
+                                                        indication = null,
+                                                        interactionSource = remember { MutableInteractionSource() }
+                                                    ) {
                                                         ModuleUsageTracker.recordUsage(context, fm.label)
                                                         val menu = menuItems.find { it.label == fm.label }
                                                         val firstCat = menu?.categories?.firstOrNull()
@@ -1247,17 +1271,28 @@ private fun ModulesPanelContent(
 
                         items(filteredModules) { module ->
                             val isExpanded = expandedModule == module.label
+
+                            // ✅ NEW — smooth arrow rotation instead of instant icon swap
+                            val arrowRotation by animateFloatAsState(
+                                targetValue = if (isExpanded) 180f else 0f,
+                                animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+                                label = "arrowRotation_${module.label}"
+                            )
+
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(bottom = 10.dp)
                                     .background(Color.White, RoundedCornerShape(14.dp))
-                                    .border1(Color(0xFFF0F0F0))
+                                    .border1(if (isExpanded) Color(0xFF4338CA) else Color(0xFFF0F0F0))
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable {
+                                        .clickable(
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }
+                                        ) {
                                             expandedModule = if (isExpanded) null else module.label
                                         }
                                         .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -1276,14 +1311,30 @@ private fun ModulesPanelContent(
                                             Text(it, fontSize = 12.sp, color = Color(0xFF9CA3AF))
                                         }
                                     }
+                                    // ✅ NEW — single icon, rotates smoothly instead of swapping Up/Down
                                     Icon(
-                                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        imageVector = Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
-                                        tint = Color(0xFF9CA3AF)
+                                        tint = Color(0xFF9CA3AF),
+                                        modifier = Modifier.rotate(arrowRotation)
                                     )
                                 }
 
-                                if (isExpanded && module.categories.isNotEmpty()) {
+                                // ✅ NEW — AnimatedVisibility with expandVertically/shrinkVertically
+                                // replaces the old instant `if (isExpanded) { ... }` block
+                                AnimatedVisibility(
+                                    visible = isExpanded && module.categories.isNotEmpty(),
+                                    enter = expandVertically(
+                                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+                                    ) + fadeIn(
+                                        animationSpec = tween(durationMillis = 250, delayMillis = 50)
+                                    ),
+                                    exit = shrinkVertically(
+                                        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+                                    ) + fadeOut(
+                                        animationSpec = tween(durationMillis = 150)
+                                    )
+                                ) {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -1300,16 +1351,25 @@ private fun ModulesPanelContent(
                                                 color = if (isCategoryActive) Color(0xFF4338CA) else Color(0xFF4B5563),
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .clickable {
+                                                    .background(
+                                                        color = if (isCategoryActive) Color(0xFFEDEBFF) else Color.Transparent,
+                                                        shape = RoundedCornerShape(6.dp)
+                                                    )
+                                                    .clickable(
+                                                        indication = null,
+                                                        interactionSource = remember { MutableInteractionSource() }
+                                                    ) {
                                                         ModuleUsageTracker.recordUsage(context, module.label)
+                                                        activeCategory = category
+                                                        activeSubItem = null
                                                         onModuleCategoryClick(module.label, category)
                                                     }
-                                                    .padding(vertical = 6.dp)
+                                                    .padding(horizontal = 8.dp, vertical = 6.dp)
                                             )
                                             if (categorySubItems.isNotEmpty()) {
                                                 Column(modifier = Modifier.padding(start = 14.dp)) {
                                                     categorySubItems.forEach { subItem ->
-                                                        val isSubActive = isCategoryActive   // adjust below if you track sub-item separately
+                                                        val isSubActive = activeCategory == category && activeSubItem == subItem   // ✅ fixed
 
                                                         Text(
                                                             "-  $subItem",
@@ -1318,17 +1378,20 @@ private fun ModulesPanelContent(
                                                             color = if (isSubActive) Color(0xFF4338CA) else Color(0xFF6B7280),
                                                             modifier = Modifier
                                                                 .fillMaxWidth()
-                                                                .clickable {
-                                                                    ModuleUsageTracker.recordUsage(
-                                                                        context,
-                                                                        module.label
-                                                                    )
-                                                                    onModuleCategoryClick(
-                                                                        module.label,
-                                                                        subItem
-                                                                    )
+                                                                .background(
+                                                                    color = if (isSubActive) Color(0xFFEDEBFF) else Color.Transparent,
+                                                                    shape = RoundedCornerShape(6.dp)
+                                                                )
+                                                                .clickable(
+                                                                    indication = null,
+                                                                    interactionSource = remember { MutableInteractionSource() }
+                                                                ) {
+                                                                    ModuleUsageTracker.recordUsage(context, module.label)
+                                                                    activeCategory = category
+                                                                    activeSubItem = subItem
+                                                                    onModuleCategoryClick(module.label, subItem)
                                                                 }
-                                                                .padding(vertical = 5.dp)
+                                                                .padding(horizontal = 8.dp, vertical = 5.dp)
                                                         )
                                                     }
                                                 }

@@ -121,6 +121,11 @@ class QuotationPdfGenerator(private val context: Context) {
     // captures it as bitmap(s), and writes those bitmaps into a
     // PdfDocument — no package-private classes involved.
     // ────────────────────────────────────────────────────────────
+    // ────────────────────────────────────────────────────────────
+    // MAIN ENTRY: Renders the SAME HTML used in preview into a WebView,
+    // captures it as bitmap(s), and writes those bitmaps into a
+    // PdfDocument — no package-private classes involved.
+    // ────────────────────────────────────────────────────────────
     fun generatePdfFromHtml(
         data: QuotationData,
         fileName: String = "quotation_${data.quotationNumber}.pdf",
@@ -137,9 +142,14 @@ class QuotationPdfGenerator(private val context: Context) {
             renderWidthPx,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        webView.settings.javaScriptEnabled = false
+        // ✅ CHANGED — JS must be enabled so we can poll <img>.complete to know
+        // when the network logoUrl image has actually finished loading.
+        webView.settings.javaScriptEnabled = true
         webView.settings.loadWithOverviewMode = true
         webView.settings.useWideViewPort = true
+        // ✅ ADD — belt-and-suspenders: allow mixed content in case logoUrl is http://
+        // (still fix the URL to https:// on the backend/data side if you can — this is a fallback)
+        webView.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
 
         // Guard so onComplete fires exactly once even if both the
         // WebViewClient callback and the timeout trigger
@@ -154,33 +164,62 @@ class QuotationPdfGenerator(private val context: Context) {
             onComplete(result)
         }
 
+        fun doRender() {
+            if (finished) return
+            try {
+                val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName, saveToDownloads)
+                finish(result)
+            } catch (e: Exception) {
+                Log.e("QuotationPdfGenerator", "Render failed", e)
+                finish(null)
+            }
+        }
+
+        // ✅ ADD — polls document.images until every <img> is "complete"
+        // (complete = true for both successful loads AND failed/broken loads,
+        // so this can never hang forever on a bad URL — the 20-attempt cap below
+        // is just an extra safety net for weird WebView/JS edge cases)
+        val checkImagesJs = """
+            (function() {
+                var imgs = document.images;
+                for (var i = 0; i < imgs.length; i++) {
+                    if (!imgs[i].complete) return false;
+                }
+                return true;
+            })();
+        """.trimIndent()
+
+        fun waitForImagesThenRender(attempt: Int = 0) {
+            if (finished) return
+            webView.evaluateJavascript(checkImagesJs) { result ->
+                if (finished) return@evaluateJavascript
+                val allLoaded = result == "true"
+                if (allLoaded || attempt >= 20) {   // ~2s max wait (20 x 100ms)
+                    if (!allLoaded) {
+                        Log.d("QuotationPdfGenerator", "Image wait timed out after $attempt attempts — rendering anyway")
+                    }
+                    doRender()
+                } else {
+                    mainHandler.postDelayed({ waitForImagesThenRender(attempt + 1) }, 100)
+                }
+            }
+        }
+
         // Safety net: some devices never fire onPageFinished for certain content.
         // Force-resolve after 8s so the UI never hangs forever.
         mainHandler.postDelayed({
             if (!finished) {
-                try {
-                    Log.d("QuotationPdfGenerator", "onPageFinished never fired — using 8s timeout fallback")
-                    val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName, saveToDownloads)
-                    finish(result)
-                } catch (e: Exception) {
-                    Log.e("QuotationPdfGenerator", "Render failed (timeout path)", e)
-                    finish(null)
-                }
+                Log.d("QuotationPdfGenerator", "onPageFinished never fired — using 8s timeout fallback")
+                doRender()
             }
         }, 8000)
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                view?.postDelayed({
-                    if (finished) return@postDelayed
-                    try {
-                        val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName, saveToDownloads)
-                        finish(result)
-                    } catch (e: Exception) {
-                        Log.e("QuotationPdfGenerator", "Render failed (onPageFinished path)", e)
-                        finish(null)
-                    }
-                }, 350)
+                if (finished) return
+                // ✅ CHANGED — instead of a fixed 350ms delay, actively wait until
+                // every <img> (including the network logoUrl) has finished loading
+                view?.postDelayed({ waitForImagesThenRender() }, 100)
             }
 
             override fun onReceivedError(

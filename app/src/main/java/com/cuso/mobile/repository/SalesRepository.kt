@@ -76,6 +76,8 @@ import com.cuso.mobile.model.UploadOrganizationPictureResponse
 import com.cuso.mobile.model.sales.ConvertToInvoiceData
 import com.cuso.mobile.model.sales.ConvertToInvoiceRequest
 import com.cuso.mobile.model.sales.ConvertToOrderData
+import com.cuso.mobile.model.sales.ReceivePaymentData
+import com.cuso.mobile.model.sales.ReceivePaymentRequest
 import com.cuso.mobile.model.sales.UpdateStageRequest
 import com.cuso.mobile.model.sales.toOrderItem
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -911,7 +913,23 @@ class SalesRepository @Inject constructor(
             Result.failure(e)
         }
     }
-
+    suspend fun getCustomers(
+        token: String,
+        csrfToken: String,
+        page: Int,
+        limit: Int = 10,
+        search: String? = null,
+        type: String? = null
+    ): Response<CustomerListResponseV2> {
+        return api.getCustomerForFinance(
+            token = token,
+            csrfToken = csrfToken,
+            page = page,
+            limit = limit,
+            search = search?.takeIf { it.isNotBlank() },
+            type = type?.takeIf { it.isNotBlank() }
+        )
+    }
     // ── Measurements API ──
 
     suspend fun getMeasurements(): Result<MeasurementsResponse> {
@@ -945,6 +963,47 @@ class SalesRepository @Inject constructor(
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to fetch customer: ${response.code()}")
                 )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun receivePayment(
+        orderId: String,
+        amount: Double,
+        method: String,
+        transactionId: String = "",
+        notes: String = "",
+        paymentDate: String? = null,
+        paymentType: String = "full"  // ← ADD THIS PARAMETER
+    ): Result<ReceivePaymentData> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+
+            val response = api.receivePayment(
+                token = accessToken,
+                csrfToken = csrfToken,
+                orderId = orderId,
+                request = ReceivePaymentRequest(
+                    amount = amount,
+                    method = method,
+                    transactionId = transactionId,
+                    notes = notes,
+                    paymentDate = paymentDate,
+                    paymentType = paymentType  // ← PASS IT HERE
+                )
+            )
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && body.success) {
+                    Result.success(body.data)
+                } else {
+                    Result.failure(Exception(body?.message ?: "Payment failed"))
+                }
+            } else {
+                Result.failure(Exception("Payment failed: ${response.code()} ${response.message()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

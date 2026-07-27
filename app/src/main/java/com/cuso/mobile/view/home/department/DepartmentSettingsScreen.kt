@@ -36,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -49,12 +50,20 @@ import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.home.FormDropdown
+import com.cuso.mobile.view.home.FormLabel
+import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.home.reusablecomposables.BackFabButton
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
+import com.cuso.mobile.view.home.reusablecomposables.TrailingFabButton
+import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.DepartmentUiState
 import com.cuso.mobile.viewmodel.DepartmentViewModel
 import com.cuso.mobile.viewmodel.DesignationCreateState
@@ -332,7 +341,6 @@ fun DepartmentSettingsScreen(
 // ─────────────────────────────────────────────────────────────
 // Edit Department Dialog
 // ─────────────────────────────────────────────────────────────
-
 @Composable
 fun EditDepartmentDialog(
     department: DepartmentItem,
@@ -349,9 +357,14 @@ fun EditDepartmentDialog(
 
     val staffDisplayList = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
     val staffIdMap = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
-    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: ""
+    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: "Select an option"
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false
+        )
+    ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -373,61 +386,34 @@ fun EditDepartmentDialog(
                     Text("Update department information", fontSize = 13.sp, color = Color(0xFF6B7280))
                 }
 
-                DepartmentField(label = "Department Name", value = departmentName, onValueChange = { departmentName = it }, placeholder = "Enter department name")
-                DepartmentField(label = "Description", value = description, onValueChange = { description = it }, placeholder = "Enter description", isDescription = true)
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Department Head", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-                    Box {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                                .clickable { if (staffList.isNotEmpty()) staffExpanded = true }
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = selectedStaffLabel.ifEmpty { if (staffList.isEmpty()) "Loading..." else "Select department head" },
-                                fontSize = 14.sp,
-                                color = if (selectedStaffLabel.isNotEmpty()) Color(0xFF111827) else Color(0xFF9CA3AF)
-                            )
-                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(20.dp))
-                        }
-                        DropdownMenu(
-                            expanded = staffExpanded,
-                            onDismissRequest = { staffExpanded = false },
-                            containerColor = Color.White,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth(0.9f)
-                        ) {
-                            staffDisplayList.forEach { label ->
-                                DropdownMenuItem(
-                                    text = { Text(label, color = Color(0xFF111827), fontSize = 14.sp) },
-                                    onClick = {
-                                        selectedStaff = staffIdMap[label] ?: ""
-                                        staffExpanded = false
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(if (selectedStaff == staffIdMap[label]) Color(0xFFF3F4F6) else Color.White)
-                                )
-                            }
-                        }
-                    }
+                Column {
+                    FormLabel("Department Name", isRequired = true)
+                    FormTextField(value = departmentName, onValueChange = { departmentName = it }, placeholder = "Enter department name")
+                }
+                Column {
+                    FormLabel("Description")
+                    FormTextField(value = description, onValueChange = { description = it }, placeholder = "Enter description")
                 }
 
+                // ── Department Head Dropdown ──
+                FormDropdown(
+                    label = "Department Head",
+                    value = selectedStaffLabel,
+                    expanded = staffExpanded,
+                    onExpandChange = { expanded ->
+                        if (staffList.isNotEmpty() || !expanded) staffExpanded = expanded
+                    },
+                    options = staffDisplayList,
+                    onOptionSelected = { label ->
+                        selectedStaff = staffIdMap[label] ?: ""
+                    }
+                )
+
+                // ── Status Toggle ──
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Switch(
+                    MiniSwitch(
                         checked = status,
-                        onCheckedChange = { status = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF3B3BF9),
-                            uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = Color(0xFFD1D5DB)
-                        )
+                        onCheckedChange = { status = it }
                     )
                     Column {
                         Text(if (status) "Active" else "Inactive", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
@@ -437,35 +423,27 @@ fun EditDepartmentDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // ── Buttons — StepNavigationFab design, inline ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedButton(
+                    BackFabButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
-                        modifier = Modifier.weight(0.4f).height(48.dp)
-                    ) {
-                        Text("Cancel", fontSize = 14.sp, color = Color(0xFF374151))
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Button(
-                        onClick = {
-                            onUpdate(departmentName, description.ifEmpty { null }, selectedStaff.ifEmpty { null }, status)
-                        },
-                        enabled = !isLoading && departmentName.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9), disabledContainerColor = Color(0xFFD1D5DB)),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.weight(0.6f).height(48.dp)
-                    ) {
-                        if (isLoading) {
-                            CirculerProgressIndicatorReuse()
-                        } else {
-                            Text("Update", fontSize = 14.sp, color = Color.White)
-                        }
-                    }
+                        label = "Cancel"
+                    )
+
+                    TrailingFabButton(
+                        action = TrailingFabAction.Update(
+                            isLoading = isLoading,
+                            label = "Update",
+                            enabled = departmentName.isNotBlank(),
+                            onClick = {
+                                onUpdate(departmentName, description.ifEmpty { null }, selectedStaff.ifEmpty { null }, status)
+                            }
+                        )
+                    )
                 }
             }
         }
@@ -478,23 +456,29 @@ fun EditDepartmentDialog(
 
 @Composable
 fun AddDepartmentDialog(
-    onDismiss: () -> Unit,
-    onCreate: (DepartmentRequest) -> Unit,
+    staffList: List<StaffDto>,
     isLoading: Boolean = false,
-    staffList: List<StaffDto> = emptyList()
+    onDismiss: () -> Unit,
+    onCreate: (DepartmentRequest) -> Unit
 ) {
     var departmentName by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var selectedStaff by remember { mutableStateOf("") }
     var staffExpanded by remember { mutableStateOf(false) }
-    var departmentHeadError by remember { mutableStateOf(false) }
+
     var nameError by remember { mutableStateOf(false) }
+    var departmentHeadError by remember { mutableStateOf(false) }
 
     val staffDisplayList = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
     val staffIdMap = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
-    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: ""
+    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: "Select an option"
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false
+        )
+    ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -511,124 +495,79 @@ fun AddDepartmentDialog(
                     .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // ── Header ──
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Add New Department", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                     Text("Create a new department in your organization", fontSize = 13.sp, color = Color(0xFF6B7280))
                 }
 
-                DepartmentField(
-                    label = "Department Name",
-                    value = departmentName,
-                    onValueChange = { departmentName = it; nameError = false },
-                    placeholder = "Enter department name",
-                    isError = nameError,
-                    errorMessage = "Department name is required"
-                )
-
-                DepartmentField(
-                    label = "Description",
-                    value = description,
-                    onValueChange = { description = it },
-                    placeholder = "Enter description",
-                    isDescription = true
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Department Head", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-                    Box {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    if (departmentHeadError) Color(0xFFFFF3F3) else Color(0xFFF3F4F6),
-                                    RoundedCornerShape(8.dp)
-                                )
-                                .border(
-                                    width = if (departmentHeadError) 1.dp else 0.dp,
-                                    color = Color.Red,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .clickable { if (staffList.isNotEmpty()) staffExpanded = true }
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = selectedStaffLabel.ifEmpty { if (staffList.isEmpty()) "Loading..." else "Select department head" },
-                                fontSize = 14.sp,
-                                color = if (selectedStaffLabel.isNotEmpty()) Color(0xFF111827) else Color(0xFF9CA3AF)
-                            )
-                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(20.dp))
-                        }
-                        DropdownMenu(
-                            expanded = staffExpanded,
-                            onDismissRequest = { staffExpanded = false },
-                            containerColor = Color.White,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth(0.9f).background(Color.White)
-                        ) {
-                            if (staffList.isEmpty()) {
-                                DropdownMenuItem(
-                                    text = { Text("No staff available", color = Color(0xFF9CA3AF)) },
-                                    onClick = { staffExpanded = false }
-                                )
-                            } else {
-                                staffDisplayList.forEach { label ->
-                                    DropdownMenuItem(
-                                        text = { Text(label, color = Color(0xFF111827), fontSize = 14.sp) },
-                                        onClick = {
-                                            selectedStaff = staffIdMap[label] ?: ""
-                                            departmentHeadError = false
-                                            staffExpanded = false
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(if (selectedStaff == staffIdMap[label]) Color(0xFFF3F4F6) else Color.White)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    if (departmentHeadError) {
-                        Text("Please select a department head", fontSize = 12.sp, color = Color.Red, modifier = Modifier.padding(start = 4.dp))
-                    }
+                // ── Department Name ──
+                Column {
+                    FormLabel("Department Name", isRequired = true)
+                    FormTextField(
+                        value = departmentName,
+                        onValueChange = { departmentName = it; nameError = false },
+                        placeholder = "Enter department name",
+                        isError = nameError,
+                        errorMessage = "Department name is required"
+                    )
                 }
+
+                // ── Description ──
+                Column {
+                    FormLabel("Description")
+                    FormTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        placeholder = "Enter description"
+                    )
+                }
+
+                // ── Department Head ──
+                FormDropdown(
+                    label = "Department Head",
+                    value = selectedStaffLabel,
+                    expanded = staffExpanded,
+                    onExpandChange = { expanded ->
+                        if (staffList.isNotEmpty() || !expanded) staffExpanded = expanded
+                    },
+                    options = staffDisplayList,
+                    onOptionSelected = { label ->
+                        selectedStaff = staffIdMap[label] ?: ""
+                        departmentHeadError = false
+                    },
+                    isRequired = true,
+                    isError = departmentHeadError,
+                    errorMessage = "Please select a department head"
+                )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // ─── Action Buttons ───
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedButton(
+                    BackFabButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
-                        modifier = Modifier.weight(0.4f).height(48.dp)
-                    ) {
-                        Text("Cancel", fontSize = 14.sp, color = Color(0xFF374151))
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Button(
-                        onClick = {
-                            var hasError = false
-                            if (departmentName.isBlank()) { nameError = true; hasError = true }
-                            if (selectedStaff.isEmpty()) { departmentHeadError = true; hasError = true }
-                            if (hasError) return@Button
-                            onCreate(DepartmentRequest(name = departmentName, description = description, departmentHead = selectedStaff))
-                        },
-                        enabled = !isLoading && departmentName.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9), disabledContainerColor = Color(0xFFD1D5DB)),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.weight(0.6f).height(48.dp)
-                    ) {
-                        if (isLoading) {
-                            CirculerProgressIndicatorReuse()
-                        } else {
-                            Text("Create", fontSize = 14.sp, color = Color.White)
-                        }
-                    }
+                        label = "Cancel"
+                    )
+
+                    TrailingFabButton(
+                        action = TrailingFabAction.Update(
+                            isLoading = isLoading,
+                            label = "Create",
+                            enabled = departmentName.isNotBlank(),
+                            onClick = {
+                                var hasError = false
+                                if (departmentName.isBlank()) { nameError = true; hasError = true }
+                                if (selectedStaff.isEmpty()) { departmentHeadError = true; hasError = true }
+                                if (hasError) return@Update
+                                onCreate(DepartmentRequest(name = departmentName, description = description, departmentHead = selectedStaff))
+                            }
+                        )
+                    )
                 }
             }
         }

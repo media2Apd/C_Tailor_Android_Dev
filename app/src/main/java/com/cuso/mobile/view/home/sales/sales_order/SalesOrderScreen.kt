@@ -228,9 +228,9 @@ fun SalesOrderScreen(
                                         DataCard(
                                             item = order,
                                             image = DataCardImage(
-                                                vector = Icons.Default.Checkroom,
+                                                vector = Icons.Default.Person,
                                                 size = 50.dp,
-                                                backgroundColor = Color.Transparent,
+                                                backgroundColor = BorderGray,
                                                 tint = Color(0xFF9CA3AF)
                                             ),
                                             topBadgeText = order.status?.replaceFirstChar { it.uppercase() } ?: "—",

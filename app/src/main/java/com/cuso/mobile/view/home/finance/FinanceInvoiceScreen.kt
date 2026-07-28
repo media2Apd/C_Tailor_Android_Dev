@@ -43,6 +43,7 @@ import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.ProfileUiState
+import com.itextpdf.layout.borders.Border
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -180,8 +181,8 @@ private fun InvoiceDataCard(invoice: InvoiceItem, onClick: () -> Unit) {
         item = invoice,
         image = DataCardImage(
             vector = Icons.Default.Person,
-            size = 20.dp,
-            backgroundColor = Color.Transparent,
+            size = 30.dp,
+            backgroundColor = BorderGray,
             tint = InvTextMuted
         ),
         title = invoice.invoiceNumber,

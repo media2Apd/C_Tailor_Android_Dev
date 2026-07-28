@@ -27,11 +27,18 @@ class CustomerViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<CustomerUiState>(CustomerUiState.Loading)
     val uiState: StateFlow<CustomerUiState> = _uiState.asStateFlow()
 
+    // ✅ AFTER
     private var currentPage = 1
     private var currentLimit = 10
     private var currentSearch: String? = null
     private var currentType: String? = null
 
+    // ✅ NEW — UI-ku expose pannanum, PaginationFooter-ku venum
+    private val _currentPageFlow = MutableStateFlow(1)
+    val currentPageFlow: StateFlow<Int> = _currentPageFlow.asStateFlow()
+
+    private val _pageSizeFlow = MutableStateFlow(10)
+    val pageSizeFlow: StateFlow<Int> = _pageSizeFlow.asStateFlow()
 
     private val _deleteState = MutableStateFlow<CustomerDeleteState>(CustomerDeleteState.Idle)
     val deleteState: StateFlow<CustomerDeleteState> = _deleteState.asStateFlow()
@@ -48,6 +55,8 @@ class CustomerViewModel @Inject constructor(
     ) {
         currentPage = page
         currentLimit = limit
+        _currentPageFlow.value = page      // ✅ NEW
+        _pageSizeFlow.value = limit        // ✅ NEW
 
         viewModelScope.launch {
             _uiState.update { CustomerUiState.Loading }
@@ -77,7 +86,6 @@ class CustomerViewModel @Inject constructor(
             )
         }
     }
-
     fun onSearch(query: String) {
         currentSearch = query.takeIf { it.isNotBlank() }
         currentPage = 1

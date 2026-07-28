@@ -356,13 +356,11 @@ class InvoicePdfGenerator(private val context: Context) {
         fun money(v: Double) = "₹" + String.format(Locale.US, "%,.2f", v)
 
         val companyInitial = data.companyName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "C"
-        val logoBlockHtml ="""<div class="logo-icon">$companyInitial</div>"""
-
-//            if (!data.logoUrl.isNullOrEmpty()) {
-//            """<img src="${data.logoUrl}" class="logo-icon-img" />"""
-//        } else {
-//
-//        }
+        val logoBlockHtml = if (!data.logoUrl.isNullOrEmpty()) {
+            """<img src="${data.logoUrl}" class="logo-icon-img" />"""
+        } else {
+            """<div class="logo-icon">$companyInitial</div>"""
+        }
         val footerLogoBase64 = drawableToBase64(R.drawable.cuso_technologies_logo)   // 🔁 replace R.drawable.logo with your actual drawable name
         val footerLogoTag = if (footerLogoBase64.isNotEmpty()) {
             """<img src="$footerLogoBase64" class="footer-logo"/>"""
@@ -458,8 +456,8 @@ class InvoicePdfGenerator(private val context: Context) {
       }
 
       .logo-icon-img {
-        width: 56px;
-        height: 56px;
+        width: 200px;
+        height: 200px;
         object-fit: contain;
         border-radius: 8px;
         flex-shrink: 0;

@@ -250,15 +250,50 @@ class SalesViewModel @Inject constructor(
             }
         }
     }
+    private val _currentPage = MutableStateFlow(1)
+    val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
 
-    // ── Table Leads ───────────────────────────────────────────────
+    private val _pageSize = MutableStateFlow(10)
+    val pageSize: StateFlow<Int> = _pageSize.asStateFlow()
+
+    fun setPageSize(size: Int) {
+        _pageSize.value = size
+        _currentPage.value = 1        // size maarina udane page 1-ku reset
+        fetchTableLeads()
+    }
+
+    fun goToPage(page: Int) {
+        _currentPage.value = page
+        fetchTableLeads()
+    }
+    // ✅ NEW — pagination state
+
+
+    private val _totalLeads = MutableStateFlow(0)
+    val totalLeads: StateFlow<Int> = _totalLeads.asStateFlow()
+
+    // ✅ NEW — pagination actions
+    fun onPageChange(newPage: Int) {
+        _currentPage.value = newPage
+        fetchTableLeads()
+    }
+
+    fun onItemsPerPageChange(newSize: Int) {
+        _pageSize.value = newSize
+        _currentPage.value = 1
+        fetchTableLeads()
+    }
+
     fun fetchTableLeads() {
         viewModelScope.launch {
             _isLoadingTableLeads.value = true
             _tableError.value = null
             try {
-                repository.fetchTableData()
-                    .onSuccess { _tableLeads.value = it }
+                repository.fetchTableData(page = _currentPage.value, limit = _pageSize.value)
+                    .onSuccess {
+                        _tableLeads.value = it.leads
+                        _totalLeads.value = it.total
+                    }
                     .onFailure { _tableError.value = it.message }
             } catch (e: Exception) {
                 _tableError.value = e.message
@@ -330,8 +365,8 @@ class SalesViewModel @Inject constructor(
             assignedStaff = data.appointment?.assignedStaff?._id,
             priority = data.appointment?.priority ?: "",
             followUpDate = data.appointment?.followUpDate ?: "",
-            internalNotes = data.notes?.find { it.type == "internal" }?.content ?: "",   // 👈 FIXED — .message
-            customerNotes = data.notes?.find { it.type == "customer" }?.content ?: ""    // 👈 FIXED — .message
+            internalNotes = data.notes?.find { it.type == "internal" }?.message ?: "",   // 👈 FIXED — .message
+            customerNotes = data.notes?.find { it.type == "customer" }?.message ?: ""    // 👈 FIXED — .message
         )
     }
     fun silentRefreshLead(leadId: String) {

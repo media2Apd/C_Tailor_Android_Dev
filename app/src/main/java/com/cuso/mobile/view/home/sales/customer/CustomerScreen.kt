@@ -28,11 +28,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.model.sales.CustomerItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.view.composable.PaginationFooter
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -45,6 +48,7 @@ import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
 import com.cuso.mobile.view.home.sales.sales_order.toDisplayDate
 import com.cuso.mobile.viewmodel.CustomerUiState
+import com.cuso.mobile.viewmodel.CustomerViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -109,7 +113,11 @@ fun CustomerScreen(
 //    var showTypeDropdown by remember { mutableStateOf(false) }
     var showItemsPerPageDropdown by remember { mutableStateOf(false) }
     var customerPendingDelete by remember { mutableStateOf<CustomerItem?>(null) }   // ✅ NEW
-    var currentPage by remember { mutableIntStateOf(1) }
+
+    val customerViewModel: CustomerViewModel = hiltViewModel()
+    val uiState by customerViewModel.uiState.collectAsStateWithLifecycle()
+    val currentPage by customerViewModel.currentPageFlow.collectAsStateWithLifecycle()
+    val pageSize by customerViewModel.pageSizeFlow.collectAsStateWithLifecycle()
 
 
     LaunchedEffect(customerState) {
@@ -258,7 +266,7 @@ fun CustomerScreen(
                                     customers.forEach { customer ->
                                         val (badgeText, badgeColor) = when (customer.type?.lowercase()) {
                                             "business" -> "Business" to Color(0xFFD97706)
-                                            "regular" -> "Regular" to Color(0xFF16A34A)     // ✅ NEW — handles "regular" type from real API
+                                            "regular" -> "Regular" to Color(0xFF16A34A)
                                             else -> "Individual" to Color(0xFF3B3BF9)
                                         }
 
@@ -266,8 +274,8 @@ fun CustomerScreen(
                                             item = customer,
                                             image = DataCardImage(
                                                 vector = Icons.Default.Person,
-                                                size = 50.dp,
-                                                backgroundColor = Color.Transparent,
+                                                size = 30.dp,
+                                                backgroundColor = BorderGray,
                                                 tint = Color(0xFF9CA3AF)
                                             ),
                                             topBadgeText = badgeText,
@@ -298,94 +306,13 @@ fun CustomerScreen(
                             }
 
                             // ── Pagination ──
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color.White)
-                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    val from = (page - 1) * itemsPerPage + 1
-                                    val to = minOf(page * itemsPerPage, total)
-                                    Text("Showing $from - $to of $total", fontSize = 13.sp, color = Color(0xFF6B7280))
-
-                                    Box {
-                                        Row(
-                                            modifier = Modifier
-                                                .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
-                                                .clickable { showItemsPerPageDropdown = true }
-                                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Icon(Icons.Default.Settings, null, tint = Color(0xFF6B7280), modifier = Modifier.size(14.dp))
-                                            Text("$itemsPerPage per page", fontSize = 13.sp, color = Color(0xFF374151))
-                                        }
-                                        DropdownMenu(
-                                            expanded = showItemsPerPageDropdown,
-                                            onDismissRequest = { showItemsPerPageDropdown = false },
-                                            containerColor = Color.White,
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            listOf(10, 25, 50, 100).forEach { count ->
-                                                DropdownMenuItem(
-                                                    text = { Text("$count per page", color = Color(0xFF111827)) },
-                                                    onClick = {
-                                                        itemsPerPage = count
-                                                        page = 1
-                                                        showItemsPerPageDropdown = false
-                                                        onItemsPerPageChange(count)
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    IconButton(
-                                        onClick = {
-                                            if (page > 1) {
-                                                page--
-                                                onPageChange(page)
-                                            }
-                                        },
-                                        enabled = page > 1,
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.ChevronLeft,
-                                            contentDescription = "Previous",
-                                            tint = if (page > 1) Color(0xFF374151) else Color(0xFFD1D5DB)
-                                        )
-                                    }
-                                    Text("$page - $totalPages", fontSize = 13.sp, color = Color(0xFF6B7280))
-                                    IconButton(
-                                        onClick = {
-                                            if (page < totalPages) {
-                                                page++
-                                                onPageChange(page)
-                                            }
-                                        },
-                                        enabled = page < totalPages,
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.ChevronRight,
-                                            contentDescription = "Next",
-                                            tint = if (page < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB)
-                                        )
-                                    }
-                                }
-                            }
+                            PaginationFooter(
+                                currentPage = currentPage,
+                                pageSize = pageSize,
+                                totalItems = total,
+                                onPageChange = { customerViewModel.onPageChange(it) },
+                                onItemsPerPageChange = { customerViewModel.onItemsPerPageChange(it) }
+                            )
                         }
                     }
                 }

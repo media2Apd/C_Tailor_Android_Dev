@@ -63,8 +63,11 @@ import coil.compose.AsyncImage
 import com.cuso.mobile.R
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.modelGray
 
 // ─────────────────────────────────────────────────────────────
 // Data Classes for Menu Configuration
@@ -117,16 +120,10 @@ object SidebarConfig {
                 isPanel = true,
                 categories = listOf(
                     "Lead Management", "Customer", "Measurements",
-                    "Sales & Orders", "Order Management", "Pricing Overview", "Quotation"
+                    "Sales & Orders", "Order Management", "Pricing & Quotes"
                 ),
                 subItems = mapOf(
-                    "Lead Management"          to listOf("Lead"),
-                    "Customer"                 to listOf("Customers"),
-                    "Measurements"             to listOf("Measurements"),
-                    "Sales & Orders"           to listOf("Sales Orders"),
-                    "Order Management"         to listOf("Orders"),
-                    "Pricing Overview"         to listOf("Pricing Overview"),
-                    "Quotation"                to listOf("Quotation")
+                    "Pricing & Quotes"         to listOf("Pricing Overview","Quotation")
                 )
             ),
             MenuItem(
@@ -138,8 +135,6 @@ object SidebarConfig {
                     "Leads & Audience" to listOf("Lead Generation", "Customer Segmentation"),
                     "Engagement"      to listOf("Customer Engagement", "WhatsApp", "Social Media", "Review & Feedback"),
                     "Growth"          to listOf("Referral Program", "Influencer"),
-                    "Pages"           to listOf("Landing Page"),
-                    "Budget"          to listOf("Marketing Budget"),
                     "Team"            to listOf("Marketing Tasks", "Team Management")
                 )
             ),
@@ -148,15 +143,12 @@ object SidebarConfig {
                 isPanel = true,
                 categories = listOf(
                     "Accounts Receivable", "Accounts Payable", "Expenses",
-                    "Chart of Accounts", "Journal Entries", "Trial Balance"
+                    "Finance Core"
                 ),
                 subItems = mapOf(
                     "Accounts Receivable" to listOf("Sales Invoices", "Customers", "Payments Received"),
                     "Accounts Payable"    to listOf("Suppliers", "Purchase Invoices", "Payments Mode"),
-                    "Expenses"            to listOf("Expenses"),
-                    "Chart of Accounts"   to listOf("Chart of Accounts"),
-                    "Journal Entries"     to listOf("Journal Entries"),
-                    "Trial Balance"       to listOf("Trial Balance")
+                    "Finance Core"        to listOf("Chart of Accounts","Journal Entries", "Trial Balance")
                 )
             ),
             MenuItem(
@@ -172,35 +164,21 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.logistics, "Logistics",
                 isPanel = true,
-                categories = listOf("Delivery", "Returns","Order Tracking"),
-                subItems = mapOf(
-                    "Delivery" to listOf("Delivery"),
-                    "Returns"  to listOf("Returns")
-                )
+                categories = listOf("Delivery", "Returns", "Order Tracking")
             ),
             MenuItem(
                 R.drawable.services, "Services",
                 isPanel = true,
-                categories = listOf("Service Request", "Alteration Management", "Return", "Damaged Goods", "Customer Feedback"),
-                subItems = mapOf(
-                    "Service Request"        to listOf("Service Request"),
-                    "Alteration Management"  to listOf("Alteration Management"),
-                    "Return"                 to listOf("Return"),
-                    "Damaged Goods"          to listOf("Damaged Goods"),
-                    "Customer Feedback"      to listOf("Customer Feedback")
-                )
+                categories = listOf("Service Request", "Alteration Management", "Return", "Damaged Goods", "Customer Feedback")
             ),
             MenuItem(R.drawable.hr, "HR", isPanel = true,
-                categories = listOf("Employees"),
-                subItems = mapOf("Employees" to listOf("All Employees"))
+                categories = listOf("Employees")
             ),
             MenuItem(R.drawable.it, "IT", isPanel = true,
-                categories = listOf("Integrations"),
-                subItems = mapOf("Integrations" to listOf("API Integration"))
+                categories = listOf("Integrations")
             ),
             MenuItem(R.drawable.legal, "Legal", isPanel = true,
-                categories = listOf("Legal Management"),
-                subItems = mapOf("Legal Management" to listOf("Legal Documents"))
+                categories = listOf("Legal Management")
             ),
             MenuItem(
                 R.drawable.security, "Security",
@@ -215,11 +193,7 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.reports, "Reports",
                 isPanel = true,
-                categories = listOf("Sales Reports", "Finance Reports"),
-                subItems = mapOf(
-                    "Sales Reports"   to listOf("Sales Reports"),
-                    "Finance Reports" to listOf("Finance Reports")
-                )
+                categories = listOf("Sales Reports", "Finance Reports")
             )
         )
     }
@@ -1006,6 +980,9 @@ private fun ModulesPanelContent(
     val frequentlyUsed by remember(menuItems) {
         derivedStateOf { buildFrequentlyUsed(context, menuItems).take(3) }
     }
+
+    // state — add this near your other `var` declarations, alongside expandedModule
+    var expandedSubCategory by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(isOpen, initialExpandedModule, initialExpandedCategory, initialActiveSubItem) {
         if (isOpen) {
             heightFraction.snapTo(HALF_FRACTION)
@@ -1076,14 +1053,15 @@ private fun ModulesPanelContent(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
+
                     .height(panelHeight),
                 color = Color.White,
                 shape = RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius),
                 shadowElevation = 16.dp
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.fillMaxSize()
+                    .background(Color(0XFFFAFAFB))) {
 
-                    // ── Drag handle — click to toggle + drag to resize ──
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1272,7 +1250,6 @@ private fun ModulesPanelContent(
                         items(filteredModules) { module ->
                             val isExpanded = expandedModule == module.label
 
-                            // ✅ NEW — smooth arrow rotation instead of instant icon swap
                             val arrowRotation by animateFloatAsState(
                                 targetValue = if (isExpanded) 180f else 0f,
                                 animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
@@ -1282,9 +1259,14 @@ private fun ModulesPanelContent(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(bottom = 10.dp)
-                                    .background(Color.White, RoundedCornerShape(14.dp))
-                                    .border1(if (isExpanded) Color(0xFF4338CA) else Color(0xFFF0F0F0))
+                                    .padding(bottom = 12.dp)
+                                    .shadow(
+                                        elevation = if (isExpanded) 1.dp else 1.dp,
+                                        shape = RoundedCornerShape(24.dp),
+                                        clip = false
+                                    )
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(Color.White)
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -1298,30 +1280,34 @@ private fun ModulesPanelContent(
                                         .padding(horizontal = 16.dp, vertical = 14.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        painter = painterResource(id = module.icon),
-                                        contentDescription = module.label,
-                                        tint = Color(0xFF6B7280),
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color(0xFFF3F4F6)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = module.icon),
+                                            contentDescription = module.label,
+                                            tint = Color(0xFF111827),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                     Spacer(Modifier.width(12.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(module.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                                        moduleDescriptions[module.label]?.let {
-                                            Text(it, fontSize = 12.sp, color = Color(0xFF9CA3AF))
-                                        }
+                                        Text(module.label, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
                                     }
-                                    // ✅ NEW — single icon, rotates smoothly instead of swapping Up/Down
                                     Icon(
                                         imageVector = Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
                                         tint = Color(0xFF9CA3AF),
-                                        modifier = Modifier.rotate(arrowRotation)
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .rotate(arrowRotation)
                                     )
                                 }
 
-                                // ✅ NEW — AnimatedVisibility with expandVertically/shrinkVertically
-                                // replaces the old instant `if (isExpanded) { ... }` block
                                 AnimatedVisibility(
                                     visible = isExpanded && module.categories.isNotEmpty(),
                                     enter = expandVertically(
@@ -1338,42 +1324,86 @@ private fun ModulesPanelContent(
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(start = 48.dp, end = 16.dp, bottom = 12.dp)
+                                            .padding(start = 48.dp, end = 16.dp, bottom = 16.dp)
                                     ) {
                                         module.categories.forEach { category ->
                                             val categorySubItems = module.subItems[category].orEmpty()
+                                            val hasSubItems = categorySubItems.isNotEmpty()
+                                            val categoryKey = "${module.label}::$category"
+                                            val isDropdownOpen = expandedSubCategory == categoryKey
                                             val isCategoryActive = category == activeCategory
 
-                                            Text(
-                                                "•  $category",
-                                                fontSize = 13.sp,
-                                                fontWeight = if (isCategoryActive) FontWeight.Bold else FontWeight.SemiBold,
-                                                color = if (isCategoryActive) Color(0xFF4338CA) else Color(0xFF4B5563),
+                                            val subArrowRotation by animateFloatAsState(
+                                                targetValue = if (isDropdownOpen) 180f else 0f,
+                                                animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+                                                label = "subArrowRotation_$categoryKey"
+                                            )
+
+                                            // ── Category header row ──
+                                            Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
+                                                    .padding(vertical = 3.dp)
                                                     .background(
-                                                        color = if (isCategoryActive) Color(0xFFEDEBFF) else Color.Transparent,
-                                                        shape = RoundedCornerShape(6.dp)
+                                                        color = Color.Transparent,
+                                                        shape = RoundedCornerShape(8.dp)
                                                     )
                                                     .clickable(
                                                         indication = null,
                                                         interactionSource = remember { MutableInteractionSource() }
                                                     ) {
-                                                        ModuleUsageTracker.recordUsage(context, module.label)
-                                                        activeCategory = category
-                                                        activeSubItem = null
-                                                        onModuleCategoryClick(module.label, category)
+                                                        if (hasSubItems) {
+                                                            // ✅ CHANGED — has sub-items: text click ONLY toggles dropdown, no navigation
+                                                            expandedSubCategory = if (isDropdownOpen) null else categoryKey
+                                                        } else {
+                                                            // ✅ unchanged — no sub-items: text click navigates directly
+                                                            ModuleUsageTracker.recordUsage(context, module.label)
+                                                            activeCategory = category
+                                                            activeSubItem = null
+                                                            onModuleCategoryClick(module.label, category)
+                                                        }
                                                     }
-                                                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                                            )
-                                            if (categorySubItems.isNotEmpty()) {
-                                                Column(modifier = Modifier.padding(start = 14.dp)) {
+                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text(
+                                                    text = category,
+                                                    fontSize = 16.sp,
+                                                    fontWeight = if (isDropdownOpen || isCategoryActive) FontWeight.Bold else FontWeight.SemiBold,
+                                                    color = Color(0xFF4B5563)
+                                                )
+
+                                                if (hasSubItems) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.KeyboardArrowUp,
+                                                        contentDescription = if (isDropdownOpen) "Collapse" else "Expand",
+                                                        tint = if (isDropdownOpen || isCategoryActive) Color(0xFF4338CA) else Color(0xFF9CA3AF),
+                                                        modifier = Modifier
+                                                            .size(18.dp)
+                                                            .rotate(180f - subArrowRotation)
+                                                        // ❌ removed separate .clickable on the icon — whole row (including icon) now
+                                                        // triggers the same toggle behavior since the parent Row handles the click.
+                                                        // Keeping a duplicate click handler on the icon was redundant once the row logic branches correctly.
+                                                    )
+                                                }
+                                            }
+
+                                            // ── Sub items ──
+                                            AnimatedVisibility(
+                                                visible = isDropdownOpen && hasSubItems,
+                                                enter = expandVertically(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
+                                                        fadeIn(animationSpec = tween(200, delayMillis = 50)),
+                                                exit = shrinkVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)) +
+                                                        fadeOut(animationSpec = tween(150))
+                                            ) {
+                                                Column(modifier = Modifier.padding(start = 14.dp, top = 2.dp, bottom = 4.dp)) {
                                                     categorySubItems.forEach { subItem ->
-                                                        val isSubActive = activeCategory == category && activeSubItem == subItem   // ✅ fixed
+                                                        val isSubActive = activeCategory == category && activeSubItem == subItem
 
                                                         Text(
                                                             "-  $subItem",
-                                                            fontSize = 12.sp,
+                                                            fontSize = 16.sp,
                                                             fontWeight = if (isSubActive) FontWeight.SemiBold else FontWeight.Normal,
                                                             color = if (isSubActive) Color(0xFF4338CA) else Color(0xFF6B7280),
                                                             modifier = Modifier
@@ -1391,7 +1421,7 @@ private fun ModulesPanelContent(
                                                                     activeSubItem = subItem
                                                                     onModuleCategoryClick(module.label, subItem)
                                                                 }
-                                                                .padding(horizontal = 8.dp, vertical = 5.dp)
+                                                                .padding(horizontal = 8.dp, vertical = 8.dp)
                                                         )
                                                     }
                                                 }
@@ -1401,7 +1431,6 @@ private fun ModulesPanelContent(
                                 }
                             }
                         }
-
                         item { Spacer(Modifier.height(100.dp)) }
                     }
                 }

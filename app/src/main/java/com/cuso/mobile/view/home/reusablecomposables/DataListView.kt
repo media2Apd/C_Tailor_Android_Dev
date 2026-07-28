@@ -223,7 +223,8 @@ fun <T> DataCard(
     showChevron: Boolean = false,
     chevronExpanded: Boolean = false,
     onChevronClick: (() -> Unit)? = null,
-    trailingText:String?=null
+    trailingText:String?=null,
+    content: (@Composable () -> Unit)? = null
 ) {
     Card(
         modifier = modifier // CHANGED — was Modifier, now starts from the passed-in modifier
@@ -449,6 +450,7 @@ fun <T> DataCard(
             }
 
             // ── Bottom badge (below everything, at the bottom of the card) ──
+            // ── Bottom badge (below everything, at the bottom of the card) ──
             if (bottomBadgeText != null) {
                 Spacer(Modifier.height(10.dp))
                 Box(
@@ -464,6 +466,12 @@ fun <T> DataCard(
                         color = bottomBadgeTextColor
                     )
                 }
+            }
+
+            // ── Extra content slot (NEW) — rendered last, inside the same card ──
+            if (content != null) {
+                Spacer(Modifier.height(10.dp))
+                content()
             }
         }
     }

@@ -139,6 +139,7 @@ import com.cuso.mobile.model.sales.ReceivePaymentResponse
 import com.cuso.mobile.model.sales.StageAssignRequest
 import com.cuso.mobile.model.sales.UpdateCustomerRequest
 import com.cuso.mobile.model.sales.UpdateCustomerResponse
+import com.cuso.mobile.model.sales.UpdateLeadRequest
 import com.cuso.mobile.model.sales.UpdateStageRequest
 import com.cuso.mobile.model.sales.UpdateStageResponse
 import retrofit2.http.PartMap
@@ -243,10 +244,12 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<SalesSummaryResponse>
 
-    @GET("/api/sales-leads/view-all?page=1&limit=10")
+    @GET("/api/sales-leads/view-all")
     suspend fun getTableData(
         @Header("Authorization") token: String,
-        @Header("X-CSRF-Token") csrfToken: String
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10
     ): Response<LeadsTableResponse>
 
     @GET("/api/sales-leads/view-one/{id}")
@@ -270,45 +273,12 @@ interface ApiService {
         @Path ("leadId") leadId: String
     ): Response<ConvertLeadToOrderResponse>
 
-    @Multipart
     @PUT("/api/sales-leads/update-one/{id}")
     suspend fun updateLead(
         @Header("Authorization") accessToken: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String,
-        @Part("customerType") customerType: RequestBody,
-        @Part("enquiryType") enquiryType: RequestBody,
-        @Part("estimatedQuantity") estimatedQuantity: RequestBody,
-        @Part("budgetRange[min]") budgetMin: RequestBody,
-        @Part("budgetRange[max]") budgetMax: RequestBody,
-        @Part("enquiryDate") enquiryDate: RequestBody,
-        @Part("requiredDate") requiredDate: RequestBody,
-        @Part("status") status: RequestBody,
-        @Part("source") source: RequestBody,
-        @Part("person[name]") personName: RequestBody,
-        @Part("person[phone]") personPhone: RequestBody,
-        @Part("person[email]") personEmail: RequestBody,
-        @Part("appointment[isRequired]") appointmentIsRequired: RequestBody,
-        @Part("appointment[date]") appointmentDate: RequestBody? = null,             // 👈 ADD
-        @Part("appointment[time]") appointmentTime: RequestBody? = null,             // 👈 ADD
-        @Part("appointment[assignedStaff]") appointmentAssignedStaff: RequestBody? = null,  // 👈 ADD
-        @Part("appointment[priority]") appointmentPriority: RequestBody? = null,     // 👈 ADD
-        @Part("appointment[followUpDate]") appointmentFollowUpDate: RequestBody? = null,    // 👈 ADD
-        @Part("notes[0][message]") noteMessage: RequestBody,
-        @Part("notes[0][type]") noteType: RequestBody,
-        @Part("person[gender]") personGender: RequestBody,
-        @Part("person[dob]") personDob: RequestBody,
-        @Part("contact[address]") contactAddress: RequestBody,
-        @Part("contact[area]") contactArea: RequestBody,
-        @Part("contact[city]") contactCity: RequestBody,
-        @Part("contact[preferredContactMethod]") contactPreferredContactMethod: RequestBody,
-        @Part("garmentCategory[0]") garmentCategory0: RequestBody? = null,
-        @Part("garmentCategory[1]") garmentCategory1: RequestBody? = null,
-        @Part("garmentCategory[2]") garmentCategory2: RequestBody? = null,
-        @Part("garmentCategory[3]") garmentCategory3: RequestBody? = null,
-        @Part("garmentCategory[4]") garmentCategory4: RequestBody? = null,
-        @Part("notes[1][message]") noteMessage1: RequestBody? = null,
-        @Part("notes[1][type]") noteType1: RequestBody? = null,
+        @Body request: UpdateLeadRequest
     ): Response<UpdateLeadResponse>
 
 

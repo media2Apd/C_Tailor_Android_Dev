@@ -129,7 +129,10 @@ import com.cuso.mobile.view.home.inventory.AdjustmentType
 import com.cuso.mobile.view.home.inventory.AllItemGroupScreen
 import com.cuso.mobile.view.home.inventory.CreateItemGroupScreen
 import com.cuso.mobile.view.home.inventory.CreateItemScreen
+import com.cuso.mobile.view.home.inventory.CreatePurchaseOrderScreen
 import com.cuso.mobile.view.home.inventory.InventoryScreen
+import com.cuso.mobile.view.home.inventory.LowStockAlertsScreen
+import com.cuso.mobile.view.home.inventory.LowStockItem
 import com.cuso.mobile.view.home.logistics.DeliveryDetailScreen
 import com.cuso.mobile.view.home.logistics.DeliveryManagementScreen
 import com.cuso.mobile.view.home.logistics.OrderTrackingScreen
@@ -152,6 +155,8 @@ import com.cuso.mobile.view.home.sales.lead.ViewLeadScreen
 import com.cuso.mobile.view.home.sales.lead.EditLeadScreen
 import com.cuso.mobile.view.home.sales.ordermanagement.OrderDetailScreen
 import com.cuso.mobile.view.home.sales.sales_order.OrderOverviewScreen
+import com.cuso.mobile.view.home.services.AlterationManagementScreen
+import com.cuso.mobile.view.home.services.CreateAlterationManagementScreen
 import com.cuso.mobile.view.home.services.CustomerFeedbackScreen
 import com.cuso.mobile.view.home.services.FeedbackDetailScreen
 import com.cuso.mobile.viewmodel.HrViewModel
@@ -222,6 +227,8 @@ fun HomeScreen(navController: NavHostController) {
 
     // ✅ NEW — Inventory > Item Detail flow
     var selectedInventoryItemId by remember { mutableStateOf<String?>(null) }
+
+    var selectedLowStockItem by remember { mutableStateOf<LowStockItem?>(null) }
     // ✅ NEW — HR > Employee Onboarding flow (Create / View / Edit)
     var employeeScreenMode by remember { mutableStateOf(com.cuso.mobile.view.home.hr.ScreenMode.CREATE) }
     var selectedEmployeeId by remember { mutableStateOf<String?>(null) }
@@ -373,6 +380,11 @@ fun HomeScreen(navController: NavHostController) {
             }
             currentScreen == "inventory_item_detail" -> {
                 selectedInventoryItemId = null
+                goBack()
+            }
+
+            currentScreen == "inventory_create_purchase_order" -> {
+                selectedLowStockItem = null
                 goBack()
             }
             currentScreen == "inventory_create_item_group" -> {
@@ -557,6 +569,11 @@ fun HomeScreen(navController: NavHostController) {
                             "inventory_item_groups" -> {
                                 isSalesSettingsMode = false
                                 navigateTo("inventory_item_groups")
+                                isDrawerOpen = false
+                            }
+                            "inventory_orders", "inventory_procurement_orders" -> {
+                                isSalesSettingsMode = false
+                                navigateTo("inventory_low_stock_alerts")
                                 isDrawerOpen = false
                             }
                             "hr_all_employees" -> {
@@ -854,6 +871,40 @@ fun HomeScreen(navController: NavHostController) {
                         onEditItem = { navigateTo("inventory_create_item") }
                     )
 
+                    // ADD right after the "inventory_item_detail" block ends
+
+                    "inventory_low_stock_alerts" -> LowStockAlertsScreen(
+                        onClose = { goBack() },
+                        onReorderClick = { item ->
+                            selectedLowStockItem = item
+                            navigateTo("inventory_create_purchase_order")
+                        },
+                        onCreateNewItem = { navigateTo("inventory_create_purchase_order") },
+                        onBreadcrumbClick = {
+                            modulesPanelInitialExpanded = "Inventory"
+                            showModulesPanel = true
+                        }
+                    )
+
+                    "inventory_create_purchase_order" -> {
+                        CreatePurchaseOrderScreen(
+                            onClose = {
+                                selectedLowStockItem = null
+                                goBack()
+                            },
+                            onCancel = {
+                                selectedLowStockItem = null
+                                goBack()
+                            },
+                            onCreateOrder = {
+                                // TODO: wire to actual PO creation API via a ViewModel
+                                selectedLowStockItem = null
+                                goBack()
+                                goBack()   // pops both create_purchase_order and low_stock_alerts → lands on inventory_items
+                            }
+                        )
+                    }
+
                     "hr_all_employees" -> AllEmployeesScreen(
                         onDismiss = { goBack() },
                         onAddEmployee = {
@@ -961,6 +1012,16 @@ fun HomeScreen(navController: NavHostController) {
                         },
                         onEdit = { feedbackId -> },
                         onDelete = { feedbackId -> }
+                    )
+                    "services_alteration_management" -> AlterationManagementScreen(
+                        onClose = {goBack()},
+                        onCreateNewAlteration = {navigateTo("create_alteration")},
+                        onBreadcrumbClick = {},
+                        onViewClick = {}
+                    )
+
+                    "create_alteration" -> CreateAlterationManagementScreen (
+                        onClose = {goBack()},
                     )
 
                     "feedback_detail" -> FeedbackDetailScreen(
@@ -1181,8 +1242,6 @@ fun HomeScreen(navController: NavHostController) {
             onClose = { showModulesPanel = false },
             initialExpandedModule = modulesPanelInitialExpanded,   // ✅ NEW
             onModuleCategoryClick = { menu, category ->
-                // ✅ CHANGED — "Finance Core" category no longer exists (split into 3),
-                // so this special-case shortcut is removed. Normal lookup handles all 3 now.
                 val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
                 val firstSubItem = menuItem?.subItems?.get(category)?.firstOrNull()
 
@@ -1193,11 +1252,28 @@ fun HomeScreen(navController: NavHostController) {
                 }
                 val navKey = normalizeRoute(rawNavKey)
 
+                // AFTER
+                val implementedRoutes = setOf(
+                    "sales_lead", "sales_customers", "sales_measurements", "sales_sales_orders",
+                    "sales_orders", "sales_pricing_overview", "sales_pricing_quotation",
+                    "finance_sales_invoices", "finance_customers", "finance_payments_received",
+                    "finance_suppliers", "finance_expenses", "finance_chart_of_accounts",
+                    "finance_journal_screen", "finance_trial_balance",
+                    "inventory_items", "inventory_item_groups",
+                    "inventory_low_stock_alerts",
+                    "logistics_delivery", "logistics_order_tracking",
+                    "services_customer_feedback","services_alteration_management", "hr_all_employees", "reports_sales_reports"
+                )
+
                 isSalesSettingsMode = false
-                navigateTo(navKey)
                 showModulesPanel = false
-            }
-        )
+
+                if (navKey in implementedRoutes) {
+                    navigateTo(navKey)
+                } else {
+                    Toast.makeText(context, "Coming soon", Toast.LENGTH_SHORT).show()
+                }
+            }        )
     }
 }
 // ─────────────────────────────────────────────────────────────
@@ -1497,20 +1573,17 @@ fun BottomBar(
         // ── BOTTOM NAV BAR ──
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
+                    .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .navigationBarsPadding()   // ✅ NEW — keeps rounded corners clear of the system nav bar
                 .background(Color.Transparent)
-
         ) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(90.dp)
-                    .border(
-                        width = 1.dp,
-                        color = Color(0xFFE5E7EB),
-                        shape = RoundedCornerShape(24.dp)
-                    ),
+                    .clip(RoundedCornerShape(24.dp))
+                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(24.dp)),
                 shape = RoundedCornerShape(24.dp),
                 color = Color.White,
                 shadowElevation = 12.dp,
@@ -2922,33 +2995,53 @@ fun FormDropdown(
 // route-name variations that buildNavigationKey() or menu
 // clicks might produce. Add new aliases here ONLY.
 // ─────────────────────────────────────────────────────────────
-fun normalizeRoute(route: String): String {
-    return when (route) {
-        "sales_pricing_quotation",
-        "sales_pricing_and_quotations",
-        "sales_pricing_&_quotations",
-        "sales_quotation" -> "sales_pricing_quotation"
+fun normalizeRoute(rawKey: String): String {
+    return when (rawKey) {
+        // Sales
+        "sales_lead_management"        -> "sales_lead"
+        "sales_customer"               -> "sales_customers"
+        "sales_measurements"           -> "sales_measurements"
+        "sales_sales_&_orders",
+        "sales_sales_and_orders"       -> "sales_sales_orders"
+        "sales_order_management"       -> "sales_orders"
+        "sales_pricing_overview"       -> "sales_pricing_overview"
+        "sales_quotation"              -> "sales_pricing_quotation"
 
-        "sales_pricing_overview" -> "sales_pricing_overview"
+        // Finance
+        "finance_sales_invoices"       -> "finance_sales_invoices"
+        "finance_customers"            -> "finance_customers"
+        "finance_payments_received"    -> "finance_payments_received"
+        "finance_suppliers"            -> "finance_suppliers"
+        "finance_expenses"             -> "finance_expenses"
+        "finance_chart_of_accounts"    -> "finance_chart_of_accounts"
+        "finance_journal_entries"      -> "finance_journal_screen"
+        "finance_trial_balance"        -> "finance_trial_balance"
 
-        "sales_sales_orders",
-        "sales_sales_&_orders" -> "sales_sales_orders"
+        // Inventory
+        "inventory_all_items"          -> "inventory_items"
+        "inventory_item_groups"        -> "inventory_item_groups"
+        "inventory_orders",              // ✅ Procurement > Orders sub-item click
+        "inventory_procurement_orders",
+        "inventory_low_stock_alerts",
+        "inventory_alerts_&_reorder"   -> "inventory_low_stock_alerts"
 
-        // ✅ NEW — sidebar-generated key ("finance_journal_entries", plural)
-        // must resolve to the actual screen key used in the when(currentScreen) block
-        // ✅ NEW — sidebar-generated key ("finance_journal_entries", plural)
-        // must resolve to the actual screen key used in the when(currentScreen) block
-        "finance_journal_entry",
-        "finance_journal_entries" -> "finance_journal_screen"
+        // Logistics
+        "logistics_delivery"           -> "logistics_delivery"
+        "logistics_order_tracking"     -> "logistics_order_tracking"
 
-        // ✅ NEW — Inventory module aliases
-        "inventory_items",
-        "inventory_all_items" -> "inventory_items"
+        // Services
+        "services_customer_feedback"   -> "services_customer_feedback"
+        "services_alteration_management" -> "services_alteration_management"
 
-        else -> route
+        // HR
+        "hr_employees"                 -> "hr_all_employees"
+
+        // Reports
+        "reports_sales_reports"        -> "reports_sales_reports"
+
+        else -> rawKey   // no mapping found — passes through, will hit `else -> {}` and just close panel silently
     }
 }
-
 fun menuForScreen(screen: String): String = when {
     screen == "home" || screen == "settings" || screen == "profile-settings" ||
             screen.startsWith("home_") -> "Home"

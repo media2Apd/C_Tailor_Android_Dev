@@ -53,8 +53,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
@@ -72,7 +70,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -86,7 +83,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -117,6 +113,7 @@ import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.view.composable.PaginationFooter
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DatePickerField
@@ -1168,8 +1165,11 @@ fun LeadScreenContent(
 
     val filterDrawerState = rememberFilterDrawerState()
     var searchQuery by remember { mutableStateOf("") }
-    var currentPage by remember { mutableIntStateOf(1) }
-    val itemsPerPage = 10
+
+    // ✅ NEW — server-driven pagination state (client-side itemsPerPage/currentPage removed)
+    val currentPage by salesViewModel.currentPage.collectAsStateWithLifecycle()
+    val pageSize by salesViewModel.pageSize.collectAsStateWithLifecycle()
+    val totalLeads by salesViewModel.totalLeads.collectAsStateWithLifecycle()
 
     var filterSections by remember {
         mutableStateOf(buildFilterSections(emptyList(), emptyList(), emptyList(), emptyList(), emptyList()))
@@ -1214,7 +1214,6 @@ fun LeadScreenContent(
 
     fun applyFilters(sections: List<FilterSection>) {
         filterSections = sections
-        currentPage = 1
     }
 
     fun getGarmentName(lead: LeadTableItem): String {
@@ -1230,6 +1229,8 @@ fun LeadScreenContent(
         }
     }
 
+    // ✅ NOTE — intha filter client-side ah current page data mattum filter pannும்.
+    // Full dataset search venumna, backend-ku search/status params anупுrathு vera approach venum.
     val filteredLeads = leads.filter { lead ->
         val matchesSearch = searchQuery.isBlank() ||
                 lead.person.name.contains(searchQuery, ignoreCase = true) ||
@@ -1284,10 +1285,8 @@ fun LeadScreenContent(
         matchesSearch && matchesStatus && matchesSource && matchesGarments && matchesPriority && matchesAmount && matchesSalesPerson
     }
 
-    val totalPages = maxOf(1, if (filteredLeads.isNotEmpty()) (filteredLeads.size + itemsPerPage - 1) / itemsPerPage else 1)
-    val pagedLeads = if (filteredLeads.isNotEmpty()) {
-        filteredLeads.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
-    } else emptyList()
+    // ❌ REMOVED — client-side totalPages/pagedLeads calc (`filteredLeads.size`, `itemsPerPage` drop/take)
+    // ippo server already correct page-oda data anупுthu, so filteredLeads-ஐயே நேரடி ah use pannுறோம்
 
     fun resolveStatusBadge(lead: LeadTableItem): Pair<String, Color> {
         val statusName = when (lead.status) {
@@ -1386,16 +1385,16 @@ fun LeadScreenContent(
             ) {
                 ScreenBreadcrumb(listOf("Sales","Lead Management"), onClick = {})
 
-                    SearchFilterBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                        placeholder = "Search Leads...",
-                        accentColor = BluePrimary,
-                        borderColor = BorderGray,
-                        textSecondaryColor = TextSecondary,
-                        onFilterClick = { filterDrawerState.open() }
-                    )
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    placeholder = "Search Leads...",
+                    accentColor = BluePrimary,
+                    borderColor = BorderGray,
+                    textSecondaryColor = TextSecondary,
+                    onFilterClick = { filterDrawerState.open() }
+                )
             }
 
             Box(
@@ -1476,7 +1475,8 @@ fun LeadScreenContent(
                                         .fillMaxWidth(),
                                     verticalArrangement = Arrangement.spacedBy(0.dp)
                                 ) {
-                                    pagedLeads.forEach { lead ->
+                                    // ✅ CHANGED — pagedLeads -> filteredLeads (server already page-wise data anупுthu)
+                                    filteredLeads.forEach { lead ->
                                         val (badgeText, badgeColor) = resolveStatusBadge(lead)
                                         DataCard(
                                             item = lead,
@@ -1505,60 +1505,14 @@ fun LeadScreenContent(
                                 }
                             }
 
-                            // ── Pagination Footer ──
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        Color.White,
-                                        RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
-                                    )
-                            ) {
-                                Column {
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            "Showing ${if (filteredLeads.isEmpty()) 0 else (currentPage - 1) * itemsPerPage + 1} - ${minOf(currentPage * itemsPerPage, filteredLeads.size)} of ${filteredLeads.size}",
-                                            fontSize = 13.sp,
-                                            color = Color(0xFF6B7280)
-                                        )
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            IconButton(
-                                                onClick = { if (currentPage > 1) currentPage-- },
-                                                enabled = currentPage > 1,
-                                                modifier = Modifier.size(28.dp)
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.ChevronLeft,
-                                                    "Previous",
-                                                    tint = if (currentPage > 1) Color(0xFF374151) else Color(0xFFD1D5DB)
-                                                )
-                                            }
-                                            Text("$currentPage - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
-                                            IconButton(
-                                                onClick = { if (currentPage < totalPages) currentPage++ },
-                                                enabled = currentPage < totalPages,
-                                                modifier = Modifier.size(28.dp)
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.ChevronRight,
-                                                    "Next",
-                                                    tint = if (currentPage < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            // ── Pagination Footer — reusable composable ──
+                            PaginationFooter(
+                                currentPage = currentPage,
+                                pageSize = pageSize,
+                                totalItems = totalLeads,
+                                onPageChange = { salesViewModel.onPageChange(it) },
+                                onItemsPerPageChange = { salesViewModel.onItemsPerPageChange(it) }
+                            )
                         }
                     }
                 }
@@ -1616,7 +1570,6 @@ fun LeadScreenContent(
                     }
                 )
             }
-            currentPage = 1
         }
     )
 }

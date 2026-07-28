@@ -36,3 +36,5 @@ val PanelBg = Color(0xFFF7F7FA)
 val modelBg=Color(0xfff8f9ff)
 val modelBorder=Color(0xffe8eaf4)
 val statLogoBg=Color(0xff424656)
+
+val modelGray=Color(0xFFF1F5F9)

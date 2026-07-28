@@ -73,11 +73,17 @@ import com.cuso.mobile.model.sales.UpdateCustomerRequest
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationResponse
 import com.cuso.mobile.model.UploadOrganizationPictureResponse
+import com.cuso.mobile.model.sales.AppointmentRequest
+import com.cuso.mobile.model.sales.BudgetRangeRequest
+import com.cuso.mobile.model.sales.ContactRequest
 import com.cuso.mobile.model.sales.ConvertToInvoiceData
 import com.cuso.mobile.model.sales.ConvertToInvoiceRequest
 import com.cuso.mobile.model.sales.ConvertToOrderData
+import com.cuso.mobile.model.sales.NoteRequest
+import com.cuso.mobile.model.sales.PersonRequest
 import com.cuso.mobile.model.sales.ReceivePaymentData
 import com.cuso.mobile.model.sales.ReceivePaymentRequest
+import com.cuso.mobile.model.sales.UpdateLeadRequest
 import com.cuso.mobile.model.sales.UpdateStageRequest
 import com.cuso.mobile.model.sales.toOrderItem
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -158,12 +164,16 @@ class SalesRepository @Inject constructor(
 
     // ── Table Leads ───────────────────────────────────────────────
 
-    suspend fun fetchTableData(): Result<List<LeadTableItem>> {
+    // ✅ NEW — wrapper to carry total count along with leads
+    data class TableLeadsResult(val leads: List<LeadTableItem>, val total: Int)
+
+    suspend fun fetchTableData(page: Int = 1, limit: Int = 10): Result<TableLeadsResult> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getTableData(accessToken, csrfToken)
+            val response = api.getTableData(accessToken, csrfToken, page, limit)
             if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!.data)
+                val body = response.body()!!
+                Result.success(TableLeadsResult(leads = body.data, total = body.total))
             } else {
                 Result.failure(Exception("Failed to fetch leads: ${response.code()}"))
             }
@@ -375,53 +385,53 @@ class SalesRepository @Inject constructor(
 
     suspend fun updateLead(id: String, request: CreateLeadFormRequest): Response<UpdateLeadResponse> {
         val (accessToken, csrfToken) = getAuthHeaders()
-        fun String.asRequestBody(): RequestBody =
-            this.toRequestBody("text/plain".toMediaTypeOrNull())
 
         val validGarments = request.garments.filter { it.isNotBlank() }
-        val internalNote  = request.notes.find { it.type == "internal" }
-        val customerNote  = request.notes.find { it.type == "customer" }
+
+        val updateRequest = UpdateLeadRequest(
+            customerType = request.customerType,
+            enquiryType = request.enquiryType,
+            estimatedQuantity = request.estimatedQuantity,
+            budgetRange = BudgetRangeRequest(
+                min = request.budgetRange.min,
+                max = request.budgetRange.max
+            ),
+            enquiryDate = request.enquiryDate,
+            requiredDate = request.requiredDate,
+            status = request.status,
+            source = request.source,
+            person = PersonRequest(
+                name = request.person.name,
+                phone = request.person.phone,
+                email = request.person.email,
+                gender = request.person.gender,
+                dob = request.person.dob
+            ),
+            appointment = AppointmentRequest(
+                isRequired = request.appointment.isRequired,
+                date = request.appointment.date,
+                time = request.appointment.time,
+                assignedStaff = request.appointment.assignedStaff,
+                priority = request.appointment.priority,
+                followUpDate = request.appointment.followUpDate
+            ),
+            notes = request.notes.map { NoteRequest(message = it.message, type = it.type) },
+            contact = ContactRequest(
+                address = request.contact.address,
+                area = request.contact.area,
+                city = request.contact.city,
+                preferredContactMethod = request.contact.preferredContactMethod
+            ),
+            garmentCategory = validGarments
+        )
 
         return api.updateLead(
             accessToken = accessToken,
             csrfToken = csrfToken,
             id = id,
-            customerType = request.customerType.asRequestBody(),
-            enquiryType = request.enquiryType.asRequestBody(),
-            estimatedQuantity = request.estimatedQuantity.toString().asRequestBody(),
-            budgetMin = request.budgetRange.min.toString().asRequestBody(),
-            budgetMax = request.budgetRange.max.toString().asRequestBody(),
-            enquiryDate = request.enquiryDate.asRequestBody(),
-            requiredDate = request.requiredDate.asRequestBody(),
-            status = request.status.asRequestBody(),
-            source = request.source.asRequestBody(),
-            personName = request.person.name.asRequestBody(),
-            personPhone = request.person.phone.asRequestBody(),
-            personEmail = request.person.email.asRequestBody(),
-            appointmentIsRequired = request.appointment.isRequired.toString().asRequestBody(),
-            appointmentDate = request.appointment.date?.asRequestBody(),
-            appointmentTime = request.appointment.time?.asRequestBody(),
-            appointmentAssignedStaff = request.appointment.assignedStaff?.asRequestBody(),
-            appointmentPriority = request.appointment.priority?.asRequestBody(),
-            appointmentFollowUpDate = request.appointment.followUpDate?.asRequestBody(),
-            personGender = request.person.gender.asRequestBody(),
-            personDob = request.person.dob.asRequestBody(),
-            contactAddress = request.contact.address.asRequestBody(),
-            contactArea = request.contact.area.asRequestBody(),
-            contactCity = request.contact.city.asRequestBody(),
-            contactPreferredContactMethod = request.contact.preferredContactMethod.asRequestBody(),
-            garmentCategory0 = validGarments.getOrNull(0)?.asRequestBody(),
-            garmentCategory1 = validGarments.getOrNull(1)?.asRequestBody(),
-            garmentCategory2 = validGarments.getOrNull(2)?.asRequestBody(),
-            garmentCategory3 = validGarments.getOrNull(3)?.asRequestBody(),
-            garmentCategory4 = validGarments.getOrNull(4)?.asRequestBody(),
-            noteMessage  = (internalNote?.message ?: "-").asRequestBody(),
-            noteType     = (internalNote?.type ?: "internal").asRequestBody(),
-            noteMessage1 = customerNote?.message?.asRequestBody(),
-            noteType1    = customerNote?.type?.asRequestBody()
+            request = updateRequest
         )
     }
-
     // ── Staff ─────────────────────────────────────────────────────
 
     suspend fun getStaff(): Result<List<StaffDto>> {
@@ -913,23 +923,7 @@ class SalesRepository @Inject constructor(
             Result.failure(e)
         }
     }
-    suspend fun getCustomers(
-        token: String,
-        csrfToken: String,
-        page: Int,
-        limit: Int = 10,
-        search: String? = null,
-        type: String? = null
-    ): Response<CustomerListResponseV2> {
-        return api.getCustomerForFinance(
-            token = token,
-            csrfToken = csrfToken,
-            page = page,
-            limit = limit,
-            search = search?.takeIf { it.isNotBlank() },
-            type = type?.takeIf { it.isNotBlank() }
-        )
-    }
+
     // ── Measurements API ──
 
     suspend fun getMeasurements(): Result<MeasurementsResponse> {

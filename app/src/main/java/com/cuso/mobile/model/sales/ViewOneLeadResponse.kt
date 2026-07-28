@@ -75,7 +75,10 @@ data class AssignedStaffData(
     val _id: String
 )
 
+// ✅ FIX
 data class NoteData(
-    val content: String,
-    val type: String
+    val _id: String? = null,
+    val message: String,
+    val type: String,
+    val addedAt: String? = null
 )

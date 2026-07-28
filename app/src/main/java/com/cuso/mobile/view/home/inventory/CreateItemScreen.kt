@@ -543,7 +543,7 @@ fun CreateItemScreen(
 }
 
 @Composable
-private fun AccordionSection(
+ fun AccordionSection(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     expanded: Boolean,
@@ -554,7 +554,7 @@ private fun AccordionSection(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(if (expanded) Color(0xFFF7F7FA) else Color.White)
+                .background( Color(0xFFF7F7FA) )
                 .clickable { onHeaderClick() }
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,

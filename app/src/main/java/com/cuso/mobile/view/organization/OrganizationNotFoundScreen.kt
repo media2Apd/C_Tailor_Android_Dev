@@ -1,5 +1,6 @@
 package com.cuso.mobile.view.organization
 
+import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,16 +20,23 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,10 +44,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import androidx.core.net.toUri
 
 @Composable
 fun OrganizationNotFoundScreen(navController: NavController) {
+    val context = LocalContext.current
+
+    // Composable function top level la, existing `val context = LocalContext.current` kீழ add pannunga
+    var isNavigating by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        isNavigating = false
+    }
+
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -77,7 +97,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(60.dp))
 
             // Centered Logo + Title
             Row(
@@ -99,9 +119,8 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(42.dp))
 
-            // Illustration circle
             // Illustration circle
             Box(
                 modifier = Modifier
@@ -143,13 +162,23 @@ fun OrganizationNotFoundScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(32.dp))
 
             // Open Web Dashboard button
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(40.dp)
                     .clip(RoundedCornerShape(5.dp))
-                    .background(Color(0xFF2563EB))
-                    .clickable { /* TODO: open web dashboard */ }
+                    .background(Primary)
+                    .clickable(enabled = !isNavigating) {
+                        isNavigating = true
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW,
+                                "https://tailor.cuso.in/sign-up".toUri())
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            isNavigating = false
+                        }
+                    }
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
@@ -158,14 +187,22 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                     imageVector = Icons.Filled.Language,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.weight(1f))
                 Text(
                     text = "Open Web Dashboard",
                     color = Color.White,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.weight(1f))
+
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
@@ -204,7 +241,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                     .fillMaxWidth()
                     .height(40.dp)
                     .clip(RoundedCornerShape(5.dp))
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
+                    .border(1.dp, Color(0xFFDBEAFE), RoundedCornerShape(5.dp))
                     .clickable { /* TODO: send setup link */ }
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -213,13 +250,13 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                 Icon(
                     imageVector = Icons.Filled.Email,
                     contentDescription = null,
-                    tint = Color(0xFF2563EB),
+                    tint = Primary,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Send setup link to my email",
-                    color = Color(0xFF2563EB),
+                    color = Primary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -235,6 +272,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(58.dp)
                     .shadow(
                         elevation = 4.dp,
                         shape = RoundedCornerShape(12.dp),
@@ -244,7 +282,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color.White)
                     .border(1.dp, PrimaryBorder, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                    .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -257,7 +295,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                     Image(
                         painter = painterResource(id = R.drawable.footer_person),
                         contentDescription = null,
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
 
@@ -266,13 +304,13 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Need help?",
-                        fontSize = 10.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.Black
                     )
                     Text(
                         text = "Contact our support team and we'll help you get started.",
-                        fontSize = 9.sp,
+                        fontSize = 10.sp,
                         color = Color(0xFF6B7280),
                         lineHeight = 14.sp
                     )
@@ -283,13 +321,12 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                 Box(
                     Modifier
                         .background(Color(0xFFEFF6FF), shape = RoundedCornerShape(5.dp))
-                        .padding(horizontal = 5.dp)
+                        .padding(horizontal = 10 .dp, vertical = 2.dp )
                 ) {
-
                     Text(
                         text = "Contact Support",
-                        color = Color(0xFF2563EB),
-                        fontSize = 8.sp,
+                        color = Primary,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.clickable { /* TODO: contact support */ }
                     )

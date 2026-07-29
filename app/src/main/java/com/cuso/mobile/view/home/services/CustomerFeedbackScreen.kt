@@ -48,7 +48,9 @@ fun CustomerFeedbackScreen(
     onDismiss: () -> Unit = {},
     onView: (String) -> Unit = {},
     onEdit: (String) -> Unit = {},
-    onDelete: (String) -> Unit = {}
+    onDelete: (String) -> Unit = {},
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -94,7 +96,7 @@ fun CustomerFeedbackScreen(
         }
 
         // ── Breadcrumb ──
-        ScreenBreadcrumb(listOf("Services", "Customer Feedback"), onClick = {})
+        ScreenBreadcrumb(listOf("Services", "Customer Feedback"), onClick = {onBreadCrumbClick()})
 
         // ── Search + Filter ──
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {

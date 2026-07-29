@@ -33,6 +33,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
@@ -81,7 +83,9 @@ private data class ReportTypeOption(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SalesOrderReportsScreen(
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     var selectedReportType by remember { mutableStateOf("Sales Report") }
     var showReportTypeSelector by remember { mutableStateOf(false) }
@@ -174,32 +178,13 @@ fun SalesOrderReportsScreen(
             HorizontalDivider(color = BorderColor)
 
             LazyColumn(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f)
+                    .background(Primary_background),
                 contentPadding = PaddingValues(bottom = 24.dp)
             ) {
                 // ── Breadcrumb + Export ──
                 item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Reports", fontSize = 12.sp, color = MutedColor)
-                            Icon(Icons.Default.ChevronRight, null, tint = MutedColor, modifier = Modifier.size(14.dp))
-                            Text("Sales & Order Reports", fontSize = 12.sp, color = ReportPrimary, fontWeight = FontWeight.SemiBold)
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { showExportSheet = true }
-                        ) {
-                            Icon(Icons.Default.FileUpload, null, tint = ReportPrimary, modifier = Modifier.size(15.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Export", fontSize = 13.sp, color = ReportPrimary, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
+                    ScreenBreadcrumb(listOf("Reports","Sales & Order Reports"), onClick = {onBreadCrumbClick()})
                 }
 
                 // ── Report Type row ──

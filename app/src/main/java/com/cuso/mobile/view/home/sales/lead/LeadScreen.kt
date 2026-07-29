@@ -440,7 +440,10 @@ private fun validateLeadFields(
 @SuppressLint("AutoboxingStateCreation")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateLeadScreen(onBack: () -> Unit) {
+fun CreateLeadScreen(
+    onBack: () -> Unit,
+    onBreadCrumbClick: () -> Unit ={}
+) {
     var leadSource       by remember { mutableStateOf("") }
     var enquiryDate      by remember { mutableStateOf("") }
     var leadOwner        by remember { mutableStateOf("") }
@@ -1140,7 +1143,9 @@ fun LeadScreenContent(
     onCreateLead: () -> Unit = {},
     onViewLead: () -> Unit = {},
     onEditLead: () -> Unit = {},
-    onClose:()->Unit={}
+    onClose:()->Unit={},
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     val salesViewModel: SalesViewModel = hiltViewModel()
     val context = LocalContext.current
@@ -1383,7 +1388,7 @@ fun LeadScreenContent(
                     .background(Color(0xFFF8F9FF))
                     .fillMaxWidth()
             ) {
-                ScreenBreadcrumb(listOf("Sales","Lead Management"), onClick = {})
+                ScreenBreadcrumb(listOf("Sales","Lead Management"), onClick = {onBreadCrumbClick()})
 
                 SearchFilterBar(
                     query = searchQuery,

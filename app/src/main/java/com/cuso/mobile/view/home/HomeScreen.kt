@@ -18,6 +18,7 @@ package com.cuso.mobile.view.home
 import android.annotation.SuppressLint
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -157,8 +158,13 @@ import com.cuso.mobile.view.home.sales.ordermanagement.OrderDetailScreen
 import com.cuso.mobile.view.home.sales.sales_order.OrderOverviewScreen
 import com.cuso.mobile.view.home.services.AlterationManagementScreen
 import com.cuso.mobile.view.home.services.CreateAlterationManagementScreen
+import com.cuso.mobile.view.home.services.CreateServiceRequest
 import com.cuso.mobile.view.home.services.CustomerFeedbackScreen
 import com.cuso.mobile.view.home.services.FeedbackDetailScreen
+import com.cuso.mobile.view.home.services.OrderDetails
+import com.cuso.mobile.view.home.services.ServiceDetails
+import com.cuso.mobile.view.home.services.ServiceOrderDetailsScreen
+import com.cuso.mobile.view.home.services.ServiceRequestScreen
 import com.cuso.mobile.viewmodel.HrViewModel
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.example.tracking.TrackingOverviewScreen
@@ -715,6 +721,10 @@ fun HomeScreen(navController: NavHostController) {
                         onClose = {
                             isSalesSettingsMode = false
                             goBack()
+                        },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Sales"
+                            showModulesPanel = true
                         }
                     )
                     "create_lead" -> CreateLeadScreen(
@@ -752,6 +762,10 @@ fun HomeScreen(navController: NavHostController) {
                         },
                         onEditOrder = { orderId ->
                             editOrderId = orderId
+                        },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Sales"
+                            showModulesPanel = true
                         }
                     )
                     "order_overview" -> {
@@ -782,6 +796,10 @@ fun HomeScreen(navController: NavHostController) {
                         onViewOrder = { orderId ->
                             selectedManagementOrderId = orderId
                             navigateTo("order_management_overview")
+                        },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Sales"
+                            showModulesPanel = true
                         }
                     )
                     "order_management_overview" -> {
@@ -868,7 +886,11 @@ fun HomeScreen(navController: NavHostController) {
                             selectedInventoryItemId = item._id
                             navigateTo("inventory_item_detail")
                         },
-                        onEditItem = { navigateTo("inventory_create_item") }
+                        onEditItem = { navigateTo("inventory_create_item") },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Inventory"
+                            showModulesPanel = true
+                        }
                     )
 
                     // ADD right after the "inventory_item_detail" block ends
@@ -925,13 +947,21 @@ fun HomeScreen(navController: NavHostController) {
                         onDelete = { employee ->
                             // TODO: call delete API via a HR/Employee ViewModel
                         },
-                        hrViewModel = hrViewModel
+                        hrViewModel = hrViewModel,
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "HR"
+                            showModulesPanel = true
+                        }
                     )
                     "logistics_order_tracking" -> OrderTrackingScreen(
                         onClose = { goBack() },
                         onViewOrder = { order ->
                             selectedOrderId = order.id
                             navigateTo("tracking_overview")
+                        },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Logistics"
+                            showModulesPanel = true
                         }
                     )
                     "tracking_overview" -> TrackingOverviewScreen(
@@ -1011,17 +1041,61 @@ fun HomeScreen(navController: NavHostController) {
                             navigateTo("feedback_detail")
                         },
                         onEdit = { feedbackId -> },
-                        onDelete = { feedbackId -> }
+                        onDelete = { feedbackId -> },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Services"
+                            showModulesPanel = true
+                        }
                     )
                     "services_alteration_management" -> AlterationManagementScreen(
                         onClose = {goBack()},
                         onCreateNewAlteration = {navigateTo("create_alteration")},
-                        onBreadcrumbClick = {},
+                        onBreadcrumbClick = {
+                            modulesPanelInitialExpanded = "Services"
+                            showModulesPanel=true
+                        },
                         onViewClick = {}
                     )
 
                     "create_alteration" -> CreateAlterationManagementScreen (
                         onClose = {goBack()},
+                    )
+
+                    "services_service_request" -> ServiceRequestScreen(
+                        onClose = {},
+                        onBreadcrumbClick = {},
+                        onCreateNewRequest = {navigateTo("create_request")},
+                        onViewClick = {navigateTo("review_services")}
+                    )
+                    "create_request" -> CreateServiceRequest()
+
+                    "review_services" -> ServiceOrderDetailsScreen(
+                        service = ServiceDetails(
+                            serviceRef = "SR-1045",
+                            reviewStatus = "Pending Review",
+                            service = "Bespoke Alteration",
+                            requestDate = "Oct 24, 2025",
+                            priority = "High",
+                            serviceCategory = "Suit Fitting & Adjustments",
+                            preferredCompletionDate = "Nov 15, 2023",
+                            serviceType = "Internal Production Refit",
+                            customerName = "Jonathan Sterling",
+                            phoneNumber = "+1 (555) 123-4567",
+                            emailAddress = "j.sterling@executive.com",
+                            shippingAddress = "452 Premium Way, Floor 12\nManhattan, NY 10001"
+                        ),
+                        order = OrderDetails(
+                            orderId = "#ORD-8829-23",
+                            status = "Completed",
+                            garmentItem = "Custom Charcoal 3-Piece Wool Suit",
+                            orderDate = "Sep 12, 2023",
+                            deliveryDate = "Oct 15, 2023",
+                            issueDescription = "The sleeves are approximately 2 inches too long...",
+                            internalNotes = "Check fabric elasticity before cutting...",
+                            attachmentCount = 3
+                        ),
+                        onBack = { goBack() },
+                        onViewFullOrderHistory = { navigateTo("order_history") }
                     )
 
                     "feedback_detail" -> FeedbackDetailScreen(
@@ -1046,6 +1120,10 @@ fun HomeScreen(navController: NavHostController) {
                             editingPricingId = id
                             quotationScreenMode = "edit"
                             navigateTo("create_quotation")
+                        },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Sales"
+                            showModulesPanel = true
                         }
                     )
 
@@ -1066,7 +1144,11 @@ fun HomeScreen(navController: NavHostController) {
                             selectedItemGroupId = groupId
                             navigateTo("inventory_create_item_group")
                         },
-                        onDelete = { groupId -> }
+                        onDelete = { groupId -> },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Inventory"
+                            showModulesPanel = true
+                        }
                     )
 
                     "inventory_create_item_group" -> CreateItemGroupScreen(
@@ -1082,7 +1164,11 @@ fun HomeScreen(navController: NavHostController) {
                     "sales_pricing_overview" -> PricingScreen(
                         onClose = { isSalesSettingsMode = false; goBack() },
                         onAddNewPricing = { editingPricingId = null; navigateTo("create_garment_pricing") },
-                        onCardClick = { pricingId -> editingPricingId = pricingId; navigateTo("create_garment_pricing") }
+                        onCardClick = { pricingId -> editingPricingId = pricingId; navigateTo("create_garment_pricing") },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Sales"
+                            showModulesPanel = true
+                        }
                     )
 
                     "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
@@ -1120,21 +1206,37 @@ fun HomeScreen(navController: NavHostController) {
                             selectedCustomer = customer
                             navigateTo("edit_customer")
                         },
-                        onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) }
+                        onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Sales"
+                            showModulesPanel = true
+                        }
                     )
                     "finance_customers" -> FinanceCustomerScreen(
                         onClose = { goBack() },
                         onCustomerEdit = {},
-                        onCustomerClick = {}
+                        onCustomerClick = {},
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Finance"
+                            showModulesPanel = true
+                        }
                     )
                     "finance_expenses" -> ExpensesScreen(
-                        onClose = { goBack() }
+                        onClose = { goBack() },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Finance"
+                            showModulesPanel = true
+                        }
                     )
                     "finance_journal_screen" -> ManualJournalEntryScreen(
                         onClose = { goBack() }
                     )
                     "finance_payments_received" -> AllPaymentScreen(
-                        onViewPayment = { navigateTo("payment_detail_screen") }
+                        onViewPayment = { navigateTo("payment_detail_screen") },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Finance"
+                            showModulesPanel = true
+                        }
                     )
                     "payment_detail_screen" -> PaymentDetailScreen(
                         onClose = { goBack() }
@@ -1145,6 +1247,10 @@ fun HomeScreen(navController: NavHostController) {
                         onInvoiceClick = { invoice ->
                             selectedInvoiceId = invoice.id
                             navigateTo("finance_invoice_detail")
+                        },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Finance"
+                            showModulesPanel = true
                         }
                     )
 
@@ -1162,7 +1268,11 @@ fun HomeScreen(navController: NavHostController) {
                     }
                     "logistics_delivery" -> DeliveryManagementScreen(
                         onDismiss = { goBack() },
-                        onView = { navigateTo("delivery_detail") }
+                        onView = { navigateTo("delivery_detail") },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Logistics"
+                            showModulesPanel = true
+                        }
                     )
                     "delivery_detail" -> DeliveryDetailScreen(
                         onDismiss = { goBack() }
@@ -1197,7 +1307,11 @@ fun HomeScreen(navController: NavHostController) {
                     "sales_measurements" -> MeasurementsScreen(
                         navController = navController,
                         onBack = { goBack() },
-                        onCreateOrder = { navigateTo("create_order") }
+                        onCreateOrder = { navigateTo("create_order") },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Sales"
+                            showModulesPanel = true
+                        }
                     )
                     "create_order_review" -> {
                         pendingOrderReviewData?.let { data ->
@@ -1228,7 +1342,11 @@ fun HomeScreen(navController: NavHostController) {
                     )
 
                     "reports_sales_reports" -> SalesOrderReportsScreen(
-                        onClose = { goBack() }
+                        onClose = { goBack() },
+                        onBreadCrumbClick = {
+                            modulesPanelInitialExpanded = "Reports"
+                            showModulesPanel = true
+                        }
                     )
                     else -> { }
                 }
@@ -1262,7 +1380,7 @@ fun HomeScreen(navController: NavHostController) {
                     "inventory_items", "inventory_item_groups",
                     "inventory_low_stock_alerts",
                     "logistics_delivery", "logistics_order_tracking",
-                    "services_customer_feedback","services_alteration_management", "hr_all_employees", "reports_sales_reports"
+                    "services_customer_feedback","services_alteration_management","services_service_request", "hr_all_employees", "reports_sales_reports"
                 )
 
                 isSalesSettingsMode = false
@@ -1280,6 +1398,7 @@ fun HomeScreen(navController: NavHostController) {
 // TopNavBar
 // ─────────────────────────────────────────────────────────────
 
+@SuppressLint("ContextCastToActivity")
 @Composable
 fun TopBar(
     isPanelMode: Boolean = false,
@@ -1288,8 +1407,14 @@ fun TopBar(
     onNotificationClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
-    val authViewModel: Authenticate = hiltViewModel()
+    // EmployeeOnboardingScreen.kt la:
+    val authViewModel: Authenticate = hiltViewModel(
+        LocalContext.current as ComponentActivity   // ✅ Activity ku scope pannunga
+    )
     val userEntity by authViewModel.user.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        Log.d("VM_DEBUG", "TopBar authViewModel hashcode: ${authViewModel.hashCode()}")
+    }
 
     val user: User? = userEntity?.let {
         User(
@@ -3032,6 +3157,7 @@ fun normalizeRoute(rawKey: String): String {
         // Services
         "services_customer_feedback"   -> "services_customer_feedback"
         "services_alteration_management" -> "services_alteration_management"
+        "services_service_request" -> "services_service_request"
 
         // HR
         "hr_employees"                 -> "hr_all_employees"

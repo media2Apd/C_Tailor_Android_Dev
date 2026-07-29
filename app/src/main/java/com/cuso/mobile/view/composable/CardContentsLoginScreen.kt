@@ -375,7 +375,7 @@ fun CardContentsLoginScreen(navController: NavController,
                     .fillMaxWidth(),
                 contentPadding = PaddingValues(vertical = 0.dp, horizontal = 16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2563eb),
+                    containerColor = Primary,
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(5.dp)

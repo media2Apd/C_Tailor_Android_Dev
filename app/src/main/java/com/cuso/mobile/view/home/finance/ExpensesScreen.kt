@@ -65,6 +65,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.platform.LocalContext
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
@@ -88,7 +89,9 @@ private val ExpenseBorder = Color(0xFFE5E7EB)
 
 @Composable
 fun ExpensesScreen(
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     val financeViewModel: FinanceViewModel = hiltViewModel()
 
@@ -155,7 +158,7 @@ fun ExpensesScreen(
             // ── Breadcrumb ──
             ScreenBreadcrumb(
                 segments = listOf("Finance", "Expenses"),
-                onClick = {}
+                onClick = { onBreadCrumbClick() }
             )
 
             SearchFilterBar(
@@ -184,10 +187,16 @@ fun ExpensesScreen(
             }
 
             expenseError != null -> {
-                Box(modifier = Modifier
-                    .fillMaxSize()
-                    .background(ExpenseBg), contentAlignment = Alignment.Center) {
-                    Text(expenseError ?: "Failed to load expenses", color = Color.Red, fontSize = 13.sp)
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
+                        Spacer(Modifier.height(8.dp))
+                        Text("Something went wrong, Please try again later", color = Color.Red)
+                        Spacer(Modifier.height(12.dp))
+                        Button(onClick = { financeViewModel.fetchExpenses() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(8.dp)) {
+                            Text("Retry", color = Color.White)
+                        }
+                    }
                 }
             }
 

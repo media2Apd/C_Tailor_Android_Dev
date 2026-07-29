@@ -132,7 +132,9 @@ private val mockCustomers = listOf(
 fun FinanceCustomerScreen(
     onClose: () -> Unit,
     onCustomerClick: (String) -> Unit,
-    onCustomerEdit: (String) -> Unit = onCustomerClick
+    onCustomerEdit: (String) -> Unit = onCustomerClick,
+    onBreadCrumbClick: () -> Unit ={}
+
 
 ) {
     val viewModel: FinanceViewModel = hiltViewModel()
@@ -253,7 +255,7 @@ fun FinanceCustomerScreen(
                             ) {
                                 ScreenBreadcrumb(
                                     segments = listOf("Finance", "Customer"),
-                                    onClick = {}
+                                    onClick = {onBreadCrumbClick()}
                                 )
 
                                 SearchFilterBar(

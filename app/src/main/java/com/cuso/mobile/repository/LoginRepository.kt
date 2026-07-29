@@ -2,6 +2,7 @@
 
 package com.cuso.mobile.repository
 
+import android.util.Log
 import androidx.room.withTransaction
 import com.cuso.mobile.database.AppDatabase
 import com.cuso.mobile.database.entities.*
@@ -143,9 +144,15 @@ class LoginRepository @Inject constructor(
         }
     }
     // LoginRepository.kt la
-    suspend fun updateProfilePicture(newUrl: String?) {
+    suspend fun updateProfilePicture(userId: String, newUrl: String?) {
         val currentUser = db.userDao().getUser() ?: return
+        Log.d("PROFILE_PIC_DEBUG", "DB user id=${currentUser.id}, incoming id=$userId")
+        if (currentUser.id != userId) {
+            Log.d("PROFILE_PIC_DEBUG", "DB id mismatch — update skipped")
+            return
+        }
         db.userDao().updateUser(currentUser.copy(profilePicture = newUrl))
+        Log.d("PROFILE_PIC_DEBUG", "DB updated with new pic")
     }
 
 

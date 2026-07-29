@@ -65,7 +65,9 @@ fun InventoryScreen(
     onAddItem: () -> Unit = {},
     onViewItem: (InventoryItem) -> Unit = {},
     onEditItem: () -> Unit = {},   // ✅ CHANGED — no item param needed; form is populated in the ViewModel before navigating
-    inventoryViewModel: InventoryViewModel = hiltViewModel()
+    inventoryViewModel: InventoryViewModel = hiltViewModel(),
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     val items by inventoryViewModel.inventoryItems.collectAsStateWithLifecycle()
     val isLoading by inventoryViewModel.isLoadingInventoryItems.collectAsStateWithLifecycle()
@@ -129,7 +131,7 @@ fun InventoryScreen(
             // ── Breadcrumb ──
             ScreenBreadcrumb(
                 segments = listOf("Inventory", "All Items"),
-                onClick = {}
+                onClick = {onBreadCrumbClick()}
             )
 
             SearchFilterBar(

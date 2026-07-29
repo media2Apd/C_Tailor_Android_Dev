@@ -51,7 +51,9 @@ fun AllItemGroupScreen(
     onAddItemGroup: () -> Unit = {},
     onView: (String) -> Unit = {},
     onEdit: (String) -> Unit = {},
-    onDelete: (String) -> Unit = {}
+    onDelete: (String) -> Unit = {},
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -104,7 +106,7 @@ fun AllItemGroupScreen(
             }
 
             // ── Breadcrumb ──
-            ScreenBreadcrumb(listOf("Inventory", "All Item Group"), onClick = {})
+            ScreenBreadcrumb(listOf("Inventory", "All Item Group"), onClick = {onBreadCrumbClick()})
 
             // ── Search + Filter ──
             Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {

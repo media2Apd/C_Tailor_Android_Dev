@@ -32,6 +32,7 @@ import com.cuso.mobile.model.finance.InvoiceViewOneData
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.pdfgenerator.InvoicePdfGenerator
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -61,7 +62,9 @@ private val InvBgLight = Color(0xFFF5F5F7)
 @Composable
 fun FinanceInvoiceScreen(
     onClose: () -> Unit,
-    onInvoiceClick: (InvoiceItem) -> Unit
+    onInvoiceClick: (InvoiceItem) -> Unit,
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     val viewModel: FinanceViewModel = hiltViewModel()
 
@@ -105,16 +108,7 @@ fun FinanceInvoiceScreen(
         }
 
         // ── Breadcrumb ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            Text("Finance", fontSize = 12.sp, color = InvTextMuted)
-            Text("  >  ", fontSize = 12.sp, color = InvTextMuted)
-            Text("Sales Invoice", fontSize = 12.sp, color = InvPrimary, fontWeight = FontWeight.SemiBold)
-        }
+        ScreenBreadcrumb(listOf("Finance","Sales Invoice"), onClick = {onBreadCrumbClick()})
         HorizontalDivider(color = Color(0xFFEEEEEE))
 
         SearchFilterBar(

@@ -9,6 +9,7 @@
 package com.cuso.mobile.view.home.hr
 
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -85,6 +86,7 @@ import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.home.reusablecomposables.GovernmentIdValidator
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.viewmodel.Authenticate
+import androidx.activity.ComponentActivity
 
 // ── Design tokens (match screenshot) ──
 private val AccentColor = Color(0xFF4F39F6)
@@ -118,6 +120,7 @@ data class ExperienceEntry(
     val jobDescription: String = "",
     val isCurrentRole: Boolean = false
 )
+@SuppressLint("ContextCastToActivity")
 @Suppress("UNUSED_VARIABLE", "UNUSED_PARAMETER", "NAME_SHADOWING")
 
 @Composable
@@ -132,8 +135,10 @@ fun EmployeeOnboardingScreen(
     departmentViewModel: DepartmentViewModel = hiltViewModel(),
     designationViewModel: DesignationViewModel = hiltViewModel()
 ) {
-    val authViewModel: Authenticate = hiltViewModel()
-
+    // TopBar.kt la um SAME MAADHIRI:
+    val authViewModel: Authenticate = hiltViewModel(
+        LocalContext.current as ComponentActivity
+    )
 
     DisposableEffect(Unit) {
         Log.d("LIFECYCLE_DEBUG", "EmployeeOnboardingScreen ENTERED composition")
@@ -247,7 +252,14 @@ fun EmployeeOnboardingScreen(
     val uploadPictureState by hrViewModel.uploadPictureState.collectAsState()
 
     val deletePictureState by hrViewModel.deletePictureState.collectAsState()
+    val memberDetail by hrViewModel.memberDetail.collectAsState()   // ✅ idha idhku mேலே kondu vaanga
 
+//    val currentUserId = authViewModel.user.value?.id
+//    val memberUserId = memberDetail?.userId?._id
+//
+//    if (!memberUserId.isNullOrBlank() && memberUserId == currentUserId) {
+//        authViewModel.updateUserProfilePictureIfCurrentUser(state.pictureUrl)
+//    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -266,8 +278,19 @@ fun EmployeeOnboardingScreen(
             is HrViewModel.UploadPictureState.Success -> {
                 existingProfilePictureUrl = state.pictureUrl
                 profileImageUri = null
-                topSuccess="Profile Uploaded Successfully"
-                authViewModel.updateUserProfilePicture(state.pictureUrl)
+                topSuccess = "Profile Uploaded Successfully"
+
+                val targetId = memberDetail?.userId?._id
+                val currentId = authViewModel.user.value?.id
+                Log.d("PROFILE_PIC_DEBUG", "target=$targetId current=$currentId")   // ✅ add this
+
+
+                // ✅ decision முழுசும் ViewModel எடுக்கும் — screen வெறும் target id தான் தர வேண்டும்
+                authViewModel.updateUserProfilePictureIfCurrentUser(
+                    targetUserId = memberDetail?._id,
+                    newUrl = state.pictureUrl
+                )
+
                 hrViewModel.resetUploadPictureState()
             }
             is HrViewModel.UploadPictureState.Error -> {
@@ -281,10 +304,15 @@ fun EmployeeOnboardingScreen(
     LaunchedEffect(deletePictureState) {
         when (val state = deletePictureState) {
             is HrViewModel.DeletePictureState.Success -> {
-                existingProfilePictureUrl = null   // 👈 idhu dhaan fix — old URL clear pannudhu
+                existingProfilePictureUrl = null
                 profileImageUri = null
-                topSuccess="Profile Deleted Successfully"
-                authViewModel.updateUserProfilePicture(null)
+                topSuccess = "Profile Deleted Successfully"
+
+                authViewModel.updateUserProfilePictureIfCurrentUser(
+                    targetUserId = memberDetail?._id,
+                    newUrl = null
+                )
+
                 hrViewModel.resetDeletePictureState()
             }
             is HrViewModel.DeletePictureState.Error -> {
@@ -301,7 +329,7 @@ fun EmployeeOnboardingScreen(
     var selectedSecondaryReportingToId by remember { mutableStateOf<String?>(null) }
 
     val createMemberState by hrViewModel.createMemberState.collectAsState()
-    val memberDetail by hrViewModel.memberDetail.collectAsState()
+//    val memberDetail by hrViewModel.memberDetail.collectAsState()
 
     // Add these state variables in your EmployeeOnboardingScreen
 // ── Government IDs validation states ──

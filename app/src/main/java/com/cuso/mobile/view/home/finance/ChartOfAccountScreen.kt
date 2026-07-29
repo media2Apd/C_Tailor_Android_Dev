@@ -43,6 +43,7 @@ package com.cuso.mobile.view.home.finance
     import com.cuso.mobile.viewmodel.CreateAccountState
     import kotlinx.coroutines.launch
     import androidx.compose.material.icons.filled.Visibility
+    import androidx.compose.material.icons.filled.Warning
     import com.cuso.mobile.ui.theme.BluePrimary
     import com.cuso.mobile.ui.theme.BorderGray
     import com.cuso.mobile.ui.theme.TextSecondary
@@ -233,11 +234,16 @@ package com.cuso.mobile.view.home.finance
                     }
 
                     errorMessage != null -> {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = errorMessage ?: "Something went wrong", color = Color.Red)
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
+                                Spacer(Modifier.height(8.dp))
+                                Text("Something went wrong, Please try again later", color = Color.Red)
+                                Spacer(Modifier.height(12.dp))
+                                Button(onClick = { financeViewModel.fetchChartOfAccounts() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(8.dp)) {
+                                    Text("Retry", color = Color.White)
+                                }
+                            }
                         }
                     }
 

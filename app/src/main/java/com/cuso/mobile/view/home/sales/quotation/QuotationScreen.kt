@@ -95,7 +95,9 @@ fun QuotationScreen(
     onClose: () -> Unit = {},
     onAddNe: () -> Unit = {},
     onView: (String) -> Unit = {},
-    onEdit: (String) -> Unit = {}
+    onEdit: (String) -> Unit = {},
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val customerScreenViewModel: CustomerViewModel = hiltViewModel()
@@ -193,7 +195,7 @@ fun QuotationScreen(
             Column(modifier = Modifier.fillMaxWidth()
                 .background(Color(0xFFF8F9FF))
                 ) {
-                ScreenBreadcrumb(segments = listOf("Sales", "Pricing & Quotations"), onClick = {})
+                ScreenBreadcrumb(segments = listOf("Sales", "Pricing & Quotations"), onClick = {onBreadCrumbClick()})
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },

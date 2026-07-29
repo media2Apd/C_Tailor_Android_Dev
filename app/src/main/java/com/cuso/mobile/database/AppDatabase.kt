@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.database.dao.LeadDao
 import com.cuso.mobile.database.dao.OrganizationDao
+import com.cuso.mobile.database.dao.ProfileDao
 import com.cuso.mobile.database.dao.SalesStatusDao
 import com.cuso.mobile.database.dao.SalesSummaryDao
 import com.cuso.mobile.database.dao.SelectedGarmentDao
@@ -43,7 +44,7 @@ import com.cuso.mobile.database.entities.WorkingDayEntity
         LeadEntity::class,
         SelectedGarment::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -57,6 +58,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun salesSummaryDao(): SalesSummaryDao
     abstract fun leadDao(): LeadDao
     abstract fun selectedGarmentDao():  SelectedGarmentDao
+
+    abstract class AppDatabase : RoomDatabase() {
+        abstract fun profileDao(): ProfileDao
+    }
 
     // ⚠️ NOTE: This companion getDatabase() creates a database instance
     // OUTSIDE of Hilt's singleton graph. If any code calls

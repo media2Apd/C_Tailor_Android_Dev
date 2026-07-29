@@ -53,7 +53,8 @@ private fun statusColorOf(status: String): Color = when (status.lowercase()) {
 @Composable
 fun AllPaymentScreen(
     onClose: () -> Unit = {},
-    onViewPayment: (PaymentItem) -> Unit = {}
+    onViewPayment: (PaymentItem) -> Unit = {},
+    onBreadCrumbClick: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -90,7 +91,7 @@ fun AllPaymentScreen(
         Column(modifier = Modifier.fillMaxWidth().background(Color.White)) {
             ScreenBreadcrumb(
                 segments = listOf("Finance", "Purchase Invoice"),
-                onClick = { }
+                onClick = { onBreadCrumbClick() }
             )
             SearchFilterBar(
                 query = searchQuery,

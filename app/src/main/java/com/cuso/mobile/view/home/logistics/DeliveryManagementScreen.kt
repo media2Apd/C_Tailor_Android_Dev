@@ -54,6 +54,8 @@ fun DeliveryManagementScreen(
     onView: (String) -> Unit = {},
     onEdit: (String) -> Unit = {},
     onDelete: (String) -> Unit = {},
+    onBreadCrumbClick: () -> Unit ={}
+
 
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -91,7 +93,7 @@ fun DeliveryManagementScreen(
         }
 
         // ── Breadcrumb ──
-        ScreenBreadcrumb(listOf("Logistics", "Delivery Management"), onClick = {})
+        ScreenBreadcrumb(listOf("Logistics", "Delivery Management"), onClick = {onBreadCrumbClick()})
 
         // ── Search + Filter ──
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {

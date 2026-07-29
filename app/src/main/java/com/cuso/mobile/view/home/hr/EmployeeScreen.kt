@@ -27,6 +27,7 @@ import com.cuso.mobile.model.hr.MemberItem
 import com.cuso.mobile.model.hr.displayName
 import com.cuso.mobile.model.hr.displayRole
 import com.cuso.mobile.model.hr.displayStatus
+import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -68,6 +69,8 @@ fun AllEmployeesScreen(
     branchViewModel: BranchViewModel= hiltViewModel(),
     departmentViewModel: DepartmentViewModel= hiltViewModel(),
     designationViewModel : DesignationViewModel = hiltViewModel(),
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     val members by hrViewModel.members.collectAsStateWithLifecycle()
     val isLoading by hrViewModel.isLoadingMembers.collectAsStateWithLifecycle()
@@ -141,22 +144,27 @@ fun AllEmployeesScreen(
                 )
             }
 
-            // ── Breadcrumb ──
-            ScreenBreadcrumb(listOf("HR","All Employees"), onClick = {})
+            Column(
+                Modifier.background(Primary_background)
+            ) {
 
-            // ── Search + Filter ──
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
-                SearchFilterBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    placeholder = "Search Employees...",
-                    accentColor = AccentColor,
-                    borderColor = BorderColor,
-                    textSecondaryColor = MutedColor,
-                    onFilterClick = { filterDrawerState.open() }   // ✅ opens FilterDrawer
-                )
+                // ── Breadcrumb ──
+                ScreenBreadcrumb(listOf("HR", "All Employees"), onClick = { onBreadCrumbClick() })
+
+                // ── Search + Filter ──
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
+                    SearchFilterBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        placeholder = "Search Employees...",
+                        accentColor = AccentColor,
+                        borderColor = BorderColor,
+                        textSecondaryColor = MutedColor,
+                        onFilterClick = { filterDrawerState.open() }   // ✅ opens FilterDrawer
+                    )
 
 
+                }
             }
 
             HorizontalDivider(color = BorderColor)
@@ -183,7 +191,7 @@ fun AllEmployeesScreen(
                 }
                 else -> {
                     // ── Employee list (reusing shared DataCard) ──
-                    LazyColumn(modifier = Modifier.weight(1f)) {
+                    LazyColumn(modifier = Modifier.weight(1f).background(Primary_background)) {
                         items(members, key = { it._id }) { member ->
                             val isActive = member.status.equals("active", ignoreCase = true)
                             DataCard(

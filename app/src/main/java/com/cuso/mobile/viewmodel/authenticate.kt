@@ -155,6 +155,8 @@ class Authenticate @Inject constructor(
         }
     }
 
+
+
     private suspend fun loadUser() {
         _user.value = loginRepository.getUser()
     }
@@ -602,10 +604,21 @@ class Authenticate @Inject constructor(
 // Update Profile Picture (after upload/delete in HR module)
 // ─────────────────────────────────────────────────────────────
 
-    fun updateUserProfilePicture(newUrl: String?) {
+
+
+    fun updateUserProfilePictureIfCurrentUser(targetUserId: String?, newUrl: String?) {
+        val currentUserId = _user.value?.id
+        Log.d("PROFILE_PIC_DEBUG", "guard check: target=$targetUserId current=$currentUserId")
+
+        if (targetUserId.isNullOrBlank() || currentUserId.isNullOrBlank() || targetUserId != currentUserId) {
+            Log.d("PROFILE_PIC_DEBUG", "guard BLOCKED update")
+            return
+        }
+
         viewModelScope.launch {
-            loginRepository.updateProfilePicture(newUrl)   // Room DB update pannudhu
-            loadUser()                                       // ✅ fresh value DB la irundhu reload — StateFlow update aagum, TopBar recompose aagum
+            loginRepository.updateProfilePicture(currentUserId, newUrl)
+            loadUser()
+            Log.d("PROFILE_PIC_DEBUG", "user reloaded: ${_user.value?.profilePicture}")
         }
     }
 

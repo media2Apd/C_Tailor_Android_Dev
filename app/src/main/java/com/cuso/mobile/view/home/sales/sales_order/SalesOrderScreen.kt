@@ -65,7 +65,9 @@ fun SalesOrderScreen(
     onBack: () -> Unit = {},
     onCreateOrder: () -> Unit = {},
     onViewOrder: (String) -> Unit = {},
-    onEditOrder: (String) -> Unit = {}
+    onEditOrder: (String) -> Unit = {},
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     val viewModel: SalesOrderViewModel = hiltViewModel()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
@@ -163,7 +165,7 @@ fun SalesOrderScreen(
             Column(modifier = Modifier.fillMaxWidth()
                 .background(Color(0xFFF8F9FF))
             ) {
-                ScreenBreadcrumb(segments = listOf("Sales", "Sales Orders"), onClick = {})
+                ScreenBreadcrumb(segments = listOf("Sales", "Sales Orders"), onClick = {onBreadCrumbClick()})
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },

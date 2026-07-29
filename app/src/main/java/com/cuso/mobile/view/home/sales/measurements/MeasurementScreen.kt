@@ -55,7 +55,9 @@ fun MeasurementsScreen(
     navController: NavController,
     viewModel: MeasurementsViewModel = hiltViewModel(),
     onBack: () -> Unit = {},
-    onCreateOrder: () -> Unit = {}
+    onCreateOrder: () -> Unit = {},
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -120,7 +122,7 @@ fun MeasurementsScreen(
                    .background(Color(0xFFF8F9FF))
 
             ) {
-                ScreenBreadcrumb(segments = listOf("Sales", "Measurements"), onClick = {})
+                ScreenBreadcrumb(segments = listOf("Sales", "Measurements"), onClick = {onBreadCrumbClick()})
 
                 // ── Filter Row ──────────────────────────────────────
                 SearchFilterBar(

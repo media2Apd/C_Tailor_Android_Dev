@@ -15,6 +15,16 @@ package com.cuso.mobile.view.home.reusablecomposables
 // `DataTable(items, columns)` / `DataCard(item, ..., fields = columns)`.
 //
 // Add a column → header AND every row AND every card update together.
+//
+// CHANGELOG (this file):
+//  + DataCard: new optional `eyebrowText` / `eyebrowColor` params — a small
+//    label rendered ABOVE the title (e.g. "Order ID: ORD-4401" above "SR-1025").
+//    Purely additive, default null → no visual change for existing screens.
+//  + DataCardField: new optional `valueBadge` / `valueBadgeBgColor` /
+//    `valueBadgeTextColor` / `valueBadgeCornerRadius` params — when
+//    `valueBadge = true` (and rendered as a row), the field's VALUE text is
+//    drawn as a pill/badge instead of plain text (used for things like
+//    "Priority: High"). Default false → no visual change for existing screens.
 // ═════════════════════════════════════════════════════════════════════════
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -91,7 +101,15 @@ data class DataCardField(
     val label: String? = null,
     val asRow: Boolean = false,
     val labelColor: Color = Color(0xFF9CA3AF),
-    val labelBackgroundColor: Color? = null
+    val labelBackgroundColor: Color? = null,
+
+    // NEW — render the VALUE (field.text) as a pill/badge instead of plain
+    // text. Used for things like "Priority: High" where the value itself
+    // needs a colored background. Only applies when the field renders as a row.
+    val valueBadge: Boolean = false,
+    val valueBadgeBgColor: Color = Color(0xFFFDE7E7),
+    val valueBadgeTextColor: Color = Color(0xFFE53935),
+    val valueBadgeCornerRadius: Dp = 20.dp
 )
 
 /**
@@ -205,6 +223,11 @@ fun <T> DataCard(
     bottomBadgeBgColor: Color = Color(0xFF3B3BF9),
     bottomBadgeCornerRadius: Dp = 20.dp,
 
+    // NEW — small label rendered ABOVE the title (e.g. "Order ID: ORD-4401").
+    // Default null → no layout change for screens that don't pass it.
+    eyebrowText: String? = null,
+    eyebrowColor: Color = Color(0xFF6B7280),
+
     title: String,
     titleFontWeight: FontWeight = FontWeight.SemiBold,
     titleFontSize: androidx.compose.ui.unit.TextUnit = 18.sp,      // NEW — default unchanged
@@ -316,6 +339,18 @@ fun <T> DataCard(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
+                    // NEW — eyebrow line above the title
+                    if (eyebrowText != null) {
+                        Text(
+                            eyebrowText,
+                            fontSize = 11.sp,
+                            color = eyebrowColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(Modifier.height(2.dp))
+                    }
+
                     Row(
                         Modifier.fillMaxWidth()
                     ) {
@@ -422,13 +457,31 @@ fun <T> DataCard(
                                 } else {
                                     Text(field.label ?: "", fontSize = 13.sp, color = field.labelColor)
                                 }
-                                Text(
-                                    field.text,
-                                    fontSize = 13.sp,
-                                    color = field.textColor,
-                                    fontWeight = FontWeight.Medium,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.End
-                                )
+
+                                // NEW — render the value as a pill/badge when requested
+                                if (field.valueBadge) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(field.valueBadgeCornerRadius))
+                                            .background(field.valueBadgeBgColor)
+                                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            field.text,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = field.valueBadgeTextColor
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        field.text,
+                                        fontSize = 13.sp,
+                                        color = field.textColor,
+                                        fontWeight = FontWeight.Medium,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.End
+                                    )
+                                }
                             }
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -449,7 +502,6 @@ fun <T> DataCard(
                 }
             }
 
-            // ── Bottom badge (below everything, at the bottom of the card) ──
             // ── Bottom badge (below everything, at the bottom of the card) ──
             if (bottomBadgeText != null) {
                 Spacer(Modifier.height(10.dp))

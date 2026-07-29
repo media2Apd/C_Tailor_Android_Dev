@@ -53,7 +53,9 @@ private val StripBg = Color(0xFFF9FAFB)
 fun PricingScreen(
     onClose: () -> Unit,
     onAddNewPricing: () -> Unit = {},
-    onCardClick: (String) -> Unit = {}   // ✅ NEW — navigates to AddGarmentPricingScreen(pricingId = item.id) for Edit
+    onCardClick: (String) -> Unit = {},
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     val viewModel: PricingQuotationViewModel = hiltViewModel()
     val listState by viewModel.garmentPricingListState.collectAsStateWithLifecycle()
@@ -105,7 +107,7 @@ fun PricingScreen(
                 // Breadcrumb
                 ScreenBreadcrumb(
                     segments = listOf("Sales", "Pricing & Quotations"),
-                    onClick = {}
+                    onClick = {onBreadCrumbClick()}
                 )
 
             }

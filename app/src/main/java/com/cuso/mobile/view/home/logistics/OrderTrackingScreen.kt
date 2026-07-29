@@ -45,7 +45,8 @@ private val dummyOrders = List(11) { index ->
 @Composable
 fun OrderTrackingScreen(
     onClose: () -> Unit = {},
-    onViewOrder: (OrderTrackingItem) -> Unit = {}
+    onViewOrder: (OrderTrackingItem) -> Unit = {},
+    onBreadCrumbClick: () -> Unit ={}
 
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -86,7 +87,7 @@ fun OrderTrackingScreen(
             }
 
             // ── Breadcrumb ──
-            ScreenBreadcrumb(listOf("Logistics", "Order Tracking"), onClick = {})
+            ScreenBreadcrumb(listOf("Logistics", "Order Tracking"), onClick = {onBreadCrumbClick()})
 
             // ── Search + filter row ──
             SearchFilterBar(

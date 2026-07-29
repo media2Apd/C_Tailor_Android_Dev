@@ -101,7 +101,9 @@ fun CustomerScreen(
     onCreateCustomer: () -> Unit = {},
     onView: (CustomerItem) -> Unit = {},
     onEdit: (CustomerItem) -> Unit = {},
-    onDelete: (CustomerItem) -> Unit = {}
+    onDelete: (CustomerItem) -> Unit = {},
+    onBreadCrumbClick: () -> Unit ={}
+
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -199,7 +201,7 @@ fun CustomerScreen(
                 Column(modifier = Modifier.fillMaxWidth()
                                  .background(Color(0xFFF8F9FF))
                 ) {
-                    ScreenBreadcrumb(segments = listOf("Sales", "Customers"), onClick = {})
+                    ScreenBreadcrumb(segments = listOf("Sales", "Customers"), onClick = {onBreadCrumbClick()})
 
                         SearchFilterBar(
                             query = searchQuery,

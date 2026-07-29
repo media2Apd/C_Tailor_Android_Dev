@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.cuso.mobile.model.inventory.ItemType
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.viewmodel.CreateItemUiState
 import com.cuso.mobile.viewmodel.InventoryViewModel
@@ -544,11 +545,13 @@ fun CreateItemScreen(
 
 @Composable
  fun AccordionSection(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.vector.ImageVector?=null,
     title: String,
     expanded: Boolean,
     onHeaderClick: () -> Unit,
+    iconTint: Color = Primary,
     content: @Composable ColumnScope.() -> Unit
+
 ) {
     Column {
         Row(
@@ -561,7 +564,10 @@ fun CreateItemScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, null, tint = AccentColor, modifier = Modifier.size(20.dp))
+                if (icon != null) {
+                    Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(10.dp))
+                }
                 Spacer(Modifier.width(10.dp))
                 Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
             }

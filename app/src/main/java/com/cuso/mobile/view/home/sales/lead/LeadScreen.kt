@@ -6,12 +6,10 @@
     "AssignedValueIsNeverRead",
     "VariableNeverRead",
     "unused"
-
 )
 package com.cuso.mobile.view.home.sales.lead
 
 import android.annotation.SuppressLint
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -118,6 +116,7 @@ import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
@@ -161,7 +160,7 @@ fun LeadFormTopBar(
     badgeText: String,
     badgeColor: Color = LeadPrimary,
     onClose: () -> Unit,
-    isConverted: Boolean = true,          // true = show badge, false = show Convert button
+    isConverted: Boolean = true,
     onConvertToOrder: () -> Unit = {}
 ) {
     Row(
@@ -176,7 +175,6 @@ fun LeadFormTopBar(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
 
             if (isConverted) {
-                // ---- Badge (shown after successful conversion) ----
                 if (badgeText.isNotBlank()) {
                     Box(
                         modifier = Modifier
@@ -187,7 +185,6 @@ fun LeadFormTopBar(
                     }
                 }
             } else {
-                // ---- Convert to Order button (shown before conversion) ----
                 Row(
                     modifier = Modifier
                         .background(LeadPrimary, RoundedCornerShape(20.dp))
@@ -309,8 +306,8 @@ fun LeadInfoBanner(text: String) {
         }
     }
 }
-@Suppress("UNUSED_PARAMETER")
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun LeadAccordionSection(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -323,8 +320,7 @@ fun LeadAccordionSection(
 ) {
     val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f, label = "lead_chevron")
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -336,15 +332,6 @@ fun LeadAccordionSection(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-//            Box(
-//                modifier = Modifier
-//                    .size(36.dp)
-//                    .background(LeadPrimarySoft, RoundedCornerShape(10.dp)),
-//                contentAlignment = Alignment.Center
-//            ) {
-//                Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
-//            }
-//            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
             }
@@ -378,7 +365,6 @@ fun LeadAccordionSection(
     }
 }
 
-
 private fun validateLeadFields(
     leadSource: String,
     enquiryDate: String,
@@ -411,12 +397,6 @@ private fun validateLeadFields(
     if (fullName.isBlank()) missing += "Full Name"
     if (phone.isBlank()) missing += "Mobile Number"
     if (email.isBlank()) missing += "Email"
-    // ✅ Gender & DOB required only for Individual
-    if (customerType.equals("Individual", ignoreCase = true)) {
-        if (gender.isBlank()) missing += "Gender"
-        if (dob.isBlank()) missing += "Date of Birth"
-    }
-    if (preferredContact.isBlank()) missing += "Preferred Contact Method"
     if (enquiryType.isBlank()) missing += "Enquiry Type"
     if (estimatedQuantity.isBlank()) missing += "Estimated Quantity"
     if (garmentCategory.isBlank()) missing += "Garment Category"
@@ -485,16 +465,14 @@ fun CreateLeadScreen(
 
     var expandedSection by remember { mutableStateOf("lead_info") }
 
-// ✅ NEW — error tracking state
     var errorField by remember { mutableStateOf<String?>(null) }
     var validationError by remember { mutableStateOf<String?>(null) }
 
-// ✅ NEW — maps field key -> accordion section key
     val leadSectionFieldMap = remember {
         mapOf(
             "lead_info" to listOf("leadSource", "enquiryDate", "leadOwner", "leadStatus"),
-            "customer" to listOf("fullName", "phone", "email", "gender", "dob"),
-            "location" to listOf("preferredContact"),
+            "customer" to listOf("fullName", "phone", "email"),
+            "location" to emptyList(),
             "enquiry" to listOf("enquiryType", "estimatedQuantity", "garmentCategory", "requiredDate"),
             "appointment" to listOf("appointmentDate", "appointmentTime", "assignedStaff", "followUpDate", "priority")
         )
@@ -512,7 +490,6 @@ fun CreateLeadScreen(
     val salesStatuses      by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
     val garmentCategories  by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
 
-    // ✅ Staff list for dropdown
     val staffDisplayList   = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
     val staffIdMap         = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
     val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == leadOwner }?.key ?: "Select an option"
@@ -522,8 +499,6 @@ fun CreateLeadScreen(
     val garmentIdMap       = garmentCategories.associate { it.categoryId.categoryName to it.id }
     val garmentOptions     = garmentCategories.map { it.categoryId.categoryName }
 
-
-
     fun clearAllFields() {
         leadSource = ""; enquiryDate = ""; leadStatus = ""; customerType = "Individual"
         fullName = ""; email = ""; gender = ""; dob = ""; address = ""; areaZone = ""; city = ""
@@ -531,12 +506,10 @@ fun CreateLeadScreen(
         budgetRange = 1000f; requiredDate = ""; occasion = ""; appointmentRequired = false
         appointmentDate = ""; appointmentTime = ""; assignedStaff = ""; followUpDate = ""
         priority = ""; internalNotes = ""; customerNotes = ""; phone = ""
-        leadOwner = ""  // ✅ Reset lead owner too
+        leadOwner = ""
     }
 
-
     fun submitLead() {
-
         val baseFields = buildList {
             add(ValidationField("leadSource", leadSource, "Lead Source is required"))
             add(ValidationField("enquiryDate", enquiryDate, "Enquiry Date is required"))
@@ -545,12 +518,6 @@ fun CreateLeadScreen(
             add(ValidationField("fullName", fullName, "Full Name is required"))
             add(ValidationField("phone", phone, "Mobile Number is required"))
             add(ValidationField("email", email, "Email is required"))
-            // ✅ Gender & DOB required only when Individual
-            if (customerType.equals("Individual", ignoreCase = true)) {
-                add(ValidationField("gender", gender, "Gender is required"))
-                add(ValidationField("dob", dob, "Date of Birth is required"))
-            }
-            add(ValidationField("preferredContact", preferredContact, "Preferred Contact Method is required"))
             add(ValidationField("enquiryType", enquiryType, "Enquiry Type is required"))
             add(ValidationField("estimatedQuantity", estimatedQuantity, "Estimated Quantity is required"))
             add(ValidationField("garmentCategory", selectedGarmentCategories.joinToString(","), "Garment Category is required"))
@@ -571,7 +538,7 @@ fun CreateLeadScreen(
             errorField = result.fieldKey
             validationError = result.message
             expandedSection = FieldValidator.resolveSection(result.fieldKey, leadSectionFieldMap) ?: expandedSection
-            return   // ✅ stop — don't submit
+            return
         }
         errorField = null
         val error = validateLeadFields(
@@ -598,7 +565,7 @@ fun CreateLeadScreen(
             enquiryDate = enquiryDate.toIsoDate(),
             requiredDate = requiredDate.toIsoDate(),
             source = leadSource,
-            leadOwner = leadOwner,          // ✅ NEW — was being collected but never sent
+            leadOwner = leadOwner,
             person = LeadPerson(
                 name = fullName,
                 phone = phone,
@@ -636,14 +603,19 @@ fun CreateLeadScreen(
     }
 
     LaunchedEffect(leadState) {
-        if (leadState is SaleState.Success) {
-            salesViewModel.resetLeadState()
-            salesViewModel.fetchSalesData()
-            onBack()
+        when (val state = leadState) {
+            is SaleState.Success<*> -> {
+                salesViewModel.fetchSalesData()
+                onBack()
+            }
+            is SaleState.Error -> {
+                validationError = state.message
+            }
+            else -> Unit
         }
     }
-    Box(modifier = Modifier.fillMaxSize()) {
 
+    Box(modifier = Modifier.fillMaxSize()) {
 
         Scaffold(
             containerColor = Color(0xFFF5F5F7),
@@ -693,18 +665,17 @@ fun CreateLeadScreen(
                                     leadSourceExpanded, { leadSourceExpanded = it },
                                     leadSourceOptions, { leadSource = it },
                                     isRequired = true,
-                                    isError = errorField == "leadSource",                                      // ✅ NEW
-                                    errorMessage = if (errorField == "leadSource") "Lead Source is required" else null  // ✅ NEW
+                                    isError = errorField == "leadSource",
+                                    errorMessage = if (errorField == "leadSource") "Lead Source is required" else null
                                 )
                                 Spacer(Modifier.height(14.dp))
                                 FormLabel("Enquiry Date", isRequired = true)
                                 DatePickerField(
                                     value = enquiryDate.ifEmpty { "Select Date" },
                                     onDateSelected = { enquiryDate = it },
-                                    isError = errorField =="enquiryDate")
+                                    isError = errorField == "enquiryDate")
                                 Spacer(Modifier.height(14.dp))
 
-                                // ✅ Lead Owner - populated from API
                                 FormDropdown(
                                     "Lead Owner",
                                     selectedStaffLabel.ifEmpty {
@@ -714,12 +685,11 @@ fun CreateLeadScreen(
                                     { leadOwnerExpanded = it },
                                     staffDisplayList,
                                     { label ->
-                                        leadOwner = staffIdMap[label] ?: ""  // ✅ Store the staff ID
+                                        leadOwner = staffIdMap[label] ?: ""
                                     },
                                     isRequired = true,
                                     isError = errorField == "leadOwner",
                                     errorMessage = if (errorField == "leadOwner") "Lead Owner is required" else null
-
                                 )
 
                                 Spacer(Modifier.height(14.dp))
@@ -733,7 +703,6 @@ fun CreateLeadScreen(
                                     isRequired = true,
                                     isError = errorField == "leadStatus",
                                     errorMessage = if (errorField == "leadStatus") "Lead Status is required" else null
-
                                 )
                             }
                         }
@@ -771,18 +740,14 @@ fun CreateLeadScreen(
                                                 if (type == "Individual") Icons.Default.Person else Icons.Default.Business,
                                                 type,
                                                 modifier = Modifier.size(16.dp),
-                                                tint = if (isSelected) LeadPrimary else Color(
-                                                    0xFF6B7280
-                                                )
+                                                tint = if (isSelected) LeadPrimary else Color(0xFF6B7280)
                                             )
                                             Spacer(Modifier.width(6.dp))
                                             Text(
                                                 type,
                                                 fontSize = 14.sp,
                                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                                color = if (isSelected) Color.Black else Color(
-                                                    0xFF6B7280
-                                                )
+                                                color = if (isSelected) Color.Black else Color(0xFF6B7280)
                                             )
                                         }
                                     }
@@ -821,10 +786,7 @@ fun CreateLeadScreen(
                                         genderExpanded,
                                         { genderExpanded = it },
                                         genderOptions,
-                                        { gender = it },
-                                        isError = errorField == "gender",
-                                        errorMessage = if (errorField == "gender") "Gender is required" else null
-
+                                        { gender = it }
                                     )
                                     Spacer(Modifier.height(14.dp))
                                     FormLabel("Date of Birth")
@@ -861,10 +823,7 @@ fun CreateLeadScreen(
                                     preferredContactExpanded,
                                     { preferredContactExpanded = it },
                                     preferredContactOptions,
-                                    { preferredContact = it },
-                                    isError = errorField == "preferredContact",
-                                    errorMessage = if (errorField == "preferredContact") "Preferred Contact Method is required" else null
-
+                                    { preferredContact = it }
                                 )
                             }
                         }
@@ -938,9 +897,7 @@ fun CreateLeadScreen(
                                                 Text(
                                                     option,
                                                     fontSize = 13.sp,
-                                                    color = if (isSelected) LeadPrimary else Color(
-                                                        0xFF374151
-                                                    ),
+                                                    color = if (isSelected) LeadPrimary else Color(0xFF374151),
                                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                                                 )
                                             }
@@ -949,7 +906,6 @@ fun CreateLeadScreen(
                                 }
                                 Spacer(Modifier.height(14.dp))
 
-                                //SLIDER BUDGET RANGE
                                 FormLabel("Budget Range")
                                 BudgetRangeSlider(
                                     value = budgetRange,
@@ -1010,7 +966,6 @@ fun CreateLeadScreen(
                                         { label -> assignedStaff = staffIdMap[label] ?: "" },
                                         isError = errorField == "assignedStaff",
                                         errorMessage = if (errorField == "assignedStaff") "Assigned Staff is required" else null
-
                                     )
                                     Spacer(Modifier.height(14.dp))
                                     FormLabel("Follow-up Date", isRequired = true)
@@ -1028,7 +983,6 @@ fun CreateLeadScreen(
                                         isRequired = true,
                                         isError = errorField == "priority",
                                         errorMessage = if (errorField == "priority") "Priority is required" else null
-
                                     )
                                 } else {
                                     Text(
@@ -1111,21 +1065,10 @@ fun CreateLeadScreen(
                             }
                         }
 
-                        if (leadState is SaleState.Error) {
-                            item {
-                                Text(
-                                    (leadState as SaleState.Error).message,
-                                    color = Color.Red,
-                                    fontSize = 12.sp
-                                )
-                            }
-                        }
-
                         item { Spacer(Modifier.height(90.dp)) }
                     }
                 }
             }
-            // ✅ NEW — floats above everything, respects camera bump
             DynamicIslandError(
                 modifier = Modifier.align(Alignment.TopCenter),
                 message = validationError,
@@ -1143,24 +1086,21 @@ fun LeadScreenContent(
     onCreateLead: () -> Unit = {},
     onViewLead: () -> Unit = {},
     onEditLead: () -> Unit = {},
-    onClose:()->Unit={},
-    onBreadCrumbClick: () -> Unit ={}
-
+    onClose: () -> Unit = {},
+    onBreadCrumbClick: () -> Unit = {}
 ) {
     val salesViewModel: SalesViewModel = hiltViewModel()
-    val context = LocalContext.current
 
     val leads by salesViewModel.tableLeads.collectAsStateWithLifecycle()
     val isLoading by salesViewModel.isLoadingTableLeads.collectAsStateWithLifecycle()
     val tableError by salesViewModel.tableError.collectAsStateWithLifecycle()
     val deleteState by salesViewModel.deleteState.collectAsStateWithLifecycle()
     val updateState by salesViewModel.updateState.collectAsStateWithLifecycle()
+    val leadState by salesViewModel.leadState.collectAsStateWithLifecycle()
 
     val salesStatuses by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
-
-    val staffDisplayMap = staffList.associate { it.id to "${it.firstName} ${it.lastName} - ${it.memberId}" }
 
     var actionMenuLeadId by remember { mutableStateOf<String?>(null) }
     var leadToDelete by remember { mutableStateOf<LeadTableItem?>(null) }
@@ -1171,7 +1111,6 @@ fun LeadScreenContent(
     val filterDrawerState = rememberFilterDrawerState()
     var searchQuery by remember { mutableStateOf("") }
 
-    // ✅ NEW — server-driven pagination state (client-side itemsPerPage/currentPage removed)
     val currentPage by salesViewModel.currentPage.collectAsStateWithLifecycle()
     val pageSize by salesViewModel.pageSize.collectAsStateWithLifecycle()
     val totalLeads by salesViewModel.totalLeads.collectAsStateWithLifecycle()
@@ -1179,6 +1118,9 @@ fun LeadScreenContent(
     var filterSections by remember {
         mutableStateOf(buildFilterSections(emptyList(), emptyList(), emptyList(), emptyList(), emptyList()))
     }
+
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(salesStatuses, garmentCategories, staffList, leads) {
         val dynamicSources = leads.map { it.source }.filter { it.isNotBlank() }.distinct().sorted()
@@ -1192,18 +1134,34 @@ fun LeadScreenContent(
         salesViewModel.fetchSalesData()
     }
 
+    LaunchedEffect(leadState) {
+        when (val state = leadState) {
+            is SaleState.Success<*> -> {
+                successMessage = "Lead Created Successfully"
+                salesViewModel.resetLeadState()
+                salesViewModel.fetchSalesData()
+                salesViewModel.fetchTableLeads()
+            }
+            is SaleState.Error -> {
+                errorMessage = state.message
+                salesViewModel.resetLeadState()
+            }
+            else -> Unit
+        }
+    }
+
     LaunchedEffect(deleteState) {
         when (val currentState = deleteState) {
             is SaleState.Loading -> { isDeleting = true }
-            is SaleState.Success -> {
+            is SaleState.Success<*> -> {
                 isDeleting = false
+                successMessage = "Lead Deleted Successfully"
                 salesViewModel.resetDeleteState()
                 salesViewModel.fetchTableLeads()
-                Toast.makeText(context, "Lead deleted successfully!", Toast.LENGTH_SHORT).show()
             }
             is SaleState.Error -> {
                 isDeleting = false
-                Toast.makeText(context, "Failed to delete lead: ${currentState.message}", Toast.LENGTH_LONG).show()
+                errorMessage = "Failed to delete lead: ${currentState.message}"
                 salesViewModel.resetDeleteState()
             }
             else -> { isDeleting = false }
@@ -1211,9 +1169,17 @@ fun LeadScreenContent(
     }
 
     LaunchedEffect(updateState) {
-        if (updateState is SaleState.Success) {
-            salesViewModel.fetchTableLeads()
-            salesViewModel.resetUpdateState()
+        when (val state = updateState) {
+            is SaleState.Success<*> -> {
+                successMessage = "Lead Updated Successfully"
+                salesViewModel.fetchTableLeads()
+                salesViewModel.resetUpdateState()
+            }
+            is SaleState.Error -> {
+                errorMessage = "Failed to update lead: ${state.message}"
+                salesViewModel.resetUpdateState()
+            }
+            else -> Unit
         }
     }
 
@@ -1234,8 +1200,6 @@ fun LeadScreenContent(
         }
     }
 
-    // ✅ NOTE — intha filter client-side ah current page data mattum filter pannும்.
-    // Full dataset search venumna, backend-ku search/status params anупுrathு vera approach venum.
     val filteredLeads = leads.filter { lead ->
         val matchesSearch = searchQuery.isBlank() ||
                 lead.person.name.contains(searchQuery, ignoreCase = true) ||
@@ -1290,9 +1254,6 @@ fun LeadScreenContent(
         matchesSearch && matchesStatus && matchesSource && matchesGarments && matchesPriority && matchesAmount && matchesSalesPerson
     }
 
-    // ❌ REMOVED — client-side totalPages/pagedLeads calc (`filteredLeads.size`, `itemsPerPage` drop/take)
-    // ippo server already correct page-oda data anупுthu, so filteredLeads-ஐயே நேரடி ah use pannுறோம்
-
     fun resolveStatusBadge(lead: LeadTableItem): Pair<String, Color> {
         val statusName = when (lead.status) {
             is String -> lead.status
@@ -1321,7 +1282,7 @@ fun LeadScreenContent(
             isLoadingView = false
             if (success) onViewLead()
             else {
-                Toast.makeText(context, "Failed to load lead details", Toast.LENGTH_SHORT).show()
+                errorMessage = "Failed to load lead details"
                 salesViewModel.selectLead(lead.toLeadEntity())
                 onViewLead()
             }
@@ -1335,194 +1296,206 @@ fun LeadScreenContent(
             isLoadingEdit = false
             if (success) onEditLead()
             else {
-                Toast.makeText(context, "Failed to load lead details for editing", Toast.LENGTH_SHORT).show()
+                errorMessage = "Failed to load lead details for editing"
                 salesViewModel.selectLead(lead.toLeadEntity())
                 onEditLead()
             }
         }
     }
 
-    FabScaffold(
-        fab = FabConfig(
-            label = "Create Lead",
-            icon = Icons.Default.Add,
-            onClick = onCreateLead,
-            bottomPadding = 50.dp
-        ),
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFF5F5F7))
+    Box(modifier = Modifier.fillMaxSize()) {
+        FabScaffold(
+            fab = FabConfig(
+                label = "Create Lead",
+                icon = Icons.Default.Add,
+                onClick = onCreateLead,
+                bottomPadding = 50.dp
+            ),
+            modifier = Modifier.fillMaxSize()
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .fillMaxSize()
+                    .background(Color(0xFFF5F5F7))
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Text("Lead Management", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = Color.Black,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) { onClose() }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Lead Management", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.Black,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onClose() }
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                Column(
+                    modifier = Modifier
+                        .background(Color(0xFFF8F9FF))
+                        .fillMaxWidth()
+                ) {
+                    ScreenBreadcrumb(listOf("Sales","Lead Management"), onClick = { onBreadCrumbClick() })
+
+                    SearchFilterBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        placeholder = "Search Leads...",
+                        accentColor = BluePrimary,
+                        borderColor = BorderGray,
+                        textSecondaryColor = TextSecondary,
+                        onFilterClick = { filterDrawerState.open() }
                     )
                 }
-                Spacer(Modifier.height(8.dp))
-            }
 
-            Column(
-                modifier = Modifier
-                    .background(Color(0xFFF8F9FF))
-                    .fillMaxWidth()
-            ) {
-                ScreenBreadcrumb(listOf("Sales","Lead Management"), onClick = {onBreadCrumbClick()})
-
-                SearchFilterBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                    placeholder = "Search Leads...",
-                    accentColor = BluePrimary,
-                    borderColor = BorderGray,
-                    textSecondaryColor = TextSecondary,
-                    onFilterClick = { filterDrawerState.open() }
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            ) {
-                when {
-                    isLoading -> {
-                        ListSkeleton()
-                    }
-                    tableError != null -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.White, RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
-                                Spacer(Modifier.height(8.dp))
-                                Text("Error loading leads", color = Color.Red, fontWeight = FontWeight.Bold)
-                                Text(tableError ?: "Unknown error", color = Color.Gray, fontSize = 14.sp)
-                                Spacer(Modifier.height(12.dp))
-                                Button(onClick = { salesViewModel.fetchTableLeads() }) {
-                                    Text("Retry")
-                                }
-                            }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    when {
+                        isLoading -> {
+                            ListSkeleton()
                         }
-                    }
-                    filteredLeads.isEmpty() -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.White, RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(Modifier.padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                val hasFilters = filterSections.any { section -> section.options.any { it.isSelected } }
-                                Text(
-                                    if (searchQuery.isNotBlank() || hasFilters)
-                                        "No matching leads found"
-                                    else "No Leads Yet",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF111827)
-                                )
-                                Spacer(Modifier.height(6.dp))
-                                Text(
-                                    if (searchQuery.isNotBlank() || hasFilters)
-                                        "Try adjusting your search or filter"
-                                    else "Start by creating your first lead",
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF9CA3AF)
-                                )
-                                Spacer(Modifier.height(20.dp))
-                                Button(
-                                    onClick = onCreateLead,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
-                                ) {
-                                    Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                }
-                            }
-                        }
-                    }
-                    else -> {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            Column(
+                        tableError != null -> {
+                            Box(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                                    .verticalScroll(rememberScrollState())
+                                    .fillMaxSize()
+                                    .background(Color.White, RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(0.dp)
-                                ) {
-                                    // ✅ CHANGED — pagedLeads -> filteredLeads (server already page-wise data anупுthu)
-                                    filteredLeads.forEach { lead ->
-                                        val (badgeText, badgeColor) = resolveStatusBadge(lead)
-                                        DataCard(
-                                            item = lead,
-                                            dateText = formatLeadDate(lead.requiredDate?.takeIf { it.isNotBlank() } ?: lead.enquiryDate),
-                                            topBadgeText = badgeText,
-                                            topBadgeTextColor = badgeColor,
-                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-                                            title = lead.person.name.ifEmpty { "—" },
-                                            subtitle = "${lead.enquiryType.ifEmpty { "—" }} • ${getGarmentName(lead)} • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
-                                            footerFields = listOf(
-                                                DataCardField(
-                                                    text = "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}"
-                                                )
-                                            ),
-                                            actions = listOf(
-                                                MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClicked(lead) },
-                                                MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClicked(lead) },
-                                                MenuAction(
-                                                    "Delete", Icons.Default.Delete,
-                                                    tint = Color(0xFFF44336), textColor = Color(0xFFF44336),
-                                                    enabled = !isDeleting
-                                                ) { leadToDelete = lead }
-                                            )
-                                        )
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
+                                    Spacer(Modifier.height(8.dp))
+                                    Text("Error loading leads", color = Color.Red, fontWeight = FontWeight.Bold)
+                                    Text(tableError ?: "Unknown error", color = Color.Gray, fontSize = 14.sp)
+                                    Spacer(Modifier.height(12.dp))
+                                    Button(onClick = { salesViewModel.fetchTableLeads() }) {
+                                        Text("Retry")
                                     }
                                 }
                             }
+                        }
+                        filteredLeads.isEmpty() -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.White, RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(Modifier.padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    val hasFilters = filterSections.any { section -> section.options.any { it.isSelected } }
+                                    Text(
+                                        if (searchQuery.isNotBlank() || hasFilters)
+                                            "No matching leads found"
+                                        else "No Leads Yet",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF111827)
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(
+                                        if (searchQuery.isNotBlank() || hasFilters)
+                                            "Try adjusting your search or filter"
+                                        else "Start by creating your first lead",
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF9CA3AF)
+                                    )
+                                    Spacer(Modifier.height(20.dp))
+                                    Button(
+                                        onClick = onCreateLead,
+                                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                                    ) {
+                                        Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                    }
+                                }
+                            }
+                        }
+                        else -> {
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth()
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                                    ) {
+                                        filteredLeads.forEach { lead ->
+                                            val (badgeText, badgeColor) = resolveStatusBadge(lead)
+                                            DataCard(
+                                                item = lead,
+                                                dateText = formatLeadDate(lead.requiredDate?.takeIf { it.isNotBlank() } ?: lead.enquiryDate),
+                                                topBadgeText = badgeText,
+                                                topBadgeTextColor = badgeColor,
+                                                topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
+                                                title = lead.person.name.ifEmpty { "—" },
+                                                subtitle = "${lead.enquiryType.ifEmpty { "—" }} • ${getGarmentName(lead)} • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
+                                                footerFields = listOf(
+                                                    DataCardField(
+                                                        text = "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}"
+                                                    )
+                                                ),
+                                                actions = listOf(
+                                                    MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClicked(lead) },
+                                                    MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClicked(lead) },
+                                                    MenuAction(
+                                                        "Delete", Icons.Default.Delete,
+                                                        tint = Color(0xFFF44336), textColor = Color(0xFFF44336),
+                                                        enabled = !isDeleting
+                                                    ) { leadToDelete = lead }
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
 
-                            // ── Pagination Footer — reusable composable ──
-                            PaginationFooter(
-                                currentPage = currentPage,
-                                pageSize = pageSize,
-                                totalItems = totalLeads,
-                                onPageChange = { salesViewModel.onPageChange(it) },
-                                onItemsPerPageChange = { salesViewModel.onItemsPerPageChange(it) }
-                            )
+                                PaginationFooter(
+                                    currentPage = currentPage,
+                                    pageSize = pageSize,
+                                    totalItems = totalLeads,
+                                    onPageChange = { salesViewModel.onPageChange(it) },
+                                    onItemsPerPageChange = { salesViewModel.onItemsPerPageChange(it) }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+
+        // Top notification banners
+        DynamicIslandSuccess(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = errorMessage,
+            onDismiss = { errorMessage = null }
+        )
     }
 
     if (leadToDelete != null) {
@@ -1579,8 +1552,6 @@ fun LeadScreenContent(
     )
 }
 
-
-
 // ─────────────────────────────────────────────────────────────
 // ViewLeadScreen
 // ─────────────────────────────────────────────────────────────
@@ -1590,7 +1561,6 @@ fun ViewLeadScreen(
     onEditLead: () -> Unit
 ) {
     val salesViewModel: SalesViewModel = hiltViewModel()
-    val context = LocalContext.current
 
     val lead by salesViewModel.selectedLead.collectAsStateWithLifecycle()
     val isLoading by salesViewModel.isLoadingLeadDetails.collectAsStateWithLifecycle()
@@ -1598,11 +1568,10 @@ fun ViewLeadScreen(
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
 
-    // ID -> "First Last - MemberId" map, same pattern as LeadScreenContent / CreateLeadScreen
     val staffDisplayMap = staffList.associate { it.id to "${it.firstName} ${it.lastName} - ${it.memberId}" }
 
     LaunchedEffect(Unit) {
-        if (staffList.isEmpty()) salesViewModel.fetchStaff()   // ✅ ensure staff is fetched in view mode too
+        if (staffList.isEmpty()) salesViewModel.fetchStaff()
     }
 
     var sectionLeadInfo    by remember { mutableStateOf(true) }
@@ -1611,6 +1580,8 @@ fun ViewLeadScreen(
     var sectionEnquiry     by remember { mutableStateOf(false) }
     var sectionAppointment by remember { mutableStateOf(false) }
     var sectionNotes       by remember { mutableStateOf(false) }
+
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     if (isLoading) {
         Box(
@@ -1651,7 +1622,6 @@ fun ViewLeadScreen(
 
     if (lead == null) {
         LaunchedEffect(Unit) {
-            Toast.makeText(context, "Lead data not found", Toast.LENGTH_SHORT).show()
             onBack()
         }
         return
@@ -1659,10 +1629,8 @@ fun ViewLeadScreen(
 
     val l = lead!!
 
-
     var appointmentRequired by remember(l.id) { mutableStateOf(l.appointmentRequired) }
 
-    // ✅ Lead Owner — resolve staff ID to display name safely (nullable-safe)
     val leadOwnerDisplay = remember(l.leadOwner, staffDisplayMap) {
         val ownerId = l.leadOwner
         if (ownerId.isBlank()) {
@@ -1672,7 +1640,6 @@ fun ViewLeadScreen(
         }
     }
 
-    // ✅ Assigned Staff — resolve staff ID to display name safely (non-null String field)
     val assignedStaffDisplay = remember(l.assignedStaff, staffDisplayMap) {
         val staffId = l.assignedStaff
         if (staffId.isNullOrBlank()) {
@@ -1708,7 +1675,7 @@ fun ViewLeadScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 90.dp)   // ✅ NEW — room so floating FABs don't cover last item
+                    contentPadding = PaddingValues(bottom = 90.dp)
                 ) {
                     item {
                         LeadAccordionSection(
@@ -1720,183 +1687,187 @@ fun ViewLeadScreen(
                         ) {
                             ViewFieldValue("Lead Source", l.source.ifEmpty { "—" })
                             ViewFieldValue("Enquiry Date", formatLeadDate(l.enquiryDate))
-                            ViewFieldValue("Lead Owner", leadOwnerDisplay)   // ✅ resolved from API staff list
+                            ViewFieldValue("Lead Owner", leadOwnerDisplay)
                             ViewFieldValue("Lead Status", l.status.ifEmpty { "—" })
                         }
                     }
 
-                item {
-                    LeadAccordionSection(
-                        icon = Icons.Default.Person,
-                        title = "Customer Identity",
-                        subtitle = "Who is this lead for?",
-                        expanded = sectionCustomer,
-                        onExpandChange = { sectionCustomer = it }
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                                .padding(4.dp)
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.Person,
+                            title = "Customer Identity",
+                            subtitle = "Who is this lead for?",
+                            expanded = sectionCustomer,
+                            onExpandChange = { sectionCustomer = it }
                         ) {
-                            listOf("Individual", "Corporate").forEach { type ->
-                                val isSelected = l.customerType.equals(type, ignoreCase = true)
-                                Row(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(if (isSelected) Color.White else Color.Transparent)
-                                        .padding(vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        if (type == "Individual") Icons.Default.Person else Icons.Default.Business,
-                                        type,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = if (isSelected) LeadPrimary else Color(0xFF6B7280)
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(type, fontSize = 14.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, color = if (isSelected) Color.Black else Color(0xFF6B7280))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                                    .padding(4.dp)
+                            ) {
+                                listOf("Individual", "Corporate").forEach { type ->
+                                    val isSelected = l.customerType.equals(type, ignoreCase = true)
+                                    Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(if (isSelected) Color.White else Color.Transparent)
+                                            .padding(vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            if (type == "Individual") Icons.Default.Person else Icons.Default.Business,
+                                            type,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = if (isSelected) LeadPrimary else Color(0xFF6B7280)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(type, fontSize = 14.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, color = if (isSelected) Color.Black else Color(0xFF6B7280))
+                                    }
                                 }
                             }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        ViewFieldValue("Full Name", l.fullName.ifEmpty { "—" })
-                        ViewFieldValue("Phone", l.phone.ifEmpty { "—" })
-                        ViewFieldValue("Email", l.email.ifEmpty { "—" })
-                        if (l.customerType.equals("Individual", ignoreCase = true)) {
-                            ViewFieldValue("Gender", l.gender.ifEmpty { "—" })
-                            ViewFieldValue("Date of Birth", formatLeadDate(l.dob))
-                        }
-                    }
-                }
-
-                item {
-                    LeadAccordionSection(
-                        icon = Icons.Default.LocationOn,
-                        title = "Location & Communication",
-                        subtitle = "Contact details and preferences",
-                        expanded = sectionLocation,
-                        onExpandChange = { sectionLocation = it }
-                    ) {
-                        ViewFieldValue("Address", l.address.ifEmpty { "—" })
-                        ViewFieldValue("Area / Zone", l.area.ifEmpty { "—" })
-                        ViewFieldValue("City", l.city.ifEmpty { "—" })
-                        ViewFieldValue("Preferred Contact Method", l.preferredContactMethod.ifEmpty { "—" })
-                    }
-                }
-
-                item {
-                    LeadAccordionSection(
-                        icon = Icons.AutoMirrored.Filled.Assignment,
-                        title = "Enquiry Details",
-                        subtitle = "What are they looking for?",
-                        expanded = sectionEnquiry,
-                        onExpandChange = { sectionEnquiry = it }
-                    ) {
-                        ViewFieldValue("Enquiry Type", l.enquiryType.ifEmpty { "—" })
-                        ViewFieldValue("Estimated Quantity", if (l.estimatedQuantity == 0) "—" else l.estimatedQuantity.toString())
-
-                        Column(modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp)) {
-                            Text("Garment Category", fontSize = 12.sp, color = LeadTextMuted, fontWeight = FontWeight.Medium)
                             Spacer(Modifier.height(4.dp))
-                            if (garmentNames.isNotEmpty()) {
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    garmentNames.forEach { garment ->
-                                        Box(
-                                            modifier = Modifier
-                                                .border(
-                                                    1.dp,
-                                                    LeadPrimary,
-                                                    RoundedCornerShape(50.dp)
-                                                )
-                                                .background(
-                                                    LeadPrimarySoft,
-                                                    RoundedCornerShape(50.dp)
-                                                )
-                                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp), tint = LeadPrimary)
-                                                Spacer(Modifier.width(4.dp))
-                                                Text(garment, fontSize = 13.sp, color = LeadPrimary, fontWeight = FontWeight.SemiBold)
+                            ViewFieldValue("Full Name", l.fullName.ifEmpty { "—" })
+                            ViewFieldValue("Phone", l.phone.ifEmpty { "—" })
+                            ViewFieldValue("Email", l.email.ifEmpty { "—" })
+                            if (l.customerType.equals("Individual", ignoreCase = true)) {
+                                ViewFieldValue("Gender", l.gender.ifEmpty { "—" })
+                                ViewFieldValue("Date of Birth", formatLeadDate(l.dob))
+                            }
+                        }
+                    }
+
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.LocationOn,
+                            title = "Location & Communication",
+                            subtitle = "Contact details and preferences",
+                            expanded = sectionLocation,
+                            onExpandChange = { sectionLocation = it }
+                        ) {
+                            ViewFieldValue("Address", l.address.ifEmpty { "—" })
+                            ViewFieldValue("Area / Zone", l.area.ifEmpty { "—" })
+                            ViewFieldValue("City", l.city.ifEmpty { "—" })
+                            ViewFieldValue("Preferred Contact Method", l.preferredContactMethod.ifEmpty { "—" })
+                        }
+                    }
+
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.AutoMirrored.Filled.Assignment,
+                            title = "Enquiry Details",
+                            subtitle = "What are they looking for?",
+                            expanded = sectionEnquiry,
+                            onExpandChange = { sectionEnquiry = it }
+                        ) {
+                            ViewFieldValue("Enquiry Type", l.enquiryType.ifEmpty { "—" })
+                            ViewFieldValue("Estimated Quantity", if (l.estimatedQuantity == 0) "—" else l.estimatedQuantity.toString())
+
+                            Column(modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)) {
+                                Text("Garment Category", fontSize = 12.sp, color = LeadTextMuted, fontWeight = FontWeight.Medium)
+                                Spacer(Modifier.height(4.dp))
+                                if (garmentNames.isNotEmpty()) {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        garmentNames.forEach { garment ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .border(
+                                                        1.dp,
+                                                        LeadPrimary,
+                                                        RoundedCornerShape(50.dp)
+                                                    )
+                                                    .background(
+                                                        LeadPrimarySoft,
+                                                        RoundedCornerShape(50.dp)
+                                                    )
+                                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp), tint = LeadPrimary)
+                                                    Spacer(Modifier.width(4.dp))
+                                                    Text(garment, fontSize = 13.sp, color = LeadPrimary, fontWeight = FontWeight.SemiBold)
+                                                }
                                             }
                                         }
                                     }
+                                } else {
+                                    Text("—", fontSize = 14.sp, color = Color(0xFF111827))
                                 }
+                            }
+
+                            Column(modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)) {
+
+                                Text("Budget Range", fontSize = 12.sp, color = LeadTextMuted, fontWeight = FontWeight.Medium)
+                                Spacer(Modifier.height(4.dp))
+                                Text("₹${formatIndianNumber(l.budgetMin)}  ₹${formatIndianNumber(l.budgetMax)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
+                                Spacer(Modifier.height(4.dp))
+                                BudgetRangeSlider(value = l.budgetMin.toFloat(), onValueChange = {}, enabled = false)
+                                Spacer(Modifier.height(4.dp))
+                                BudgetRangeLabels(currentValue = l.budgetMin)
+                            }
+
+                            ViewFieldValue("Required Date", formatLeadDate(l.requiredDate))
+                            ViewFieldValue("Occasion", l.occasion.ifEmpty { "—" })
+                        }
+                    }
+
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.CalendarMonth,
+                            title = "Appointment & Follow-Up",
+                            subtitle = "Schedule interactions",
+                            expanded = sectionAppointment,
+                            onExpandChange = { sectionAppointment = it },
+                            trailing = {
+                                MiniSwitch(
+                                    checked = appointmentRequired,
+                                    onCheckedChange = { },
+                                    enabled = false
+                                )
+                            }
+                        ) {
+                            if (appointmentRequired) {
+                                ViewFieldValue("Appointment Date", formatLeadDate(l.appointmentDate))
+                                ViewFieldValue("Appointment Time", l.appointmentTime?.ifEmpty { "--:--" })
+                                ViewFieldValue("Assigned Staff", assignedStaffDisplay)
+                                ViewFieldValue("Follow-up Date", formatLeadDate(l.followUpDate))
+                                ViewFieldValue("Priority", l.priority?.ifEmpty { "Select an option" })
                             } else {
-                                Text("—", fontSize = 14.sp, color = Color(0xFF111827))
+                                Text("No appointment scheduled.", fontSize = 13.sp, color = LeadTextMuted)
                             }
                         }
-
-                        Column(modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp)) {
-
-                            Text("Budget Range", fontSize = 12.sp, color = LeadTextMuted, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(4.dp))
-                            Text("₹${formatIndianNumber(l.budgetMin)}  ₹${formatIndianNumber(l.budgetMax)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
-                            Spacer(Modifier.height(4.dp))
-                            BudgetRangeSlider(value = l.budgetMin.toFloat(), onValueChange = {}, enabled = false)
-                            Spacer(Modifier.height(4.dp))
-                            BudgetRangeLabels(currentValue = l.budgetMin)
-                        }
-
-                        ViewFieldValue("Required Date", formatLeadDate(l.requiredDate))
-                        ViewFieldValue("Occasion", l.occasion.ifEmpty { "—" })
                     }
-                }
 
-                item {
-                    LeadAccordionSection(
-                        icon = Icons.Default.CalendarMonth,
-                        title = "Appointment & Follow-Up",
-                        subtitle = "Schedule interactions",
-                        expanded = sectionAppointment,
-                        onExpandChange = { sectionAppointment = it },
-                        trailing = {
-                            MiniSwitch(
-                                checked = appointmentRequired,           // create/edit apo save aana state
-                                onCheckedChange = { /* view mode – read only, no-op */ },
-                                enabled = false                         // ✅ always disabled in view mode
-                            )
-                        }
-                    ) {
-                        if (appointmentRequired) {
-                            ViewFieldValue("Appointment Date", formatLeadDate(l.appointmentDate))
-                            ViewFieldValue("Appointment Time",
-                                l.appointmentTime?.ifEmpty { "--:--" })
-                            ViewFieldValue("Assigned Staff", assignedStaffDisplay)   // ✅ resolved from API staff list
-                            ViewFieldValue("Follow-up Date", formatLeadDate(l.followUpDate))
-                            ViewFieldValue("Priority", l.priority?.ifEmpty { "Select an option" })
-                        } else {
-                            Text("No appointment scheduled.", fontSize = 13.sp, color = LeadTextMuted)
+                    item {
+                        LeadAccordionSection(
+                            icon = Icons.Default.Description,
+                            title = "Notes & References",
+                            subtitle = "Additional information and attachments",
+                            expanded = sectionNotes,
+                            onExpandChange = { sectionNotes = it }
+                        ) {
+                            ViewFieldValue("Internal Notes", l.internalNotes.ifEmpty { "—" })
+                            ViewFieldValue("Customer Notes", l.customerNotes.ifEmpty { "—" })
                         }
                     }
-                }
-
-                item {
-                    LeadAccordionSection(
-                        icon = Icons.Default.Description,
-                        title = "Notes & References",
-                        subtitle = "Additional information and attachments",
-                        expanded = sectionNotes,
-                        onExpandChange = { sectionNotes = it }
-                    ) {
-                        ViewFieldValue("Internal Notes", l.internalNotes.ifEmpty { "—" })
-                        ViewFieldValue("Customer Notes", l.customerNotes.ifEmpty { "—" })
-                    }
-                }
 
                     item { Spacer(Modifier.height(8.dp)) }
                 }
             }
         }
 
-        // ✅ NEW — floating, transparent, fixed-position FAB nav (replaces LeadBottomBar)
+        DynamicIslandError(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = errorMessage,
+            onDismiss = { errorMessage = null }
+        )
+
         StepNavigationFab(
             showBack = true,
             onBack = onBack,
@@ -1906,7 +1877,7 @@ fun ViewLeadScreen(
                 onClick = {
                     salesViewModel.fetchLeadDetails(l.id) { success ->
                         if (!success) {
-                            Toast.makeText(context, "Failed to refresh lead data", Toast.LENGTH_SHORT).show()
+                            errorMessage = "Failed to refresh lead data"
                         }
                         onEditLead()
                     }
@@ -1915,12 +1886,13 @@ fun ViewLeadScreen(
         )
     }
 }
+
 @Composable
 fun MiniSwitch(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true            // ✅ new param, default true so CreateLeadScreen unaffected
+    enabled: Boolean = true
 ) {
     Box(
         modifier = modifier
@@ -1935,8 +1907,8 @@ fun MiniSwitch(
                 color = if (checked) Primary else Color(0xFFD1D5DB),
                 shape = RoundedCornerShape(50)
             )
-            .alpha(if (enabled) 1f else 0.5f)                    // ✅ visually show it's read-only
-            .clickable(enabled = enabled) { onCheckedChange(!checked) }  // ✅ blocks taps when disabled
+            .alpha(if (enabled) 1f else 0.5f)
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
     ) {
         Box(
             modifier = Modifier
@@ -1983,11 +1955,9 @@ fun ViewFieldValue(label: String, value: String?) {
 @Composable
 fun EditLeadScreen(onBack: () -> Unit) {
     val salesViewModel: SalesViewModel = hiltViewModel()
-    val context = LocalContext.current
 
     var showConvertDialog by remember { mutableStateOf(false) }
     var isConverted by remember { mutableStateOf(false) }
-
 
     val convertOrderState by salesViewModel.convertOrderState.collectAsStateWithLifecycle()
 
@@ -2000,6 +1970,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
     val isLoadingLead by salesViewModel.isLoadingLeadDetails.collectAsStateWithLifecycle()
 
     var validationError by remember { mutableStateOf<String?>(null) }
+    var convertSuccessMessage by remember { mutableStateOf<String?>(null) }
 
     if (isLoadingLead) {
         Box(
@@ -2019,17 +1990,12 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
     if (lead == null) {
         LaunchedEffect(Unit) {
-            Toast.makeText(context, "Lead data not found", Toast.LENGTH_SHORT).show()
             onBack()
         }
         return
     }
 
     val l = lead!!
-
-
-
-
 
     LaunchedEffect(Unit) {
         if (staffList.isEmpty()) salesViewModel.fetchStaff()
@@ -2041,18 +2007,13 @@ fun EditLeadScreen(onBack: () -> Unit) {
         when (val state = convertOrderState) {
             is ConvertOrderState.Success -> {
                 showConvertDialog = false
-                Toast.makeText(
-                    context,
-                    state.data.message.ifBlank { "Order created: ${state.data.orderId}" },
-                    Toast.LENGTH_LONG
-                ).show()
+                convertSuccessMessage = state.data.message.ifBlank { "Order created successfully" }
                 salesViewModel.resetConvertOrderState()
             }
             is ConvertOrderState.Error -> {
-                Toast.makeText(context, "Conversion failed: ${state.message}", Toast.LENGTH_LONG).show()
+                validationError = "Conversion failed: ${state.message}"
                 salesViewModel.resetConvertOrderState()
                 salesViewModel.fetchLeadDetails(l.id) { }
-
             }
             else -> Unit
         }
@@ -2078,7 +2039,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
     var appointmentRequired by remember { mutableStateOf(l.appointmentRequired) }
     var appointmentDate by remember { mutableStateOf(formatLeadDate(l.appointmentDate)) }
     var appointmentTime by remember { mutableStateOf(l.appointmentTime) }
-    var assignedStaff by remember { mutableStateOf(l.assignedStaff) }   // String? — nullable
+    var assignedStaff by remember { mutableStateOf(l.assignedStaff) }
     var followUpDate by remember { mutableStateOf(formatLeadDate(l.followUpDate)) }
     var priority by remember { mutableStateOf(l.priority) }
     var internalNotes by remember { mutableStateOf(l.internalNotes) }
@@ -2127,19 +2088,17 @@ fun EditLeadScreen(onBack: () -> Unit) {
     }
     LaunchedEffect(l.status) {
         isConverted = l.status.equals("Converted to order", ignoreCase = true)
-        leadStatus=l.status
-
+        leadStatus = l.status
     }
 
     LaunchedEffect(updateState) {
         when (val state = updateState) {
-            is SaleState.Success -> {
+            is SaleState.Success<*> -> {
                 salesViewModel.resetUpdateState()
-                Toast.makeText(context, "Lead updated successfully!", Toast.LENGTH_SHORT).show()
                 onBack()
             }
             is SaleState.Error -> {
-                Toast.makeText(context, "Update failed: ${state.message}", Toast.LENGTH_LONG).show()
+                validationError = "Update failed: ${state.message}"
                 salesViewModel.resetUpdateState()
             }
             else -> Unit
@@ -2147,7 +2106,6 @@ fun EditLeadScreen(onBack: () -> Unit) {
     }
 
     fun validateAndUpdate() {
-
         val error = validateLeadFields(
             leadSource = leadSource, enquiryDate = enquiryDate, leadOwner = leadOwner,
             leadStatus = leadStatus, customerType = customerType, fullName = fullName,
@@ -2324,9 +2282,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                             type,
                                             fontSize = 14.sp,
                                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                            color = if (isSelected) Color.Black else Color(
-                                                0xFF6B7280
-                                            )
+                                            color = if (isSelected) Color.Black else Color(0xFF6B7280)
                                         )
                                     }
                                 }
@@ -2341,7 +2297,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                 phoneValue = phone,
                                 onPhoneChange = { phone = it },
                                 onCountryChange = {},
-                                )
+                            )
                             Spacer(Modifier.height(14.dp))
                             FormLabel("Email")
                             FormTextField(value = email, onValueChange = { email = it })
@@ -2390,7 +2346,8 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                 preferredContactExpanded,
                                 { preferredContactExpanded = it },
                                 preferredContactOptions,
-                                { preferredContact = it })
+                                { preferredContact = it }
+                            )
                         }
                     }
 
@@ -2469,9 +2426,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                                 modifier = Modifier
                                                     .border(
                                                         1.dp,
-                                                        if (isSelected) LeadPrimary else Color(
-                                                            0xFFE5E7EB
-                                                        ),
+                                                        if (isSelected) LeadPrimary else Color(0xFFE5E7EB),
                                                         RoundedCornerShape(50.dp)
                                                     )
                                                     .background(
@@ -2502,9 +2457,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                                     Text(
                                                         option,
                                                         fontSize = 13.sp,
-                                                        color = if (isSelected) LeadPrimary else Color(
-                                                            0xFF374151
-                                                        ),
+                                                        color = if (isSelected) LeadPrimary else Color(0xFF374151),
                                                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                                                     )
                                                 }
@@ -2559,7 +2512,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                     checked = appointmentRequired,
                                     onCheckedChange = {
                                         appointmentRequired = it
-                                        sectionAppointment = it   // ✅ existing edit-screen behavior retain pannirukken
+                                        sectionAppointment = it
                                     }
                                 )
                             }
@@ -2651,6 +2604,13 @@ fun EditLeadScreen(onBack: () -> Unit) {
                     item { Spacer(Modifier.height(8.dp)) }
                 }
             }
+
+            DynamicIslandSuccess(
+                modifier = Modifier.align(Alignment.TopCenter),
+                message = convertSuccessMessage,
+                onDismiss = { convertSuccessMessage = null }
+            )
+
             DynamicIslandError(
                 modifier = Modifier.align(Alignment.TopCenter),
                 message = validationError,
@@ -2680,12 +2640,10 @@ fun EditLeadScreen(onBack: () -> Unit) {
     }
 }
 
-
 // ─────────────────────────────────────────────────────────────
-// Reusable Budget Range Slider (same design everywhere)
+// Reusable Budget Range Slider
 // ─────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
-
 @Composable
 fun BudgetRangeSlider(
     value: Float,
@@ -2735,7 +2693,6 @@ fun BudgetRangeSlider(
     )
 }
 
-// Bonus: min/current/max label row — this also repeats everywhere
 @Composable
 fun BudgetRangeLabels(
     currentValue: Int,

@@ -1426,6 +1426,7 @@ fun CreateOrderScreen(
 
                     Spacer(Modifier.height(16.dp))
 
+                    // ── Voice Instructions ──
                     FormLabel("Voice Instructions")
 
                     Box(
@@ -1439,15 +1440,15 @@ fun CreateOrderScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Button(
                                 onClick = {
-//                                    if (isMediaUploadRestricted) {
-                                        if (isRecording) {
-                                            stopRecording()
-                                        } else if (micPermissionState.status.isGranted) {
-                                            startRecording()
-                                        } else {
-                                            micPermissionState.launchPermissionRequest()
-                                        }
-//                                    }
+                                    if (isMediaUploadRestricted) {
+                                        showPlanLimitDialog = true
+                                    } else if (isRecording) {
+                                        stopRecording()
+                                    } else if (micPermissionState.status.isGranted) {
+                                        startRecording()
+                                    } else {
+                                        micPermissionState.launchPermissionRequest()
+                                    }
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (isRecording) Color(0xFFEF4444) else Color(0xFFEEF2FF)
@@ -1551,12 +1552,12 @@ fun CreateOrderScreen(
                 )
             }
 
-            // ✅ NEW — floats above everything, same as CreateLeadScreen
             DynamicIslandError(
                 modifier = Modifier.align(Alignment.TopCenter),
                 message = validationError,
                 onDismiss = { validationError = null }
             )
+
 
             StepNavigationFab(
                 showBack = true,
@@ -1869,7 +1870,7 @@ fun PreviousMeasurementsDialog(
                     ) {
                         Icon(Icons.Default.Download, null, tint = Color.White, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Import Selected ($totalSelected)", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        Text("Import ", color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

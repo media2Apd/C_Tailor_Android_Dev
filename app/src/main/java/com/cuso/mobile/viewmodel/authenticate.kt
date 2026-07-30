@@ -32,6 +32,8 @@ import com.cuso.mobile.database.entities.UserEntity
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.async
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 
 sealed class UiState {
     object Idle : UiState()
@@ -80,9 +82,14 @@ class Authenticate @Inject constructor(
 //    val loginData: StateFlow<LoginData?> = _loginData.asStateFlow()
 
     // ── User State ──
-    private val _user = MutableStateFlow<UserEntity?>(null)
-    val user: StateFlow<UserEntity?> = _user.asStateFlow()
-
+//    private val _user = MutableStateFlow<UserEntity?>(null)
+//    val user: StateFlow<UserEntity?> = _user.asStateFlow()
+    val user: StateFlow<UserEntity?> = loginRepository.getUserFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000), // Keep collecting for 5 seconds after active collectors
+            initialValue = null // Initial value before any data is emitted
+        )
     // ── Organization State ──
     private val _organization = MutableStateFlow<OrganizationEntity?>(null)
     val organization: StateFlow<OrganizationEntity?> = _organization.asStateFlow()
@@ -127,16 +134,19 @@ class Authenticate @Inject constructor(
 
     init {
         viewModelScope.launch {
-            loadUser()
+            // ✅ We don't need loadUser() here anymore because the 'user' Flow
+            // will fetch the data automatically as soon as it starts.
             loadOrganization()
             loadSettings()
             loadTokens()
 
-            // for when app reopens the crashlytic loggedin analysis
-            _user.value?.let { user ->
-                FirebaseCrashlytics.getInstance().apply {
-                    setUserId(user.userId )
-                    setCustomKey("user_email", user.email )
+            // Observe the user flow to update Crashlytics when data arrives
+            user.collect { currentUser ->
+                currentUser?.let {
+                    FirebaseCrashlytics.getInstance().apply {
+                        setUserId(it.userId)
+                        setCustomKey("user_email", it.email)
+                    }
                 }
             }
         }
@@ -148,7 +158,7 @@ class Authenticate @Inject constructor(
 
     fun loadAllData() {
         viewModelScope.launch {
-            loadUser()
+//            loadUser()
             loadOrganization()
             loadSettings()
             loadTokens()
@@ -157,9 +167,9 @@ class Authenticate @Inject constructor(
 
 
 
-    private suspend fun loadUser() {
-        _user.value = loginRepository.getUser()
-    }
+//    private suspend fun loadUser() {
+//        user.value = loginRepository.getUser()
+//    }
 
     private suspend fun loadOrganization() {
         _organization.value = organizationDao.getOrganization()
@@ -204,6 +214,7 @@ class Authenticate @Inject constructor(
                 if (response != null) {
                     loginRepository.saveLoginData(response.data)
                     _loginData.value = response.data
+//                    loadUser()
 
                     val token = "Bearer ${response.data.tokens.accessToken}"
 
@@ -389,6 +400,7 @@ class Authenticate @Inject constructor(
                 if (loginData != null) {
                     loginRepository.saveLoginData(loginData)
                     _loginData.value = loginData
+//                    loadUser()
                     loadTokens()
                 }
             }
@@ -607,18 +619,21 @@ class Authenticate @Inject constructor(
 
 
     fun updateUserProfilePictureIfCurrentUser(targetUserId: String?, newUrl: String?) {
-        val currentUserId = _user.value?.id
-        Log.d("PROFILE_PIC_DEBUG", "guard check: target=$targetUserId current=$currentUserId")
+        val currentUser = user.value
+        val currentMemberId = currentUser?.id
 
-        if (targetUserId.isNullOrBlank() || currentUserId.isNullOrBlank() || targetUserId != currentUserId) {
-            Log.d("PROFILE_PIC_DEBUG", "guard BLOCKED update")
+        // 👈 LOG போடுங்கள் - இரண்டும் ஒன்றாக இருக்கிறதா என்று பாருங்கள்
+        Log.d("PROFILE_PIC_DEBUG", "Target: $targetUserId | Current: $currentMemberId")
+
+        // சில சமயம் targetUserId-இல் "_id" இருக்கலாம், அதுவும் memberId-உம் ஒன்றாக இருக்க வேண்டும்
+        if (targetUserId.isNullOrBlank() || currentMemberId.isNullOrBlank() || targetUserId != currentMemberId) {
+            Log.d("PROFILE_PIC_DEBUG", "Mismatch! Update cancelled.")
             return
         }
 
         viewModelScope.launch {
-            loginRepository.updateProfilePicture(currentUserId, newUrl)
-            loadUser()
-            Log.d("PROFILE_PIC_DEBUG", "user reloaded: ${_user.value?.profilePicture}")
+            loginRepository.updateProfilePicture(currentUser.id, newUrl)
+            // loadUser() தேவையில்லை ஏனேனில் நாம் Flow பயன்படுத்துகிறோம்
         }
     }
 
@@ -626,18 +641,22 @@ class Authenticate @Inject constructor(
     // Logout
     // ─────────────────────────────────────────────────────────────
 
-//    fun logout(onLoggedOut: () -> Unit) {
-//        viewModelScope.launch {
-//            loginRepository.clearAll()
-//            _user.value = null
-//            _organization.value = null
-//            _settings.value = null
-//            _tokens.value = null
-//            _loginData.value = null
-//            _accountState.value = UiState.Idle
-//            onLoggedOut()
-//        }
-//    }
+    fun logout(onLoggedOut: () -> Unit) {
+        viewModelScope.launch {
+            // ✅ 1. Clear the Database
+            loginRepository.clearAll()
+
+            // ✅ 2. The 'user' Flow will automatically emit 'null' because the DB is now empty.
+            // You don't need (and can't do) user.value = null.
+
+            _organization.value = null
+            _settings.value = null
+            _tokens.value = null
+            _loginData.value = null
+            _accountState.value = UiState.Idle
+            onLoggedOut()
+        }
+    }
 
     // ─────────────────────────────────────────────────────────────
     // Reset State

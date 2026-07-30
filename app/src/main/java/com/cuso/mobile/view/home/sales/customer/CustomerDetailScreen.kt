@@ -327,8 +327,18 @@ private fun PersonalInformationStep(
             }
 
             // ── UI-only fields (NOT sent to update API — backend doesn't support them yet) ──
-            var preferredContact by remember { mutableStateOf("") }
+            var preferredContact by remember {
+                mutableStateOf(detailState.customer.preferences?.contactMethod.orEmpty())
+            }
+            var language by remember {
+                mutableStateOf(detailState.customer.preferences?.language.orEmpty())
+            }
 
+            LaunchedEffect(detailState.customer) {
+                onEmailChange(detailState.customer.email.orEmpty())
+                preferredContact = detailState.customer.preferences?.contactMethod.orEmpty()
+                language = detailState.customer.preferences?.language.orEmpty()
+            }
             // ✅ NEW — populate local fields from API response the moment data loads
             // (or when the customer record itself changes — guards against stale values across re-composition)
             LaunchedEffect(detailState.customer.id) {
@@ -342,7 +352,6 @@ private fun PersonalInformationStep(
             var statusExpanded by remember { mutableStateOf(false) }
             var contactExpanded by remember { mutableStateOf(false) }
             // state (rename from preferredLanguage -> language, remove languageExpanded, not needed anymore)
-            var language by remember { mutableStateOf("") }
 
             Column {
                 // Info banner — shows current mode so it's obvious to the user

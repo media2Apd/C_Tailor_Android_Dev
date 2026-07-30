@@ -181,20 +181,37 @@ class SalesViewModel @Inject constructor(
         searchJob?.cancel()
         if (mobile.length < 4) {
             _customerSearchResult.value = null
+            _isSearchingCustomer.value = false   // ✅ clear stale spinner
             return
         }
         searchJob = viewModelScope.launch {
             delay(400.milliseconds)
             _isSearchingCustomer.value = true
 
-            // countryCode UI-ல் இருந்து வருது — "+91" → "91"
+            val callStart = System.currentTimeMillis()   // ✅ NEW
+
             val fullNumber = countryCode
                 .replace("+", "")
                 .plus(mobile.trim())
 
-            repository.searchCustomerByMobile(fullNumber)
-                .onSuccess { _customerSearchResult.value = it }
-                .onFailure { _customerSearchResult.value = null }
+            Log.d(TAG, "🔍 Searching customer: $fullNumber")   // ✅ NEW — debug log
+
+            val result = repository.searchCustomerByMobile(fullNumber)
+
+            result
+                .onSuccess {
+                    Log.d(TAG, "✅ Customer search success: ${it.customer?.name}")   // ✅ NEW
+                    _customerSearchResult.value = it
+                }
+                .onFailure {
+                    Log.e(TAG, "❌ Customer search failed: ${it.message}")   // ✅ NEW
+                    _customerSearchResult.value = null
+                }
+
+            // ✅ ensures spinner is visible for at least 400ms — forces a real
+            // suspension point so Compose can't collapse true→false into one frame
+            val elapsed = System.currentTimeMillis() - callStart
+            if (elapsed < 400) delay(400 - elapsed)
 
             _isSearchingCustomer.value = false
         }

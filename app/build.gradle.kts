@@ -105,6 +105,7 @@ dependencies {
     // Room
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    implementation(libs.volley)
     ksp(libs.room.compiler)
 
     // Hilt
@@ -174,4 +175,8 @@ dependencies {
     // Add the dependency for the Performance Monitoring library
     // When using the BoM, you don't specify versions in Firebase library dependencies
     implementation(libs.firebase.perf)
+
+    //UCrop for ProfileImageCrop
+    implementation(libs.ucrop)
+
 }

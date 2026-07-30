@@ -1,5 +1,7 @@
 package com.cuso.mobile.view.home.profile
 
+import android.annotation.SuppressLint
+import androidx.activity.ComponentActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
@@ -23,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -101,6 +104,7 @@ fun ProfileSettingsScreen(
         )
     }
 }
+@SuppressLint("ContextCastToActivity")
 @Suppress("UNUSED_PARAMETER")
 
 @Composable
@@ -115,7 +119,9 @@ private fun ProfileSettingsContent(
     onHelpSupport: () -> Unit,
     onLogout: () -> Unit
 ) {
-    val authViewModel: Authenticate = hiltViewModel()
+    val authViewModel: Authenticate = hiltViewModel(
+        LocalContext.current as ComponentActivity   // ✅ இதை சேருங்க
+    )
     val userEntity by authViewModel.user.collectAsStateWithLifecycle()
 
     val firstName = userEntity?.firstName.orEmpty()

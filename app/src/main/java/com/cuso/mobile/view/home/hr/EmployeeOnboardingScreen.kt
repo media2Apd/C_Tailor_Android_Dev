@@ -87,6 +87,10 @@ import com.cuso.mobile.view.home.reusablecomposables.GovernmentIdValidator
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.viewmodel.Authenticate
 import androidx.activity.ComponentActivity
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
+import com.yalantis.ucrop.UCrop
+import java.io.File
+
 
 // ── Design tokens (match screenshot) ──
 private val AccentColor = Color(0xFF4F39F6)
@@ -139,7 +143,6 @@ fun EmployeeOnboardingScreen(
     val authViewModel: Authenticate = hiltViewModel(
         LocalContext.current as ComponentActivity
     )
-
     DisposableEffect(Unit) {
         Log.d("LIFECYCLE_DEBUG", "EmployeeOnboardingScreen ENTERED composition")
         onDispose {
@@ -240,6 +243,9 @@ fun EmployeeOnboardingScreen(
     val shifts by hrViewModel.shifts.collectAsState()
     val members by hrViewModel.members.collectAsState()
 
+    var isUploading by remember { mutableStateOf(false) }
+
+
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
     var existingProfilePictureUrl by remember { mutableStateOf<String?>(null) }
     var showProfileOptionsDialog by remember { mutableStateOf(false) }
@@ -260,19 +266,49 @@ fun EmployeeOnboardingScreen(
 //    if (!memberUserId.isNullOrBlank() && memberUserId == currentUserId) {
 //        authViewModel.updateUserProfilePictureIfCurrentUser(state.pictureUrl)
 //    }
+    val cropLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val resultUri = result.data?.let { UCrop.getOutput(it) }
+            resultUri?.let { uri ->
+                profileImageUri = uri
+
+                if (mode == ScreenMode.EDIT && memberIdToLoad != null) {
+                    val file = uriToFile(context, uri)
+                    hrViewModel.uploadProfilePicture(memberIdToLoad, file)
+                }
+            }
+        } else if (result.resultCode == UCrop.RESULT_ERROR) {
+            val cropError = result.data?.let { UCrop.getError(it) }
+            Log.e("CROP_ERROR", "Error: $cropError")
+        }
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            profileImageUri = it
-            if (mode == ScreenMode.EDIT && memberIdToLoad != null) {
-                val file = uriToFile(context, it)
-                hrViewModel.uploadProfilePicture(memberIdToLoad, file)
+        uri?.let { sourceUri ->
+            val destinationFileName = "cropped_profile_${System.currentTimeMillis()}.jpg"
+            val destinationUri = Uri.fromFile(File(context.cacheDir, destinationFileName))
+
+            val options = UCrop.Options().apply {
+                setCircleDimmedLayer(true)
+                setShowCropGrid(false)
+                setCompressionFormat(android.graphics.Bitmap.CompressFormat.JPEG)
+                setToolbarColor(android.graphics.Color.parseColor("#4F39F6"))
+                setToolbarWidgetColor(android.graphics.Color.WHITE)
             }
+
+            val uCropIntent = UCrop.of(sourceUri, destinationUri)
+                .withAspectRatio(1f, 1f)
+                .withMaxResultSize(1000, 1000)
+                .withOptions(options)
+                .getIntent(context)
+
+            cropLauncher.launch(uCropIntent) // கிராப் ஸ்கிரீன் ஓபன் ஆகும்
         }
     }
-
     LaunchedEffect(uploadPictureState) {
         when (val state = uploadPictureState) {
             is HrViewModel.UploadPictureState.Success -> {
@@ -280,10 +316,9 @@ fun EmployeeOnboardingScreen(
                 profileImageUri = null
                 topSuccess = "Profile Uploaded Successfully"
 
-                val targetId = memberDetail?.userId?._id
-                val currentId = authViewModel.user.value?.id
-                Log.d("PROFILE_PIC_DEBUG", "target=$targetId current=$currentId")   // ✅ add this
-
+                val targetId = memberDetail?._id
+                val currentId = authViewModel.user
+                Log.d("PROFILE_PIC_DEBUG_UPLOAD", "target=$targetId current=$currentId")
 
                 // ✅ decision முழுசும் ViewModel எடுக்கும் — screen வெறும் target id தான் தர வேண்டும்
                 authViewModel.updateUserProfilePictureIfCurrentUser(
@@ -690,6 +725,9 @@ fun EmployeeOnboardingScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             when {
+                                isUploading -> {
+                                    CirculerProgressIndicatorSmall()
+                                }
                                 profileImageUri != null -> {
                                     AsyncImage(
                                         model = profileImageUri,

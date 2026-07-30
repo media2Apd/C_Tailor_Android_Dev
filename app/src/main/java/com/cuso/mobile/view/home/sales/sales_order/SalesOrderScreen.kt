@@ -48,7 +48,9 @@ import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.OrderActionState
 import com.cuso.mobile.viewmodel.OrderUiState
 import com.cuso.mobile.viewmodel.SalesOrderViewModel
-import kotlinx.coroutines.launch
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
+import com.cuso.mobile.view.composable.ErrorMapper
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -56,8 +58,11 @@ import java.util.Locale
 // ─────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────
-@Suppress("UNUSED_PARAMETER")
 
+
+
+
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun SalesOrderScreen(
     navController: NavController,
@@ -66,20 +71,21 @@ fun SalesOrderScreen(
     onCreateOrder: () -> Unit = {},
     onViewOrder: (String) -> Unit = {},
     onEditOrder: (String) -> Unit = {},
-    onBreadCrumbClick: () -> Unit ={}
-
+    onBreadCrumbClick: () -> Unit = {}
 ) {
     val viewModel: SalesOrderViewModel = hiltViewModel()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
     val actionState by viewModel.actionState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf("all") }
     var page by remember { mutableIntStateOf(1) }
     var itemsPerPage by remember { mutableIntStateOf(10) }
-    var showStatusDropdown by remember { mutableStateOf(false) }
+
+    // Dynamic Island State variables
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(page, itemsPerPage, statusFilter, searchQuery) {
         viewModel.fetchOrders(
@@ -90,20 +96,24 @@ fun SalesOrderScreen(
         )
     }
 
+    // Handle initial list load error
     LaunchedEffect(orderState) {
         if (orderState is OrderUiState.Error) {
-            coroutineScope.launch { snackbarHostState.showSnackbar((orderState as OrderUiState.Error).message) }
+            errorMessage = ErrorMapper.map((orderState as OrderUiState.Error).message)
         }
     }
 
+    // Handle Order Create / Update / Action state
     LaunchedEffect(actionState) {
         when (val s = actionState) {
             is OrderActionState.Success -> {
-                coroutineScope.launch { snackbarHostState.showSnackbar(s.message) }
+                // Dynamic Island Success Message
+                successMessage = if (s.message.isNotBlank()) s.message else "Order created successfully"
                 viewModel.resetActionState()
             }
             is OrderActionState.Error -> {
-                coroutineScope.launch { snackbarHostState.showSnackbar(s.message) }
+                // Dynamic Island Error Message
+                errorMessage = ErrorMapper.map(s.message)
                 viewModel.resetActionState()
             }
             else -> Unit
@@ -115,15 +125,6 @@ fun SalesOrderScreen(
     val total = (orderState as? OrderUiState.Success)?.total ?: 0
     val totalPages = (orderState as? OrderUiState.Success)?.totalPages ?: 1
 
-    val statusOptions = listOf(
-        "all" to "All Statuses",
-        "pending" to "Pending",
-        "confirmed" to "Confirmed",
-        "processing" to "Processing",
-        "completed" to "Completed",
-        "cancelled" to "Cancelled"
-    )
-
     FabScaffold(
         fab = FabConfig(
             label = "Create Order",
@@ -134,147 +135,161 @@ fun SalesOrderScreen(
         snackbarHostState = snackbarHostState,
         modifier = Modifier.fillMaxSize()
     ) {
-        Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7))) {
+        Box(modifier = Modifier.fillMaxSize()) {
 
-            // ── FIXED TOP HEADER ──
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+            Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7))) {
+
+                // ── FIXED TOP HEADER ──
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Sales Orders", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Sales Orders", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "close",
+                            modifier = Modifier.size(22.dp).clickable { onBack() },
+                            tint = Color(0xFF111827)
+                        )
                     }
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "close",
-                        modifier = Modifier.size(22.dp).clickable { onBack() },
-                        tint = Color(0xFF111827)
+                }
+
+                // ── Breadcrumb + Search + Status filter ──
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFF8F9FF))
+                ) {
+                    ScreenBreadcrumb(segments = listOf("Sales", "Sales Orders"), onClick = { onBreadCrumbClick() })
+                    SearchFilterBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        placeholder = "Search Customers...",
+                        accentColor = BluePrimary,
+                        borderColor = BorderGray,
+                        textSecondaryColor = TextSecondary,
+                        onFilterClick = { /* open filter drawer */ }
                     )
                 }
-            }
 
-            // ── Breadcrumb + Search + Status filter ──
-            Column(modifier = Modifier.fillMaxWidth()
-                .background(Color(0xFFF8F9FF))
-            ) {
-                ScreenBreadcrumb(segments = listOf("Sales", "Sales Orders"), onClick = {onBreadCrumbClick()})
-                SearchFilterBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                    placeholder = "Search Customers...",
-                    accentColor = BluePrimary,
-                    borderColor = BorderGray,
-                    textSecondaryColor = TextSecondary,
-                    onFilterClick = { /* TODO: open filter drawer */ }
-                )
-            }
-
-            // ── Content ──
-            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                when {
-                    isLoading -> {
-                        ListSkeleton()
-
-                    }
-                    orderState is OrderUiState.Error -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    (orderState as OrderUiState.Error).message,
-                                    color = Color.Red, textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(horizontal = 32.dp)
-                                )
-                                Spacer(Modifier.height(12.dp))
-                                Button(
-                                    onClick = {
-                                        viewModel.fetchOrders(
-                                            page = page, limit = itemsPerPage,
-                                            search = searchQuery.takeIf { it.isNotBlank() },
-                                            status = statusFilter.takeIf { it != "all" }
-                                        )
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) { Text("Retry", color = Color.White) }
-                            }
+                // ── Content ──
+                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    when {
+                        isLoading -> {
+                            ListSkeleton()
                         }
-                    }
-                    orderState is OrderUiState.Success -> {
-                        if (orders.isEmpty()) {
+                        orderState is OrderUiState.Error -> {
                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.Receipt, null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
+                                    Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
                                     Spacer(Modifier.height(8.dp))
-                                    Text("No orders found", color = Color.Gray, fontSize = 15.sp)
-                                }
-                            }
-                        } else {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxWidth().weight(1f)
-                                ) {
-                                    items(orders) { order ->
-                                        val (_, statusTextColor) = orderStatusColors(order.status)
-                                        val garmentNames = order.garments.joinToString(", ") { it.categoryName }.ifEmpty { "—" }
-                                        DataCard(
-                                            item = order,
-                                            image = DataCardImage(
-                                                vector = Icons.Default.Person,
-                                                size = 50.dp,
-                                                backgroundColor = BorderGray,
-                                                tint = Color(0xFF9CA3AF)
-                                            ),
-                                            topBadgeText = order.status?.replaceFirstChar { it.uppercase() } ?: "—",
-                                            topBadgeTextColor = statusTextColor,
-                                            topBadgeBgColor = statusTextColor.copy(alpha = 0.14f),
-                                            topBadgeInline = true,
-                                            title = order.customerId?.name ?: "Unknown",
-                                            subtitle = order.orderNumber,
-                                            footerAsRows = true,
-                                            footerFields = listOf(
-                                                DataCardField(label = "Items", text = garmentNames),
-                                                DataCardField(label = "Price", text = order.totalAmount?.let { "₹$it" } ?: "—"),
-                                                DataCardField(label = "Date Of Delivery", text = order.deliveryDate.toDisplayDate()),
-                                                DataCardField(label = "Priority", text = "—")
-                                            ),
-                                            actions = listOf(
-                                                MenuAction("View", Icons.Default.Visibility) { onViewOrder(order.id) },
-                                                MenuAction("Edit", Icons.Default.Edit) { onEditOrder(order.id) }
+                                    Text(
+                                        (orderState as OrderUiState.Error).message,
+                                        color = Color.Red,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(horizontal = 32.dp)
+                                    )
+                                    Spacer(Modifier.height(12.dp))
+                                    Button(
+                                        onClick = {
+                                            viewModel.fetchOrders(
+                                                page = page,
+                                                limit = itemsPerPage,
+                                                search = searchQuery.takeIf { it.isNotBlank() },
+                                                status = statusFilter.takeIf { it != "all" }
                                             )
-                                        )
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text("Retry", color = Color.White)
                                     }
                                 }
+                            }
+                        }
+                        orderState is OrderUiState.Success -> {
+                            if (orders.isEmpty()) {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(Icons.Default.Receipt, null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
+                                        Spacer(Modifier.height(8.dp))
+                                        Text("No orders found", color = Color.Gray, fontSize = 15.sp)
+                                    }
+                                }
+                            } else {
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxWidth().weight(1f)
+                                    ) {
+                                        items(orders) { order ->
+                                            val (_, statusTextColor) = orderStatusColors(order.status)
+                                            val garmentNames = order.garments.joinToString(", ") { it.categoryName }.ifEmpty { "—" }
+                                            DataCard(
+                                                item = order,
+                                                image = DataCardImage(
+                                                    vector = Icons.Default.Person,
+                                                    size = 50.dp,
+                                                    backgroundColor = BorderGray,
+                                                    tint = Color(0xFF9CA3AF)
+                                                ),
+                                                topBadgeText = order.status?.replaceFirstChar { it.uppercase() } ?: "—",
+                                                topBadgeTextColor = statusTextColor,
+                                                topBadgeBgColor = statusTextColor.copy(alpha = 0.14f),
+                                                topBadgeInline = true,
+                                                title = order.customerId?.name ?: "Unknown",
+                                                subtitle = order.orderNumber,
+                                                footerAsRows = true,
+                                                footerFields = listOf(
+                                                    DataCardField(label = "Items", text = garmentNames),
+                                                    DataCardField(label = "Price", text = order.totalAmount?.let { "₹$it" } ?: "—"),
+                                                    DataCardField(label = "Date Of Delivery", text = order.deliveryDate.toDisplayDate()),
+                                                    DataCardField(label = "Priority", text = "—")
+                                                ),
+                                                actions = listOf(
+                                                    MenuAction("View", Icons.Default.Visibility) { onViewOrder(order.id) },
+                                                    MenuAction("Edit", Icons.Default.Edit) { onEditOrder(order.id) }
+                                                )
+                                            )
+                                        }
+                                    }
 
-                                // ── Pagination Footer ──
-                                Box(modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))) {
-                                    Column {
-                                        HorizontalDivider(color = Color(0xFFF0F0F0))
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            val from = if (total == 0) 0 else (page - 1) * itemsPerPage + 1
-                                            val to = minOf(page * itemsPerPage, total)
-                                            Text("Showing $from - $to of $total", fontSize = 13.sp, color = Color(0xFF6B7280))
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                IconButton(onClick = { if (page > 1) page-- }, enabled = page > 1, modifier = Modifier.size(28.dp)) {
-                                                    Icon(Icons.Default.ChevronLeft, "Previous", tint = if (page > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
-                                                }
-                                                Text("$page - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
-                                                IconButton(onClick = { if (page < totalPages) page++ }, enabled = page < totalPages, modifier = Modifier.size(28.dp)) {
-                                                    Icon(Icons.Default.ChevronRight, "Next", tint = if (page < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
+                                    // ── Pagination Footer ──
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color.White, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                                    ) {
+                                        Column {
+                                            HorizontalDivider(color = Color(0xFFF0F0F0))
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                val from = if (total == 0) 0 else (page - 1) * itemsPerPage + 1
+                                                val to = minOf(page * itemsPerPage, total)
+                                                Text("Showing $from - $to of $total", fontSize = 13.sp, color = Color(0xFF6B7280))
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    IconButton(onClick = { if (page > 1) page-- }, enabled = page > 1, modifier = Modifier.size(28.dp)) {
+                                                        Icon(Icons.Default.ChevronLeft, "Previous", tint = if (page > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
+                                                    }
+                                                    Text("$page - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
+                                                    IconButton(onClick = { if (page < totalPages) page++ }, enabled = page < totalPages, modifier = Modifier.size(28.dp)) {
+                                                        Icon(Icons.Default.ChevronRight, "Next", tint = if (page < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
+                                                    }
                                                 }
                                             }
                                         }
@@ -285,6 +300,20 @@ fun SalesOrderScreen(
                     }
                 }
             }
+
+            // ── Dynamic Island Success Notification ──
+            DynamicIslandSuccess(
+                modifier = Modifier.align(Alignment.TopCenter),
+                message = successMessage,
+                onDismiss = { successMessage = null }
+            )
+
+            // ── Dynamic Island Error Notification ──
+            DynamicIslandError(
+                modifier = Modifier.align(Alignment.TopCenter),
+                message = errorMessage,
+                onDismiss = { errorMessage = null }
+            )
         }
     }
 }

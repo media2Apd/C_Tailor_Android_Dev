@@ -39,7 +39,8 @@ class CustomerViewModel @Inject constructor(
 
     private val _pageSizeFlow = MutableStateFlow(10)
     val pageSizeFlow: StateFlow<Int> = _pageSizeFlow.asStateFlow()
-
+    private val _createState = MutableStateFlow<CustomerCreateState>(CustomerCreateState.Idle)
+    val createState: StateFlow<CustomerCreateState> = _createState.asStateFlow()
     private val _deleteState = MutableStateFlow<CustomerDeleteState>(CustomerDeleteState.Idle)
     val deleteState: StateFlow<CustomerDeleteState> = _deleteState.asStateFlow()
     init {
@@ -269,6 +270,9 @@ class CustomerViewModel @Inject constructor(
     fun resetDeleteState() {
         _deleteState.update { CustomerDeleteState.Idle }
     }
+    fun resetCreateState() {
+        _createState.update { CustomerCreateState.Idle }
+    }
 }
 
 // ─────────────────────────────────────────────
@@ -297,6 +301,13 @@ sealed class CustomerUpdateState {
     data object Loading : CustomerUpdateState()
     data class Success(val customer: CustomerViewData) : CustomerUpdateState()
     data class Error(val message: String) : CustomerUpdateState()
+}
+
+sealed class CustomerCreateState {
+    data object Idle : CustomerCreateState()
+    data object Loading : CustomerCreateState()
+    data class Success(val customer: CustomerViewData) : CustomerCreateState()
+    data class Error(val message: String) : CustomerCreateState()
 }
 
 data class CustomerFormState(

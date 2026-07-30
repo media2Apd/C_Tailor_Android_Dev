@@ -36,6 +36,7 @@ import com.cuso.mobile.model.sales.QuotationItemInput
 import com.cuso.mobile.model.sales.QuotationOptionInput
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 import com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator
@@ -81,6 +82,28 @@ data class GarmentOption(
     val addons: List<AddonOption> = emptyList()
 )
 
+data class GarmentSelectionState(
+    val garmentId: String,
+    val fabric: FabricOption? = null,
+    val design: DesignOption? = null,
+    val addons: List<AddonOption> = emptyList(),
+    val quantity: Int = 1
+)
+
+data class GarmentBreakdown(
+    val garmentId: String,
+    val garmentName: String,
+    val basePrice: Double,
+    val fabricName: String,
+    val fabricPrice: Double,
+    val designName: String,
+    val designPrice: Double,
+    val addonsNames: String,
+    val addonsPrice: Double,
+    val quantity: Int,
+    val itemSubtotal: Double
+)
+
 // ── Formatting helpers ──
 private fun formatPrice(amount: Double): String =
     "₹${String.format(Locale.US, "%.2f", amount)}"
@@ -108,9 +131,18 @@ fun CreateQuotationScreen(
     var currentStep by remember { mutableIntStateOf(if (quotationId != null) 3 else 1) }
     var customerLeadTab by remember { mutableStateOf("Customer") }
     var selectedCustomerId by remember { mutableStateOf<String?>(null) }
+
+
     var selectedGarmentId by remember { mutableStateOf<String?>(null) }
     var selectedFabric by remember { mutableStateOf<FabricOption?>(null) }
     var selectedDesign by remember { mutableStateOf<DesignOption?>(null) }
+
+    var selectedGarments by remember { mutableStateOf<List<GarmentSelectionState>>(emptyList()) }
+
+    // Helper to update one garment's selection without touching the others
+    fun updateGarment(garmentId: String, update: (GarmentSelectionState) -> GarmentSelectionState) {
+        selectedGarments = selectedGarments.map { if (it.garmentId == garmentId) update(it) else it }
+    }
     var selectedAddons by remember { mutableStateOf<List<AddonOption>>(emptyList()) }
     var quantity by remember { mutableIntStateOf(1) }
     var previewShown by remember { mutableStateOf(mode == "view") }
@@ -169,6 +201,31 @@ fun CreateQuotationScreen(
         }
     }
 
+    val garmentBreakdowns = remember(selectedGarments, garmentOptions) {
+        selectedGarments.mapNotNull { sel ->
+            val option = garmentOptions.find { it.id == sel.garmentId } ?: return@mapNotNull null
+            val perUnit = option.price + (sel.fabric?.price ?: 0.0) + (sel.design?.price ?: 0.0) +
+                    sel.addons.sumOf { it.price }
+            GarmentBreakdown(
+                garmentId = sel.garmentId,
+                garmentName = option.name,
+                basePrice = option.price,
+                fabricName = sel.fabric?.name ?: "-",
+                fabricPrice = sel.fabric?.price ?: 0.0,
+                designName = sel.design?.name ?: "-",
+                designPrice = sel.design?.price ?: 0.0,
+                addonsNames = sel.addons.joinToString(", ") { it.name },
+                addonsPrice = sel.addons.sumOf { it.price },
+                quantity = sel.quantity,
+                itemSubtotal = perUnit * sel.quantity
+            )
+        }
+    }
+
+    val subtotal = garmentBreakdowns.sumOf { it.itemSubtotal }
+    val tax = subtotal * TAX_RATE
+    val total = subtotal + tax
+
     val selectedCustomer = remember(currentItems, selectedCustomerId) {
         currentItems.find { it.id == selectedCustomerId }
     }
@@ -181,9 +238,9 @@ fun CreateQuotationScreen(
     val fabricPrice = selectedFabric?.price ?: 0.0
     val designPrice = selectedDesign?.price ?: 0.0
     val addonsPrice = selectedAddons.sumOf { it.price }
-    val subtotal = (basePrice + fabricPrice + designPrice + addonsPrice) * quantity
-    val tax = subtotal * TAX_RATE
-    val total = subtotal + tax
+//    val subtotal = (basePrice + fabricPrice + designPrice + addonsPrice) * quantity
+//    val tax = subtotal * TAX_RATE
+//    val total = subtotal + tax
 
 
     LaunchedEffect(Unit) {
@@ -201,27 +258,27 @@ fun CreateQuotationScreen(
     // ── Prefill state once quotation detail + garment options are both ready ──
     LaunchedEffect(detailState, garmentOptions) {
         val state = detailState
-        // ✅ quotationId != null-னு explicit-ஆ check பண்ணுங்க — edit mode-ல மட்டும் prefill ஆகணும்
         if (quotationId != null && state is com.cuso.mobile.viewmodel.QuotationDetailUiState.Success && garmentOptions.isNotEmpty()) {
             val dto = state.quotation
-            val firstItem = dto.items.firstOrNull()
-
             selectedCustomerId = dto.customerId
-            selectedGarmentId = firstItem?.garmentCategoryId
-            quantity = firstItem?.quantity ?: 1
 
-            val matchedGarment = garmentOptions.find { it.id == firstItem?.garmentCategoryId }
-            selectedFabric = matchedGarment?.fabricOptions?.find { it.name == firstItem?.fabric?.label }
-            selectedDesign = matchedGarment?.designOptions?.find { it.name == firstItem?.design?.label }
-            selectedAddons = matchedGarment?.addons?.filter { addon ->
-                firstItem?.addons?.any { it.label == addon.name } == true
-            } ?: emptyList()
-
+            // ✅ CHANGED — build selection for EVERY item, not just the first
+            selectedGarments = dto.items.mapNotNull { item ->
+                val matchedGarment = garmentOptions.find { it.id == item.garmentCategoryId } ?: return@mapNotNull null
+                GarmentSelectionState(
+                    garmentId = item.garmentCategoryId?:"",
+                    fabric = matchedGarment.fabricOptions.find { it.name == item.fabric?.label },
+                    design = matchedGarment.designOptions.find { it.name == item.design?.label },
+                    addons = matchedGarment.addons.filter { addon ->
+                        item.addons?.any { it.label == addon.name } == true
+                    },
+                    quantity = item.quantity
+                )
+            }
             isPrefilling = false
         } else if (state is com.cuso.mobile.viewmodel.QuotationDetailUiState.Error) {
             isPrefilling = false
         } else if (quotationId == null) {
-            // ✅ create mode-ல immediate-ஆ prefilling stop பண்ணுங்க
             isPrefilling = false
         }
     }
@@ -260,7 +317,7 @@ fun CreateQuotationScreen(
     fun goToNextStep() {
         when (currentStep) {
             1 -> if (selectedCustomerId != null) currentStep++
-            2 -> if (selectedGarmentId != null) currentStep++
+            2 -> if (selectedGarments.isNotEmpty()) currentStep++   // ✅ CHANGED
             3 -> onSave()
         }
     }
@@ -304,10 +361,11 @@ fun CreateQuotationScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .then(
-                    if (currentStep != 3) Modifier.verticalScroll(rememberScrollState())
+                    // ✅ CHANGED — scroll allowed on step 3 too, EXCEPT when PDF preview WebView is showing
+                    if (currentStep != 3 || !previewShown) Modifier.verticalScroll(rememberScrollState())
                     else Modifier
                 )
-        ) {
+        ){
             QuotationStepper(currentStep = currentStep)
 
             when (currentStep) {
@@ -325,27 +383,30 @@ fun CreateQuotationScreen(
 
                 2 -> Step2GarmentDetails(
                     garmentOptions = garmentOptions,
-                    selectedGarmentId = selectedGarmentId,
-                    onSelectGarment = { selectedGarmentId = it },
-                    selectedFabric = selectedFabric,
-                    onSelectFabric = { selectedFabric = it },
-                    selectedDesign = selectedDesign,
-                    onSelectDesign = { selectedDesign = it },
-                    selectedAddons = selectedAddons,
-                    onToggleAddon = { addon ->
-                        selectedAddons = if (selectedAddons.contains(addon)) {
-                            selectedAddons - addon
+                    selectedGarments = selectedGarments,                          // ✅ CHANGED
+                    onToggleGarment = { garmentId ->                               // ✅ CHANGED
+                        selectedGarments = if (selectedGarments.any { it.garmentId == garmentId }) {
+                            selectedGarments.filter { it.garmentId != garmentId }
                         } else {
-                            selectedAddons + addon
+                            selectedGarments + GarmentSelectionState(garmentId = garmentId)
                         }
                     },
-                    quantity = quantity,
-                    onQuantityChange = { quantity = it },
+                    onSelectFabric = { garmentId, fabric ->                        // ✅ CHANGED
+                        updateGarment(garmentId) { it.copy(fabric = fabric) }
+                    },
+                    onSelectDesign = { garmentId, design ->                        // ✅ CHANGED
+                        updateGarment(garmentId) { it.copy(design = design) }
+                    },
+                    onToggleAddon = { garmentId, addon ->                           // ✅ CHANGED
+                        updateGarment(garmentId) { sel ->
+                            sel.copy(addons = if (sel.addons.contains(addon)) sel.addons - addon else sel.addons + addon)
+                        }
+                    },
+                    onQuantityChange = { garmentId, qty ->                          // ✅ CHANGED
+                        updateGarment(garmentId) { it.copy(quantity = qty) }
+                    },
                     isLoading = garmentPricingState is GarmentPricingUiState.Loading,
-                    basePrice = basePrice,
-                    fabricPrice = fabricPrice,
-                    designPrice = designPrice,
-                    addonsPrice = addonsPrice,
+                    garmentBreakdowns = garmentBreakdowns,                          // ✅ CHANGED
                     subtotal = subtotal,
                     tax = tax,
                     total = total
@@ -357,11 +418,7 @@ fun CreateQuotationScreen(
                     onPreview = { previewShown = true },
                     onComplete = { onSave() },
                     customerName = selectedCustomer?.name ?: "-",
-                    garmentName = selectedGarment?.name ?: "-",
                     logoBase64 = logoBase64,
-                    fabricName = selectedFabric?.name ?: "-",
-                    designName = selectedDesign?.name ?: "-",
-                    quantity = quantity,
                     subtotal = subtotal,
                     tax = tax,
                     total = total,
@@ -369,20 +426,8 @@ fun CreateQuotationScreen(
                     quotationDate = SimpleDateFormat("MMMM d, yyyy", Locale.US).format(Date()),
                     customerAddress = selectedCustomer?.let { "${it.name}\nPhone: ${it.phone}" } ?: "",
                     customerPhone = selectedCustomer?.phone ?: "",
-                    items = listOf(
-                        QuotationPdfGenerator.QuotationItem(
-                            description = selectedGarment?.name ?: "",
-                            quantity = quantity,
-                            rate = if (quantity > 0) subtotal / quantity else 0.0,
-                            amount = subtotal
-                        )
-                    ),
                     customerId = selectedCustomerId,
-                    garmentCategoryId = selectedGarmentId,
-                    basePrice = basePrice,
-                    fabricOption = selectedFabric,
-                    designOption = selectedDesign,
-                    addonOptions = selectedAddons,
+                    garmentBreakdowns = garmentBreakdowns,   // ✅ CHANGED — single source now
                     quotationViewModel = quotationViewModel,
                     customerSnapshotName = selectedCustomer?.name ?: "",
                     customerSnapshotPhone = selectedCustomer?.phone ?: "",
@@ -575,21 +620,14 @@ private fun CustomerSelectionCard(customer: CustomerOption, selected: Boolean, o
 @Composable
 private fun Step2GarmentDetails(
     garmentOptions: List<GarmentOption>,
-    selectedGarmentId: String?,
-    onSelectGarment: (String) -> Unit,
-    selectedFabric: FabricOption?,
-    onSelectFabric: (FabricOption?) -> Unit,
-    selectedDesign: DesignOption?,
-    onSelectDesign: (DesignOption?) -> Unit,
-    selectedAddons: List<AddonOption>,
-    onToggleAddon: (AddonOption) -> Unit,
-    quantity: Int,
-    onQuantityChange: (Int) -> Unit,
+    selectedGarments: List<GarmentSelectionState>,
+    onToggleGarment: (String) -> Unit,
+    onSelectFabric: (String, FabricOption?) -> Unit,
+    onSelectDesign: (String, DesignOption?) -> Unit,
+    onToggleAddon: (String, AddonOption) -> Unit,
+    onQuantityChange: (String, Int) -> Unit,
     isLoading: Boolean,
-    basePrice: Double,
-    fabricPrice: Double,
-    designPrice: Double,
-    addonsPrice: Double,
+    garmentBreakdowns: List<GarmentBreakdown>,
     subtotal: Double,
     tax: Double,
     total: Double
@@ -597,89 +635,130 @@ private fun Step2GarmentDetails(
     Spacer(Modifier.height(4.dp))
 
     if (isLoading) {
-        Box(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
             CirculerProgressIndicatorReuse()
         }
         return
     }
 
+    // ── Multi-select garment grid ──
     GarmentOptionGrid(
-        title = "Select Garment Type",
+        title = "Select Garment Type (multiple allowed)",
         options = garmentOptions,
-        selectedId = selectedGarmentId,
-        onSelect = onSelectGarment,
+        selectedIds = selectedGarments.map { it.garmentId }.toSet(),   // ✅ CHANGED — set of ids
+        onToggle = onToggleGarment,                                     // ✅ CHANGED — toggle not replace
         showPrice = true
     )
 
-    selectedGarmentId?.let { garmentId ->
-        val selectedGarment = garmentOptions.find { it.id == garmentId }
-        selectedGarment?.let { garment ->
+    // ── One block per SELECTED garment, rendered one-by-one below ──
+    selectedGarments.forEachIndexed { index, sel ->
+        val garment = garmentOptions.find { it.id == sel.garmentId } ?: return@forEachIndexed
+        val breakdown = garmentBreakdowns.find { it.garmentId == sel.garmentId }
+
+        Spacer(Modifier.height(16.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(1.dp, BorderGray, RoundedCornerShape(12.dp))
+                .padding(bottom = 8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().background(TintBg).padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("${index + 1}. ${garment.name}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TitleDark)
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Remove",
+                    tint = MutedGray,
+                    modifier = Modifier.size(18.dp).clickable { onToggleGarment(garment.id) }
+                )
+            }
 
             if (garment.fabricOptions.isNotEmpty()) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
                 OptionSelectionGrid(
                     title = "Select Fabric",
-                    options = garment.fabricOptions.map {
-                        OptionWithPrice(it.name, it.price)
-                    },
-                    selectedOption = selectedFabric?.name,
-                    onSelect = { fabricName ->
-                        val fabric = garment.fabricOptions.find { it.name == fabricName }
-                        onSelectFabric(fabric)
+                    options = garment.fabricOptions.map { OptionWithPrice(it.name, it.price) },
+                    selectedOption = sel.fabric?.name,
+                    onSelect = { name ->
+                        onSelectFabric(garment.id, garment.fabricOptions.find { it.name == name })
                     },
                     showPrice = true
                 )
             }
 
             if (garment.designOptions.isNotEmpty()) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
                 OptionSelectionGrid(
                     title = "Select Design",
-                    options = garment.designOptions.map {
-                        OptionWithPrice(it.name, it.price)
-                    },
-                    selectedOption = selectedDesign?.name,
-                    onSelect = { designName ->
-                        val design = garment.designOptions.find { it.name == designName }
-                        onSelectDesign(design)
+                    options = garment.designOptions.map { OptionWithPrice(it.name, it.price) },
+                    selectedOption = sel.design?.name,
+                    onSelect = { name ->
+                        onSelectDesign(garment.id, garment.designOptions.find { it.name == name })
                     },
                     showPrice = true
                 )
             }
 
             if (garment.addons.isNotEmpty()) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
                 AddonSelectionGrid(
                     title = "Addons",
                     addons = garment.addons,
-                    selectedAddons = selectedAddons,
-                    onToggle = onToggleAddon
+                    selectedAddons = sel.addons,
+                    onToggle = { addon -> onToggleAddon(garment.id, addon) }
                 )
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
             QuantitySelector(
-                quantity = quantity,
-                onQuantityChange = onQuantityChange
+                quantity = sel.quantity,
+                onQuantityChange = { qty -> onQuantityChange(garment.id, qty) }
             )
 
-            PriceBreakdownCard(
-                garment = garment.name,
-                garmentPrice = basePrice,
-                fabric = selectedFabric?.name ?: "-",
-                fabricPrice = fabricPrice,
-                design = selectedDesign?.name ?: "-",
-                designPrice = designPrice,
-                addons = selectedAddons.joinToString(", ") { it.name },
-                addonsPrice = addonsPrice,
-                subtotal = formatPrice(subtotal),
-                tax = formatPrice(tax),
-                total = formatPrice(total),
-                quantity = quantity
-            )
+            breakdown?.let {
+                PriceBreakdownCard(
+                    garment = it.garmentName,
+                    garmentPrice = it.basePrice,
+                    fabric = it.fabricName,
+                    fabricPrice = it.fabricPrice,
+                    design = it.designName,
+                    designPrice = it.designPrice,
+                    addons = it.addonsNames,
+                    addonsPrice = it.addonsPrice,
+                    subtotal = formatPrice(it.itemSubtotal),
+                    tax = formatPrice(it.itemSubtotal * TAX_RATE),
+                    total = formatPrice(it.itemSubtotal * (1 + TAX_RATE)),
+                    quantity = it.quantity
+                )
+            }
+        }
+    }
+
+    // ── Combined total across ALL selected garments ──
+    if (selectedGarments.isNotEmpty()) {
+        Spacer(Modifier.height(16.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFFF9FAFB))
+                .padding(14.dp)
+        ) {
+            Text("Overall Total (${selectedGarments.size} garments)", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TitleDark)
+            Spacer(Modifier.height(8.dp))
+            BreakdownRow("Subtotal", formatPrice(subtotal))
+            BreakdownRow("Tax (18%)", formatPrice(tax))
+            HorizontalDivider(color = BorderGray, modifier = Modifier.padding(vertical = 6.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Grand Total", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TitleDark)
+                Text(formatPrice(total), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Purple)
+            }
         }
     }
 
@@ -748,8 +827,8 @@ private fun OptionSelectionGrid(
 private fun GarmentOptionGrid(
     title: String,
     options: List<GarmentOption>,
-    selectedId: String?,
-    onSelect: (String) -> Unit,
+    selectedIds: Set<String>,     // ✅ CHANGED — was selectedId: String?
+    onToggle: (String) -> Unit,   // ✅ CHANGED — was onSelect
     showPrice: Boolean = true
 ) {
     if (options.isEmpty()) return
@@ -759,12 +838,9 @@ private fun GarmentOptionGrid(
         Spacer(Modifier.height(8.dp))
 
         options.chunked(2).forEach { rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 rowItems.forEach { option ->
-                    val selected = option.id == selectedId
+                    val selected = option.id in selectedIds   // ✅ CHANGED
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -775,21 +851,23 @@ private fun GarmentOptionGrid(
                                 shape = RoundedCornerShape(10.dp)
                             )
                             .background(if (selected) TintBg else Color.White)
-                            .clickable { onSelect(option.id) }
+                            .clickable { onToggle(option.id) }   // ✅ CHANGED
                             .padding(horizontal = 14.dp, vertical = 12.dp)
                     ) {
-                        Text(
-                            option.name,
-                            fontSize = 13.sp,
-                            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                            color = TitleDark
-                        )
-                        if (showPrice && option.price > 0) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (selected) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Purple, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(4.dp))
+                            }
                             Text(
-                                formatPrice(option.price),
-                                fontSize = 12.sp,
-                                color = TextGray
+                                option.name,
+                                fontSize = 13.sp,
+                                fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                                color = TitleDark
                             )
+                        }
+                        if (showPrice && option.price > 0) {
+                            Text(formatPrice(option.price), fontSize = 12.sp, color = TextGray)
                         }
                     }
                 }
@@ -896,6 +974,9 @@ private fun QuantitySelector(
 // ─────────────────────────────────────────────────────────────
 // STEP 3 — Pricing Summary with PDF Preview
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// STEP 3 — Pricing Summary with PDF Preview
+// ─────────────────────────────────────────────────────────────
 @Suppress("unused_parameter")
 @Composable
 private fun Step3PricingSummary(
@@ -904,11 +985,7 @@ private fun Step3PricingSummary(
     onPreview: () -> Unit,
     onComplete: () -> Unit = {},
     customerName: String,
-    garmentName: String,
-    fabricName: String,
     logoBase64: String = "",
-    designName: String,
-    quantity: Int,
     subtotal: Double,
     tax: Double,
     total: Double,
@@ -918,7 +995,6 @@ private fun Step3PricingSummary(
     customerVat: String = "",
     customerEmail: String = "",
     customerPhone: String = "",
-    items: List<QuotationPdfGenerator.QuotationItem> = emptyList(),
     termsAndConditions: List<String> = listOf(
         "50% advance payment required to start work",
         "Final measurements will be taken before starting the work",
@@ -928,11 +1004,8 @@ private fun Step3PricingSummary(
     ),
     onEdit: () -> Unit = {},
     customerId: String? = null,
-    garmentCategoryId: String? = null,
-    basePrice: Double = 0.0,
-    fabricOption: FabricOption? = null,
-    designOption: DesignOption? = null,
-    addonOptions: List<AddonOption> = emptyList(),
+    // ✅ CHANGED — replaces garmentName/fabricName/designName/quantity/basePrice/fabricOption/designOption/addonOptions/garmentCategoryId
+    garmentBreakdowns: List<GarmentBreakdown> = emptyList(),
     quotationViewModel: com.cuso.mobile.viewmodel.QuotationViewModel? = null,
     customerSnapshotName: String = "",
     customerSnapshotPhone: String = "",
@@ -947,12 +1020,24 @@ private fun Step3PricingSummary(
     val pdfGenerator = remember { QuotationPdfGenerator(context) }
 
     val saveState = quotationViewModel?.saveState?.collectAsStateWithLifecycle()?.value
+    var showDynamicIslandSuccess by remember { mutableStateOf(false) }
+    var dynamicIslandMessage by remember { mutableStateOf("") }
+    if (showDynamicIslandSuccess) {
+        DynamicIslandSuccess(
+            message = dynamicIslandMessage,
+            onDismiss = { showDynamicIslandSuccess = false },
+            modifier = Modifier
+        )
+    }
 
     LaunchedEffect(saveState) {
         when (saveState) {
             is com.cuso.mobile.viewmodel.QuotationSaveUiState.Success -> {
                 isSavingDraft = false
-                Toast.makeText(context, "Saved as draft: ${saveState.quotation.quotationNumber}", Toast.LENGTH_LONG).show()
+                // Toast-க்கு பதிலாக DynamicIslandSuccess State-ஐ true ஆக்கவும்:
+                showDynamicIslandSuccess = true
+                dynamicIslandMessage = "Saved as draft successfully"
+
                 quotationViewModel.resetState()
                 onComplete()
             }
@@ -968,13 +1053,29 @@ private fun Step3PricingSummary(
         }
     }
 
+    // ✅ CHANGED — builds ONE QuotationItemInput per garment in garmentBreakdowns
     fun buildSaveDraftRequest(): CreateQuotationRequest? {
         val custId = customerId ?: return null
-        val garmentId = garmentCategoryId ?: return null
+        if (garmentBreakdowns.isEmpty()) return null
 
-        val perUnitAmount = basePrice + (fabricOption?.price ?: 0.0) + (designOption?.price ?: 0.0) +
-                addonOptions.sumOf { it.price }
-        val itemAmount = perUnitAmount * quantity
+        val items = garmentBreakdowns.map { b ->
+            val perUnitAmount = b.basePrice + b.fabricPrice + b.designPrice + b.addonsPrice
+            QuotationItemInput(
+                garmentCategoryId = b.garmentId,
+                garmentName = b.garmentName,
+                quantity = b.quantity,
+                basePrice = b.basePrice,
+                fabric = if (b.fabricName != "-") QuotationOptionInput(b.fabricName, b.fabricPrice) else null,
+                design = if (b.designName != "-") QuotationOptionInput(b.designName, b.designPrice) else null,
+                addons = if (b.addonsNames.isNotEmpty())
+                    b.addonsNames.split(", ").map { name ->
+                        QuotationOptionInput(name, 0.0) // per-addon price not separable from combined addonsPrice
+                    } else emptyList(),
+                expressCharge = 0.0,
+                unitPrice = perUnitAmount,
+                totalPrice = b.itemSubtotal
+            )
+        }
 
         return CreateQuotationRequest(
             customerId = custId,
@@ -989,20 +1090,7 @@ private fun Step3PricingSummary(
                     pincode = customerSnapshotPincode
                 )
             ),
-            items = listOf(
-                QuotationItemInput(
-                    garmentCategoryId = garmentId,
-                    garmentName = garmentName,
-                    quantity = quantity,
-                    basePrice = basePrice,
-                    fabric = fabricOption?.let { QuotationOptionInput(it.name, it.price) },
-                    design = designOption?.let { QuotationOptionInput(it.name, it.price) },
-                    addons = addonOptions.map { QuotationOptionInput(it.name, it.price) },
-                    expressCharge = 0.0,
-                    unitPrice = perUnitAmount,
-                    totalPrice = itemAmount
-                )
-            ),
+            items = items,
             subTotal = subtotal,
             taxPercent = TAX_RATE * 100,
             taxAmount = tax,
@@ -1013,8 +1101,9 @@ private fun Step3PricingSummary(
         )
     }
 
+    // ✅ CHANGED — pdf items built from ALL garments, not a single fallback item
     val pdfData = remember(
-        customerName, garmentName, fabricName, designName, quantity, subtotal, total, logoBase64
+        customerName, garmentBreakdowns, subtotal, total, logoBase64
     ) {
         QuotationPdfGenerator.QuotationData(
             quotationNumber = quotationNumber,
@@ -1025,14 +1114,12 @@ private fun Step3PricingSummary(
             customerVat = customerVat,
             customerEmail = customerEmail,
             customerPhone = customerPhone,
-            items = items.ifEmpty {
-                listOf(
-                    QuotationPdfGenerator.QuotationItem(
-                        description = garmentName,
-                        quantity = quantity,
-                        rate = if (quantity > 0) subtotal / quantity else 0.0,
-                        amount = subtotal
-                    )
+            items = garmentBreakdowns.map { b ->
+                QuotationPdfGenerator.QuotationItem(
+                    description = b.garmentName,
+                    quantity = b.quantity,
+                    rate = if (b.quantity > 0) b.itemSubtotal / b.quantity else 0.0,
+                    amount = b.itemSubtotal
                 )
             },
             subtotal = subtotal,
@@ -1055,39 +1142,77 @@ private fun Step3PricingSummary(
     }
 
     if (!previewShown) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
-            Text("Quotation Summary", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleDark)
-            Spacer(Modifier.height(10.dp))
-            SummaryRow("Customer", customerName)
-            SummaryRow("Garment Type", garmentName)
-            SummaryRow("Fabric", fabricName)
-            SummaryRow("Design Style", designName)
-            SummaryRow("Quantity", quantity.toString())
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
+                Text("Quotation Summary", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleDark)
+                Spacer(Modifier.height(10.dp))
+                SummaryRow("Customer", customerName)
+
+                garmentBreakdowns.forEachIndexed { idx, b ->
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "${idx + 1}. ${b.garmentName}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TitleDark
+                    )
+                    SummaryRow("Fabric", b.fabricName)
+                    SummaryRow("Design Style", b.designName)
+                    SummaryRow("Quantity", b.quantity.toString())
+                }
+            }
+
+            garmentBreakdowns.forEach { b ->
+                PriceBreakdownCard(
+                    garment = b.garmentName,
+                    garmentPrice = b.basePrice,
+                    fabric = b.fabricName,
+                    fabricPrice = b.fabricPrice,
+                    design = b.designName,
+                    designPrice = b.designPrice,
+                    addons = b.addonsNames,
+                    addonsPrice = b.addonsPrice,
+                    subtotal = formatPrice(b.itemSubtotal),
+                    tax = formatPrice(b.itemSubtotal * TAX_RATE),
+                    total = formatPrice(b.itemSubtotal * (1 + TAX_RATE)),
+                    quantity = b.quantity,
+                    showAllItems = false
+                )
+            }
+
+            if (garmentBreakdowns.size > 1) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFF9FAFB))
+                        .padding(14.dp)
+                ) {
+                    Text("Overall Total (${garmentBreakdowns.size} garments)", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TitleDark)
+                    Spacer(Modifier.height(8.dp))
+                    BreakdownRow("Subtotal", formatPrice(subtotal))
+                    BreakdownRow("Tax (18%)", formatPrice(tax))
+                    HorizontalDivider(color = BorderGray, modifier = Modifier.padding(vertical = 6.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Grand Total", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TitleDark)
+                        Text(formatPrice(total), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Purple)
+                    }
+                }
+            }
+
+            TipBanner("Tip: You can apply discounts in the next step.")
+            Spacer(Modifier.height(90.dp))   // ✅ CHANGED — extra bottom padding so FAB doesn't overlap last item
         }
 
-        PriceBreakdownCard(
-            garment = garmentName,
-            garmentPrice = basePrice,
-            fabric = fabricName,
-            fabricPrice = fabricOption?.price ?: 0.0,
-            design = designName,
-            designPrice = designOption?.price ?: 0.0,
-            addons = addonOptions.joinToString(", ") { it.name },
-            addonsPrice = addonOptions.sumOf { it.price },
-            subtotal = formatPrice(subtotal),
-            tax = formatPrice(tax),
-            total = formatPrice(total),
-            quantity = quantity,
-            showAllItems = false
-        )
-
-        TipBanner("Tip: You can apply discounts in the next step.")
-        QuickActionsRow(
+        QuickActionsRow(                      // ✅ MOVED outside the scroll column — stays pinned below
             onDiscount = {},
             onEdit = onEdit,
             onSaveDraft = saveDraftAction
         )
-        Spacer(Modifier.height(50.dp))
     } else {
         Column(
             modifier = Modifier
@@ -1102,7 +1227,6 @@ private fun Step3PricingSummary(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Preview Title on the left
                 Text(
                     text = "Preview",
                     fontSize = 26.sp,
@@ -1110,12 +1234,10 @@ private fun Step3PricingSummary(
                     color = TitleDark
                 )
 
-                // Icons on the right
                 Row(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Download Icon Button
                     IconButton(
                         onClick = {
                             if (!isDownloading) {
@@ -1157,7 +1279,6 @@ private fun Step3PricingSummary(
                         }
                     }
 
-                    // Print Icon Button
                     IconButton(
                         onClick = {
                             pdfGenerator.printQuotationPdf(pdfData)

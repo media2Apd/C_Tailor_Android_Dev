@@ -106,6 +106,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.ColorFilter
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.cuso.mobile.view.home.inventory.InventoryViewOne
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.modelBg
@@ -418,6 +420,10 @@ fun HomeScreen(navController: NavHostController) {
                 goBack()
             }
             currentScreen == "payment_detail_screen" -> {
+                goBack()
+            }
+            currentScreen == "create_order" -> {
+                pendingOrderReviewData = null
                 goBack()
             }
 
@@ -740,7 +746,10 @@ fun HomeScreen(navController: NavHostController) {
                     "create_order" -> {
                         CreateOrderScreen(
                             initialData = pendingOrderReviewData,
-                            onBack = { goBack() },
+                            onBack = {
+                                pendingOrderReviewData = null      // 🔑 CRITICAL — X/close um clear pannanum, cancel mattum pothaathu
+                                goBack()
+                            },
                             onCancel = {
                                 pendingOrderReviewData = null
                                 goBack()
@@ -755,7 +764,10 @@ fun HomeScreen(navController: NavHostController) {
                         navController = navController,
                         onMenuClick = { isDrawerOpen = true },
                         onBack = { goBack() },
-                        onCreateOrder = { navigateTo("create_order") },
+                        onCreateOrder = {
+                            pendingOrderReviewData = null      // 🔑 CRITICAL — kill stale edit data
+                            navigateTo("create_order")
+                        },
                         onViewOrder = { orderId ->
                             selectedOrderId = orderId
                             navigateTo("order_overview")
@@ -1334,8 +1346,10 @@ fun HomeScreen(navController: NavHostController) {
                         onDesignation = { navigateTo("home_designation") },
                         onLogout = {
                             settingsViewModel.logout {
-                                navController.navigate("login") {
-                                    popUpTo(0) { inclusive = true }
+                                authViewModel.logout {
+                                    navController.navigate("login") {
+                                        popUpTo(0) { inclusive = true }
+                                    }
                                 }
                             }
                         }
@@ -1409,7 +1423,7 @@ fun TopBar(
 ) {
     // EmployeeOnboardingScreen.kt la:
     val authViewModel: Authenticate = hiltViewModel(
-        LocalContext.current as ComponentActivity   // ✅ Activity ku scope pannunga
+        LocalContext.current as ComponentActivity   // ✅ இதை சேருங்க
     )
     val userEntity by authViewModel.user.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
@@ -1472,7 +1486,10 @@ fun TopBar(
             role = it.role
         )
     }
-
+    LaunchedEffect(userEntity) {
+        Log.d("TOPBAR", "user=${userEntity?.firstName}")
+        Log.d("TOPBAR", "profile=${userEntity?.profilePicture}")
+    }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Color.White,
@@ -1549,16 +1566,20 @@ fun TopBar(
                 val avatarSize = if (isPanelMode) 38.dp else 42.dp
 
                 if (!profilePicture.isNullOrBlank()) {
+                    // TopBar.kt - AsyncImage உள்ள இடத்தில்
                     AsyncImage(
-                        model = profilePicture,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(profilePicture)
+                            .crossfade(true)
+                            // 👇 இந்த இரண்டு வரிகள் மிக முக்கியம்
+                            .memoryCachePolicy(CachePolicy.DISABLED)
+                            .diskCachePolicy(CachePolicy.DISABLED)
+                            .build(),
                         contentDescription = "Profile picture",
                         modifier = Modifier
                             .size(avatarSize)
                             .clip(CircleShape)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) { onProfileClick() },
+                            .clickable { onProfileClick() },
                         contentScale = ContentScale.Crop
                     )
                 } else {

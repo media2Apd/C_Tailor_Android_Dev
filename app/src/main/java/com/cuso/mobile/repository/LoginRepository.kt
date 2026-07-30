@@ -144,18 +144,20 @@ class LoginRepository @Inject constructor(
         }
     }
     // LoginRepository.kt la
+// LoginRepository.kt
     suspend fun updateProfilePicture(userId: String, newUrl: String?) {
         val currentUser = db.userDao().getUser() ?: return
-        Log.d("PROFILE_PIC_DEBUG", "DB user id=${currentUser.id}, incoming id=$userId")
-        if (currentUser.id != userId) {
-            Log.d("PROFILE_PIC_DEBUG", "DB id mismatch — update skipped")
-            return
-        }
-        db.userDao().updateUser(currentUser.copy(profilePicture = newUrl))
-        Log.d("PROFILE_PIC_DEBUG", "DB updated with new pic")
+        if (currentUser.id != userId) return
+
+        val updatedUser = currentUser.copy(profilePicture = newUrl)
+        db.userDao().updateUser(updatedUser) // 👈 இது முடிந்தவுடன் Flow தானாக TopBar-க்கு சொல்லும்
     }
+    fun getUserFlow() = db.userDao().getUserFlow()
 
-
+    // Repository (DAO layer)
+    suspend fun clearLocalUser() {
+        db.userDao().clearUser()   // DELETE FROM user_table
+    }
     suspend fun clearAll() {
         db.userDao().clearUser()
         db.organizationDao().clearOrganization()

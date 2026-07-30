@@ -6,7 +6,6 @@
     "AssignedValueIsNeverRead",
     "VariableNeverRead",
     "unused"
-
 )
 package com.cuso.mobile.view.home.sales.customer
 
@@ -35,18 +34,21 @@ import com.cuso.mobile.model.sales.CustomerItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.PaginationFooter
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
-//import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
 import com.cuso.mobile.view.home.sales.sales_order.toDisplayDate
+import com.cuso.mobile.viewmodel.CustomerCreateState
+import com.cuso.mobile.viewmodel.CustomerDeleteState
 import com.cuso.mobile.viewmodel.CustomerUiState
 import com.cuso.mobile.viewmodel.CustomerViewModel
 import kotlinx.coroutines.launch
@@ -54,7 +56,6 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
-// ✅ NEW — overload for ISO-8601 date strings (e.g. "2004-04-08T00:00:00.000Z")
 fun String?.toDisplayDate(): String {
     if (this.isNullOrBlank()) return "—"
     return try {
@@ -71,7 +72,6 @@ fun String?.toDisplayDate(): String {
                 parsedDate = sdf.parse(this)
                 if (parsedDate != null) break
             } catch (_: Exception) {
-                // try next pattern
             }
         }
         parsedDate?.let {
@@ -87,12 +87,10 @@ fun String?.toDisplayDate(): String {
 // Screen
 // ─────────────────────────────────────────────────────────────
 @Suppress("UNUSED_PARAMETER")
-
 @Composable
 fun CustomerScreen(
     navController: NavController,
     customerState: CustomerUiState,
-
     onSearch: (String) -> Unit = {},
     onTypeFilterChange: (String) -> Unit = {},
     onPageChange: (Int) -> Unit = {},
@@ -102,106 +100,120 @@ fun CustomerScreen(
     onView: (CustomerItem) -> Unit = {},
     onEdit: (CustomerItem) -> Unit = {},
     onDelete: (CustomerItem) -> Unit = {},
-    onBreadCrumbClick: () -> Unit ={}
-
+    onBreadCrumbClick: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
-//    var typeFilter by remember { mutableStateOf("all") }
-    var page by remember { mutableIntStateOf(1) }
-    var itemsPerPage by remember { mutableIntStateOf(10) }
-//    var showTypeDropdown by remember { mutableStateOf(false) }
-    var showItemsPerPageDropdown by remember { mutableStateOf(false) }
-    var customerPendingDelete by remember { mutableStateOf<CustomerItem?>(null) }   // ✅ NEW
+    var customerPendingDelete by remember { mutableStateOf<CustomerItem?>(null) }
 
     val customerViewModel: CustomerViewModel = hiltViewModel()
     val uiState by customerViewModel.uiState.collectAsStateWithLifecycle()
     val currentPage by customerViewModel.currentPageFlow.collectAsStateWithLifecycle()
     val pageSize by customerViewModel.pageSizeFlow.collectAsStateWithLifecycle()
 
+    val deleteState by customerViewModel.deleteState.collectAsStateWithLifecycle()
+    val createState by customerViewModel.createState.collectAsStateWithLifecycle()
+
+    var showCreateSuccess by remember { mutableStateOf(false) }
+    var showDeleteSuccess by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(customerState) {
         if (customerState is CustomerUiState.Error) {
-            coroutineScope.launch { snackbarHostState.showSnackbar(customerState.message) }
+            errorMessage = customerState.message
+        }
+    }
+
+    LaunchedEffect(deleteState) {
+        when (val state = deleteState) {
+            is CustomerDeleteState.Success -> {
+                showDeleteSuccess = true
+                customerViewModel.resetDeleteState()
+            }
+            is CustomerDeleteState.Error -> {
+                errorMessage = state.message
+                customerViewModel.resetDeleteState()
+            }
+            else -> {}
+        }
+    }
+
+    LaunchedEffect(createState) {
+        when (val state = createState) {
+            is CustomerCreateState.Success -> {
+                showCreateSuccess = true
+                customerViewModel.resetCreateState()
+            }
+            is CustomerCreateState.Error -> {
+                errorMessage = state.message
+                customerViewModel.resetCreateState()
+            }
+            else -> {}
         }
     }
 
     val isLoading = customerState is CustomerUiState.Loading
     val customers = (customerState as? CustomerUiState.Success)?.customers ?: emptyList()
     val total = (customerState as? CustomerUiState.Success)?.total ?: 0
-    val totalPages = (customerState as? CustomerUiState.Success)?.totalPages ?: 1
-    val filterDrawerState = rememberFilterDrawerState()
-
-//
-//    val typeOptions = listOf(
-//        "all" to "All Customers",
-//        "individual" to "Individual",
-//        "business" to "Business"
-//    )
 
     FabScaffold(
-//        fab = FabConfig(
-//            label = "Create Customer",
-//            icon = Icons.Default.Add,
-//            onClick = onCreateCustomer
-//        ),
-        fab=null,
+        fab = null,
         snackbarHostState = snackbarHostState
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFF9FAFB))
-        ) {
-
-            // ── Top Bar ──────────────────────────────────────────
-            Row(
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .fillMaxSize()
+                    .background(Color(0xFFF9FAFB))
             ) {
-                Column(
+                // ── Top Bar ──────────────────────────────────────────
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.White)
-                        .padding(horizontal = 16.dp )
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                            .padding(horizontal = 16.dp)
                     ) {
-                        Text("Customers", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color.Black,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clickable(
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-                                ) { onClose() }   // ✅ NEW
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Customers", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color.Black,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clickable(
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ) { onClose() }
+                            )
+                        }
                     }
                 }
-            }
 
-            Column(
-                modifier = Modifier
-                    .background(Color(0xFFF8F9FF))
-                    .fillMaxWidth()
-                    .padding()
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()
-                                 .background(Color(0xFFF8F9FF))
+                Column(
+                    modifier = Modifier
+                        .background(Color(0xFFF8F9FF))
+                        .fillMaxWidth()
                 ) {
-                    ScreenBreadcrumb(segments = listOf("Sales", "Customers"), onClick = {onBreadCrumbClick()})
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF8F9FF))
+                    ) {
+                        ScreenBreadcrumb(segments = listOf("Sales", "Customers"), onClick = { onBreadCrumbClick() })
 
                         SearchFilterBar(
                             query = searchQuery,
@@ -211,116 +223,140 @@ fun CustomerScreen(
                             accentColor = BluePrimary,
                             borderColor = BorderGray,
                             textSecondaryColor = TextSecondary,
-                            onFilterClick = { /* TODO: open filter drawer */ }
+                            onFilterClick = { }
                         )
-
-                }
-            }
-
-            HorizontalDivider(color = Color(0xFFF0F0F0))
-
-            // ── Content ──────────────────────────────────────────
-            when {
-                isLoading -> {
-                    ListSkeleton()
-                }
-
-                customerState is CustomerUiState.Error -> {
-                    Box(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                customerState.message,
-                                color = Color.Red,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 32.dp)
-                            )
-                        }
                     }
                 }
 
-                customerState is CustomerUiState.Success -> {
-                    if (customers.isEmpty()) {
+                HorizontalDivider(color = Color(0xFFF0F0F0))
+
+                // ── Content ──────────────────────────────────────────
+                when {
+                    isLoading -> {
+                        ListSkeleton()
+                    }
+
+                    customerState is CustomerUiState.Error -> {
                         Box(
                             modifier = Modifier.weight(1f).fillMaxWidth(),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.People, null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
+                                Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
                                 Spacer(Modifier.height(8.dp))
-                                Text("No customers found", color = Color.Gray, fontSize = 15.sp)
+                                Text(
+                                    customerState.message,
+                                    color = Color.Red,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 32.dp)
+                                )
                             }
                         }
-                    } else {
-                        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    }
 
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                                    .verticalScroll(rememberScrollState())
+                    customerState is CustomerUiState.Success -> {
+                        if (customers.isEmpty()) {
+                            Box(
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    customers.forEach { customer ->
-                                        val (badgeText, badgeColor) = when (customer.type?.lowercase()) {
-                                            "business" -> "Business" to Color(0xFFD97706)
-                                            "regular" -> "Regular" to Color(0xFF16A34A)
-                                            else -> "Individual" to Color(0xFF3B3BF9)
-                                        }
-
-                                        DataCard(
-                                            item = customer,
-                                            image = DataCardImage(
-                                                vector = Icons.Default.Person,
-                                                size = 30.dp,
-                                                backgroundColor = BorderGray,
-                                                tint = Color(0xFF9CA3AF)
-                                            ),
-                                            topBadgeText = badgeText,
-                                            topBadgeTextColor = badgeColor,
-                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-                                            topBadgeInline = true,                       // ✅ badge next to name, not top row
-                                            title = customer.name,
-                                            subtitle = customer.dateOfBirth
-                                                ?.takeIf { it.isNotBlank() }
-                                                ?.let { "Date of Birth  ${it.toDisplayDate()}" }
-                                                ?: "Date of Birth  —",   // ✅ CHANGED — dob is often missing in real data, avoid crash/garbage text                                            footerAsRows = true,
-                                            footerFields = listOf(
-                                                DataCardField(label = "Email", text = customer.email?.ifBlank { "—" } ?: "—"),
-                                                DataCardField(label = "Mobile", text = customer.mobile?.ifBlank { "—" } ?: "—"),
-                                                DataCardField(label = "Gender", text = customer.gender?.ifBlank { "—" } ?: "—"),
-                                                DataCardField(label = "Location", text = customer.location.ifBlank { "—" })
-                                            ),
-                                            actions = listOf(
-                                                MenuAction("View", Icons.Default.Visibility) { onView(customer) },
-                                                MenuAction("Edit", Icons.Default.Edit) { onEdit(customer) },
-                                                MenuAction("Delete", Icons.Default.Delete, tint = Color(0xFFF44336), textColor = Color(0xFFF44336)) {
-                                                    customerPendingDelete = customer
-                                                }
-                                            )
-                                        )
-                                    }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.People, null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
+                                    Spacer(Modifier.height(8.dp))
+                                    Text("No customers found", color = Color.Gray, fontSize = 15.sp)
                                 }
                             }
+                        } else {
+                            Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth()
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        customers.forEach { customer ->
+                                            val (badgeText, badgeColor) = when (customer.type?.lowercase()) {
+                                                "business" -> "Business" to Color(0xFFD97706)
+                                                "regular" -> "Regular" to Color(0xFF16A34A)
+                                                else -> "Individual" to Color(0xFF3B3BF9)
+                                            }
 
-                            // ── Pagination ──
-                            PaginationFooter(
-                                currentPage = currentPage,
-                                pageSize = pageSize,
-                                totalItems = total,
-                                onPageChange = { customerViewModel.onPageChange(it) },
-                                onItemsPerPageChange = { customerViewModel.onItemsPerPageChange(it) }
-                            )
+                                            DataCard(
+                                                item = customer,
+                                                image = DataCardImage(
+                                                    vector = Icons.Default.Person,
+                                                    size = 30.dp,
+                                                    backgroundColor = BorderGray,
+                                                    tint = Color(0xFF9CA3AF)
+                                                ),
+                                                topBadgeText = badgeText,
+                                                topBadgeTextColor = badgeColor,
+                                                topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
+                                                topBadgeInline = true,
+                                                title = customer.name,
+                                                subtitle = customer.dateOfBirth
+                                                    ?.takeIf { it.isNotBlank() }
+                                                    ?.let { "Date of Birth  ${it.toDisplayDate()}" }
+                                                    ?: "Date of Birth  —",
+                                                footerFields = listOf(
+                                                    DataCardField(label = "Email", text = customer.email?.ifBlank { "—" } ?: "—"),
+                                                    DataCardField(label = "Mobile", text = customer.mobile?.ifBlank { "—" } ?: "—"),
+                                                    DataCardField(label = "Gender", text = customer.gender?.ifBlank { "—" } ?: "—"),
+                                                    DataCardField(label = "Location", text = customer.location.ifBlank { "—" })
+                                                ),
+                                                actions = listOf(
+                                                    MenuAction("View", Icons.Default.Visibility) { onView(customer) },
+                                                    MenuAction("Edit", Icons.Default.Edit) { onEdit(customer) },
+                                                    MenuAction("Delete", Icons.Default.Delete, tint = Color(0xFFF44336), textColor = Color(0xFFF44336)) {
+                                                        customerPendingDelete = customer
+                                                    }
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+
+                                PaginationFooter(
+                                    currentPage = currentPage,
+                                    pageSize = pageSize,
+                                    totalItems = total,
+                                    onPageChange = { customerViewModel.onPageChange(it) },
+                                    onItemsPerPageChange = { customerViewModel.onItemsPerPageChange(it) }
+                                )
+                            }
                         }
                     }
                 }
             }
+
+            // ── Dynamic Island Notifications ──────────────────────────
+            if (showCreateSuccess) {
+                DynamicIslandSuccess(
+                    message = "Customer Created Successfully",
+                    onDismiss = { showCreateSuccess = false },
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+            }
+
+            if (showDeleteSuccess) {
+                DynamicIslandSuccess(
+                    message = "Customer Deleted Successfully",
+                    onDismiss = { showDeleteSuccess = false },
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+            }
+
+            if (errorMessage != null) {
+                DynamicIslandError(
+                    message = errorMessage ?: "An error occurred",
+                    onDismiss = { errorMessage = null },
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+            }
         }
     }
+
     customerPendingDelete?.let { customer ->
         AlertDialog(
             onDismissRequest = { customerPendingDelete = null },
@@ -330,6 +366,7 @@ fun CustomerScreen(
                 TextButton(
                     onClick = {
                         onDelete(customer)
+                        showDeleteSuccess = true
                         customerPendingDelete = null
                     }
                 ) {

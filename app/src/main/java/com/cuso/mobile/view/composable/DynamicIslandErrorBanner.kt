@@ -9,12 +9,22 @@
     "unusedvariable"
 )
 package com.cuso.mobile.view.composable
-
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -22,18 +32,127 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.border
-import androidx.compose.material.icons.filled.CheckCircle
 
-import androidx.compose.runtime.Composable
+// Circle diameter = icon size + (2 * padding) → perfect circle when text is hidden
+private val CIRCLE_SIZE = 40.dp
+private val ICON_SIZE = 18.dp
+
+@Composable
+private fun DynamicIslandBase(
+    modifier: Modifier,
+    message: String?,
+    onDismiss: () -> Unit,
+    durationMillis: Long,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color
+) {
+    val dropY = remember { Animatable(-1f) }   // -1f = above screen, 0f = settled
+    var isPresent by remember { mutableStateOf(false) }
+    var showText by remember { mutableStateOf(false) }
+
+    LaunchedEffect(message) {
+        if (message != null) {
+            isPresent = true
+            showText = false
+            dropY.snapTo(-1f)
+
+            // ── STEP 1: round circle drops down from top ──
+            // ── STEP 1: round circle drops down from top — slower, ~1 second ──
+            dropY.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(
+                    durationMillis = 500,
+                    easing = FastOutSlowInEasing     // smooth
+                )
+            )
+
+            // ── STEP 3: circle settled → now expand width both sides + reveal text ──
+            // (icon automatically glides to its final "first" position because
+            // the Row is centered in the parent Box — as width grows outward
+            // on both sides, Compose animates the icon's position every frame)
+            showText = true
+
+            delay(durationMillis)
+
+            // ── STEP 4 (reverse) part A: text hides, width shrinks back to circle ──
+            showText = false
+            delay(220) // wait for shrink animation to finish
+
+            // ── STEP 4 (reverse) part B: circle goes back up ──
+            dropY.animateTo(
+                targetValue = -1f,
+                animationSpec = tween(220, easing = FastOutSlowInEasing)
+            )
+
+            isPresent = false
+            onDismiss()
+        }
+    }
+
+    if (isPresent) {
+        Box(
+            modifier = modifier
+                .statusBarsPadding()
+                .padding(top = 3.dp)
+                .fillMaxWidth()
+                .graphicsLayer {
+                    translationY = dropY.value * 20
+                        .dp.toPx()
+                    alpha = 1f - (-dropY.value)
+                },
+            contentAlignment = Alignment.TopCenter   // keeps the pill centered as it grows both sides
+        ) {
+            Row(
+                modifier = Modifier
+                    .height(CIRCLE_SIZE)
+                    .background(Color(0xFF1C1C1E), RoundedCornerShape(CIRCLE_SIZE / 2)),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // ── STEP 2: icon perfectly fit inside the circle ──
+                Box(
+                    modifier = Modifier.size(CIRCLE_SIZE),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(ICON_SIZE)
+                    )
+                }
+
+                // Text container — expands/shrinks, pushing the pill wider on both sides
+                AnimatedVisibility(
+                    visible = showText,
+                    enter = fadeIn(tween(200, delayMillis = 100)) +
+                            expandHorizontally(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                ),
+                                expandFrom = Alignment.Start
+                            ),
+                    exit = shrinkHorizontally(
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        shrinkTowards = Alignment.Start
+                    ) + fadeOut(tween(120))
+                ) {
+                    Text(
+                        text = message ?: "",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        maxLines = 2,
+                        modifier = Modifier.padding(end = 16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun DynamicIslandError(
@@ -42,48 +161,7 @@ fun DynamicIslandError(
     onDismiss: () -> Unit,
     durationMillis: Long = 3000
 ) {
-    LaunchedEffect(message) {
-        if (message != null) {
-            delay(durationMillis)
-            onDismiss()
-        }
-    }
-
-    // ✅ CHANGED — plain Box overlay instead of Dialog.
-    // This means: no scrim, no touch blocking, and positioning
-    // is controlled entirely by the PARENT Box's alignment.
-    AnimatedVisibility(
-        visible = message != null,
-        modifier = modifier,
-        enter = fadeIn(tween(200)) + slideInVertically(
-            initialOffsetY = { -it },
-            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-        ),
-        exit = fadeOut(tween(150)) + slideOutVertically(targetOffsetY = { -it })
-    ) {
-        Row(
-            modifier = Modifier
-                .statusBarsPadding()
-                .padding(top = 8.dp, start = 24.dp, end = 24.dp)
-                .background(Color(0xFF1C1C1E), RoundedCornerShape(24.dp))
-                .padding(horizontal = 18.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.ErrorOutline,
-                contentDescription = null,
-                tint = Color(0xFFFF5252),
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = message ?: "",
-                color = Color.White,
-                fontSize = 13.sp,
-                maxLines = 2
-            )
-        }
-    }
+    DynamicIslandBase(modifier, message, onDismiss, durationMillis, Icons.Default.ErrorOutline, Color(0xFFFF5252))
 }
 
 @Composable
@@ -93,47 +171,8 @@ fun DynamicIslandSuccess(
     onDismiss: () -> Unit,
     durationMillis: Long = 3000
 ) {
-    LaunchedEffect(message) {
-        if (message != null) {
-            delay(durationMillis)
-            onDismiss()
-        }
-    }
-
-    AnimatedVisibility(
-        visible = message != null,
-        modifier = modifier,
-        enter = fadeIn(tween(200)) + slideInVertically(
-            initialOffsetY = { -it },
-            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-        ),
-        exit = fadeOut(tween(150)) + slideOutVertically(targetOffsetY = { -it })
-    ) {
-        Row(
-            modifier = Modifier
-                .statusBarsPadding()
-                .padding(top = 8.dp, start = 24.dp, end = 24.dp)
-                .background(Color(0xFF1C1C1E), RoundedCornerShape(24.dp))
-                .padding(horizontal = 18.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = Color(0xFF4ADE80),   // green tick
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = message ?: "",
-                color = Color.White,
-                fontSize = 13.sp,
-                maxLines = 2
-            )
-        }
-    }
+    DynamicIslandBase(modifier, message, onDismiss, durationMillis, Icons.Default.CheckCircle, Color(0xFF4ADE80))
 }
-
 
 // Central place to map raw backend error strings to user-friendly messages
 object ErrorMapper {

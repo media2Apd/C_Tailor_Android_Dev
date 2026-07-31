@@ -4,7 +4,8 @@
     "GrazieInspection",
     "AssignedValueIsNeverRead",
     "unused_variable",
-    "unused_parameter"
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter"
 )
 
 package com.cuso.mobile
@@ -23,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -50,7 +52,7 @@ import com.cuso.mobile.view.others.TermsConditions
 import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
 import com.cuso.mobile.view.signup_screen.SignUpScreen
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -62,32 +64,23 @@ class MainActivity : ComponentActivity() {
     // 👇 null while checking. Splash stays on screen as long as this is null.
     private var isLoggedIn: Boolean? = null
 
-    @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
-        // 👇 MUST be the very first line, before super.onCreate()
         val splashScreen = installSplashScreen()
-
         super.onCreate(savedInstanceState)
-
-        // 👇 Tell the system splash: "don't dismiss until isLoggedIn is resolved"
         splashScreen.setKeepOnScreenCondition { isLoggedIn == null }
-
-        // 👇 Fast Room query - resolves in a few ms, splash covers this entirely
-        runBlocking {
+        lifecycleScope.launch {
             isLoggedIn = sessionManager.isLoggedIn()
-        }
-
-        enableEdgeToEdge()
-        setContent {
-            CusoTailorTheme {
-                NoRippleProvider {
-                    Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
-                        val navController = rememberNavController()
-                        var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
+            enableEdgeToEdge()
+            setContent {
+                CusoTailorTheme {
+                    NoRippleProvider {
+                        Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
+                            val navController = rememberNavController()
+                            var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
 
 //                    PricingQuotationScreen(onClose = {})
-                        // 👇 isLoggedIn is guaranteed non-null here since splash already waited for it
-                        AppNav(activity = this, startLoggedIn = isLoggedIn == true)
+                            // 👇 isLoggedIn is guaranteed non-null here since splash already waited for it
+                            AppNav(activity = this@MainActivity, startLoggedIn = isLoggedIn == true)
 //                    EmployeeOnboardingScreen()
 //                    FinanceCustomerScreen(
 //                        onClose = { navController.popBackStack() },
@@ -97,7 +90,7 @@ class MainActivity : ComponentActivity() {
 //
 //                    )
 
-                        //                    OrderManagementScreen(navController = navController)
+                            //                    OrderManagementScreen(navController = navController)
 //
 //                    if (selectedCustomerId == null) {
 //                        FinanceCustomerScreen(
@@ -119,7 +112,7 @@ class MainActivity : ComponentActivity() {
 //                        }
 //                    )
 
-                        /*
+                            /*
                     if (selectedInvoiceId == null) {
                         FinanceInvoiceScreen(
                             onClose = { navController.popBackStack() },
@@ -140,6 +133,7 @@ class MainActivity : ComponentActivity() {
 //                    TrialBalanceScreen()
 //                    TrackingOverviewScreen ()
 
+                        }
                     }
                 }
             }

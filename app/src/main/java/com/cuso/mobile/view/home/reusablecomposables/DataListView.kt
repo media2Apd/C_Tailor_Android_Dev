@@ -88,9 +88,9 @@ data class DataCardImage(
     val size: Dp = 44.dp,
     val shape: Shape = CircleShape,
     val backgroundColor: Color = Color(0xFFF3F4F6),
-    val tint: Color? = null // only used when `vector` is supplied
+    val tint: Color? = null, // only used when `vector` is supplied
+    val selfContained: Boolean = false  // 👈 NEW — true = drawable already has its own bg/icon (e.g. ic_background_purple_star), skip outer clip+background+crop
 )
-
 /** One icon + text line in the footer. Add as many as a page needs (or none). */
 data class DataCardField(
     val icon: ImageVector? = null,
@@ -102,14 +102,12 @@ data class DataCardField(
     val asRow: Boolean = false,
     val labelColor: Color = Color(0xFF9CA3AF),
     val labelBackgroundColor: Color? = null,
-
-    // NEW — render the VALUE (field.text) as a pill/badge instead of plain
-    // text. Used for things like "Priority: High" where the value itself
-    // needs a colored background. Only applies when the field renders as a row.
     val valueBadge: Boolean = false,
     val valueBadgeBgColor: Color = Color(0xFFFDE7E7),
     val valueBadgeTextColor: Color = Color(0xFFE53935),
-    val valueBadgeCornerRadius: Dp = 20.dp
+    val valueBadgeCornerRadius: Dp = 20.dp,
+    val iconBackgroundColor: Color? = null,
+    val iconCircleSize: Dp = 24.dp
 )
 
 /**
@@ -247,7 +245,9 @@ fun <T> DataCard(
     chevronExpanded: Boolean = false,
     onChevronClick: (() -> Unit)? = null,
     trailingText:String?=null,
-    content: (@Composable () -> Unit)? = null
+    content: (@Composable () -> Unit)? = null,
+    showDateIcon: Boolean = true,   // ✅ NEW — set false to show dateText as plain text (e.g. "Order ID: SO-00031")
+
 ) {
     Card(
         modifier = modifier // CHANGED — was Modifier, now starts from the passed-in modifier
@@ -275,8 +275,10 @@ fun <T> DataCard(
                 ) {
                     if (dateText != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(dateIcon, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(4.dp))
+                            if (showDateIcon) {
+                                Icon(dateIcon, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(4.dp))
+                            }
                             Text(dateText, fontSize = 12.sp, color = Color(0xFF6B7280))
                         }
                     } else {
@@ -307,32 +309,42 @@ fun <T> DataCard(
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
 
                 if (image != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(image.size)
-                            .clip(image.shape)
-                            .background(image.backgroundColor),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        when {
-                            image.url != null -> AsyncImage(
-                                model = image.url,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                            image.painter != null -> Image(
-                                painter = image.painter,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                            image.vector != null -> Icon(
-                                image.vector,
-                                contentDescription = null,
-                                tint = image.tint ?: Color(0xFF9CA3AF),
-                                modifier = Modifier.size(image.size * 0.55f)
-                            )
+                    if (image.selfContained && image.painter != null) {
+                        // 👇 Drawable already draws its own circle bg + icon — just render it as-is, no outer box/crop
+                        Image(
+                            painter = image.painter,
+                            contentDescription = null,
+                            modifier = Modifier.size(image.size)
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(image.size)
+                                .clip(image.shape)
+                                .background(image.backgroundColor),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            when {
+                                image.url != null -> AsyncImage(
+                                    model = image.url,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                image.painter != null -> Image(
+                                    painter = image.painter,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    colorFilter = image.tint?.let { androidx.compose.ui.graphics.ColorFilter.tint(it) },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                image.vector != null -> Icon(
+                                    image.vector,
+                                    contentDescription = null,
+                                    tint = image.tint ?: Color(0xFF9CA3AF),
+                                    modifier = Modifier.size(image.size * 0.55f)
+                                )
+                            }
                         }
                     }
                     Spacer(Modifier.width(12.dp))
@@ -485,15 +497,29 @@ fun <T> DataCard(
                             }
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                when {
-                                    field.icon != null -> {
+                                val iconContent: (@Composable () -> Unit)? = when {
+                                    field.icon != null -> ({
                                         Icon(field.icon, contentDescription = null, tint = field.iconTint, modifier = Modifier.size(14.dp))
-                                        Spacer(Modifier.width(6.dp))
-                                    }
-                                    field.painter != null -> {
+                                    })
+                                    field.painter != null -> ({
                                         Icon(field.painter, contentDescription = null, tint = field.iconTint, modifier = Modifier.size(14.dp))
-                                        Spacer(Modifier.width(6.dp))
+                                    })
+                                    else -> null
+                                }
+
+                                if (iconContent != null) {
+                                    if (field.iconBackgroundColor != null) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(field.iconCircleSize)
+                                                .clip(CircleShape)
+                                                .background(field.iconBackgroundColor),
+                                            contentAlignment = Alignment.Center
+                                        ) { iconContent() }
+                                    } else {
+                                        iconContent()
                                     }
+                                    Spacer(Modifier.width(8.dp))
                                 }
                                 Text(field.text, fontSize = 13.sp, color = field.textColor, fontWeight = FontWeight.Medium)
                             }

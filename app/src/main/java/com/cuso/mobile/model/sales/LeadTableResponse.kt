@@ -26,6 +26,8 @@ data class LeadTableItem(
     @SerializedName("status") val status: Any,
     @SerializedName("appointment") val appointment: AppointmentTableItem?,
     @SerializedName("notes") val notes: List<NoteTableItem>?,
+    @SerializedName("convertedCustomerId") val convertedCustomerId: String?,   // ✅ NEW
+    @SerializedName("convertedOrderId") val convertedOrderId: String?,        // ✅ NEW
     @SerializedName("createdAt") val createdAt: String,
     @SerializedName("updatedAt") val updatedAt: String
 )

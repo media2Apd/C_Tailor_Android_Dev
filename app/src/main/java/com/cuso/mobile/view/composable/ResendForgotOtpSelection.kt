@@ -12,9 +12,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.viewmodel.Authenticate
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
+private val resendtext=Color(0xFF6B7280)
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -46,7 +49,7 @@ fun ResendForgotOtpSection(
         ) {
             Text(
                 text = if (timer == 0) "Resend OTP" else "Resend in ${timer}s",
-                color = if (timer == 0) Color.Blue else Color.DarkGray
+                color = if (timer == 0) Primary else resendtext, fontSize = 12.47.sp
             )
         }
     }

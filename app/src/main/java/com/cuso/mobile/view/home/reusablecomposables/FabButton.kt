@@ -31,7 +31,7 @@ data class FabConfig(
     val onClick: () -> Unit,
     val endPadding: Dp = 10.dp,
     val bottomPadding: Dp = 50.dp,
-    val draggable: Boolean = true   // ✅ NEW — set false if a screen wants it fixed
+    val draggable: Boolean = true
 )
 
 /**

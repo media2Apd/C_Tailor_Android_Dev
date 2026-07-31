@@ -18,11 +18,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -55,6 +57,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
+import com.cuso.mobile.R
 
 fun String?.toDisplayDate(): String {
     if (this.isNullOrBlank()) return "—"
@@ -285,10 +288,10 @@ fun CustomerScreen(
                                             DataCard(
                                                 item = customer,
                                                 image = DataCardImage(
-                                                    vector = Icons.Default.Person,
+                                                    painter=painterResource(R.drawable.ic_person),
                                                     size = 30.dp,
-                                                    backgroundColor = BorderGray,
-                                                    tint = Color(0xFF9CA3AF)
+                                                    tint = Color.Black,
+                                                    backgroundColor = Color.Transparent
                                                 ),
                                                 topBadgeText = badgeText,
                                                 topBadgeTextColor = badgeColor,
@@ -299,6 +302,7 @@ fun CustomerScreen(
                                                     ?.takeIf { it.isNotBlank() }
                                                     ?.let { "Date of Birth  ${it.toDisplayDate()}" }
                                                     ?: "Date of Birth  —",
+                                                footerAsRows = true,
                                                 footerFields = listOf(
                                                     DataCardField(label = "Email", text = customer.email?.ifBlank { "—" } ?: "—"),
                                                     DataCardField(label = "Mobile", text = customer.mobile?.ifBlank { "—" } ?: "—"),

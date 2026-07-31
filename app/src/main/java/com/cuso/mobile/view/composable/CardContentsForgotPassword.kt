@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryTextColor
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
@@ -194,7 +195,7 @@ fun CardContentsForgotPassword(
                     },
                     enabled = email.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2563eb),
+                        containerColor = Primary,
                         contentColor = Color.White
                     ),
                     shape = RoundedCornerShape(5.dp),

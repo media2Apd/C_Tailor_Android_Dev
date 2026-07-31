@@ -11,12 +11,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 
 @Suppress("UNUSED_PARAMETER")
 
 @Composable
-fun SignUpText(navController: NavController){
+fun SignUpText(){
     Row(
         Modifier
             .fillMaxWidth(),
@@ -25,14 +26,15 @@ fun SignUpText(navController: NavController){
 
     ) {
         Text(
-            "Dont have an account?",
+            "Don't have an account?",
             Modifier.padding(horizontal = 2.dp),
-            color = Color.Gray
+            color = Color.Gray,
+            fontSize = 10.sp
         )
-        Text("Sign Up",
+        Text("Contact Admin",
             color = Color.Blue,
-            modifier=Modifier.clickable{
-                navController.navigate("signup")
-            })
+            fontSize = 10.sp
+
+        )
     }
 }

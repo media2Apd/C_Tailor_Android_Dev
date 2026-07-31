@@ -51,7 +51,7 @@ fun ForgotOtpSelection(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        Text("Enter your OTP",color=Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text("Enter your OTP",color=Color.Black, fontSize = 12.47.sp, fontWeight = FontWeight.Bold)
 
     }
     Spacer(Modifier.padding(top=10.dp))
@@ -87,7 +87,7 @@ fun ForgotOtpSelection(
         enabled = isOtpComplete && accountState !is UiState.Loading,
         modifier = Modifier
             .fillMaxWidth()
-            .height(40.dp),
+            .height(50.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = Color.Blue,
             contentColor = Color.White
@@ -99,11 +99,12 @@ fun ForgotOtpSelection(
         } else {
             Text(
                 text = "Verify and continue",
-                fontSize = 14.sp,
+                fontSize = 14.26.sp,
                 fontWeight = FontWeight.SemiBold
             )
         }
 
     }
+    Spacer(Modifier.padding(top = 15.dp))
     BackToSignIn(navController)
 }

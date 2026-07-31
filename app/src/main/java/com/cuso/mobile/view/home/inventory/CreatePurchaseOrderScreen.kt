@@ -62,6 +62,7 @@ import com.cuso.mobile.view.composable.DatePickerField
 // ── Your existing DataCard system ──
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
+import com.cuso.mobile.view.home.reusablecomposables.SegmentedSelector
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 
@@ -332,43 +333,15 @@ fun CreatePurchaseOrderScreen(
 
                 Spacer(Modifier.height(16.dp))
                 FormLabel("Priority")
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
-                ) {
-                    PoPriority.entries.forEachIndexed { index, p ->
-                        val selected = priority == p
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .background(if (selected) AccentColor else Color.White)
-                                .then(
-                                    // ✅ vertical divider between sections (skip before the first item)
-                                    if (index != 0)
-                                        Modifier.drawBehind {
-                                            drawLine(
-                                                color = BorderColor,
-                                                start = Offset(0f, 0f),
-                                                end = Offset(0f, size.height),
-                                                strokeWidth = 1.dp.toPx()
-                                            )
-                                        }
-                                    else Modifier
-                                )
-                                .clickable { priority = p }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                p.name.lowercase().replaceFirstChar { it.uppercase() },
-                                color = if (selected) Color.White else TitleColor,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
-                }
+                SegmentedSelector(
+                    options = PoPriority.entries,
+                    selected = priority,
+                    onSelect = { priority = it },
+                    label = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                    accentColor = AccentColor,
+                    borderColor = BorderColor,
+                    unselectedTextColor = TitleColor
+                )
 
                 Spacer(Modifier.height(16.dp))
 

@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.AppLogo
+import com.cuso.mobile.view.composable.CusoAppLogo
 import com.cuso.mobile.view.composable.ForgotOtpSelection
 
 @Suppress("UNUSED_PARAMETER")
@@ -36,20 +37,19 @@ fun VerifyForgotPassword(navController: NavController, activity: Activity, submi
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        AppLogo()
-        Spacer(modifier = Modifier.height(10.dp))
+        CusoAppLogo()
 
         // ✅ Title styled the same as ForgotUserPassword's heading
         Text(
             text = "Verify OTP",
-            fontSize = 25.sp,
+            fontSize = 21.39.sp,
             fontWeight = FontWeight.Bold,
             color = Color.Black
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = "Enter the code sent to $submittedEmail",
-            fontSize = 14.sp,
+            fontSize = 12.47.sp,
             color = Color(0xFF6B7280)
         )
         Spacer(modifier = Modifier.height(10.dp))

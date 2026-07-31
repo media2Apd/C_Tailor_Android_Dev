@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.Primary
 
 @Composable
 fun BackToSignIn(navController: NavController) {
@@ -25,7 +26,7 @@ fun BackToSignIn(navController: NavController) {
         horizontalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.Blue, modifier = Modifier.size(20.dp)
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack, null, tint = Primary, modifier = Modifier.size(20.dp)
         )
         Text(
             "Back to Sign In",

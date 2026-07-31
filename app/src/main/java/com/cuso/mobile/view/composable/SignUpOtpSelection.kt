@@ -41,6 +41,7 @@ import com.cuso.mobile.viewmodel.Authenticate
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.style.TextOverflow
+import com.cuso.mobile.ui.theme.Primary
 
 
 @Composable
@@ -189,7 +190,7 @@ fun SignUpOtpSelection(
             .fillMaxWidth()
             .height(50.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color.Blue,
+            containerColor = Primary,
             contentColor = Color.White
         ),
         shape = RoundedCornerShape(8.dp)

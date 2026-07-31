@@ -19,3 +19,15 @@ fun AppLogo(){
 
     }
 }
+
+@Composable
+fun CusoAppLogo(){
+    Column {
+        Image(
+            painter = painterResource(id = R.drawable.cuso_tailor_logo),
+            contentDescription = "App logo",
+            Modifier.size(100.dp)
+        )
+
+    }
+}

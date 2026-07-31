@@ -61,6 +61,7 @@ import androidx.navigation.NavController
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.PrimaryTextColor
+import com.cuso.mobile.ui.theme.TextLog
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
 
@@ -88,7 +89,7 @@ fun CardContentsLoginScreen(navController: NavController,
     Column(
         Modifier.padding(25.dp)
     ) {
-        Text("Email", fontSize = 14.sp,color=Color(0xFF374151))
+        Text("Email", fontSize = 14.sp,color= TextLog)
         Spacer(Modifier.padding(top = 5.dp))
         if(!isSubmitted) {
             CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
@@ -408,6 +409,10 @@ fun CardContentsLoginScreen(navController: NavController,
         Spacer(Modifier.padding(top=20.dp))
         Row {
             ContinueWithApple(activity,navController)
+        }
+        Spacer(Modifier.padding(top=10.dp))
+        Row {
+            SignUpText()
         }
     }
 }

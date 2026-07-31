@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.view.composable.AppLogo
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
@@ -114,7 +115,7 @@ fun ResetPassword(
 
                     Text(
                         text = "New Password",
-                        fontSize = 14.sp,
+                        fontSize = 12.47.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
                     )
@@ -190,11 +191,11 @@ fun ResetPassword(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(15.dp))
 
                     Text(
                         text = "Confirm Password",
-                        fontSize = 16.sp,
+                        fontSize = 12.47.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
                     )
@@ -309,6 +310,7 @@ fun ResetPassword(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
+                    Spacer(modifier = Modifier.height(10    .dp))
 
                     // Reset Password button
                     Button(
@@ -319,19 +321,20 @@ fun ResetPassword(
                                 confirmPassword = confirmPassword
                             )
                         },
-                        enabled = isFormValid,
+                        enabled = isFormValid && resetPasswordState !is UiState.Loading,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(40.dp),
+                            .height(50.dp),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4F46E5),
+                            containerColor = Primary,
                             disabledContainerColor = Color(0xFFC7D2FE)
                         )
                     ) {
                         if (resetPasswordState is UiState.Loading) {
                             CirculerProgressIndicatorSmall()
 
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = "Resetting Password",
                                 fontSize = 14.sp,

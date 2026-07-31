@@ -44,12 +44,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,7 +73,6 @@ import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.composable.ValidationField
 import com.cuso.mobile.view.home.FormDropdown
-import com.cuso.mobile.view.home.sales.customer.CustomerOutlinedField
 import com.cuso.mobile.view.home.sales.customer.LabeledField
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
@@ -86,9 +88,14 @@ import java.io.File
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.utils.safeDate
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.customFieldOutlinedColors
+import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.home.inventory.FormTextArea
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
+import com.cuso.mobile.view.home.reusablecomposables.SegmentedSelector
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
@@ -238,7 +245,7 @@ fun CreateOrderScreen(
     }
 
     var showAddCategoryDialog by rememberSaveable { mutableStateOf(false) }
-
+    var selectedQuickCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(initialData) {
         initialData?.garments?.let { garments ->
             garments.forEach { salesViewModel.addOrUpdateGarment(it) }
@@ -628,15 +635,16 @@ fun CreateOrderScreen(
                 )
             }
         },
-        containerColor = Color(0xFFF3F4F6)
+        containerColor = Primary_background
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
                     .verticalScroll(scrollState)
                     .padding(bottom = 16.dp)
+                    .background(Primary_background)
             ) {
 
                 // ══════════════════════════════════════════════
@@ -652,6 +660,7 @@ fun CreateOrderScreen(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.CenterEnd
                     ) {
+                        FormLabel("Phone ")
                         // ⚠️ Assumes PhoneInputField supports isError/errorMessage — share the file if not.
                         PhoneInputField(
                             phoneValue = phone,
@@ -808,21 +817,19 @@ fun CreateOrderScreen(
 
                     Spacer(Modifier.height(4.dp))
 
-                    LabeledField("Full Name *") {
-                        // ⚠️ Assumes CustomerOutlinedField supports isError/errorMessage — share the file if not.
-                        CustomerOutlinedField(
-                            value = fullName,
-                            onValueChange = {
-                                if (!isEditMode) {
-                                    fullName = it
-                                    if (errorField == "fullName" && it.isNotBlank()) errorField = null
-                                }
-                            },
-                            placeholder = "Enter your name",
-                            enabled = !isEditMode,
-                            isError = errorField == "fullName"
-                        )
-                    }
+                    FormLabel("Full Name")
+                    FormTextField(
+                        value = fullName,
+                        onValueChange = {
+                            if (!isEditMode) {
+                                fullName = it
+                                if (errorField == "fullName" && it.isNotBlank()) errorField = null
+                            }
+                        },
+                        placeholder = "Enter your name",
+                        enabled = !isEditMode,
+                        isError = errorField == "fullName"
+                    )
                     if (errorField == "fullName") {
                         Text(
                             "Full Name is required",
@@ -856,6 +863,7 @@ fun CreateOrderScreen(
                         textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF111827)),
                         enabled = !isEditMode
                     )
+
 
                     Spacer(Modifier.height(4.dp))
 
@@ -974,36 +982,14 @@ fun CreateOrderScreen(
                         else -> {
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 items(quickCategories) { (name, categoryId) ->
-                                    Column(
-                                        modifier = Modifier
-                                            .width(90.dp)
-                                            .background(Color.White, RoundedCornerShape(10.dp))
-                                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
-                                            .clickable { openGarmentDialog(name, categoryId) }
-                                            .padding(12.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(44.dp)
-                                                .background(Color(0xFFEEF2FF), CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Checkroom,
-                                                contentDescription = name,
-                                                tint = Color(0xFF3B3BF9),
-                                                modifier = Modifier.size(22.dp)
-                                            )
+                                    CategoryPillButton(
+                                        name = name,
+                                        isSelected = categoryId == selectedQuickCategoryId,
+                                        onClick = {
+                                            selectedQuickCategoryId = categoryId
+                                            openGarmentDialog(name, categoryId)
                                         }
-                                        Text(
-                                            name,
-                                            fontSize = 12.sp,
-                                            color = Color(0xFF374151),
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    }
+                                    )
                                 }
                             }
                         }
@@ -1501,28 +1487,66 @@ fun CreateOrderScreen(
             }
 
             if (showGarmentDialog) {
-                ModalBottomSheet(
+                Dialog(
                     onDismissRequest = { showGarmentDialog = false },
-                    sheetState = rememberModalBottomSheetState(
-                        skipPartiallyExpanded = true,
-                        confirmValueChange = { true }
-                    ),
-                    containerColor = Color.White,
-                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                    dragHandle = {
-                        BottomSheetDefaults.DragHandle(modifier = Modifier.padding(vertical = 8.dp))
-                    }
-                ) {
-                    InlineGarmentPanel(
-                        garment = tempGarment,
-                        categories = quickCategories,
-                        onGarmentChange = { tempGarment = it },
-                        onSave = {
-                            saveGarment()
-                            showGarmentDialog = false
-                        },
-                        onCancel = { showGarmentDialog = false }
+                    properties = DialogProperties(
+                        usePlatformDefaultWidth = false,
+                        dismissOnBackPress = true,
+                        dismissOnClickOutside = false
                     )
+                ) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = Color.White
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            // ── Full-page top bar ──
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.White)
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    if (editingGarmentId != null) "Edit Garment" else "Add Garment",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF111827)
+                                )
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "close",
+                                    tint = Color(0xFF111827),
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .clickable { showGarmentDialog = false }
+                                )
+                            }
+                            HorizontalDivider(color = Color(0xFFF3F4F6))
+
+                            // ── Scrollable content ──
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                InlineGarmentPanel(
+                                    garment = tempGarment,
+                                    categories = quickCategories,
+                                    isEditing = editingGarmentId != null,
+                                    onGarmentChange = { tempGarment = it },
+                                    onSave = {
+                                        saveGarment()
+                                        showGarmentDialog = false
+                                    },
+                                    onCancel = { showGarmentDialog = false }
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1628,6 +1652,129 @@ fun CreateOrderScreen(
         }
     }
 }
+// Quick Add Category - pill style selectable buttons (matches design image)
+
+@Composable
+fun QuickAddCategoryRow(
+    categories: List<Pair<String, String>>, // name to categoryId
+    selectedCategoryId: String?,
+    onCategoryClick: (String, String) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        categories.forEach { (name, categoryId) ->
+            val isSelected = categoryId == selectedCategoryId
+            CategoryPillButton(
+                name = name,
+                isSelected = isSelected,
+                onClick = { onCategoryClick(name, categoryId) }
+            )
+        }
+    }
+}
+
+@Composable
+fun CategoryPillButton(
+    name: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (isSelected) Primary else Color(0xFFE5E7EB)
+    val contentColor = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF9CA3AF)
+
+    Row(
+        modifier = Modifier
+            .background(Color.White, RoundedCornerShape(12.dp))
+            .border(
+                width = if (isSelected) 1.5.dp else 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Checkroom, // swap per-category icon if you have specific ones for Pant/Shirt
+            contentDescription = name,
+            tint = contentColor,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            text = name,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = contentColor
+        )
+    }
+}
+@Composable
+fun CustomerOutlinedField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    isError: Boolean = false,
+    errorMessage: String? = null
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val colors = customFieldOutlinedColors()
+
+    Column {
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = modifier.fillMaxWidth().height(40.dp),
+            enabled = enabled,
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(
+                fontSize = 14.sp,
+                color = if (enabled) Color(0xFF111827) else Color(0xFF9CA3AF)
+            ),
+            cursorBrush = SolidColor(Color(0xFF3B3BF9)),
+            interactionSource = interactionSource,
+            decorationBox = { innerTextField ->
+                OutlinedTextFieldDefaults.DecorationBox(
+                    value = value,
+                    innerTextField = innerTextField,
+                    enabled = enabled,
+                    singleLine = true,
+                    visualTransformation = VisualTransformation.None,
+                    interactionSource = interactionSource,
+                    isError = isError,
+                    placeholder = { Text(placeholder, fontSize = 14.sp) },
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    colors = colors,
+                    container = {
+                        OutlinedTextFieldDefaults.Container(
+                            enabled = enabled,
+                            isError = isError,
+                            interactionSource = interactionSource,
+                            colors = colors,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                    }
+                )
+            }
+        )
+        if (isError && !errorMessage.isNullOrBlank()) {
+            Text(
+                text = errorMessage,
+                fontSize = 11.sp,
+                color = Color(0xFFEF4444),
+                modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+            )
+        }
+    }
+}
+
 
 // ─────────────────────────────────────────────────────────────
 // Previous Measurements Import Dialog
@@ -1936,7 +2083,7 @@ private fun InlineGarmentPanel(
 
             // ── Basic Information ──
             GarmentSubSection(
-                icon = Icons.Default.Info,
+                iconPainter = painterResource(R.drawable.ic_info),
                 label = "Basic Information",
                 expanded = subSection == "basic",
                 onToggle = { subSection = if (subSection == "basic") "" else "basic" }
@@ -2003,28 +2150,29 @@ private fun InlineGarmentPanel(
 
             // ── Fabric Details ──
             GarmentSubSection(
-                icon = Icons.Default.Description,
+                iconPainter = painterResource(R.drawable.ic_message),
                 label = "Fabric Details",
                 expanded = subSection == "fabric",
                 onToggle = { subSection = if (subSection == "fabric") "" else "fabric" }
             ) {
                 FormLabel("Fabric Source")
-                SegmentedToggle(
+                SegmentedSelector(
                     options = fabricSourceOptions,
                     selected = garment.fabricSource.ifEmpty { "In-House" },
-                    onSelect = { selected -> onGarmentChange(garment.copy(fabricSource = selected)) }
+                    onSelect = { selected -> onGarmentChange(garment.copy(fabricSource = selected)) },
+                    label = { it }
                 )
-
                 Spacer(Modifier.height(16.dp))
 
-                FormDropdown(
-                    label = "Fabric Type",
-                    value = garment.fabricType.ifEmpty { "e.g Cotton" },
-                    expanded = fabricTypeExpanded,
-                    onExpandChange = { fabricTypeExpanded = it },
-                    options = fabricTypeOptions,
-                    onOptionSelected = { selected -> onGarmentChange(garment.copy(fabricType = selected)) },
-                    isRequired = true
+                FormTextField(
+                    value = garment.fabricType,
+                    onValueChange = { newValue ->
+                        onGarmentChange(garment.copy(fabricType = newValue))
+                    },
+                    placeholder = "e.g Cotton",
+                    keyboardType = KeyboardType.Text,
+                    isError = false, // pass your actual validation state here if you have one
+                    errorMessage = null // pass your actual error message if applicable
                 )
 
                 Spacer(Modifier.height(16.dp))
@@ -2050,7 +2198,7 @@ private fun InlineGarmentPanel(
 
             // ── Models ──
             GarmentSubSection(
-                icon = Icons.Default.RadioButtonUnchecked,
+                iconPainter = painterResource(R.drawable.ic_circle),
                 label = "Models",
                 expanded = subSection == "models",
                 onToggle = { subSection = if (subSection == "models") "" else "models" }
@@ -2128,7 +2276,9 @@ private fun InlineGarmentPanel(
 // ── Reusable Sub-Section Component ──
 @Composable
 private fun GarmentSubSection(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    iconPainter: androidx.compose.ui.graphics.painter.Painter? = null,
+    iconTint: Color = Primary,
     label: String,
     expanded: Boolean,
     onToggle: () -> Unit,
@@ -2145,14 +2295,27 @@ private fun GarmentSubSection(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(20.dp))
+                when {
+                    iconPainter != null -> Icon(
+                        painter = iconPainter,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    icon != null -> Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
                 Spacer(Modifier.width(10.dp))
-                Text(label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Color(0xFF3B3BF9))
+                Text(label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = iconTint)
             }
             Icon(
                 Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
-                tint = Color(0xFF3B3BF9),
+                tint = iconTint,
                 modifier = Modifier.size(24.dp).rotate(chevronRotation)
             )
         }
@@ -2210,6 +2373,7 @@ fun SegmentedToggle(
 }
 
 // ── Model selector chips (Slim Fit / Shirt with icon) ──
+// ── Model selector chips (pill style, matches CategoryPillButton) ──
 @Composable
 fun ModelGridSelector(
     models: List<GarmentModel>,
@@ -2219,35 +2383,11 @@ fun ModelGridSelector(
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         models.forEach { model ->
             val isSelected = selectedModels.contains(model.name)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(64.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(
-                        1.dp,
-                        if (isSelected) Color(0xFF3B3BF9) else Color(0xFFE5E7EB),
-                        RoundedCornerShape(8.dp)
-                    )
-                    .background(if (isSelected) Color(0xFFEEF0FF) else Color.White)
-                    .clickable { onModelToggle(model.name) },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Checkroom,
-                    contentDescription = null,
-                    tint = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF9CA3AF),
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    model.name,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF374151)
-                )
-            }
+            CategoryPillButton(
+                name = model.name,
+                isSelected = isSelected,
+                onClick = { onModelToggle(model.name) }
+            )
         }
     }
 }
@@ -2285,7 +2425,7 @@ fun MeasurementsSection(
                 updated.add(
                     MeasurementField(
                         id = "custom_${System.currentTimeMillis()}",
-                        label = "Custom Field",
+                        label = "",
                         value = "",
                         unit = "inch"
                     )
@@ -2492,13 +2632,13 @@ private fun SectionCard(
     val chevronRotation by androidx.compose.animation.core.animateFloatAsState(
         if (expanded) 180f else 0f, label = "section_chevron"
     )
-    Column(modifier = Modifier.fillMaxWidth().background(Color.White)) {
+    Column(modifier = Modifier.fillMaxWidth().background(Primary_background)) {
         Row(
             modifier = Modifier.fillMaxWidth().clickable { onToggle() }.padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+            Text(title, fontSize = 15.sp, fontWeight = FontWeight.Normal, color = Color(0xFF111827))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 action?.invoke()
                 Icon(
@@ -2519,7 +2659,7 @@ private fun SectionCard(
             }
         }
     }
-    HorizontalDivider(color = Color(0xFFF0F0F0))
+    HorizontalDivider(color = Color(0xFFF3F4F6))
 }
 
 @Composable

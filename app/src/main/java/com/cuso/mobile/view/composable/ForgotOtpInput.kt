@@ -40,6 +40,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
@@ -95,7 +96,7 @@ fun ForgotOtpInput(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 380.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(7.13.dp)
         ) {
             repeat(otpLength) { index ->
                 val char = textFieldValue.text.getOrNull(index)?.toString() ?: ""
@@ -103,15 +104,10 @@ fun ForgotOtpInput(
 
                 Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(1f)
+                        .size(40.dp)                                        // ← .weight(1f).aspectRatio(1f) நீக்கி இதை போடுங்க
                         .border(
                             width = if (isFocused) 2.dp else 1.5.dp,
-                            color = when {
-                                isFocused -> Color.Blue
-                                char.isNotEmpty() -> Color(0xFF4CAF50)
-                                else -> Color.Gray
-                            },
+                            color = if (isFocused) Color(0xFF1D4ED8) else Color(0xFFD1D5DB),  // ← active/regular colors
                             shape = RoundedCornerShape(8.dp)
                         )
                         .background(Color.White, RoundedCornerShape(8.dp))

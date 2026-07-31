@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="32dp"
+    android:height="32dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
+    <!-- Rounded background circle (fill) -->
+    <path
+        android:fillColor="#DCFCE7"
+        android:pathData="M0,16 A16,16 0 1,0 32,16 A16,16 0 1,0 0,16 Z" />
+    <!-- Circle border/stroke -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#16A34A"
+        android:strokeAlpha="0.5"
+        android:strokeWidth="1"
+        android:pathData="M0.5,16 A15.5,15.5 0 1,0 31.5,16 A15.5,15.5 0 1,0 0.5,16 Z" />
+    <!-- Check mark icon -->
+    <path
+        android:fillColor="#16A34A"
+        android:pathData="M17.6,13.6 C17.1585,13.6 16.8,13.2415 16.8,12.8 C16.8,12.3585 17.1585,12 17.6,12 H21.6 C22.0416,12 22.4,12.3585 22.4,12.8 V16.8 C22.4,17.2415 22.0416,17.6 21.6,17.6 C21.1585,17.6 20.8,17.2415 20.8,16.8 V14.7312 L17.3656,18.1656 C17.0532,18.4779 16.5468,18.4779 16.2344,18.1656 L14.4,16.3312 L10.9656,19.7656 C10.6517,20.0688 10.1528,20.0644 9.84418,19.7559 C9.53559,19.4473 9.53126,18.9483 9.83443,18.6344 L13.8344,14.6344 C14.1468,14.3221 14.6532,14.3221 14.9656,14.6344 L16.8,16.4688 L19.6688,13.6 H17.6 Z" />
+</vector>

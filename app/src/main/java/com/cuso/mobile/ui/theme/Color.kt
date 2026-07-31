@@ -2,6 +2,12 @@ package com.cuso.mobile.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+//login sign up text colors
+val TextLog=Color(0xFF374151)
+
+//container disabled color
+val disabled=Color(0xFFC7D2FE)
+
 val Purple80 = Color(0xFFD0BCFF)
 val PurpleGrey80 = Color(0xFFCCC2DC)
 val Pink80 = Color(0xFFEFB8C8)

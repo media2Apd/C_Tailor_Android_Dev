@@ -17,6 +17,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.mobile.view.composable.CardContentsLoginScreen
 import com.cuso.mobile.view.composable.AppLogo
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.LoginScreenTitle
 import com.cuso.mobile.viewmodel.UiState
 import com.cuso.mobile.viewmodel.Authenticate
@@ -60,7 +62,7 @@ fun LoginScreen(activity: Activity,
     val snackbarState = remember { SnackbarHostState() }
     var showExitDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    var showBanner by remember { mutableStateOf(false) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
 //    var snackbarMessage by remember { mutableStateOf<String?>(null) }
 
 
@@ -140,7 +142,13 @@ fun LoginScreen(activity: Activity,
             ) {
                 AppLogo()
                 Spacer(modifier = Modifier.height(10.dp))
-                LoginScreenTitle()
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LoginScreenTitle()
+                }
                 Spacer(modifier = Modifier.height(10.dp))
                 Box(
                     Modifier.padding(20.dp)
@@ -173,49 +181,15 @@ fun LoginScreen(activity: Activity,
 
         LaunchedEffect(resetSuccessMessage) {
             if (resetSuccessMessage.isNotBlank()) {
-                showBanner = true
-                delay(3000.milliseconds) // auto hide after 3 seconds
-                showBanner = false
+                successMessage = resetSuccessMessage
             }
         }
 
-        AnimatedVisibility(
-            visible = showBanner,
-            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 40.dp) // 👈 gap from top edge
-        ) {
-            Box(
-                modifier = Modifier
-                    .wrapContentWidth()
-                    .background(
-                        color = Color(0xFF1A1A1A), // 👈 dark like dynamic island
-                        shape = RoundedCornerShape(50.dp) // 👈 pill shape
-                    )
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color(0xFF22C55E),
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = resetSuccessMessage,
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-        }
+        DynamicIslandSuccess(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
     }
 
 }

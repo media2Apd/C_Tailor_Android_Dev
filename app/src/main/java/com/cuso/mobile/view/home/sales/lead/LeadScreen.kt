@@ -48,6 +48,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
@@ -1445,17 +1446,27 @@ fun LeadScreenContent(
                                             val (badgeText, badgeColor) = resolveStatusBadge(lead)
                                             DataCard(
                                                 item = lead,
-                                                dateText = formatLeadDate(lead.requiredDate?.takeIf { it.isNotBlank() } ?: lead.enquiryDate),
+                                                dateText = "Order ID: ${lead.convertedOrderId}",   // or lead.leadNumber if you have one
+                                                showDateIcon = false,
+
                                                 topBadgeText = badgeText,
                                                 topBadgeTextColor = badgeColor,
                                                 topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
+
                                                 title = lead.person.name.ifEmpty { "—" },
-                                                subtitle = "${lead.enquiryType.ifEmpty { "—" }} • ${getGarmentName(lead)} • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
+                                                subtitle = "${formatLeadDate(lead.requiredDate?.ifEmpty { "—" })} • ${getGarmentName(lead)} • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
+
                                                 footerFields = listOf(
                                                     DataCardField(
-                                                        text = "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}"
+                                                        icon = Icons.Default.AttachMoney,        // ✅ core icon, no extra dependency needed
+                                                        iconTint = Color(0xFF6366F1),
+                                                        iconBackgroundColor = Color(0xFFEEF2FF),
+                                                        iconCircleSize = 24.dp,
+                                                        text = "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}",
+                                                        textColor = Color(0xFF374151)
                                                     )
                                                 ),
+
                                                 actions = listOf(
                                                     MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClicked(lead) },
                                                     MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClicked(lead) },
@@ -1463,7 +1474,7 @@ fun LeadScreenContent(
                                                         "Delete", Icons.Default.Delete,
                                                         tint = Color(0xFFF44336), textColor = Color(0xFFF44336),
                                                         enabled = !isDeleting
-                                                    ) { leadToDelete = lead }
+                                                    ) { leadToDelete = lead }   // ✅ existing state var, not orderToDelete
                                                 )
                                             )
                                         }

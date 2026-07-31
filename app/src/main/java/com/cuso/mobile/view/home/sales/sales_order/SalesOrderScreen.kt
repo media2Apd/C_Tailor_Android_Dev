@@ -30,6 +30,7 @@ import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.res.painterResource
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
@@ -54,6 +55,7 @@ import com.cuso.mobile.view.composable.ErrorMapper
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.cuso.mobile.R
 
 // ─────────────────────────────────────────────────────────────
 // Screen
@@ -238,10 +240,10 @@ fun SalesOrderScreen(
                                             DataCard(
                                                 item = order,
                                                 image = DataCardImage(
-                                                    vector = Icons.Default.Person,
-                                                    size = 50.dp,
-                                                    backgroundColor = BorderGray,
-                                                    tint = Color(0xFF9CA3AF)
+                                                    painter= painterResource(R.drawable.ic_person),
+                                                    size = 30.dp,
+                                                    backgroundColor = Color.Transparent,
+                                                    tint = Color.Black
                                                 ),
                                                 topBadgeText = order.status?.replaceFirstChar { it.uppercase() } ?: "—",
                                                 topBadgeTextColor = statusTextColor,

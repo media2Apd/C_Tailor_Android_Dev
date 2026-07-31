@@ -2505,9 +2505,21 @@ fun buildFilterSections(
 fun formatLeadDate(raw: String?): String {
     if (raw.isNullOrBlank()) return "—"
     return try {
-        val datePart = raw.take(10)
+        val datePart = raw.take(10)          // "2026-06-27"
         val parts = datePart.split("-")
-        if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else raw
+        if (parts.size == 3) {
+            val year = parts[0]
+            val month = parts[1].toIntOrNull()
+            val day = parts[2]
+
+            val monthNames = listOf(
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+            )
+            val monthName = month?.let { if (it in 1..12) monthNames[it - 1] else null }
+
+            if (monthName != null) "$day $monthName $year" else raw
+        } else raw
     } catch (_: Exception) { raw }
 }
 

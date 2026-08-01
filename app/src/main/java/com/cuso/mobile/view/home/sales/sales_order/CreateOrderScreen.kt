@@ -94,11 +94,16 @@ import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.customFieldOutlinedColors
 import com.cuso.mobile.view.home.FormTextField
 import com.cuso.mobile.view.home.inventory.FormTextArea
+import com.cuso.mobile.view.home.reusablecomposables.BackFabButton
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
 import com.cuso.mobile.view.home.reusablecomposables.SegmentedSelector
+import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
+import com.cuso.mobile.view.home.reusablecomposables.blurScrim
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
+import com.cuso.mobile.view.home.reusablecomposables.SheetValue
+import com.cuso.mobile.view.home.reusablecomposables.TrailingFabButton
 
 // ─────────────────────────────────────────────────────────────
 // Data Models
@@ -244,7 +249,9 @@ fun CreateOrderScreen(
         }
     }
 
-    var showAddCategoryDialog by rememberSaveable { mutableStateOf(false) }
+    var addCategorySheetState by remember { mutableStateOf(SheetValue.Hidden) }
+    var addCategoryBlur by remember { mutableStateOf(0.dp) }
+    var addCategoryScrim by remember { mutableStateOf(0f) }
     var selectedQuickCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(initialData) {
         initialData?.garments?.let { garments ->
@@ -525,19 +532,19 @@ fun CreateOrderScreen(
             models = emptyList()
         )
         editingGarmentId = null
-        showGarmentDialog = true
+        addCategorySheetState = SheetValue.Collapsed   // ✅ changed — was showGarmentDialog = true
     }
 
     fun editGarmentDialog(garment: SelectedGarment) {
         tempGarment = garment
         editingGarmentId = garment.id
-        showGarmentDialog = true
+        addCategorySheetState = SheetValue.Collapsed   // ✅ changed — was showGarmentDialog = true
     }
 
     fun saveGarment() {
         salesViewModel.addOrUpdateGarment(tempGarment)
-        showGarmentDialog = false
-        garmentsError = false   // ✅ clear garment error once a garment is saved
+        addCategorySheetState = SheetValue.Hidden   // ✅ changed — was showGarmentDialog = false
+        garmentsError = false
     }
 
     fun deleteGarment(garmentId: String) {
@@ -642,6 +649,7 @@ fun CreateOrderScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .blurScrim(addCategoryBlur)   // ✅ NEW
                     .verticalScroll(scrollState)
                     .padding(bottom = 16.dp)
                     .background(Primary_background)
@@ -947,7 +955,7 @@ fun CreateOrderScreen(
                             modifier = Modifier.clickable(
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
-                            ) { showAddCategoryDialog = true }
+                            ) { addCategorySheetState = SheetValue.Collapsed }
                         )
                     }
                     Spacer(Modifier.height(8.dp))
@@ -1624,18 +1632,13 @@ fun CreateOrderScreen(
                 )
             )
         }
-        if (showAddCategoryDialog) {
-            ModalBottomSheet(
-                onDismissRequest = { showAddCategoryDialog = false },
-                sheetState = rememberModalBottomSheetState(
-                    skipPartiallyExpanded = true,
-                    confirmValueChange = { true }
-                ),
-                containerColor = Color.White,
-                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                dragHandle = {
-                    BottomSheetDefaults.DragHandle(modifier = Modifier.padding(vertical = 8.dp))
-                }
+            SmoothBottomSheet(
+                state = addCategorySheetState,
+                onStateChange = { addCategorySheetState = it },
+                peekHeight = 480.dp,
+                topInset = 60.dp,   // ✅ NEW — matches your "Create Order" topBar height, so Expanded stops right below it
+                onDismissRequest = { addCategorySheetState = SheetValue.Hidden },
+                onBlurScrimChange = { r, s -> addCategoryBlur = r; addCategoryScrim = s }
             ) {
                 InlineGarmentPanel(
                     garment = tempGarment,
@@ -1644,12 +1647,12 @@ fun CreateOrderScreen(
                     onGarmentChange = { tempGarment = it },
                     onSave = {
                         saveGarment()
-                        showGarmentDialog = false
+                        addCategorySheetState = SheetValue.Hidden
                     },
-                    onCancel = { showGarmentDialog = false }
+                    onCancel = { addCategorySheetState = SheetValue.Hidden }
                 )
             }
-        }
+
     }
 }
 // Quick Add Category - pill style selectable buttons (matches design image)
@@ -2250,24 +2253,19 @@ private fun InlineGarmentPanel(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedButton(
+                BackFabButton(
                     onClick = onCancel,
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
-                ) {
-                    Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.Medium)
-                }
+                    label = "Cancel",
+                    modifier = Modifier.weight(1f)
+                )
 
-                Button(
-                    onClick = onSave,
-                    modifier = Modifier.weight(2f).height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Apply", color = Color.White, fontWeight = FontWeight.SemiBold)
-                }
+                TrailingFabButton(
+                    action = TrailingFabAction.Next(
+                        label = "Apply",
+                        onClick = onSave
+                    ),
+                    modifier = Modifier.weight(2f)
+                )
             }
         }
     }

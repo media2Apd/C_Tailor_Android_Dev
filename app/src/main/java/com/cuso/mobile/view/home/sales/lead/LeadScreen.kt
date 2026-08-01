@@ -1385,7 +1385,7 @@ fun LeadScreenContent(
                                     Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
                                     Spacer(Modifier.height(8.dp))
                                     Text("Error loading leads", color = Color.Red, fontWeight = FontWeight.Bold)
-                                    Text(tableError ?: "Unknown error", color = Color.Gray, fontSize = 14.sp)
+                                    Text( "Something went wrong, Please try again after sometime", color = Color.Gray, fontSize = 14.sp)
                                     Spacer(Modifier.height(12.dp))
                                     Button(onClick = { salesViewModel.fetchTableLeads() }) {
                                         Text("Retry")

@@ -234,7 +234,6 @@ private fun OrderManagementCard(
     DataCard(
         item = order,
         dateText = "Order ID: ${order.orderNumber}",
-        dateIcon = Icons.Default.Receipt,
         topBadgeText = order.orderStatus.replaceFirstChar { it.uppercase() },
         topBadgeTextColor = orderTextColor,
         topBadgeBgColor = orderBgColor,
@@ -242,15 +241,15 @@ private fun OrderManagementCard(
         title = order.customerName?.takeIf { it.isNotBlank() } ?: "Unknown",
         subtitle = "+91 ${order.mobile?.takeLast(10) ?: "—"}",
         footerFields = listOf(
-            DataCardField(icon = Icons.Default.Checkroom, text = order.garments.ifBlank { "—" }),
-            DataCardField(icon = Icons.Default.CalendarMonth, text = "Delivery: ${formatIsoDate(order.deliveryDate)}"),
+            DataCardField(text = order.garments.ifBlank { "—" }),
+            DataCardField( text = "Delivery: ${formatIsoDate(order.deliveryDate)}"),
             DataCardField(
                 asRow = true,
                 label = order.paymentStatus.replaceFirstChar { it.uppercase() },
                 labelColor = paymentTextColor,
                 labelBackgroundColor = paymentBgColor,
                 text = "Total: ₹${formatIndianNumber((order.totalAmount ?: 0.0).toInt())}\n₹${formatIndianNumber(order.balanceAmount.toInt())} Due",
-                textColor = Color(0xFF111827)
+                textColor = Color.Black
             )
         ),
         actions = listOf(

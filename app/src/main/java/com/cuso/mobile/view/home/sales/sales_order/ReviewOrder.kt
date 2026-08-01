@@ -10,6 +10,9 @@ package com.cuso.mobile.view.home.sales.sales_order
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -47,8 +51,11 @@ import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.pdfgenerator.OrderReceiptPdfGenerator
+import com.cuso.mobile.view.home.reusablecomposables.SheetValue
+import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
+import com.cuso.mobile.view.home.reusablecomposables.blurScrim
 import com.cuso.mobile.viewmodel.AssignWorkersState
 import com.cuso.mobile.viewmodel.ConvertToInvoiceState
 import com.cuso.mobile.viewmodel.OrderOverviewState
@@ -59,7 +66,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 // ─────────────────────────────────────────────────────────────────────────
-// THEME
+// THEME COLORS
 // ─────────────────────────────────────────────────────────────────────────
 private val TabActive = Color(0xFF4F46E5)
 private val TextPrimary = Color(0xFF111827)
@@ -107,7 +114,6 @@ data class GarmentDetail(
     val total: Double get() = baseCost + additionalCharges - discount
 }
 
-
 data class GarmentAssignment(
     val cuttingTailor: StaffDto? = null,
     val stitchingTailor: StaffDto? = null,
@@ -123,7 +129,6 @@ data class PaymentRecord(
     val amount: Double,
     val method: String,
     val refNo: String = "-"
-
 )
 
 data class PaymentInfo(
@@ -156,7 +161,7 @@ fun OrderOverviewScreen(
     val salesViewModel: SalesViewModel = hiltViewModel()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
     val state by viewModel.overviewState.collectAsStateWithLifecycle()
-    val currentOrderData = (state as? OrderOverviewState.Success)?.data   // NEW
+    val currentOrderData = (state as? OrderOverviewState.Success)?.data
     val assignState by viewModel.assignWorkersState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -165,11 +170,10 @@ fun OrderOverviewScreen(
         salesViewModel.fetchStaff()
     }
 
-    // Handle assignment success
     LaunchedEffect(assignState) {
         if (assignState is AssignWorkersState.Success) {
             Toast.makeText(context, "Workers assigned successfully!", Toast.LENGTH_SHORT).show()
-            viewModel.fetchSalesOverview(orderId) // Refresh data
+            viewModel.fetchSalesOverview(orderId)
             viewModel.resetAssignWorkersState()
         } else if (assignState is AssignWorkersState.Error) {
             Toast.makeText(context, "Assignment failed: ${(assignState as AssignWorkersState.Error).message}", Toast.LENGTH_LONG).show()
@@ -179,6 +183,12 @@ fun OrderOverviewScreen(
 
     var selectedTab by remember { mutableStateOf("Overview") }
     val tabs = listOf("Overview", "Garments", "Assignments", "Payment")
+
+    // Live blur radius and scrim alpha state driven by SmoothBottomSheet
+    var assignSheetBlur by remember { mutableStateOf(0.dp) }
+    var assignSheetScrim by remember { mutableStateOf(0f) }
+    // ⬅️ NEW — immediate flag, click ஆன உடனே true/false ஆகும் (scrim animation delay இல்லாம)
+    var isAssignSheetOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = Color.White,
@@ -198,7 +208,10 @@ fun OrderOverviewScreen(
                         tint = TextPrimary,
                         modifier = Modifier
                             .size(22.dp)
-                            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onClose() }
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { onClose() }
                     )
                 }
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -230,12 +243,12 @@ fun OrderOverviewScreen(
                 HorizontalDivider(color = BorderLight)
             }
         }
-        // ❌ bottomBar removed — replaced with a floating StepNavigationFab inside the content Box below
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .blurScrim(assignSheetBlur)
         ) {
             when (val s = state) {
                 is OrderOverviewState.Loading, OrderOverviewState.Idle -> {
@@ -270,7 +283,9 @@ fun OrderOverviewScreen(
                             staffList = staffList,
                             orderId = orderId,
                             viewModel = viewModel,
-                            assignState = assignState
+                            assignState = assignState,
+                            onBlurScrimChange = { r, sc -> assignSheetBlur = r; assignSheetScrim = sc },
+                            onSheetVisibilityChange = { isAssignSheetOpen = it }   // ⬅️ NEW
                         )
                         "Payment" -> PaymentTab(
                             payment = payment,
@@ -282,25 +297,31 @@ fun OrderOverviewScreen(
                 }
             }
 
-            // ── Fixed, floating action buttons (transparent bg, same pattern as CreateOrderScreen) ──
-            StepNavigationFab(
-                showBack = true,
-                onBack = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
-                backEnabled = currentOrderData != null,
-                backLabel = "Edit Order",
-                backWidthFraction = 0.45f,
-                trailingWidthFraction = 0.45f,
-                trailingAction = TrailingFabAction.Next(
-                    label = "Create New",
-                    onClick = onCreateNew
+            // ⬅️ NEW — sheet open ஆன உடனே FAB buttons hide, close ஆன உடனே visible
+            AnimatedVisibility(
+                visible = !isAssignSheetOpen,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                StepNavigationFab(
+                    showBack = true,
+                    onBack = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
+                    backEnabled = currentOrderData != null,
+                    backLabel = "Edit Order",
+                    backWidthFraction = 0.45f,
+                    trailingWidthFraction = 0.45f,
+                    trailingAction = TrailingFabAction.Next(
+                        label = "Create New",
+                        onClick = onCreateNew
+                    )
                 )
-            )
+            }
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// EXTRACT FUNCTIONS
+// EXTRACT HELPERS
 // ─────────────────────────────────────────────────────────────────────────
 private fun isStageAssigned(stage: OrderOverviewStageStep): Boolean =
     stage.status.lowercase() != "pending" || stage.assignedQuantity > 0
@@ -313,7 +334,6 @@ private fun extractGarments(data: OrderOverviewData): List<GarmentDetail> {
         val stageGroup = stageGroups.firstOrNull { it.garmentItemId == item._id }
         val anyAssigned = stageGroup?.stages?.any { isStageAssigned(it) } == true
 
-        // ── Pull the assigned worker for each stage ──
         val cuttingTailor = stageGroup?.stages
             ?.firstOrNull { it.stageName == "cutting" }
             ?.assignedTo?.firstOrNull()
@@ -352,6 +372,7 @@ private fun extractGarments(data: OrderOverviewData): List<GarmentDetail> {
         )
     }
 }
+
 private fun normalizePaymentStatus(raw: String): String = when (raw.lowercase().replace("_", " ").trim()) {
     "paid" -> "PAID"
     "unpaid" -> "UNPAID"
@@ -399,9 +420,9 @@ private fun OverviewTab(data: OrderOverviewData) {
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         SectionTitle("Customer Information")
-        InfoRow("Name", customer?.name ?:"_")
+        InfoRow("Name", customer?.name ?: "—")
         InfoRow("Phone", "+91 ${customer?.mobile?.takeLast(10)}")
-        InfoRow("Gender", customer?.gender?:"_")
+        InfoRow("Gender", customer?.gender ?: "—")
         InfoRow("Address", listOfNotNull(customer?.address?.addressLine, customer?.address?.city).joinToString(", ").ifBlank { "—" })
 
         Spacer(Modifier.height(10.dp))
@@ -425,8 +446,6 @@ private fun OverviewTab(data: OrderOverviewData) {
             Text("₹${formatOverviewNumber(order.totalAmount)}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TabActive)
         }
 
-        Spacer(Modifier.height(10.dp))
-        SectionTitle("Styling Notes")
         Spacer(Modifier.height(90.dp))
     }
 }
@@ -456,7 +475,10 @@ private fun GarmentsTab(
             fontWeight = FontWeight.Medium,
             modifier = Modifier
                 .padding(top = 6.dp, bottom = 16.dp)
-                .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onGoToAssignments() }
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { onGoToAssignments() }
         )
         garments.forEachIndexed { idx, g ->
             GarmentCard(g)
@@ -490,11 +512,7 @@ private fun GarmentCard(garment: GarmentDetail) {
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(garment.type, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                Text(
-                    "Qty: ${garment.quantity} · ₹${formatOverviewNumber(garment.price)}",
-                    fontSize = 12.sp,
-                    color = TextMuted
-                )
+                Text("Qty: ${garment.quantity} · ₹${formatOverviewNumber(garment.price)}", fontSize = 12.sp, color = TextMuted)
             }
             Tag("${garment.priority} Priority", StatusGreyBg, StatusGreyText)
             Spacer(Modifier.width(6.dp))
@@ -551,7 +569,7 @@ private fun GarmentCard(garment: GarmentDetail) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// ASSIGNMENTS TAB - UPDATED WITH CARD UI AS PER IMAGE
+// ASSIGNMENTS TAB
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
 private fun AssignmentsTab(
@@ -559,12 +577,18 @@ private fun AssignmentsTab(
     staffList: List<StaffDto>,
     orderId: String,
     viewModel: OrderOverviewViewModel,
-    assignState: AssignWorkersState
+    assignState: AssignWorkersState,
+    onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> },
+    onSheetVisibilityChange: (Boolean) -> Unit = {}   // ⬅️ NEW
 ) {
     var selectedGarment by remember { mutableStateOf<GarmentDetail?>(null) }
-    var showAssignSheet by remember { mutableStateOf(false) }
+    var assignSheetState by remember { mutableStateOf(SheetValue.Hidden) }
 
-    // Does ANY garment have at least one worker assigned?
+    // ⬅️ NEW — sheet state மாறின உடனே parent-க்கு notify பண்ணும்
+    LaunchedEffect(assignSheetState) {
+        onSheetVisibilityChange(assignSheetState != SheetValue.Hidden)
+    }
+
     val hasAnyWorkerAssigned = garments.any { g ->
         g.assignment?.cuttingTailor != null ||
                 g.assignment?.stitchingTailor != null ||
@@ -579,7 +603,7 @@ private fun AssignmentsTab(
             NoWorkersAssignedState(
                 onAssignWorker = {
                     selectedGarment = garments.first()
-                    showAssignSheet = true
+                    assignSheetState = SheetValue.Expanded   // ⬅️ இந்த page-ல நேரா fullscreen open ஆகணும்
                 }
             )
         }
@@ -615,7 +639,7 @@ private fun AssignmentsTab(
                         isFullyAssigned = isFullyAssigned,
                         onAssignClick = {
                             selectedGarment = garment
-                            showAssignSheet = true
+                            assignSheetState = SheetValue.Expanded   // ⬅️ இந்த page-ல நேரா fullscreen open ஆகணும்
                         }
                     )
                     if (idx != garments.lastIndex) Spacer(Modifier.height(16.dp))
@@ -624,20 +648,20 @@ private fun AssignmentsTab(
         }
     }
 
-    // Assignment Sheet
-    if (showAssignSheet && selectedGarment != null) {
-        AssignTailorsSheet(
-            garment = selectedGarment!!,
-            staffList = staffList,
-            orderId = orderId,
-            viewModel = viewModel,
-            assignState = assignState,
-            onDismiss = {
-                showAssignSheet = false
-                selectedGarment = null
-            }
-        )
-    }
+    AssignTailorsSheet(
+        garment = selectedGarment,
+        staffList = staffList,
+        orderId = orderId,
+        viewModel = viewModel,
+        assignState = assignState,
+        sheetState = assignSheetState,
+        onStateChange = { assignSheetState = it },
+        onBlurScrimChange = onBlurScrimChange,
+        onDismiss = {
+            assignSheetState = SheetValue.Hidden
+            selectedGarment = null
+        }
+    )
 }
 
 @Composable
@@ -726,12 +750,7 @@ private fun EmptyAssignmentsState() {
         Spacer(Modifier.height(16.dp))
         Text("No garments to assign", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
         Spacer(Modifier.height(4.dp))
-        Text(
-            "Add garments to this order first.",
-            fontSize = 13.sp,
-            color = TextMuted,
-            textAlign = TextAlign.Center
-        )
+        Text("Add garments to this order first.", fontSize = 13.sp, color = TextMuted, textAlign = TextAlign.Center)
     }
 }
 
@@ -752,18 +771,12 @@ private fun AssignmentCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    garment.type,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
+                Text(garment.type, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Text(
                     "Qty: ${garment.quantity} | ${if (garment.trialRequired) "Trial Required" else "Trial Not Required"}",
                     fontSize = 12.sp,
@@ -773,7 +786,6 @@ private fun AssignmentCard(
 
             Spacer(Modifier.height(12.dp))
 
-            // Assignment rows - Cutting, Stitching, QC
             AssignmentRow(
                 label = "Cutting",
                 staff = garment.assignment?.cuttingTailor,
@@ -792,33 +804,21 @@ private fun AssignmentCard(
 
             Spacer(Modifier.height(12.dp))
 
-            // Dates row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    "Start: ${garment.assignment?.startDate ?: "Not set"}",
-                    fontSize = 13.sp,
-                    color = TextMutedDark
-                )
-                Text(
-                    "Expected: ${garment.assignment?.completionDate ?: "Not set"}",
-                    fontSize = 13.sp,
-                    color = TextMutedDark
-                )
+                Text("Start: ${garment.assignment?.startDate ?: "Not set"}", fontSize = 13.sp, color = TextMutedDark)
+                Text("Expected: ${garment.assignment?.completionDate ?: "Not set"}", fontSize = 13.sp, color = TextMutedDark)
             }
 
             Spacer(Modifier.height(12.dp))
 
-            // Assign/Reassign button
             Button(
                 onClick = onAssignClick,
                 modifier = Modifier.fillMaxWidth().height(40.dp),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isFullyAssigned) TabActive else TabActive
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = TabActive)
             ) {
                 Text(
                     if (isFullyAssigned) "Reassign" else "Assign",
@@ -852,42 +852,22 @@ private fun AssignmentRow(
         )
 
         if (isAssigned && staff != null) {
-            Text(
-                "${staff.firstName} ${staff.lastName}",
-                fontSize = 14.sp,
-                color = TextPrimary,
-                modifier = Modifier.weight(1f)
-            )
+            Text("${staff.firstName} ${staff.lastName}", fontSize = 14.sp, color = TextPrimary, modifier = Modifier.weight(1f))
             Box(
                 modifier = Modifier
                     .background(AssignedBg, RoundedCornerShape(20.dp))
                     .padding(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Text(
-                    "Assigned",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = AssignedText
-                )
+                Text("Assigned", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = AssignedText)
             }
         } else {
-            Text(
-                "Not Assigned",
-                fontSize = 14.sp,
-                color = TextMuted,
-                modifier = Modifier.weight(1f)
-            )
+            Text("Not Assigned", fontSize = 14.sp, color = TextMuted, modifier = Modifier.weight(1f))
             Box(
                 modifier = Modifier
                     .background(UnassignedBg, RoundedCornerShape(20.dp))
                     .padding(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Text(
-                    "Not Assigned",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = UnassignedText
-                )
+                Text("Not Assigned", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = UnassignedText)
             }
         }
     }
@@ -896,28 +876,30 @@ private fun AssignmentRow(
 // ─────────────────────────────────────────────────────────────────────────
 // ASSIGN TAILORS SHEET
 // ─────────────────────────────────────────────────────────────────────────
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AssignTailorsSheet(
-    garment: GarmentDetail,
+    garment: GarmentDetail?,
     staffList: List<StaffDto>,
     orderId: String,
     viewModel: OrderOverviewViewModel,
     assignState: AssignWorkersState,
+    sheetState: SheetValue,
+    onStateChange: (SheetValue) -> Unit,
+    onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> },
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    if (garment == null) return
 
     val staffNameToStaff = remember(staffList) {
         staffList.associateBy { "${it.firstName} ${it.lastName}" }
     }
     val staffNames = remember(staffList) { staffNameToStaff.keys.toList() }
 
-    var selectedCutting by remember { mutableStateOf(garment.assignment?.cuttingTailor) }
-    var selectedStitching by remember { mutableStateOf(garment.assignment?.stitchingTailor) }
-    var selectedQC by remember { mutableStateOf(garment.assignment?.qualityInspector) }
-    var priority by remember { mutableStateOf(garment.assignment?.priority?.ifBlank { "Low" } ?: "Low") }
-    var completionDate by remember {
+    var selectedCutting by remember(garment.id) { mutableStateOf(garment.assignment?.cuttingTailor) }
+    var selectedStitching by remember(garment.id) { mutableStateOf(garment.assignment?.stitchingTailor) }
+    var selectedQC by remember(garment.id) { mutableStateOf(garment.assignment?.qualityInspector) }
+    var priority by remember(garment.id) { mutableStateOf(garment.assignment?.priority?.ifBlank { "Low" } ?: "Low") }
+    var completionDate by remember(garment.id) {
         mutableStateOf(
             garment.assignment?.completionDate
                 ?: SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date().apply { time += 30L * 24 * 60 * 60 * 1000 })
@@ -932,19 +914,18 @@ private fun AssignTailorsSheet(
     val isAssigning = assignState is AssignWorkersState.Loading
     val context = LocalContext.current
 
-    ModalBottomSheet(
+    SmoothBottomSheet(
+        state = sheetState,
+        onStateChange = onStateChange,
+        peekHeight = 640.dp,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.White,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+        onBlurScrimChange = onBlurScrimChange
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
-            // ── Header ──
             Text(
                 "ASSIGN TAILORS",
                 fontSize = 15.sp,
@@ -962,7 +943,6 @@ private fun AssignTailorsSheet(
                 textAlign = TextAlign.Center
             )
 
-            // ── Garment info card ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -977,12 +957,7 @@ private fun AssignTailorsSheet(
                         .background(AvatarBg),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        garment.type.take(1),
-                        color = ChipPurpleText,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
+                    Text(garment.type.take(1), color = ChipPurpleText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
@@ -1005,26 +980,14 @@ private fun AssignTailorsSheet(
 
             Spacer(Modifier.height(20.dp))
 
-            // ── Section header ──
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.ContentCut,
-                    contentDescription = null,
-                    tint = TabActive,
-                    modifier = Modifier.size(16.dp)
-                )
+                Icon(Icons.Default.ContentCut, contentDescription = null, tint = TabActive, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(
-                    "Production Assignment",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TabActive
-                )
+                Text("Production Assignment", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TabActive)
             }
 
             Spacer(Modifier.height(12.dp))
 
-            // ── Staff dropdowns (reusing FormDropdown) ──
             FormDropdown(
                 label = "Cutting Tailor",
                 value = selectedCutting?.let { "${it.firstName} ${it.lastName}" } ?: "Select an option",
@@ -1058,7 +1021,6 @@ private fun AssignTailorsSheet(
 
             Spacer(Modifier.height(12.dp))
 
-            // ── Priority + Completion Date row ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1084,7 +1046,6 @@ private fun AssignTailorsSheet(
 
             Spacer(Modifier.height(20.dp))
 
-            // ── Buttons ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1132,62 +1093,7 @@ private fun AssignTailorsSheet(
         }
     }
 }
-@Suppress("UNUSED_PARAMETER")
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun WorkerDropdown(
-    label: String,
-    staffList: List<StaffDto>,
-    selectedStaff: StaffDto?,
-    onSelect: (StaffDto) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Column {
-        Text(label, fontSize = 12.sp, color = TextMutedDark, modifier = Modifier.padding(bottom = 4.dp))
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it }
-        ) {
-            OutlinedTextField(
-                value = selectedStaff?.let { "${it.firstName} ${it.lastName}" } ?: "",
-                onValueChange = {},
-                readOnly = true,
-                placeholder = { Text("Select $label", color = TextMuted, fontSize = 13.sp) },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
-                    .fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color(0xFFE5E7EB),
-                    focusedBorderColor = TabActive
-                )
-            )
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                staffList.forEach { staff ->
-                    DropdownMenuItem(
-                        text = { Text("${staff.firstName} ${staff.lastName} - ${staff.memberId}") },
-                        onClick = {
-                            onSelect(staff)
-                            expanded = false
-                        }
-                    )
-                }
-                if (staffList.isEmpty()) {
-                    DropdownMenuItem(
-                        text = { Text("No staff available", color = TextMuted) },
-                        onClick = { expanded = false }
-                    )
-                }
-            }
-        }
-    }
-}
 // ─────────────────────────────────────────────────────────────────────────
 // PAYMENT TAB
 // ─────────────────────────────────────────────────────────────────────────
@@ -1196,7 +1102,7 @@ private fun PaymentTab(
     payment: PaymentInfo,
     context: Context,
     orderData: OrderOverviewData,
-    viewModel: OrderOverviewViewModel,   // ← add this
+    viewModel: OrderOverviewViewModel,
     onConvertToInvoice: () -> Unit = {}
 ) {
     val (statusBg, statusText) = when (payment.status) {
@@ -1204,14 +1110,12 @@ private fun PaymentTab(
         "PARTIALLY PAID" -> StatusOrangeBg to StatusOrangeText
         else -> StatusOrangeBg to StatusOrangeText
     }
-    val pdfGenerator = remember {
-        OrderReceiptPdfGenerator(context)
-    }
+    val pdfGenerator = remember { OrderReceiptPdfGenerator(context) }
 
     val receiptData = remember(orderData) {
         OrderReceiptPdfGenerator.OrderReceiptData(
             orderNumber = orderData.order.orderNumber,
-            customerName = orderData.order.customerId?.name?:"_",
+            customerName = orderData.order.customerId?.name ?: "—",
             items = orderData.items.map {
                 OrderReceiptPdfGenerator.OrderItem(
                     quantity = it.quantity,
@@ -1286,7 +1190,6 @@ private fun PaymentTab(
             }
         }
 
-        // ── NEW: Receive Payment button (full width), shown only when there is a balance ──
         if (payment.remainingAmount > 0.0) {
             Spacer(Modifier.height(16.dp))
             Button(
@@ -1295,12 +1198,7 @@ private fun PaymentTab(
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = TabActive)
             ) {
-                Icon(
-                    Icons.Default.CurrencyRupee,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
+                Icon(Icons.Default.CurrencyRupee, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
                 Text("Receive Payment", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             }
@@ -1309,8 +1207,8 @@ private fun PaymentTab(
         Spacer(Modifier.height(24.dp))
         PaymentHistorySection(
             history = payment.history,
-            onView = { record ->  },
-            onPrint = { record ->  }
+            onView = { _ -> },
+            onPrint = { _ -> }
         )
 
         Spacer(Modifier.height(20.dp))
@@ -1336,9 +1234,7 @@ private fun PaymentTab(
         ActionRow(
             icon = Icons.Default.Print,
             label = "Print Order Receipt",
-            onClick = {
-                pdfGenerator.printReceiptViaWebView(receiptData)
-            }
+            onClick = { pdfGenerator.printReceiptViaWebView(receiptData) }
         )
         ActionRow(
             icon = Icons.Default.Download,
@@ -1346,27 +1242,15 @@ private fun PaymentTab(
             onClick = {
                 val pdf = pdfGenerator.generateReceiptPdf(receiptData)
                 if (pdf != null) {
-                    Toast.makeText(
-                        context,
-                        "PDF Saved:\n${pdf.absolutePath}",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    val uri = FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.provider",
-                        pdf
-                    )
+                    Toast.makeText(context, "PDF Saved:\n${pdf.absolutePath}", Toast.LENGTH_LONG).show()
+                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", pdf)
                     val intent = Intent(Intent.ACTION_VIEW).apply {
                         setDataAndType(uri, "application/pdf")
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     context.startActivity(intent)
                 } else {
-                    Toast.makeText(
-                        context,
-                        "Failed to create PDF",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(context, "Failed to create PDF", Toast.LENGTH_SHORT).show()
                 }
             }
         )
@@ -1379,7 +1263,6 @@ private fun PaymentTab(
         Spacer(Modifier.height(24.dp))
     }
 
-    // ── NEW: Receive Payment dialog ──
     if (showReceivePaymentSheet) {
         ReceivePaymentDialog(
             orderId = orderData.order._id,
@@ -1392,7 +1275,7 @@ private fun PaymentTab(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// RECEIVE PAYMENT DIALOG (matches provided design)
+// RECEIVE PAYMENT DIALOG
 // ─────────────────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1420,22 +1303,20 @@ private fun ReceivePaymentDialog(
         if (isFullAmount) amountText = formatAmountPlain(balanceDue)
     }
 
-    Dialog(onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false
-        )
-        ) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = Color.White,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
         ) {
             Column(
                 modifier = Modifier
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
-                // ── Header ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1458,7 +1339,6 @@ private fun ReceivePaymentDialog(
 
                 Spacer(Modifier.height(16.dp))
 
-                // ── Balance Due card ──
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1473,7 +1353,6 @@ private fun ReceivePaymentDialog(
 
                 Spacer(Modifier.height(16.dp))
 
-                // ── Payment Type ──
                 FormLabel("Payment Type")
                 Spacer(Modifier.height(6.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1493,7 +1372,6 @@ private fun ReceivePaymentDialog(
 
                 Spacer(Modifier.height(16.dp))
 
-                // ── Amount + Payment Method ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1533,7 +1411,6 @@ private fun ReceivePaymentDialog(
 
                 Spacer(Modifier.height(16.dp))
 
-                // ── Reference No + Date ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1566,7 +1443,6 @@ private fun ReceivePaymentDialog(
 
                 Spacer(Modifier.height(16.dp))
 
-                // ── Notes ──
                 FormLabel("Notes")
                 Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
@@ -1585,16 +1461,12 @@ private fun ReceivePaymentDialog(
                 HorizontalDivider(color = BorderLight)
                 Spacer(Modifier.height(16.dp))
 
-                // ── Footer buttons: Cancel / Save Only / Save & Print ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        enabled = !isSaving
-                    ) {
+                    TextButton(onClick = onDismiss, enabled = !isSaving) {
                         Text("Cancel", color = TextPrimary, fontWeight = FontWeight.Medium)
                     }
                     Spacer(Modifier.weight(1f))
@@ -1609,7 +1481,7 @@ private fun ReceivePaymentDialog(
                                 referenceNo = referenceNo,
                                 notes = notes,
                                 paymentDate = paymentDate,
-                                paymentType = if (isFullAmount) "full" else "partial"  // ← ADD THIS
+                                paymentType = if (isFullAmount) "full" else "partial"
                             )
                         },
                         enabled = !isSaving,
@@ -1629,7 +1501,7 @@ private fun ReceivePaymentDialog(
                                 referenceNo = referenceNo,
                                 notes = notes,
                                 paymentDate = paymentDate,
-                                paymentType = if (isFullAmount) "full" else "partial"  // ← ADD THIS
+                                paymentType = if (isFullAmount) "full" else "partial"
                             )
                         },
                         enabled = !isSaving,
@@ -1691,8 +1563,6 @@ private fun PaymentTypeOption(
     }
 }
 
-// ── Helpers for the Receive Payment dialog ──
-// ── Helpers for the Receive Payment dialog ──
 private fun submitPayment(
     viewModel: OrderOverviewViewModel,
     orderId: String,
@@ -1701,7 +1571,7 @@ private fun submitPayment(
     referenceNo: String,
     notes: String,
     paymentDate: String,
-    paymentType: String = "full"  // ← ADD THIS
+    paymentType: String = "full"
 ) {
     val amount = amountText.trim().toDoubleOrNull() ?: return
     if (amount <= 0.0) return
@@ -1709,11 +1579,11 @@ private fun submitPayment(
     viewModel.receivePayment(
         orderId = orderId,
         amount = amount,
-        method = method.lowercase().replace(" ", "_"), // "cash" / "card" / "upi" / "bank_transfer"
+        method = method.lowercase().replace(" ", "_"),
         transactionId = referenceNo.trim(),
         notes = notes.trim(),
         paymentDate = ddMMyyyyToIso(paymentDate),
-        paymentType = paymentType  // ← PASS IT HERE
+        paymentType = paymentType
     )
 }
 
@@ -1746,7 +1616,6 @@ private fun SectionTitle(title: String) {
             .padding(vertical = 10.dp)
     )
 }
-@Suppress("SameParameterValue")
 
 @Composable
 private fun SectionBlock(title: String, subtitle: String) {
@@ -1775,7 +1644,6 @@ private fun SmallSectionHeader(title: String, trailingIcon: androidx.compose.ui.
         }
     }
 }
-@Suppress("UNUSED_PARAMETER")
 
 @Composable
 private fun Tag(text: String, bg: Color, textColor: Color, bordered: Boolean = false) {
@@ -1801,7 +1669,6 @@ private fun InfoRow(label: String, value: String, valueColor: Color = TextPrimar
     }
     HorizontalDivider(color = Color(0xFFF5F5F5))
 }
-@Suppress("SameParameterValue")
 
 @Composable
 private fun InfoRowWithBadge(label: String, status: String) {
@@ -1871,21 +1738,16 @@ private fun formatOverviewNumber(value: Double): String {
     return "$grouped,$last3"
 }
 
-
-
-
 @Composable
 fun ConvertToInvoiceButton(
     viewModel: OrderOverviewViewModel,
     salesOrderId: String,
     isPaymentDone: Boolean,
-    invoiceAlreadyExists: Boolean,   // ← NEW: true if orderData.order.invoiceId is non-blank
+    invoiceAlreadyExists: Boolean,
     modifier: Modifier = Modifier
 ) {
     val convertState by viewModel.convertToInvoiceState.collectAsState()
 
-    // Local flag catches the case where conversion just succeeded in THIS session
-    // (before the screen has refetched order data with the new invoiceId).
     var invoiceGeneratedLocally by remember(salesOrderId) { mutableStateOf(false) }
 
     LaunchedEffect(convertState) {
@@ -1954,9 +1816,6 @@ fun ConvertToInvoiceButton(
     }
 }
 
-
-
-
 @Composable
 private fun PaymentHistorySection(
     history: List<PaymentRecord>,
@@ -1964,7 +1823,6 @@ private fun PaymentHistorySection(
     onPrint: (PaymentRecord) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        // ── Header ──
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
@@ -2031,7 +1889,6 @@ private fun PaymentHistoryRow(
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // ── Method + Date + Ref No ──
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(record.method, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
@@ -2052,7 +1909,6 @@ private fun PaymentHistoryRow(
             )
         }
 
-        // ── Amount ──
         Text(
             "₹${formatOverviewNumber(record.amount)}",
             fontSize = 14.sp,
@@ -2061,7 +1917,6 @@ private fun PaymentHistoryRow(
             modifier = Modifier.padding(end = 10.dp)
         )
 
-        // ── Actions ──
         PaymentActionIcon(icon = Icons.Default.Visibility, onClick = onView)
         Spacer(Modifier.width(6.dp))
         PaymentActionIcon(icon = Icons.Default.Print, onClick = onPrint)
@@ -2084,9 +1939,3 @@ private fun PaymentActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVec
         Icon(icon, contentDescription = null, tint = TabActive, modifier = Modifier.size(16.dp))
     }
 }
-
-
-
-
-
-

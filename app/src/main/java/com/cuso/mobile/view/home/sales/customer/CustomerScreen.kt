@@ -248,7 +248,7 @@ fun CustomerScreen(
                                 Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
                                 Spacer(Modifier.height(8.dp))
                                 Text(
-                                    customerState.message,
+                                    "Something went wrong, Please try again after sometime",
                                     color = Color.Red,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.padding(horizontal = 32.dp)

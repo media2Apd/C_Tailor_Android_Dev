@@ -11,32 +11,22 @@
 package com.cuso.mobile.view.home.designation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -51,8 +41,13 @@ import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.home.FormLabel
+import com.cuso.mobile.view.home.FormTextField
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.home.reusablecomposables.SheetValue
+import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
+import com.cuso.mobile.view.home.reusablecomposables.blurScrim
 import com.cuso.mobile.viewmodel.DesignationCreateState
 import com.cuso.mobile.viewmodel.DesignationDeleteState
 import com.cuso.mobile.viewmodel.DesignationUiState
@@ -61,13 +56,10 @@ import com.cuso.mobile.viewmodel.DesignationViewModel
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────
-// REPLACE in DesignationScreen.kt:
-//  1) fun DesignationScreen(...)  -> replace fully with version below
-//  2) ADD new composable: DesignationCardItem (new, paste anywhere below DesignationRow)
-// Everything else in that file (DesignationRow, dialogs, fields) stays unchanged.
+// DesignationScreen with SmoothBottomSheet
 // ─────────────────────────────────────────────────────────────
-@Suppress("UNUSED_PARAMETER")
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun DesignationScreen(
     navController: NavController,
@@ -80,8 +72,9 @@ fun DesignationScreen(
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val deleteState by viewModel.deleteState.collectAsStateWithLifecycle()
 
-    var showAddDialog by remember { mutableStateOf(false) }
-    var showEditDialog by remember { mutableStateOf<DesignationItem?>(null) }
+    var addSheetState by remember { mutableStateOf(SheetValue.Hidden) }
+    var editingDesignation by remember { mutableStateOf<DesignationItem?>(null) }
+    var editSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var showDeleteDialog by remember { mutableStateOf<DesignationItem?>(null) }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -91,13 +84,25 @@ fun DesignationScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+    // Blur states
+    var addSheetBlur by remember { mutableStateOf(0.dp) }
+    var editSheetBlur by remember { mutableStateOf(0.dp) }
+
+    val isAnySheetOpen = addSheetState != SheetValue.Hidden || editSheetState != SheetValue.Hidden
+    val currentBlur = when {
+        addSheetState != SheetValue.Hidden -> addSheetBlur
+        editSheetState != SheetValue.Hidden -> editSheetBlur
+        else -> 0.dp
+    }
+
     LaunchedEffect(Unit) { viewModel.loadDesignations() }
 
     LaunchedEffect(createState) {
         when (val state = createState) {
             is DesignationCreateState.Success -> {
-                showAddDialog = false
+                addSheetState = SheetValue.Hidden
                 viewModel.resetCreateState()
+                viewModel.loadDesignations()
                 coroutineScope.launch { snackbarHostState.showSnackbar("Designation created successfully") }
             }
             is DesignationCreateState.Error -> {
@@ -111,8 +116,10 @@ fun DesignationScreen(
     LaunchedEffect(updateState) {
         when (val state = updateState) {
             is DesignationUpdateState.Success -> {
-                showEditDialog = null
+                editSheetState = SheetValue.Hidden
+                editingDesignation = null
                 viewModel.resetUpdateState()
+                viewModel.loadDesignations()
                 coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
             }
             is DesignationUpdateState.Error -> {
@@ -128,6 +135,7 @@ fun DesignationScreen(
             is DesignationDeleteState.Success -> {
                 showDeleteDialog = null
                 viewModel.resetDeleteState()
+                viewModel.loadDesignations()
                 coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
             }
             is DesignationDeleteState.Error -> {
@@ -148,99 +156,159 @@ fun DesignationScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7))) {
 
-            Column(modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 16.dp, vertical = 12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", modifier = Modifier.size(22.dp).clickable { onBack() }, tint = Color(0xFF111827))
-                        Text("Designation", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+            // ── HEADER - Always solid (NO BLUR) ──
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            modifier = Modifier.size(22.dp).clickable { onBack() },
+                            tint = Color(0xFF111827)
+                        )
+                        Text(
+                            "Designation",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF111827)
+                        )
                     }
                 }
             }
 
-            Column(modifier = Modifier.fillMaxWidth()) {
-                ScreenBreadcrumb(segments = listOf("Settings", "Designation"), onClick = {})
-
-
-                    Spacer(Modifier.height(12.dp))
-                    SearchFilterBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                        placeholder = "Search Designations...",
-                        accentColor = BluePrimary,
-                        borderColor = BorderGray,
-                        textSecondaryColor = TextSecondary,
-                        onFilterClick = { /* TODO: open filter drawer */ }
+            // ── MAIN CONTENT with blur ──
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blurScrim(
+                        if (isAnySheetOpen) currentBlur else 0.dp
                     )
-
-            }
-
-            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                when (val state = uiState) {
-                    is DesignationUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        ListSkeleton()
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        ScreenBreadcrumb(segments = listOf("Settings", "Designation"), onClick = {})
+                        Spacer(Modifier.height(12.dp))
+                        SearchFilterBar(
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                            placeholder = "Search Designations...",
+                            accentColor = BluePrimary,
+                            borderColor = BorderGray,
+                            textSecondaryColor = TextSecondary,
+                            onFilterClick = { /* TODO: open filter drawer */ }
+                        )
                     }
-                    is DesignationUiState.Error -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
-                                Spacer(Modifier.height(8.dp))
-                                Text("Something went wrong, Please try again later", color = Color.Red)
-                                Spacer(Modifier.height(12.dp))
-                                Button(onClick = { viewModel.loadDesignations() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(8.dp)) {
-                                    Text("Retry", color = Color.White)
-                                }
+
+                    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                        when (val state = uiState) {
+                            is DesignationUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                ListSkeleton()
                             }
-                        }
-                    }
-                    is DesignationUiState.Success -> {
-                        if (filteredDesignations.isEmpty()) {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text(if (searchQuery.isNotBlank()) "No matching designations found" else "No designations found", color = Color.Gray, fontSize = 15.sp)
-                            }
-                        } else {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxWidth().weight(1f)
-                                ) {
-                                    items(pagedDesignations) { item ->
-                                        val (badgeText, badgeColor) = if (item.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
-                                        DataCard(
-                                            item = item,
-                                            topBadgeText = badgeText,
-                                            topBadgeTextColor = badgeColor,
-                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-                                            title = item.name,
-                                            subtitle = item.code,
-                                            footerFields = listOf(
-                                                DataCardField(icon = Icons.Default.People, text = "0 Employees")
-                                            ),
-                                            actions = listOf(
-                                                MenuAction("Edit", Icons.Default.Edit) { showEditDialog = item },
-                                                MenuAction("Delete", Icons.Default.Delete, tint = Color.Red, textColor = Color.Red) { showDeleteDialog = item }
-                                            )
-                                        )
+                            is DesignationUiState.Error -> {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
+                                        Spacer(Modifier.height(8.dp))
+                                        Text("Something went wrong, Please try again later", color = Color.Red)
+                                        Spacer(Modifier.height(12.dp))
+                                        Button(
+                                            onClick = { viewModel.loadDesignations() },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text("Retry", color = Color.White)
+                                        }
                                     }
                                 }
-                                Box(modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))) {
-                                    Column {
-                                        HorizontalDivider(color = Color(0xFFF0F0F0))
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                            }
+                            is DesignationUiState.Success -> {
+                                if (filteredDesignations.isEmpty()) {
+                                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text(
+                                            if (searchQuery.isNotBlank()) "No matching designations found" else "No designations found",
+                                            color = Color.Gray,
+                                            fontSize = 15.sp
+                                        )
+                                    }
+                                } else {
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        LazyColumn(
+                                            modifier = Modifier.fillMaxWidth().weight(1f)
                                         ) {
-                                            Text(
-                                                "Showing ${if (filteredDesignations.isEmpty()) 0 else (currentPage - 1) * itemsPerPage + 1} - ${minOf(currentPage * itemsPerPage, filteredDesignations.size)} of ${filteredDesignations.size}",
-                                                fontSize = 13.sp, color = Color(0xFF6B7280)
-                                            )
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                IconButton(onClick = { if (currentPage > 1) currentPage-- }, enabled = currentPage > 1, modifier = Modifier.size(28.dp)) {
-                                                    Icon(Icons.Default.ChevronLeft, "Previous", tint = if (currentPage > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
-                                                }
-                                                Text("$currentPage - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
-                                                IconButton(onClick = { if (currentPage < totalPages) currentPage++ }, enabled = currentPage < totalPages, modifier = Modifier.size(28.dp)) {
-                                                    Icon(Icons.Default.ChevronRight, "Next", tint = if (currentPage < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
+                                            items(pagedDesignations) { item ->
+                                                val (badgeText, badgeColor) = if (item.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
+                                                DataCard(
+                                                    item = item,
+                                                    topBadgeText = badgeText,
+                                                    topBadgeTextColor = badgeColor,
+                                                    topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
+                                                    title = item.name,
+                                                    subtitle = item.code,
+                                                    footerFields = listOf(
+                                                        DataCardField(icon = Icons.Default.People, text = "0 Employees")
+                                                    ),
+                                                    actions = listOf(
+                                                        MenuAction("Edit", Icons.Default.Edit) {
+                                                            editingDesignation = item
+                                                            editSheetState = SheetValue.Expanded
+                                                        },
+                                                        MenuAction("Delete", Icons.Default.Delete, tint = Color.Red, textColor = Color.Red) {
+                                                            showDeleteDialog = item
+                                                        }
+                                                    )
+                                                )
+                                            }
+                                        }
+                                        Box(modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))) {
+                                            Column {
+                                                HorizontalDivider(color = Color(0xFFF0F0F0))
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Text(
+                                                        "Showing ${if (filteredDesignations.isEmpty()) 0 else (currentPage - 1) * itemsPerPage + 1} - ${minOf(currentPage * itemsPerPage, filteredDesignations.size)} of ${filteredDesignations.size}",
+                                                        fontSize = 13.sp, color = Color(0xFF6B7280)
+                                                    )
+                                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                        IconButton(
+                                                            onClick = { if (currentPage > 1) currentPage-- },
+                                                            enabled = currentPage > 1,
+                                                            modifier = Modifier.size(28.dp)
+                                                        ) {
+                                                            Icon(
+                                                                Icons.Default.ChevronLeft,
+                                                                "Previous",
+                                                                tint = if (currentPage > 1) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                                            )
+                                                        }
+                                                        Text("$currentPage - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
+                                                        IconButton(
+                                                            onClick = { if (currentPage < totalPages) currentPage++ },
+                                                            enabled = currentPage < totalPages,
+                                                            modifier = Modifier.size(28.dp)
+                                                        ) {
+                                                            Icon(
+                                                                Icons.Default.ChevronRight,
+                                                                "Next",
+                                                                tint = if (currentPage < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -251,125 +319,244 @@ fun DesignationScreen(
                     }
                 }
             }
-        }
 
-        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
-
-        Button(
-            onClick = { showAddDialog = true },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 10.dp, bottom = 50.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Add Designation", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Spacer(Modifier.width(6.dp))
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-            }
-        }
-    }
-
-    if (showAddDialog) {
-        AddDesignationDialog(
-            isLoading = createState is DesignationCreateState.Loading,
-            onDismiss = { showAddDialog = false },
-            onCreate = { name, code, description -> viewModel.createDesignation(name, code, description) }
-        )
-    }
-
-    showEditDialog?.let { designation ->
-        EditDesignationDialog(
-            designation = designation,
-            isLoading = updateState is DesignationUpdateState.Loading,
-            onDismiss = { showEditDialog = null },
-            onUpdate = { name, code, description ->
-                viewModel.updateDesignation(id = designation.id, name = name, code = code, description = description)
-            }
-        )
-    }
-
-    showDeleteDialog?.let { designation ->
-        DeleteConfirmationDialog(
-            designation = designation,
-            isLoading = deleteState is DesignationDeleteState.Loading,
-            onDismiss = { showDeleteDialog = null },
-            onConfirm = { viewModel.deleteDesignation(designation.id) }
-        )
-    }
-}
-
-
-
-// ─────────────────────────────────────────────────────────────
-// AddDesignationDialog
-// ─────────────────────────────────────────────────────────────
-
-@Composable
-fun AddDesignationDialog(
-    isLoading: Boolean,
-    onDismiss: () -> Unit,
-    onCreate: (String, String, String) -> Unit
-) {
-    var name        by remember { mutableStateOf("") }
-    var code        by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier.fillMaxWidth().wrapContentHeight(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+            // ── FAB Button ──
+            // ── FAB Button ──
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 50.dp, end = 10.dp)
             ) {
-                Text("Add Designation", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-
-                DesignationField("Designation Name", name,        { name = it })
-                DesignationField("Designation Code", code,        { code = it })
-                DesignationField("Description",      description, { description = it })
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+                Button(
+                    onClick = { addSheetState = SheetValue.Expanded },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
                 ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp)
-                    ) { Text("Cancel", color = Color(0xFF374151)) }
-
-                    Spacer(Modifier.width(12.dp))
-
-                    Button(
-                        onClick = { onCreate(name, code, description) },
-                        enabled = !isLoading && name.isNotBlank() && code.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        if (isLoading) {
-                            CirculerProgressIndicatorReuse()
-
-                        } else {
-                            Text("Create", color = Color.White)
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Add Designation", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Spacer(Modifier.width(6.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                     }
                 }
             }
         }
+
+        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
+
+        // ── SmoothBottomSheet for Add Designation ──
+        SmoothBottomSheet(
+            state = addSheetState,
+            onStateChange = {
+                addSheetState = it
+                if (it == SheetValue.Hidden) {
+                    viewModel.resetCreateState()
+                }
+            },
+            peekHeight = 380.dp,
+            topInset = 60.dp,
+            onDismissRequest = {
+                addSheetState = SheetValue.Hidden
+                viewModel.resetCreateState()
+            },
+            onBlurScrimChange = { blur, _ ->
+                addSheetBlur = blur
+            },
+            sheetBackgroundColor = Color.White,
+            maxScrimAlpha = 0.4f,
+            maxBlurRadius = 14.dp
+        ) {
+            AddDesignationSheetContent(
+                isLoading = createState is DesignationCreateState.Loading,
+                onDismiss = {
+                    addSheetState = SheetValue.Hidden
+                    viewModel.resetCreateState()
+                },
+                onCreate = { name, code, description ->
+                    viewModel.createDesignation(name, code, description)
+                }
+            )
+        }
+
+        // ── SmoothBottomSheet for Edit Designation ──
+        editingDesignation?.let { designation ->
+            SmoothBottomSheet(
+                state = editSheetState,
+                onStateChange = {
+                    editSheetState = it
+                    if (it == SheetValue.Hidden) {
+                        editingDesignation = null
+                        viewModel.resetUpdateState()
+                    }
+                },
+                peekHeight = 380.dp,
+                topInset = 60.dp,
+                onDismissRequest = {
+                    editSheetState = SheetValue.Hidden
+                    editingDesignation = null
+                    viewModel.resetUpdateState()
+                },
+                onBlurScrimChange = { blur, _ ->
+                    editSheetBlur = blur
+                },
+                sheetBackgroundColor = Color.White,
+                maxScrimAlpha = 0.4f,
+                maxBlurRadius = 14.dp
+            ) {
+                EditDesignationSheetContent(
+                    designation = designation,
+                    isLoading = updateState is DesignationUpdateState.Loading,
+                    onDismiss = {
+                        editSheetState = SheetValue.Hidden
+                        editingDesignation = null
+                        viewModel.resetUpdateState()
+                    },
+                    onUpdate = { name, code, description ->
+                        viewModel.updateDesignation(
+                            id = designation.id,
+                            name = name,
+                            code = code,
+                            description = description
+                        )
+                    }
+                )
+            }
+        }
+
+        // ── Delete Confirmation Dialog ──
+        showDeleteDialog?.let { designation ->
+            DeleteConfirmationDialog(
+                designation = designation,
+                isLoading = deleteState is DesignationDeleteState.Loading,
+                onDismiss = { showDeleteDialog = null },
+                onConfirm = { viewModel.deleteDesignation(designation.id) }
+            )
+        }
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// EditDesignationDialog
+// AddDesignationSheetContent
 // ─────────────────────────────────────────────────────────────
 
 @Composable
-fun EditDesignationDialog(
+fun AddDesignationSheetContent(
+    isLoading: Boolean,
+    onDismiss: () -> Unit,
+    onCreate: (String, String, String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var nameError by remember { mutableStateOf(false) }
+    var codeError by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 16.dp)
+    ) {
+        Text(
+            "Add Designation",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF111827),
+            modifier = Modifier.padding(top = 8.dp)
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Create a new designation in your organization",
+            fontSize = 13.sp,
+            color = Color(0xFF6B7280)
+        )
+        Spacer(Modifier.height(16.dp))
+
+        Column {
+            FormLabel("Designation Name", isRequired = true)
+            FormTextField(
+                value = name,
+                onValueChange = { name = it; nameError = false },
+                placeholder = "Enter designation name",
+                isError = nameError,
+                errorMessage = "Designation name is required"
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+
+        Column {
+            FormLabel("Designation Code", isRequired = true)
+            FormTextField(
+                value = code,
+                onValueChange = { code = it; codeError = false },
+                placeholder = "Enter designation code",
+                isError = codeError,
+                errorMessage = "Designation code is required"
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+
+        Column {
+            FormLabel("Description")
+            FormTextField(
+                value = description,
+                onValueChange = { description = it },
+                placeholder = "Enter description"
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = onDismiss,
+                modifier = Modifier.weight(1f).height(44.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF374151)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD1D5DB))
+            ) {
+                Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
+
+            Button(
+                onClick = {
+                    var hasError = false
+                    if (name.isBlank()) {
+                        nameError = true
+                        hasError = true
+                    }
+                    if (code.isBlank()) {
+                        codeError = true
+                        hasError = true
+                    }
+                    if (hasError) return@Button
+                    onCreate(name, code, description)
+                },
+                modifier = Modifier.weight(1f).height(44.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CirculerProgressIndicatorReuse()
+                } else {
+                    Text("Create", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// EditDesignationSheetContent
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun EditDesignationSheetContent(
     designation: DesignationItem,
     isLoading: Boolean,
     onDismiss: () -> Unit,
@@ -379,62 +566,93 @@ fun EditDesignationDialog(
     var code by remember { mutableStateOf(designation.code) }
     var description by remember { mutableStateOf(designation.description) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier.fillMaxWidth().wrapContentHeight(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 16.dp)
+    ) {
+        Text(
+            "Edit Designation",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF111827),
+            modifier = Modifier.padding(top = 8.dp)
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Update designation information",
+            fontSize = 13.sp,
+            color = Color(0xFF6B7280)
+        )
+        Spacer(Modifier.height(16.dp))
+
+        Column {
+            FormLabel("Designation Name", isRequired = true)
+            FormTextField(
+                value = name,
+                onValueChange = { name = it },
+                placeholder = "Enter designation name"
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+
+        Column {
+            FormLabel("Designation Code", isRequired = true)
+            FormTextField(
+                value = code,
+                onValueChange = { code = it },
+                placeholder = "Enter designation code"
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+
+        Column {
+            FormLabel("Description")
+            FormTextField(
+                value = description,
+                onValueChange = { description = it },
+                placeholder = "Enter description"
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+            OutlinedButton(
+                onClick = onDismiss,
+                modifier = Modifier.weight(1f).height(44.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF374151)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD1D5DB))
             ) {
-                Text("Edit Designation", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
 
-                DesignationField("Designation Name", name, { name = it })
-                DesignationField("Designation Code", code, { code = it })
-                DesignationField("Description", description, { description = it })
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp)
-                    ) { Text("Cancel", color = Color(0xFF374151)) }
-
-                    Spacer(Modifier.width(12.dp))
-
-                    Button(
-                        onClick = {
-                            onUpdate(
-                                name,
-                                code,
-                                description.ifEmpty { null }
-                            )
-                        },
-                        enabled = !isLoading && name.isNotBlank() && code.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        if (isLoading) {
-                            CirculerProgressIndicatorReuse()
-
-                        } else {
-                            Text("Update", color = Color.White)
-                        }
-                    }
+            Button(
+                onClick = {
+                    onUpdate(name, code, description.ifEmpty { null })
+                },
+                modifier = Modifier.weight(1f).height(44.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CirculerProgressIndicatorReuse()
+                } else {
+                    Text("Update", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
+        Spacer(Modifier.height(8.dp))
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// DeleteConfirmationDialog
+// DeleteConfirmationDialog (kept as Dialog since it's a simple alert)
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -472,7 +690,6 @@ fun DeleteConfirmationDialog(
             ) {
                 if (isLoading) {
                     CirculerProgressIndicatorReuse()
-
                 } else {
                     Text("Delete", color = Color.White)
                 }
@@ -490,114 +707,3 @@ fun DeleteConfirmationDialog(
         shape = RoundedCornerShape(16.dp)
     )
 }
-
-// ─────────────────────────────────────────────────────────────
-// DesignationField
-// ─────────────────────────────────────────────────────────────
-
-@Composable
-fun DesignationField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    keyboardType: KeyboardType = KeyboardType.Text
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF3B3BF9))
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                .padding(horizontal = 12.dp, vertical = 14.dp),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            textStyle = TextStyle(
-                fontSize = 14.sp,
-                color = Color(0xFF374151)
-            )
-        )
-    }
-}
-
-
-// ─────────────────────────────────────────────────────────────
-// 🔁 ONE column list for designations. This REPLACES the table
-// header Row + LazyColumn that used to be written inline inside
-// DesignationScreen's `is DesignationUiState.Success ->` branch.
-// ─────────────────────────────────────────────────────────────
-//private fun designationColumns(
-//    onEditClick: (DesignationItem) -> Unit,
-//    onDeleteClick: (DesignationItem) -> Unit
-//): List<DataColumn<DesignationItem>> = listOf(
-//    DataColumn("name", "Designation", 200.dp) { item ->
-//        Text(item.name, fontSize = 13.sp, color = Color(0xFF374151), fontWeight = FontWeight.Medium,
-//            maxLines = 1, overflow = TextOverflow.Ellipsis)
-//    },
-//    DataColumn("code", "Designation Code", 180.dp) { item ->
-//        Text(item.code, fontSize = 13.sp, color = Color(0xFF374151), maxLines = 1, overflow = TextOverflow.Ellipsis)
-//    },
-//    DataColumn("department", "Department", 200.dp) { Text("-", fontSize = 13.sp, color = Color(0xFF9CA3AF)) },
-//    DataColumn("employees", "Employees", 130.dp) {
-//        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-//            Icon(Icons.Default.People, null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(16.dp))
-//            Text("0", fontSize = 13.sp, color = Color(0xFF374151), fontWeight = FontWeight.SemiBold)
-//        }
-//    },
-//    DataColumn("status", "Status", 120.dp) { item ->
-//        val (badgeText, badgeColor) = if (item.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
-//        Box(modifier = Modifier.border(1.dp, badgeColor, RoundedCornerShape(20.dp)).padding(horizontal = 12.dp, vertical = 4.dp)) {
-//            Text(badgeText, fontSize = 12.sp, color = badgeColor, fontWeight = FontWeight.Medium)
-//        }
-//    },
-//    DataColumn("action", "Action", 80.dp, cellAlignment = Alignment.Center) { item ->
-//        ActionDropdownMenu(
-//            actions = listOf(
-//                MenuAction("Edit", Icons.Default.Edit) { onEditClick(item) },
-//                MenuAction("Delete", Icons.Default.Delete, tint = Color.Red, textColor = Color.Red) { onDeleteClick(item) }
-//            )
-//        )
-//    }
-//)
-//
-//
-//// ── Card view — same call site as before ──
-//@Composable
-//fun DesignationCardItem(
-//    item: DesignationItem,
-//    onEditClick: (DesignationItem) -> Unit,
-//    onDeleteClick: (DesignationItem) -> Unit
-//) {
-//    val columns = designationColumns(onEditClick, onDeleteClick)
-//    val footerFields = columns.filter { it.key in listOf("department", "employees") }
-//
-//    DataCard(
-//        item = item,
-//        leading = { Box(modifier = Modifier.width(4.dp).height(18.dp).background(Color(0xFF3B3BF9), RoundedCornerShape(2.dp))) },
-//        title = {
-//            Column {
-//                Text(item.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-//                Text(item.code, fontSize = 12.sp, color = Color(0xFF3B3BF9))
-//            }
-//        },
-//        trailing = {
-//            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-//                val (badgeText, badgeColor) = if (item.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
-//                Box(modifier = Modifier.background(badgeColor.copy(alpha = 0.12f), RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 4.dp)) {
-//                    Text(badgeText, fontSize = 11.sp, color = badgeColor, fontWeight = FontWeight.Medium)
-//                }
-//                ActionDropdownMenu(
-//                    icon = Icons.Default.MoreVert,
-//                    actions = listOf(
-//                        MenuAction("Edit", Icons.Default.Edit) { onEditClick(item) },
-//                        MenuAction("Delete", Icons.Default.Delete, tint = Color.Red, textColor = Color.Red) { onDeleteClick(item) }
-//                    )
-//                )
-//            }
-//        },
-//        fields = footerFields,
-//        fieldsPerRow = 2,
-//        footerBackground = Color(0xFFF8F9FB)
-//    )
-//}

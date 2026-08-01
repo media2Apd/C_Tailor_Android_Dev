@@ -24,6 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.modelGray
+import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
+import com.cuso.mobile.view.home.reusablecomposables.SheetValue
+import com.cuso.mobile.view.home.reusablecomposables.blurScrim
 
 // ─────────────────────────────────────────────
 // Shared colors used across all screens
@@ -47,406 +50,411 @@ private val WipBadgeBg = Color(0xFF3D3DFF)
 private val BeforeBadgeBg = Color(0xFF6B7280)
 
 // ─────────────────────────────────────────────
-// Which bottom sheet (if any) is currently showing
+// Step State and Data Classes
 // ─────────────────────────────────────────────
-private enum class ActiveSheet { NONE, UPDATE_STATUS, ASSIGN_TAILOR }
+private data class Step(val label: String, val state: StepState)
+private enum class StepState { DONE, CURRENT, UPCOMING }
+private data class Measurement(val point: String, val original: String, val altered: String, val diff: String, val alteredHighlighted: Boolean = false)
 
 // ─────────────────────────────────────────────
-// MAIN SCREEN — everything lives here, static data
+// MAIN SCREEN
 // ─────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateAlterationManagementScreen(
     onClose: () -> Unit
 ) {
-    var activeSheet by remember { mutableStateOf(ActiveSheet.NONE) }
+    var updateStatusSheetState by remember { mutableStateOf(SheetValue.Hidden) }
+    var assignTailorSheetState by remember { mutableStateOf(SheetValue.Hidden) }
 
-    // ── State for Update Status sheet ──
+    var updateStatusSheetBlur by remember { mutableStateOf(0.dp) }
+    var assignTailorSheetBlur by remember { mutableStateOf(0.dp) }
+
     var statusNotes by remember { mutableStateOf("") }
     var selectedStatus by remember { mutableStateOf("In Progress") }
 
-    // ── State for Assign Tailor sheet ──
     var targetDate by remember { mutableStateOf("") }
     var staffInstructions by remember { mutableStateOf("") }
 
-    // ── State for comment box in activity log ──
     var comment by remember { mutableStateOf("") }
 
-    Scaffold(
-        topBar = {
-            Surface(modifier = Modifier.fillMaxWidth(), color = Color.White) {
-                Column {
-                    // ── Header ──
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 16.dp)
-                    ) {
-                        Text("Alteration Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TitleColor)
-                        IconButton(onClick = onClose) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
-                        }
-                    }
-
-                    // ── Order info strip ──
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(StripBg)
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row {
-                                Text("ALT-882", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-                                Text(" / SO-450", fontSize = 13.sp, color = MutedLabel)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(AccentBg)
-                                    .padding(horizontal = 12.dp, vertical = 4.dp)
-                            ) {
-                                Text("In Progress", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Accent)
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
-                            Column {
-                                Text("Customer", fontSize = 11.sp, color = MutedLabel)
-                                Text("Liam Henderson", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TitleColor)
-                            }
-                            Column {
-                                Text("Priority", fontSize = 11.sp, color = MutedLabel)
-                                Text("High Priority", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = PriorityRed)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .background(modelGray)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-        ) {
-
-            // ── + Assign Tailor (full width) ──
-            OutlinedButton(
-                onClick = { activeSheet = ActiveSheet.ASSIGN_TAILOR },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Accent),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Assign Tailor", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            // ── Progress Stepper ──
-            AlterationStepper()
-
-            Spacer(Modifier.height(16.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Current Status: ", fontSize = 13.sp, color = LabelColor)
-                Text("In Progress", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Accent)
-            }
-            Spacer(Modifier.height(10.dp))
-
-            Button(
-                onClick = { activeSheet = ActiveSheet.UPDATE_STATUS },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Primary)
-            ) {
-                Text("Update Status", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // ── Garment & Alteration Details ──
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Inventory2, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Garment & Alteration Details", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-            }
-            Spacer(Modifier.height(14.dp))
-
-            Text("Garment Type", fontSize = 11.sp, color = MutedLabel)
-            Spacer(Modifier.height(2.dp))
-            Text("Bespoke Blazer", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleColor)
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = BorderColor)
-            Spacer(Modifier.height(12.dp))
-
-            Text("Fabric", fontSize = 11.sp, color = MutedLabel)
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(CircleShape)
-                        .background(NavyFabric)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("Navy Wool (Super 120s)", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleColor)
-            }
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = BorderColor)
-            Spacer(Modifier.height(12.dp))
-
-            Text("Alteration Notes", fontSize = 11.sp, color = MutedLabel)
-            Spacer(Modifier.height(6.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(NotesBg)
-                    .padding(12.dp)
-            ) {
-                Text(
-                    "\"Shorten sleeves by 1.25 inches. Ensure the functional buttonholes are preserved and spaced correctly from the new edge.\"",
-                    fontSize = 13.sp,
-                    color = TitleColor
-                )
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // ── Measurement Adjustments ──
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Straighten, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Measurement Adjustments", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-            }
-            Spacer(Modifier.height(14.dp))
-
-            MeasurementTable()
-
-            Spacer(Modifier.height(24.dp))
-
-            // ── Trial & Documentation ──
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Trial & Documentation", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-            }
-            Spacer(Modifier.height(14.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = MutedLabel, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Column {
-                        Text("Trial Date", fontSize = 11.sp, color = MutedLabel)
-                        Text("Oct 24, 2023 - 2:00 PM", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TitleColor)
-                    }
-                }
-                OutlinedButton(
-                    onClick = { /* TODO: change trial date */ },
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Accent),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
-                ) {
-                    Text("Change", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                PhotoPlaceholder(label = "BEFORE", badgeColor = BeforeBadgeBg, modifier = Modifier.weight(1f))
-                PhotoPlaceholder(label = "WIP", badgeColor = WipBadgeBg, modifier = Modifier.weight(1f))
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // ── Assigned Tailor header ──
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Person, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Assigned Tailor", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-            }
-            Spacer(Modifier.height(12.dp))
-
-            // ── Tailor card ──
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(AccentBg),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("AR", color = Accent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text("Antonio Rossi", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-                    Row {
-                        Text("Senior Tailor  •  ", fontSize = 12.sp, color = LabelColor)
-                        Text("Suiting Expert", fontSize = 12.sp, color = Accent)
-                    }
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-
-            // ── Active Jobs / Success Rate strip ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFefeff8))
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text("Active Jobs", fontSize = 12.sp, color = MutedLabel)
-                    Text("4", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TitleColor)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Success Rate", fontSize = 12.sp, color = MutedLabel)
-                    Text("98%", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SuccessColor)
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-
-            OutlinedButton(
-                onClick = { /* TODO: navigate to tailor profile */ },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Accent),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
-            ) {
-                Text("View Profile & Capacity", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // ── Activity Log & Notes header ──
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.History, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Activity Log & Notes", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-            }
-            Spacer(Modifier.height(16.dp))
-
-            val activities = listOf(
-                Triple("Alteration Started", "\"Measurements verified, starting sleeve shortening.\"", "Antonio Rossi • 2h ago"),
-                Triple("Assigned to Antonio Rossi", null, "System • 5h ago"),
-                Triple("Service Request Received", null, "System • Oct 20, 10:45 AM")
-            )
-
-            activities.forEachIndexed { index, (title, note, meta) ->
-                Row {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(if (index == 0) Accent else Color(0xFFD1D5DB))
-                        )
-                        if (index != activities.lastIndex) {
-                            Box(
-                                modifier = Modifier
-                                    .width(2.dp)
-                                    .height(48.dp)
-                                    .background(BorderColor)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.padding(bottom = 16.dp)) {
-                        Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-                        note?.let {
-                            Spacer(Modifier.height(2.dp))
-                            Text(it, fontSize = 12.sp, color = LabelColor)
-                        }
-                        Spacer(Modifier.height(2.dp))
-                        Text(meta, fontSize = 11.sp, color = MutedLabel)
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(4.dp))
-
-            // ── Comment box ──
-            OutlinedTextField(
-                value = comment,
-                onValueChange = { comment = it },
-                placeholder = { Text("Add a comment or update...", fontSize = 13.sp, color = MutedLabel) },
-                shape = RoundedCornerShape(10.dp),
-                trailingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Send",
-                        tint = Accent,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .clickable { comment = "" }
-                    )
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = BorderColor,
-                    focusedBorderColor = Accent,
-                    unfocusedContainerColor = Color.White
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row {
-                    Icon(Icons.Default.AttachFile, contentDescription = null, tint = MutedLabel, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Default.EmojiEmotions, contentDescription = null, tint = MutedLabel, modifier = Modifier.size(16.dp))
-                }
-                Text("Press Enter to send", fontSize = 11.sp, color = MutedLabel)
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            Button(
-                onClick = { },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Accent)
-            ) {
-                Text("Mark as Completed", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-            }
-            Spacer(Modifier.height(20.dp))
-        }
+    val currentBlur = when {
+        updateStatusSheetState != SheetValue.Hidden -> updateStatusSheetBlur
+        assignTailorSheetState != SheetValue.Hidden -> assignTailorSheetBlur
+        else -> 0.dp
     }
 
-    // ─────────────────────────────────────────────
-    // UPDATE STATUS bottom sheet
-    // ─────────────────────────────────────────────
-    if (activeSheet == ActiveSheet.UPDATE_STATUS) {
-        ModalBottomSheet(
-            onDismissRequest = { activeSheet = ActiveSheet.NONE },
-            containerColor = Color.White
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                Surface(modifier = Modifier.fillMaxWidth(), color = Color.White) {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 16.dp)
+                        ) {
+                            Text("Alteration Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TitleColor)
+                            IconButton(onClick = onClose) {
+                                Icon(Icons.Default.Close, contentDescription = "Close")
+                            }
+                        }
+
+
+                    }
+                }
+            }
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .padding(padding)
+                    .background(modelGray)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .blurScrim(currentBlur)
+            ) {
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(StripBg)
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row {
+                            Text("ALT-882", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                            Text(" / SO-450", fontSize = 13.sp, color = MutedLabel)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(AccentBg)
+                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                        ) {
+                            Text("In Progress", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Accent)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
+                        Column {
+                            Text("Customer", fontSize = 11.sp, color = MutedLabel)
+                            Text("Liam Henderson", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TitleColor)
+                        }
+                        Column {
+                            Text("Priority", fontSize = 11.sp, color = MutedLabel)
+                            Text("High Priority", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = PriorityRed)
+                        }
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = { assignTailorSheetState = SheetValue.Collapsed },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Accent),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Assign Tailor", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                AlterationStepper()
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Current Status: ", fontSize = 13.sp, color = LabelColor)
+                    Text("In Progress", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Accent)
+                }
+                Spacer(Modifier.height(10.dp))
+
+                Button(
+                    onClick = { updateStatusSheetState = SheetValue.Collapsed },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) {
+                    Text("Update Status", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Inventory2, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Garment & Alteration Details", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                }
+                Spacer(Modifier.height(14.dp))
+
+                Text("Garment Type", fontSize = 11.sp, color = MutedLabel)
+                Spacer(Modifier.height(2.dp))
+                Text("Bespoke Blazer", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleColor)
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = BorderColor)
+                Spacer(Modifier.height(12.dp))
+
+                Text("Fabric", fontSize = 11.sp, color = MutedLabel)
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(NavyFabric)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Navy Wool (Super 120s)", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleColor)
+                }
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = BorderColor)
+                Spacer(Modifier.height(12.dp))
+
+                Text("Alteration Notes", fontSize = 11.sp, color = MutedLabel)
+                Spacer(Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(NotesBg)
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        "\"Shorten sleeves by 1.25 inches. Ensure the functional buttonholes are preserved and spaced correctly from the new edge.\"",
+                        fontSize = 13.sp,
+                        color = TitleColor
+                    )
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Straighten, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Measurement Adjustments", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                }
+                Spacer(Modifier.height(14.dp))
+
+                MeasurementTable()
+
+                Spacer(Modifier.height(24.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Trial & Documentation", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                }
+                Spacer(Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = MutedLabel, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Column {
+                            Text("Trial Date", fontSize = 11.sp, color = MutedLabel)
+                            Text("Oct 24, 2023 - 2:00 PM", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TitleColor)
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = { /* TODO: change trial date */ },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Accent),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Text("Change", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    PhotoPlaceholder(label = "BEFORE", badgeColor = BeforeBadgeBg, modifier = Modifier.weight(1f))
+                    PhotoPlaceholder(label = "WIP", badgeColor = WipBadgeBg, modifier = Modifier.weight(1f))
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Person, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Assigned Tailor", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                }
+                Spacer(Modifier.height(12.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(AccentBg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("AR", color = Accent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text("Antonio Rossi", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                        Row {
+                            Text("Senior Tailor  •  ", fontSize = 12.sp, color = LabelColor)
+                            Text("Suiting Expert", fontSize = 12.sp, color = Accent)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFefeff8))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("Active Jobs", fontSize = 12.sp, color = MutedLabel)
+                        Text("4", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TitleColor)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("Success Rate", fontSize = 12.sp, color = MutedLabel)
+                        Text("98%", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SuccessColor)
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = { /* TODO: navigate to tailor profile */ },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Accent),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
+                ) {
+                    Text("View Profile & Capacity", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.History, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Activity Log & Notes", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                }
+                Spacer(Modifier.height(16.dp))
+
+                val activities = listOf(
+                    Triple("Alteration Started", "\"Measurements verified, starting sleeve shortening.\"", "Antonio Rossi • 2h ago"),
+                    Triple("Assigned to Antonio Rossi", null, "System • 5h ago"),
+                    Triple("Service Request Received", null, "System • Oct 20, 10:45 AM")
+                )
+
+                activities.forEachIndexed { index, (title, note, meta) ->
+                    Row {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(if (index == 0) Accent else Color(0xFFD1D5DB))
+                            )
+                            if (index != activities.lastIndex) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(2.dp)
+                                        .height(48.dp)
+                                        .background(BorderColor)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.padding(bottom = 16.dp)) {
+                            Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                            note?.let {
+                                Spacer(Modifier.height(2.dp))
+                                Text(it, fontSize = 12.sp, color = LabelColor)
+                            }
+                            Spacer(Modifier.height(2.dp))
+                            Text(meta, fontSize = 11.sp, color = MutedLabel)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                OutlinedTextField(
+                    value = comment,
+                    onValueChange = { comment = it },
+                    placeholder = { Text("Add a comment or update...", fontSize = 13.sp, color = MutedLabel) },
+                    shape = RoundedCornerShape(10.dp),
+                    trailingIcon = {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send",
+                            tint = Accent,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .clickable { comment = "" }
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = BorderColor,
+                        focusedBorderColor = Accent,
+                        unfocusedContainerColor = Color.White
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row {
+                        Icon(Icons.Default.AttachFile, contentDescription = null, tint = MutedLabel, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Default.EmojiEmotions, contentDescription = null, tint = MutedLabel, modifier = Modifier.size(16.dp))
+                    }
+                    Text("Press Enter to send", fontSize = 11.sp, color = MutedLabel)
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                Button(
+                    onClick = { },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Accent)
+                ) {
+                    Text("Mark as Completed", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                }
+                Spacer(Modifier.height(20.dp))
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        // UPDATE STATUS bottom sheet
+        // ─────────────────────────────────────────────
+        SmoothBottomSheet(
+            state = updateStatusSheetState,
+            onStateChange = { updateStatusSheetState = it },
+            peekHeight = 480.dp,
+            onDismissRequest = { updateStatusSheetState = SheetValue.Hidden },
+            onBlurScrimChange = { blur, _ ->
+                updateStatusSheetBlur = blur
+            }
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
                 Text(
@@ -498,7 +506,7 @@ fun CreateAlterationManagementScreen(
                 Spacer(Modifier.height(20.dp))
 
                 Button(
-                    onClick = { activeSheet = ActiveSheet.NONE },
+                    onClick = { updateStatusSheetState = SheetValue.Hidden },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Accent)
@@ -507,7 +515,7 @@ fun CreateAlterationManagementScreen(
                 }
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(
-                    onClick = { activeSheet = ActiveSheet.NONE },
+                    onClick = { updateStatusSheetState = SheetValue.Hidden },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, BorderColor),
@@ -527,15 +535,18 @@ fun CreateAlterationManagementScreen(
                 Spacer(Modifier.height(20.dp))
             }
         }
-    }
 
-    // ─────────────────────────────────────────────
-    // ASSIGN TAILOR bottom sheet
-    // ─────────────────────────────────────────────
-    if (activeSheet == ActiveSheet.ASSIGN_TAILOR) {
-        ModalBottomSheet(
-            onDismissRequest = { activeSheet = ActiveSheet.NONE },
-            containerColor = Color.White
+        // ─────────────────────────────────────────────
+        // ASSIGN TAILOR bottom sheet
+        // ─────────────────────────────────────────────
+        SmoothBottomSheet(
+            state = assignTailorSheetState,
+            onStateChange = { assignTailorSheetState = it },
+            peekHeight = 600.dp,
+            onDismissRequest = { assignTailorSheetState = SheetValue.Hidden },
+            onBlurScrimChange = { blur, _ ->
+                assignTailorSheetBlur = blur
+            }
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
                 Text(
@@ -611,7 +622,6 @@ fun CreateAlterationManagementScreen(
                 )
                 Spacer(Modifier.height(16.dp))
 
-                // ── Tailor Weekly Capacity ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -664,7 +674,7 @@ fun CreateAlterationManagementScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
-                        onClick = { activeSheet = ActiveSheet.NONE },
+                        onClick = { assignTailorSheetState = SheetValue.Hidden },
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(8.dp),
                         border = BorderStroke(1.dp, BorderColor),
@@ -673,7 +683,7 @@ fun CreateAlterationManagementScreen(
                         Text("Cancel", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Button(
-                        onClick = { activeSheet = ActiveSheet.NONE },
+                        onClick = { assignTailorSheetState = SheetValue.Hidden },
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Primary)
@@ -688,11 +698,8 @@ fun CreateAlterationManagementScreen(
 }
 
 // ─────────────────────────────────────────────
-// Progress stepper: Requested → Assigned → In Progress → Trial Ready → Completed
+// Progress stepper
 // ─────────────────────────────────────────────
-private data class Step(val label: String, val state: StepState)
-private enum class StepState { DONE, CURRENT, UPCOMING }
-
 @Composable
 private fun AlterationStepper() {
     val steps = listOf(
@@ -799,8 +806,6 @@ private fun StepCircle(index: Int, step: Step) {
 // ─────────────────────────────────────────────
 // Measurement Adjustments table
 // ─────────────────────────────────────────────
-private data class Measurement(val point: String, val original: String, val altered: String, val diff: String, val alteredHighlighted: Boolean = false)
-
 @Composable
 private fun MeasurementTable() {
     val rows = listOf(
@@ -810,7 +815,6 @@ private fun MeasurementTable() {
     )
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Header row
         Row(modifier = Modifier.fillMaxWidth()) {
             Text("Point", fontSize = 12.sp, color = MutedLabel, modifier = Modifier.weight(1.4f))
             Text("Original", fontSize = 12.sp, color = MutedLabel, modifier = Modifier.weight(1f), textAlign = TextAlign.End)

@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.TitleColor
 import com.cuso.mobile.ui.theme.modelGray
 
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
@@ -120,23 +121,22 @@ fun AlterationManagementScreen(
 
     Scaffold(
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White
-            ) {
+            Surface(modifier = Modifier.fillMaxWidth(), color = Color.White) {
                 Column {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(horizontal = 20.dp, vertical = 16.dp)
                     ) {
-                        Text("Alteration Management", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Text("Alteration Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TitleColor)
                         IconButton(onClick = onClose) {
                             Icon(Icons.Default.Close, contentDescription = "Close")
                         }
                     }
+
+
                 }
             }
         }

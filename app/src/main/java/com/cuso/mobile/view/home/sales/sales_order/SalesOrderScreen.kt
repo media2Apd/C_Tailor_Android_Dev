@@ -337,7 +337,7 @@ fun paymentStatusColors(status: String): Pair<Color, Color> = when (status.lower
     "paid"    -> greenBg to greentext
     "partial" -> yellowBg to yellowtext
     "unpaid"  -> redBg to redtext
-    else      -> Color(0xFFF3F4F6) to Color(0xFF6B7280)
+    else      -> Color(0xFFF3F4F6) to Color(0xFF6B7280)   // ← gray/disabled-a paakura andha color idhu than
 }
 fun Long?.toDisplayDate(): String {
     if (this == null) return "—"

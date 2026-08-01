@@ -8,6 +8,10 @@ val TextLog=Color(0xFF374151)
 //container disabled color
 val disabled=Color(0xFFC7D2FE)
 
+//data card
+val dataCardField= Color(0xFF9CA3AF)
+
+
 val Purple80 = Color(0xFFD0BCFF)
 val PurpleGrey80 = Color(0xFFCCC2DC)
 val Pink80 = Color(0xFFEFB8C8)
@@ -45,5 +49,8 @@ val modelBorder=Color(0xffe8eaf4)
 val statLogoBg=Color(0xff424656)
 
 val modelGray=Color(0xFFF1F5F9)
-val TitleColor = Color(0xFF1A1A1A)   // 👈 'private' remove pannunga
+val TitleColor = Color(0xFF1A1A1A)
+
+
+
 

@@ -10,7 +10,8 @@
     "unusedvariable",
     "AssignedVariableIsNeverRead",
     "UNUSED_VARIABLE",
-    "KotlinConstantConditions", "VariableNeverRead"
+    "KotlinConstantConditions",
+    "VariableNeverRead"
 )
 
 package com.cuso.mobile.view.home
@@ -106,6 +107,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.unit.Dp
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.cuso.mobile.view.home.inventory.InventoryViewOne
@@ -142,6 +144,7 @@ import com.cuso.mobile.view.home.logistics.OrderTrackingScreen
 import com.cuso.mobile.view.home.profile.ProfileSettingsScreen
 import com.cuso.mobile.view.home.reports.SalesOrderReportsScreen
 import com.cuso.mobile.view.home.reusablecomposables.DashboardSkeleton
+import com.cuso.mobile.view.home.reusablecomposables.blurScrim
 import com.cuso.mobile.view.home.sales.customer.CustomerDetailScreen
 import com.cuso.mobile.view.home.sales.ordermanagement.OrderManagementScreen
 import com.cuso.mobile.view.home.sales.pricing.PricingScreen
@@ -175,21 +178,6 @@ import com.example.tracking.TrackingOverviewScreen
 val LeadPrimary = Color(0xFF3B3BF9)
 val LeadPrimarySoft = Color(0xFFEEEEFE)
 val LeadTextMuted = Color(0xFF9CA3AF)
-//
-//// ── Data classes ──
-//
-//data class LeadItem(
-//    val header: String,
-//    val value: Float
-//)
-//
-//data class ControlItem(
-//    val controls: String
-//)
-
-// ─────────────────────────────────────────────────────────────
-// HomeScreen
-// ─────────────────────────────────────────────────────────────
 
 @Suppress("UnusedMaterial3ScaffoldPaddingParameter","UNUSED_PARAMETER")
 @Composable
@@ -209,12 +197,14 @@ fun HomeScreen(navController: NavHostController) {
     val profileViewModel: ProfileViewModel = hiltViewModel()
 
     var isDrawerOpen by remember { mutableStateOf(false) }
+    var sidebarBlur by remember { mutableStateOf(0.dp) }
     var pendingOrderReviewData by remember { mutableStateOf<OrderReviewData?>(null) }
     val customerViewModel: CustomerViewModel = hiltViewModel()
+
     val customerUiState by customerViewModel.uiState.collectAsStateWithLifecycle()
     var selectedCustomer by remember { mutableStateOf<CustomerItem?>(null) }
     val settingsViewModel: SettingsViewModel = hiltViewModel()
-    var selectedOrderId by remember { mutableStateOf<String?>(null) }   // ✅ ADD THIS LINE
+    var selectedOrderId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
     // ✅ NEW — Finance > Trial Balance > Ledger flow
@@ -223,13 +213,12 @@ fun HomeScreen(navController: NavHostController) {
 
 
     //delete
-    val deleteState by customerViewModel.deleteState.collectAsState()   // ✅ this needs to exist
+    val deleteState by customerViewModel.deleteState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
     var selectedManagementOrderId by remember { mutableStateOf<String?>(null) }
 
-    // ✅ NEW — Finance > Accounts Receivable > Sales Invoices flow
     // ✅ NEW — Finance > Accounts Receivable > Sales Invoices flow
     var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
 
@@ -243,12 +232,12 @@ fun HomeScreen(navController: NavHostController) {
 
     var isSalesSettingsMode by remember { mutableStateOf(false) }
 
-    var showModulesPanel by remember { mutableStateOf(false) }   // ✅ NEW
-    var modulesPanelInitialExpanded by remember { mutableStateOf<String?>(null) }   // ✅ NEW — set by breadcrumb clicks
+    var showModulesPanel by remember { mutableStateOf(false) }
+    var modulesPanelInitialExpanded by remember { mutableStateOf<String?>(null) }
     val orderOverviewViewModel: com.cuso.mobile.viewmodel.OrderOverviewViewModel = hiltViewModel()
     val editOverviewState by orderOverviewViewModel.overviewState.collectAsStateWithLifecycle()
     var editOrderId by remember { mutableStateOf<String?>(null) }
-    var editingPricingId by remember { mutableStateOf<String?>(null) }   // ✅ ADD THIS — fixes "Unresolved reference"
+    var editingPricingId by remember { mutableStateOf<String?>(null) }
 
     var quotationScreenMode by remember { mutableStateOf("create") }
 
@@ -292,9 +281,6 @@ fun HomeScreen(navController: NavHostController) {
     }
 
     LaunchedEffect(editOverviewState) {
-        // ✅ Only act on this state if an Edit flow is actually in progress.
-        // Prevents accidental navigation when the OrderOverviewScreen (View flow)
-        // updates the same shared ViewModel instance's state.
         if (editOrderId == null) return@LaunchedEffect
 
         when (val s = editOverviewState) {
@@ -464,7 +450,7 @@ fun HomeScreen(navController: NavHostController) {
                         } else {
                             if (showHomePanel || showSalesPanel) {
                                 isSalesSettingsMode = false
-                                resetToHome()   // closing the settings panel — treat as returning to a fresh home, not "back one step"
+                                resetToHome()
                             } else {
                                 navigateTo("settings")
                             }
@@ -632,7 +618,8 @@ fun HomeScreen(navController: NavHostController) {
                     },
                     showHomePanel = showHomePanel,
                     showSalesPanel = showSalesPanel,
-                    isSalesSettingsMode = isSalesSettingsMode
+                    isSalesSettingsMode = isSalesSettingsMode,
+                    onBlurScrimChange = { radius, _ -> sidebarBlur = radius }
                 )
             }
         ) { innerPadding ->
@@ -641,6 +628,7 @@ fun HomeScreen(navController: NavHostController) {
                     .fillMaxSize()
                     .background(Color.White)
                     .padding(innerPadding)
+                    .blurScrim(sidebarBlur)   // ✅ UPDATED: blurBehindSheet -> blurScrim
             ) {
                 when (currentScreen) {
                     "settings" -> SettingsScreen(
@@ -747,7 +735,7 @@ fun HomeScreen(navController: NavHostController) {
                         CreateOrderScreen(
                             initialData = pendingOrderReviewData,
                             onBack = {
-                                pendingOrderReviewData = null      // 🔑 CRITICAL — X/close um clear pannanum, cancel mattum pothaathu
+                                pendingOrderReviewData = null
                                 goBack()
                             },
                             onCancel = {
@@ -765,7 +753,7 @@ fun HomeScreen(navController: NavHostController) {
                         onMenuClick = { isDrawerOpen = true },
                         onBack = { goBack() },
                         onCreateOrder = {
-                            pendingOrderReviewData = null      // 🔑 CRITICAL — kill stale edit data
+                            pendingOrderReviewData = null
                             navigateTo("create_order")
                         },
                         onViewOrder = { orderId ->
@@ -905,8 +893,6 @@ fun HomeScreen(navController: NavHostController) {
                         }
                     )
 
-                    // ADD right after the "inventory_item_detail" block ends
-
                     "inventory_low_stock_alerts" -> LowStockAlertsScreen(
                         onClose = { goBack() },
                         onReorderClick = { item ->
@@ -931,10 +917,9 @@ fun HomeScreen(navController: NavHostController) {
                                 goBack()
                             },
                             onCreateOrder = {
-                                // TODO: wire to actual PO creation API via a ViewModel
                                 selectedLowStockItem = null
                                 goBack()
-                                goBack()   // pops both create_purchase_order and low_stock_alerts → lands on inventory_items
+                                goBack()
                             }
                         )
                     }
@@ -957,7 +942,6 @@ fun HomeScreen(navController: NavHostController) {
                             navigateTo("hr_employee_onboarding")
                         },
                         onDelete = { employee ->
-                            // TODO: call delete API via a HR/Employee ViewModel
                         },
                         hrViewModel = hrViewModel,
                         onBreadCrumbClick = {
@@ -1203,10 +1187,10 @@ fun HomeScreen(navController: NavHostController) {
                     "sales_customers" -> CustomerScreen(
                         navController = navController,
                         customerState = customerUiState,
-                        onSearch = customerViewModel::onSearch,                          // ✅ ADD
-                        onTypeFilterChange = customerViewModel::onTypeFilterChange,      // ✅ ADD
-                        onPageChange = customerViewModel::onPageChange,                  // ✅ ADD — idhu illama Next/Prev API hit aagathu
-                        onItemsPerPageChange = customerViewModel::onItemsPerPageChange,  // ✅ ADD — idhu illama 20/50 dropdown API hit aagathu
+                        onSearch = customerViewModel::onSearch,
+                        onTypeFilterChange = customerViewModel::onTypeFilterChange,
+                        onPageChange = customerViewModel::onPageChange,
+                        onItemsPerPageChange = customerViewModel::onItemsPerPageChange,
 
                         onClose = { goBack() },
                         onCreateCustomer = { navigateTo("create_customer") },
@@ -1333,7 +1317,7 @@ fun HomeScreen(navController: NavHostController) {
                                 onSaveOrder = {
                                     pendingOrderReviewData = null
                                     goBack()
-                                    goBack()   // pops both create_order_review and create_order → lands on sales_sales_orders
+                                    goBack()
                                 }
                             )
                         } ?: run { goBack() }
@@ -1367,12 +1351,11 @@ fun HomeScreen(navController: NavHostController) {
             }
         }
 
-        // ✅ NEW — Modules bottom-sheet panel, overlays Scaffold+bottom nav, slides up from bottom
-        // ✅ NEW — Modules bottom-sheet panel, overlays Scaffold+bottom nav, slides up from bottom
+        // ✅ ModulesPanel remains the same
         ModulesPanel(
             isOpen = showModulesPanel,
             onClose = { showModulesPanel = false },
-            initialExpandedModule = modulesPanelInitialExpanded,   // ✅ NEW
+            initialExpandedModule = modulesPanelInitialExpanded,
             onModuleCategoryClick = { menu, category ->
                 val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
                 val firstSubItem = menuItem?.subItems?.get(category)?.firstOrNull()
@@ -1405,9 +1388,11 @@ fun HomeScreen(navController: NavHostController) {
                 } else {
                     Toast.makeText(context, "Coming soon", Toast.LENGTH_SHORT).show()
                 }
-            }        )
+            }
+        )
     }
 }
+
 // ─────────────────────────────────────────────────────────────
 // TopNavBar
 // ─────────────────────────────────────────────────────────────
@@ -1423,7 +1408,7 @@ fun TopBar(
 ) {
     // EmployeeOnboardingScreen.kt la:
     val authViewModel: Authenticate = hiltViewModel(
-        LocalContext.current as ComponentActivity   // ✅ இதை சேருங்க
+        LocalContext.current as ComponentActivity
     )
     val userEntity by authViewModel.user.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
@@ -1500,21 +1485,21 @@ fun TopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 0.dp),   // ✅ vertical padding 0
+                .padding(horizontal = 20.dp, vertical = 0.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             // ── Left: Logo ──
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.height(56.dp)   // ✅ fixed height so logo doesn't push row down
+                modifier = Modifier.height(56.dp)
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.cuso_tailor_logo),
                     contentDescription = "Logo",
                     tint = Color.Unspecified,
                     modifier = Modifier
-                        .size(90.dp)   // ✅ slightly smaller so it fits within the fixed height
+                        .size(90.dp)
                 )
             }
 
@@ -1566,12 +1551,10 @@ fun TopBar(
                 val avatarSize = if (isPanelMode) 38.dp else 42.dp
 
                 if (!profilePicture.isNullOrBlank()) {
-                    // TopBar.kt - AsyncImage உள்ள இடத்தில்
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(profilePicture)
                             .crossfade(true)
-                            // 👇 இந்த இரண்டு வரிகள் மிக முக்கியம்
                             .memoryCachePolicy(CachePolicy.DISABLED)
                             .diskCachePolicy(CachePolicy.DISABLED)
                             .build(),
@@ -1611,7 +1594,6 @@ fun TopBar(
     }
 }
 @Suppress("UNUSED_PARAMETER")
-
 @Composable
 fun BottomBar(
     navController: NavController,
@@ -1622,11 +1604,12 @@ fun BottomBar(
     onDrawerClose: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onMenuItemClick: (String) -> Unit = {},
-    onModulesClick: () -> Unit = {},   // ✅ NEW
+    onModulesClick: () -> Unit = {},
     onLogout: () -> Unit,
     showHomePanel: Boolean = false,
     showSalesPanel: Boolean = false,
-    isSalesSettingsMode: Boolean = false
+    isSalesSettingsMode: Boolean = false,
+    onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> }
 ) {
     val authViewModel: Authenticate = hiltViewModel()
     val userEntity by authViewModel.user.collectAsStateWithLifecycle()
@@ -1688,7 +1671,7 @@ fun BottomBar(
         )
     }
 
-    Box(modifier = Modifier) {
+    Box {
 
         if (isSettingsOpen || showSalesPanel) {
             SalesSideBar(
@@ -1699,6 +1682,7 @@ fun BottomBar(
                     onDrawerClose()
                 },
                 onLogout = onLogout,
+                onBlurScrimChange = onBlurScrimChange,
                 user = user,
                 defaultSelectedMenu = if (currentScreen == "sales_settings" || currentScreen == "sales_garment_type") "Sales" else "Home"
             )
@@ -1711,6 +1695,7 @@ fun BottomBar(
                     onDrawerClose()
                 },
                 onLogout = onLogout,
+                onBlurScrimChange = onBlurScrimChange,
                 user = user,
                 defaultSelectedMenu = if (showHomePanel) "Home" else "Home"
             )
@@ -1719,9 +1704,9 @@ fun BottomBar(
         // ── BOTTOM NAV BAR ──
         Box(
             modifier = Modifier
-                    .align(Alignment.BottomCenter)
+                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .navigationBarsPadding()   // ✅ NEW — keeps rounded corners clear of the system nav bar
+                .navigationBarsPadding()
                 .background(Color.Transparent)
         ) {
             Surface(
@@ -1773,7 +1758,7 @@ fun BottomBar(
                         label = "Modules",
                         isSelected = currentScreen == "modules",
                         selectedColor = Color(0xFF6C4FF6),
-                        onClick = { onModulesClick() }   // ✅ CHANGED — was onMenuItemClick("modules")
+                        onClick = { onModulesClick() }
                     )
                 }
             }
@@ -1787,7 +1772,6 @@ fun BottomBar(
                     .shadow(10.dp, CircleShape)
                     .clip(CircleShape)
                     .background(Color(0xFF6C4FF6)),
-//                    .clickable { onDrawerToggle() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -1800,10 +1784,9 @@ fun BottomBar(
         }
     }
 }
-
 @Composable
 fun BottomNavItem(
-    icon: Int,                          // ✅ CHANGED — drawable resource id, not ImageVector
+    icon: Int,
     label: String,
     isSelected: Boolean,
     selectedColor: Color = Color(0xFF6C4FF6),
@@ -1817,7 +1800,7 @@ fun BottomNavItem(
         Image(
             painter = painterResource(id = icon),
             contentDescription = label,
-            colorFilter = ColorFilter.tint(color),   // ✅ tints the PNG like an Icon would
+            colorFilter = ColorFilter.tint(color),
             modifier = Modifier.size(30.dp)
         )
         Spacer(modifier = Modifier.height(4.dp))
@@ -1866,10 +1849,6 @@ private data class RecentCustomer(
     val avatarColor: Color
 )
 
-
-
-
-
 private fun mapActiveOrdersToActivity(orders: List<ActiveOrderItem>): List<ActivityItem> {
     return orders.take(4).map { order ->
         val statusLabel = order.status.replaceFirstChar { it.uppercase() }
@@ -1907,16 +1886,11 @@ private fun mapOperationsToCustomers(ops: List<OperationItem>): List<RecentCusto
 // ─────────────────────────────────────────────────────────────
 // HomeScreenContent — fetches real dashboard data + fixed design
 // ─────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────
-// HomeScreenContent — fetches real dashboard data + fixed design
-// ─────────────────────────────────────────────────────────────
 @Composable
 fun HomeScreenContent(
     navController: NavHostController,
     onNavigate: (String) -> Unit = {}
 ) {
-    // ✅ Locks fontScale to 1f so the layout looks identical across every
-    // device regardless of the system "font size" accessibility setting.
     val baseDensity = LocalDensity.current
     CompositionLocalProvider(
         LocalDensity provides Density(density = baseDensity.density, fontScale = 1f)
@@ -1966,7 +1940,7 @@ private fun HomeScreenContentBody(
                     Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(40.dp))
                     Spacer(Modifier.height(8.dp))
                     Text("Failed to load dashboard", color = Color.Red, fontWeight = FontWeight.Bold)
-                    Text(state.message, color = Color.Gray, fontSize = 13.sp)
+                    Text("Something went wrong, Please Try again after sometime", color = Color.Gray, fontSize = 13.sp)
                     Spacer(Modifier.height(12.dp))
                     Button(onClick = { dashboardViewModel.loadDashboard() }) {
                         Text("Retry")
@@ -2023,14 +1997,6 @@ private fun HomeScreenContentBody(
                 }
                 item { Spacer(Modifier.height(8.dp)) }
             }
-            //TEST CRASH
-//            Button(
-//                onClick = {
-//                    throw RuntimeException("Test Crash — Crashlytics Verification")
-//                }
-//            ) {
-//                Text("Test Crash")
-//            }
         }
         else -> {
             CirculerProgressIndicatorReuse()
@@ -2048,7 +2014,7 @@ private fun GreetingCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp)                       // fixed height — icon size affect pannathu
+            .height(100.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(Color(0xFF2F27CE))
             .clickable(
@@ -2110,26 +2076,17 @@ private fun DashboardStatCard(stat: DashboardStat, modifier: Modifier = Modifier
         modifier = modifier
             .background(Color(0xFFf8f9ff), RoundedCornerShape(20.dp))
             .border(1.dp,Color(0xFFe8eaf4),RoundedCornerShape(20.dp))
-//            .shadow(elevation = 2.dp)
             .padding(14.dp)
     ) {
         Row(Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start) {
-//            Box(
-//                modifier = Modifier
-//                    .size(34.dp)
-//                    .clip(RoundedCornerShape(10.dp))
-//                    .background(stat.iconBg),
-//                contentAlignment = Alignment.Center
-//            ) {
-                Image(
-                    painter = painterResource(id = stat.icon),
-                    contentDescription = null,
-                    colorFilter = ColorFilter.tint(stat.iconTint),   // ✅ tints the PNG same as Icon would
-                    modifier = Modifier.size(18.dp)
-                )
-//            }
+            Image(
+                painter = painterResource(id = stat.icon),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(stat.iconTint),
+                modifier = Modifier.size(18.dp)
+            )
             Spacer(Modifier.width(5.dp))
 
             Text(
@@ -2183,9 +2140,9 @@ private fun QuickModulesSection(
                                 "Contacts" -> "sales_customers"
                                 "Leads" -> "sales_lead"
                                 "Deals" -> "sales_sales_orders"
-                                "Tickets" -> null   // no screen mapped yet
-                                "Email" -> null     // no screen mapped yet
-                                "Calendar" -> null  // no screen mapped yet
+                                "Tickets" -> null
+                                "Email" -> null
+                                "Calendar" -> null
                                 else -> null
                             }
                             route?.let { onNavigate(it) }
@@ -2231,7 +2188,6 @@ private fun statVisualsFor(title: String): Triple<Int, Color, Color> {
     }
 }
 
-// ✅ NEW — short display label for stat cards
 private fun shortStatLabel(title: String): String {
     return when {
         title.contains("Revenue", true) -> "Revenue"
@@ -2340,7 +2296,6 @@ private fun RecentActivitySection(
                     }
                 }
 
-                // 👇 divider between rows, not after the last one
                 if (index != activities.lastIndex) {
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 14.dp, end = 14.dp),
@@ -2367,7 +2322,7 @@ private fun RecentCustomersSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(modelBg, RoundedCornerShape(14.dp))
-                .border(1.dp, modelBorder,RoundedCornerShape((14.dp)))// 👈 single outer card
+                .border(1.dp, modelBorder,RoundedCornerShape((14.dp)))
         ) {
             customers.forEachIndexed { index, customer ->
                 Row(
@@ -2397,7 +2352,6 @@ private fun RecentCustomersSection(
                     Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(25.dp))
                 }
 
-                // 👇 divider between rows, not after the last one
                 if (index != customers.lastIndex) {
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 14.dp, end = 14.dp),
@@ -2409,8 +2363,6 @@ private fun RecentCustomersSection(
         }
     }
 }
-
-
 
 // ─────────────────────────────────────────────────────────────
 // buildFilterSections
@@ -2495,17 +2447,10 @@ fun buildFilterSections(
     )
 }
 
-
-
-// ─────────────────────────────────────────────────────────────
-// LeadCard
-// ─────────────────────────────────────────────────────────────
-//
-
 fun formatLeadDate(raw: String?): String {
     if (raw.isNullOrBlank()) return "—"
     return try {
-        val datePart = raw.take(10)          // "2026-06-27"
+        val datePart = raw.take(10)
         val parts = datePart.split("-")
         if (parts.size == 3) {
             val year = parts[0]
@@ -2538,7 +2483,6 @@ fun formatIndianNumber(number: Number): String {
 
     return "$grouped,$last3"
 }
-
 
 @SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -2675,11 +2619,9 @@ fun CustomTimePicker(
     onMinuteChange: (Int) -> Unit,
     onAmPmChange: (Boolean) -> Unit
 ) {
-    val hourOptions = (1..12).toList()          // 12 values
-    val minuteOptions = (0..59).map { String.format("%02d", it) }  // 60 values
+    val hourOptions = (1..12).toList()
+    val minuteOptions = (0..59).map { String.format("%02d", it) }
 
-    // ✅ NEW — repeat each list many times so scrolling in either
-    // direction never hits a hard edge; feels like infinite/circular scroll.
     val hourRepeatCount = 1000
     val minuteRepeatCount = 1000
     val totalHourItems = hourOptions.size * hourRepeatCount
@@ -2692,8 +2634,6 @@ fun CustomTimePicker(
     }
     val displayMinute = String.format("%02d", minute)
 
-    // ✅ NEW — start near the middle of the repeated list, not at index 0,
-    // so the user has "room" to scroll up or down before ever hitting an edge.
     val initialHourIndex = remember {
         (hourRepeatCount / 2) * hourOptions.size + hourOptions.indexOf(displayHour).coerceAtLeast(0)
     }
@@ -2730,7 +2670,6 @@ fun CustomTimePicker(
         }
     }
 
-    // ✅ NEW — map the repeated-list index back to the real 1-12 hour value
     LaunchedEffect(hourCenterIndex) {
         if (hourCenterIndex in 0 until totalHourItems) {
             val newHour = hourOptions[hourCenterIndex % hourOptions.size]
@@ -2744,7 +2683,6 @@ fun CustomTimePicker(
         }
     }
 
-    // ✅ NEW — map the repeated-list index back to the real 00-59 minute value
     LaunchedEffect(minuteCenterIndex) {
         if (minuteCenterIndex in 0 until totalMinuteItems) {
             onMinuteChange(minuteOptions[minuteCenterIndex % minuteOptions.size].toInt())
@@ -2784,7 +2722,6 @@ fun CustomTimePicker(
                         lazyListState = hourScrollState
                     )
                 ) {
-                    // ✅ NEW — items(count) over the repeated total, value derived via modulo
                     items(totalHourItems) { i ->
                         val h = hourOptions[i % hourOptions.size]
                         val isSelected = i == hourCenterIndex
@@ -2834,7 +2771,6 @@ fun CustomTimePicker(
                         lazyListState = minuteScrollState
                     )
                 ) {
-                    // ✅ NEW — items(count) over the repeated total, value derived via modulo
                     items(totalMinuteItems) { i ->
                         val m = minuteOptions[i % minuteOptions.size]
                         val isSelected = i == minuteCenterIndex
@@ -2900,14 +2836,11 @@ fun CustomTimePicker(
     }
 }
 
-
-
-
 @Composable
-fun FormLabel(text: String?, isRequired: Boolean = false) {  // ✅ Made nullable
+fun FormLabel(text: String?, isRequired: Boolean = false) {
     Row {
         Text(
-            text = text ?: "",  // ✅ Null-safe
+            text ?: "",
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             color = Color.Gray
@@ -2933,14 +2866,14 @@ fun FormTextField(
     placeholder: String = "",
     isError: Boolean = false,
     errorMessage: String? = null,
-    enabled: Boolean = true            // ✅ NEW
+    enabled: Boolean = true
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(40.dp)
             .background(
-                if (enabled) Color.White else Color(0xFFF3F4F6),   // ✅ greyed bg when disabled
+                if (enabled) Color.White else Color(0xFFF3F4F6),
                 RoundedCornerShape(8.dp)
             )
             .border(
@@ -2957,7 +2890,7 @@ fun FormTextField(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            enabled = enabled,          // ✅ actually blocks focus/typing now
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
@@ -3021,12 +2954,10 @@ fun FormDateField(value: String, onClick: () -> Unit) {
     }
 }
 
-
-
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun FormDropdown(
-    label: String? = null,  // ✅ Made nullable
+    label: String? = null,
     value: String,
     expanded: Boolean,
     onExpandChange: (Boolean) -> Unit,
@@ -3034,14 +2965,12 @@ fun FormDropdown(
     onOptionSelected: (String) -> Unit,
     isRequired: Boolean = false,
     enabled: Boolean = true,
-    isError: Boolean = false,          // ✅ NEW
+    isError: Boolean = false,
     errorMessage: String? = null
 ) {
-    // ✅ Null-safe label
     if (!label.isNullOrEmpty()) {
         FormLabel(label, isRequired)
     } else {
-        // If no label, still add spacing for consistency
         Spacer(Modifier.height(6.dp))
     }
 
@@ -3060,9 +2989,10 @@ fun FormDropdown(
                 )
                 .border(
                     1.dp,
-                    if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),   // ✅ red border on error
+                    if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
                     RoundedCornerShape(8.dp)
-                )                .clickable(enabled = enabled) { onExpandChange(true) }
+                )
+                .clickable(enabled = enabled) { onExpandChange(true) }
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -3111,48 +3041,6 @@ fun FormDropdown(
     }
 }
 
-//@SuppressLint("FrequentlyChangingValue","UNUSED_PARAMETER")
-//@Composable
-//fun HorizontalScrollbar(state: LazyListState, modifier: Modifier = Modifier, trackColor: Color = Color(0xFFE5E7EB), thumbColor: Color = Color.Gray, height: androidx.compose.ui.unit.Dp = 4.dp) {
-//    val layoutInfo       = state.layoutInfo
-//    val visibleItemsInfo = layoutInfo.visibleItemsInfo
-//    val totalItems       = layoutInfo.totalItemsCount
-//    val canScroll        = state.canScrollForward || state.canScrollBackward
-//
-//    if (totalItems == 0 || visibleItemsInfo.isEmpty() || !canScroll) {
-//        Box(modifier = modifier
-//            .fillMaxWidth()
-//            .height(height))
-//        return
-//    }
-//
-//    val viewportSize              = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).toFloat()
-//    val averageItemSize           = visibleItemsInfo.sumOf { it.size }.toFloat() / visibleItemsInfo.size
-//    val estimatedTotalContentSize = averageItemSize * totalItems
-//    val thumbSizeFraction         = (viewportSize / estimatedTotalContentSize).coerceIn(0.1f, 1f)
-//    val scrolledPixels            = state.firstVisibleItemIndex * averageItemSize + state.firstVisibleItemScrollOffset
-//    val maxScrollPixels           = (estimatedTotalContentSize - viewportSize).coerceAtLeast(1f)
-//    val scrollFraction            = (scrolledPixels / maxScrollPixels).coerceIn(0f, 1f)
-//
-//    BoxWithConstraints(modifier = modifier
-//        .fillMaxWidth()
-//        .height(height)
-//        .background(trackColor, RoundedCornerShape(height / 2))) {
-//        val trackWidth  = this@BoxWithConstraints.maxWidth
-//        val thumbWidth  = trackWidth * thumbSizeFraction
-//        val thumbOffset = (trackWidth - thumbWidth) * scrollFraction
-//        Box(modifier = Modifier
-//            .offset(x = thumbOffset)
-//            .width(thumbWidth)
-//            .height(height)
-//            .background(thumbColor, RoundedCornerShape(height / 2)))
-//    }
-//}
-// ─────────────────────────────────────────────────────────────
-// Route alias normalizer — single source of truth for all
-// route-name variations that buildNavigationKey() or menu
-// clicks might produce. Add new aliases here ONLY.
-// ─────────────────────────────────────────────────────────────
 fun normalizeRoute(rawKey: String): String {
     return when (rawKey) {
         // Sales
@@ -3178,7 +3066,7 @@ fun normalizeRoute(rawKey: String): String {
         // Inventory
         "inventory_all_items"          -> "inventory_items"
         "inventory_item_groups"        -> "inventory_item_groups"
-        "inventory_orders",              // ✅ Procurement > Orders sub-item click
+        "inventory_orders",
         "inventory_procurement_orders",
         "inventory_low_stock_alerts",
         "inventory_alerts_&_reorder"   -> "inventory_low_stock_alerts"
@@ -3198,9 +3086,10 @@ fun normalizeRoute(rawKey: String): String {
         // Reports
         "reports_sales_reports"        -> "reports_sales_reports"
 
-        else -> rawKey   // no mapping found — passes through, will hit `else -> {}` and just close panel silently
+        else -> rawKey
     }
 }
+
 fun menuForScreen(screen: String): String = when {
     screen == "home" || screen == "settings" || screen == "profile-settings" ||
             screen.startsWith("home_") -> "Home"
@@ -3220,6 +3109,7 @@ fun menuForScreen(screen: String): String = when {
 
     else -> "Home"
 }
+
 fun String.toIsoDate(): String {
     if (this.isEmpty() || this == "Select Date") return ""
     return try {

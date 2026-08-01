@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.Primary_background
 
 // ── Colors ───────────────────────────────────────────────────────────────────
 private val PrimaryBlue   = Color(0xFF1A1AE6)
@@ -64,24 +65,35 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Primary_background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
     ) {
         // ── Header ────────────────────────────────────────────────────────
-        Spacer(Modifier.height(20.dp))
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(horizontal = 20.dp, vertical = 18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Tracking Overview", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = DarkText)
-            IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = "Close", tint = DarkText)
-            }
+            Text(
+                "Tracking Overview",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111827)
+            )
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Close",
+                tint = Color(0xFF111827),
+                modifier = Modifier
+                    .size(22.dp)
+                    .clickable { onClose() }
+            )
         }
 
-        Spacer(Modifier.height(20.dp))
         HorizontalDivider(color = GrayBorder)
         Spacer(Modifier.height(16.dp))
 

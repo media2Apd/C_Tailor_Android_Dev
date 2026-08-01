@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -279,16 +278,16 @@ fun MeasurementsScreen(
 
                                         DataCard(
                                             item = item,
-                                            topBadgeText = badgeText,
+                                            eyebrowText = "Order ID : Order id not found",
+                                            topBadgeText = item.pending,
                                             topBadgeTextColor = badgeColor,
                                             topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
                                             title = item.customerName,
-                                            subtitle = item.contact,
                                             footerFields = listOf(
-                                                DataCardField(icon = Icons.Default.Checkroom, text = item.garments),
-                                                DataCardField(icon = Icons.Default.CurrencyRupee, text = "Pending: ${item.pending}"),
-                                                DataCardField(icon = Icons.Default.AccountBalanceWallet, text = "Spend: ${item.totalSpend}"),
-                                                DataCardField(icon = Icons.Default.CalendarMonth, text = item.lastUpdated)
+                                                DataCardField(text = item.contact),
+                                                DataCardField(text = item.garments),
+                                                DataCardField(text = "Updated • ${item.lastUpdated}"),
+
                                             ),
                                             actions = listOf(
                                                 MenuAction("View", Icons.Default.Visibility) {},

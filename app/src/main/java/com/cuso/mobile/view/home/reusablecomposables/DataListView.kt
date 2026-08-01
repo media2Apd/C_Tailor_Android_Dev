@@ -60,6 +60,7 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.DpOffset
+import com.cuso.mobile.ui.theme.dataCardField
 
 // ── One action-menu item (View / Edit / Delete / View Teams ...) ──
 data class MenuAction(
@@ -273,6 +274,16 @@ fun <T> DataCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (eyebrowText != null) {
+                        Text(
+                            eyebrowText,
+                            fontSize = 10.sp,
+                            color = eyebrowColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(Modifier.height(2.dp))
+                    }
                     if (dateText != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (showDateIcon) {
@@ -284,6 +295,7 @@ fun <T> DataCard(
                     } else {
                         Spacer(Modifier.width(1.dp))
                     }
+
 
                     if (showTopBadgeInTopRow) {
                         Box(
@@ -352,16 +364,7 @@ fun <T> DataCard(
 
                 Column(modifier = Modifier.weight(1f)) {
                     // NEW — eyebrow line above the title
-                    if (eyebrowText != null) {
-                        Text(
-                            eyebrowText,
-                            fontSize = 11.sp,
-                            color = eyebrowColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(Modifier.height(2.dp))
-                    }
+
 
                     Row(
                         Modifier.fillMaxWidth()
@@ -463,7 +466,7 @@ fun <T> DataCard(
                                             field.label ?: "",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = field.labelColor
+                                            color = field.labelColor   // ✅ dataCardField mathi field.labelColor use pannunga
                                         )
                                     }
                                 } else {

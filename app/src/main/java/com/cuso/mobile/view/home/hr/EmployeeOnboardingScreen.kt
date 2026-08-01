@@ -88,6 +88,7 @@ import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.viewmodel.Authenticate
 import androidx.activity.ComponentActivity
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
+import com.cuso.mobile.view.home.inventory.AccordionSection
 import com.yalantis.ucrop.UCrop
 import java.io.File
 
@@ -1699,43 +1700,43 @@ fun uriToFile(context: android.content.Context, uri: Uri): java.io.File {
 }
 
 // ── Accordion section (same pattern as CreateItemScreen.kt) ──
-@Composable
-private fun AccordionSection(
-    icon: ImageVector,
-    title: String,
-    expanded: Boolean,
-    onHeaderClick: () -> Unit,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(if (expanded) Color(0xFFF7F7FA) else Color.White)
-                .clickable { onHeaderClick() }
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, null, tint = AccentColor, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(10.dp))
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-            }
-            Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = LabelColor)
-        }
-        AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                content()
-            }
-        }
-        HorizontalDivider(color = BorderColor)
-    }
-}
+//@Composable
+//private fun AccordionSection(
+//    icon: ImageVector,
+//    title: String,
+//    expanded: Boolean,
+//    onHeaderClick: () -> Unit,
+//    content: @Composable ColumnScope.() -> Unit
+//) {
+//    Column {
+//        Row(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .background(if (expanded) Color(0xFFF7F7FA) else Color.White)
+//                .clickable { onHeaderClick() }
+//                .padding(horizontal = 20.dp, vertical = 16.dp),
+//            horizontalArrangement = Arrangement.SpaceBetween,
+//            verticalAlignment = Alignment.CenterVertically
+//        ) {
+//            Row(verticalAlignment = Alignment.CenterVertically) {
+//                Icon(icon, null, tint = AccentColor, modifier = Modifier.size(20.dp))
+//                Spacer(Modifier.width(10.dp))
+//                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+//            }
+//            Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = LabelColor)
+//        }
+//        AnimatedVisibility(
+//            visible = expanded,
+//            enter = fadeIn() + expandVertically(),
+//            exit = fadeOut() + shrinkVertically()
+//        ) {
+//            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+//                content()
+//            }
+//        }
+//        HorizontalDivider(color = BorderColor)
+//    }
+//}
 
 // ── Permanent / Temporary segmented toggle (Address section) ──
 @Composable

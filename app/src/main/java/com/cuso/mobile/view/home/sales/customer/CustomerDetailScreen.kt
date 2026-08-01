@@ -602,7 +602,7 @@ private fun PersonalInformationStep(
 // Accordion Section Helper Card
 // ─────────────────────────────────────────────────────────────
 @Composable
-private fun AccordionSectionCard(
+ fun AccordionSectionCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     iconPainter: androidx.compose.ui.graphics.painter.Painter? = null,
     iconTint: Color = Color(0xFF3B3BF9),

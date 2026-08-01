@@ -3,8 +3,8 @@ package com.cuso.mobile.view.home.sidebar
 import android.content.Context
 import com.cuso.mobile.model.User
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -13,15 +13,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -40,23 +36,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
@@ -66,9 +54,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
-import com.cuso.mobile.ui.theme.BorderGray
+import androidx.compose.ui.unit.Dp
 import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.modelGray
+import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
+import com.cuso.mobile.view.home.reusablecomposables.SheetValue
+import com.cuso.mobile.view.home.reusablecomposables.blurScrim
 
 // ─────────────────────────────────────────────────────────────
 // Data Classes for Menu Configuration
@@ -245,7 +235,8 @@ fun FullSideBar(
     onMenuItemClick: (String) -> Unit,
     onLogout: () -> Unit,
     user: User? = null,
-    defaultSelectedMenu: String = "Home"
+    defaultSelectedMenu: String = "Home",
+    onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> }
 ) {
     AppSidebarContent(
         isOpen = isOpen,
@@ -255,7 +246,8 @@ fun FullSideBar(
         user = user,
         menuItems = SidebarConfig.getFullMenuItems(),
         defaultSelectedMenu = defaultSelectedMenu,
-        isSalesMode = false
+        isSalesMode = false,
+        onBlurScrimChange = onBlurScrimChange
     )
 }
 
@@ -270,7 +262,8 @@ fun SalesSideBar(
     onMenuItemClick: (String) -> Unit,
     onLogout: () -> Unit,
     user: User? = null,
-    defaultSelectedMenu: String = "Sales"
+    defaultSelectedMenu: String = "Sales",
+    onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> }
 ) {
     AppSidebarContent(
         isOpen = isOpen,
@@ -280,15 +273,16 @@ fun SalesSideBar(
         user = user,
         menuItems = SidebarConfig.getSalesMenuItems(),
         defaultSelectedMenu = defaultSelectedMenu,
-        isSalesMode = true
+        isSalesMode = true,
+        onBlurScrimChange = onBlurScrimChange
     )
 }
 
 // ─────────────────────────────────────────────────────────────
 // 🧩 Reusable Sidebar Content
 // ─────────────────────────────────────────────────────────────
-@Suppress("UNUSED_PARAMETER")
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 private fun AppSidebarContent(
     isOpen: Boolean,
@@ -298,7 +292,8 @@ private fun AppSidebarContent(
     user: User?,
     menuItems: List<MenuItem>,
     defaultSelectedMenu: String,
-    isSalesMode: Boolean
+    isSalesMode: Boolean,
+    onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> }
 ) {
     var selectedMenu by remember { mutableStateOf(defaultSelectedMenu) }
     var expandedCategory by remember { mutableStateOf<String?>(null) }
@@ -314,7 +309,21 @@ private fun AppSidebarContent(
 
     val context = LocalContext.current
 
-    // ── handleMenuClick ───────────────────────────────────────
+    // ✅ NEW — drives blur/scrim reported up to the host screen
+    val blurRadius by animateDpAsState(
+        targetValue = if (isOpen) 12.dp else 0.dp,
+        animationSpec = tween(durationMillis = 250),
+        label = "sidebarBlurRadius"
+    )
+    val scrimAlpha by animateFloatAsState(
+        targetValue = if (isOpen) 0.35f else 0f,
+        animationSpec = tween(durationMillis = 250),
+        label = "sidebarScrimAlpha"
+    )
+    LaunchedEffect(blurRadius, scrimAlpha) {
+        onBlurScrimChange(blurRadius, scrimAlpha)
+    }
+
     fun handleMenuClick(label: String) {
         val menuItem = menuItems.find { it.label == label }
         if (menuItem?.enabled == false) return
@@ -338,30 +347,27 @@ private fun AppSidebarContent(
         }
     }
 
-    // ── handleCategoryClick ───────────────────────────────────
     fun handleCategoryClick(category: String) {
         expandedCategory = if (expandedCategory == category) null else category
     }
 
-    // ── handleSubItemClick ────────────────────────────────────
     fun handleSubItemClick(category: String, subItem: String) {
         selectedSubItem = "$category::$subItem"
         onMenuItemClick(buildNavigationKey(selectedMenu, subItem))
         onClose()
     }
 
-    // ── Scrim ─────────────────────────────────────────────────
-    if (isOpen) {
+    // ── Scrim (animated alpha instead of fixed) ──
+    if (isOpen || scrimAlpha > 0f) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.3f))
+                .background(Color.Black.copy(alpha = scrimAlpha))
                 .clickable { onClose() }
                 .zIndex(1f)
         )
     }
 
-    // ── Drawer ────────────────────────────────────────────────
     AnimatedVisibility(
         visible = isOpen,
         enter = slideInVertically(initialOffsetY = { fullHeight -> fullHeight }),
@@ -704,7 +710,6 @@ private fun SidebarAccordionPanel(
         }
 
         // ── Categories ────────────────────────────────────────
-        // ── Categories ────────────────────────────────────────
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -799,7 +804,6 @@ private fun SidebarAccordionPanel(
     }
 }
 
-
 // ── Module descriptions (shown under each module title) ──
 private val moduleDescriptions = mapOf(
     "Sales" to "Manage leads, customers, orders & quotes",
@@ -854,6 +858,7 @@ private fun buildFrequentlyUsed(context: Context, menuItems: List<MenuItem>): Li
         )
     }
 }
+
 private const val HALF_FRACTION = 0.55f
 private const val FULL_FRACTION = 0.96f
 
@@ -867,7 +872,7 @@ fun ModulesPanel(
     onClose: () -> Unit,
     initialExpandedModule: String? = null,
     initialExpandedCategory: String? = null,
-    initialActiveSubItem: String? = null,   // ✅ NEW — current screen's actual sub-item
+    initialActiveSubItem: String? = null,
     onModuleCategoryClick: (menu: String, category: String) -> Unit
 ) {
     ModulesPanelContent(
@@ -878,13 +883,14 @@ fun ModulesPanel(
         showFrequentlyUsed = true,
         initialExpandedModule = initialExpandedModule,
         initialExpandedCategory = initialExpandedCategory,
-        initialActiveSubItem = initialActiveSubItem   // ✅ NEW
+        initialActiveSubItem = initialActiveSubItem
     )
 }
 
 // ─────────────────────────────────────────────────────────────
-// 🧩 Reusable Modules Panel Content
+// 🧩 Reusable Modules Panel Content — backed by SmoothBottomSheet
 // ─────────────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
 @Suppress("SameParameterValue")
 @Composable
 private fun ModulesPanelContent(
@@ -895,17 +901,22 @@ private fun ModulesPanelContent(
     showFrequentlyUsed: Boolean,
     initialExpandedModule: String? = null,
     initialExpandedCategory: String? = null,
-    initialActiveSubItem: String? = null   // ✅ NEW
+    initialActiveSubItem: String? = null
 ) {
-    val density = LocalDensity.current
+    // ✅ Blur state for the background
+    var modulesPanelBlur by remember { mutableStateOf(0.dp) }
+
     val context = LocalContext.current
-    val heightFraction = remember { Animatable(HALF_FRACTION) }
     val scope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
     var expandedModule by remember { mutableStateOf(menuItems.firstOrNull()?.label) }
     var activeCategory by remember { mutableStateOf<String?>(null) }
     var activeSubItem by remember { mutableStateOf<String?>(null) }
+    var expandedSubCategory by remember { mutableStateOf<String?>(null) }
+
+    // ✅ Sheet state for SmoothBottomSheet
+    var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
 
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val filteredModules = if (searchQuery.isBlank()) {
@@ -924,455 +935,350 @@ private fun ModulesPanelContent(
         derivedStateOf { buildFrequentlyUsed(context, menuItems).take(3) }
     }
 
-    // state — add this near your other `var` declarations, alongside expandedModule
-    var expandedSubCategory by remember { mutableStateOf<String?>(null) }
+    // ✅ Handle sheet open/close and initial state
     LaunchedEffect(isOpen, initialExpandedModule, initialExpandedCategory, initialActiveSubItem) {
         if (isOpen) {
-            heightFraction.snapTo(HALF_FRACTION)
+            sheetState = SheetValue.Collapsed
             searchQuery = ""
             val target = initialExpandedModule ?: menuItems.firstOrNull()?.label
             expandedModule = target
-            activeCategory = initialExpandedCategory   // ✅ always synced from current screen every time panel opens
+            activeCategory = initialExpandedCategory
             activeSubItem = initialActiveSubItem
 
             if (target != null) {
                 val idx = filteredModules.indexOfFirst { it.label == target }
                 if (idx >= 0) {
-                    val headerOffset =
-                        (if (showFrequentlyUsed) 1 else 0) + 1
+                    val headerOffset = (if (showFrequentlyUsed) 1 else 0) + 1
                     scope.launch {
-                        listState.animateScrollToItem(
-                            (headerOffset + idx).coerceAtLeast(0)
-                        )
+                        listState.animateScrollToItem((headerOffset + idx).coerceAtLeast(0))
                     }
                 }
             }
+        } else {
+            sheetState = SheetValue.Hidden
         }
     }
 
-    val cornerRadius: Dp = lerp(
-        24.dp, 0.dp,
-        ((heightFraction.value - HALF_FRACTION) / (FULL_FRACTION - HALF_FRACTION)).coerceIn(0f, 1f)
-    )
-
-    // ── Scrim — smooth fade ──
-    AnimatedVisibility(
-        visible = isOpen,
-        enter = fadeIn(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)),
-        exit = fadeOut(animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)),
-        modifier = Modifier.zIndex(10f)
+    // ── The reusable sheet with blur support ──
+    SmoothBottomSheet(
+        state = sheetState,
+        onStateChange = { sheetState = it },
+        collapsedFraction = HALF_FRACTION,
+        expandedFraction = FULL_FRACTION,
+        dragCloseEnabled = false,
+        scrollableContent = false,
+        sheetBackgroundColor = Color(0xFFFAFAFB),
+        onDismissRequest = onClose,
+        onBlurScrimChange = { blur, _ ->
+            modulesPanelBlur = blur  // ✅ Update blur state
+        }
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.35f))
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) { onClose() }
-        )
-    }
+        // ✅ The sheet content itself is NOT blurred - it stays crystal clear
+        Column(modifier = Modifier.fillMaxSize()) {
 
-    // ── Panel — smooth slide up/down ──
-    AnimatedVisibility(
-        visible = isOpen,
-        enter = slideInVertically(
-            initialOffsetY = { fullHeight -> fullHeight },
-            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
-        ),
-        exit = slideOutVertically(
-            targetOffsetY = { fullHeight -> fullHeight },
-            animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-        ),
-        modifier = Modifier
-            .fillMaxSize()
-            .zIndex(11f)
-    ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val maxHeightPx = with(density) { maxHeight.toPx() }
-            val panelHeight = maxHeight * heightFraction.value
-
-            Surface(
+            // ── Header ──
+            Row(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-
-                    .height(panelHeight),
-                color = Color.White,
-                shape = RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius),
-                shadowElevation = 16.dp
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.fillMaxSize()
-                    .background(Color(0XFFFAFAFB))) {
+                Text("Modules", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            }
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onTap = {
-                                        scope.launch {
-                                            val target = if (heightFraction.value >= FULL_FRACTION - 0.05f)
-                                                HALF_FRACTION else FULL_FRACTION
-                                            heightFraction.animateTo(target, tween(250))
-                                        }
-                                    }
+            Spacer(Modifier.height(12.dp))
+
+            // ── Search ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .height(46.dp)
+                    .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
+                    cursorBrush = SolidColor(Color(0xFF3B3BF9)),
+                    decorationBox = { inner ->
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (searchQuery.isEmpty()) {
+                                Text("Search modules...", fontSize = 14.sp, color = Color(0xFF9CA3AF))
+                            }
+                            inner()
+                        }
+                    }
+                )
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp)
+            ) {
+                if (searchQuery.isBlank() && showFrequentlyUsed) {
+                    item {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                if (hasUsageHistory) "FREQUENTLY USED" else "EXPLORE",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                            if (!hasUsageHistory) {
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    "Modules you haven't tried yet",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFC1C5CC)
                                 )
                             }
-                            .pointerInput(Unit) {
-                                detectVerticalDragGestures(
-                                    onDragEnd = {
-                                        scope.launch {
-                                            val target = if (heightFraction.value > (HALF_FRACTION + FULL_FRACTION) / 2)
-                                                FULL_FRACTION else HALF_FRACTION
-                                            heightFraction.animateTo(target, tween(250))
+                            Spacer(Modifier.height(10.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                frequentlyUsed.forEach { fm ->
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .background(Color.White, RoundedCornerShape(24.dp))
+                                            .border(1.dp, Color(0xFFF0F0F0), RoundedCornerShape(14.dp))
+                                            .clickable(
+                                                indication = null,
+                                                interactionSource = remember { MutableInteractionSource() }
+                                            ) {
+                                                ModuleUsageTracker.recordUsage(context, fm.label)
+                                                val menu = menuItems.find { it.label == fm.label }
+                                                val firstCat = menu?.categories?.firstOrNull()
+                                                if (menu != null && firstCat != null) {
+                                                    onModuleCategoryClick(menu.label, firstCat)
+                                                }
+                                            }
+                                            .padding(vertical = 16.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(44.dp)
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(fm.bg),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = fm.icon),
+                                                contentDescription = fm.label,
+                                                tint = fm.tint,
+                                                modifier = Modifier.size(22.dp)
+                                            )
                                         }
-                                    },
-                                    onVerticalDrag = { change, dragAmount ->
-                                        change.consume()
-                                        scope.launch {
-                                            val deltaFraction = -dragAmount / maxHeightPx
-                                            val newValue = (heightFraction.value + deltaFraction)
-                                                .coerceIn(HALF_FRACTION - 0.05f, FULL_FRACTION)
-                                            heightFraction.snapTo(newValue)
-                                        }
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(fm.label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
                                     }
-                                )
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(40.dp)
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(Color(0xFFD1D5DB))
-                        )
+                                }
+                            }
+                            Spacer(Modifier.height(24.dp))
+                        }
                     }
+                }
 
-                    // ── Header ──
-                    Row(
+                item {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            "ALL MODULES",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E293B)
+                        )
+                        Spacer(Modifier.height(10.dp))
+                    }
+                }
+
+                items(filteredModules) { module ->
+                    val isExpanded = expandedModule == module.label
+
+                    val arrowRotation by animateFloatAsState(
+                        targetValue = if (isExpanded) 180f else 0f,
+                        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+                        label = "arrowRotation_${module.label}"
+                    )
+
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(bottom = 12.dp)
+                            .shadow(
+                                elevation = if (isExpanded) 1.dp else 1.dp,
+                                shape = RoundedCornerShape(24.dp),
+                                clip = false
+                            )
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color.White)
                     ) {
-                        Text("Modules", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color(0xFF111827),
+                        Row(
                             modifier = Modifier
-                                .size(22.dp)
+                                .fillMaxWidth()
                                 .clickable(
                                     indication = null,
                                     interactionSource = remember { MutableInteractionSource() }
-                                ) { onClose() }
-                        )
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-
-                    // ── Search ──
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp)
-                            .height(46.dp)
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp))
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                            cursorBrush = SolidColor(Color(0xFF3B3BF9)),
-                            decorationBox = { inner ->
-                                Box(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentAlignment = Alignment.CenterStart
                                 ) {
-                                    if (searchQuery.isEmpty()) {
-                                        Text("Search modules...", fontSize = 14.sp, color = Color(0xFF9CA3AF))
-                                    }
-                                    inner()
+                                    expandedModule = if (isExpanded) null else module.label
                                 }
-                            }
-                        )
-                    }
-
-                    Spacer(Modifier.height(20.dp))
-
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp)
-                    ) {
-                        if (searchQuery.isBlank() && showFrequentlyUsed) {
-                            item {
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    Text(
-                                        if (hasUsageHistory) "FREQUENTLY USED" else "EXPLORE",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1E293B)
-                                    )
-                                    if (!hasUsageHistory) {
-                                        Spacer(Modifier.height(2.dp))
-                                        Text(
-                                            "Modules you haven't tried yet",
-                                            fontSize = 11.sp,
-                                            color = Color(0xFFC1C5CC)
-                                        )
-                                    }
-                                    Spacer(Modifier.height(10.dp))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        frequentlyUsed.forEach { fm ->
-                                            Column(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .background(Color.White, RoundedCornerShape(24.dp))
-                                                    .border1(Color(0xFFF0F0F0))
-                                                    .clickable(
-                                                        indication = null,
-                                                        interactionSource = remember { MutableInteractionSource() }
-                                                    ) {
-                                                        ModuleUsageTracker.recordUsage(context, fm.label)
-                                                        val menu = menuItems.find { it.label == fm.label }
-                                                        val firstCat = menu?.categories?.firstOrNull()
-                                                        if (menu != null && firstCat != null) {
-                                                            onModuleCategoryClick(menu.label, firstCat)
-                                                        }
-                                                    }
-                                                    .padding(vertical = 16.dp),
-                                                horizontalAlignment = Alignment.CenterHorizontally
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(44.dp)
-                                                        .clip(RoundedCornerShape(16.dp))
-                                                        .background(fm.bg),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(id = fm.icon),
-                                                        contentDescription = fm.label,
-                                                        tint = fm.tint,
-                                                        modifier = Modifier.size(22.dp)
-                                                    )
-                                                }
-                                                Spacer(Modifier.height(8.dp))
-                                                Text(fm.label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
-                                            }
-                                        }
-                                    }
-                                    Spacer(Modifier.height(24.dp))
-                                }
-                            }
-                        }
-
-                        item {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Text(
-                                    "ALL MODULES",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1E293B)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFF3F4F6)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = module.icon),
+                                    contentDescription = module.label,
+                                    tint = Color(0xFF111827),
+                                    modifier = Modifier.size(20.dp)
                                 )
-                                Spacer(Modifier.height(10.dp))
                             }
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(module.label, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
+                            }
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color(0xFF9CA3AF),
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .rotate(arrowRotation)
+                            )
                         }
 
-                        items(filteredModules) { module ->
-                            val isExpanded = expandedModule == module.label
-
-                            val arrowRotation by animateFloatAsState(
-                                targetValue = if (isExpanded) 180f else 0f,
-                                animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
-                                label = "arrowRotation_${module.label}"
+                        AnimatedVisibility(
+                            visible = isExpanded && module.categories.isNotEmpty(),
+                            enter = expandVertically(
+                                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+                            ) + fadeIn(
+                                animationSpec = tween(durationMillis = 250, delayMillis = 50)
+                            ),
+                            exit = shrinkVertically(
+                                animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+                            ) + fadeOut(
+                                animationSpec = tween(durationMillis = 150)
                             )
-
+                        ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(bottom = 12.dp)
-                                    .shadow(
-                                        elevation = if (isExpanded) 1.dp else 1.dp,
-                                        shape = RoundedCornerShape(24.dp),
-                                        clip = false
-                                    )
-                                    .clip(RoundedCornerShape(24.dp))
-                                    .background(Color.White)
+                                    .padding(start = 48.dp, end = 16.dp, bottom = 16.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable(
-                                            indication = null,
-                                            interactionSource = remember { MutableInteractionSource() }
-                                        ) {
-                                            expandedModule = if (isExpanded) null else module.label
-                                        }
-                                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(Color(0xFFF3F4F6)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = module.icon),
-                                            contentDescription = module.label,
-                                            tint = Color(0xFF111827),
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                    Spacer(Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(module.label, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
-                                    }
-                                    Icon(
-                                        imageVector = Icons.Default.KeyboardArrowDown,
-                                        contentDescription = null,
-                                        tint = Color(0xFF9CA3AF),
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .rotate(arrowRotation)
-                                    )
-                                }
+                                module.categories.forEach { category ->
+                                    val categorySubItems = module.subItems[category].orEmpty()
+                                    val hasSubItems = categorySubItems.isNotEmpty()
+                                    val categoryKey = "${module.label}::$category"
+                                    val isDropdownOpen = expandedSubCategory == categoryKey
+                                    val isCategoryActive = category == activeCategory
 
-                                AnimatedVisibility(
-                                    visible = isExpanded && module.categories.isNotEmpty(),
-                                    enter = expandVertically(
-                                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-                                    ) + fadeIn(
-                                        animationSpec = tween(durationMillis = 250, delayMillis = 50)
-                                    ),
-                                    exit = shrinkVertically(
-                                        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
-                                    ) + fadeOut(
-                                        animationSpec = tween(durationMillis = 150)
+                                    val subArrowRotation by animateFloatAsState(
+                                        targetValue = if (isDropdownOpen) 180f else 0f,
+                                        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+                                        label = "subArrowRotation_$categoryKey"
                                     )
-                                ) {
-                                    Column(
+
+                                    Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(start = 48.dp, end = 16.dp, bottom = 16.dp)
-                                    ) {
-                                        module.categories.forEach { category ->
-                                            val categorySubItems = module.subItems[category].orEmpty()
-                                            val hasSubItems = categorySubItems.isNotEmpty()
-                                            val categoryKey = "${module.label}::$category"
-                                            val isDropdownOpen = expandedSubCategory == categoryKey
-                                            val isCategoryActive = category == activeCategory
-
-                                            val subArrowRotation by animateFloatAsState(
-                                                targetValue = if (isDropdownOpen) 180f else 0f,
-                                                animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
-                                                label = "subArrowRotation_$categoryKey"
-                                            )
-
-                                            // ── Category row (plain list style like the reference image) ──
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .background(Color.Transparent)
-                                                    .clickable(
-                                                        indication = null,
-                                                        interactionSource = remember { MutableInteractionSource() }
-                                                    ) {
-                                                        if (hasSubItems) {
-                                                            expandedSubCategory = if (isDropdownOpen) null else categoryKey
-                                                        } else {
-                                                            ModuleUsageTracker.recordUsage(context, module.label)
-                                                            activeCategory = category
-                                                            activeSubItem = null
-                                                            onModuleCategoryClick(module.label, category)
-                                                        }
-                                                    }
-                                                    .padding(vertical = 14.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            .background(Color.Transparent)
+                                            .clickable(
+                                                indication = null,
+                                                interactionSource = remember { MutableInteractionSource() }
                                             ) {
-                                                Text(
-                                                    text = "•  $category",
-                                                    fontSize = 16.sp,
-                                                    fontWeight = if (isDropdownOpen || isCategoryActive) FontWeight.SemiBold else FontWeight.Normal,
-                                                    color = Color(0xFF374151)
-                                                )
-
                                                 if (hasSubItems) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.KeyboardArrowDown,
-                                                        contentDescription = if (isDropdownOpen) "Collapse" else "Expand",
-                                                        tint = Color(0xFF9CA3AF),
-                                                        modifier = Modifier
-                                                            .size(18.dp)
-                                                            .rotate(subArrowRotation)
-                                                    )
+                                                    expandedSubCategory = if (isDropdownOpen) null else categoryKey
+                                                } else {
+                                                    ModuleUsageTracker.recordUsage(context, module.label)
+                                                    activeCategory = category
+                                                    activeSubItem = null
+                                                    onModuleCategoryClick(module.label, category)
                                                 }
                                             }
+                                            .padding(vertical = 14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "•  $category",
+                                            fontSize = 16.sp,
+                                            fontWeight = if (isDropdownOpen || isCategoryActive) FontWeight.SemiBold else FontWeight.Normal,
+                                            color = Color(0xFF374151)
+                                        )
 
-                                            // ── Sub items ──
-                                            AnimatedVisibility(
-                                                visible = isDropdownOpen && hasSubItems,
-                                                enter = expandVertically(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
-                                                        fadeIn(animationSpec = tween(200, delayMillis = 50)),
-                                                exit = shrinkVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)) +
-                                                        fadeOut(animationSpec = tween(150))
-                                            ) {
-                                                Column(modifier = Modifier.padding(start = 14.dp, top = 2.dp, bottom = 4.dp)) {
-                                                    categorySubItems.forEach { subItem ->
-                                                        val isSubActive = activeCategory == category && activeSubItem == subItem
+                                        if (hasSubItems) {
+                                            Icon(
+                                                imageVector = Icons.Default.KeyboardArrowDown,
+                                                contentDescription = if (isDropdownOpen) "Collapse" else "Expand",
+                                                tint = Color(0xFF9CA3AF),
+                                                modifier = Modifier
+                                                    .size(18.dp)
+                                                    .rotate(subArrowRotation)
+                                            )
+                                        }
+                                    }
 
-                                                        Text(
-                                                            "  $subItem",
-                                                            fontSize = 15.sp,
-                                                            fontWeight = if (isSubActive) FontWeight.SemiBold else FontWeight.Normal,
-                                                            color = if (isSubActive) Color(0xFF4338CA) else Color(0xFF6B7280),
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .background(
-                                                                    color = if (isSubActive) Color(0xFFEDEBFF) else Color.Transparent,
-                                                                    shape = RoundedCornerShape(6.dp)
-                                                                )
-                                                                .clickable(
-                                                                    indication = null,
-                                                                    interactionSource = remember { MutableInteractionSource() }
-                                                                ) {
-                                                                    ModuleUsageTracker.recordUsage(context, module.label)
-                                                                    activeCategory = category
-                                                                    activeSubItem = subItem
-                                                                    onModuleCategoryClick(module.label, subItem)
-                                                                }
-                                                                .padding(vertical = 8.dp)
+                                    AnimatedVisibility(
+                                        visible = isDropdownOpen && hasSubItems,
+                                        enter = expandVertically(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
+                                                fadeIn(animationSpec = tween(200, delayMillis = 50)),
+                                        exit = shrinkVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)) +
+                                                fadeOut(animationSpec = tween(150))
+                                    ) {
+                                        Column(modifier = Modifier.padding(start = 14.dp, top = 2.dp, bottom = 4.dp)) {
+                                            categorySubItems.forEach { subItem ->
+                                                val isSubActive = activeCategory == category && activeSubItem == subItem
+
+                                                Text(
+                                                    "  $subItem",
+                                                    fontSize = 15.sp,
+                                                    fontWeight = if (isSubActive) FontWeight.SemiBold else FontWeight.Normal,
+                                                    color = if (isSubActive) Color(0xFF4338CA) else Color(0xFF6B7280),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .background(
+                                                            color = if (isSubActive) Color(0xFFEDEBFF) else Color.Transparent,
+                                                            shape = RoundedCornerShape(6.dp)
                                                         )
-                                                    }
-                                                }
+                                                        .clickable(
+                                                            indication = null,
+                                                            interactionSource = remember { MutableInteractionSource() }
+                                                        ) {
+                                                            ModuleUsageTracker.recordUsage(context, module.label)
+                                                            activeCategory = category
+                                                            activeSubItem = subItem
+                                                            onModuleCategoryClick(module.label, subItem)
+                                                        }
+                                                        .padding(vertical = 8.dp)
+                                                )
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-                        item { Spacer(Modifier.height(100.dp)) }
                     }
                 }
+                item { Spacer(Modifier.height(100.dp)) }
             }
         }
     }
 }
-
-// small helper for a subtle 1dp rounded border
-private fun Modifier.border1(color: Color): Modifier =
-    this.border(1.dp, color, RoundedCornerShape(14.dp))

@@ -48,7 +48,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.launch
-// remove slideInHorizontally / slideOutHorizontally / MutableTransitionState / rememberTransition / animateFloat imports if unused elsewhere
 
 // ── Filter Section Data ──
 enum class FilterSectionType {
@@ -109,7 +108,6 @@ private fun priorityDotColor(id: String): Color = when (id) {
     else -> Color(0xFF9CA3AF)
 }
 
-
 private const val FilterHalfFraction = 0.55f
 private const val FilterFullFraction = 0.96f
 
@@ -127,6 +125,12 @@ fun FilterDrawer(
     var currentSections by remember { mutableStateOf(sections) }
     var searchQuery by remember { mutableStateOf("") }
 
+    // ✅ Blur state for background
+    var filterDrawerBlur by remember { mutableStateOf(0.dp) }
+
+    // ✅ Sheet state for SmoothBottomSheet
+    var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
+
     val expandedMap = remember { mutableStateMapOf<String, Boolean>() }
     LaunchedEffect(sections) {
         currentSections = sections
@@ -140,28 +144,23 @@ fun FilterDrawer(
     val displayedSections = if (searchQuery.isBlank()) currentSections
     else currentSections.filter { it.title.contains(searchQuery, ignoreCase = true) }
 
-    val density = LocalDensity.current
     val scope = rememberCoroutineScope()
-    val heightFraction = remember { Animatable(FilterHalfFraction) }
 
-    // reset to half-height + clear search every time the drawer opens
+    // ✅ Handle sheet open/close based on state
     LaunchedEffect(state.isOpen) {
         if (state.isOpen) {
-            heightFraction.snapTo(FilterHalfFraction)
+            sheetState = SheetValue.Collapsed
             searchQuery = ""
+        } else {
+            sheetState = SheetValue.Hidden
         }
     }
 
     BackHandler(enabled = state.isOpen) { state.close() }
 
-    val cornerRadius: Dp = lerp(
-        24.dp, 0.dp,
-        ((heightFraction.value - FilterHalfFraction) / (FilterFullFraction - FilterHalfFraction)).coerceIn(0f, 1f)
-    )
-
-    // ── Scrim — fade ──
+    // ── Scrim — fade (kept for compatibility, but SmoothBottomSheet handles its own scrim) ──
     AnimatedVisibility(
-        visible = state.isOpen,
+        visible = state.isOpen && sheetState == SheetValue.Hidden,
         enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)),
         exit = fadeOut(animationSpec = tween(250, easing = FastOutSlowInEasing)),
         modifier = modifier.fillMaxSize().zIndex(20f)
@@ -177,269 +176,217 @@ fun FilterDrawer(
         )
     }
 
-    // ── Panel — slide up from bottom, stops at half height ──
-    AnimatedVisibility(
-        visible = state.isOpen,
-        enter = slideInVertically(
-            initialOffsetY = { fullHeight -> fullHeight },
-            animationSpec = tween(350, easing = FastOutSlowInEasing)
-        ),
-        exit = slideOutVertically(
-            targetOffsetY = { fullHeight -> fullHeight },
-            animationSpec = tween(300, easing = FastOutSlowInEasing)
-        ),
-        modifier = Modifier.fillMaxSize().zIndex(21f)
+    // ── SmoothBottomSheet instead of custom slide animation ──
+    SmoothBottomSheet(
+        state = sheetState,
+        onStateChange = { newState ->
+            sheetState = newState
+            if (newState == SheetValue.Hidden) {
+                state.close()
+            }
+        },
+        collapsedFraction = FilterHalfFraction,
+        expandedFraction = FilterFullFraction,
+        dragCloseEnabled = true,
+        scrollableContent = false,
+        sheetBackgroundColor = Color(0xFFf8f9ff),
+        onDismissRequest = { state.close() },
+        onBlurScrimChange = { blur, _ ->
+            filterDrawerBlur = blur  // ✅ Update blur state
+        }
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val maxHeightPx = with(density) { maxHeight.toPx() }
-            val panelHeight = maxHeight * heightFraction.value
+        // ── Sheet Content ──
+        Column(modifier = Modifier.fillMaxSize()) {
 
-            Surface(
+            // ── Drag handle (already handled by SmoothBottomSheet, but keep for consistency) ──
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .height(panelHeight),
-                color = Color(0xFFf8f9ff),
-                shape = RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius),
-                shadowElevation = 16.dp
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(modifier = Modifier.fillMaxSize()) {   // ✅ NEW — wraps content so the fab row can float on top
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFFD1D5DB))
+                )
+            }
 
-                    Column(modifier = Modifier.fillMaxSize()) {
-
-                        // ── Drag handle — tap to toggle half/full + drag to resize ──
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onTap = {
-                                            scope.launch {
-                                                val target =
-                                                    if (heightFraction.value >= FilterFullFraction - 0.05f)
-                                                        FilterHalfFraction else FilterFullFraction
-                                                heightFraction.animateTo(target, tween(250))
-                                            }
-                                        }
-                                    )
-                                }
-                                .pointerInput(Unit) {
-                                    detectVerticalDragGestures(
-                                        onDragEnd = {
-                                            scope.launch {
-                                                val target =
-                                                    if (heightFraction.value > (FilterHalfFraction + FilterFullFraction) / 2)
-                                                        FilterFullFraction else FilterHalfFraction
-                                                heightFraction.animateTo(target, tween(250))
-                                            }
-                                        },
-                                        onVerticalDrag = { change, dragAmount ->
-                                            change.consume()
-                                            scope.launch {
-                                                val deltaFraction = -dragAmount / maxHeightPx
-                                                val newValue =
-                                                    (heightFraction.value + deltaFraction)
-                                                        .coerceIn(
-                                                            FilterHalfFraction - 0.05f,
-                                                            FilterFullFraction
-                                                        )
-                                                heightFraction.snapTo(newValue)
-                                            }
-                                        }
-                                    )
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .width(40.dp)
-                                    .height(4.dp)
-                                    .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFD1D5DB))
+            // ── Header: back/close + title + Reset ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.Black,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clickable { state.close() }
+                    )
+                    Text(
+                        title,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                }
+                Text(
+                    "Reset",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Black,
+                    modifier = Modifier.clickable {
+                        currentSections = currentSections.map { section ->
+                            section.copy(
+                                options = section.options.map { it.copy(isSelected = false) },
+                                minAmount = "",
+                                maxAmount = "",
+                                dropdownValue = ""
                             )
                         }
-
-                        // ── Header: back/close + title + Reset ──
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = Color.Black,
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .clickable { state.close() }
-                                )
-                                Text(
-                                    title,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.Black
-                                )
-                            }
-                            Text(
-                                "Reset",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color.Black,
-                                modifier = Modifier.clickable {
-                                    currentSections = currentSections.map { section ->
-                                        section.copy(
-                                            options = section.options.map { it.copy(isSelected = false) },
-                                            minAmount = "",
-                                            maxAmount = "",
-                                            dropdownValue = ""
-                                        )
-                                    }
-                                    onClearAll()
-                                }
-                            )
-                        }
-
-                        Spacer(Modifier.height(12.dp))
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
-
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            item {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(46.dp)
-                                        .background(Color.White, RoundedCornerShape(10.dp))
-                                        .padding(horizontal = 14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Search,
-                                        contentDescription = null,
-                                        tint = Color(0xFF9CA3AF),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    BasicTextField(
-                                        value = searchQuery,
-                                        onValueChange = { searchQuery = it },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true,
-                                        textStyle = TextStyle(
-                                            fontSize = 14.sp,
-                                            color = Color(0xFF374151)
-                                        ),
-                                        decorationBox = { inner ->
-                                            if (searchQuery.isEmpty()) {
-                                                Text(
-                                                    "Search filters...",
-                                                    fontSize = 14.sp,
-                                                    color = Color(0xFF9CA3AF)
-                                                )
-                                            }
-                                            inner()
-                                        }
-                                    )
-                                }
-                            }
-
-                            content?.let {
-                                item { Column { it() } }
-                            }
-
-                            items(displayedSections.size) { index ->
-                                val section = displayedSections[index]
-                                val isExpanded = expandedMap[section.title] ?: true
-
-                                FilterSectionCard(
-                                    section = section,
-                                    isExpanded = isExpanded,
-                                    onToggleExpand = { expandedMap[section.title] = !isExpanded },
-                                    onOptionToggle = { optionId ->
-                                        currentSections = currentSections.map { sec ->
-                                            if (sec.title == section.title) {
-                                                val updatedOptions = if (sec.isMultiSelect) {
-                                                    sec.options.map { option ->
-                                                        if (option.id == optionId) option.copy(
-                                                            isSelected = !option.isSelected
-                                                        ) else option
-                                                    }
-                                                } else {
-                                                    sec.options.map { option ->
-                                                        option.copy(
-                                                            isSelected = option.id == optionId
-                                                        )
-                                                    }
-                                                }
-                                                sec.copy(options = updatedOptions)
-                                            } else sec
-                                        }
-                                    },
-                                    onMinAmountChange = { value ->
-                                        currentSections = currentSections.map { sec ->
-                                            if (sec.title == section.title) sec.copy(minAmount = value) else sec
-                                        }
-                                    },
-                                    onMaxAmountChange = { value ->
-                                        currentSections = currentSections.map { sec ->
-                                            if (sec.title == section.title) sec.copy(maxAmount = value) else sec
-                                        }
-                                    }
-                                )
-                            }
-
-                            item { Spacer(Modifier.height(80.dp)) }
-                        }
-
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.White)
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { state.close() },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Text("Cancel", color = Color(0xFF374151))
-                            }
-                            Button(
-                                onClick = {
-                                    onApply(currentSections)
-                                    state.close()
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(Icons.Default.Check, null)
-                            }
-                        }
-
+                        onClearAll()
                     }
+                )
+            }
 
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider(color = Color(0xFFF0F0F0))
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp)
+                            .background(Color.White, RoundedCornerShape(10.dp))
+                            .padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.Search,
+                            contentDescription = null,
+                            tint = Color(0xFF9CA3AF),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                fontSize = 14.sp,
+                                color = Color(0xFF374151)
+                            ),
+                            decorationBox = { inner ->
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        "Search filters...",
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF9CA3AF)
+                                    )
+                                }
+                                inner()
+                            }
+                        )
+                    }
                 }
 
+                content?.let {
+                    item { Column { it() } }
+                }
+
+                items(displayedSections.size) { index ->
+                    val section = displayedSections[index]
+                    val isExpanded = expandedMap[section.title] ?: true
+
+                    FilterSectionCard(
+                        section = section,
+                        isExpanded = isExpanded,
+                        onToggleExpand = { expandedMap[section.title] = !isExpanded },
+                        onOptionToggle = { optionId ->
+                            currentSections = currentSections.map { sec ->
+                                if (sec.title == section.title) {
+                                    val updatedOptions = if (sec.isMultiSelect) {
+                                        sec.options.map { option ->
+                                            if (option.id == optionId) option.copy(
+                                                isSelected = !option.isSelected
+                                            ) else option
+                                        }
+                                    } else {
+                                        sec.options.map { option ->
+                                            option.copy(
+                                                isSelected = option.id == optionId
+                                            )
+                                        }
+                                    }
+                                    sec.copy(options = updatedOptions)
+                                } else sec
+                            }
+                        },
+                        onMinAmountChange = { value ->
+                            currentSections = currentSections.map { sec ->
+                                if (sec.title == section.title) sec.copy(minAmount = value) else sec
+                            }
+                        },
+                        onMaxAmountChange = { value ->
+                            currentSections = currentSections.map { sec ->
+                                if (sec.title == section.title) sec.copy(maxAmount = value) else sec
+                            }
+                        }
+                    )
+                }
+
+                item { Spacer(Modifier.height(80.dp)) }
+            }
+
+            HorizontalDivider(color = Color(0xFFF0F0F0))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { state.close() },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Cancel", color = Color(0xFF374151))
+                }
+                Button(
+                    onClick = {
+                        onApply(currentSections)
+                        state.close()
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.Check, null)
+                }
             }
         }
     }
 }
-
 
 // ── Section Card: header row (icon + title + chevron) + expandable body ──
 @Composable
@@ -512,12 +459,12 @@ private fun GridChip(option: FilterOption, modifier: Modifier = Modifier, onClic
         modifier = modifier
             .height(44.dp)
             .clip(RoundedCornerShape(8.dp))
-            .fillMaxWidth()  // ✅ Added: Makes chip take full width
+            .fillMaxWidth()
             .background(if (option.isSelected) Primary else Color(0xFFF9FAFB))
             .border(
                 width = if (option.isSelected) 1.5.dp else 1.dp,
                 color = if (option.isSelected) Primary else Color(0xFFE5E7EB),
-                shape = RoundedCornerShape(8.dp)  // ✅ Changed: No rounded corners
+                shape = RoundedCornerShape(8.dp)
             )
             .clickable { onClick() },
         contentAlignment = Alignment.Center
@@ -578,18 +525,17 @@ private fun ChipRowBody(section: FilterSection, onOptionToggle: (String) -> Unit
             section.options.forEach { option ->
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))  // ✅ Changed from 20.dp to 0.dp
+                        .clip(RoundedCornerShape(8.dp))
                         .background(if (option.isSelected) Color(0xFFEEF2FF) else Color.White)
                         .border(
                             width = if (option.isSelected) 1.5.dp else 1.dp,
                             color = if (option.isSelected) Primary else Color(0xFFE5E7EB),
-                            shape = RoundedCornerShape(8.dp)  // ✅ Changed from 20.dp to 0.dp
+                            shape = RoundedCornerShape(8.dp)
                         )
                         .clickable { onOptionToggle(option.id) }
                         .padding(horizontal = 14.dp, vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // ✅ Garments always shows a checkbox glyph (checked/unchecked). Source shows none.
                     if (showCheckbox) {
                         Box(
                             modifier = Modifier
@@ -743,6 +689,7 @@ private fun PriorityDotsBody(section: FilterSection, onOptionToggle: (String) ->
         }
     }
 }
+
 @Suppress("UNUSED_PARAMETER")
 
 // ── Filter Chip (kept for backward-compat where referenced elsewhere) ──
@@ -825,7 +772,7 @@ fun SearchFilterBar(
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = borderColor,
                 focusedBorderColor = accentColor,
-                focusedContainerColor=Color.White,
+                focusedContainerColor = Color.White,
                 unfocusedContainerColor = Color.White
             )
         )

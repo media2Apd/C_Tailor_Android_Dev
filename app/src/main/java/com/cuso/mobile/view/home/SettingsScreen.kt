@@ -1,27 +1,41 @@
-@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ")
+@file:Suppress(
+    "UNUSED_VALUE",
+    "UNUSED_PARAMETER",
+    "unused",
+    "UNCHECKED_CAST",
+    "DEPRECATION",
+    "AssignedValueIsNeverRead",
+    "GrazieInspection",
+    "SpellCheckingInspection",
+    "unusedvariable",
+    "AssignedVariableIsNeverRead",
+    "UNUSED_VARIABLE",
+    "KotlinConstantConditions",
+    "VariableNeverRead"
+)
 
 package com.cuso.mobile.view.home
 
+import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Business
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -30,17 +44,31 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationSettings
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.CountryAndStatePicker
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
+import com.cuso.mobile.view.home.reusablecomposables.SettingsTabs
+import com.cuso.mobile.view.home.reusablecomposables.TabItem
 import com.cuso.mobile.view.organization.OrgLabel
 import com.cuso.mobile.view.organization.OrgOptions
 import com.cuso.mobile.view.organization.OrgOptions.companySizes
@@ -51,159 +79,346 @@ import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.UpdateOrgUiState
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-import android.content.Context
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.ui.platform.LocalContext
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
-//import okhttp3.MediaType.Companion.toMediaTypeOrNull
-//import okhttp3.MultipartBody
-//import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
+
+// ─────────────────────────────────────────────────────────────
+// Design tokens
+// ─────────────────────────────────────────────────────────────
+private object OrgTheme {
+    val PrimaryLight = Color(0xFFEEF0FF)
+    val TextPrimary = Color(0xFF111827)
+    val TextSecondary = Color(0xFF6B7280)
+    val TextMuted = Color(0xFF9CA3AF)
+    val Border = Color(0xFFE5E7EB)
+    val Divider = Color(0xFFF0F0F0)
+    val PageBg = Color(0xFFF5F5F5)
+    val InputBg = Color.White
+}
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun SettingsScreen(
-     navController: NavController,
-     onMenuClick: () -> Unit = {},
-    onBack: () -> Unit = {}   // ✅ NEW
+    navController: NavController,
+    onMenuClick: () -> Unit = {},
+    onBack: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+
+    // ── Define tabs with icons ──
     val tabs = listOf(
-        Pair(Icons.Outlined.Badge, "Profile"),
-        Pair(Icons.Outlined.Business, "Localization")
+        TabItem(
+            label = "Profile",
+            icon = Icons.Outlined.Badge
+        ),
+        TabItem(
+            label = "Localization",
+            icon = Icons.Outlined.Business
+        )
     )
 
     val authViewModel: Authenticate = hiltViewModel()
     val tokensEntity by authViewModel.tokens.collectAsStateWithLifecycle()
     val token = tokensEntity?.accessToken ?: ""
 
+    // ── Dynamic Island States ──
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(OrgTheme.PageBg)
     ) {
-        // ── FIXED TOP HEADER (matches Branch/Department/Designation pattern) ──
+        // ── Header ──
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        modifier = Modifier
-                            .size(22.dp)
-                            .clickable { onBack() },
-                        tint = Color(0xFF111827)
-                    )
-                    Text(
-                        "Organization Settings",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF111827)
-                    )
-                }
-            }
-        }
-
-        // ── Breadcrumb ──
-        Column(
-            modifier = Modifier
-                .background(Color(0xFFF8F9FF))
-                .fillMaxWidth()
-                .padding(vertical = 10.dp, horizontal = 16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Settings", fontSize = 13.sp, color = Color(0xFF9CA3AF))
-                Icon(
-                    Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = Color(0xFF9CA3AF),
-                    modifier = Modifier.size(16.dp)
-                )
                 Text(
-                    "Organization Settings",
-                    fontSize = 13.sp,
-                    color = Color(0xFF3B3BF9),
-                    fontWeight = FontWeight.SemiBold
+                    "Organization setup",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = OrgTheme.TextPrimary
+                )
+                Spacer(Modifier.weight(1f))
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Close",
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clickable { onBack() },
+                    tint = OrgTheme.TextSecondary
                 )
             }
         }
 
-        // ── Tabs ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFFEEEEEE), RoundedCornerShape(12.dp)),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            tabs.forEachIndexed { index, (icon, label) ->
-                val isSelected = selectedTab == index
-                Row(
-                    modifier = Modifier
-                        .wrapContentWidth(Alignment.CenterHorizontally)
-                        .background(
-                            if (isSelected) Color.White else Color.Transparent,
-                            RoundedCornerShape(10.dp)
-                        )
-                        .clickable { selectedTab = index }
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = label,
-                        tint = if (isSelected) Color.Black else Color.Gray,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = label,
-                        fontSize = 16.sp,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isSelected) Color.Black else Color.Gray
-                    )
-                }
-            }
-        }
+        // ── Reusable Tabs ──
+        SettingsTabs(
+            tabs = tabs,
+            selectedIndex = selectedTab,
+            onTabSelected = { selectedTab = it },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            containerColor = Color.White,
+            selectedBackgroundColor = Color(0xFFEEF0FF),
+            selectedTextColor = Primary,
+            unselectedTextColor = TextSecondary,
+            selectedIconColor = Primary,
+            unselectedIconColor = TextSecondary,
+            borderColor = Color(0xFFE5E7EB),
+            cornerRadius = 12.dp,
+            selectedCornerRadius = 10.dp
+        )
 
         when (selectedTab) {
-            0 -> ProfileTab(token = token)
-            1 -> LocalizationTab(token = token)
+            0 -> ProfileTab(
+                token = token,
+                onSuccess = { message -> successMessage = message },
+                onError = { message -> errorMessage = message }
+            )
+            1 -> LocalizationTab(
+                token = token,
+                onSuccess = { message -> successMessage = message },
+                onError = { message -> errorMessage = message }
+            )
+        }
+    }
+
+    // ── Dynamic Island Overlays ──
+    Box(modifier = Modifier.fillMaxSize()) {
+        DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(10f),
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(10f),
+            message = errorMessage,
+            onDismiss = { errorMessage = null }
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Section header
+// ─────────────────────────────────────────────────────────────
+@Composable
+private fun SectionHeader(
+    title: String,
+    subtitle: String,
+    isEditing: Boolean,
+    onEditClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = OrgTheme.TextPrimary)
+            Spacer(Modifier.height(2.dp))
+            Text(subtitle, fontSize = 13.sp, color = TextSecondary)
+        }
+        if (!isEditing) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { onEditClick() }
+            ) {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = "Edit",
+                    tint = Primary,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text("Edit", color = Primary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
         }
     }
 }
 
-
-// 1. Uri -> File (cache-la copy pannanum, since multipart-ku real file path venum)
-// REPLACE uriToBase64 with:
-
-//
-//// 2. File -> MultipartBody.Part
-//private fun fileToMultipart(file: File, partName: String = "organizationPicture"): MultipartBody.Part {
-//    val requestBody = file.asRequestBody("image/*".toMediaTypeOrNull())
-//    return MultipartBody.Part.createFormData(partName, file.name, requestBody)
-//}
+// ─────────────────────────────────────────────────────────────
+// Read-only field row
+// ─────────────────────────────────────────────────────────────
+@Composable
+fun OrgInfoRow(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = OrgTheme.TextMuted)
+        Text(text = value.ifEmpty { "-" }, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = OrgTheme.TextPrimary)
+    }
+}
 
 // ─────────────────────────────────────────────────────────────
-// Helper: Convert picked Uri -> Base64 string
+// Editable field - Uses FormTextField from Home page
 // ─────────────────────────────────────────────────────────────
-// REPLACE uriToBase64 with:
+@Composable
+fun EditableOrgInfoRow(
+    label: String,
+    value: String,
+    isMultiline: Boolean = false,
+    onValueChange: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (label.isNotEmpty()) {
+            FormLabel(label)
+        }
+        FormTextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = if (label.isNotEmpty()) "Enter $label" else "Enter value"
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Logo upload (view mode)
+// ─────────────────────────────────────────────────────────────
+@Composable
+private fun LogoDisplayView(pictureUrl: String?) {
+    Box(
+        modifier = Modifier
+            .size(96.dp)
+            .border(1.5.dp, OrgTheme.Border, RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(10.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!pictureUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = pictureUrl,
+                contentDescription = "Organization Logo",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Default.Business, contentDescription = null, tint = OrgTheme.TextMuted, modifier = Modifier.size(32.dp))
+                Spacer(Modifier.height(4.dp))
+                Text("No Logo", color = OrgTheme.TextMuted, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Logo upload (edit mode)
+// ─────────────────────────────────────────────────────────────
+@Composable
+private fun LogoDisplayEdit(
+    pictureUrl: String?,
+    selectedImageUri: Uri?,
+    onClick: () -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .border(1.5.dp, Primary.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(10.dp))
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                selectedImageUri != null -> {
+                    AsyncImage(
+                        model = selectedImageUri,
+                        contentDescription = "Organization Logo",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                !pictureUrl.isNullOrBlank() -> {
+                    AsyncImage(
+                        model = pictureUrl,
+                        contentDescription = "Organization Logo",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                else -> {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text("Upload Logo", color = Primary, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text("Organization Logo", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = OrgTheme.TextPrimary)
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "Recommended size: 200*200px, PNG or JPG",
+                fontSize = 12.sp,
+                color = OrgTheme.TextSecondary
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Fixed bottom footer
+// ─────────────────────────────────────────────────────────────
+@Composable
+private fun EditFooter(
+    isSaving: Boolean,
+    onCancel: () -> Unit,
+    onSave: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .border(width = 1.dp, color = OrgTheme.Divider)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        OutlinedButton(
+            onClick = onCancel,
+            enabled = !isSaving,
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = OrgTheme.TextSecondary),
+            modifier = Modifier.weight(1f).height(46.dp)
+        ) {
+            Text("Cancel", fontSize = 15.sp)
+        }
+        Button(
+            onClick = onSave,
+            enabled = !isSaving,
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Primary),
+            modifier = Modifier.weight(2f).height(46.dp)
+        ) {
+            if (isSaving) {
+                CirculerProgressIndicatorSmall()
+            } else {
+                Text("Save Changes", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Helper: Convert picked Uri -> File
+// ─────────────────────────────────────────────────────────────
 private fun uriToFile(context: Context, uri: Uri): File? {
     return try {
         val inputStream = context.contentResolver.openInputStream(uri) ?: return null
@@ -216,9 +431,14 @@ private fun uriToFile(context: Context, uri: Uri): File? {
     }
 }
 
+// ─────────────────────────────────────────────────────────────
+// ProfileTab
+// ─────────────────────────────────────────────────────────────
 @Composable
 fun ProfileTab(
     token: String,
+    onSuccess: (String) -> Unit = {},
+    onError: (String) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -227,19 +447,15 @@ fun ProfileTab(
     var isEditing by remember { mutableStateOf(false) }
     val uiState by viewModel.uiState.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
 
-    // Form states for editing
     var orgName by remember { mutableStateOf("") }
     var orgType by remember { mutableStateOf("") }
     var businessType by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var mobile by remember { mutableStateOf("") }
 
-    // 👇 Logo state - just holds the picked image for local preview until Save is clicked
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
-    // 👇 Image picker launcher - ONLY stores the uri, does NOT upload immediately
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
@@ -263,22 +479,17 @@ fun ProfileTab(
         }
     }
 
-    // Handle update result
     LaunchedEffect(updateState) {
         when (val state = updateState) {
             is UpdateOrgUiState.Success -> {
                 isEditing = false
-                selectedImageUri = null   // clear local preview - real URL now comes from server
+                selectedImageUri = null
                 viewModel.resetUpdateState()
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(state.message)
-                }
+                onSuccess(state.message)
             }
             is UpdateOrgUiState.Error -> {
                 viewModel.resetUpdateState()
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(state.message)
-                }
+                onError(state.message)
             }
             else -> Unit
         }
@@ -289,7 +500,7 @@ fun ProfileTab(
     when (val state = uiState) {
         is ProfileUiState.Loading -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CirculerProgressIndicatorReuse()
+                CirculerProgressIndicatorSmall()
             }
         }
 
@@ -303,262 +514,143 @@ fun ProfileTab(
             val org = state.data.organization
             val stats = state.data.stats
 
-            Box(modifier = Modifier.fillMaxSize()) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                // ── Header with Edit/Save buttons ──
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            "Organization Information",
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Color.Black
-                                        )
-                                        Text(
-                                            "Core details about your organization",
-                                            fontSize = 13.sp,
-                                            color = Color.Gray
-                                        )
-                                    }
-                                    if (isEditing) {
-                                        Row {
-                                            TextButton(
-                                                onClick = {
-                                                    isEditing = false
-                                                    selectedImageUri = null
-                                                    viewModel.resetUpdateState()
-                                                },
-                                                enabled = !isSaving
-                                            ) {
-                                                Text("Cancel", fontSize = 14.sp, color = Color.Gray)
-                                            }
-                                            Button(
-                                                onClick = {
-                                                    val logoFile = selectedImageUri?.let { uriToFile(context, it) }
-                                                    val request = UpdateOrganizationRequest(
-                                                        name = orgName,
-                                                        orgType = orgType,
-                                                        businessType = businessType,
-                                                        email = email,
-                                                        mobile = mobile
-                                                    )
-                                                    viewModel.updateOrganization(token, request, logoFile)
-                                                },
-                                                enabled = !isSaving,
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = Color(0xFF3B3BF9)
-                                                ),
-                                                shape = RoundedCornerShape(8.dp)
-                                            ) {
-                                                if (isSaving) {
-                                                    CirculerProgressIndicatorReuse()
-                                                } else {
-                                                    Text("Save", color = Color.White, fontSize = 14.sp)
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        OutlinedButton(
-                                            onClick = { isEditing = true },
-                                            shape = RoundedCornerShape(8.dp),
-                                            border = ButtonDefaults.outlinedButtonBorder(enabled = true),
-                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Edit, contentDescription = "Edit",
-                                                modifier = Modifier.size(14.dp), tint = Color.Black
-                                            )
-                                            Spacer(Modifier.width(4.dp))
-                                            Text("Edit", color = Color.Black, fontSize = 14.sp)
-                                        }
-                                    }
-                                }
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.weight(1f)) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Primary_background),
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                    ) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.White)
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                SectionHeader(
+                                    title = "Organization Information",
+                                    subtitle = "Core details about your organization",
+                                    isEditing = isEditing,
+                                    onEditClick = { isEditing = true }
+                                )
+                            }
+                            Spacer(Modifier.height(10.dp))
 
-                                Spacer(Modifier.height(16.dp))
-
-                                // ── Logo (clickable in edit mode - just picks image, upload happens on Save) ──
-                                Box(
-                                    modifier = Modifier
-                                        .size(130.dp)
-                                        .border(1.5.dp, Color.LightGray, RoundedCornerShape(10.dp))
-                                        .clickable(enabled = isEditing) {
-                                            imagePickerLauncher.launch(
-                                                PickVisualMediaRequest(
-                                                    ActivityResultContracts.PickVisualMedia.ImageOnly
-                                                )
-                                            )
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    when {
-                                        selectedImageUri != null -> {
-                                            // Local preview of newly picked image (not yet saved)
-                                            AsyncImage(
-                                                model = selectedImageUri,
-                                                contentDescription = "Organization Logo",
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                        }
-                                        !org.organizationPicture.isNullOrBlank() -> {
-                                            AsyncImage(
-                                                model = org.organizationPicture,
-                                                contentDescription = "Organization Logo",
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                        }
-                                        else -> {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.CameraAlt,
-                                                    contentDescription = null,
-                                                    tint = Color.LightGray,
-                                                    modifier = Modifier.size(28.dp)
-                                                )
-                                                Text("Upload Logo", color = Color.LightGray, fontSize = 13.sp)
-                                            }
-                                        }
-                                    }
-
-                                    // Camera badge overlay - only in edit mode
-                                    if (isEditing) {
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.BottomEnd)
-                                                .padding(6.dp)
-                                                .size(28.dp)
-                                                .background(Color(0xFF3B3BF9), RoundedCornerShape(50)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                Icons.Default.CameraAlt,
-                                                contentDescription = "Change logo",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Spacer(Modifier.height(16.dp))
-                                HorizontalDivider(color = Color(0xFFF0F0F0))
-                                Spacer(Modifier.height(16.dp))
-
-                                // ── Editable Fields ──
+                            Column(
+                                Modifier.fillMaxWidth()
+                                    .padding(horizontal = 12.dp)
+                                    .background(Primary_background)
+                            ) {
                                 if (isEditing) {
-                                    EditableOrgInfoRow("Organization Name", orgName) { orgName = it }
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
+                                    LogoDisplayEdit(
+                                        pictureUrl = org.organizationPicture,
+                                        selectedImageUri = selectedImageUri,
+                                        onClick = {
+                                            imagePickerLauncher.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                            )
+                                        }
+                                    )
+                                    Spacer(Modifier.height(20.dp))
+
+                                    EditableOrgInfoRow("Organization Name", orgName) {
+                                        orgName = it
+                                    }
                                     Spacer(Modifier.height(16.dp))
 
+                                    // ── Organization Type - Using FormDropdown with OrgOptions.orgTypes ──
                                     OrgLabel("Organization Type")
-                                    OrganizationDropdown(OrgOptions.orgTypes, orgType) { orgType = it }
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
+                                    var orgTypeExpanded by remember { mutableStateOf(false) }
+                                    FormDropdown(
+                                        value = orgType,
+                                        expanded = orgTypeExpanded,
+                                        onExpandChange = { orgTypeExpanded = it },
+                                        options = OrgOptions.orgTypes,
+                                        onOptionSelected = { orgType = it },
+                                        isRequired = true
+                                    )
                                     Spacer(Modifier.height(16.dp))
 
+                                    // ── Business Type - Using FormDropdown with OrgOptions.businessTypes ──
                                     OrgLabel("Business Type")
-                                    OrganizationDropdown(OrgOptions.businessTypes, businessType) { businessType = it }
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
-                                    Spacer(Modifier.height(16.dp))
+                                    var businessTypeExpanded by remember { mutableStateOf(false) }
+                                    FormDropdown(
+                                        value = businessType,
+                                        expanded = businessTypeExpanded,
+                                        onExpandChange = { businessTypeExpanded = it },
+                                        options = OrgOptions.businessTypes,
+                                        onOptionSelected = { businessType = it },
+                                        isRequired = true
+                                    )
 
-                                    OrgInfoRow("Business ID", org.businessId )
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
-                                    Spacer(Modifier.height(16.dp))
-
-                                    EditableOrgInfoRow("Email", email) { email = it }
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
-                                    Spacer(Modifier.height(16.dp))
-
-                                    EditableOrgInfoRow("Mobile", mobile) { mobile = it }
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
-                                    Spacer(Modifier.height(16.dp))
-
-                                    OrgInfoRow("Plan Status", org.subscription.status)
-                                    OrgInfoRow("Status", org.status)
+                                    Spacer(Modifier.height(24.dp))
                                 } else {
+                                    LogoDisplayView(org.organizationPicture)
+                                    Spacer(Modifier.height(20.dp))
+
                                     val rows = listOf(
                                         "Organization Name" to org.name,
-                                        "Organization Type" to (org.orgType ),
-                                        "Business Type" to (org.businessType ),
-                                        "Business ID" to (org.businessId ),
-                                        "Email" to (org.email ),
-                                        "Mobile" to (org.mobile ),
+                                        "Organization Type" to org.orgType,
+                                        "Business Type" to org.businessType,
+                                        "Business ID" to org.businessId,
+                                        "Email" to org.email,
+                                        "Mobile" to org.mobile,
                                         "Plan Status" to org.subscription.status,
                                         "Status" to org.status
                                     )
-
                                     rows.forEachIndexed { index, (label, value) ->
                                         OrgInfoRow(label, value)
+                                        Spacer(Modifier.height(14.dp))
                                         if (index != rows.lastIndex) {
-                                            Spacer(Modifier.height(16.dp))
-                                            HorizontalDivider(color = Color(0xFFF0F0F0))
-                                            Spacer(Modifier.height(16.dp))
-                                        } else {
-                                            Spacer(Modifier.height(16.dp))
+                                            HorizontalDivider(color = OrgTheme.Divider)
+                                            Spacer(Modifier.height(14.dp))
                                         }
                                     }
-                                }
 
-                                // ── Subscription Usage ──
-                                if (stats != null) {
-                                    val plan = state.data.organization.plan
+                                    if (stats != null) {
+                                        Spacer(Modifier.height(8.dp))
+                                        HorizontalDivider(color = OrgTheme.Divider)
+                                        Spacer(Modifier.height(20.dp))
 
-                                    Text(
-                                        "Subscription Usage",
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.Black
-                                    )
-                                    Spacer(Modifier.height(16.dp))
+                                        val plan = state.data.organization.plan
+                                        Text(
+                                            "Subscription Usage",
+                                            fontSize = 17.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = OrgTheme.TextPrimary
+                                        )
+                                        Spacer(Modifier.height(16.dp))
 
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        SubscriptionRing(
-                                            modifier = Modifier.weight(1f),
-                                            label = "Orders",
-                                            used = 0,
-                                            limit = plan?.orderLimit ?: 100
-                                        )
-                                        SubscriptionRing(
-                                            modifier = Modifier.weight(1f),
-                                            label = "Employees",
-                                            used = org.activeMembers,
-                                            limit = plan?.employeeLimit ?: org.totalMembers.coerceAtLeast(1)
-                                        )
-                                        SubscriptionRing(
-                                            modifier = Modifier.weight(1f),
-                                            label = "Branches",
-                                            used = stats.totalBranches,
-                                            limit = plan?.branchLimit ?: stats.totalBranches.coerceAtLeast(1)
-                                        )
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            SubscriptionRing(
+                                                modifier = Modifier.weight(1f),
+                                                label = "Orders",
+                                                used = 0,
+                                                limit = plan?.orderLimit ?: 100
+                                            )
+                                            SubscriptionRing(
+                                                modifier = Modifier.weight(1f),
+                                                label = "Employees",
+                                                used = org.activeMembers,
+                                                limit = plan?.employeeLimit
+                                                    ?: org.totalMembers.coerceAtLeast(1)
+                                            )
+                                            SubscriptionRing(
+                                                modifier = Modifier.weight(1f),
+                                                label = "Branches",
+                                                used = stats.totalBranches,
+                                                limit = plan?.branchLimit
+                                                    ?: stats.totalBranches.coerceAtLeast(1)
+                                            )
+                                        }
+                                        Spacer(Modifier.height(24.dp))
+                                    } else {
+                                        Spacer(Modifier.height(8.dp))
                                     }
                                 }
                             }
@@ -566,33 +658,47 @@ fun ProfileTab(
                     }
                 }
 
-                // Snackbar
-                SnackbarHost(
-                    hostState = snackbarHostState,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp)
-                )
+                if (isEditing) {
+                    EditFooter(
+                        isSaving = isSaving,
+                        onCancel = {
+                            isEditing = false
+                            selectedImageUri = null
+                            viewModel.resetUpdateState()
+                        },
+                        onSave = {
+                            val logoFile = selectedImageUri?.let { uriToFile(context, it) }
+                            val request = UpdateOrganizationRequest(
+                                name = orgName,
+                                orgType = orgType,
+                                businessType = businessType,
+                                email = email,
+                                mobile = mobile
+                            )
+                            viewModel.updateOrganization(token, request, logoFile)
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// LocalizationTab - With Edit Mode & Save
+// LocalizationTab
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun LocalizationTab(
     token: String,
+    onSuccess: (String) -> Unit = {},
+    onError: (String) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     var isEditing by remember { mutableStateOf(false) }
     val uiState by viewModel.uiState.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    // Form states for editing
     var country by remember { mutableStateOf("") }
     var state by remember { mutableStateOf("") }
     var city by remember { mutableStateOf("") }
@@ -602,7 +708,7 @@ fun LocalizationTab(
     var currency by remember { mutableStateOf("") }
     var language by remember { mutableStateOf("") }
     var companySize by rememberSaveable { mutableStateOf("") }
-    var portalName by remember { mutableStateOf("") } // Added portal name state
+    var portalName by remember { mutableStateOf("") }
 
     LaunchedEffect(token) {
         if (token.isNotEmpty()) viewModel.loadOrganization(token)
@@ -621,7 +727,6 @@ fun LocalizationTab(
             language = settings.language
             portalName = settings.portalName
 
-            // Set company size based on total members
             val org = (uiState as ProfileUiState.Success).data.organization
             val totalMembers = org.totalMembers
             companySize = when {
@@ -634,21 +739,16 @@ fun LocalizationTab(
         }
     }
 
-    // Handle update result
     LaunchedEffect(updateState) {
         when (val state = updateState) {
             is UpdateOrgUiState.Success -> {
                 isEditing = false
                 viewModel.resetUpdateState()
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(state.message)
-                }
+                onSuccess(state.message)
             }
             is UpdateOrgUiState.Error -> {
                 viewModel.resetUpdateState()
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(state.message)
-                }
+                onError(state.message)
             }
             else -> Unit
         }
@@ -660,115 +760,52 @@ fun LocalizationTab(
     val settings = org?.settings
     val errorMessage = (uiState as? ProfileUiState.Error)?.message
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // ── Localization & Address Card ──
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "Localization & Address",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.Black
-                                )
-                                Text(
-                                    "Location and regional settings",
-                                    fontSize = 13.sp,
-                                    color = Color.Gray
-                                )
-                            }
-                            if (isEditing) {
-                                Row {
-                                    TextButton(
-                                        onClick = {
-                                            isEditing = false
-                                            viewModel.resetUpdateState()
-                                        },
-                                        enabled = !isSaving
-                                    ) {
-                                        Text("Cancel", fontSize = 14.sp, color = Color.Gray)
-                                    }
-                                    Button(
-                                        onClick = {
-                                            val request = UpdateOrganizationRequest(
-                                                settings = UpdateOrganizationSettings(
-                                                    country = country,
-                                                    state = state,
-                                                    city = city,
-                                                    pincode = postalCode,
-                                                    address = address,
-                                                    timezone = timezone,
-                                                    currency = currency,
-                                                    language = language,
-                                                    portalName = portalName,
-                                                    companySize=companySize// Include portal name in update
-                                                )
-                                            )
-                                            viewModel.updateOrganization(token, request)
-                                        },
-                                        enabled = !isSaving,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF3B3BF9)
-                                        ),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        if (isSaving) {
-                                            CirculerProgressIndicatorReuse()
+    Column(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.weight(1f)) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Primary_background)
+            ) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        SectionHeader(
+                            title = "Localization Settings",
+                            subtitle = "Regional preferences for your organization",
+                            isEditing = isEditing,
+                            onEditClick = { isEditing = true }
+                        )
+                    }
+                    Spacer(Modifier.height(18.dp))
 
-                                        } else {
-                                            Text("Save", color = Color.White, fontSize = 14.sp)
-                                        }
-                                    }
-                                }
-                            } else {
-                                OutlinedButton(
-                                    onClick = { isEditing = true },
-                                    shape = RoundedCornerShape(8.dp),
-                                    border = ButtonDefaults.outlinedButtonBorder(enabled = true),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Edit, contentDescription = "Edit",
-                                        modifier = Modifier.size(14.dp), tint = Color.Black
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("Edit", color = Color.Black, fontSize = 14.sp)
-                                }
-                            }
-                        }
-
-                        Spacer(Modifier.height(16.dp))
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
-                        Spacer(Modifier.height(16.dp))
-
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .padding(horizontal = 12.dp)
+                            .background(Primary_background)
+                    ) {
                         when {
                             isLoading -> {
                                 Box(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                    Modifier.fillMaxWidth().padding(vertical = 24.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CirculerProgressIndicatorReuse()
+                                    CirculerProgressIndicatorSmall()
                                 }
                             }
+
                             errorMessage != null -> {
-                                Text(errorMessage, color = Color.Red, modifier = Modifier.padding(vertical = 16.dp))
+                                Text(
+                                    errorMessage,
+                                    color = Color.Red,
+                                    modifier = Modifier.padding(vertical = 16.dp)
+                                )
                             }
+
                             settings != null -> {
                                 if (isEditing) {
                                     CountryAndStatePicker(
@@ -778,52 +815,74 @@ fun LocalizationTab(
                                         onStateChange = { state = it }
                                     )
                                     Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
-                                    Spacer(Modifier.height(16.dp))
 
                                     EditableOrgInfoRow("City", city) { city = it }
                                     Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
+
+                                    EditableOrgInfoRow("Postal Code", postalCode) {
+                                        postalCode = it
+                                    }
                                     Spacer(Modifier.height(16.dp))
 
-                                    EditableOrgInfoRow("Postal Code", postalCode) { postalCode = it }
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
-                                    Spacer(Modifier.height(16.dp))
-
-                                    EditableOrgInfoRow("Address", address, isMultiline = true) { address = it }
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
+                                    EditableOrgInfoRow(
+                                        "Address",
+                                        address,
+                                        isMultiline = true
+                                    ) { address = it }
                                     Spacer(Modifier.height(16.dp))
 
+                                    // ── Timezone - Using FormDropdown with OrgOptions.timezones ──
                                     OrgLabel("Timezone")
-                                    OrganizationDropdown(OrgOptions.timezones, timezone) { timezone = it }
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
+                                    var timezoneExpanded by remember { mutableStateOf(false) }
+                                    FormDropdown(
+                                        value = timezone,
+                                        expanded = timezoneExpanded,
+                                        onExpandChange = { timezoneExpanded = it },
+                                        options = OrgOptions.timezones,
+                                        onOptionSelected = { timezone = it }
+                                    )
                                     Spacer(Modifier.height(16.dp))
 
-                                    OrgLabel("Currency")
-                                    OrganizationDropdown(OrgOptions.currencies, currency) { currency = it }
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
+                                    // ── Currency - Using FormDropdown with OrgOptions.currencies ──
+                                    OrgLabel("Default Currency")
+                                    var currencyExpanded by remember { mutableStateOf(false) }
+                                    FormDropdown(
+                                        value = currency,
+                                        expanded = currencyExpanded,
+                                        onExpandChange = { currencyExpanded = it },
+                                        options = OrgOptions.currencies,
+                                        onOptionSelected = { currency = it }
+                                    )
                                     Spacer(Modifier.height(16.dp))
 
+                                    // ── Language - Using FormDropdown with OrgOptions.languages ──
                                     OrgLabel("Language")
-                                    OrganizationDropdown(OrgOptions.languages, language) { language = it }
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
-                                    Spacer(Modifier.height(16.dp))
-
-                                    // Add Portal Name edit field
-                                    OrgLabel("Portal Name")
-                                    EditableOrgInfoRow("", portalName) { portalName = it }
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
+                                    var languageExpanded by remember { mutableStateOf(false) }
+                                    FormDropdown(
+                                        value = language,
+                                        expanded = languageExpanded,
+                                        onExpandChange = { languageExpanded = it },
+                                        options = OrgOptions.languages,
+                                        onOptionSelected = { language = it }
+                                    )
                                     Spacer(Modifier.height(16.dp))
 
-                                    // Add Company Size edit field
+                                    EditableOrgInfoRow("Portal Name", portalName) {
+                                        portalName = it
+                                    }
+                                    Spacer(Modifier.height(16.dp))
+
+                                    // ── Company Size - Using FormDropdown with OrgOptions.companySizes ──
                                     OrgLabel("Company Size")
-                                    OrganizationDropdown(companySizes, companySize) { companySize = it }
+                                    var companySizeExpanded by remember { mutableStateOf(false) }
+                                    FormDropdown(
+                                        value = companySize,
+                                        expanded = companySizeExpanded,
+                                        onExpandChange = { companySizeExpanded = it },
+                                        options = companySizes,
+                                        onOptionSelected = { companySize = it }
+                                    )
+                                    Spacer(Modifier.height(24.dp))
                                 } else {
                                     val rows = listOf(
                                         "Country" to settings.country,
@@ -832,183 +891,62 @@ fun LocalizationTab(
                                         "Postal Code" to settings.pincode,
                                         "Address" to settings.address,
                                         "Timezone" to settings.timezone,
-                                        "Currency" to settings.currency,
+                                        "Default Currency" to settings.currency,
                                         "Language" to settings.language,
-                                        "Portal Name" to settings.portalName // Add portal name to display
+                                        "Portal Name" to settings.portalName,
+                                        "Company Size" to settings.companySize
                                     )
                                     rows.forEachIndexed { index, (label, value) ->
-                                        OrgInfoRow(label, value )
+                                        OrgInfoRow(label, value)
+                                        Spacer(Modifier.height(14.dp))
                                         if (index != rows.lastIndex) {
-                                            Spacer(Modifier.height(16.dp))
-                                            HorizontalDivider(color = Color(0xFFF0F0F0))
-                                            Spacer(Modifier.height(16.dp))
+                                            HorizontalDivider(color = OrgTheme.Divider)
+                                            Spacer(Modifier.height(14.dp))
                                         }
                                     }
+                                    Spacer(Modifier.height(8.dp))
                                 }
                             }
+
                             else -> {
-                                Text("No data available", color = Color.Gray, modifier = Modifier.padding(vertical = 16.dp))
+                                Text(
+                                    "No data available",
+                                    color = Color.Gray,
+                                    modifier = Modifier.padding(vertical = 16.dp)
+                                )
                             }
                         }
                     }
                 }
             }
-
-            // ── Regional Settings Card ──
-            // This card is now redundant since we show all fields in the first card,
-            // but I'll keep it for backward compatibility
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            "Regional Settings",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.Black
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text("Timezone, currency and language", fontSize = 13.sp, color = Color.Gray)
-
-                        Spacer(Modifier.height(16.dp))
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
-                        Spacer(Modifier.height(16.dp))
-
-                        when {
-                            isLoading -> {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CirculerProgressIndicatorReuse()
-                                }
-                            }
-                            settings != null -> {
-                                if (!isEditing) {
-                                    // Show regional settings in a condensed format
-                                    val rows = listOf(
-                                        "Timezone" to settings.timezone,
-                                        "Currency" to settings.currency,
-                                        "Language" to settings.language
-                                    )
-                                    rows.forEachIndexed { index, (label, value) ->
-                                        OrgInfoRow(label, value )
-                                        if (index != rows.lastIndex) {
-                                            Spacer(Modifier.height(16.dp))
-                                            HorizontalDivider(color = Color(0xFFF0F0F0))
-                                            Spacer(Modifier.height(16.dp))
-                                        }
-                                    }
-                                }
-                            }
-                            else -> {
-                                Text("No data available", color = Color.Gray, modifier = Modifier.padding(vertical = 16.dp))
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── Portal Info Card ──
-            // This card is now redundant since we show these fields in the first card,
-            // but I'll keep it for backward compatibility
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            "Portal Information",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.Black
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text("Portal and company details", fontSize = 13.sp, color = Color.Gray)
-
-                        Spacer(Modifier.height(16.dp))
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
-                        Spacer(Modifier.height(16.dp))
-
-                        when {
-                            isLoading -> {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CirculerProgressIndicatorReuse()
-                                }
-                            }
-                            org != null && settings != null -> {
-                                if (!isEditing) {
-
-                                    OrgInfoRow("Portal Name", settings.portalName )
-                                    Spacer(Modifier.height(16.dp))
-                                    HorizontalDivider(color = Color(0xFFF0F0F0))
-                                    Spacer(Modifier.height(16.dp))
-                                    OrgInfoRow("Company Size", settings.companySize)
-                                }
-                            }
-                            else -> {
-                                Text("No data available", color = Color.Gray, modifier = Modifier.padding(vertical = 16.dp))
-                            }
-                        }
-                    }
-                }
-            }
-
-            item { Spacer(Modifier.height(16.dp)) }
         }
 
-        // Snackbar
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp)
-        )
-    }
-}
-// ─────────────────────────────────────────────────────────────
-// Editable Org Info Row
-// ─────────────────────────────────────────────────────────────
-@Composable
-fun EditableOrgInfoRow(
-    label: String,
-    value: String,
-    isMultiline: Boolean = false,
-    onValueChange: (String) -> Unit
-
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text = label,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.Black
-        )
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            singleLine = !isMultiline,
-            maxLines = if (isMultiline) 3 else 1,
-            textStyle = androidx.compose.ui.text.TextStyle(
-                fontSize = 14.sp,
-                color = Color.Black
-            ),
-            cursorBrush = SolidColor(Color(0xFF3B3BF9))
-        )
+        if (isEditing) {
+            EditFooter(
+                isSaving = isSaving,
+                onCancel = {
+                    isEditing = false
+                    viewModel.resetUpdateState()
+                },
+                onSave = {
+                    val request = UpdateOrganizationRequest(
+                        settings = UpdateOrganizationSettings(
+                            country = country,
+                            state = state,
+                            city = city,
+                            pincode = postalCode,
+                            address = address,
+                            timezone = timezone,
+                            currency = currency,
+                            language = language,
+                            portalName = portalName,
+                            companySize = companySize
+                        )
+                    )
+                    viewModel.updateOrganization(token, request)
+                }
+            )
+        }
     }
 }
 
@@ -1069,31 +1007,11 @@ fun SubscriptionRing(
                 text = "${(pct * 100).roundToInt()}%",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF111827)
+                color = OrgTheme.TextPrimary
             )
         }
-        Text(text = label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
-        Text(text = "$used / $limit", fontSize = 12.sp, color = Color(0xFF6B7280))
-        Text(text = "$remaining remaining", fontSize = 12.sp, color = Color(0xFF9CA3AF))
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Org Info Row
-// ─────────────────────────────────────────────────────────────
-@Composable
-fun OrgInfoRow(label: String, value: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text = label,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.Black
-        )
-        Text(
-            text = value,
-            fontSize = 14.sp,
-            color = Color.Gray
-        )
+        Text(text = label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrgTheme.TextPrimary)
+        Text(text = "$used / $limit", fontSize = 12.sp, color = OrgTheme.TextSecondary)
+        Text(text = "$remaining remaining", fontSize = 12.sp, color = OrgTheme.TextMuted)
     }
 }

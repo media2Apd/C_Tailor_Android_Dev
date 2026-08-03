@@ -1174,6 +1174,9 @@ fun LeadScreenContent(
             is SaleState.Success<*> -> {
                 successMessage = "Lead Updated Successfully"
                 salesViewModel.fetchTableLeads()
+//                salesViewModel.fetchLeadDetails(l.id) { success ->
+//                    if (!success) errorMessage = "Failed to refresh lead details"
+//                }
                 salesViewModel.resetUpdateState()
             }
             is SaleState.Error -> {

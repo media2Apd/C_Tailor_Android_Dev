@@ -924,7 +924,6 @@ fun EmployeeOnboardingScreen(
                 }
 
                 // ── Government IDs ──
-                // ── Government IDs ──
                 AccordionSection(
                     icon = Icons.Filled.Badge,
                     title = "Government IDs",

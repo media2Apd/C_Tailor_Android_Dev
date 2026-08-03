@@ -26,8 +26,8 @@ data class LeadEntity(
     val budgetMax: Int,
     val occasion: String,
     val garments: String,
-    val enquiryDate: String,
-    val requiredDate: String,
+    val enquiryDate: String?= null,
+    val requiredDate: String?= null,
     val source: String,
     val status: String,
     val leadOwner: String = "",          // ✅ NEW — default "" so existing LeadEntity(...) calls don't break

@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -64,6 +65,7 @@ import com.cuso.mobile.viewmodel.ReceivePaymentState
 import com.cuso.mobile.viewmodel.SalesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import com.cuso.mobile.R
 
 // ─────────────────────────────────────────────────────────────────────────
 // THEME COLORS
@@ -683,7 +685,7 @@ private fun NoWorkersAssignedState(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.Group,
+                painter = painterResource( R.drawable.ic_users),
                 contentDescription = null,
                 tint = ChipPurpleText,
                 modifier = Modifier.size(28.dp)

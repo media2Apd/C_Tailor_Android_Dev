@@ -84,6 +84,7 @@ import retrofit2.http.Query
 import com.cuso.mobile.model.sales.CustomerListResponse
 import com.cuso.mobile.model.sales.CustomerListResponseV2
 import com.cuso.mobile.model.DashboardResponse
+import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UploadOrganizationPictureResponse
 import com.cuso.mobile.model.finance.ChartOfAccountsResponse
 import com.cuso.mobile.model.finance.CreateChartOfAccountRequest
@@ -425,19 +426,13 @@ interface ApiService {
 
     // In ApiService.kt
     // WITH this:
-    @Multipart
+    // PUT with plain JSON body, no multipart, no image field
     @PUT("/api/organizations/update-one")
     suspend fun updateOrganization(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
-        @Part("name") name: RequestBody?,
-        @Part("orgType") orgType: RequestBody?,
-        @Part("businessType") businessType: RequestBody?,
-        @Part("email") email: RequestBody?,
-        @Part("mobile") mobile: RequestBody?,
-        @Part("settings") settings: RequestBody?,
-        @Part organizationPicture: MultipartBody.Part?
-    ): UpdateOrganizationResponse
+        @Body request: UpdateOrganizationRequest
+    ): Response<UpdateOrganizationResponse>
 
     // ── Sales/Order Endpoints ──
 

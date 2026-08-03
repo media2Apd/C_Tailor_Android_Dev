@@ -32,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -83,7 +84,7 @@ fun MeasurementsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF9FAFB))
+                .background(Primary_background)
         ) {
             // ── Top Bar ──────────────────────────────────────────
             Row(
@@ -118,7 +119,7 @@ fun MeasurementsScreen(
             }
             Column(
                Modifier.fillMaxWidth()
-                   .background(Color(0xFFF8F9FF))
+                   .background(Primary_background)
 
             ) {
                 ScreenBreadcrumb(segments = listOf("Sales", "Measurements"), onClick = {onBreadCrumbClick()})

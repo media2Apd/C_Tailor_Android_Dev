@@ -544,34 +544,59 @@ fun CreateItemScreen(
 }
 
 @Composable
- fun AccordionSection(
-    icon: androidx.compose.ui.graphics.vector.ImageVector?=null,
+fun AccordionSection(
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    iconPainter: androidx.compose.ui.graphics.painter.Painter? = null, // New parameter for drawables
     title: String,
     expanded: Boolean,
     onHeaderClick: () -> Unit,
     iconTint: Color = Primary,
     content: @Composable ColumnScope.() -> Unit
-
 ) {
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background( Color(0xFFF7F7FA) )
+                .background(Color(0xFFF7F7FA))
                 .clickable { onHeaderClick() }
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (icon != null) {
-                    Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(10.dp))
+                // Handle both ImageVector and Painter icons
+                when {
+                    icon != null -> {
+                        Icon(
+                            icon,
+                            null,
+                            tint = iconTint,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                    }
+                    iconPainter != null -> {
+                        Icon(
+                            painter = iconPainter,
+                            contentDescription = null,
+                            tint = iconTint,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                    }
                 }
-                Spacer(Modifier.width(10.dp))
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                Text(
+                    title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TitleColor
+                )
             }
-            Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = LabelColor)
+            Icon(
+                if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                null,
+                tint = LabelColor
+            )
         }
         AnimatedVisibility(
             visible = expanded,

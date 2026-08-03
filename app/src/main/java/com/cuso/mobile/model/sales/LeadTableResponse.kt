@@ -99,7 +99,7 @@ fun LeadTableItem.toLeadEntity(): LeadEntity {
         budgetMax = this.budgetRange.max,
         occasion = this.occasion ?: "",
         garments = garmentId,
-        enquiryDate = this.enquiryDate,
+        enquiryDate = this.enquiryDate?:"",
         requiredDate = this.requiredDate ?: "",
         source = this.source,
         status = statusName,

@@ -26,7 +26,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -185,11 +184,11 @@ private fun OrderDetailContent(
                     fontWeight = FontWeight.Bold,
                     color = TextDark
                 )
-                Text(
-                    order.customerId?.mobile ?: "—",
-                    fontSize = 13.sp,
-                    color = TextMuted
-                )
+//                Text(
+//                    order.customerId?.mobile ?: "—",
+//                    fontSize = 13.sp,
+//                    color = TextMuted
+//                )
             }
             Box(
                 modifier = Modifier
@@ -207,28 +206,29 @@ private fun OrderDetailContent(
 
         Spacer(Modifier.height(12.dp))
 
-        // Order Details Row
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            InfoColumn("Order Status", order.status.replaceFirstChar { it.uppercase() })
-            InfoColumn("Payment", order.paymentStatus.replaceFirstChar { it.uppercase() })
-            InfoColumn("Total", "₹${order.totalAmount}")
-            InfoColumn("Balance", "₹${order.balanceAmount}")
-        }
+//        // Order Details Row
+//        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+//            InfoColumn("Order Status", order.status.replaceFirstChar { it.uppercase() })
+//            InfoColumn("Payment", order.paymentStatus.replaceFirstChar { it.uppercase() })
+//            InfoColumn("Total", "₹${order.totalAmount}")
+//            InfoColumn("Balance", "₹${order.balanceAmount}")
+//        }
+
+//        Spacer(Modifier.height(12.dp))
+
+//        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+//            InfoColumn("Wearer", order.wearerType ?: "—")
+//            InfoColumn("Source", order.source ?: "—")
+//            InfoColumn("Trial Date", formatIso(order.trialDate ?: ""))
+//        }
 
         Spacer(Modifier.height(12.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            InfoColumn("Wearer", order.wearerType ?: "—")
-            InfoColumn("Source", order.source ?: "—")
-            InfoColumn("Trial Date", formatIso(order.trialDate ?: ""))
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            InfoColumn("Garment",order.branch?.name?:"-")
             InfoColumn("Order Date", formatIso(order.orderDate ?: ""))
             InfoColumn("Delivery Date", formatIso(order.deliveryDate ?: ""))
-            InfoColumn("Branch", order.branch?.name ?: "—")
+//            InfoColumn("Branch", order.branch?.name ?: "—")
         }
 
         Spacer(Modifier.height(16.dp))
@@ -447,15 +447,15 @@ private fun OrderDetailContent(
                 else -> Color.Transparent
             }
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, cardBorderColor, RoundedCornerShape(12.dp))
-                    .alpha(if (isCardEnabled) 1f else 0.5f),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
+//            Card(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .border(1.dp, cardBorderColor, RoundedCornerShape(12.dp))
+//                    .alpha(if (isCardEnabled) 1f else 0.5f),
+//                shape = RoundedCornerShape(12.dp),
+//                colors = CardDefaults.cardColors(containerColor = Color.White),
+//                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+//            ) {
                 Column(modifier = Modifier.padding(16.dp)) {
 
                     Row(
@@ -464,7 +464,7 @@ private fun OrderDetailContent(
                         verticalAlignment = Alignment.Top
                     ) {
                         Row(verticalAlignment = Alignment.Top) {
-                            StageStatusIcon(status = committedStatus)
+//                            StageStatusIcon(status = committedStatus)
                             Spacer(Modifier.width(8.dp))
                             Column {
                                 Text(
@@ -602,7 +602,7 @@ private fun OrderDetailContent(
                         }
                     }
                 }
-            }
+//            }
         }
 
         Spacer(Modifier.height(20.dp))
@@ -841,23 +841,23 @@ private fun CustomStatusDropdown(
     }
 }
 
-@Composable
-private fun StageStatusIcon(status: String) {
-    when (status.lowercase()) {
-        "completed" -> Icon(
-            Icons.Default.CheckCircle,
-            contentDescription = null,
-            tint = Color(0xFF22C55E),
-            modifier = Modifier.size(20.dp)
-        )
-        else -> Icon(
-            Icons.Default.Schedule,
-            contentDescription = null,
-            tint = Color(0xFF3B82F6),
-            modifier = Modifier.size(20.dp)
-        )
-    }
-}
+//@Composable
+//private fun StageStatusIcon(status: String) {
+//    when (status.lowercase()) {
+//        "completed" -> Icon(
+//            Icons.Default.CheckCircle,
+//            contentDescription = null,
+//            tint = Color(0xFF22C55E),
+//            modifier = Modifier.size(20.dp)
+//        )
+//        else -> Icon(
+//            Icons.Default.Schedule,
+//            contentDescription = null,
+//            tint = Color(0xFF3B82F6),
+//            modifier = Modifier.size(20.dp)
+//        )
+//    }
+//}
 
 @Composable
 private fun GarmentChip(label: String, isSelected: Boolean, onClick: () -> Unit) {

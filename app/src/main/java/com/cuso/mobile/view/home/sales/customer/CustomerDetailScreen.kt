@@ -1,6 +1,10 @@
 package com.cuso.mobile.view.home.sales.customer
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,6 +32,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
@@ -58,12 +64,13 @@ import kotlinx.coroutines.launch
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.view.composable.customOutlinedButtonColors
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
 
 private val stepLabels = listOf(
-    "Personal Information",
+    "Personal \nInformation",
     "Measurements",
     "Order & Payment",
     "Preferences",
@@ -179,16 +186,22 @@ fun CustomerDetailScreen(
                     .zIndex(10f)
             )
 
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Primary_background)
+            ) {
+
                 // ── Header ──
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .background(Color.White)
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Create customer", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                    Text("Create customer", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Close",
@@ -196,12 +209,18 @@ fun CustomerDetailScreen(
                         modifier = Modifier.clickable { onClose() }
                     )
                 }
-
-                // ── Stepper (Single-line label & center alignment) ──
-                OrderStatusStepper(
-                    stepLabels = stepLabels,
-                    currentStep = currentStep
-                )
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 15.dp)
+                ) {
+                    Spacer(Modifier.padding(top = 10.dp))
+                    // ── Stepper ──
+                    OrderStatusStepper(
+                        stepLabels = stepLabels,
+                        currentStep = currentStep
+                    )
+                }
 
                 HorizontalDivider(color = Color(0xFFF0F0F0), modifier = Modifier.padding(top = 10.dp))
 
@@ -240,7 +259,11 @@ fun CustomerDetailScreen(
                             currentStep++
                         }
                     }
-                    !isEditMode -> TrailingFabAction.Edit { onRequestEdit() }
+                    !isEditMode -> TrailingFabAction.Edit {
+                        isEditMode = true
+                        currentStep = 0
+                        onRequestEdit()
+                    }
                     else -> TrailingFabAction.Update(
                         onClick = {
                             if (validateStep(0)) {
@@ -256,8 +279,9 @@ fun CustomerDetailScreen(
 }
 
 // ─────────────────────────────────────────────────────────────
-// ✅ STEPPER COMPOSABLE WITH PERFECT SINGLE-LINE CENTER ALIGNMENT
+// STEPPER COMPOSABLE WITH PERFECT SINGLE-LINE CENTER ALIGNMENT
 // ─────────────────────────────────────────────────────────────
+
 @Composable
 fun OrderStatusStepper(
     stepLabels: List<String>,
@@ -269,40 +293,68 @@ fun OrderStatusStepper(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            stepLabels.forEachIndexed { index, label ->
+            stepLabels.forEachIndexed { index, _ ->
                 val done = index < currentStep
                 val active = index == currentStep
 
-                // Circle + Label Column
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Box(
+                    modifier = Modifier.size(36.dp),
+                    contentAlignment = Alignment.Center
                 ) {
+                    if (active) {
+                        val haloScale by animateFloatAsState(
+                            targetValue = 1f,
+                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                            label = "haloScale"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .graphicsLayer {
+                                    scaleX = haloScale
+                                    scaleY = haloScale
+                                    alpha = haloScale
+                                }
+                                .background(Color(0xFFECEBFF), CircleShape)
+                        )
+                    }
+
+                    val circleColor by animateColorAsState(
+                        targetValue = when {
+                            done -> Color(0xFF22C55E)     // Green completed
+                            active -> Color(0xFF3F37F3)   // Vibrant Blue active
+                            else -> Color.White
+                        },
+                        animationSpec = tween(durationMillis = 300),
+                        label = "circleColor"
+                    )
+
+                    val borderColor by animateColorAsState(
+                        targetValue = when {
+                            done -> Color(0xFF22C55E)
+                            active -> Color(0xFF3F37F3)
+                            else -> Color(0xFFE5E7EB)
+                        },
+                        animationSpec = tween(durationMillis = 300),
+                        label = "borderColor"
+                    )
+
                     Box(
                         modifier = Modifier
                             .size(28.dp)
-                            .background(
-                                when {
-                                    done -> Color(0xFF22C55E)
-                                    else -> Color.White
-                                },
-                                CircleShape
-                            )
+                            .background(circleColor, CircleShape)
                             .border(
-                                width = if (active) 2.dp else 1.5.dp,
-                                color = when {
-                                    done -> Color(0xFF22C55E)
-                                    active -> Color(0xFF3B3BF9)
-                                    else -> Color(0xFFE5E7EB)
-                                },
+                                width = if (active || done) 0.dp else 1.5.dp,
+                                color = borderColor,
                                 shape = CircleShape
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         when {
                             done -> Icon(
-                                Icons.Default.Check,
+                                imageVector = Icons.Default.Check,
                                 contentDescription = null,
                                 tint = Color.White,
                                 modifier = Modifier.size(14.dp)
@@ -310,57 +362,73 @@ fun OrderStatusStepper(
                             active -> Box(
                                 modifier = Modifier
                                     .size(10.dp)
-                                    .background(Color(0xFF3B3BF9), CircleShape)
+                                    .background(Color.White, CircleShape)
                             )
                             else -> Text(
-                                "${index + 1}",
+                                text = "${index + 1}",
                                 color = Color(0xFF9CA3AF),
-                                fontSize = 12.sp
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Step Label — Strictly Single Line & Centered
-                    if (active) {
-                        Text(
-                            text = label,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF3B3BF9),
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.wrapContentWidth()
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(18.dp))
                     }
                 }
 
-                // Connector line between steps
-                if (index != stepLabels.lastIndex) {
+                if (index < stepLabels.lastIndex) {
+                    val lineColor by animateColorAsState(
+                        targetValue = if (index < currentStep) Color(0xFF22C55E) else Color(0xFFE5E7EB),
+                        animationSpec = tween(durationMillis = 300),
+                        label = "lineColor"
+                    )
+
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .padding(top = 13.dp)
+                            .height(36.dp)
+                            .padding(horizontal = 6.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Canvas(
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(2.dp)
-                        ) {
-                            drawLine(
-                                color = if (index < currentStep) Color(0xFF22C55E) else Color(0xFFE5E7EB),
-                                start = Offset(0f, size.height / 2),
-                                end = Offset(size.width, size.height / 2),
-                                strokeWidth = size.height,
-                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
-                            )
-                        }
+                                .height(3.5.dp)
+                                .background(lineColor, RoundedCornerShape(2.dp))
+                        )
                     }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            stepLabels.forEachIndexed { index, label ->
+                Box(
+                    modifier = Modifier.size(width = 36.dp, height = 34.dp),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    if (index == currentStep) {
+                        Text(
+                            text = label,
+                            fontSize = 10.5.sp,
+                            lineHeight = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF3F37F3),
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            softWrap = true,
+                            modifier = Modifier.wrapContentWidth(unbounded = true)
+                        )
+                    }
+                }
+
+                if (index < stepLabels.lastIndex) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -602,7 +670,7 @@ private fun PersonalInformationStep(
 // Accordion Section Helper Card
 // ─────────────────────────────────────────────────────────────
 @Composable
- fun AccordionSectionCard(
+fun AccordionSectionCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     iconPainter: androidx.compose.ui.graphics.painter.Painter? = null,
     iconTint: Color = Color(0xFF3B3BF9),
@@ -668,7 +736,7 @@ private fun PersonalInformationStep(
 }
 
 // ─────────────────────────────────────────────────────────────
-// STEP 2 — Measurements Step (Matching Screenshots)
+// STEP 2 — Measurements Step
 // ─────────────────────────────────────────────────────────────
 @Composable
 private fun MeasurementsStep(isEditMode: Boolean) {
@@ -688,7 +756,8 @@ private fun MeasurementsStep(isEditMode: Boolean) {
             Spacer(Modifier.height(10.dp))
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
                     .border(1.dp, PrimaryBorder, RoundedCornerShape(8.dp))
                     .padding(10.dp)
             ) {
@@ -776,7 +845,7 @@ private fun MeasurementsStep(isEditMode: Boolean) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// STEP 3 — Order & Payment Step (Matching Screenshots)
+// STEP 3 — Order & Payment Step
 // ─────────────────────────────────────────────────────────────
 @Composable
 private fun OrderPaymentStep() {
@@ -864,9 +933,8 @@ private data class OrderHistoryRow(
 
 @Composable
 private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
-    val scrollState = rememberScrollState() // header + rows share same scroll position
+    val scrollState = rememberScrollState()
 
-    // 👇 fixed column widths (weight() vela seiyadhu horizontal scroll la)
     val colOrderId = 90.dp
     val colDate = 110.dp
     val colGarment = 140.dp
@@ -879,7 +947,6 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
             .fillMaxWidth()
             .horizontalScroll(scrollState)
     ) {
-        // ── Header ──
         Row(
             modifier = Modifier
                 .width(totalWidth)
@@ -893,7 +960,6 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
             Text("Status", fontSize = 14.sp, color = Color(0xFF374151), modifier = Modifier.width(colStatus))
         }
 
-        // ── Rows ──
         orders.forEachIndexed { index, row ->
             Row(
                 modifier = Modifier
@@ -909,10 +975,7 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
                     modifier = Modifier.width(colGarment)
                 )
                 Text(row.amount, fontSize = 15.sp, color = Color(0xFF111827), modifier = Modifier.width(colAmount))
-                Box(
-                    modifier = Modifier
-                        .width(colStatus)
-                ) {
+                Box(modifier = Modifier.width(colStatus)) {
                     Box(
                         modifier = Modifier
                             .background(Color(0xFFFEE2E2), RoundedCornerShape(50))
@@ -930,7 +993,7 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// STEP 4 — Preferences Step (Matching Screenshots)
+// STEP 4 — Preferences Step
 // ─────────────────────────────────────────────────────────────
 @Composable
 private fun PreferencesStep() {
@@ -973,10 +1036,10 @@ private fun PreferencesStep() {
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.height(IntrinsicSize.Min)   // 👈 idha add pannunga
+            modifier = Modifier.height(IntrinsicSize.Min)
         ) {
             InfoPill(
-                modifier = Modifier.weight(1f).fillMaxHeight(),   // 👈 fillMaxHeight add pannunga
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 iconPainter = painterResource(R.drawable.ic_background_purple_star),
                 label = "VIP",
                 sub = "Loyalty Level",
@@ -986,7 +1049,7 @@ private fun PreferencesStep() {
                 borderColor = Color(0xFFE9D5FF)
             )
             InfoPill(
-                modifier = Modifier.weight(1f).fillMaxHeight(),   // 👈 idhulayum
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 iconPainter = painterResource(R.drawable.ic_background_white_people),
                 label = "5",
                 sub = "Referrals",
@@ -996,7 +1059,7 @@ private fun PreferencesStep() {
                 borderColor = Color(0xFFE5E7EB)
             )
             InfoPill(
-                modifier = Modifier.weight(1f).fillMaxHeight(),   // 👈 idhulayum
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 iconPainter = painterResource(R.drawable.ic_background_green_check),
                 label = "Upgrade Ready",
                 sub = "Next tier eligible",
@@ -1071,7 +1134,8 @@ private fun NotesTagsStep(isEditMode: Boolean) {
     }
 }
 
-// ── Section title + subtitle ──
+// ── Helpers ──
+
 @Composable
 private fun SectionHeader(title: String, subtitle: String) {
     Column {
@@ -1081,7 +1145,6 @@ private fun SectionHeader(title: String, subtitle: String) {
     }
 }
 
-// ── Bordered note box (yellow / indigo) ──
 @Composable
 private fun NoteCard(text: String, bgColor: Color, borderColor: Color, textColor: Color) {
     Box(
@@ -1095,7 +1158,6 @@ private fun NoteCard(text: String, bgColor: Color, borderColor: Color, textColor
     }
 }
 
-// ── Dashed "+ Add ..." button (gray, for notes) ──
 @Composable
 private fun DashedAddButton(text: String, onClick: () -> Unit, enabled: Boolean) {
     OutlinedButton(
@@ -1115,25 +1177,23 @@ private fun DashedAddButton(text: String, onClick: () -> Unit, enabled: Boolean)
     }
 }
 
-// ── Solid-border "+ Add Tag" button (black text) ──
-// ── Solid-border "+ Add Tag" button (compact, not full width) ──
 @Composable
 private fun SolidAddButton(text: String, onClick: () -> Unit, enabled: Boolean) {
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.wrapContentWidth(),   // 👈 fillMaxWidth remove pannitten
+        modifier = Modifier.wrapContentWidth(),
         shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF111827)),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD1D5DB)),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)  // 👈 chinna padding
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
     ) {
         Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp), tint = Color(0xFF111827))
         Spacer(Modifier.width(6.dp))
         Text(text, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
     }
 }
-// ── Tag chip with icon + pastel bg + colored border ──
+
 @Composable
 private fun TagChipOutlined(text: String, color: Color) {
     Row(
@@ -1149,9 +1209,6 @@ private fun TagChipOutlined(text: String, color: Color) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Reusable Component Helpers
-// ─────────────────────────────────────────────────────────────
 @Composable
 fun LabeledField(label: String, field: @Composable () -> Unit) {
     Column(modifier = Modifier.padding(bottom = 12.dp)) {
@@ -1271,8 +1328,6 @@ private fun InfoPill(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         when {
-            // 👇 Image use pannunga, Icon illa - idhu tint apply pannadhu,
-            // drawable-oda own multi-colors (circle bg + icon) preserve aagum
             iconPainter != null -> androidx.compose.foundation.Image(
                 painter = iconPainter,
                 contentDescription = null,

@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,17 +22,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.view.home.FormDropdown
@@ -48,19 +41,13 @@ import com.cuso.mobile.view.home.sales.customer.OrderStatusStepper
 // ── Design tokens ──
 private val AccentColor = Color(0xFF4F39F6)
 private val BorderColor = Color(0xFFE3E4E8)
-private val LabelColor = Color(0xFF6B7280)
-private val TitleColor = Color(0xFF111827)
-private val MutedColor = Color(0xFF9CA3AF)
+private val LabelColor = Color(0xFF111827)
+private val TitleColor = Color(0xFF1E293B)
+private val MutedColor = Color(0xFF374151)
 private val InTransitBg = Color(0xFFEDE9FE)
 private val InTransitText = Color(0xFF6D28D9)
-private val SuccessColor = Color(0xFF16A34A)
-private val StepInactiveBg = Color(0xFFF3F4F6)
-private val StepInactiveText = Color(0xFF9CA3AF)
 
-private enum class StepState { DONE, ACTIVE, PENDING }
-private data class DeliveryStep(val label: String, val index: Int)
-
-// ── Design tokens for sheets ──
+// ── Sheet tokens ──
 private val RecommendedColor = Color(0xFF4F39F6)
 private val SuccessGreen = Color(0xFF16A34A)
 private val BusyOrange = Color(0xFFEA580C)
@@ -79,113 +66,6 @@ private data class StaffMember(
 
 private val ActionButtonHeight = 40.dp
 private val ActionButtonContentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
-
-// ── STEPPER COMPOSABLE ──
-//@Composable
-//fun OrderStatusStepper(
-//    stepLabels: List<String>,
-//    currentStep: Int,
-//    modifier: Modifier = Modifier
-//) {
-//    Column(modifier = modifier.fillMaxWidth()) {
-//        Row(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .padding(horizontal = 16.dp),
-//            verticalAlignment = Alignment.Top
-//        ) {
-//            stepLabels.forEachIndexed { index, label ->
-//                val done = index < currentStep
-//                val active = index == currentStep
-//
-//                Column(
-//                    horizontalAlignment = Alignment.CenterHorizontally
-//                ) {
-//                    Box(
-//                        modifier = Modifier
-//                            .size(28.dp)
-//                            .background(
-//                                when {
-//                                    done -> Color(0xFF22C55E)
-//                                    else -> Color.White
-//                                },
-//                                CircleShape
-//                            )
-//                            .border(
-//                                width = if (active) 2.dp else 1.5.dp,
-//                                color = when {
-//                                    done -> Color(0xFF22C55E)
-//                                    active -> Color(0xFF3B3BF9)
-//                                    else -> Color(0xFFE5E7EB)
-//                                },
-//                                shape = CircleShape
-//                            ),
-//                        contentAlignment = Alignment.Center
-//                    ) {
-//                        when {
-//                            done -> Icon(
-//                                Icons.Default.Check,
-//                                contentDescription = null,
-//                                tint = Color.White,
-//                                modifier = Modifier.size(14.dp)
-//                            )
-//                            active -> Box(
-//                                modifier = Modifier
-//                                    .size(10.dp)
-//                                    .background(Color(0xFF3B3BF9), CircleShape)
-//                            )
-//                            else -> Text(
-//                                "${index + 1}",
-//                                color = Color(0xFF9CA3AF),
-//                                fontSize = 12.sp
-//                            )
-//                        }
-//                    }
-//
-//                    Spacer(modifier = Modifier.height(6.dp))
-//
-//                    if (active) {
-//                        Text(
-//                            text = label,
-//                            fontSize = 11.sp,
-//                            fontWeight = FontWeight.SemiBold,
-//                            color = Color(0xFF3B3BF9),
-//                            textAlign = TextAlign.Center,
-//                            maxLines = 1,
-//                            softWrap = false,
-//                            overflow = TextOverflow.Ellipsis,
-//                            modifier = Modifier.wrapContentWidth()
-//                        )
-//                    } else {
-//                        Spacer(modifier = Modifier.height(18.dp))
-//                    }
-//                }
-//
-//                if (index != stepLabels.lastIndex) {
-//                    Box(
-//                        modifier = Modifier
-//                            .weight(1f)
-//                            .padding(top = 13.dp)
-//                    ) {
-//                        Canvas(
-//                            modifier = Modifier
-//                                .fillMaxWidth()
-//                                .height(2.dp)
-//                        ) {
-//                            drawLine(
-//                                color = if (index < currentStep) Color(0xFF22C55E) else Color(0xFFE5E7EB),
-//                                start = Offset(0f, size.height / 2),
-//                                end = Offset(size.width, size.height / 2),
-//                                strokeWidth = size.height,
-//                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
-//                            )
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -224,20 +104,14 @@ fun DeliveryDetailScreen(
     val grandTotal = "₹311.50"
 
     // Bottom sheet states
-    var assignStaffSheetState by remember {
-        mutableStateOf(SheetValue.Hidden)
-    }
-
-    var updateStatusSheetState by remember {
-        mutableStateOf(SheetValue.Hidden)
-    }
+    var assignStaffSheetState by remember { mutableStateOf(SheetValue.Hidden) }
+    var updateStatusSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var selectedStaff by remember { mutableStateOf<String?>(null) }
 
     // Blur states
     var assignSheetBlur by remember { mutableStateOf(0.dp) }
     var updateStatusSheetBlur by remember { mutableStateOf(0.dp) }
 
-    // Determine if any sheet is open
     val isAnySheetOpen = assignStaffSheetState != SheetValue.Hidden || updateStatusSheetState != SheetValue.Hidden
     val currentBlur = when {
         assignStaffSheetState != SheetValue.Hidden -> assignSheetBlur
@@ -245,236 +119,282 @@ fun DeliveryDetailScreen(
         else -> 0.dp
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // ── HEADER - Always solid (NO BLUR) ──
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .zIndex(2f)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+    Scaffold(
+        topBar = {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color.White,
+                shadowElevation = 0.dp
             ) {
-                Text("Delivery management", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TitleColor)
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "Close",
-                    tint = LabelColor,
-                    modifier = Modifier.clickable(onClick = onDismiss)
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Delivery management",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TitleColor
+                        )
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Close",
+                            tint = LabelColor,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clickable(onClick = onDismiss)
+                        )
+                    }
+                    HorizontalDivider(color = BorderColor)
+                }
             }
-            HorizontalDivider(color = BorderColor)
-
-            // ── Stepper ──
-            OrderStatusStepper(
-                stepLabels = stepLabels,
-                currentStep = currentStepIndex,
-                modifier = Modifier.padding(vertical = 12.dp)
-            )
-
-            HorizontalDivider(color = BorderColor)
-        }
-
-        // ── MAIN CONTENT with blur ──
+        },
+        bottomBar = {
+            // Hide bottom bar when any bottom sheet is open
+            if (!isAnySheetOpen) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.White,
+                    shadowElevation = 4.dp
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Button(
+                            onClick = onMarkCompleted,
+                            colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = ActionButtonContentPadding,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(ActionButtonHeight)
+                        ) {
+                            Text(
+                                text = "Mark as Completed",
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        containerColor = Primary_background
+    ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Primary_background)
-                .padding(top = 160.dp) // Push content below header + stepper
-                .blurScrim(
-                    if (isAnySheetOpen) currentBlur else 0.dp
-                )
+                .padding(innerPadding)
+                .blurScrim(if (isAnySheetOpen) currentBlur else 0.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 10.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp)
-                ) {
-                    Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("$recipientName / $orderCode", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TitleColor)
-                        Box(
-                            modifier = Modifier
-                                .background(InTransitBg, RoundedCornerShape(20.dp))
-                                .padding(horizontal = 12.dp, vertical = 5.dp)
+                // Order Header Card
+
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(status, fontSize = 12.sp, color = InTransitText, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "$recipientName / $orderCode",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TitleColor
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .background(InTransitBg, RoundedCornerShape(20.dp))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    status,
+                                    fontSize = 12.sp,
+                                    color = InTransitText,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+                        HorizontalDivider(color = BorderColor.copy(alpha = 0.5f))
+                        Spacer(Modifier.height(10.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            SummaryColumn(label = "Customer", value = customer, modifier = Modifier.weight(1f))
+                            SummaryColumn(label = "Est.Delivery", value = estDelivery, modifier = Modifier.weight(1f))
+                            SummaryColumn(label = "Delivery Location", value = deliveryLocation, modifier = Modifier.weight(1f))
                         }
                     }
 
-                    Spacer(Modifier.height(12.dp))
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        SummaryColumn(label = "Customer", value = customer, modifier = Modifier.weight(1f))
-                        SummaryColumn(label = "Est.Delivery", value = estDelivery, modifier = Modifier.weight(1f))
-                        SummaryColumn(label = "Delivery Location", value = deliveryLocation, modifier = Modifier.weight(1f))
-                    }
 
-                    Spacer(Modifier.height(16.dp))
-                    OutlinedButton(
-                        onClick = {
-                            assignStaffSheetState = SheetValue.Expanded
-                        },
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, AccentColor),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentColor),
-                        contentPadding = ActionButtonContentPadding,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(ActionButtonHeight)
-                    ) {
-                        Text(
-                            selectedStaff?.let { "Assigned: $it" } ?: "+ Assign Staff",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                            maxLines = 1
-                        )
-                    }
+                Spacer(Modifier.height(10.dp))
 
-                    Spacer(Modifier.height(14.dp))
-                    Button(
-                        onClick = {
-                            updateStatusSheetState = SheetValue.Expanded
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = ActionButtonContentPadding,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(ActionButtonHeight)
-                    ) {
-                        Text(
-                            "Update Status",
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp,
-                            maxLines = 1
-                        )
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    AccordionSection(
-                        icon = Icons.Filled.LocalShipping,
-                        title = "Courier Selection",
-                        expanded = expandedSection == "Courier Selection",
-                        onHeaderClick = { expandedSection = if (expandedSection == "Courier Selection") "" else "Courier Selection" }
-                    ) {
-                        FormDropdown(
-                            label = "Courier Partner",
-                            value = courierPartner,
-                            expanded = courierExpanded,
-                            onExpandChange = { courierExpanded = it },
-                            options = listOf("Delhivery", "Blue Dart", "DTDC", "India Post"),
-                            onOptionSelected = { courierPartner = it }
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        FormDropdown(
-                            label = "Service Type",
-                            value = serviceType,
-                            expanded = serviceExpanded,
-                            onExpandChange = { serviceExpanded = it },
-                            options = listOf("Standard", "Express", "Same Day"),
-                            onOptionSelected = { serviceType = it }
-                        )
-                    }
-
-                    AccordionSection(
-                        icon = Icons.Filled.Inventory2,
-                        title = "Package Details",
-                        expanded = expandedSection == "Package Details",
-                        onHeaderClick = { expandedSection = if (expandedSection == "Package Details") "" else "Package Details" }
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                FormLabel("Weight (kg)")
-                                FormTextField(value = weight, onValueChange = { weight = it }, placeholder = "0.0", keyboardType = KeyboardType.Number)
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                FormLabel("Length (cm)")
-                                FormTextField(value = length, onValueChange = { length = it }, placeholder = "Optional", keyboardType = KeyboardType.Number)
-                            }
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                FormLabel("Width (cm)")
-                                FormTextField(value = width, onValueChange = { width = it }, placeholder = "Optional", keyboardType = KeyboardType.Number)
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                FormLabel("Height (cm)")
-                                FormTextField(value = height, onValueChange = { height = it }, placeholder = "Optional", keyboardType = KeyboardType.Number)
-                            }
-                        }
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-                    Text("Order Summary", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-                    Spacer(Modifier.height(12.dp))
-                    SummaryRow("Total quantity", totalQuantity)
-                    SummaryRow("Subtotal", subtotal)
-                    SummaryRow("Delivery Charge", deliveryCharge)
-                    Spacer(Modifier.height(6.dp))
-                    HorizontalDivider(color = BorderColor)
-                    Spacer(Modifier.height(10.dp))
-                    SummaryRow("Grand Total", grandTotal, isBold = true)
-                    Spacer(Modifier.height(90.dp))
-                }
-
-                // ── Fixed bottom "Mark as Completed" button ──
-                Box(
+                // Assign Staff Button
+                OutlinedButton(
+                    onClick = { assignStaffSheetState = SheetValue.Expanded },
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, Primary),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
+                    contentPadding = ActionButtonContentPadding,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(horizontal = 20.dp, vertical = 14.dp)
+                        .height(ActionButtonHeight)
                 ) {
-                    Button(
-                        onClick = onMarkCompleted,
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = ActionButtonContentPadding,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(ActionButtonHeight)
-                    ) {
-                        Text("Mark as Completed",
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp,
-                            maxLines = 1
-                        )
+                    Text(
+                        selectedStaff?.let { "Assigned: $it" } ?: "+ Assign Staff",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        maxLines = 1
+                    )
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                // Order Stepper Card
+
+                    OrderStatusStepper(
+                        stepLabels = stepLabels,
+                        currentStep = currentStepIndex,
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 2.dp)
+                    )
+
+
+                Spacer(Modifier.height(10.dp))
+
+                // Update Status Button
+                Button(
+                    onClick = { updateStatusSheetState = SheetValue.Expanded },
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = ActionButtonContentPadding,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ActionButtonHeight)
+                ) {
+                    Text(
+                        "Update Status",
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        maxLines = 1
+                    )
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                // Accordion Sections
+                AccordionSection(
+                    icon = Icons.Filled.LocalShipping,
+                    title = "Courier Selection",
+                    expanded = expandedSection == "Courier Selection",
+                    onHeaderClick = {
+                        expandedSection = if (expandedSection == "Courier Selection") "" else "Courier Selection"
+                    }
+                ) {
+                    FormDropdown(
+                        label = "Courier Partner",
+                        value = courierPartner,
+                        expanded = courierExpanded,
+                        onExpandChange = { courierExpanded = it },
+                        options = listOf("Delhivery", "Blue Dart", "DTDC", "India Post"),
+                        onOptionSelected = { courierPartner = it }
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    FormDropdown(
+                        label = "Service Type",
+                        value = serviceType,
+                        expanded = serviceExpanded,
+                        onExpandChange = { serviceExpanded = it },
+                        options = listOf("Standard", "Express", "Same Day"),
+                        onOptionSelected = { serviceType = it }
+                    )
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                AccordionSection(
+                    icon = Icons.Filled.Inventory2,
+                    title = "Package Details",
+                    expanded = expandedSection == "Package Details",
+                    onHeaderClick = {
+                        expandedSection = if (expandedSection == "Package Details") "" else "Package Details"
+                    }
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            FormLabel("Weight (kg)")
+                            FormTextField(value = weight, onValueChange = { weight = it }, placeholder = "0.0", keyboardType = KeyboardType.Number)
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            FormLabel("Length (cm)")
+                            FormTextField(value = length, onValueChange = { length = it }, placeholder = "Optional", keyboardType = KeyboardType.Number)
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            FormLabel("Width (cm)")
+                            FormTextField(value = width, onValueChange = { width = it }, placeholder = "Optional", keyboardType = KeyboardType.Number)
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            FormLabel("Height (cm)")
+                            FormTextField(value = height, onValueChange = { height = it }, placeholder = "Optional", keyboardType = KeyboardType.Number)
+                        }
                     }
                 }
+
+                Spacer(Modifier.height(10.dp))
+
+                // Order Summary Card
+
+                    Column(modifier = Modifier.padding(0.dp)) {
+                        //Header
+                        Row() {
+                            Text(
+                                "Order Summary",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TitleColor
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        SummaryRow("Total quantity", totalQuantity)
+                        SummaryRow("Subtotal", subtotal)
+                        SummaryRow("Delivery Charge", deliveryCharge)
+                        Spacer(Modifier.height(6.dp))
+                        HorizontalDivider(color = BorderColor)
+                        Spacer(Modifier.height(8.dp))
+                        SummaryRow("Grand Total", grandTotal, isBold = true)
+                    }
+
+
+                Spacer(Modifier.height(20.dp))
             }
         }
 
         // ── Assign Staff Bottom Sheet ──
         SmoothBottomSheet(
             state = assignStaffSheetState,
-            onStateChange = {
-                assignStaffSheetState = it
-            },
+            onStateChange = { assignStaffSheetState = it },
             peekHeight = 520.dp,
-            onDismissRequest = {
-                assignStaffSheetState = SheetValue.Hidden
-            },
-            onBlurScrimChange = { blur, _ ->
-                assignSheetBlur = blur
-            },
+            onDismissRequest = { assignStaffSheetState = SheetValue.Hidden },
+            onBlurScrimChange = { blur, _ -> assignSheetBlur = blur },
             sheetBackgroundColor = Color.White,
             maxScrimAlpha = 0.4f,
             maxBlurRadius = 14.dp,
@@ -516,7 +436,7 @@ fun DeliveryDetailScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
+                        .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -559,7 +479,7 @@ fun DeliveryDetailScreen(
                     modifier = Modifier
                         .weight(1f, fill = false)
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp)
+                        .padding(horizontal = 16.dp)
                 ) {
                     filteredStaff.forEach { staff ->
                         val isSelected = tempSelectedStaff == staff.name
@@ -670,13 +590,11 @@ fun DeliveryDetailScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
-                        onClick = {
-                            assignStaffSheetState = SheetValue.Hidden
-                        },
+                        onClick = { assignStaffSheetState = SheetValue.Hidden },
                         modifier = Modifier
                             .weight(1f)
                             .height(ActionButtonHeight),
@@ -711,16 +629,10 @@ fun DeliveryDetailScreen(
         // ── Update Status Bottom Sheet ──
         SmoothBottomSheet(
             state = updateStatusSheetState,
-            onStateChange = {
-                updateStatusSheetState = it
-            },
+            onStateChange = { updateStatusSheetState = it },
             peekHeight = 420.dp,
-            onDismissRequest = {
-                updateStatusSheetState = SheetValue.Hidden
-            },
-            onBlurScrimChange = { blur, _ ->
-                updateStatusSheetBlur = blur
-            },
+            onDismissRequest = { updateStatusSheetState = SheetValue.Hidden },
+            onBlurScrimChange = { blur, _ -> updateStatusSheetBlur = blur },
             sheetBackgroundColor = Color.White,
             maxScrimAlpha = 0.4f,
             maxBlurRadius = 14.dp,
@@ -730,12 +642,14 @@ fun DeliveryDetailScreen(
             var tempStatusExpanded by remember { mutableStateOf(false) }
             var statusNote by remember { mutableStateOf("") }
 
-            Column(modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
                 Text(
                     "UPDATE ORDER STATUS",
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = TitleColor,
                     letterSpacing = 0.5.sp,
@@ -798,9 +712,7 @@ fun DeliveryDetailScreen(
                 }
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(
-                    onClick = {
-                        updateStatusSheetState = SheetValue.Hidden
-                    },
+                    onClick = { updateStatusSheetState = SheetValue.Hidden },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(ActionButtonHeight),
@@ -818,7 +730,7 @@ fun DeliveryDetailScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Schedule, contentDescription = null, tint = MutedColor, modifier = Modifier.size(13.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Last updated 2m ago by J. Doe", fontSize = 11.sp, color = MutedColor)
+                    Text("LAST UPDATED 2M AGO BY J.DOE", fontSize = 11.sp, color = MutedColor)
                 }
                 Spacer(Modifier.height(20.dp))
             }

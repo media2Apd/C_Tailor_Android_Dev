@@ -120,6 +120,7 @@ fun FilterDrawer(
     sections: List<FilterSection>,
     onApply: (List<FilterSection>) -> Unit,
     onClearAll: () -> Unit,
+    onBackgroundBlurChange: (Dp) -> Unit = {},
     content: @Composable (ColumnScope.() -> Unit)? = null
 ) {
     var currentSections by remember { mutableStateOf(sections) }
@@ -192,27 +193,13 @@ fun FilterDrawer(
         sheetBackgroundColor = Color(0xFFf8f9ff),
         onDismissRequest = { state.close() },
         onBlurScrimChange = { blur, _ ->
-            filterDrawerBlur = blur  // ✅ Update blur state
+            filterDrawerBlur = blur
+            onBackgroundBlurChange(blur)   // ✅ ADD THIS — forward it up
         }
     ) {
         // ── Sheet Content ──
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // ── Drag handle (already handled by SmoothBottomSheet, but keep for consistency) ──
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(40.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Color(0xFFD1D5DB))
-                )
-            }
 
             // ── Header: back/close + title + Reset ──
             Row(

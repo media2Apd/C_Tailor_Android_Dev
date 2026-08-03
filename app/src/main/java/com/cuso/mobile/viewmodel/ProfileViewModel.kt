@@ -120,26 +120,26 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _updateState.value = UpdateOrgUiState.Loading
 
-            // Step 1: If a new picture was picked, upload it FIRST via the dedicated upload API
+            // Step 1: picture separate ah upload (already existing logic)
             if (logoFile != null) {
                 val uploadResult = salesRepository.uploadOrganizationPicture("Bearer $token", logoFile)
                 if (uploadResult.isFailure) {
                     _updateState.value = UpdateOrgUiState.Error(
                         uploadResult.exceptionOrNull()?.message ?: "Failed to upload picture"
                     )
-                    return@launch   // stop here if picture upload itself failed
+                    return@launch
                 }
             }
 
-            // Step 2: Update the remaining text fields (no image part sent here anymore)
-            val result = salesRepository.updateOrganization("Bearer $token", request, null)
+            // Step 2: text/settings fields update — plain JSON now
+            val result = salesRepository.updateOrganization("Bearer $token", request)
             result.fold(
                 onSuccess = { response ->
                     if (response.success) {
                         _updateState.value = UpdateOrgUiState.Success(
                             response.message ?: "Organization updated successfully"
                         )
-                        refreshOrganization(token)   // pulls fresh org data incl. new picture URL
+                        refreshOrganization(token)
                     } else {
                         _updateState.value = UpdateOrgUiState.Error(
                             response.message ?: "Failed to update organization"

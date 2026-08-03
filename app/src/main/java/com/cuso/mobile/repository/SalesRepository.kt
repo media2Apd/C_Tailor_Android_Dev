@@ -198,19 +198,19 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    suspend fun getLeadId(id: String): Result<String> {
-        return try {
-            val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getViewOne(accessToken, csrfToken, id)
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!.data._id)
-            } else {
-                Result.failure(Exception("Failed to get lead ID: ${response.code()}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+//    suspend fun getLeadId(id: String): Result<String> {
+//        return try {
+//            val (accessToken, csrfToken) = getAuthHeaders()
+//            val response = api.getViewOne(accessToken, csrfToken, id)
+//            if (response.isSuccessful && response.body()?.success == true) {
+//                Result.success(response.body()!!.data._id)
+//            } else {
+//                Result.failure(Exception("Failed to get lead ID: ${response.code()}"))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
 
     // ── Lead CRUD ─────────────────────────────────────────────────
 
@@ -707,31 +707,23 @@ class SalesRepository @Inject constructor(
      */
     suspend fun updateOrganization(
         token: String,
-        request: UpdateOrganizationRequest,
-        logoPart: okhttp3.MultipartBody.Part? = null
+        request: UpdateOrganizationRequest
     ): Result<UpdateOrganizationResponse> {
         return try {
             val (_, csrfToken) = getAuthHeaders()
-            val gson = com.google.gson.Gson()
-
-            fun String.asTextBody(): RequestBody =
-                this.toRequestBody("text/plain".toMediaTypeOrNull())
 
             val response = api.updateOrganization(
                 token = token,
                 csrfToken = csrfToken,
-                name = request.name?.asTextBody(),
-                orgType = request.orgType?.asTextBody(),
-                businessType = request.businessType?.asTextBody(),
-                email = request.email?.asTextBody(),
-                mobile = request.mobile?.asTextBody(),
-                settings = request.settings?.let { gson.toJson(it).asTextBody() },
-                organizationPicture = logoPart
+                request = request
             )
-            if (response.success) {
-                Result.success(response)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
             } else {
-                Result.failure(Exception(response.message ?: "Failed to update organization"))
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to update organization: ${response.code()}")
+                )
             }
         } catch (e: Exception) {
             Result.failure(e)

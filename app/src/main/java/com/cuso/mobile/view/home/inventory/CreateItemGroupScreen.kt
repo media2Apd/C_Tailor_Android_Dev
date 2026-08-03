@@ -11,11 +11,8 @@
 package com.cuso.mobile.view.home.inventory
 
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,33 +20,63 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.view.home.sales.lead.MiniSwitch
+
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.Dp
+
 
 // ── Design tokens (same as EmployeeOnboardingScreen) ──
 private val AccentColor = Color(0xFF4F39F6)
@@ -132,7 +159,7 @@ fun CreateItemGroupScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
+                .background(Primary_background)
         ) {
             // ── Header ──
             Row(
@@ -160,7 +187,7 @@ fun CreateItemGroupScreen(
             ) {
                 // ── 1. Item Group Information ──
                 AccordionSection(
-                    icon = Icons.Filled.Info,
+                    iconPainter = painterResource(R.drawable.ic_info),
                     title = "Item Group Information",
                     expanded = expandedSection == "Item Group Information",
                     onHeaderClick = { expandedSection = if (expandedSection == "Item Group Information") "" else "Item Group Information" }
@@ -199,7 +226,8 @@ fun CreateItemGroupScreen(
 
                 // ── 2. Classification ──
                 AccordionSection(
-                    icon = Icons.Filled.Category,
+                    iconPainter = painterResource(R.drawable.box),
+                    iconTint = Primary,
                     title = "Classification",
                     expanded = expandedSection == "Classification",
                     onHeaderClick = { expandedSection = if (expandedSection == "Classification") "" else "Classification" }
@@ -233,10 +261,14 @@ fun CreateItemGroupScreen(
                                 fontWeight = FontWeight.Medium
                             )
                             Spacer(Modifier.width(8.dp))
-                            Switch(
+//                            Switch(
+//                                checked = status,
+//                                onCheckedChange = { status = it },
+//                                colors = SwitchDefaults.colors(checkedTrackColor = AccentColor)
+//                            )
+                            MiniSwitch(
                                 checked = status,
-                                onCheckedChange = { status = it },
-                                colors = SwitchDefaults.colors(checkedTrackColor = AccentColor)
+                                onCheckedChange = { status = it }
                             )
                         }
                     }
@@ -284,7 +316,7 @@ fun CreateItemGroupScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFFF7F7FA), RoundedCornerShape(10.dp))
+                                .background(Color(0xFFF7F7FA))
                                 .padding(14.dp)
                         ) {
                             Column {
@@ -460,7 +492,6 @@ fun CreateItemGroupScreen(
 
                 // ── 6. Generated Variants ──
                 AccordionSection(
-                    icon = Icons.Filled.Inventory2,
                     title = "Generated Variants",
                     expanded = expandedSection == "Generated Variants",
                     onHeaderClick = { expandedSection = if (expandedSection == "Generated Variants") "" else "Generated Variants" }
@@ -569,10 +600,10 @@ fun CreateItemGroupScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Switch(
+
+                                            MiniSwitch(
                                                 checked = variant.isActive,
-                                                onCheckedChange = { variants[index] = variant.copy(isActive = it) },
-                                                colors = SwitchDefaults.colors(checkedTrackColor = AccentColor)
+                                                onCheckedChange = { variants[index] = variant.copy(isActive = it) }
                                             )
                                             Spacer(Modifier.width(6.dp))
                                             Text(
@@ -694,59 +725,155 @@ private fun UploadImageBox() {
 }
 
 // ── Chip-tag input for attribute values (matches image 4) ──
+@SuppressLint("RememberInComposition")
 @Composable
-private fun AttributeValuesInput(values: List<String>, onValuesChange: (List<String>) -> Unit) {
+private fun AttributeValuesInput(
+    values: List<String>,
+    onValuesChange: (List<String>) -> Unit
+) {
     var inputText by remember { mutableStateOf("") }
+    var isFocused by remember { mutableStateOf(false) }
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .border(1.dp, BorderColor, FieldShape)
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(8.dp)
     ) {
-        values.forEach { value ->
-            Box(
-                modifier = Modifier
-                    .padding(end = 6.dp)
-                    .background(ChipBg, RoundedCornerShape(6.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(value, fontSize = 13.sp, color = ChipText, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.width(4.dp))
-                    Icon(
-                        Icons.Filled.Close,
-                        contentDescription = "Remove",
-                        tint = ChipText,
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clickable { onValuesChange(values - value) }
-                    )
-                }
-            }
-        }
-        BasicTextField(
-            value = inputText,
-            onValueChange = { inputText = it },
-            modifier = Modifier.weight(1f),
-            singleLine = true,
-            decorationBox = { inner ->
-                if (inputText.isEmpty() && values.isEmpty()) {
-                    Text("Add..", fontSize = 13.sp, color = Color(0xFF9CA3AF))
-                }
-                inner()
-            },
-            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
-            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                onDone = {
-                    if (inputText.isNotBlank()) {
-                        onValuesChange(values + inputText.trim())
-                        inputText = ""
+        // Flow layout for chips
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // Existing value chips
+            values.forEach { value ->
+                Box(
+                    modifier = Modifier
+                        .background(ChipBg, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            value,
+                            fontSize = 13.sp,
+                            color = ChipText,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Remove",
+                            tint = ChipText,
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clickable { onValuesChange(values - value) }
+                        )
                     }
                 }
-            )
-        )
+            }
+
+            // Input field as a chip
+            Box(
+                modifier = Modifier
+                    .background(
+                        if (isFocused) Color.White else Color.Transparent,
+                        RoundedCornerShape(6.dp)
+                    )
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                BasicTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    modifier = Modifier
+                        .width(120.dp) // Minimum width
+                        .focusRequester(FocusRequester()),
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        fontSize = 13.sp,
+                        color = Color.Black
+                    ),
+                    decorationBox = { inner ->
+                        if (inputText.isEmpty() && !isFocused) {
+                            Text(
+                                "Add..",
+                                fontSize = 13.sp,
+                                color = Color(0xFF9CA3AF)
+                            )
+                        }
+                        inner()
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            if (inputText.isNotBlank()) {
+                                onValuesChange(values + inputText.trim())
+                                inputText = ""
+                            }
+                        }
+                    ),
+                    onTextLayout = { /* Handle text layout if needed */ }
+                )
+            }
+        }
+    }
+}
+
+// You'll need this helper composable for FlowRow
+// If you don't have it, here's a simple implementation:
+
+@Composable
+fun FlowRow(
+    modifier: Modifier = Modifier,
+    horizontalSpacing: Dp = 0.dp,
+    verticalSpacing: Dp = 0.dp,
+    content: @Composable () -> Unit
+) {
+    Layout(
+        modifier = modifier,
+        content = content
+    ) { measurables, constraints ->
+        val hSpacing = horizontalSpacing.roundToPx()
+        val vSpacing = verticalSpacing.roundToPx()
+
+        var currentX = 0
+        var currentY = 0
+        var rowMaxHeight = 0
+        val placeables = measurables.map { it.measure(constraints) }
+        val rows = mutableListOf<List<Placeable>>()
+        val rowHeights = mutableListOf<Int>()
+        var currentRow = mutableListOf<Placeable>()
+
+        placeables.forEach { placeable ->
+            if (currentX + placeable.width > constraints.maxWidth && currentRow.isNotEmpty()) {
+                rows.add(currentRow)
+                rowHeights.add(rowMaxHeight)
+                currentY += rowMaxHeight + vSpacing
+                currentX = 0
+                rowMaxHeight = 0
+                currentRow = mutableListOf()
+            }
+            currentRow.add(placeable)
+            currentX += placeable.width + hSpacing
+            if (placeable.height > rowMaxHeight) rowMaxHeight = placeable.height
+        }
+
+        if (currentRow.isNotEmpty()) {
+            rows.add(currentRow)
+            rowHeights.add(rowMaxHeight)
+        }
+
+        layout(constraints.maxWidth, currentY + (rowHeights.lastOrNull() ?: 0)) {
+            var y = 0
+            rows.forEachIndexed { index, row ->
+                var x = 0
+                row.forEach { placeable ->
+                    placeable.placeRelative(x, y)
+                    x += placeable.width + hSpacing
+                }
+                y += rowHeights[index] + vSpacing
+            }
+        }
     }
 }
 

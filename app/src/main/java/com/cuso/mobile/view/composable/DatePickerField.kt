@@ -1,3 +1,12 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter"
+)
 package com.cuso.mobile.view.composable
 
 import androidx.compose.foundation.background
@@ -45,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.FormDateField
 import com.cuso.mobile.view.home.LeadPrimary
 import kotlin.collections.chunked
@@ -62,19 +72,19 @@ private data class DatePickerPalette(
 )
 
 private val LightDatePalette = DatePickerPalette(
-    surface = Color.White,
+    surface = whiteBg,
     text = Color.Black,
     subtext = Color(0xFF666666),
     accent = LeadPrimary,
     divider = Color(0xFFE0E0E0),
-    accentText = Color.White,
-    fieldBackground = Color.White,          // ✅ NEW
+    accentText = whiteBg,
+    fieldBackground = whiteBg,          // ✅ NEW
     fieldBorder = Color(0xFFE5E7EB)          // ✅ NEW
 )
 
 private val DarkDatePalette = DatePickerPalette(
     surface = Color(0xFF1E1E2E),
-    text = Color.White,
+    text = whiteBg,
     subtext = Color(0xFFAAAAAA),
     accent = Color(0xFF7C7CFF),
     divider = Color(0xFF3A3A4A),

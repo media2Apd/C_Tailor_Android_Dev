@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.utils.loadJsonFromAssets
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
@@ -129,7 +130,7 @@ fun SearchableDropdownContents(
                 },
                 colors = OutlinedTextFieldDefaults.colors(
                     disabledBorderColor = PrimaryBorder,      // ✅ BorderColor value
-                    disabledContainerColor = Color.White,          // ✅ white background
+                    disabledContainerColor = whiteBg,          // ✅ white background
                     disabledTrailingIconColor = Color.LightGray
                 )
             )
@@ -154,7 +155,7 @@ fun SearchableDropdownContents(
                     .heightIn(max = 250.dp),
                 shape = RoundedCornerShape(10.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = whiteBg)
             ) {
                 Column {
                     // ── Search Field ──
@@ -180,8 +181,8 @@ fun SearchableDropdownContents(
                             unfocusedTextColor = Color.Black,
                             focusedBorderColor = Color.Blue,
                             unfocusedBorderColor = Color.LightGray,
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
+                            focusedContainerColor = whiteBg,
+                            unfocusedContainerColor = whiteBg,
                             cursorColor = Color.Black
                         ),
                         shape = RoundedCornerShape(8.dp)

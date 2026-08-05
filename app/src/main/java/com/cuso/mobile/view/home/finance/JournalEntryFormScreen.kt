@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
@@ -263,11 +264,12 @@ fun JournalEntryFormScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Color.Transparent)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -319,12 +321,12 @@ fun JournalEntryFormScreen(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .background(PanelBg)
+                    .background(Color.Transparent)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(Color.Transparent)
                         .clickable(enabled = !isReadOnly) {
                             expenseDetailsExpanded = !expenseDetailsExpanded
                         }
@@ -350,7 +352,6 @@ fun JournalEntryFormScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White)
                             .padding(horizontal = 20.dp, vertical = 16.dp)
                     ) {
                         FormLabel("Journal No")
@@ -460,7 +461,6 @@ fun JournalEntryFormScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                 ) {
                     FormLabel("Notes")
@@ -492,7 +492,6 @@ fun JournalEntryFormScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                 ) {
                     FormLabel("Documentation & Receipts")
@@ -575,7 +574,7 @@ fun JournalEntryFormScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(whiteBg)
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                 ) {
                     Text("Balance Summary", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))

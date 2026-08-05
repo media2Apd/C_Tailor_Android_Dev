@@ -70,6 +70,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.ErrorFieldWrapper
 import com.cuso.mobile.view.composable.FieldValidator
@@ -131,12 +132,13 @@ fun ExpensesScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Color.Transparent)
     ) {
         // ── Header ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -152,7 +154,6 @@ fun ExpensesScreen(
             )
         }
         Column(Modifier.fillMaxWidth()
-            .background(Color(0xFFF8F9FF))
         ) {
 
             // ── Breadcrumb ──
@@ -194,7 +195,7 @@ fun ExpensesScreen(
                         Text("Something went wrong, Please try again later", color = Color.Red)
                         Spacer(Modifier.height(12.dp))
                         Button(onClick = { financeViewModel.fetchExpenses() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(8.dp)) {
-                            Text("Retry", color = Color.White)
+                            Text("Retry", color = whiteBg)
                         }
                     }
                 }
@@ -205,7 +206,7 @@ fun ExpensesScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(ExpenseBg)
+                        .background(Color.Transparent)
                         .padding(top = 60.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -234,9 +235,9 @@ fun ExpensesScreen(
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, tint = whiteBg, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Add Expenses", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Add Expenses", color = whiteBg, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -255,7 +256,7 @@ fun ExpensesScreen(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(ExpenseBg)
+                            .background(Color.Transparent)
                     ) {
                         items(filtered) { expense ->
                             val (statusFg, statusBg) = expenseStatusColors(expense.status)
@@ -302,7 +303,7 @@ fun ExpenseDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(whiteBg)
     ) {
         Row(
             modifier = Modifier
@@ -517,7 +518,7 @@ fun AddExpenseScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
+                .background(Color.Transparent)
         ) {
             // ── Header ──
             Row(
@@ -599,7 +600,7 @@ fun AddExpenseScreen(
                     Icon(
                         Icons.Default.Add,
                         contentDescription = "Add Expense Account",
-                        tint = Color.White,
+                        tint = whiteBg,
                         modifier = Modifier
                             .padding(5.dp)
                             .size(28.dp)
@@ -691,7 +692,7 @@ fun AddExpenseScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(90.dp)
-                    .background(Color.White, RoundedCornerShape(8.dp))
+                    .background(whiteBg, RoundedCornerShape(8.dp))
                     .border(1.dp, ExpenseBorder, RoundedCornerShape(8.dp))
                     .padding(12.dp)
             ) {
@@ -854,7 +855,7 @@ fun AddExpenseScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White, RoundedCornerShape(14.dp))
+                        .background(whiteBg, RoundedCornerShape(14.dp))
                         .padding(20.dp)
                 ) {
                     Text(
@@ -902,9 +903,9 @@ fun AddExpenseScreen(
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             if (isSavingAccount) {
-                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(color = whiteBg, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                             } else {
-                                Text("Save", color = Color.White)
+                                Text("Save", color = whiteBg)
                             }
                         }
                     }

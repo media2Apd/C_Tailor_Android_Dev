@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.ui.theme.whiteBg
 import kotlinx.coroutines.launch
 
 enum class SheetValue { Hidden, Collapsed, Expanded }
@@ -72,7 +73,7 @@ fun SmoothBottomSheet(
     expandedFraction: Float? = null,
     maxBlurRadius: Dp = 14.dp,
     maxScrimAlpha: Float = 0.35f,
-    sheetBackgroundColor: Color = Color.White,
+    sheetBackgroundColor: Color = whiteBg,
     collapsedCornerRadius: Dp = 24.dp,
     dragCloseEnabled: Boolean = true,
     scrollableContent: Boolean = true,
@@ -83,7 +84,7 @@ fun SmoothBottomSheet(
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
 
-    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = modifier.fillMaxSize().background(Color.Transparent)) {
         val containerHeightPx = with(density) { maxHeight.toPx() }
         val peekHeightPx = collapsedFraction?.let { containerHeightPx * it }
             ?: with(density) { peekHeight.toPx() }

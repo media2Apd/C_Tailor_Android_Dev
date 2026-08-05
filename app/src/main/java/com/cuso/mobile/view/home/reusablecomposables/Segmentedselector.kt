@@ -1,3 +1,12 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter"
+)
 package com.cuso.mobile.view.home.reusablecomposables
 
 import androidx.compose.foundation.background
@@ -19,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.whiteBg
 
 /**
  * Generic segmented selector — same visual pattern as the Priority toggle in
@@ -34,7 +44,7 @@ fun <T> SegmentedSelector(
     modifier: Modifier = Modifier,
     accentColor: Color = Color(0xFF3B3BF9),
     borderColor: Color = Color(0xFFE3E4E8),
-    selectedTextColor: Color = Color.White,
+    selectedTextColor: Color = whiteBg,
     unselectedTextColor: Color = Color(0xFF111827)
 ) {
     Row(
@@ -48,7 +58,7 @@ fun <T> SegmentedSelector(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .background(if (isSelected) Primary else Color.White)
+                    .background(if (isSelected) Primary else whiteBg)
                     .then(
                         // vertical divider between segments (skip before the first item)
                         if (index != 0)

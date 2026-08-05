@@ -91,7 +91,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -112,7 +111,7 @@ import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.view.composable.PaginationFooter
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DatePickerField
@@ -127,7 +126,7 @@ import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
 import com.cuso.mobile.view.home.LeadPrimary
 import com.cuso.mobile.view.home.LeadPrimarySoft
-import com.cuso.mobile.view.home.LeadTextMuted
+import com.cuso.mobile.view.home.LeadmutedText
 import com.cuso.mobile.view.home.TimePickerField
 import com.cuso.mobile.view.home.buildFilterSections
 import com.cuso.mobile.view.home.formatIndianNumber
@@ -167,7 +166,7 @@ fun LeadFormTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(whiteBg)
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -200,14 +199,14 @@ fun LeadFormTopBar(
                     Icon(
                         Icons.Default.SwapHoriz,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = whiteBg,
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
                         "Convert to Order",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        color = whiteBg
                     )
                 }
             }
@@ -237,7 +236,7 @@ fun ConvertToOrderDialog(
     Dialog(onDismissRequest = { if (!isLoading) onDismiss() }) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = Color.White,
+            color = whiteBg,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
@@ -270,7 +269,7 @@ fun ConvertToOrderDialog(
                         if (isLoading) {
                             CirculerProgressIndicatorSmall()
                         } else {
-                            Text("Convert", color = Color.White)
+                            Text("Convert", color = whiteBg)
                         }
                     }
                 }
@@ -619,7 +618,7 @@ fun CreateLeadScreen(
     Box(modifier = Modifier.fillMaxSize()) {
 
         Scaffold(
-            containerColor = Color(0xFFF5F5F7),
+            containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0)
         ) { padding ->
             FabScaffold(
@@ -731,7 +730,7 @@ fun CreateLeadScreen(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .clip(RoundedCornerShape(6.dp))
-                                                .background(if (isSelected) Color.White else Color.Transparent)
+                                                .background(if (isSelected) whiteBg else Color.Transparent)
                                                 .clickable { customerType = type }
                                                 .padding(vertical = 8.dp),
                                             horizontalArrangement = Arrangement.Center,
@@ -872,7 +871,7 @@ fun CreateLeadScreen(
                                                     RoundedCornerShape(50.dp)
                                                 )
                                                 .background(
-                                                    if (isSelected) LeadPrimarySoft else Color.White,
+                                                    if (isSelected) LeadPrimarySoft else whiteBg,
                                                     RoundedCornerShape(50.dp)
                                                 )
                                                 .clickable {
@@ -989,7 +988,7 @@ fun CreateLeadScreen(
                                     Text(
                                         "No appointment scheduled.",
                                         fontSize = 13.sp,
-                                        color = LeadTextMuted
+                                        color = LeadmutedText
                                     )
                                 }
                             }
@@ -1017,8 +1016,8 @@ fun CreateLeadScreen(
                                     colors = OutlinedTextFieldDefaults.colors(
                                         unfocusedBorderColor = Color(0xFFE5E7EB),
                                         focusedBorderColor = LeadPrimary,
-                                        unfocusedContainerColor = Color.White,
-                                        focusedContainerColor = Color.White
+                                        unfocusedContainerColor = whiteBg,
+                                        focusedContainerColor = whiteBg
                                     )
                                 )
                                 Spacer(Modifier.height(14.dp))
@@ -1033,8 +1032,8 @@ fun CreateLeadScreen(
                                     colors = OutlinedTextFieldDefaults.colors(
                                         unfocusedBorderColor = Color(0xFFE5E7EB),
                                         focusedBorderColor = LeadPrimary,
-                                        unfocusedContainerColor = Color.White,
-                                        focusedContainerColor = Color.White
+                                        unfocusedContainerColor = whiteBg,
+                                        focusedContainerColor = whiteBg
                                     )
                                 )
                             }
@@ -1320,12 +1319,11 @@ fun LeadScreenContent(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFFF5F5F7))
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(whiteBg)
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(
@@ -1351,7 +1349,6 @@ fun LeadScreenContent(
 
                 Column(
                     modifier = Modifier
-                        .background(Color(0xFFF8F9FF))
                         .fillMaxWidth()
                 ) {
                     ScreenBreadcrumb(listOf("Sales","Lead Management"), onClick = { onBreadCrumbClick() })
@@ -1381,7 +1378,7 @@ fun LeadScreenContent(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color.White, RoundedCornerShape(12.dp)),
+                                    .background(whiteBg, RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1400,7 +1397,7 @@ fun LeadScreenContent(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color.White, RoundedCornerShape(12.dp)),
+                                    .background(whiteBg, RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(Modifier.padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1428,7 +1425,7 @@ fun LeadScreenContent(
                                         shape = RoundedCornerShape(8.dp),
                                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                                     ) {
-                                        Text("Create Lead", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                        Text("Create Lead", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                                     }
                                 }
                             }
@@ -1484,13 +1481,13 @@ fun LeadScreenContent(
                                     }
                                 }
 
-                                PaginationFooter(
-                                    currentPage = currentPage,
-                                    pageSize = pageSize,
-                                    totalItems = totalLeads,
-                                    onPageChange = { salesViewModel.onPageChange(it) },
-                                    onItemsPerPageChange = { salesViewModel.onItemsPerPageChange(it) }
-                                )
+//                                PaginationFooter(
+//                                    currentPage = currentPage,
+//                                    pageSize = pageSize,
+//                                    totalItems = totalLeads,
+//                                    onPageChange = { salesViewModel.onPageChange(it) },
+//                                    onItemsPerPageChange = { salesViewModel.onItemsPerPageChange(it) }
+//                                )
                             }
                         }
                     }
@@ -1515,7 +1512,7 @@ fun LeadScreenContent(
     if (leadToDelete != null) {
         AlertDialog(
             onDismissRequest = { leadToDelete = null },
-            containerColor = Color.White,
+            containerColor = whiteBg,
             shape = RoundedCornerShape(12.dp),
             title = {
                 Text("Delete Lead", fontWeight = FontWeight.Bold, color = Color(0xFF111827))
@@ -1532,7 +1529,7 @@ fun LeadScreenContent(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Delete", color = Color.White)
+                    Text("Delete", color = whiteBg)
                 }
             },
             dismissButton = {
@@ -1601,7 +1598,7 @@ fun ViewLeadScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F7)),
+                .background(Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1617,7 +1614,7 @@ fun ViewLeadScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F7)),
+                .background(Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1627,7 +1624,7 @@ fun ViewLeadScreen(
                 Text(error ?: "Unknown error", color = Color.Gray, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
                 Spacer(Modifier.height(12.dp))
                 Button(onClick = { onBack() }, colors = ButtonDefaults.buttonColors(containerColor = LeadPrimary), shape = RoundedCornerShape(8.dp)) {
-                    Text("Go Back", color = Color.White)
+                    Text("Go Back", color = whiteBg)
                 }
             }
         }
@@ -1672,7 +1669,7 @@ fun ViewLeadScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            containerColor = Color(0xFFF5F5F7),
+            containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0)
         ) { padding ->
             Column(
@@ -1726,7 +1723,7 @@ fun ViewLeadScreen(
                                         modifier = Modifier
                                             .weight(1f)
                                             .clip(RoundedCornerShape(6.dp))
-                                            .background(if (isSelected) Color.White else Color.Transparent)
+                                            .background(if (isSelected) whiteBg else Color.Transparent)
                                             .padding(vertical = 8.dp),
                                         horizontalArrangement = Arrangement.Center,
                                         verticalAlignment = Alignment.CenterVertically
@@ -1782,7 +1779,7 @@ fun ViewLeadScreen(
                             Column(modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 6.dp)) {
-                                Text("Garment Category", fontSize = 12.sp, color = LeadTextMuted, fontWeight = FontWeight.Medium)
+                                Text("Garment Category", fontSize = 12.sp, color = LeadmutedText, fontWeight = FontWeight.Medium)
                                 Spacer(Modifier.height(4.dp))
                                 if (garmentNames.isNotEmpty()) {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1817,7 +1814,7 @@ fun ViewLeadScreen(
                                 .fillMaxWidth()
                                 .padding(vertical = 6.dp)) {
 
-                                Text("Budget Range", fontSize = 12.sp, color = LeadTextMuted, fontWeight = FontWeight.Medium)
+                                Text("Budget Range", fontSize = 12.sp, color = LeadmutedText, fontWeight = FontWeight.Medium)
                                 Spacer(Modifier.height(4.dp))
                                 Text("₹${formatIndianNumber(l.budgetMin)}  ₹${formatIndianNumber(l.budgetMax)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
                                 Spacer(Modifier.height(4.dp))
@@ -1853,7 +1850,7 @@ fun ViewLeadScreen(
                                 ViewFieldValue("Follow-up Date", formatLeadDate(l.followUpDate))
                                 ViewFieldValue("Priority", l.priority?.ifEmpty { "Select an option" })
                             } else {
-                                Text("No appointment scheduled.", fontSize = 13.sp, color = LeadTextMuted)
+                                Text("No appointment scheduled.", fontSize = 13.sp, color = LeadmutedText)
                             }
                         }
                     }
@@ -1930,7 +1927,7 @@ fun MiniSwitch(
                 .size(14.dp)
                 .offset(x = if (checked) 12.dp else 0.dp)
                 .clip(CircleShape)
-                .background(Color.White)
+                .background(whiteBg)
         )
     }
 }
@@ -1943,7 +1940,7 @@ fun ViewFieldValue(label: String, value: String?) {
         Text(
             label,
             fontSize = 12.sp,
-            color = LeadTextMuted,
+            color = LeadmutedText,
             fontWeight = FontWeight.Medium
         )
         Spacer(Modifier.height(2.dp))
@@ -1990,7 +1987,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F7)),
+                .background(Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -2185,7 +2182,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
 
         Scaffold(
-            containerColor = Color(0xFFF5F5F7),
+            containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0)
         ) { padding ->
             Column(
@@ -2279,7 +2276,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                         modifier = Modifier
                                             .weight(1f)
                                             .clip(RoundedCornerShape(6.dp))
-                                            .background(if (isSelected) Color.White else Color.Transparent)
+                                            .background(if (isSelected) whiteBg else Color.Transparent)
                                             .clickable { customerType = type }
                                             .padding(vertical = 8.dp),
                                         horizontalArrangement = Arrangement.Center,
@@ -2444,7 +2441,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                                         RoundedCornerShape(50.dp)
                                                     )
                                                     .background(
-                                                        if (isSelected) LeadPrimarySoft else Color.White,
+                                                        if (isSelected) LeadPrimarySoft else whiteBg,
                                                         RoundedCornerShape(50.dp)
                                                     )
                                                     .clickable {
@@ -2567,7 +2564,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                 Text(
                                     "No appointment scheduled.",
                                     fontSize = 13.sp,
-                                    color = LeadTextMuted
+                                    color = LeadmutedText
                                 )
                             }
                         }
@@ -2592,8 +2589,8 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                 colors = OutlinedTextFieldDefaults.colors(
                                     unfocusedBorderColor = Color(0xFFE5E7EB),
                                     focusedBorderColor = LeadPrimary,
-                                    unfocusedContainerColor = Color.White,
-                                    focusedContainerColor = Color.White
+                                    unfocusedContainerColor = whiteBg,
+                                    focusedContainerColor = whiteBg
                                 )
                             )
                             Spacer(Modifier.height(14.dp))
@@ -2608,8 +2605,8 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                 colors = OutlinedTextFieldDefaults.colors(
                                     unfocusedBorderColor = Color(0xFFE5E7EB),
                                     focusedBorderColor = LeadPrimary,
-                                    unfocusedContainerColor = Color.White,
-                                    focusedContainerColor = Color.White
+                                    unfocusedContainerColor = whiteBg,
+                                    focusedContainerColor = whiteBg
                                 )
                             )
                         }
@@ -2681,7 +2678,7 @@ fun BudgetRangeSlider(
             Box(
                 modifier = Modifier
                     .size(22.dp)
-                    .background(Color.White, CircleShape)
+                    .background(whiteBg, CircleShape)
                     .border(3.dp, LeadPrimary, CircleShape)
             )
         },

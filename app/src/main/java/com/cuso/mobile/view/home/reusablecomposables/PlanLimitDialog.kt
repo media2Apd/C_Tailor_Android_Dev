@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.cuso.mobile.ui.theme.whiteBg
 
 // ─────────────────────────────────────────────────────────────
 // PlanLimits — single shared data class for ALL modules
@@ -80,7 +81,7 @@ fun PlanLimitDialog(
                         .padding(horizontal = 16.dp, vertical = 40.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .clickable { /* prevent click through */ },
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = whiteBg),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                     Column(
@@ -116,7 +117,7 @@ fun PlanLimitDialog(
                                 shape = RoundedCornerShape(8.dp),
                                 border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = Color.White,
+                                    containerColor = whiteBg,
                                     contentColor = Color(0xFF374151)
                                 ),
                                 modifier = Modifier.weight(0.4f)
@@ -128,12 +129,12 @@ fun PlanLimitDialog(
                                 onClick = onUpgrade,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFF3B3BF9),
-                                    contentColor = Color.White
+                                    contentColor = whiteBg
                                 ),
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.weight(0.6f)
                             ) {
-                                Text("Upgrade Plan", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                Text("Upgrade Plan", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
                             }
                         }
                     }

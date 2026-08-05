@@ -9,11 +9,6 @@ package com.cuso.mobile.view.login
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -21,8 +16,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -32,16 +25,14 @@ import androidx.navigation.NavController
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CardContentsLoginScreen
 import com.cuso.mobile.view.composable.AppLogo
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.LoginScreenTitle
 import com.cuso.mobile.viewmodel.UiState
 import com.cuso.mobile.viewmodel.Authenticate
-import kotlinx.coroutines.delay
-import kotlin.time.Duration.Companion.milliseconds
 
 @Suppress("UNUSED_PARAMETER", "VariableNeverRead")
 @Composable
@@ -73,7 +64,7 @@ fun LoginScreen(activity: Activity,
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
-            containerColor = Color.White,
+            containerColor = whiteBg,
             title = { Text("Exit App",Modifier,color=Color.Black, fontWeight = FontWeight.Bold) },
             text = { Text("Are you sure you want to exit?",color=Color.Black) },
             confirmButton = {
@@ -157,12 +148,12 @@ fun LoginScreen(activity: Activity,
                         modifier = Modifier
                             .border(
                                 width = 2.dp,
-                                color = Color.White,
+                                color = whiteBg,
                                 shape = RoundedCornerShape(15.dp)
                             ),
                         shape = RoundedCornerShape(15.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color.White
+                            containerColor = whiteBg
                         ),
                     ) {
                         CardContentsLoginScreen(

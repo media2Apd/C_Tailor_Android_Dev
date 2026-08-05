@@ -54,6 +54,8 @@ import com.google.android.gms.common.api.ApiException
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.whiteBg
+
 @Suppress("DEPRECATION")
 @Composable
 fun ContinueWithGoogle(activity: Activity, navController: NavController) {
@@ -142,7 +144,7 @@ fun ContinueWithGoogle(activity: Activity, navController: NavController) {
                 contentPadding = PaddingValues(vertical = 0.dp, horizontal = 16.dp),
                 border = BorderStroke(1.dp, PrimaryBorder),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.White,
+                    containerColor = whiteBg,
                     contentColor = Color.Black
                 ),
                 shape = RoundedCornerShape(5.dp)

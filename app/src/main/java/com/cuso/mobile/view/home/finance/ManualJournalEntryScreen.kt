@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.finance.JournalEntryItem
+import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
@@ -120,19 +122,20 @@ fun ManualJournalEntryScreen(
     // Scaffold wraps everything so the delete-confirmation snackbar can show
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color.White,
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0)
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color.White)
+                .background(Color.Transparent)
         ) {
             // ── Title bar ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(whiteBg)
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -148,17 +151,14 @@ fun ManualJournalEntryScreen(
                 )
             }
 
-            Column(Modifier.background(Color(0xFFF7F7FA))) {
+            Column {
                 // ── Breadcrumb ──
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF7F7FA))
                         .padding(horizontal = 20.dp, vertical = 12.dp)
                 ) {
-                    Text("Finance", color = TextSecondary, fontSize = 13.sp)
-                    Text("  >  ", color = TextSecondary, fontSize = 13.sp)
-                    Text("Journal Entry", color = BluePrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    ScreenBreadcrumb(listOf("Finance","Journal Entry"), onClick = {})
                 }
 
                 SearchFilterBar(
@@ -267,7 +267,7 @@ fun ManualJournalEntryScreen(
     deleteTarget?.let { entry ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            containerColor = Color.White,
+            containerColor = whiteBg,
             title = { Text("Delete Journal Entry", fontWeight = FontWeight.Bold) },
             text = { Text("Are you sure you want to delete \"${entry.entryNumber}\"? This cannot be undone.") },
             confirmButton = {

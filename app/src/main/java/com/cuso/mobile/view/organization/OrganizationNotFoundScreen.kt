@@ -47,6 +47,7 @@ import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import androidx.core.net.toUri
+import com.cuso.mobile.ui.theme.whiteBg
 
 @Composable
 fun OrganizationNotFoundScreen(navController: NavController) {
@@ -63,7 +64,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(whiteBg)
             .padding(top=50.dp)
     ) {
         Column(
@@ -186,13 +187,13 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                 Icon(
                     imageVector = Icons.Filled.Language,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = whiteBg,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
                     text = "Open Web Dashboard",
-                    color = Color.White,
+                    color = whiteBg,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -201,7 +202,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = whiteBg,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -280,7 +281,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                         spotColor = Color.Black.copy(alpha = 0.1f)
                     )
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White)
+                    .background(whiteBg)
                     .border(1.dp, PrimaryBorder, RoundedCornerShape(16.dp))
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically

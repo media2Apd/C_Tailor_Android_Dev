@@ -1,3 +1,12 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter", "SameParameterValue"
+)
 package com.cuso.mobile.view.home.sales.customer
 
 import androidx.compose.animation.AnimatedVisibility
@@ -5,38 +14,27 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,7 +43,6 @@ import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
-import com.cuso.mobile.view.composable.customFieldOutlinedColors
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.ErrorMapper
@@ -62,9 +59,8 @@ import com.cuso.mobile.viewmodel.CustomerUpdateState
 import com.cuso.mobile.viewmodel.CustomerViewModel
 import kotlinx.coroutines.launch
 import com.cuso.mobile.R
-import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
-import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.customOutlinedButtonColors
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
@@ -120,7 +116,7 @@ fun CustomerDetailScreen(
                     formState.email.isBlank() -> {
                         errorField = "email"; apiErrorMessage = "Email address is required"; valid = false
                     }
-                    !formState.email.matches(Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$")) -> {
+                    !formState.email.matches(Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) -> {
                         errorField = "email"; apiErrorMessage = "Enter a valid email address"; valid = false
                     }
                     formState.addressLine.isBlank() -> {
@@ -189,14 +185,14 @@ fun CustomerDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Primary_background)
+                    .background(Color.Transparent)
             ) {
 
                 // ── Header ──
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(whiteBg)
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -229,7 +225,7 @@ fun CustomerDetailScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .background(Color(0xFFF9FAFB))
+                        .background(Color.Transparent)
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp)
                         .padding(bottom = 90.dp)
@@ -325,7 +321,7 @@ fun OrderStatusStepper(
                         targetValue = when {
                             done -> Color(0xFF22C55E)     // Green completed
                             active -> Color(0xFF3F37F3)   // Vibrant Blue active
-                            else -> Color.White
+                            else -> whiteBg
                         },
                         animationSpec = tween(durationMillis = 300),
                         label = "circleColor"
@@ -356,13 +352,13 @@ fun OrderStatusStepper(
                             done -> Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = whiteBg,
                                 modifier = Modifier.size(14.dp)
                             )
                             active -> Box(
                                 modifier = Modifier
                                     .size(10.dp)
-                                    .background(Color.White, CircleShape)
+                                    .background(whiteBg, CircleShape)
                             )
                             else -> Text(
                                 text = "${index + 1}",
@@ -489,7 +485,10 @@ private fun PersonalInformationStep(
             var statusExpanded by remember { mutableStateOf(false) }
             var contactExpanded by remember { mutableStateOf(false) }
 
-            Column {
+            Column(
+                Modifier.fillMaxSize()
+                    .background(Color.Transparent)
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -680,7 +679,7 @@ fun AccordionSectionCard(
     onToggle: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val chevronRotation by androidx.compose.animation.core.animateFloatAsState(
+    val chevronRotation by animateFloatAsState(
         if (expanded) 180f else 0f, label = "accordion_chevron"
     )
 

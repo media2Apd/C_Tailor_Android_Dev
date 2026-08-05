@@ -1,3 +1,12 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter"
+)
 package com.cuso.mobile.view.composable
 
 import android.content.Intent
@@ -42,6 +51,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.LeadPrimary
 import com.cuso.mobile.view.home.LeadPrimarySoft
 
@@ -180,7 +190,7 @@ fun SelectableChipRow(
                         RoundedCornerShape(50.dp)
                     )
                     .background(
-                        if (isSelected) selectedBackground else Color.White,
+                        if (isSelected) selectedBackground else whiteBg,
                         RoundedCornerShape(50.dp)
                     )
                     .clickable {

@@ -8,7 +8,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -18,6 +17,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.whiteBg
 import kotlin.math.roundToInt
 
 /**
@@ -132,9 +132,9 @@ fun FabScaffold(
                     }
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(fab.label, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Text(fab.label, color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Spacer(Modifier.width(6.dp))
-                    Icon(fab.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(fab.icon, contentDescription = null, tint = whiteBg, modifier = Modifier.size(18.dp))
                 }
             }
         }

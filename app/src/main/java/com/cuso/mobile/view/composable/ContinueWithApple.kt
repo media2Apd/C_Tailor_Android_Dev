@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.whiteBg
+
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun ContinueWithApple(activity: Activity, navController: NavController) {
@@ -54,7 +56,7 @@ fun ContinueWithApple(activity: Activity, navController: NavController) {
                 contentPadding = PaddingValues(vertical = 0.dp, horizontal = 16.dp),
                 border = BorderStroke(1.dp, PrimaryBorder),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.White,
+                    containerColor = whiteBg,
                     contentColor = Color.Black
                 ),
                 shape = RoundedCornerShape(5.dp)

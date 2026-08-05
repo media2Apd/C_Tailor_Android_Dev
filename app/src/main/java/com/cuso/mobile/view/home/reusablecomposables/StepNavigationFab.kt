@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorForButton
 
 /**
@@ -110,7 +111,7 @@ fun BackFabButton(
         enabled = enabled,
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = Color.White,
+            containerColor = whiteBg,
             contentColor = Color(0xFF111827)
         ),
         border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
@@ -148,9 +149,9 @@ fun TrailingFabButton(
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = Primary,
-            contentColor = Color.White,
+            contentColor = whiteBg,
             disabledContainerColor = Primary.copy(alpha = 0.4f),   // ✅ NEW — visual dim when disabled
-            disabledContentColor = Color.White.copy(alpha = 0.7f)
+            disabledContentColor = whiteBg.copy(alpha = 0.7f)
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),

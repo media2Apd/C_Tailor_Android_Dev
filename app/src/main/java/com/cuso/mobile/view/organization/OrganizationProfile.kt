@@ -60,6 +60,7 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.BorderStroke
+import com.cuso.mobile.ui.theme.whiteBg
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
@@ -213,7 +214,7 @@ fun OrganizationProfile(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(whiteBg)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.Center,
@@ -232,7 +233,7 @@ fun OrganizationProfile(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
             ) {
                 Icon(
                     Icons.Default.PhotoLibrary,
@@ -255,7 +256,7 @@ fun OrganizationProfile(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
             ) {
                 Icon(
                     Icons.Default.CameraAlt,
@@ -299,7 +300,7 @@ fun OrganizationProfile(
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Remove",
-                        tint = Color.White,
+                        tint = whiteBg,
                         modifier = Modifier.size(14.dp)
                     )
                 }
@@ -309,7 +310,7 @@ fun OrganizationProfile(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(90.dp)
-                    .background(Color.White, RoundedCornerShape(8.dp))
+                    .background(whiteBg, RoundedCornerShape(8.dp))
                     .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
@@ -442,7 +443,7 @@ fun OrganizationProfile(
                     onCheckedChange = { taxEnabled = it },
                     modifier = Modifier.scale(0.8f),
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
+                        checkedThumbColor = whiteBg,
                         checkedTrackColor = Color.Green
                     )
                 )
@@ -520,7 +521,7 @@ fun OrganizationProfile(
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Blue,
-                    contentColor = Color.White
+                    contentColor = whiteBg
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
@@ -550,7 +551,7 @@ fun TermsScreen(
                 colors = CheckboxDefaults.colors(
                     checkedColor = Color.Blue,
                     uncheckedColor = Color.Gray,
-                    checkmarkColor = Color.White,
+                    checkmarkColor = whiteBg,
                     disabledCheckedColor = Color.LightGray,
                     disabledUncheckedColor = Color.LightGray
                 )
@@ -607,7 +608,7 @@ fun OrgTextField(
             unfocusedBorderColor = Color.LightGray,
             cursorColor = Color.Black,
             unfocusedContainerColor = Color(0xFFF2F2F2),
-            focusedContainerColor = Color.White
+            focusedContainerColor = whiteBg
         )
     )
 }
@@ -636,7 +637,7 @@ fun OrganizationDropdown(
                 .fillMaxWidth()
                 .height(40.dp)
                 .background(
-                    if (enabled) Color.White else Color(0xFFF3F4F6),
+                    if (enabled) whiteBg else Color(0xFFF3F4F6),
                     RoundedCornerShape(8.dp)
                 )
                 .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
@@ -669,7 +670,7 @@ fun OrganizationDropdown(
                     .heightIn(max = 250.dp),
                 shape = RoundedCornerShape(10.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = whiteBg)
             ) {
                 Column {
                     OutlinedTextField(
@@ -696,8 +697,8 @@ fun OrganizationDropdown(
                             unfocusedTextColor = Color.Black,
                             focusedBorderColor = Color.Blue,
                             unfocusedBorderColor = Color.LightGray,
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
+                            focusedContainerColor = whiteBg,
+                            unfocusedContainerColor = whiteBg,
                             cursorColor = Color.Black
                         ),
                         shape = RoundedCornerShape(8.dp)

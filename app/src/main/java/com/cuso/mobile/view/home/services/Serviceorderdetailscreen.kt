@@ -1,3 +1,12 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter"
+)
 package com.cuso.mobile.view.home.services
 
 import androidx.compose.foundation.BorderStroke
@@ -6,15 +15,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,6 +36,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.modelGray
+import com.cuso.mobile.ui.theme.whiteBg
 
 // ---------- Design tokens (derived from the reference screens) ----------
 private val AccentIndigo = Color(0xFF6C5CE7)
@@ -80,7 +91,8 @@ fun ServiceOrderDetailsScreen(
     onViewFullOrderHistory: () -> Unit = {}
 ) {
     Scaffold(
-        containerColor =Color.White ,
+        containerColor =Color.Transparent ,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
 
             TopAppBar(
@@ -94,10 +106,10 @@ fun ServiceOrderDetailsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TitleDark)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TitleDark)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = whiteBg)
             )
         }
     ) { padding ->
@@ -139,11 +151,23 @@ fun ServiceOrderDetailsScreen(
             SectionHeader(icon = Icons.Default.Build, title = "Requested Service")
             SectionCard {
                 LabeledValue("Service Category", service.serviceCategory)
-                Divider(color = SubtleBorder, modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    thickness = DividerDefaults.Thickness,
+                    color = SubtleBorder
+                )
                 LabeledValue("Preferred Completion Date", service.preferredCompletionDate)
-                Divider(color = SubtleBorder, modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    thickness = DividerDefaults.Thickness,
+                    color = SubtleBorder
+                )
                 LabeledValue("Priority Level", service.priority, valueColor = PriorityRedFg)
-                Divider(color = SubtleBorder, modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    thickness = DividerDefaults.Thickness,
+                    color = SubtleBorder
+                )
                 LabeledValue("Service Type", service.serviceType)
             }
 
@@ -153,11 +177,23 @@ fun ServiceOrderDetailsScreen(
             SectionHeader(icon = Icons.Default.Person, title = "Customer Details")
             SectionCard {
                 LabeledValue("Customer Name", service.customerName)
-                Divider(color = SubtleBorder, modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    thickness = DividerDefaults.Thickness,
+                    color = SubtleBorder
+                )
                 LabeledValue("Phone Number", service.phoneNumber)
-                Divider(color = SubtleBorder, modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    thickness = DividerDefaults.Thickness,
+                    color = SubtleBorder
+                )
                 LabeledValue("Email Address", service.emailAddress)
-                Divider(color = SubtleBorder, modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    thickness = DividerDefaults.Thickness,
+                    color = SubtleBorder
+                )
                 LabeledValue("Shipping Address", service.shippingAddress)
             }
 
@@ -285,7 +321,7 @@ fun ServiceOrderDetailsScreen(
 private fun SectionHeader(icon: androidx.compose.ui.graphics.vector.ImageVector?, title: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp).background(Color.White)
+        modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp).background(whiteBg)
     ) {
         if (icon != null) {
             Icon(icon, contentDescription = null, tint = AccentIndigo, modifier = Modifier.size(20.dp))

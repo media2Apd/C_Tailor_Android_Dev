@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cuso.mobile.ui.theme.lightGray
+import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Action Menu ──
 data class MenuAction(
@@ -73,12 +74,12 @@ data class DataCardField(
     val iconCircleSize: Dp = 24.dp
 )
 
-data class DataCardBadge(
-    val text: String,
-    val textColor: Color,
-    val backgroundColor: Color,
-    val cornerRadius: Dp = 20.dp
-)
+//data class DataCardBadge(
+//    val text: String,
+//    val textColor: Color,
+//    val backgroundColor: Color,
+//    val cornerRadius: Dp = 20.dp
+//)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,7 +115,7 @@ fun ActionDropdownMenu(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
-                color = Color.White,
+                color = whiteBg,
                 border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
                 shadowElevation = 0.dp,
                 tonalElevation = 0.dp
@@ -166,12 +167,12 @@ fun <T> DataCard(
     dateText: String? = null,
     dateIcon: ImageVector = Icons.Default.CalendarMonth,
     topBadgeText: String? = null,
-    topBadgeTextColor: Color = Color.White,
+    topBadgeTextColor: Color = whiteBg,
     topBadgeBgColor: Color = Color(0xFF3B3BF9),
     topBadgeCornerRadius: Dp = 20.dp,
     topBadgeInline: Boolean = false,
     bottomBadgeText: String? = null,
-    bottomBadgeTextColor: Color = Color.White,
+    bottomBadgeTextColor: Color = whiteBg,
     bottomBadgeBgColor: Color = Color(0xFF3B3BF9),
     bottomBadgeCornerRadius: Dp = 20.dp,
     eyebrowText: String? = null,
@@ -199,7 +200,7 @@ fun <T> DataCard(
             .let { m -> if (onClick != null) m.clickable { onClick(item) } else m },
         shape = RoundedCornerShape(0.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (containerBrush != null) Color.Transparent else Color.White
+            containerColor = if (containerBrush != null) Color.Transparent else whiteBg
         )
     ) {
         Column(

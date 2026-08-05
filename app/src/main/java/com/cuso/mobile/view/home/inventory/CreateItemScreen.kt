@@ -52,6 +52,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.cuso.mobile.model.inventory.ItemType
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.viewmodel.CreateItemUiState
 import com.cuso.mobile.viewmodel.InventoryViewModel
@@ -155,12 +156,13 @@ fun CreateItemScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
+                .background(Color.Transparent)
         ) {
             // ── Header ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(whiteBg)
                     .padding(horizontal = 20.dp, vertical = 18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -315,7 +317,7 @@ fun CreateItemScreen(
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Filled.Close, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Filled.Close, null, tint = whiteBg, modifier = Modifier.size(16.dp))
                                 }
                             }
                             Spacer(Modifier.height(8.dp))
@@ -557,7 +559,7 @@ fun AccordionSection(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFF7F7FA))
+                .background(Color.Transparent)
                 .clickable { onHeaderClick() }
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -652,7 +654,7 @@ private fun SegmentedOption(text: String, selected: Boolean, onClick: () -> Unit
             .padding(vertical = 5.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = if (selected) Color.White else LabelColor, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+        Text(text, color = if (selected) whiteBg else LabelColor, fontWeight = FontWeight.Medium, fontSize = 14.sp)
     }
 }
 

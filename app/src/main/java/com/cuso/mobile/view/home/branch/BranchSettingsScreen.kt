@@ -12,19 +12,13 @@ package com.cuso.mobile.view.home.branch
 
 import CreateBranchAddress
 import CreateBranchRequest
-import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -33,14 +27,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -49,26 +39,20 @@ import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.model.UpdateBranchAddress
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.ui.theme.BluePrimary
-import com.cuso.mobile.ui.theme.BorderGray
-import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.TitleColor
-import com.cuso.mobile.ui.theme.modelGray
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
-import com.cuso.mobile.view.home.reusablecomposables.BackFabButton
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabButton
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.BranchUiState
 import com.cuso.mobile.viewmodel.BranchViewModel
@@ -187,7 +171,7 @@ fun BranchSettingsScreen(
     // ── Scaffold with TopBar ──
     Scaffold(
         topBar = {
-            Surface(modifier = Modifier.fillMaxWidth(), color = Color.White) {
+            Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
                 Column {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -216,8 +200,11 @@ fun BranchSettingsScreen(
                     }
                 }
             }
-        }
-    ) { padding ->
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = Color.Transparent
+
+        ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             FabScaffold(
                 modifier = Modifier
@@ -239,7 +226,7 @@ fun BranchSettingsScreen(
                 ),
                 snackbarHostState = snackbarHostState
             ) {
-                Column(modifier = Modifier.fillMaxSize().background(modelGray)) {
+                Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
                     ScreenBreadcrumb(
                         segments = listOf("Settings", "Branches"),
                         onClick = { /* TODO: hook to modules panel */ }
@@ -277,7 +264,7 @@ fun BranchSettingsScreen(
                                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
                                             shape = RoundedCornerShape(8.dp)
                                         ) {
-                                            Text("Retry", color = Color.White)
+                                            Text("Retry", color = whiteBg)
                                         }
                                     }
                                 }
@@ -367,7 +354,7 @@ fun BranchSettingsScreen(
                 topInset = 48.dp,
                 maxBlurRadius = 14.dp,
                 maxScrimAlpha = 0.35f,
-                sheetBackgroundColor = Color.White,
+                sheetBackgroundColor = whiteBg,
                 collapsedCornerRadius = 24.dp,
                 dragCloseEnabled = true,
                 scrollableContent = true,
@@ -409,7 +396,7 @@ fun BranchSettingsScreen(
                     topInset = 48.dp,
                     maxBlurRadius = 14.dp,
                     maxScrimAlpha = 0.35f,
-                    sheetBackgroundColor = Color.White,
+                    sheetBackgroundColor = whiteBg,
                     collapsedCornerRadius = 24.dp,
                     dragCloseEnabled = true,
                     scrollableContent = true,
@@ -670,11 +657,11 @@ fun AddBranchSheetContent(
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = Color.White,
+                        color = whiteBg,
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Create Branch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                    Text("Create Branch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
                 }
             }
         }
@@ -857,11 +844,11 @@ fun EditBranchSheetContent(
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = Color.White,
+                        color = whiteBg,
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Update Branch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                    Text("Update Branch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
                 }
             }
         }

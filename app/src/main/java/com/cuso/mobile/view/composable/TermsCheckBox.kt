@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.whiteBg
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -45,7 +46,7 @@ fun TermsCheckbox(
             colors = CheckboxDefaults.colors(
                 checkedColor = Color.Blue,
                 uncheckedColor = Color.Gray,
-                checkmarkColor = Color.White,
+                checkmarkColor = whiteBg,
                 disabledCheckedColor = Color.LightGray,
                 disabledUncheckedColor = Color.LightGray
             )

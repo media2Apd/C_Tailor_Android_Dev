@@ -28,8 +28,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AppLogo
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.customFieldColors
 import com.cuso.mobile.viewmodel.Authenticate
@@ -101,11 +101,11 @@ fun ResetPassword(
                     .fillMaxWidth()
                     .border(
                         width = 2.dp,
-                        color = Color.White,
+                        color = whiteBg,
                         shape = RoundedCornerShape(15.dp)
                     ),
                 shape = RoundedCornerShape(15.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = whiteBg)
             ) {
                 Column(
                     modifier = Modifier
@@ -338,13 +338,13 @@ fun ResetPassword(
                             Text(
                                 text = "Resetting Password",
                                 fontSize = 14.sp,
-                                color = Color.White
+                                color = whiteBg
                             )
                         } else {
                             Text(
                                 text = "Reset Password",
                                 fontSize = 14.sp,
-                                color = Color.White
+                                color = whiteBg
                             )
                         }
                     }

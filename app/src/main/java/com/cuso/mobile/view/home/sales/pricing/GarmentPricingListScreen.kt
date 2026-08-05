@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
+import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
@@ -40,8 +42,7 @@ import com.cuso.mobile.viewmodel.GarmentPricingListUiState
 import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 
 private val Primary = Color(0xFF3B3BF9)
-private val TextMuted = Color(0xFF9CA3AF)
-private val TextDark = Color(0xFF111827)
+  private val TextDark = Color(0xFF111827)
 private val CardBorder = Color(0xFFF0F0F0)
 private val StripBg = Color(0xFFF9FAFB)
 
@@ -70,13 +71,13 @@ fun GarmentPricingListScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F7))
+                .background(Color.Transparent)
         ) {
             // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -114,7 +115,7 @@ fun GarmentPricingListScreen(
 
                     if (uniqueItems.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No pricing records yet", color = TextMuted, fontSize = 14.sp)
+                            Text("No pricing records yet", color = mutedText, fontSize = 14.sp)
                         }
                     } else {
                         Column(
@@ -150,7 +151,7 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                 onClick()
             },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column {
@@ -170,13 +171,13 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                     Text(
                         "Base ₹${item.basePrice.toInt()}",
                         fontSize = 12.sp,
-                        color = TextMuted
+                        color = mutedText
                     )
                 }
                 Icon(
                     Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = TextMuted,
+                    tint = mutedText,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -189,7 +190,7 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                     .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Total Price", fontSize = 12.sp, color = TextMuted)
+                Text("Total Price", fontSize = 12.sp, color = mutedText)
                 Text(
                     "₹${item.totalPrice.toInt()}",
                     fontSize = 13.sp,

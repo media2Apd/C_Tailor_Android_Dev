@@ -119,7 +119,7 @@
 //            shape = RoundedCornerShape(8.dp),
 //            colors = ButtonDefaults.buttonColors(
 //                containerColor = Color.Blue,
-//                contentColor = Color.White
+//                contentColor = whiteBg
 //            )
 //        ) {
 //            Text(

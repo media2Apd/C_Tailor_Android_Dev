@@ -1,3 +1,12 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter", "VariableNeverRead"
+)
 package com.cuso.mobile.view.home.services
 
 import androidx.compose.foundation.background
@@ -32,9 +41,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.TitleColor
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DashedUploadBox
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.SelectableChipRow
@@ -119,7 +127,7 @@ fun CreateServiceRequest(
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color.White
+                color = whiteBg
             ) {
                 Column {
                     Row(
@@ -137,7 +145,10 @@ fun CreateServiceRequest(
                     HorizontalDivider(color = BorderColor)
                 }
             }
-        }
+
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = Color.Transparent
 
     ) { paddingValues ->
         Box(
@@ -148,7 +159,7 @@ fun CreateServiceRequest(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Primary_background)
+                    .background(Color.Transparent)
                     .verticalScroll(rememberScrollState())
                     .padding(bottom = 90.dp) // clearance so content never sits under the FAB row
             ) {
@@ -443,7 +454,7 @@ fun AmountInputBox(
             .width(80.dp)
             .height(38.dp)
             .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(8.dp))
-            .background(Color.White, RoundedCornerShape(8.dp)),
+            .background(whiteBg, RoundedCornerShape(8.dp)),
         decorationBox = { innerTextField ->
             Box(
                 modifier = Modifier

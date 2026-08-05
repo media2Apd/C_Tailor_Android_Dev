@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.whiteBg
 
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.viewmodel.Authenticate
@@ -69,7 +70,7 @@ fun SignUpScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(whiteBg)
             // ✅ This long form (10+ fields, dropdowns, a picker) now scrolls
             // instead of relying on a Card that force-fills the screen, and
             // imePadding keeps whichever field is focused above the keyboard.
@@ -82,9 +83,9 @@ fun SignUpScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding()
-                .border(2.dp, Color.White, RoundedCornerShape(12.dp)),
+                .border(2.dp, whiteBg, RoundedCornerShape(12.dp)),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            colors = CardDefaults.cardColors(containerColor = whiteBg)
         ) {
 
             Column(
@@ -169,7 +170,7 @@ fun SignUpScreen(
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Blue,
-                        contentColor = Color.White
+                        contentColor = whiteBg
                     ),
                     shape = RoundedCornerShape(10.dp),
                     enabled = state !is UiState.Loading && isTermsAccepted

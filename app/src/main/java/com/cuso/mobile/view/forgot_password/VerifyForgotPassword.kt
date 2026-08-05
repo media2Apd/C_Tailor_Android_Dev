@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.cuso.mobile.view.composable.AppLogo
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CusoAppLogo
 import com.cuso.mobile.view.composable.ForgotOtpSelection
 
@@ -64,12 +64,12 @@ fun VerifyForgotPassword(navController: NavController, activity: Activity, submi
                     .fillMaxWidth()
                     .border(
                         width = 2.dp,
-                        color = Color.White,
+                        color = whiteBg,
                         shape = RoundedCornerShape(15.dp)
                     ),
                 shape = RoundedCornerShape(15.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color.White
+                    containerColor = whiteBg
                 ),
             ) {
                 Column(

@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Static data models ──
 data class PaymentHistoryEntry(
@@ -47,13 +48,13 @@ private val dummyPaymentHistory = listOf(
 fun PaymentDetailScreen(
     onClose: () -> Unit = {}
 ) {
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7))) {
+    Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
         // ── FIXED TOP HEADER ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -81,7 +82,7 @@ fun PaymentDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -109,7 +110,7 @@ fun PaymentDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -126,7 +127,7 @@ fun PaymentDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -171,7 +172,7 @@ fun PaymentDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {

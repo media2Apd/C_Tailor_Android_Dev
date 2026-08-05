@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.*
@@ -23,22 +22,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.viewmodel.Authenticate
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
+import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.TextSecondary
 
 // ── Data model for each settings row ──
 private data class SettingsMenuItem(
-    val icon: ImageVector,
+    val icon: Int,
     val iconBg: Color,
     val iconTint: Color,
     val title: String,
@@ -132,7 +134,7 @@ private fun ProfileSettingsContent(
 
     val organizationItems = listOf(
         SettingsMenuItem(
-            icon = Icons.Default.Business,
+            icon = R.drawable.ic_building,
             iconBg = Color(0xFFEDE9FE),
             iconTint = Color(0xFF6C4FF6),
             title = "Organization Setup",
@@ -143,7 +145,7 @@ private fun ProfileSettingsContent(
 
     val managementItems = listOf(
         SettingsMenuItem(
-            icon = Icons.Default.LocationOn,
+            icon = R.drawable.ic_location,
             iconBg = Color(0xFFDCEAFE),
             iconTint = Color(0xFF3B82F6),
             title = "Branch Management",
@@ -151,7 +153,7 @@ private fun ProfileSettingsContent(
             onClick = onBranchManagement
         ),
         SettingsMenuItem(
-            icon = Icons.Default.Business,
+            icon = R.drawable.ic_building,
             iconBg = Color(0xFFD1FAE5),
             iconTint = Color(0xFF10B981),
             title = "Department & Teams",
@@ -160,7 +162,7 @@ private fun ProfileSettingsContent(
         ),
 
         SettingsMenuItem(
-            icon = Icons.Default.Code,
+            icon = R.drawable.ic_code,
             iconBg = Color(0xFFFFEDD5),
             iconTint = Color(0xFFF97316),
             title = "Designation",
@@ -171,7 +173,7 @@ private fun ProfileSettingsContent(
 
     val supportItems = listOf(
         SettingsMenuItem(
-            icon = Icons.AutoMirrored.Filled.HelpOutline,
+            icon = R.drawable.ic_info,
             iconBg = Color(0xFFDCEAFE),
             iconTint = Color(0xFF3B82F6),
             title = "Help & Support",
@@ -189,7 +191,7 @@ private fun ProfileSettingsContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -220,7 +222,7 @@ private fun ProfileSettingsContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White, RoundedCornerShape(16.dp))
+                        .background(whiteBg, RoundedCornerShape(16.dp))
                         .padding(20.dp),
                     verticalAlignment = Alignment.Top
                 ) {
@@ -246,7 +248,7 @@ private fun ProfileSettingsContent(
                                     firstName.firstOrNull()?.let { append(it.uppercaseChar()) }
                                     lastName.firstOrNull()?.let { append(it.uppercaseChar()) }
                                 },
-                                color = Color.White,
+                                color = whiteBg,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 22.sp
                             )
@@ -363,7 +365,7 @@ private fun SettingsCardGroup(items: List<SettingsMenuItem>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(16.dp)),
+            .background(whiteBg, RoundedCornerShape(24.dp)),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         items.forEachIndexed { index, item ->
@@ -377,22 +379,22 @@ private fun SettingsCardGroup(items: List<SettingsMenuItem>) {
                 Box(
                     modifier = Modifier
                         .size(38.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(item.iconBg),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(item.icon, contentDescription = null, tint = item.iconTint, modifier = Modifier.size(18.dp))
+                    Icon( painterResource( item.icon), contentDescription = null, tint = item.iconTint, modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(item.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                    Text(item.subtitle, fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    Text(item.subtitle, fontSize = 11.sp, color = TextSecondary)
                 }
                 Icon(
                     Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = Color(0xFF9CA3AF),
-                    modifier = Modifier.size(18.dp)
+                    tint = TextSecondary,
+                    modifier = Modifier.size(20.dp)
                 )
             }
             if (index != items.lastIndex) {

@@ -28,7 +28,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Badge
@@ -41,14 +40,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,7 +58,7 @@ import com.cuso.mobile.model.UpdateOrganizationSettings
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.CountryAndStatePicker
 import com.cuso.mobile.view.composable.DynamicIslandError
@@ -72,12 +68,10 @@ import com.cuso.mobile.view.home.reusablecomposables.TabItem
 import com.cuso.mobile.view.organization.OrgLabel
 import com.cuso.mobile.view.organization.OrgOptions
 import com.cuso.mobile.view.organization.OrgOptions.companySizes
-import com.cuso.mobile.view.organization.OrganizationDropdown
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.ProfileUiState
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.UpdateOrgUiState
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import java.io.File
 
@@ -88,11 +82,11 @@ private object OrgTheme {
     val PrimaryLight = Color(0xFFEEF0FF)
     val TextPrimary = Color(0xFF111827)
     val TextSecondary = Color(0xFF6B7280)
-    val TextMuted = Color(0xFF9CA3AF)
+    val mutedText = Color(0xFF9CA3AF)
     val Border = Color(0xFFE5E7EB)
     val Divider = Color(0xFFF0F0F0)
     val PageBg = Color(0xFFF5F5F5)
-    val InputBg = Color.White
+    val InputBg = whiteBg
 }
 
 @Suppress("UNUSED_PARAMETER")
@@ -127,13 +121,13 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(OrgTheme.PageBg)
+            .background(Primary_background)
     ) {
         // ── Header ──
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             Row(
@@ -164,7 +158,7 @@ fun SettingsScreen(
             selectedIndex = selectedTab,
             onTabSelected = { selectedTab = it },
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            containerColor = Color.White,
+            containerColor = whiteBg,
             selectedBackgroundColor = Color(0xFFEEF0FF),
             selectedTextColor = Primary,
             unselectedTextColor = TextSecondary,
@@ -222,7 +216,7 @@ private fun SectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(whiteBg)
             .padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
@@ -256,7 +250,7 @@ private fun SectionHeader(
 @Composable
 fun OrgInfoRow(label: String, value: String) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = OrgTheme.TextMuted)
+        Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = OrgTheme.mutedText)
         Text(text = value.ifEmpty { "-" }, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = OrgTheme.TextPrimary)
     }
 }
@@ -304,9 +298,9 @@ private fun LogoDisplayView(pictureUrl: String?) {
             )
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.Business, contentDescription = null, tint = OrgTheme.TextMuted, modifier = Modifier.size(32.dp))
+                Icon(Icons.Default.Business, contentDescription = null, tint = OrgTheme.mutedText, modifier = Modifier.size(32.dp))
                 Spacer(Modifier.height(4.dp))
-                Text("No Logo", color = OrgTheme.TextMuted, fontSize = 12.sp)
+                Text("No Logo", color = OrgTheme.mutedText, fontSize = 12.sp)
             }
         }
     }
@@ -386,7 +380,7 @@ private fun EditFooter(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(whiteBg)
             .border(width = 1.dp, color = OrgTheme.Divider)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -410,7 +404,7 @@ private fun EditFooter(
             if (isSaving) {
                 CirculerProgressIndicatorSmall()
             } else {
-                Text("Save Changes", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                Text("Save Changes", color = whiteBg, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -526,7 +520,7 @@ fun ProfileTab(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color.White)
+                                    .background(whiteBg)
                                     .padding(horizontal = 16.dp, vertical = 8.dp)
                             ) {
                                 SectionHeader(
@@ -597,7 +591,7 @@ fun ProfileTab(
                                         "Business ID" to org.businessId,
                                         "Email" to org.email,
                                         "Mobile" to org.mobile,
-                                        "Plan Status" to org.subscription.status,
+                                        "Plan " to (org.plan?.name ?: "plan not found"),
                                         "Status" to org.status
                                     )
                                     rows.forEachIndexed { index, (label, value) ->
@@ -605,53 +599,66 @@ fun ProfileTab(
                                         Spacer(Modifier.height(14.dp))
                                         if (index != rows.lastIndex) {
                                             HorizontalDivider(color = OrgTheme.Divider)
-                                            Spacer(Modifier.height(14.dp))
+
                                         }
                                     }
 
-                                    if (stats != null) {
-                                        Spacer(Modifier.height(8.dp))
-                                        HorizontalDivider(color = OrgTheme.Divider)
-                                        Spacer(Modifier.height(20.dp))
 
-                                        val plan = state.data.organization.plan
+                                }
+
+                            }
+                        }
+                        item {
+                            Column(
+                                Modifier.fillMaxWidth()
+                            ) {
+                                if (stats != null) {
+                                    Spacer(Modifier.height(8.dp))
+                                    HorizontalDivider(color = OrgTheme.Divider)
+
+                                    val plan = state.data.organization.plan
+                                    Row(
+                                        Modifier.fillMaxWidth()
+                                            .background(whiteBg)
+                                            .padding(horizontal = 20.dp, vertical = 10.dp)
+                                    ) {
                                         Text(
                                             "Subscription Usage",
                                             fontSize = 17.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = OrgTheme.TextPrimary
                                         )
-                                        Spacer(Modifier.height(16.dp))
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            SubscriptionRing(
-                                                modifier = Modifier.weight(1f),
-                                                label = "Orders",
-                                                used = 0,
-                                                limit = plan?.orderLimit ?: 100
-                                            )
-                                            SubscriptionRing(
-                                                modifier = Modifier.weight(1f),
-                                                label = "Employees",
-                                                used = org.activeMembers,
-                                                limit = plan?.employeeLimit
-                                                    ?: org.totalMembers.coerceAtLeast(1)
-                                            )
-                                            SubscriptionRing(
-                                                modifier = Modifier.weight(1f),
-                                                label = "Branches",
-                                                used = stats.totalBranches,
-                                                limit = plan?.branchLimit
-                                                    ?: stats.totalBranches.coerceAtLeast(1)
-                                            )
-                                        }
-                                        Spacer(Modifier.height(24.dp))
-                                    } else {
-                                        Spacer(Modifier.height(8.dp))
                                     }
+                                    Spacer(Modifier.height(16.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        SubscriptionRing(
+                                            modifier = Modifier.weight(1f),
+                                            label = "Orders",
+                                            used = 0,
+                                            limit = plan?.orderLimit ?: 100
+                                        )
+                                        SubscriptionRing(
+                                            modifier = Modifier.weight(1f),
+                                            label = "Employees",
+                                            used = org.activeMembers,
+                                            limit = plan?.employeeLimit
+                                                ?: org.totalMembers.coerceAtLeast(1)
+                                        )
+                                        SubscriptionRing(
+                                            modifier = Modifier.weight(1f),
+                                            label = "Branches",
+                                            used = stats.totalBranches,
+                                            limit = plan?.branchLimit
+                                                ?: stats.totalBranches.coerceAtLeast(1)
+                                        )
+                                    }
+                                    Spacer(Modifier.height(35.dp))
+                                } else {
+                                    Spacer(Modifier.height(8.dp))
                                 }
                             }
                         }
@@ -771,7 +778,7 @@ fun LocalizationTab(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White)
+                            .background(whiteBg)
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         SectionHeader(
@@ -1012,6 +1019,6 @@ fun SubscriptionRing(
         }
         Text(text = label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrgTheme.TextPrimary)
         Text(text = "$used / $limit", fontSize = 12.sp, color = OrgTheme.TextSecondary)
-        Text(text = "$remaining remaining", fontSize = 12.sp, color = OrgTheme.TextMuted)
+        Text(text = "$remaining remaining", fontSize = 12.sp, color = OrgTheme.mutedText)
     }
 }

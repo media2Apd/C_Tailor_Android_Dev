@@ -43,6 +43,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.style.TextOverflow
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.whiteBg
 
 
 @Composable
@@ -64,7 +65,7 @@ fun LoginOtpSelection(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(whiteBg)
             .border(2.dp, Color.LightGray, shape = RoundedCornerShape(8.dp))
             .padding(16.dp)
     ) {
@@ -184,7 +185,7 @@ fun LoginOtpSelection(
             .height(50.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = Primary,
-            contentColor = Color.White
+            contentColor = whiteBg
         ),
         shape = RoundedCornerShape(8.dp)
     ) {

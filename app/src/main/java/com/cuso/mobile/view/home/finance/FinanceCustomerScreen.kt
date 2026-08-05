@@ -29,6 +29,7 @@ import com.cuso.mobile.model.sales.CustomerItemV2
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -41,7 +42,7 @@ import com.cuso.mobile.viewmodel.FinanceViewModel
 private val CustPrimary = Color(0xFF3B3BF9)
 private val CustPrimarySoft = Color(0xFFEEEEFE)
 private val CustTextDark = Color(0xFF111827)
-private val CustTextMuted = Color(0xFF9CA3AF)
+private val CustmutedText = Color(0xFF9CA3AF)
 private val CustGreen = Color(0xFF22C55E)
 private val CustRed = Color(0xFFEF4444)
 private val CustYellow = Color(0xFFF59E0B)
@@ -170,7 +171,7 @@ fun FinanceCustomerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CustBgLight)
+            .background(Color.Transparent)
     ) {
 
 
@@ -196,7 +197,7 @@ fun FinanceCustomerScreen(
                             Icon(
                                 Icons.Default.PersonOff,
                                 null,
-                                tint = CustTextMuted,
+                                tint = CustmutedText,
                                 modifier = Modifier.size(48.dp)
                             )
                             Spacer(Modifier.height(8.dp))
@@ -205,7 +206,7 @@ fun FinanceCustomerScreen(
                                     "No matching customers found"
                                 else "No customers yet",
                                 fontSize = 14.sp,
-                                color = CustTextMuted
+                                color = CustmutedText
                             )
                         }
                     }
@@ -220,7 +221,7 @@ fun FinanceCustomerScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.White)
+                                .background(whiteBg)
                         ) {
 
                             // Title row
@@ -251,7 +252,6 @@ fun FinanceCustomerScreen(
                             Column(
                                 Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFFF8F9FF))
                             ) {
                                 ScreenBreadcrumb(
                                     segments = listOf("Finance", "Customer"),
@@ -403,7 +403,7 @@ fun CustomerDetailScreenStatic(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -458,7 +458,7 @@ fun CustomerDetailScreenStatic(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(whiteBg)
                         .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
                     Text(customer.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = CustTextDark)
@@ -466,14 +466,14 @@ fun CustomerDetailScreenStatic(
                     Spacer(Modifier.height(6.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Phone, contentDescription = null, tint = CustTextMuted, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Phone, contentDescription = null, tint = CustmutedText, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(customer.mobile, fontSize = 14.sp, color = CustTextMuted)
+                        Text(customer.mobile, fontSize = 14.sp, color = CustmutedText)
                         Spacer(Modifier.width(20.dp))
 
-                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = CustTextMuted, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = CustmutedText, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(formatDate(customer.createdAt), fontSize = 14.sp, color = CustTextMuted)
+                        Text(formatDate(customer.createdAt), fontSize = 14.sp, color = CustmutedText)
                     }
                 }
                 HorizontalDivider(color = Color(0xFFEEEEEE))
@@ -485,7 +485,7 @@ fun CustomerDetailScreenStatic(
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .height(44.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color.White)
+                        .background(whiteBg)
                         .border(1.dp, Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
                         .padding(6.dp)
                 ) {
@@ -533,7 +533,7 @@ private fun TabButtonStatic(
             label,
             fontSize = 14.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isSelected) CustPrimary else CustTextMuted
+            color = if (isSelected) CustPrimary else CustmutedText
         )
     }
 }
@@ -555,7 +555,7 @@ private fun CustomerOverviewTab(customer: StaticCustomer) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(IntrinsicSize.Min)          // 👈 add this
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(vertical = 10.dp)
                     .padding(horizontal = 14.dp)
 
@@ -565,7 +565,7 @@ private fun CustomerOverviewTab(customer: StaticCustomer) {
                     modifier = Modifier
                         .weight(1f)
                 ) {
-                    Text("Outstanding Receivables", fontSize = 12.sp, color = CustTextMuted)
+                    Text("Outstanding Receivables", fontSize = 12.sp, color = CustmutedText)
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "₹ ${formatIndianNumber(customer.outstanding)}",
@@ -579,7 +579,7 @@ private fun CustomerOverviewTab(customer: StaticCustomer) {
                     modifier = Modifier
                         .fillMaxHeight()
                         .width(1.dp),
-                    color = CustTextMuted
+                    color = CustmutedText
                 )
 
                 Column(
@@ -587,7 +587,7 @@ private fun CustomerOverviewTab(customer: StaticCustomer) {
                         .weight(1f)
                         .padding(horizontal = 14.dp)
                 ) {
-                    Text("Unused Credits", fontSize = 12.sp, color = CustTextMuted)
+                    Text("Unused Credits", fontSize = 12.sp, color = CustmutedText)
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "₹ ${formatIndianNumber(0)}",
@@ -608,7 +608,7 @@ private fun CustomerOverviewTab(customer: StaticCustomer) {
 
             ) {
                 Row(
-                    Modifier.background(Color.White)
+                    Modifier.background(whiteBg)
                         .padding(14.dp)
                         .fillMaxWidth()
                 ) {
@@ -637,7 +637,7 @@ private fun CustomerOverviewTab(customer: StaticCustomer) {
 
             ) {
                 Row(
-                    Modifier.background(Color.White)
+                    Modifier.background(whiteBg)
                         .padding(14.dp)
                         .fillMaxWidth()
                 ) {
@@ -667,7 +667,7 @@ private fun InfoRow(label: String, value: String) {
         Text(
             label,
             fontSize = 12.sp,
-            color = CustTextMuted
+            color = CustmutedText
         )
         Spacer(Modifier.height(2.dp))
         Text(
@@ -704,7 +704,7 @@ private fun AddressRow(label: String, value: String) {
             Icon(
                 Icons.Default.LocationOn,
                 contentDescription = null,
-                tint = CustTextMuted,
+                tint = CustmutedText,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(Modifier.width(8.dp))
@@ -735,7 +735,7 @@ private fun CustomerTransactionsTab() {
 
     ) {
         Row(
-            Modifier.background(Color.White)
+            Modifier.background(whiteBg)
                 .padding(14.dp)
                 .fillMaxWidth()
         ) {
@@ -775,7 +775,7 @@ private fun CustomerTransactionsTab() {
                 Text(
                     "No Transactions Found",
                     fontSize = 14.sp,
-                    color = CustTextMuted
+                    color = CustmutedText
                 )
             }
         }

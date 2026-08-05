@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.FormLabel
@@ -154,13 +155,13 @@ fun DesignationScreen(
     val pagedDesignations = filteredDesignations.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7))) {
+        Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
             // ── HEADER - Always solid (NO BLUR) ──
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Row(
@@ -229,7 +230,7 @@ fun DesignationScreen(
                                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
                                             shape = RoundedCornerShape(8.dp)
                                         ) {
-                                            Text("Retry", color = Color.White)
+                                            Text("Retry", color = whiteBg)
                                         }
                                     }
                                 }
@@ -272,7 +273,7 @@ fun DesignationScreen(
                                                 )
                                             }
                                         }
-                                        Box(modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))) {
+                                        Box(modifier = Modifier.fillMaxWidth().background(whiteBg, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))) {
                                             Column {
                                                 HorizontalDivider(color = Color(0xFFF0F0F0))
                                                 Row(
@@ -335,9 +336,9 @@ fun DesignationScreen(
                         .align(Alignment.BottomEnd)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Add Designation", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text("Add Designation", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         Spacer(Modifier.width(6.dp))
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, tint = whiteBg, modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -363,7 +364,7 @@ fun DesignationScreen(
             onBlurScrimChange = { blur, _ ->
                 addSheetBlur = blur
             },
-            sheetBackgroundColor = Color.White,
+            sheetBackgroundColor = whiteBg,
             maxScrimAlpha = 0.4f,
             maxBlurRadius = 14.dp
         ) {
@@ -400,7 +401,7 @@ fun DesignationScreen(
                 onBlurScrimChange = { blur, _ ->
                     editSheetBlur = blur
                 },
-                sheetBackgroundColor = Color.White,
+                sheetBackgroundColor = whiteBg,
                 maxScrimAlpha = 0.4f,
                 maxBlurRadius = 14.dp
             ) {
@@ -543,7 +544,7 @@ fun AddDesignationSheetContent(
                 if (isLoading) {
                     CirculerProgressIndicatorReuse()
                 } else {
-                    Text("Create", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text("Create", color = whiteBg, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -643,7 +644,7 @@ fun EditDesignationSheetContent(
                 if (isLoading) {
                     CirculerProgressIndicatorReuse()
                 } else {
-                    Text("Update", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text("Update", color = whiteBg, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -691,7 +692,7 @@ fun DeleteConfirmationDialog(
                 if (isLoading) {
                     CirculerProgressIndicatorReuse()
                 } else {
-                    Text("Delete", color = Color.White)
+                    Text("Delete", color = whiteBg)
                 }
             }
         },
@@ -703,7 +704,7 @@ fun DeleteConfirmationDialog(
                 Text("Cancel", color = Color(0xFF6B7280))
             }
         },
-        containerColor = Color.White,
+        containerColor = whiteBg,
         shape = RoundedCornerShape(16.dp)
     )
 }

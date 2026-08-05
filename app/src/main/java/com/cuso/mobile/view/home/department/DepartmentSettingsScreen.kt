@@ -10,16 +10,11 @@ package com.cuso.mobile.view.home.department
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -29,14 +24,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -45,24 +35,20 @@ import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimits
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
-import com.cuso.mobile.view.home.reusablecomposables.BackFabButton
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabButton
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.DepartmentUiState
 import com.cuso.mobile.viewmodel.DepartmentViewModel
@@ -191,10 +177,10 @@ fun DepartmentSettingsScreen(
             ),
             snackbarHostState = snackbarHostState
         ) {
-            Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7))) {
+            Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
                 Column(
-                    modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 16.dp, vertical = 12.dp)
+                    modifier = Modifier.fillMaxWidth().background(whiteBg).padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -235,7 +221,7 @@ fun DepartmentSettingsScreen(
                                     Text("Something went wrong, Please try again later", color = Color.Red)
                                     Spacer(Modifier.height(12.dp))
                                     Button(onClick = { departmentViewModel.refresh() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(8.dp)) {
-                                        Text("Retry", color = Color.White)
+                                        Text("Retry", color = whiteBg)
                                     }
                                 }
                             }
@@ -277,7 +263,7 @@ fun DepartmentSettingsScreen(
                                             )
                                         }
                                     }
-                                    Box(modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))) {
+                                    Box(modifier = Modifier.fillMaxWidth().background(whiteBg, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))) {
                                         Column {
                                             HorizontalDivider(color = Color(0xFFF0F0F0))
                                             Row(
@@ -323,7 +309,7 @@ fun DepartmentSettingsScreen(
             topInset = 48.dp,
             maxBlurRadius = 14.dp,
             maxScrimAlpha = 0.35f,
-            sheetBackgroundColor = Color.White,
+            sheetBackgroundColor = whiteBg,
             collapsedCornerRadius = 24.dp,
             dragCloseEnabled = true,
             scrollableContent = true,
@@ -370,7 +356,7 @@ fun DepartmentSettingsScreen(
                 topInset = 48.dp,
                 maxBlurRadius = 14.dp,
                 maxScrimAlpha = 0.35f,
-                sheetBackgroundColor = Color.White,
+                sheetBackgroundColor = whiteBg,
                 collapsedCornerRadius = 24.dp,
                 dragCloseEnabled = true,
                 scrollableContent = true,
@@ -548,11 +534,11 @@ fun AddDepartmentSheetContent(
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = Color.White,
+                        color = whiteBg,
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Create ", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                    Text("Create ", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
                 }
             }
         }
@@ -700,11 +686,11 @@ fun EditDepartmentSheetContent(
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = Color.White,
+                        color = whiteBg,
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Update ", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                    Text("Update ", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
                 }
             }
         }

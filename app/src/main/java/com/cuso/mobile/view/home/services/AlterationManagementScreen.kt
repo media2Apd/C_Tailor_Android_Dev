@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.TitleColor
-import com.cuso.mobile.ui.theme.modelGray
+import com.cuso.mobile.ui.theme.whiteBg
 
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -121,7 +121,7 @@ fun AlterationManagementScreen(
 
     Scaffold(
         topBar = {
-            Surface(modifier = Modifier.fillMaxWidth(), color = Color.White) {
+            Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
                 Column {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -139,7 +139,9 @@ fun AlterationManagementScreen(
 
                 }
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = Color.Transparent
     ) { padding ->
         FabScaffold(
             modifier = Modifier
@@ -154,7 +156,7 @@ fun AlterationManagementScreen(
                 draggable = true
             )
         ) {
-            Column(modifier = Modifier.fillMaxSize().background(modelGray)) {
+            Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
                 ScreenBreadcrumb(
                     segments = listOf("Services", "Alteration Management"),
                     onClick = onBreadcrumbClick

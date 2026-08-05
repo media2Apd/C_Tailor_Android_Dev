@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.viewmodel.UiState
 
 @Composable
@@ -90,7 +91,7 @@ fun ForgotOtpSelection(
             .height(50.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = Color.Blue,
-            contentColor = Color.White
+            contentColor = whiteBg
         ),
         shape = RoundedCornerShape(8.dp)
     ) {

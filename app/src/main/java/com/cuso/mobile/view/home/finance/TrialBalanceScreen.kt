@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -78,12 +79,13 @@ fun TrialBalanceScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Color.Transparent)
     ) {
         // ── Title bar ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -97,7 +99,7 @@ fun TrialBalanceScreen(
             )
         }
 
-        Column(Modifier.background(PanelBg)) {
+        Column {
             // ── Breadcrumb ──
             ScreenBreadcrumb(
                 segments = listOf("Finance", "Trial Balance"),
@@ -213,7 +215,7 @@ private fun TotalSummaryCard(totalDebit: Double, totalCredit: Double, imbalance:
                     .background(BluePrimary),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.BarChart, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.BarChart, contentDescription = null, tint = whiteBg, modifier = Modifier.size(16.dp))
             }
         }
         HorizontalDivider(color = BorderGray, modifier = Modifier.padding(vertical = 12.dp))

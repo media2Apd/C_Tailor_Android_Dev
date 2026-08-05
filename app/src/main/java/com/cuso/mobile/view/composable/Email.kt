@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.ui.theme.whiteBg
 
 @Composable
 fun Email(
@@ -30,8 +31,8 @@ fun Email(
             shape = RoundedCornerShape(9),
             singleLine = true,
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
+                focusedContainerColor = whiteBg,
+                unfocusedContainerColor = whiteBg,
                 focusedIndicatorColor = Color.Black,
                 unfocusedIndicatorColor = Color.Gray,
                 cursorColor = Color.Black,

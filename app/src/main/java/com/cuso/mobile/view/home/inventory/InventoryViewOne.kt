@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.toHealthDisplay
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -71,7 +72,7 @@ fun InventoryViewOne(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(whiteBg)
     ) {
         // ── Header ──
         Row(
@@ -136,7 +137,7 @@ fun InventoryViewOne(
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)
                         ) {
-                            Text("Adjust Stock", fontWeight = FontWeight.Medium, color = Color.White)
+                            Text("Adjust Stock", fontWeight = FontWeight.Medium, color = whiteBg)
                         }
 
                         Spacer(Modifier.height(16.dp))
@@ -221,7 +222,7 @@ private fun TabChip(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val bg = if (selected) Color.White else Color.Transparent
+    val bg = if (selected) whiteBg else Color.Transparent
     val fg = if (selected) PurplePrimary else TextGray
     Row(
         modifier = modifier
@@ -290,7 +291,7 @@ private fun OverviewContent(
     ) {
         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(6.dp))
-        Text("Adjust Stock", fontWeight = FontWeight.Medium, color = Color.White)
+        Text("Adjust Stock", fontWeight = FontWeight.Medium, color = whiteBg)
     }
     Spacer(Modifier.height(10.dp))
     OutlinedActionButton(
@@ -376,7 +377,7 @@ private fun InventoryHealthCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         statusLabel.uppercase(),
-                        color = Color.White,
+                        color = whiteBg,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -399,7 +400,7 @@ private fun InventoryHealthCard(
                 Icon(
                     Icons.Filled.Check,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = whiteBg,
                     modifier = Modifier.size(15.dp)
                 )
             }
@@ -428,7 +429,7 @@ private fun HealthMetric(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
-    valueColor: Color = Color.White
+    valueColor: Color = whiteBg
 ) {
     Column(modifier = modifier) {
         Text(label, color = TextGray, fontSize = 11.sp)
@@ -470,7 +471,7 @@ private fun QuickInsightCard(item: InventoryItem) {
         Icon(Icons.Outlined.Lightbulb, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(10.dp))
         Column {
-            Text("Quick Insight", fontWeight = FontWeight.SemiBold, fontSize = 14.sp,color=Color.White)
+            Text("Quick Insight", fontWeight = FontWeight.SemiBold, fontSize = 14.sp,color=whiteBg)
             Spacer(Modifier.height(4.dp))
             Text(
                 "Demand for ${item.name} has been changing recently. Review reorder point and current stock to avoid stockouts.",

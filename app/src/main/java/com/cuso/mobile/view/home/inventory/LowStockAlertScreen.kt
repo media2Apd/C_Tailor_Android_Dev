@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,7 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cuso.mobile.ui.theme.modelGray
+import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Your existing reusables ──
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
@@ -171,7 +172,7 @@ fun LowStockAlertsScreen(
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color.White
+                color = whiteBg
             ) {
                 Column {
                     Row(
@@ -179,6 +180,7 @@ fun LowStockAlertsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .background(whiteBg)
                             .padding(16.dp)
                     ) {
                         Text("All Orders", fontSize = 22.sp, fontWeight = FontWeight.Bold)
@@ -188,7 +190,9 @@ fun LowStockAlertsScreen(
                     }
                 }
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = Color.Transparent
         // ❌ floatingActionButton slot removed — FabScaffold handles it now
     ) { padding ->
         FabScaffold(
@@ -204,7 +208,7 @@ fun LowStockAlertsScreen(
                 draggable = true
             )
         ) {
-            Column(modifier = Modifier.fillMaxSize().background(modelGray)) {
+            Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
                 ScreenBreadcrumb(
                     segments = listOf("Inventory", "Alerts & Reorder", "Low Stock Alerts"),
                     onClick = onBreadcrumbClick

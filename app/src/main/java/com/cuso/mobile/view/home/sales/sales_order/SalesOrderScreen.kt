@@ -56,6 +56,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.whiteBg
 
 // ─────────────────────────────────────────────────────────────
 // Screen
@@ -139,13 +140,13 @@ fun SalesOrderScreen(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
 
-            Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7))) {
+            Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
                 // ── FIXED TOP HEADER ──
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(whiteBg)
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(
@@ -170,7 +171,6 @@ fun SalesOrderScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF8F9FF))
                 ) {
                     ScreenBreadcrumb(segments = listOf("Sales", "Sales Orders"), onClick = { onBreadCrumbClick() })
                     SearchFilterBar(
@@ -215,7 +215,7 @@ fun SalesOrderScreen(
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
                                         shape = RoundedCornerShape(8.dp)
                                     ) {
-                                        Text("Retry", color = Color.White)
+                                        Text("Retry", color = whiteBg)
                                     }
                                 }
                             }
@@ -267,35 +267,35 @@ fun SalesOrderScreen(
                                     }
 
                                     // ── Pagination Footer ──
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Color.White, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                                    ) {
-                                        Column {
-                                            HorizontalDivider(color = Color(0xFFF0F0F0))
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                val from = if (total == 0) 0 else (page - 1) * itemsPerPage + 1
-                                                val to = minOf(page * itemsPerPage, total)
-                                                Text("Showing $from - $to of $total", fontSize = 13.sp, color = Color(0xFF6B7280))
-                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                    IconButton(onClick = { if (page > 1) page-- }, enabled = page > 1, modifier = Modifier.size(28.dp)) {
-                                                        Icon(Icons.Default.ChevronLeft, "Previous", tint = if (page > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
-                                                    }
-                                                    Text("$page - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
-                                                    IconButton(onClick = { if (page < totalPages) page++ }, enabled = page < totalPages, modifier = Modifier.size(28.dp)) {
-                                                        Icon(Icons.Default.ChevronRight, "Next", tint = if (page < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+//                                    Box(
+//                                        modifier = Modifier
+//                                            .fillMaxWidth()
+//                                            .background(whiteBg, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+//                                    ) {
+//                                        Column {
+//                                            HorizontalDivider(color = Color(0xFFF0F0F0))
+//                                            Row(
+//                                                modifier = Modifier
+//                                                    .fillMaxWidth()
+//                                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+//                                                verticalAlignment = Alignment.CenterVertically,
+//                                                horizontalArrangement = Arrangement.SpaceBetween
+//                                            ) {
+//                                                val from = if (total == 0) 0 else (page - 1) * itemsPerPage + 1
+//                                                val to = minOf(page * itemsPerPage, total)
+//                                                Text("Showing $from - $to of $total", fontSize = 13.sp, color = Color(0xFF6B7280))
+//                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+//                                                    IconButton(onClick = { if (page > 1) page-- }, enabled = page > 1, modifier = Modifier.size(28.dp)) {
+//                                                        Icon(Icons.Default.ChevronLeft, "Previous", tint = if (page > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
+//                                                    }
+//                                                    Text("$page - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
+//                                                    IconButton(onClick = { if (page < totalPages) page++ }, enabled = page < totalPages, modifier = Modifier.size(28.dp)) {
+//                                                        Icon(Icons.Default.ChevronRight, "Next", tint = if (page < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
+//                                                    }
+//                                                }
+//                                            }
+//                                        }
+//                                    }
                                 }
                             }
                         }

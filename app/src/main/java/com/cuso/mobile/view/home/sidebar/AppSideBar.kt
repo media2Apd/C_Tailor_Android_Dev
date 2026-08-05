@@ -1,5 +1,15 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter", "VariableNeverRead"
+)
 package com.cuso.mobile.view.home.sidebar
 
+import android.annotation.SuppressLint
 import android.content.Context
 import com.cuso.mobile.model.User
 import androidx.compose.animation.AnimatedVisibility
@@ -56,9 +66,10 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
 import com.cuso.mobile.view.home.reusablecomposables.SheetValue
-import com.cuso.mobile.view.home.reusablecomposables.blurScrim
 
 // ─────────────────────────────────────────────────────────────
 // Data Classes for Menu Configuration
@@ -383,7 +394,7 @@ private fun AppSidebarContent(
                 modifier = Modifier
                     .width(if (isPanelMode) 86.dp else 280.dp)
                     .fillMaxHeight()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .border(0.5.dp, Color(0xFFE0E0E0)),
                 menuItems = menuItems,
                 selectedMenu = selectedMenu,
@@ -400,7 +411,7 @@ private fun AppSidebarContent(
                     modifier = Modifier
                         .width(220.dp)
                         .fillMaxHeight()
-                        .background(Color.White),
+                        .background(whiteBg),
                     selectedMenu = selectedMenu,
                     activeCategories = activeCategories,
                     activeSubItems = activeSubItems,
@@ -532,7 +543,7 @@ private fun SidebarIconRail(
                             contentDescription = item.label,
                             tint = when {
                                 !item.enabled -> Color(0xFFD1D5DB)
-                                isSelected    -> Color.White
+                                isSelected    -> whiteBg
                                 else          -> Color(0xFF6B7280)
                             },
                             modifier = Modifier.size(22.dp)
@@ -543,7 +554,7 @@ private fun SidebarIconRail(
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             color = when {
                                 !item.enabled -> Color(0xFFD1D5DB)
-                                isSelected    -> Color.White
+                                isSelected    -> whiteBg
                                 else          -> Color(0xFF111827)
                             }
                         )
@@ -608,7 +619,7 @@ fun SidebarUserProfile(
             ) {
                 Text(
                     text = initials,
-                    color = Color.White,
+                    color = whiteBg,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp
                 )
@@ -639,7 +650,7 @@ fun SidebarUserProfile(
         onDismissRequest = { onMenuExpandedChange(false) },
         offset = DpOffset(x = 10.dp, y = (-90).dp),
         shape = RoundedCornerShape(8.dp),
-        containerColor = Color.White,
+        containerColor = whiteBg,
         tonalElevation = 8.dp,
         shadowElevation = 12.dp
     ) {
@@ -838,7 +849,7 @@ private data class FrequentModule(
     val label: String,
     val icon: Int,
     val bg: Color,
-    val tint: Color = Color.White
+    val tint: Color = whiteBg
 )
 
 private fun buildFrequentlyUsed(context: Context, menuItems: List<MenuItem>): List<FrequentModule> {
@@ -887,9 +898,105 @@ fun ModulesPanel(
     )
 }
 
+/**
+ * Modules panel header — title row + close icon + divider + search field.
+ * Matches the design exactly: solid white background across the entire
+ * header block (title, divider, and search bar all share one white surface).
+ */
+@Composable
+fun ModulesPanelHeader(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // ✅ Single Column wrapping everything — this is what guarantees
+    // one continuous white surface behind title + divider + search bar.
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(whiteBg)
+    ) {
+        // ── Title row ──────────────────────────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Modules",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111827)
+            )
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Close",
+                tint = Color(0xFF374151),
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onClose() }
+            )
+        }
+
+        // ── Divider ────────────────────────────────────────────
+        HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 1.dp)
+
+        // ── Search field ───────────────────────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp)
+                .background(whiteBg)
+                .padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = Color(0xFF9CA3AF),
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            BasicTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
+                cursorBrush = SolidColor(Color(0xFF3B3BF9)),
+                decorationBox = { inner ->
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (searchQuery.isEmpty()) {
+                            Text(
+                                text = "Search modules...",
+                                fontSize = 14.sp,
+                                color = Color(0xFF9CA3AF)
+                            )
+                        }
+                        inner()
+                    }
+                }
+            )
+        }
+
+        // Bottom hairline under the search bar (matches image)
+        HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 1.dp)
+    }
+}
+
 // ─────────────────────────────────────────────────────────────
 // 🧩 Reusable Modules Panel Content — backed by SmoothBottomSheet
 // ─────────────────────────────────────────────────────────────
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("SameParameterValue")
 @Composable
@@ -973,311 +1080,356 @@ private fun ModulesPanelContent(
             modulesPanelBlur = blur  // ✅ Update blur state
         }
     ) {
-        // ✅ The sheet content itself is NOT blurred - it stays crystal clear
-        Column(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = whiteBg,
+            topBar ={
+                ModulesPanelHeader(
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = {searchQuery = it},
+                    onClose = onClose
+                )
+            },
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
 
-            // ── Header ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Modules", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            }
+        ) {innerPadding ->
+            Column(
+                modifier = Modifier.fillMaxSize()
+                    .padding(innerPadding)
+                .background(Primary_background)
+            )
+            {
 
-            Spacer(Modifier.height(12.dp))
+                // ── Header ──
 
-            // ── Search ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .height(46.dp)
-                    .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp))
-                    .padding(horizontal = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                BasicTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                    cursorBrush = SolidColor(Color(0xFF3B3BF9)),
-                    decorationBox = { inner ->
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (searchQuery.isEmpty()) {
-                                Text("Search modules...", fontSize = 14.sp, color = Color(0xFF9CA3AF))
+
+
+
+                Spacer(Modifier.height(20.dp))
+
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp)
+                ) {
+                    if (searchQuery.isBlank() && showFrequentlyUsed) {
+                        item {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    if (hasUsageHistory) "FREQUENTLY USED" else "EXPLORE",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1E293B)
+                                )
+                                if (!hasUsageHistory) {
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        "Modules you haven't tried yet",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFFC1C5CC)
+                                    )
+                                }
+                                Spacer(Modifier.height(10.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    frequentlyUsed.forEach { fm ->
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .background(whiteBg, RoundedCornerShape(24.dp))
+                                                .border(
+                                                    1.dp,
+                                                    Color(0xFFF0F0F0),
+                                                    RoundedCornerShape(14.dp)
+                                                )
+                                                .clickable(
+                                                    indication = null,
+                                                    interactionSource = remember { MutableInteractionSource() }
+                                                ) {
+                                                    ModuleUsageTracker.recordUsage(
+                                                        context,
+                                                        fm.label
+                                                    )
+                                                    val menu =
+                                                        menuItems.find { it.label == fm.label }
+                                                    val firstCat = menu?.categories?.firstOrNull()
+                                                    if (menu != null && firstCat != null) {
+                                                        onModuleCategoryClick(menu.label, firstCat)
+                                                    }
+                                                }
+                                                .padding(vertical = 16.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(44.dp)
+                                                    .clip(RoundedCornerShape(16.dp))
+                                                    .background(fm.bg),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(id = fm.icon),
+                                                    contentDescription = fm.label,
+                                                    tint = fm.tint,
+                                                    modifier = Modifier.size(22.dp)
+                                                )
+                                            }
+                                            Spacer(Modifier.height(8.dp))
+                                            Text(
+                                                fm.label,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = Color(0xFF111827)
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(24.dp))
                             }
-                            inner()
                         }
                     }
-                )
-            }
 
-            Spacer(Modifier.height(20.dp))
-
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp)
-            ) {
-                if (searchQuery.isBlank() && showFrequentlyUsed) {
                     item {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Text(
-                                if (hasUsageHistory) "FREQUENTLY USED" else "EXPLORE",
+                                "ALL MODULES",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF1E293B)
                             )
-                            if (!hasUsageHistory) {
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    "Modules you haven't tried yet",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFFC1C5CC)
-                                )
-                            }
                             Spacer(Modifier.height(10.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                frequentlyUsed.forEach { fm ->
-                                    Column(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .background(Color.White, RoundedCornerShape(24.dp))
-                                            .border(1.dp, Color(0xFFF0F0F0), RoundedCornerShape(14.dp))
-                                            .clickable(
-                                                indication = null,
-                                                interactionSource = remember { MutableInteractionSource() }
-                                            ) {
-                                                ModuleUsageTracker.recordUsage(context, fm.label)
-                                                val menu = menuItems.find { it.label == fm.label }
-                                                val firstCat = menu?.categories?.firstOrNull()
-                                                if (menu != null && firstCat != null) {
-                                                    onModuleCategoryClick(menu.label, firstCat)
-                                                }
-                                            }
-                                            .padding(vertical = 16.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(44.dp)
-                                                .clip(RoundedCornerShape(16.dp))
-                                                .background(fm.bg),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = fm.icon),
-                                                contentDescription = fm.label,
-                                                tint = fm.tint,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                        }
-                                        Spacer(Modifier.height(8.dp))
-                                        Text(fm.label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.height(24.dp))
                         }
                     }
-                }
 
-                item {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            "ALL MODULES",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B)
+                    items(filteredModules) { module ->
+                        val isExpanded = expandedModule == module.label
+
+                        val arrowRotation by animateFloatAsState(
+                            targetValue = if (isExpanded) 180f else 0f,
+                            animationSpec = tween(
+                                durationMillis = 250,
+                                easing = FastOutSlowInEasing
+                            ),
+                            label = "arrowRotation_${module.label}"
                         )
-                        Spacer(Modifier.height(10.dp))
-                    }
-                }
 
-                items(filteredModules) { module ->
-                    val isExpanded = expandedModule == module.label
-
-                    val arrowRotation by animateFloatAsState(
-                        targetValue = if (isExpanded) 180f else 0f,
-                        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
-                        label = "arrowRotation_${module.label}"
-                    )
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 12.dp)
-                            .shadow(
-                                elevation = if (isExpanded) 1.dp else 1.dp,
-                                shape = RoundedCornerShape(24.dp),
-                                clip = false
-                            )
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(Color.White)
-                    ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-                                ) {
-                                    expandedModule = if (isExpanded) null else module.label
-                                }
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFF3F4F6)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = module.icon),
-                                    contentDescription = module.label,
-                                    tint = Color(0xFF111827),
-                                    modifier = Modifier.size(20.dp)
+                                .padding(bottom = 12.dp)
+                                .shadow(
+                                    elevation = if (isExpanded) 1.dp else 1.dp,
+                                    shape = RoundedCornerShape(24.dp),
+                                    clip = false
                                 )
-                            }
-                            Spacer(Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(module.label, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
-                            }
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .rotate(arrowRotation)
-                            )
-                        }
-
-                        AnimatedVisibility(
-                            visible = isExpanded && module.categories.isNotEmpty(),
-                            enter = expandVertically(
-                                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-                            ) + fadeIn(
-                                animationSpec = tween(durationMillis = 250, delayMillis = 50)
-                            ),
-                            exit = shrinkVertically(
-                                animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
-                            ) + fadeOut(
-                                animationSpec = tween(durationMillis = 150)
-                            )
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(whiteBg)
                         ) {
-                            Column(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = 48.dp, end = 16.dp, bottom = 16.dp)
-                            ) {
-                                module.categories.forEach { category ->
-                                    val categorySubItems = module.subItems[category].orEmpty()
-                                    val hasSubItems = categorySubItems.isNotEmpty()
-                                    val categoryKey = "${module.label}::$category"
-                                    val isDropdownOpen = expandedSubCategory == categoryKey
-                                    val isCategoryActive = category == activeCategory
-
-                                    val subArrowRotation by animateFloatAsState(
-                                        targetValue = if (isDropdownOpen) 180f else 0f,
-                                        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
-                                        label = "subArrowRotation_$categoryKey"
-                                    )
-
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Color.Transparent)
-                                            .clickable(
-                                                indication = null,
-                                                interactionSource = remember { MutableInteractionSource() }
-                                            ) {
-                                                if (hasSubItems) {
-                                                    expandedSubCategory = if (isDropdownOpen) null else categoryKey
-                                                } else {
-                                                    ModuleUsageTracker.recordUsage(context, module.label)
-                                                    activeCategory = category
-                                                    activeSubItem = null
-                                                    onModuleCategoryClick(module.label, category)
-                                                }
-                                            }
-                                            .padding(vertical = 14.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    .clickable(
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
                                     ) {
-                                        Text(
-                                            text = "•  $category",
-                                            fontSize = 16.sp,
-                                            fontWeight = if (isDropdownOpen || isCategoryActive) FontWeight.SemiBold else FontWeight.Normal,
-                                            color = Color(0xFF374151)
+                                        expandedModule = if (isExpanded) null else module.label
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFF3F4F6)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = module.icon),
+                                        contentDescription = module.label,
+                                        tint = Color(0xFF111827),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        module.label,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF111827)
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = Color(0xFF9CA3AF),
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .rotate(arrowRotation)
+                                )
+                            }
+
+                            AnimatedVisibility(
+                                visible = isExpanded && module.categories.isNotEmpty(),
+                                enter = expandVertically(
+                                    animationSpec = tween(
+                                        durationMillis = 300,
+                                        easing = FastOutSlowInEasing
+                                    )
+                                ) + fadeIn(
+                                    animationSpec = tween(durationMillis = 250, delayMillis = 50)
+                                ),
+                                exit = shrinkVertically(
+                                    animationSpec = tween(
+                                        durationMillis = 250,
+                                        easing = FastOutSlowInEasing
+                                    )
+                                ) + fadeOut(
+                                    animationSpec = tween(durationMillis = 150)
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 48.dp, end = 16.dp, bottom = 16.dp)
+                                ) {
+                                    module.categories.forEach { category ->
+                                        val categorySubItems = module.subItems[category].orEmpty()
+                                        val hasSubItems = categorySubItems.isNotEmpty()
+                                        val categoryKey = "${module.label}::$category"
+                                        val isDropdownOpen = expandedSubCategory == categoryKey
+                                        val isCategoryActive = category == activeCategory
+
+                                        val subArrowRotation by animateFloatAsState(
+                                            targetValue = if (isDropdownOpen) 180f else 0f,
+                                            animationSpec = tween(
+                                                durationMillis = 250,
+                                                easing = FastOutSlowInEasing
+                                            ),
+                                            label = "subArrowRotation_$categoryKey"
                                         )
 
-                                        if (hasSubItems) {
-                                            Icon(
-                                                imageVector = Icons.Default.KeyboardArrowDown,
-                                                contentDescription = if (isDropdownOpen) "Collapse" else "Expand",
-                                                tint = Color(0xFF9CA3AF),
-                                                modifier = Modifier
-                                                    .size(18.dp)
-                                                    .rotate(subArrowRotation)
-                                            )
-                                        }
-                                    }
-
-                                    AnimatedVisibility(
-                                        visible = isDropdownOpen && hasSubItems,
-                                        enter = expandVertically(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
-                                                fadeIn(animationSpec = tween(200, delayMillis = 50)),
-                                        exit = shrinkVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)) +
-                                                fadeOut(animationSpec = tween(150))
-                                    ) {
-                                        Column(modifier = Modifier.padding(start = 14.dp, top = 2.dp, bottom = 4.dp)) {
-                                            categorySubItems.forEach { subItem ->
-                                                val isSubActive = activeCategory == category && activeSubItem == subItem
-
-                                                Text(
-                                                    "  $subItem",
-                                                    fontSize = 15.sp,
-                                                    fontWeight = if (isSubActive) FontWeight.SemiBold else FontWeight.Normal,
-                                                    color = if (isSubActive) Color(0xFF4338CA) else Color(0xFF6B7280),
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .background(
-                                                            color = if (isSubActive) Color(0xFFEDEBFF) else Color.Transparent,
-                                                            shape = RoundedCornerShape(6.dp)
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(Color.Transparent)
+                                                .clickable(
+                                                    indication = null,
+                                                    interactionSource = remember { MutableInteractionSource() }
+                                                ) {
+                                                    if (hasSubItems) {
+                                                        expandedSubCategory =
+                                                            if (isDropdownOpen) null else categoryKey
+                                                    } else {
+                                                        ModuleUsageTracker.recordUsage(
+                                                            context,
+                                                            module.label
                                                         )
-                                                        .clickable(
-                                                            indication = null,
-                                                            interactionSource = remember { MutableInteractionSource() }
-                                                        ) {
-                                                            ModuleUsageTracker.recordUsage(context, module.label)
-                                                            activeCategory = category
-                                                            activeSubItem = subItem
-                                                            onModuleCategoryClick(module.label, subItem)
-                                                        }
-                                                        .padding(vertical = 8.dp)
+                                                        activeCategory = category
+                                                        activeSubItem = null
+                                                        onModuleCategoryClick(
+                                                            module.label,
+                                                            category
+                                                        )
+                                                    }
+                                                }
+                                                .padding(vertical = 14.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "•  $category",
+                                                fontSize = 16.sp,
+                                                fontWeight = if (isDropdownOpen || isCategoryActive) FontWeight.SemiBold else FontWeight.Normal,
+                                                color = Color(0xFF374151)
+                                            )
+
+                                            if (hasSubItems) {
+                                                Icon(
+                                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                                    contentDescription = if (isDropdownOpen) "Collapse" else "Expand",
+                                                    tint = Color(0xFF9CA3AF),
+                                                    modifier = Modifier
+                                                        .size(18.dp)
+                                                        .rotate(subArrowRotation)
                                                 )
                                             }
                                         }
+
+                                        AnimatedVisibility(
+                                            visible = isDropdownOpen && hasSubItems,
+                                            enter = expandVertically(
+                                                animationSpec = tween(
+                                                    250,
+                                                    easing = FastOutSlowInEasing
+                                                )
+                                            ) +
+                                                    fadeIn(
+                                                        animationSpec = tween(
+                                                            200,
+                                                            delayMillis = 50
+                                                        )
+                                                    ),
+                                            exit = shrinkVertically(
+                                                animationSpec = tween(
+                                                    200,
+                                                    easing = FastOutSlowInEasing
+                                                )
+                                            ) +
+                                                    fadeOut(animationSpec = tween(150))
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(
+                                                    start = 14.dp,
+                                                    top = 2.dp,
+                                                    bottom = 4.dp
+                                                )
+                                            ) {
+                                                categorySubItems.forEach { subItem ->
+                                                    val isSubActive =
+                                                        activeCategory == category && activeSubItem == subItem
+
+                                                    Text(
+                                                        "  $subItem",
+                                                        fontSize = 15.sp,
+                                                        fontWeight = if (isSubActive) FontWeight.SemiBold else FontWeight.Normal,
+                                                        color = if (isSubActive) Color(0xFF4338CA) else Color(
+                                                            0xFF6B7280
+                                                        ),
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .background(
+                                                                color = if (isSubActive) Color(
+                                                                    0xFFEDEBFF
+                                                                ) else Color.Transparent,
+                                                                shape = RoundedCornerShape(6.dp)
+                                                            )
+                                                            .clickable(
+                                                                indication = null,
+                                                                interactionSource = remember { MutableInteractionSource() }
+                                                            ) {
+                                                                ModuleUsageTracker.recordUsage(
+                                                                    context,
+                                                                    module.label
+                                                                )
+                                                                activeCategory = category
+                                                                activeSubItem = subItem
+                                                                onModuleCategoryClick(
+                                                                    module.label,
+                                                                    subItem
+                                                                )
+                                                            }
+                                                            .padding(vertical = 8.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                    item { Spacer(Modifier.height(100.dp)) }
                 }
-                item { Spacer(Modifier.height(100.dp)) }
             }
         }
     }

@@ -1,3 +1,14 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter",
+    "VariableNeverRead"
+)
+
 package com.cuso.mobile.view.composable
 
 import android.app.Activity
@@ -7,7 +18,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
@@ -45,6 +55,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Popup
+import com.cuso.mobile.ui.theme.whiteBg
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -110,7 +121,7 @@ fun ForgotOtpInput(
                             color = if (isFocused) Color(0xFF1D4ED8) else Color(0xFFD1D5DB),  // ← active/regular colors
                             shape = RoundedCornerShape(8.dp)
                         )
-                        .background(Color.White, RoundedCornerShape(8.dp))
+                        .background(whiteBg, RoundedCornerShape(8.dp))
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onTap = {
@@ -147,7 +158,7 @@ fun ForgotOtpInput(
                                 Box(
                                     modifier = Modifier
                                         .background(
-                                            Color.White,
+                                            whiteBg,
                                             RoundedCornerShape(6.dp)
                                         )
                                         .clickable {

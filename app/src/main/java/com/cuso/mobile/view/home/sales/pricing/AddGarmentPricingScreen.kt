@@ -37,7 +37,7 @@ import com.cuso.mobile.view.home.FormTextField
 import com.cuso.mobile.view.home.sales.lead.LeadAccordionSection
 import com.cuso.mobile.view.home.sales.lead.LeadFormTopBar
 import com.cuso.mobile.view.home.LeadPrimary
-import com.cuso.mobile.view.home.LeadTextMuted
+import com.cuso.mobile.view.home.LeadmutedText
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
@@ -288,7 +288,7 @@ fun AddGarmentPricingScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            containerColor = Color.White,
+            containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0)
         ) { padding ->
             Column(
@@ -579,7 +579,7 @@ private fun PriceAdjustmentField(
             modifier = Modifier.weight(1f),
             decorationBox = { innerTextField ->
                 if (name.isEmpty()) {
-                    Text("Enter name", fontSize = 14.sp, color = LeadTextMuted)
+                    Text("Enter name", fontSize = 14.sp, color = LeadmutedText)
                 }
                 innerTextField()
             }
@@ -601,7 +601,7 @@ private fun PriceAdjustmentField(
                 Icon(
                     Icons.Default.Close,
                     contentDescription = "Remove row",
-                    tint = LeadTextMuted,
+                    tint = LeadmutedText,
                     modifier = Modifier
                         .size(16.dp)
                         .clickable { onRemove() }
@@ -644,7 +644,7 @@ private fun DiscountRuleField(
         Icon(
             Icons.Default.Close,
             contentDescription = "Remove rule",
-            tint = LeadTextMuted,
+            tint = LeadmutedText,
             modifier = Modifier
                 .size(18.dp)
                 .clickable { onRemove() }
@@ -668,7 +668,7 @@ private fun MiniNumberField(
             Text(
                 text = label ,
                 fontSize = 11.sp,
-                color = if (isError) MaterialTheme.colorScheme.error else LeadTextMuted
+                color = if (isError) MaterialTheme.colorScheme.error else LeadmutedText
             )
             if (isError && errorMessage != null) {
                 Spacer(Modifier.width(4.dp))

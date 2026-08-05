@@ -17,9 +17,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.SignUpOtpSelection
 import com.cuso.mobile.view.composable.OtpTitle
 import com.cuso.mobile.view.composable.AppLogo
@@ -29,7 +29,7 @@ fun SignUpOtpScreen(navController: NavController, activity: Activity, submittedE
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(whiteBg)
             // ✅ Scrolls instead of clipping the OTP boxes/button on short
             // screens, and clears the keyboard when the OTP field is focused.
             .verticalScroll(rememberScrollState())
@@ -50,7 +50,7 @@ fun SignUpOtpScreen(navController: NavController, activity: Activity, submittedE
                 .fillMaxWidth()
                 .padding(20.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color.White
+                containerColor = whiteBg
             )
         ) {
             Column(

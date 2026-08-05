@@ -32,8 +32,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
-import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -84,13 +84,13 @@ fun MeasurementsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Primary_background)
+                .background(Color.Transparent)
         ) {
             // ── Top Bar ──────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -119,7 +119,6 @@ fun MeasurementsScreen(
             }
             Column(
                Modifier.fillMaxWidth()
-                   .background(Primary_background)
 
             ) {
                 ScreenBreadcrumb(segments = listOf("Sales", "Measurements"), onClick = {onBreadCrumbClick()})
@@ -164,7 +163,7 @@ fun MeasurementsScreen(
                                 onClick = { viewModel.loadMeasurements() },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9))
                             ) {
-                                Text("Retry", color = Color.White)
+                                Text("Retry", color = whiteBg)
                             }
                         }
                     }
@@ -197,7 +196,7 @@ fun MeasurementsScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
-                                .background(Color.White, RoundedCornerShape(12.dp))
+                                .background(whiteBg, RoundedCornerShape(12.dp))
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -304,7 +303,7 @@ fun MeasurementsScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color.White)
+                                    .background(whiteBg)
                                     .padding(horizontal = 16.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
@@ -332,7 +331,7 @@ fun MeasurementsScreen(
                                         DropdownMenu(
                                             expanded = showItemsPerPageDropdown,
                                             onDismissRequest = { showItemsPerPageDropdown = false },
-                                            containerColor = Color.White,
+                                            containerColor = whiteBg,
                                             shape = RoundedCornerShape(8.dp)
                                         ) {
                                             listOf(10, 25, 50, 100).forEach { count ->

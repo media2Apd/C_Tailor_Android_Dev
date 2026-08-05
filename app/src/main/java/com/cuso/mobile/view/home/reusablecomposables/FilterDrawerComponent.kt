@@ -1,3 +1,12 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter", "VariableNeverRead"
+)
 package com.cuso.mobile.view.home.reusablecomposables
 
 import androidx.activity.compose.BackHandler
@@ -37,17 +46,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.cuso.mobile.ui.theme.Primary
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.Dp
-import kotlinx.coroutines.launch
+import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Filter Section Data ──
 enum class FilterSectionType {
@@ -262,7 +263,7 @@ fun FilterDrawer(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(46.dp)
-                            .background(Color.White, RoundedCornerShape(10.dp))
+                            .background(whiteBg, RoundedCornerShape(10.dp))
                             .padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -348,7 +349,7 @@ fun FilterDrawer(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -460,7 +461,7 @@ private fun GridChip(option: FilterOption, modifier: Modifier = Modifier, onClic
             option.label,
             fontSize = 13.sp,
             fontWeight = if (option.isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (option.isSelected) Color.White else Color(0xFF374151)
+            color = if (option.isSelected) whiteBg else Color(0xFF374151)
         )
     }
 }
@@ -484,7 +485,7 @@ private fun CheckboxListBody(section: FilterSection, onOptionToggle: (String) ->
                     colors = CheckboxDefaults.colors(
                         checkedColor = Primary,
                         uncheckedColor = Color(0xFFCBD5E1),
-                        checkmarkColor = Color.White
+                        checkmarkColor = whiteBg
                     ),
                     modifier = Modifier
                         .size(10.dp)
@@ -513,7 +514,7 @@ private fun ChipRowBody(section: FilterSection, onOptionToggle: (String) -> Unit
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (option.isSelected) Color(0xFFEEF2FF) else Color.White)
+                        .background(if (option.isSelected) Color(0xFFEEF2FF) else whiteBg)
                         .border(
                             width = if (option.isSelected) 1.5.dp else 1.dp,
                             color = if (option.isSelected) Primary else Color(0xFFE5E7EB),
@@ -528,7 +529,7 @@ private fun ChipRowBody(section: FilterSection, onOptionToggle: (String) -> Unit
                             modifier = Modifier
                                 .size(14.dp)
                                 .clip(RoundedCornerShape(3.dp))
-                                .background(if (option.isSelected) Color(0xFF6366F1) else Color.White)
+                                .background(if (option.isSelected) Color(0xFF6366F1) else whiteBg)
                                 .border(
                                     width = 1.dp,
                                     color = if (option.isSelected) Color(0xFF6366F1) else Color(0xFFCBD5E1),
@@ -537,7 +538,7 @@ private fun ChipRowBody(section: FilterSection, onOptionToggle: (String) -> Unit
                             contentAlignment = Alignment.Center
                         ) {
                             if (option.isSelected) {
-                                Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(10.dp))
+                                Icon(Icons.Filled.Check, contentDescription = null, tint = whiteBg, modifier = Modifier.size(10.dp))
                             }
                         }
                         Spacer(Modifier.width(6.dp))
@@ -597,12 +598,12 @@ private fun AmountField(value: String, placeholder: String, onValueChange: (Stri
     Row(
         modifier = modifier
             .height(46.dp)
-            .background(Color.White, RoundedCornerShape(10.dp))
+            .background(whiteBg, RoundedCornerShape(10.dp))
             .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Filled.CurrencyRupee, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+        Icon(Icons.Filled.CurrencyRupee, contentDescription = null, tint = whiteBg, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(4.dp))
         BasicTextField(
             value = value,
@@ -625,7 +626,7 @@ private fun DropdownBody(section: FilterSection) {
         modifier = Modifier
             .fillMaxWidth()
             .height(46.dp)
-            .background(Color.White, RoundedCornerShape(10.dp))
+            .background(whiteBg, RoundedCornerShape(10.dp))
             .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
             .clickable { /* TODO: open picker */ }
             .padding(horizontal = 14.dp),
@@ -649,7 +650,7 @@ private fun PriorityDotsBody(section: FilterSection, onOptionToggle: (String) ->
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(if (option.isSelected) Color(0xFFEEF2FF) else Color.White)
+                    .background(if (option.isSelected) Color(0xFFEEF2FF) else whiteBg)
                     .border(
                         width = if (option.isSelected) 1.5.dp else 1.dp,
                         color = if (option.isSelected) Color(0xFF6366F1) else Color(0xFFE5E7EB),
@@ -695,7 +696,7 @@ fun FilterChip(
             option.label,
             fontSize = 13.sp,
             fontWeight = if (option.isSelected) FontWeight.Medium else FontWeight.Normal,
-            color = if (option.isSelected) Color.White else Color(0xFF475569),
+            color = if (option.isSelected) whiteBg else Color(0xFF475569),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
     }
@@ -759,8 +760,8 @@ fun SearchFilterBar(
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = borderColor,
                 focusedBorderColor = accentColor,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White
+                focusedContainerColor = whiteBg,
+                unfocusedContainerColor = whiteBg
             )
         )
 
@@ -769,7 +770,7 @@ fun SearchFilterBar(
                 modifier = Modifier
                     .size(height)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White)
+                    .background(whiteBg)
                     .border(1.dp, borderColor, RoundedCornerShape(12.dp))
                     .clickable(enabled = onFilterClick != null) { onFilterClick?.invoke() },
                 contentAlignment = Alignment.Center

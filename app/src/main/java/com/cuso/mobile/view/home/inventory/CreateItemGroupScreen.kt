@@ -54,7 +54,6 @@ import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 
 
@@ -76,6 +75,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Dp
+import com.cuso.mobile.ui.theme.whiteBg
 
 
 // ── Design tokens (same as EmployeeOnboardingScreen) ──
@@ -159,12 +159,13 @@ fun CreateItemGroupScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Primary_background)
+                .background(Color.Transparent)
         ) {
             // ── Header ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(whiteBg)
                     .padding(horizontal = 20.dp, vertical = 18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -662,7 +663,7 @@ fun CreateItemGroupScreen(
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth().height(46.dp)
                     ) {
-                        Text("Apply To All varient", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text("Apply To All varient", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                 }
             }
@@ -673,7 +674,7 @@ fun CreateItemGroupScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(Color.White)
+                .background(whiteBg)
                 .padding(horizontal = 20.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -692,7 +693,7 @@ fun CreateItemGroupScreen(
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.weight(1f).height(48.dp)
             ) {
-                Text("Save Item Group", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text("Save Item Group", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             }
         }
     }
@@ -777,7 +778,7 @@ private fun AttributeValuesInput(
             Box(
                 modifier = Modifier
                     .background(
-                        if (isFocused) Color.White else Color.Transparent,
+                        if (isFocused) whiteBg else Color.Transparent,
                         RoundedCornerShape(6.dp)
                     )
                     .padding(horizontal = 4.dp, vertical = 4.dp)
@@ -890,7 +891,7 @@ fun FlowRow(
 //        Row(
 //            modifier = Modifier
 //                .fillMaxWidth()
-//                .background(if (expanded) Color(0xFFF7F7FA) else Color.White)
+//                .background(if (expanded) Color(0xFFF7F7FA) else whiteBg)
 //                .clickable { onHeaderClick() }
 //                .padding(horizontal = 20.dp, vertical = 16.dp),
 //            horizontalArrangement = Arrangement.SpaceBetween,

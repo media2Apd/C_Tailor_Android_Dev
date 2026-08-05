@@ -41,7 +41,8 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.ui.platform.LocalClipboardManager
-    import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.DpOffset
+import com.cuso.mobile.ui.theme.whiteBg
 
     @Suppress("UNUSED_PARAMETER")
 
@@ -126,7 +127,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
                                     },
                                     shape = RoundedCornerShape(8.dp)
                                 )
-                                .background(Color.White, RoundedCornerShape(8.dp)),
+                                .background(whiteBg, RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -149,7 +150,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
                     onDismissRequest = { showPasteMenu = false },
                     // Negative Y offset pops it ABOVE the row instead of below
                     offset = DpOffset(x = 0.dp, y = (-56).dp),
-                    containerColor = Color.White,
+                    containerColor = whiteBg,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     DropdownMenuItem(

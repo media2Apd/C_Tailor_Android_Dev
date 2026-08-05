@@ -26,9 +26,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.finance.LedgerItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
-import com.cuso.mobile.ui.theme.PanelBg
 import com.cuso.mobile.ui.theme.TextPrimary
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -92,12 +92,13 @@ fun LedgerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Color.Transparent)
     ) {
         // ── Title bar ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -111,7 +112,7 @@ fun LedgerScreen(
             )
         }
 
-        Column(Modifier.background(PanelBg)) {
+        Column {
             // ── Breadcrumb ──
             ScreenBreadcrumb(
                 segments = listOf("Finance", "Ledger"),

@@ -3,8 +3,10 @@
     "SpellCheckingInspection",
     "GrazieInspection",
     "AssignedValueIsNeverRead",
-    "Unused_parameter"
+    "Unused_parameter", "VariableNeverRead", "SameParameterValue"
+
 )
+
 package com.cuso.mobile.view.home.sales.sales_order
 
 import android.content.Context
@@ -66,14 +68,15 @@ import com.cuso.mobile.viewmodel.SalesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.whiteBg
 
 // ─────────────────────────────────────────────────────────────────────────
 // THEME COLORS
 // ─────────────────────────────────────────────────────────────────────────
 private val TabActive = Color(0xFF4F46E5)
 private val TextPrimary = Color(0xFF111827)
-private val TextMuted = Color(0xFF9CA3AF)
-private val TextMutedDark = Color(0xFF6B7280)
+  private val mutedTextDark = Color(0xFF6B7280)
 private val SectionBg = Color(0xFFF9FAFB)
 private val BorderLight = Color(0xFFF0F0F0)
 private val StatusGreenBg = Color(0xFFDCFCE7)
@@ -193,7 +196,7 @@ fun OrderOverviewScreen(
     var isAssignSheetOpen by remember { mutableStateOf(false) }
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = Color.Transparent,
         topBar = {
             Column {
                 Row(
@@ -230,7 +233,7 @@ fun OrderOverviewScreen(
                                 tab,
                                 fontSize = 13.sp,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) TabActive else TextMuted
+                                color = if (isSelected) TabActive else mutedText
                             )
                             Spacer(Modifier.height(6.dp))
                             Box(
@@ -495,7 +498,7 @@ private fun GarmentCard(garment: GarmentDetail) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(14.dp))
+            .background(whiteBg, RoundedCornerShape(14.dp))
             .padding(bottom = 4.dp)
     ) {
         Row(
@@ -514,7 +517,7 @@ private fun GarmentCard(garment: GarmentDetail) {
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(garment.type, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                Text("Qty: ${garment.quantity} · ₹${formatOverviewNumber(garment.price)}", fontSize = 12.sp, color = TextMuted)
+                Text("Qty: ${garment.quantity} · ₹${formatOverviewNumber(garment.price)}", fontSize = 12.sp, color = mutedText)
             }
             Tag("${garment.priority} Priority", StatusGreyBg, StatusGreyText)
             Spacer(Modifier.width(6.dp))
@@ -550,7 +553,7 @@ private fun GarmentCard(garment: GarmentDetail) {
             Text(
                 garment.notes,
                 fontSize = 13.sp,
-                color = TextMutedDark,
+                color = mutedTextDark,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
             HorizontalDivider(color = BorderLight)
@@ -626,7 +629,7 @@ private fun AssignmentsTab(
                 Text(
                     "Assign cutting, stitching and QC workers to each garment",
                     fontSize = 13.sp,
-                    color = TextMuted
+                    color = mutedText
                 )
                 Spacer(Modifier.height(16.dp))
 
@@ -706,7 +709,7 @@ private fun NoWorkersAssignedState(
         Text(
             "Assign tailors and masters to begin tracking garment production.",
             fontSize = 13.sp,
-            color = TextMuted,
+            color = mutedText,
             textAlign = TextAlign.Center,
             lineHeight = 18.sp
         )
@@ -722,11 +725,11 @@ private fun NoWorkersAssignedState(
             Icon(
                 Icons.Default.Add,
                 contentDescription = null,
-                tint = Color.White,
+                tint = whiteBg,
                 modifier = Modifier.size(16.dp)
             )
             Spacer(Modifier.width(6.dp))
-            Text("Assign Worker", color = Color.White, fontWeight = FontWeight.SemiBold)
+            Text("Assign Worker", color = whiteBg, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -752,7 +755,7 @@ private fun EmptyAssignmentsState() {
         Spacer(Modifier.height(16.dp))
         Text("No garments to assign", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
         Spacer(Modifier.height(4.dp))
-        Text("Add garments to this order first.", fontSize = 13.sp, color = TextMuted, textAlign = TextAlign.Center)
+        Text("Add garments to this order first.", fontSize = 13.sp, color = mutedText, textAlign = TextAlign.Center)
     }
 }
 
@@ -765,7 +768,7 @@ private fun AssignmentCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
@@ -782,7 +785,7 @@ private fun AssignmentCard(
                 Text(
                     "Qty: ${garment.quantity} | ${if (garment.trialRequired) "Trial Required" else "Trial Not Required"}",
                     fontSize = 12.sp,
-                    color = TextMuted
+                    color = mutedText
                 )
             }
 
@@ -810,8 +813,8 @@ private fun AssignmentCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Start: ${garment.assignment?.startDate ?: "Not set"}", fontSize = 13.sp, color = TextMutedDark)
-                Text("Expected: ${garment.assignment?.completionDate ?: "Not set"}", fontSize = 13.sp, color = TextMutedDark)
+                Text("Start: ${garment.assignment?.startDate ?: "Not set"}", fontSize = 13.sp, color = mutedTextDark)
+                Text("Expected: ${garment.assignment?.completionDate ?: "Not set"}", fontSize = 13.sp, color = mutedTextDark)
             }
 
             Spacer(Modifier.height(12.dp))
@@ -824,7 +827,7 @@ private fun AssignmentCard(
             ) {
                 Text(
                     if (isFullyAssigned) "Reassign" else "Assign",
-                    color = Color.White,
+                    color = whiteBg,
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp
                 )
@@ -863,7 +866,7 @@ private fun AssignmentRow(
                 Text("Assigned", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = AssignedText)
             }
         } else {
-            Text("Not Assigned", fontSize = 14.sp, color = TextMuted, modifier = Modifier.weight(1f))
+            Text("Not Assigned", fontSize = 14.sp, color = mutedText, modifier = Modifier.weight(1f))
             Box(
                 modifier = Modifier
                     .background(UnassignedBg, RoundedCornerShape(20.dp))
@@ -940,7 +943,7 @@ private fun AssignTailorsSheet(
             Text(
                 "Manage workers for ${garment.type}.",
                 fontSize = 12.sp,
-                color = TextMuted,
+                color = mutedText,
                 modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 16.dp),
                 textAlign = TextAlign.Center
             )
@@ -964,7 +967,7 @@ private fun AssignTailorsSheet(
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(garment.type, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                    Text("Qty: ${garment.quantity}", fontSize = 12.sp, color = TextMuted)
+                    Text("Qty: ${garment.quantity}", fontSize = 12.sp, color = mutedText)
                 }
                 Box(
                     modifier = Modifier
@@ -975,7 +978,7 @@ private fun AssignTailorsSheet(
                         "TRIAL: ${if (garment.trialRequired) "YES" else "NO"}",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = TextMutedDark
+                        color = mutedTextDark
                     )
                 }
             }
@@ -1086,7 +1089,7 @@ private fun AssignTailorsSheet(
                     if (isAssigning) {
                         CirculerProgressIndicatorReuse()
                     } else {
-                        Text("Assign Workers", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text("Assign Workers", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
                 }
             }
@@ -1161,14 +1164,14 @@ private fun PaymentTab(
     ) {
         Tag(payment.status, statusBg, statusText)
         Spacer(Modifier.height(10.dp))
-        Text("Order ID: ${payment.orderId}", fontSize = 12.sp, color = TextMuted)
+        Text("Order ID: ${payment.orderId}", fontSize = 12.sp, color = mutedText)
         Spacer(Modifier.height(6.dp))
         Text("₹${formatOverviewNumber(payment.totalAmount)}", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        Text("Total Order Amount", fontSize = 12.sp, color = TextMuted)
+        Text("Total Order Amount", fontSize = 12.sp, color = mutedText)
 
         Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Payment Completion", fontSize = 13.sp, color = TextMutedDark)
+            Text("Payment Completion", fontSize = 13.sp, color = mutedTextDark)
             Text("${payment.completionPercent}%", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
         }
         Spacer(Modifier.height(8.dp))
@@ -1183,12 +1186,12 @@ private fun PaymentTab(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(8.dp).clip(CircleShape).background(PaidGreen))
                 Spacer(Modifier.width(6.dp))
-                Text("Paid: ₹${formatOverviewNumber(payment.paidAmount)}", fontSize = 12.sp, color = TextMutedDark)
+                Text("Paid: ₹${formatOverviewNumber(payment.paidAmount)}", fontSize = 12.sp, color = mutedTextDark)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(8.dp).clip(CircleShape).background(BalanceRed))
                 Spacer(Modifier.width(6.dp))
-                Text("Remaining: ₹${formatOverviewNumber(payment.remainingAmount)}", fontSize = 12.sp, color = TextMutedDark)
+                Text("Remaining: ₹${formatOverviewNumber(payment.remainingAmount)}", fontSize = 12.sp, color = mutedTextDark)
             }
         }
 
@@ -1200,9 +1203,9 @@ private fun PaymentTab(
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = TabActive)
             ) {
-                Icon(Icons.Default.CurrencyRupee, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.CurrencyRupee, contentDescription = null, tint = whiteBg, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Receive Payment", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text("Receive Payment", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             }
         }
 
@@ -1311,7 +1314,7 @@ private fun ReceivePaymentDialog(
     ) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = Color.White,
+            color = whiteBg,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
         ) {
             Column(
@@ -1332,7 +1335,7 @@ private fun ReceivePaymentDialog(
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Close",
-                        tint = TextMuted,
+                        tint = mutedText,
                         modifier = Modifier
                             .size(20.dp)
                             .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onDismiss() }
@@ -1349,7 +1352,7 @@ private fun ReceivePaymentDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Balance Due", fontSize = 13.sp, color = TextMutedDark)
+                    Text("Balance Due", fontSize = 13.sp, color = mutedTextDark)
                     Text("₹${formatOverviewNumber(balanceDue)}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = BalanceRed)
                 }
 
@@ -1392,7 +1395,7 @@ private fun ReceivePaymentDialog(
                                 unfocusedBorderColor = Color(0xFFE5E7EB),
                                 focusedBorderColor = TabActive,
                                 disabledBorderColor = Color(0xFFE5E7EB),
-                                disabledTextColor = TextMutedDark,
+                                disabledTextColor = mutedTextDark,
                                 disabledContainerColor = SectionBg
                             )
                         )
@@ -1423,7 +1426,7 @@ private fun ReceivePaymentDialog(
                         OutlinedTextField(
                             value = referenceNo,
                             onValueChange = { referenceNo = it },
-                            placeholder = { Text("TXN123...", color = TextMuted, fontSize = 13.sp) },
+                            placeholder = { Text("TXN123...", color = mutedText, fontSize = 13.sp) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
@@ -1450,7 +1453,7 @@ private fun ReceivePaymentDialog(
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    placeholder = { Text("Optional notes...", color = TextMuted, fontSize = 13.sp) },
+                    placeholder = { Text("Optional notes...", color = mutedText, fontSize = 13.sp) },
                     modifier = Modifier.fillMaxWidth().height(80.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -1513,9 +1516,9 @@ private fun ReceivePaymentDialog(
                         if (isSaving) {
                             CirculerProgressIndicatorSmall()
                         } else {
-                            Icon(Icons.Default.Print, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Default.Print, contentDescription = null, tint = whiteBg, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Save & Print", color = Color.White, fontWeight = FontWeight.SemiBold)
+                            Text("Save & Print", color = whiteBg, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -1539,7 +1542,7 @@ private fun PaymentTypeOption(
                 color = if (selected) TabActive else Color(0xFFE5E7EB),
                 shape = RoundedCornerShape(10.dp)
             )
-            .background(Color.White)
+            .background(whiteBg)
             .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onClick() }
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1629,7 +1632,7 @@ private fun SectionBlock(title: String, subtitle: String) {
     ) {
         Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
         Spacer(Modifier.height(2.dp))
-        Text(subtitle, fontSize = 12.sp, color = TextMuted)
+        Text(subtitle, fontSize = 12.sp, color = mutedText)
     }
 }
 
@@ -1640,9 +1643,9 @@ private fun SmallSectionHeader(title: String, trailingIcon: androidx.compose.ui.
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextMuted)
+        Text(title, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = mutedText)
         trailingIcon?.let {
-            Icon(it, contentDescription = null, tint = TextMuted, modifier = Modifier.size(14.dp))
+            Icon(it, contentDescription = null, tint = mutedText, modifier = Modifier.size(14.dp))
         }
     }
 }
@@ -1681,7 +1684,7 @@ private fun InfoRowWithBadge(label: String, status: String) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = 13.sp, color = TextMuted)
+        Text(label, fontSize = 13.sp, color = mutedText)
         Box(
             modifier = Modifier
                 .background(StatusGreenBg, RoundedCornerShape(20.dp))
@@ -1709,11 +1712,11 @@ private fun ActionRow(icon: androidx.compose.ui.graphics.vector.ImageVector, lab
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = TextMutedDark, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, tint = mutedTextDark, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(10.dp))
             Text(label, fontSize = 13.sp, color = TextPrimary)
         }
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp))
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = mutedText, modifier = Modifier.size(18.dp))
     }
     HorizontalDivider(color = BorderLight)
 }
@@ -1854,16 +1857,16 @@ private fun PaymentHistorySection(
                     .padding(vertical = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(Icons.Default.Inbox, contentDescription = null, tint = TextMuted, modifier = Modifier.size(28.dp))
+                Icon(Icons.Default.Inbox, contentDescription = null, tint = mutedText, modifier = Modifier.size(28.dp))
                 Spacer(Modifier.height(8.dp))
-                Text("No payments recorded for this order yet.", fontSize = 13.sp, color = TextMuted)
+                Text("No payments recorded for this order yet.", fontSize = 13.sp, color = mutedText)
             }
         } else {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color.White)
+                    .background(whiteBg)
                     .border(1.dp, BorderLight, RoundedCornerShape(14.dp))
             ) {
                 history.forEachIndexed { idx, record ->
@@ -1900,14 +1903,14 @@ private fun PaymentHistoryRow(
                         .background(SectionBg, RoundedCornerShape(6.dp))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
-                    Text(record.date, fontSize = 10.sp, color = TextMutedDark)
+                    Text(record.date, fontSize = 10.sp, color = mutedTextDark)
                 }
             }
             Spacer(Modifier.height(3.dp))
             Text(
                 if (record.refNo != "-") "Ref: ${record.refNo}" else "No reference number",
                 fontSize = 11.sp,
-                color = TextMuted
+                color = mutedText
             )
         }
 

@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.whiteBg
 import kotlinx.coroutines.delay
 
 // Circle diameter = icon size + (2 * padding) → perfect circle when text is hidden
@@ -143,7 +144,7 @@ private fun DynamicIslandBase(
                 ) {
                     Text(
                         text = message ?: "",
-                        color = Color.White,
+                        color = whiteBg,
                         fontSize = 13.sp,
                         maxLines = 2,
                         modifier = Modifier.padding(end = 16.dp)

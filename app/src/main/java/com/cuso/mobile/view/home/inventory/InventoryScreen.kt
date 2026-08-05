@@ -29,6 +29,7 @@ import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -102,12 +103,13 @@ fun InventoryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Color.Transparent)
     ) {
         // ── Header ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -126,7 +128,6 @@ fun InventoryScreen(
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFF8F9FF))
         ) {
             // ── Breadcrumb ──
             ScreenBreadcrumb(
@@ -193,9 +194,9 @@ fun InventoryScreen(
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, tint = whiteBg, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Add Item", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Add Item", color = whiteBg, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -210,7 +211,7 @@ fun InventoryScreen(
                     )
                 ) {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().background(InventoryBg)
+                        modifier = Modifier.fillMaxSize().background(Color.Transparent)
                     ) {
                         items(filtered, key = { it._id }) { item ->
                             val (badgeFg, badgeBg) = inventoryStatusColors(item.stockStatus)

@@ -1,3 +1,12 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter"
+)
 package com.cuso.mobile.view.home.sales.quotation
 
 import android.widget.Toast
@@ -35,6 +44,7 @@ import com.cuso.mobile.model.sales.FabricOption
 import com.cuso.mobile.model.sales.QuotationItemInput
 import com.cuso.mobile.model.sales.QuotationOptionInput
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
@@ -270,7 +280,7 @@ fun CreateQuotationScreen(
                     fabric = matchedGarment.fabricOptions.find { it.name == item.fabric?.label },
                     design = matchedGarment.designOptions.find { it.name == item.design?.label },
                     addons = matchedGarment.addons.filter { addon ->
-                        item.addons?.any { it.label == addon.name } == true
+                        item.addons.any { it.label == addon.name }
                     },
                     quantity = item.quantity
                 )
@@ -327,7 +337,7 @@ fun CreateQuotationScreen(
     }
     if (isPrefilling) {
         Box(
-            modifier = Modifier.fillMaxSize().background(Color.White),
+            modifier = Modifier.fillMaxSize().background(whiteBg),
             contentAlignment = Alignment.Center
         ) {
             CirculerProgressIndicatorReuse()
@@ -336,12 +346,12 @@ fun CreateQuotationScreen(
     }
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = Color.Transparent,
         topBar = {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 20.dp, vertical = 18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -479,10 +489,10 @@ private fun SendQuotationSection(
                     Icons.Default.Share,
                     contentDescription = "Share",
                     modifier = Modifier.size(16.dp),
-                    tint = Color.White
+                    tint = whiteBg
                 )
                 Spacer(Modifier.width(6.dp))
-                Text("Share", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                Text("Share", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = whiteBg)
             }
         }
     }
@@ -557,7 +567,7 @@ private fun CustomerLeadToggle(selected: String, onSelect: (String) -> Unit) {
             .padding(horizontal = 20.dp)
             .height(44.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(Color.White)
+            .background(whiteBg)
             .border(1.dp, Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
             .padding(6.dp)
     ) {
@@ -596,7 +606,7 @@ private fun CustomerSelectionCard(customer: CustomerOption, selected: Boolean, o
                 color = if (selected) Purple else BorderGray,
                 shape = RoundedCornerShape(10.dp)
             )
-            .background(if (selected) TintBg else Color.White)
+            .background(if (selected) TintBg else whiteBg)
             .clickable { onSelect() }
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -796,7 +806,7 @@ private fun OptionSelectionGrid(
                                 color = if (selected) Purple else BorderGray,
                                 shape = RoundedCornerShape(10.dp)
                             )
-                            .background(if (selected) TintBg else Color.White)
+                            .background(if (selected) TintBg else whiteBg)
                             .clickable { onSelect(option.name) }
                             .padding(horizontal = 14.dp, vertical = 12.dp)
                     ) {
@@ -850,7 +860,7 @@ private fun GarmentOptionGrid(
                                 color = if (selected) Purple else BorderGray,
                                 shape = RoundedCornerShape(10.dp)
                             )
-                            .background(if (selected) TintBg else Color.White)
+                            .background(if (selected) TintBg else whiteBg)
                             .clickable { onToggle(option.id) }   // ✅ CHANGED
                             .padding(horizontal = 14.dp, vertical = 12.dp)
                     ) {
@@ -908,7 +918,7 @@ private fun AddonSelectionGrid(
                                 color = if (selected) Purple else BorderGray,
                                 shape = RoundedCornerShape(10.dp)
                             )
-                            .background(if (selected) TintBg else Color.White)
+                            .background(if (selected) TintBg else whiteBg)
                             .clickable { onToggle(addon) }
                             .padding(horizontal = 14.dp, vertical = 12.dp)
                     ) {
@@ -1300,7 +1310,7 @@ private fun Step3PricingSummary(
                     .fillMaxWidth()
                     .weight(1f)
                     .padding(horizontal = 8.dp)
-                    .background(Color.White)
+                    .background(whiteBg)
             ) {
                 AndroidView(
                     factory = { ctx ->
@@ -1448,7 +1458,7 @@ private fun StepCircle(stepNum: Int, currentStep: Int) {
                 when {
                     isDone -> Green
                     isCurrent -> Purple
-                    else -> Color.White
+                    else -> whiteBg
                 }
             )
             .then(
@@ -1457,11 +1467,11 @@ private fun StepCircle(stepNum: Int, currentStep: Int) {
         contentAlignment = Alignment.Center
     ) {
         if (isDone) {
-            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+            Icon(Icons.Default.Check, contentDescription = null, tint = whiteBg, modifier = Modifier.size(14.dp))
         } else {
             Text(
                 "$stepNum",
-                color = if (isCurrent) Color.White else MutedGray,
+                color = if (isCurrent) whiteBg else MutedGray,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )

@@ -71,7 +71,7 @@ fun CustomerFeedbackScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Color.Transparent)
     ) {
         // ── Header ──
         Row(

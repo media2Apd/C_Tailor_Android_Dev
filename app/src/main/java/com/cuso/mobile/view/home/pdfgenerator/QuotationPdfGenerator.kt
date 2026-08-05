@@ -1,5 +1,6 @@
 package com.cuso.mobile.view.home.pdfgenerator
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.graphics.Canvas
@@ -126,6 +127,7 @@ class QuotationPdfGenerator(private val context: Context) {
     // captures it as bitmap(s), and writes those bitmaps into a
     // PdfDocument — no package-private classes involved.
     // ────────────────────────────────────────────────────────────
+    @SuppressLint("SetJavaScriptEnabled")
     fun generatePdfFromHtml(
         data: QuotationData,
         fileName: String = "quotation_${data.quotationNumber}.pdf",

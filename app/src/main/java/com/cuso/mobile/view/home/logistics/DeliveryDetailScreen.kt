@@ -1,10 +1,16 @@
+@file:Suppress("AssignedValueIsNeverUsed",
+    "unused",
+    "AssignedVariableIsNeverUsed",
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter"
+    )
 package com.cuso.mobile.view.home.logistics
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
@@ -123,7 +130,7 @@ fun DeliveryDetailScreen(
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
+                color = whiteBg,
                 shadowElevation = 0.dp
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -158,7 +165,7 @@ fun DeliveryDetailScreen(
             if (!isAnySheetOpen) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color.White,
+                    color = whiteBg,
                     shadowElevation = 4.dp
                 ) {
                     Box(
@@ -177,7 +184,7 @@ fun DeliveryDetailScreen(
                         ) {
                             Text(
                                 text = "Mark as Completed",
-                                color = Color.White,
+                                color = whiteBg,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 15.sp,
                                 maxLines = 1
@@ -289,7 +296,7 @@ fun DeliveryDetailScreen(
                 ) {
                     Text(
                         "Update Status",
-                        color = Color.White,
+                        color = whiteBg,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,
                         maxLines = 1
@@ -395,7 +402,7 @@ fun DeliveryDetailScreen(
             peekHeight = 520.dp,
             onDismissRequest = { assignStaffSheetState = SheetValue.Hidden },
             onBlurScrimChange = { blur, _ -> assignSheetBlur = blur },
-            sheetBackgroundColor = Color.White,
+            sheetBackgroundColor = whiteBg,
             maxScrimAlpha = 0.4f,
             maxBlurRadius = 14.dp,
             topInset = 160.dp
@@ -465,7 +472,7 @@ fun DeliveryDetailScreen(
                     Box(
                         modifier = Modifier
                             .size(44.dp)
-                            .background(Color.White, RoundedCornerShape(10.dp))
+                            .background(whiteBg, RoundedCornerShape(10.dp))
                             .border(1.dp, BorderColor, RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center
                     ) {
@@ -569,7 +576,7 @@ fun DeliveryDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(80.dp)
-                            .background(Color.White, RoundedCornerShape(8.dp))
+                            .background(whiteBg, RoundedCornerShape(8.dp))
                             .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
                             .padding(12.dp)
                     ) {
@@ -620,7 +627,7 @@ fun DeliveryDetailScreen(
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Primary)
                     ) {
-                        Text("Assign Staff", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        Text("Assign Staff", color = whiteBg, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -633,7 +640,7 @@ fun DeliveryDetailScreen(
             peekHeight = 420.dp,
             onDismissRequest = { updateStatusSheetState = SheetValue.Hidden },
             onBlurScrimChange = { blur, _ -> updateStatusSheetBlur = blur },
-            sheetBackgroundColor = Color.White,
+            sheetBackgroundColor = whiteBg,
             maxScrimAlpha = 0.4f,
             maxBlurRadius = 14.dp,
             topInset = 160.dp
@@ -678,7 +685,7 @@ fun DeliveryDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(90.dp)
-                        .background(Color.White, RoundedCornerShape(8.dp))
+                        .background(whiteBg, RoundedCornerShape(8.dp))
                         .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
                         .padding(12.dp)
                 ) {
@@ -708,7 +715,7 @@ fun DeliveryDetailScreen(
                     contentPadding = ActionButtonContentPadding,
                     colors = ButtonDefaults.buttonColors(containerColor = Primary)
                 ) {
-                    Text("Update Status", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("Update Status", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 }
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(

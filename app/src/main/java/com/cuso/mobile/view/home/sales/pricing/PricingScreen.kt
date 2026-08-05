@@ -10,12 +10,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
@@ -35,6 +33,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
+import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
@@ -44,8 +44,7 @@ import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 
 private val Primary = Color(0xFF3B3BF9)
 private val PrimaryLight = Color(0xFFEEF0FF)
-private val TextMuted = Color(0xFF9CA3AF)
-private val TextDark = Color(0xFF111827)
+  private val TextDark = Color(0xFF111827)
 private val CardBorder = Color(0xFFF0F0F0)
 private val StripBg = Color(0xFFF9FAFB)
 
@@ -77,13 +76,13 @@ fun PricingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F7))
+                .background(Color.Transparent)
         ) {
             // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -101,7 +100,6 @@ fun PricingScreen(
             HorizontalDivider(color = CardBorder)
             Column(
                 Modifier.fillMaxWidth()
-                    .background(Color(0xFFF8F9FF))
             ) {
 
                 // Breadcrumb
@@ -133,7 +131,7 @@ fun PricingScreen(
 
                     if (uniqueItems.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No pricing records yet", color = TextMuted, fontSize = 14.sp)
+                            Text("No pricing records yet", color = mutedText, fontSize = 14.sp)
                         }
                     } else {
                         Column(
@@ -169,7 +167,8 @@ private fun PricingDashboard(items: List<GarmentPricingListItemDto>) {
     val avgBasePrice = if (items.isNotEmpty()) items.sumOf { it.basePrice } / items.size else 0.0
     val highestPriced = items.maxOfOrNull { it.totalPrice } ?: 0.0
 
-    Column {
+    Column(Modifier.fillMaxSize()
+        .background(whiteBg)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             DashboardStatCard(
                 label = "Active Quotations",
@@ -203,30 +202,31 @@ private fun DashboardStatCard(label: String, value: String, modifier: Modifier =
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .background(PrimaryLight, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.BarChart,
-                    contentDescription = null,
-                    tint = Primary,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-            Spacer(Modifier.width(10.dp))
+//            Box(
+//                modifier = Modifier
+//                    .size(34.dp)
+//                    .background(PrimaryLight, CircleShape),
+//                contentAlignment = Alignment.Center
+//            ) {
+//                Icon(
+//                    Icons.Default.BarChart,
+//                    contentDescription = null,
+//                    tint = Primary,
+//                    modifier = Modifier.size(16.dp)
+//                )
+//            }
+//            Spacer(Modifier.width(10.dp))
             Column {
-                Text(label, fontSize = 11.sp, color = TextMuted)
-                Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                Text(label, fontSize = 11.sp, color = mutedText)
+                Text(value, fontSize = 14.sp, color = TextDark)
+                Text(value, fontSize = 10.sp, color = TextDark)
             }
         }
     }
@@ -244,7 +244,7 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                 onClick()
             },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column {
@@ -276,7 +276,7 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                 Icon(
                     Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = TextMuted,
+                    tint = mutedText,
                     modifier = Modifier.size(20.dp)
                 )
             }

@@ -2,7 +2,15 @@
     "UNUSED_VALUE",
     "SpellCheckingInspection",
     "GrazieInspection",
-    "AssignedValueIsNeverRead"
+    "AssignedValueIsNeverRead",
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter", "VariableNeverRead"
+
 )
 
 package com.cuso.mobile.view.home.sales.sales_order
@@ -88,12 +96,11 @@ import java.io.File
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
-import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.utils.safeDate
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.customFieldOutlinedColors
 import com.cuso.mobile.view.home.FormTextField
-import com.cuso.mobile.view.home.inventory.FormTextArea
 import com.cuso.mobile.view.home.reusablecomposables.BackFabButton
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
 import com.cuso.mobile.view.home.reusablecomposables.SegmentedSelector
@@ -251,7 +258,7 @@ fun CreateOrderScreen(
 
     var addCategorySheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var addCategoryBlur by remember { mutableStateOf(0.dp) }
-    var addCategoryScrim by remember { mutableStateOf(0f) }
+    var addCategoryScrim by remember { mutableFloatStateOf(0f) }
     var selectedQuickCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(initialData) {
         initialData?.garments?.let { garments ->
@@ -304,7 +311,7 @@ fun CreateOrderScreen(
     if (showImagePickerOptions) {
         AlertDialog(
             onDismissRequest = { showImagePickerOptions = false },
-            containerColor = Color.White,
+            containerColor = Color.Transparent,
             shape = RoundedCornerShape(16.dp),
             title = {
                 Text(
@@ -616,7 +623,7 @@ fun CreateOrderScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -642,7 +649,7 @@ fun CreateOrderScreen(
                 )
             }
         },
-        containerColor = Primary_background
+        containerColor = Color.Transparent
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
             Column(
@@ -652,7 +659,6 @@ fun CreateOrderScreen(
                     .blurScrim(addCategoryBlur)   // ✅ NEW
                     .verticalScroll(scrollState)
                     .padding(bottom = 16.dp)
-                    .background(Primary_background)
             ) {
 
                 // ══════════════════════════════════════════════
@@ -704,7 +710,7 @@ fun CreateOrderScreen(
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(10.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    colors = CardDefaults.cardColors(containerColor = whiteBg),
                                     elevation = CardDefaults.cardElevation(3.dp)
                                 ) {
                                     Column(modifier = Modifier.fillMaxWidth()) {
@@ -864,8 +870,8 @@ fun CreateOrderScreen(
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = Color(0xFFE5E7EB),
                             focusedBorderColor = Color(0xFF3B3BF9),
-                            unfocusedContainerColor = Color.White,
-                            focusedContainerColor = Color.White
+                            unfocusedContainerColor = whiteBg,
+                            focusedContainerColor = whiteBg
                         ),
                         shape = RoundedCornerShape(8.dp),
                         textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF111827)),
@@ -975,7 +981,7 @@ fun CreateOrderScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(70.dp)
-                                    .background(Color.White, RoundedCornerShape(8.dp))
+                                    .background(whiteBg, RoundedCornerShape(8.dp))
                                     .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -1029,7 +1035,7 @@ fun CreateOrderScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(80.dp)
-                                .background(Color.White, RoundedCornerShape(8.dp))
+                                .background(whiteBg, RoundedCornerShape(8.dp))
                                 .border(
                                     1.dp,
                                     if (garmentsError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
@@ -1049,7 +1055,7 @@ fun CreateOrderScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color.White, RoundedCornerShape(8.dp))
+                                        .background(whiteBg, RoundedCornerShape(8.dp))
                                         .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
                                         .clickable { editGarmentDialog(garment) }
                                         .padding(12.dp),
@@ -1265,7 +1271,7 @@ fun CreateOrderScreen(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+                            colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
                         ) {
                             Icon(Icons.Default.FileUpload, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
@@ -1285,7 +1291,7 @@ fun CreateOrderScreen(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+                            colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
                         ) {
                             Image(
                                 painter = painterResource(R.drawable.camera),
@@ -1358,7 +1364,7 @@ fun CreateOrderScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(90.dp)
-                                .background(Color.White, RoundedCornerShape(8.dp))
+                                .background(whiteBg, RoundedCornerShape(8.dp))
                                 .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
@@ -1411,8 +1417,8 @@ fun CreateOrderScreen(
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = Color(0xFFE5E7EB),
                             focusedBorderColor = Color(0xFF3B3BF9),
-                            unfocusedContainerColor = Color.White,
-                            focusedContainerColor = Color.White
+                            unfocusedContainerColor = whiteBg,
+                            focusedContainerColor = whiteBg
                         ),
                         shape = RoundedCornerShape(8.dp),
                         textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF111827))
@@ -1426,7 +1432,7 @@ fun CreateOrderScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White, RoundedCornerShape(8.dp))
+                            .background(whiteBg, RoundedCornerShape(8.dp))
                             .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
                             .padding(24.dp),
                         contentAlignment = Alignment.Center
@@ -1453,13 +1459,13 @@ fun CreateOrderScreen(
                                 Icon(
                                     if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
                                     null,
-                                    tint = if (isRecording) Color.White else Color(0xFF3B3BF9),
+                                    tint = if (isRecording) whiteBg else Color(0xFF3B3BF9),
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
                                     if (isRecording) "Stop Recording" else "Start Recording",
-                                    color = if (isRecording) Color.White else Color(0xFF3B3BF9),
+                                    color = if (isRecording) whiteBg else Color(0xFF3B3BF9),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -1505,14 +1511,14 @@ fun CreateOrderScreen(
                 ) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
-                        color = Color.White
+                        color = whiteBg
                     ) {
                         Column(modifier = Modifier.fillMaxSize()) {
                             // ── Full-page top bar ──
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color.White)
+                                    .background(whiteBg)
                                     .padding(horizontal = 16.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
@@ -1539,6 +1545,7 @@ fun CreateOrderScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .weight(1f)
+                                    .background(Color.Transparent)
                                     .verticalScroll(rememberScrollState())
                             ) {
                                 InlineGarmentPanel(
@@ -1689,7 +1696,7 @@ fun CategoryPillButton(
 
     Row(
         modifier = Modifier
-            .background(Color.White, RoundedCornerShape(12.dp))
+            .background(whiteBg, RoundedCornerShape(12.dp))
             .border(
                 width = if (isSelected) 1.5.dp else 1.dp,
                 color = borderColor,
@@ -1800,7 +1807,7 @@ fun PreviousMeasurementsDialog(
         Card(
             modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(horizontal = 16.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = whiteBg),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(
@@ -1834,7 +1841,7 @@ fun PreviousMeasurementsDialog(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            colors = CardDefaults.cardColors(containerColor = whiteBg),
                             elevation = CardDefaults.cardElevation(0.dp),
                             border = BorderStroke(1.dp, Color(0xFFE5E7EB))
                         ) {
@@ -1912,7 +1919,7 @@ fun PreviousMeasurementsDialog(
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(Color.White)
+                                            .background(whiteBg)
                                             .padding(horizontal = 14.dp, vertical = 8.dp),
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
@@ -1936,7 +1943,7 @@ fun PreviousMeasurementsDialog(
                                                     modifier = Modifier
                                                         .size(20.dp)
                                                         .background(
-                                                            if (isSelected) Color(0xFF3B3BF9) else Color.White,
+                                                            if (isSelected) Color(0xFF3B3BF9) else whiteBg,
                                                             RoundedCornerShape(4.dp)
                                                         )
                                                         .border(
@@ -1950,7 +1957,7 @@ fun PreviousMeasurementsDialog(
                                                         Icon(
                                                             Icons.Default.Check,
                                                             null,
-                                                            tint = Color.White,
+                                                            tint = whiteBg,
                                                             modifier = Modifier.size(12.dp)
                                                         )
                                                     }
@@ -2018,9 +2025,9 @@ fun PreviousMeasurementsDialog(
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Icon(Icons.Default.Download, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Download, null, tint = whiteBg, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Import ", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        Text("Import ", color = whiteBg, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -2069,8 +2076,8 @@ private fun InlineGarmentPanel(
     var subSection by remember { mutableStateOf("basic") }
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).background(Color.Transparent),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
@@ -2286,7 +2293,7 @@ private fun GarmentSubSection(
         if (expanded) 180f else 0f, label = "sub_chevron"
     )
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent)) {
         Row(
             modifier = Modifier.fillMaxWidth().clickable { onToggle() }.padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -2345,7 +2352,7 @@ fun SegmentedToggle(
             .height(44.dp)
             .clip(RoundedCornerShape(8.dp))
             .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-            .background(Color.White)
+            .background(whiteBg)
             .padding(4.dp)
     ) {
         options.forEach { option ->
@@ -2363,7 +2370,7 @@ fun SegmentedToggle(
                     option,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (isSelected) Color.White else Color(0xFF374151)
+                    color = if (isSelected) whiteBg else Color(0xFF374151)
                 )
             }
         }
@@ -2486,7 +2493,7 @@ fun MeasurementInputField(
                     .height(40.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 10.dp),
                 decorationBox = { inner ->
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
@@ -2505,7 +2512,7 @@ fun MeasurementInputField(
                         .height(40.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                        .background(Color.White)
+                        .background(whiteBg)
                         .clickable { unitExpanded = true }
                         .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -2570,7 +2577,7 @@ fun CustomFieldRow(
                     .height(40.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 10.dp),
                 decorationBox = { inner ->
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
@@ -2593,7 +2600,7 @@ fun CustomFieldRow(
                     .height(40.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 10.dp),
                 decorationBox = { inner ->
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
@@ -2630,7 +2637,7 @@ private fun SectionCard(
     val chevronRotation by androidx.compose.animation.core.animateFloatAsState(
         if (expanded) 180f else 0f, label = "section_chevron"
     )
-    Column(modifier = Modifier.fillMaxWidth().background(Primary_background)) {
+    Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent)) {
         Row(
             modifier = Modifier.fillMaxWidth().clickable { onToggle() }.padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -2691,7 +2698,7 @@ fun ColorPickerField(
         modifier = Modifier
             .fillMaxWidth()
             .height(44.dp)
-            .background(Color.White, RoundedCornerShape(8.dp))
+            .background(whiteBg, RoundedCornerShape(8.dp))
             .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
             .clickable { showDialog = true }
             .padding(horizontal = 12.dp),
@@ -2736,7 +2743,7 @@ private fun ColorPickerDialog(
         Card(
             modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(horizontal = 20.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = whiteBg),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(
@@ -2790,7 +2797,7 @@ private fun ColorPickerDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Select", color = Color.White)
+                        Text("Select", color = whiteBg)
                     }
                 }
             }

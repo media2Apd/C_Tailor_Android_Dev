@@ -4,7 +4,6 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -16,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.TwoWheeler
@@ -37,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Colors ───────────────────────────────────────────────────────────────────
 private val ActiveHalo    = Color(0xFFECEBFF)
@@ -111,7 +110,7 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
+                color = whiteBg,
                 shadowElevation = 0.dp
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -227,7 +226,7 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 20.dp, vertical = 10.dp)
             ) {
                 Text(
@@ -267,7 +266,7 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 10.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -296,7 +295,7 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 10.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -421,14 +420,14 @@ private fun AnimatedTimelineItem(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Completed",
-                                tint = Color.White,
+                                tint = whiteBg,
                                 modifier = Modifier.size(18.dp)
                             )
                         } else {
                             Icon(
                                 imageVector = step.icon,
                                 contentDescription = null,
-                                tint = if (isActive) Color.White else Color(0xFF6B7280),
+                                tint = if (isActive) whiteBg else Color(0xFF6B7280),
                                 modifier = Modifier.size(18.dp)
                             )
                         }

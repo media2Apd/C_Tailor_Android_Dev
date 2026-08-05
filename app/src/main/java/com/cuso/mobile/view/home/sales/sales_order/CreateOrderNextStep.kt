@@ -55,6 +55,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
 import com.cuso.mobile.viewmodel.SalesViewModel
@@ -307,7 +308,7 @@ fun CreateOrderNextStep(
             }
         },
         // AFTER
-        containerColor = Color.White
+        containerColor = Color.Transparent
 
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -563,7 +564,7 @@ fun CreateOrderNextStep(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
                                         .border(0.5.dp, BorderColor, RoundedCornerShape(6.dp))
-                                        .background(Color.White)
+                                        .background(whiteBg)
                                         .padding(horizontal = 10.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -644,7 +645,7 @@ fun CreateOrderNextStep(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color.White)
+                                .background(whiteBg)
                                 .border(1.dp, Color.LightGray, RoundedCornerShape(10.dp))
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,

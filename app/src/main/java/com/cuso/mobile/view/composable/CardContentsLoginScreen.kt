@@ -62,6 +62,7 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.PrimaryTextColor
 import com.cuso.mobile.ui.theme.TextLog
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
 
@@ -178,7 +179,7 @@ fun CardContentsLoginScreen(navController: NavController,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp)
-                    .background(Color.White)
+                    .background(whiteBg)
                     .border(2.dp, PrimaryBorder, shape = RoundedCornerShape(8.dp))
                     .padding(horizontal = 16.dp)
             ) {
@@ -377,7 +378,7 @@ fun CardContentsLoginScreen(navController: NavController,
                 contentPadding = PaddingValues(vertical = 0.dp, horizontal = 16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Primary,
-                    contentColor = Color.White
+                    contentColor = whiteBg
                 ),
                 shape = RoundedCornerShape(5.dp)
             ) {
@@ -390,7 +391,7 @@ fun CardContentsLoginScreen(navController: NavController,
                     } else {
                         Text(
                             text = if (isSubmitted) "Continue" else "Verify Mail",
-                            color = Color.White,
+                            color = whiteBg,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold
                         )

@@ -23,6 +23,7 @@ import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Static data model ──
 data class PaymentItem(
@@ -64,13 +65,13 @@ fun AllPaymentScreen(
                 p.paymentId.contains(searchQuery, ignoreCase = true)
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F7))) {
+    Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
         // ── FIXED TOP HEADER ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -88,7 +89,7 @@ fun AllPaymentScreen(
         }
 
         // ── Breadcrumb + Search ──
-        Column(modifier = Modifier.fillMaxWidth().background(Color.White)) {
+        Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent)) {
             ScreenBreadcrumb(
                 segments = listOf("Finance", "Purchase Invoice"),
                 onClick = { onBreadCrumbClick() }

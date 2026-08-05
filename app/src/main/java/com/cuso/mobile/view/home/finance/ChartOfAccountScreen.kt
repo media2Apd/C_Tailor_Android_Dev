@@ -47,6 +47,7 @@ package com.cuso.mobile.view.home.finance
     import com.cuso.mobile.ui.theme.BluePrimary
     import com.cuso.mobile.ui.theme.BorderGray
     import com.cuso.mobile.ui.theme.TextSecondary
+    import com.cuso.mobile.ui.theme.whiteBg
     import com.cuso.mobile.view.composable.DynamicIslandError
     import com.cuso.mobile.view.composable.FieldValidator
     import com.cuso.mobile.view.composable.ScreenBreadcrumb
@@ -179,14 +180,14 @@ package com.cuso.mobile.view.home.finance
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.White)
+                    .background(Color.Transparent)
             ) {
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp)
-                        .background(Color.White),
+                        .background(whiteBg)
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -205,10 +206,7 @@ package com.cuso.mobile.view.home.finance
                             .clickable { onClose() }
                     )
                 }
-                Column(
-                    Modifier.background(Color(0xFFF8F9FF))
-
-                ) {
+                Column{
                     // ── Breadcrumb ──
                     ScreenBreadcrumb(
                         segments = listOf("Finance", "Chart of Accounts"),
@@ -241,7 +239,7 @@ package com.cuso.mobile.view.home.finance
                                 Text("Something went wrong, Please try again later", color = Color.Red)
                                 Spacer(Modifier.height(12.dp))
                                 Button(onClick = { financeViewModel.fetchChartOfAccounts() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(8.dp)) {
-                                    Text("Retry", color = Color.White)
+                                    Text("Retry", color = whiteBg)
                                 }
                             }
                         }
@@ -493,7 +491,7 @@ package com.cuso.mobile.view.home.finance
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.White)
+                    .background(Color.Transparent)
             ) {
                 // ── Title bar ──
                 Row(
@@ -633,7 +631,7 @@ package com.cuso.mobile.view.home.finance
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(110.dp)
-                        .background(Color.White, RoundedCornerShape(8.dp))
+                        .background(whiteBg, RoundedCornerShape(8.dp))
                         .border(1.dp, BorderGray, RoundedCornerShape(8.dp))
                         .padding(12.dp)
                 ) {
@@ -736,11 +734,11 @@ package com.cuso.mobile.view.home.finance
                         if (isSaving) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
-                                color = Color.White,
+                                color = whiteBg,
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text(if (isEditMode) "Save Changes" else "Save Account", color = Color.White)
+                            Text(if (isEditMode) "Save Changes" else "Save Account", color = whiteBg)
                         }
                     }
                 }

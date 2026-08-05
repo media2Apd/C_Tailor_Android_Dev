@@ -14,11 +14,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,7 +36,6 @@ import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
-import com.cuso.mobile.view.composable.PaginationFooter
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -47,17 +44,15 @@ import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
-import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
-import com.cuso.mobile.view.home.sales.sales_order.toDisplayDate
 import com.cuso.mobile.viewmodel.CustomerCreateState
 import com.cuso.mobile.viewmodel.CustomerDeleteState
 import com.cuso.mobile.viewmodel.CustomerUiState
 import com.cuso.mobile.viewmodel.CustomerViewModel
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.whiteBg
 
 fun String?.toDisplayDate(): String {
     if (this.isNullOrBlank()) return "—"
@@ -168,13 +163,13 @@ fun CustomerScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFFF9FAFB))
+                    .background(Color.Transparent)
             ) {
                 // ── Top Bar ──────────────────────────────────────────
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(whiteBg)
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -182,7 +177,7 @@ fun CustomerScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White)
+                            .background(whiteBg)
                             .padding(horizontal = 16.dp)
                     ) {
                         Row(
@@ -206,15 +201,10 @@ fun CustomerScreen(
                     }
                 }
 
-                Column(
-                    modifier = Modifier
-                        .background(Color(0xFFF8F9FF))
-                        .fillMaxWidth()
-                ) {
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFF8F9FF))
                     ) {
                         ScreenBreadcrumb(segments = listOf("Sales", "Customers"), onClick = { onBreadCrumbClick() })
 
@@ -229,7 +219,7 @@ fun CustomerScreen(
                             onFilterClick = { }
                         )
                     }
-                }
+
 
                 HorizontalDivider(color = Color(0xFFF0F0F0))
 
@@ -321,13 +311,13 @@ fun CustomerScreen(
                                     }
                                 }
 
-                                PaginationFooter(
-                                    currentPage = currentPage,
-                                    pageSize = pageSize,
-                                    totalItems = total,
-                                    onPageChange = { customerViewModel.onPageChange(it) },
-                                    onItemsPerPageChange = { customerViewModel.onItemsPerPageChange(it) }
-                                )
+//                                PaginationFooter(
+//                                    currentPage = currentPage,
+//                                    pageSize = pageSize,
+//                                    totalItems = total,
+//                                    onPageChange = { customerViewModel.onPageChange(it) },
+//                                    onItemsPerPageChange = { customerViewModel.onItemsPerPageChange(it) }
+//                                )
                             }
                         }
                     }
@@ -382,7 +372,7 @@ fun CustomerScreen(
                     Text("Cancel")
                 }
             },
-            containerColor = Color.White
+            containerColor = whiteBg
         )
     }
 }

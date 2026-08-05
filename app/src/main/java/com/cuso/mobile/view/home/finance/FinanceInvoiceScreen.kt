@@ -32,6 +32,7 @@ import com.cuso.mobile.model.finance.InvoiceViewOneData
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.pdfgenerator.InvoicePdfGenerator
@@ -44,17 +45,16 @@ import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.ProfileUiState
-import com.itextpdf.layout.borders.Border
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private val InvPrimary = Color(0xFF3B3BF9)
 private val InvTextDark = Color(0xFF111827)
-private val InvTextMuted = Color(0xFF9CA3AF)
+private val InvmutedText = Color(0xFF9CA3AF)
 private val InvGreen = Color(0xFF16A34A)
 private val InvRed = Color(0xFFEF4444)
 private val InvYellow = Color(0xFFF59E0B)
-private val InvBgLight = Color(0xFFF5F5F7)
+//private val InvBgLight = Color(0xFFF5F5F7)
 
 // ─────────────────────────────────────────────────────────────
 // FinanceInvoiceScreen — "All Invoice" list (View All)
@@ -87,13 +87,13 @@ fun FinanceInvoiceScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(InvBgLight)
+            .background(Color.Transparent)
     ) {
         // ── Top bar ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -140,9 +140,9 @@ fun FinanceInvoiceScreen(
                 filteredInvoices.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.AutoMirrored.Filled.ReceiptLong, null, tint = InvTextMuted, modifier = Modifier.size(48.dp))
+                            Icon(Icons.AutoMirrored.Filled.ReceiptLong, null, tint = InvmutedText, modifier = Modifier.size(48.dp))
                             Spacer(Modifier.height(8.dp))
-                            Text("No invoices found", fontSize = 14.sp, color = InvTextMuted)
+                            Text("No invoices found", fontSize = 14.sp, color = InvmutedText)
                         }
                     }
                 }
@@ -177,7 +177,7 @@ private fun InvoiceDataCard(invoice: InvoiceItem, onClick: () -> Unit) {
             vector = Icons.Default.Person,
             size = 30.dp,
             backgroundColor = BorderGray,
-            tint = InvTextMuted
+            tint = InvmutedText
         ),
         title = invoice.invoiceNumber,
         subtitle = "${invoice.displayCustomerName} • Customer",
@@ -210,7 +210,7 @@ private fun statusColorsOfInvoice(status: String?): Pair<String, Color> = when (
     "paid" -> "Active" to InvGreen
     "partial" -> "Partial" to InvYellow
     "unpaid", "overdue" -> "Overdue" to InvRed
-    else -> "Unknown" to InvTextMuted
+    else -> "Unknown" to InvmutedText
 }
 
 private fun formatInvoiceDate(dateString: String): String {
@@ -239,7 +239,7 @@ private fun InvoiceHeaderCard(invoice: InvoiceViewOneData) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(whiteBg)
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         Row(
@@ -267,7 +267,7 @@ private fun InvoiceHeaderCard(invoice: InvoiceViewOneData) {
             Icon(
                 Icons.Default.MoreVert,
                 contentDescription = "More",
-                tint = InvTextMuted,
+                tint = InvmutedText,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -275,7 +275,7 @@ private fun InvoiceHeaderCard(invoice: InvoiceViewOneData) {
         Text(
             "Raised on ${formatInvoiceDate(invoice.invoiceDate)} | ${invoice.salesOrderId?.let { "Department Production " } ?: "Sales Invoice"}",
             fontSize = 12.5.sp,
-            color = InvTextMuted
+            color = InvmutedText
         )
     }
     HorizontalDivider(color = Color(0xFFEEEEEE))
@@ -384,13 +384,13 @@ fun InvoiceDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(InvBgLight)
+            .background(Color.Transparent)
     ) {
         // ── Top bar ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -523,7 +523,7 @@ fun InvoiceDetailScreen(
                             .fillMaxWidth()
                             .weight(1f)
                             .padding(horizontal = 8.dp)
-                            .background(Color.White)
+                            .background(whiteBg)
                     ) {
                         AndroidView(
                             factory = { ctx ->
@@ -625,12 +625,12 @@ fun InvoiceDetailScreen(
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
                                     strokeWidth = 2.dp,
-                                    color = Color.White
+                                    color = whiteBg
                                 )
                             } else {
-                                Icon(Icons.Default.Download, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Download, null, tint = whiteBg, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Download ", color = Color.White, fontSize = 14.sp)
+                                Text("Download ", color = whiteBg, fontSize = 14.sp)
                             }
                         }
                     }

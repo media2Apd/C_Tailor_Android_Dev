@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.viewmodel.SaleState
 import com.cuso.mobile.viewmodel.SalesViewModel
@@ -225,13 +226,13 @@ fun GarmentTypeContent(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color.White
+        containerColor = whiteBg
     ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color.White)
+                .background(whiteBg)
         ) {
             // ── Top Bar ──
             Row(
@@ -326,7 +327,7 @@ fun GarmentTypeContent(
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFF3B3BF9)
                                 )
-                            ) { Text("Retry", color = Color.White) }
+                            ) { Text("Retry", color = whiteBg) }
                         }
                     }
                 }
@@ -365,7 +366,7 @@ fun GarmentTypeContent(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color.White, RoundedCornerShape(12.dp))
+                                    .background(whiteBg, RoundedCornerShape(12.dp))
                                     .border(
                                         width = if (isSelected) 2.dp else 1.dp,
                                         color = if (isSelected) Color(0xFF3B3BF9)
@@ -416,7 +417,7 @@ fun GarmentTypeContent(
                                         Icon(
                                             Icons.Default.Check,
                                             contentDescription = null,
-                                            tint = Color.White,
+                                            tint = whiteBg,
                                             modifier = Modifier.size(12.dp)
                                         )
                                     }

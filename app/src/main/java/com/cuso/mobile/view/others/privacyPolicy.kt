@@ -11,12 +11,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.whiteBg
+
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun PrivacyPolicy(navController: NavController){
     Box(
         modifier = Modifier
-            .background(Color.White)
+            .background(whiteBg)
             .fillMaxSize()
     ) {
         Column(

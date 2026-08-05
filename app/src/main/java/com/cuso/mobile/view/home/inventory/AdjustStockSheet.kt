@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.FormDropdown
 
 private val PurplePrimary = Color(0xFF5A4FE0)
@@ -65,7 +66,7 @@ fun AdjustStockSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color.White,
+        containerColor = whiteBg,
         dragHandle = { Box(
             modifier = Modifier
                 .padding(top = 10.dp)

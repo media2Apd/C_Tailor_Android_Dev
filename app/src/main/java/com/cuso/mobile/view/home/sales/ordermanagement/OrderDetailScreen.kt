@@ -38,6 +38,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.OrderViewData
 import com.cuso.mobile.model.sales.OrderViewGarmentItem
 import com.cuso.mobile.model.sales.OrderViewStageGroup
+import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.viewmodel.OrderOverviewViewModel
@@ -49,8 +51,7 @@ import java.util.Date
 import java.util.Locale
 
 private val Primary = Color(0xFF3B3BF9)
-private val TextMuted = Color(0xFF9CA3AF)
-private val TextDark = Color(0xFF111827)
+  private val TextDark = Color(0xFF111827)
 
 @Composable
 fun OrderDetailScreen(
@@ -71,12 +72,12 @@ fun OrderDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F7))
+            .background(Color.Transparent)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
+                .background(whiteBg)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -168,6 +169,7 @@ private fun OrderDetailContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color.Transparent)
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
@@ -187,7 +189,7 @@ private fun OrderDetailContent(
 //                Text(
 //                    order.customerId?.mobile ?: "—",
 //                    fontSize = 13.sp,
-//                    color = TextMuted
+//                    color = mutedText
 //                )
             }
             Box(
@@ -251,7 +253,7 @@ private fun OrderDetailContent(
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Primary)
             ) {
-                Text("Move Delivery", color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text("Move Delivery", color = whiteBg, fontWeight = FontWeight.SemiBold)
             }
         }
 
@@ -307,7 +309,7 @@ private fun OrderDetailContent(
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
                 shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = whiteBg),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
@@ -326,7 +328,7 @@ private fun OrderDetailContent(
                                     .padding(vertical = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(fieldName, fontSize = 14.sp, color = TextMuted)
+                                Text(fieldName, fontSize = 14.sp, color = mutedText)
                                 Text(
                                     if (value.isNotBlank()) "$value $unit" else "—",
                                     fontSize = 14.sp,
@@ -340,14 +342,14 @@ private fun OrderDetailContent(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Chest", fontSize = 14.sp, color = TextMuted)
+                            Text("Chest", fontSize = 14.sp, color = mutedText)
                             Text("— in", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Sleeve Length", fontSize = 14.sp, color = TextMuted)
+                            Text("Sleeve Length", fontSize = 14.sp, color = mutedText)
                             Text("— in", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
                         }
                     }
@@ -380,7 +382,7 @@ private fun OrderDetailContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(item.categoryName, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
-                    Text("Progress: $completedStages/$totalStages", fontSize = 13.sp, color = TextMuted)
+                    Text("Progress: $completedStages/$totalStages", fontSize = 13.sp, color = mutedText)
                 }
                 Spacer(Modifier.height(4.dp))
 
@@ -394,7 +396,7 @@ private fun OrderDetailContent(
 
                 Spacer(Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Pending: ${totalStages - completedStages}", fontSize = 12.sp, color = TextMuted)
+                    Text("Pending: ${totalStages - completedStages}", fontSize = 12.sp, color = mutedText)
                     Text("In Progress: $inProgressStages", fontSize = 12.sp, color = Color(0xFFF59E0B))
                 }
 
@@ -405,7 +407,7 @@ private fun OrderDetailContent(
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E))
                 ) {
-                    Text("Complete Garment", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text("Complete Garment", color = whiteBg, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -453,7 +455,7 @@ private fun OrderDetailContent(
 //                    .border(1.dp, cardBorderColor, RoundedCornerShape(12.dp))
 //                    .alpha(if (isCardEnabled) 1f else 0.5f),
 //                shape = RoundedCornerShape(12.dp),
-//                colors = CardDefaults.cardColors(containerColor = Color.White),
+//                colors = CardDefaults.cardColors(containerColor = whiteBg),
 //                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
 //            ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -483,12 +485,12 @@ private fun OrderDetailContent(
                                         color = Primary
                                     )
                                 } else {
-                                    Text("Not assigned", fontSize = 13.sp, color = TextMuted)
+                                    Text("Not assigned", fontSize = 13.sp, color = mutedText)
                                 }
                                 Text(
                                     "Qty: ${stage.completedQuantity} / ${stage.assignedQuantity}",
                                     fontSize = 12.sp,
-                                    color = TextMuted
+                                    color = mutedText
                                 )
                             }
                         }
@@ -518,7 +520,7 @@ private fun OrderDetailContent(
                             textStyle = TextStyle(fontSize = 13.sp, color = TextDark),
                             cursorBrush = SolidColor(Primary),
                             decorationBox = { inner ->
-                                if (stageNotes.isEmpty()) Text("Add stage notes...", fontSize = 13.sp, color = TextMuted)
+                                if (stageNotes.isEmpty()) Text("Add stage notes...", fontSize = 13.sp, color = mutedText)
                                 inner()
                             }
                         )
@@ -552,8 +554,8 @@ private fun OrderDetailContent(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (buttonEnabled) Primary else Color(0xFFF3F4F6),
                             disabledContainerColor = Color(0xFFF3F4F6),
-                            disabledContentColor = TextMuted,
-                            contentColor = if (buttonEnabled) Color.White else TextMuted
+                            disabledContentColor = mutedText,
+                            contentColor = if (buttonEnabled) whiteBg else mutedText
                         ),
                     ) {
                         if (isUpdating) {
@@ -564,7 +566,7 @@ private fun OrderDetailContent(
                                 buttonText,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp,
-                                color = if (buttonEnabled) Color.White else TextMuted
+                                color = if (buttonEnabled) whiteBg else mutedText
                             )
                         }
                     }
@@ -619,7 +621,7 @@ private fun OrderDetailContent(
                 data.delivery != null
 
         if (!hasAnyActivity) {
-            Text("No activity yet", fontSize = 13.sp, color = TextMuted)
+            Text("No activity yet", fontSize = 13.sp, color = mutedText)
         } else {
             // Trial alert — only shown if trialDate is present in API response
             trialCard?.let { card ->
@@ -684,7 +686,7 @@ private fun ActivityLogCard(data: ActivityCardData) {
         Spacer(Modifier.width(10.dp))
         Column {
             Text(data.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
-            Text(data.subtitle, fontSize = 12.sp, color = TextMuted)
+            Text(data.subtitle, fontSize = 12.sp, color = mutedText)
         }
     }
 }
@@ -779,13 +781,13 @@ private fun CustomStatusDropdown(
     val statusOptions = listOf("Pending", "In Progress", "Completed")
     val displayText = selectedStatus.replaceFirstChar { it.uppercase() }
     val borderColor = if (enabled) Color(0xFFC7D2FE) else Color(0xFFE5E7EB)
-    val textColor = if (enabled) TextDark else TextMuted
+    val textColor = if (enabled) TextDark else mutedText
 
     Box {
         Row(
             modifier = Modifier
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-                .background(Color.White, RoundedCornerShape(8.dp))
+                .background(whiteBg, RoundedCornerShape(8.dp))
                 .clickable(enabled = enabled) { onExpandChange(!expanded) }
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -795,7 +797,7 @@ private fun CustomStatusDropdown(
             Icon(
                 if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
-                tint = TextMuted,
+                tint = mutedText,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -803,14 +805,14 @@ private fun CustomStatusDropdown(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { onExpandChange(false) },
-            containerColor = Color.White,
+            containerColor = whiteBg,
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.width(160.dp)
         ) {
             Text(
                 "Select an option",
                 fontSize = 12.sp,
-                color = TextMuted,
+                color = mutedText,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
@@ -864,13 +866,13 @@ private fun GarmentChip(label: String, isSelected: Boolean, onClick: () -> Unit)
     Surface(
         modifier = Modifier.clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        color = if (isSelected) Primary else Color.White,
+        color = if (isSelected) Primary else whiteBg,
         border = if (!isSelected) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)) else null
     ) {
         Text(
             label,
             fontSize = 12.sp,
-            color = if (isSelected) Color.White else TextDark,
+            color = if (isSelected) whiteBg else TextDark,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
         )
     }
@@ -879,7 +881,7 @@ private fun GarmentChip(label: String, isSelected: Boolean, onClick: () -> Unit)
 @Composable
 private fun InfoColumn(label: String, value: String) {
     Column {
-        Text(label, fontSize = 11.sp, color = TextMuted)
+        Text(label, fontSize = 11.sp, color = mutedText)
         Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextDark)
     }
 }
@@ -887,7 +889,7 @@ private fun InfoColumn(label: String, value: String) {
 @Composable
 private fun LabelValueRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, fontSize = 13.sp, color = TextMuted)
+        Text(label, fontSize = 13.sp, color = mutedText)
         Text(value, fontSize = 13.sp, color = TextDark, fontWeight = FontWeight.Medium)
     }
 }
@@ -906,7 +908,7 @@ private fun ExpandableRow(title: String, expanded: Boolean, onToggle: () -> Unit
         Icon(
             if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
             contentDescription = null,
-            tint = TextMuted
+            tint = mutedText
         )
     }
 }

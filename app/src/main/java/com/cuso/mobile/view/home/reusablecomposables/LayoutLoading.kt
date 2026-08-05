@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.ui.theme.modelBorder
+import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Shimmer brush — reusable animated gradient ──
 @Composable
@@ -80,7 +81,7 @@ import com.cuso.mobile.ui.theme.modelBorder
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF7F7FB)),
+            .background(Color.Transparent),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
         userScrollEnabled = false
@@ -173,7 +174,7 @@ import com.cuso.mobile.ui.theme.modelBorder
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.White, RoundedCornerShape(14.dp))
+                                .background(whiteBg, RoundedCornerShape(14.dp))
                                 .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -200,7 +201,7 @@ import com.cuso.mobile.ui.theme.modelBorder
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.White, RoundedCornerShape(14.dp))
+                                .background(whiteBg, RoundedCornerShape(14.dp))
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {

@@ -6,7 +6,6 @@ package com.cuso.mobile.view.home.inventory
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,14 +41,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.modelGray
+import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Reused from HomeScreen.kt (com.cuso.mobile.view.home) ──
 import com.cuso.mobile.view.home.FormDropdown
@@ -165,13 +163,14 @@ fun CreatePurchaseOrderScreen(
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color.White
+                color = whiteBg
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .background(whiteBg)
                         .padding(horizontal = 20.dp, vertical = 18.dp)
 
                 ) {
@@ -190,11 +189,11 @@ fun CreatePurchaseOrderScreen(
                 StepNavigationFab(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(76.dp), // Row-oda padding+content height approx — screen adjust panni sari pannikonga
+                        .height(76.dp),
                     showBack = true,
                     onBack = onCancel,
                     backLabel = "Cancel",
-                    backWidthFraction = 0.46f, // Row-la weight(1f) mாதிரி இரண்டு buttons equal-a pirikka
+                    backWidthFraction = 0.46f,
                     trailingAction = TrailingFabAction.Next(
                         label = "Create Order",
                         onClick = onCreateOrder
@@ -202,14 +201,15 @@ fun CreatePurchaseOrderScreen(
                     trailingWidthFraction = 0.46f
                 )
             }
-        }
+        },
+        containerColor = Color.Transparent
     ) { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
                 .padding(bottom = 10.dp)
                 .verticalScroll(rememberScrollState())
-                .background(modelGray)
+                .background(Color.Transparent)
         ) {
             PurchaseOrderHeaderCard(
                 code = "FAB-ITL-220",
@@ -405,8 +405,8 @@ fun FormTextArea(
         colors = OutlinedTextFieldDefaults.colors(
             unfocusedBorderColor = borderColor,
             focusedBorderColor = focusedBorderColor,
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color.White
+            focusedContainerColor = whiteBg,
+            unfocusedContainerColor = whiteBg
         ),
         modifier = modifier.fillMaxWidth()
     )

@@ -28,6 +28,7 @@ import com.cuso.mobile.model.hr.displayName
 import com.cuso.mobile.model.hr.displayRole
 import com.cuso.mobile.model.hr.displayStatus
 import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -120,12 +121,13 @@ fun AllEmployeesScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
+                .background(Color.Transparent)
         ) {
             // ── Header ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(whiteBg)
                     .padding(horizontal = 20.dp, vertical = 18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -144,9 +146,7 @@ fun AllEmployeesScreen(
                 )
             }
 
-            Column(
-                Modifier.background(Primary_background)
-            ) {
+            Column{
 
                 // ── Breadcrumb ──
                 ScreenBreadcrumb(listOf("HR", "All Employees"), onClick = { onBreadCrumbClick() })

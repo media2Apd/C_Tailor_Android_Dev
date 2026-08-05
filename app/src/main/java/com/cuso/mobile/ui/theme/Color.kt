@@ -1,3 +1,4 @@
+@file:Suppress("unused")
 package com.cuso.mobile.ui.theme
 
 import androidx.compose.ui.graphics.Color
@@ -10,8 +11,13 @@ val disabled=Color(0xFFC7D2FE)
 
 //data card
 val dataCardField= Color(0xFF9CA3AF)
+//whole page color
+val whiteBg = Color.White
+val blackTitle=Color.Black
+val subTitle=Color(0xffffffff)
 
 
+val mutedText=Color(0xFF9CA3AF)
 val Purple80 = Color(0xFFD0BCFF)
 val PurpleGrey80 = Color(0xFFCCC2DC)
 val Pink80 = Color(0xFFEFB8C8)

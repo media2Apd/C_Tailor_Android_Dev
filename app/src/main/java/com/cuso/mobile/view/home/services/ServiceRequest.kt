@@ -12,11 +12,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.modelGray
+import com.cuso.mobile.ui.theme.whiteBg
 
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -138,7 +137,7 @@ fun ServiceRequestScreen(
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color.White
+                color = whiteBg
             ) {
                 Column {
                     Row(
@@ -148,14 +147,16 @@ fun ServiceRequestScreen(
                             .fillMaxWidth()
                             .padding(16.dp)
                     ) {
-                        Text("All Request", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Text("All Request", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         IconButton(onClick = onClose) {
                             Icon(Icons.Default.Close, contentDescription = "Close")
                         }
                     }
                 }
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = Color.Transparent
     ) { padding ->
         FabScaffold(
             modifier = Modifier
@@ -170,7 +171,7 @@ fun ServiceRequestScreen(
                 draggable = true
             )
         ) {
-            Column(modifier = Modifier.fillMaxSize().background(modelGray)) {
+            Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
                 ScreenBreadcrumb(
                     segments = listOf("Services", "Service Request"),
                     onClick = onBreadcrumbClick

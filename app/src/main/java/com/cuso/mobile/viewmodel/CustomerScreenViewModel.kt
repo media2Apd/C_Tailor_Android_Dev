@@ -33,7 +33,6 @@ class CustomerViewModel @Inject constructor(
     private var currentSearch: String? = null
     private var currentType: String? = null
 
-    // ✅ NEW — UI-ku expose pannanum, PaginationFooter-ku venum
     private val _currentPageFlow = MutableStateFlow(1)
     val currentPageFlow: StateFlow<Int> = _currentPageFlow.asStateFlow()
 

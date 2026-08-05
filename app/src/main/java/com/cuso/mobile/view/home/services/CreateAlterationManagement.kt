@@ -1,3 +1,12 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter"
+)
 package com.cuso.mobile.view.home.services
 
 import androidx.compose.foundation.BorderStroke
@@ -23,7 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.modelGray
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
 import com.cuso.mobile.view.home.reusablecomposables.SheetValue
 import com.cuso.mobile.view.home.reusablecomposables.blurScrim
@@ -87,7 +96,7 @@ fun CreateAlterationManagementScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
-                Surface(modifier = Modifier.fillMaxWidth(), color = Color.White) {
+                Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -105,12 +114,14 @@ fun CreateAlterationManagementScreen(
 
                     }
                 }
-            }
+            },
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            containerColor = Color.Transparent
         ) { padding ->
             Column(
                 modifier = Modifier
                     .padding(padding)
-                    .background(modelGray)
+                    .background(Color.Transparent)
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 16.dp)
@@ -184,7 +195,7 @@ fun CreateAlterationManagementScreen(
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Primary)
                 ) {
-                    Text("Update Status", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Text("Update Status", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
                 }
 
                 Spacer(Modifier.height(24.dp))
@@ -414,7 +425,7 @@ fun CreateAlterationManagementScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = BorderColor,
                         focusedBorderColor = Accent,
-                        unfocusedContainerColor = Color.White
+                        unfocusedContainerColor = whiteBg
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -438,7 +449,7 @@ fun CreateAlterationManagementScreen(
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Accent)
                 ) {
-                    Text("Mark as Completed", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Text("Mark as Completed", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
                 }
                 Spacer(Modifier.height(20.dp))
             }
@@ -511,7 +522,7 @@ fun CreateAlterationManagementScreen(
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Accent)
                 ) {
-                    Text("Update Status", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Text("Update Status", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
                 }
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(
@@ -688,7 +699,7 @@ fun CreateAlterationManagementScreen(
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Primary)
                     ) {
-                        Text("Assign Staff", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                        Text("Assign Staff", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
                     }
                 }
                 Spacer(Modifier.height(20.dp))
@@ -769,7 +780,7 @@ private fun StepCircle(index: Int, step: Step) {
                     .background(StepGreen),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                Icon(Icons.Default.Check, contentDescription = null, tint = whiteBg, modifier = Modifier.size(14.dp))
             }
         }
         StepState.CURRENT -> {
@@ -777,7 +788,7 @@ private fun StepCircle(index: Int, step: Step) {
                 modifier = Modifier
                     .size(26.dp)
                     .clip(CircleShape)
-                    .background(Color.White)
+                    .background(whiteBg)
                     .border(2.dp, Accent, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -865,7 +876,7 @@ private fun PhotoPlaceholder(label: String, badgeColor: Color, modifier: Modifie
                 .background(badgeColor)
                 .padding(horizontal = 10.dp, vertical = 3.dp)
         ) {
-            Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+            Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
         }
     }
 }

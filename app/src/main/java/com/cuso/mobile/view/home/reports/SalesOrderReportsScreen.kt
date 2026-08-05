@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -173,7 +174,7 @@ fun SalesOrderReportsScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            containerColor = Color.White,
+            containerColor = whiteBg,
             topBar = {
                 Column {
                     TopAppBar(
@@ -197,7 +198,7 @@ fun SalesOrderReportsScreen(
                             )
                         },
                         windowInsets = WindowInsets(top = 0),
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = whiteBg)
                     )
                     HorizontalDivider(color = BorderColor)
                 }
@@ -270,7 +271,7 @@ fun SalesOrderReportsScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(46.dp)
-                                            .background(Color.White, RoundedCornerShape(10.dp))
+                                            .background(whiteBg, RoundedCornerShape(10.dp))
                                             .border(
                                                 1.dp,
                                                 Color(0xFFE5E7EB),
@@ -300,7 +301,7 @@ fun SalesOrderReportsScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(46.dp)
-                                        .background(Color.White, RoundedCornerShape(10.dp))
+                                        .background(whiteBg, RoundedCornerShape(10.dp))
                                         .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
                                         .clickable { filterDrawerState.open() },
                                     contentAlignment = Alignment.Center
@@ -338,7 +339,7 @@ fun SalesOrderReportsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.White)
+                                .background(whiteBg)
                                 .padding(horizontal = 20.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -461,7 +462,7 @@ fun SalesOrderReportsScreen(
 private fun ReportStatCard(stat: ReportStat, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .background(Color.White)
+            .background(whiteBg)
             .padding(14.dp)
     ) {
         Text(stat.label, fontSize = 11.sp, color = MutedColor, fontWeight = FontWeight.Medium)

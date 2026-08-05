@@ -54,6 +54,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryTextColor
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
 
@@ -196,7 +197,7 @@ fun CardContentsForgotPassword(
                     enabled = email.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Primary,
-                        contentColor = Color.White
+                        contentColor = whiteBg
                     ),
                     shape = RoundedCornerShape(5.dp),
                     contentPadding = PaddingValues(vertical = 0.dp, horizontal = 16.dp),
@@ -209,7 +210,7 @@ fun CardContentsForgotPassword(
                     } else {
                         Text(
                             text = "Send Reset Code",
-                            color = Color.White,
+                            color = whiteBg,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold
                         )

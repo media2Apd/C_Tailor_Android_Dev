@@ -39,9 +39,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.model.countries
 import com.cuso.mobile.model.Country
-import com.cuso.mobile.view.home.FormLabel
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Refresh
+import com.cuso.mobile.ui.theme.whiteBg
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 
 // ✅ NEW — library instance, no hardcoded data
@@ -52,20 +52,20 @@ fun maxDigitsFor(iso: String): Int {
     return try {
         val example = phoneUtil.getExampleNumber(iso.uppercase())
         example?.nationalNumber?.toString()?.length ?: 15
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         15   // safe fallback for unsupported ISO codes
     }
 }
 
-// ✅ NEW — optional full validation (not just length)
-fun isValidPhoneNumber(digits: String, iso: String): Boolean {
-    return try {
-        val parsed = phoneUtil.parse(digits, iso.uppercase())
-        phoneUtil.isValidNumber(parsed)
-    } catch (e: Exception) {
-        false
-    }
-}
+//// ✅ NEW — optional full validation (not just length)
+//fun isValidPhoneNumber(digits: String, iso: String): Boolean {
+//    return try {
+//        val parsed = phoneUtil.parse(digits, iso.uppercase())
+//        phoneUtil.isValidNumber(parsed)
+//    } catch (e: Exception) {
+//        false
+//    }
+//}
 
 // ✅ NEW — inserts "-" after the 5th digit visually, underlying value stays plain digits
 class PhoneNumberVisualTransformation : VisualTransformation {
@@ -125,7 +125,7 @@ fun PhoneInputField(
                     RoundedCornerShape(8.dp)
                 )
                 .background(
-                    if (enabled) Color.White else Color(0xFFF2F2F2),
+                    if (enabled) whiteBg else Color(0xFFF2F2F2),
                     RoundedCornerShape(8.dp)
                 )
                 .padding(horizontal = 12.dp),
@@ -167,7 +167,7 @@ fun PhoneInputField(
                     onDismissRequest = { expanded = false },
                     modifier = Modifier
                         .height(400.dp)
-                        .background(Color.White)
+                        .background(whiteBg)
                 ) {
                     countries.forEach { country ->
                         DropdownMenuItem(

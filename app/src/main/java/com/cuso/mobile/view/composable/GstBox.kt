@@ -20,6 +20,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.ui.theme.whiteBg
+
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun GstBoxValue(
@@ -39,7 +41,7 @@ fun GstBoxValue(
                 checked = checked,
                 onCheckedChange = { checked = it },
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
+                    checkedThumbColor = whiteBg,
                     checkedTrackColor = Color.Green
                 )
             )

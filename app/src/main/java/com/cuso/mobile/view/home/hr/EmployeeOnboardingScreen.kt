@@ -10,11 +10,6 @@ package com.cuso.mobile.view.home.hr
 
 
 import android.annotation.SuppressLint
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,8 +23,6 @@ import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
@@ -39,7 +32,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -91,6 +83,8 @@ import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.home.inventory.AccordionSection
 import com.yalantis.ucrop.UCrop
 import java.io.File
+import androidx.core.graphics.toColorInt
+import com.cuso.mobile.ui.theme.whiteBg
 
 
 // ── Design tokens (match screenshot) ──
@@ -297,7 +291,7 @@ fun EmployeeOnboardingScreen(
                 setCircleDimmedLayer(true)
                 setShowCropGrid(false)
                 setCompressionFormat(android.graphics.Bitmap.CompressFormat.JPEG)
-                setToolbarColor(android.graphics.Color.parseColor("#4F39F6"))
+                setToolbarColor("#4F39F6".toColorInt())
                 setToolbarWidgetColor(android.graphics.Color.WHITE)
             }
 
@@ -664,12 +658,13 @@ fun EmployeeOnboardingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
+                .background(Color.Transparent)
         ) {
             // ── Header ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(whiteBg)
                     .padding(horizontal = 20.dp, vertical = 18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -746,13 +741,13 @@ fun EmployeeOnboardingScreen(
                                     )
                                 }
                                 initials != "?" -> {
-                                    Text(initials, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                                    Text(initials, color = whiteBg, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                                 }
                                 else -> {
                                     Icon(
                                         imageVector = Icons.Default.CameraAlt,
                                         contentDescription = "Upload Photo",
-                                        tint = Color.White,
+                                        tint = whiteBg,
                                         modifier = Modifier.size(32.dp)
                                     )
                                 }
@@ -1498,7 +1493,7 @@ fun EmployeeOnboardingScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(whiteBg)
                     .padding(horizontal = 20.dp, vertical = 14.dp)
             ) {
                 Button(
@@ -1636,7 +1631,7 @@ fun EmployeeOnboardingScreen(
                 ) {
                     Text(
                         text = if (mode == ScreenMode.EDIT) "Save Changes" else "Create Employee",
-                        color = Color.White,
+                        color = whiteBg,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp
                     )
@@ -1684,14 +1679,14 @@ fun EmployeeOnboardingScreen(
                     Text("Delete Profile", color = Color(0xFFDC2626), fontWeight = FontWeight.Medium)
                 }
             },
-            containerColor = Color.White
+            containerColor = whiteBg
         )
     }
 }
 
-fun uriToFile(context: android.content.Context, uri: Uri): java.io.File {
+fun uriToFile(context: android.content.Context, uri: Uri): File {
     val inputStream = context.contentResolver.openInputStream(uri)
-    val file = java.io.File(context.cacheDir, "profile_${System.currentTimeMillis()}.jpg")
+    val file = File(context.cacheDir, "profile_${System.currentTimeMillis()}.jpg")
     inputStream?.use { input ->
         file.outputStream().use { output -> input.copyTo(output) }
     }
@@ -1711,7 +1706,7 @@ fun uriToFile(context: android.content.Context, uri: Uri): java.io.File {
 //        Row(
 //            modifier = Modifier
 //                .fillMaxWidth()
-//                .background(if (expanded) Color(0xFFF7F7FA) else Color.White)
+//                .background(if (expanded) Color(0xFFF7F7FA) else whiteBg)
 //                .clickable { onHeaderClick() }
 //                .padding(horizontal = 20.dp, vertical = 16.dp),
 //            horizontalArrangement = Arrangement.SpaceBetween,
@@ -1758,7 +1753,7 @@ private fun AddressTypeToggle(selected: String, onSelect: (String) -> Unit) {
             ) {
                 Text(
                     "$option Address",
-                    color = if (isSelected) Color.White else LabelColor,
+                    color = if (isSelected) whiteBg else LabelColor,
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp
                 )

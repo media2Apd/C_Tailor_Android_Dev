@@ -42,6 +42,7 @@ import com.cuso.mobile.model.sales.QuotationItemDto
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -156,13 +157,13 @@ fun QuotationScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.White)
+                    .background(Color.Transparent)
             ) {
                 // Header
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(whiteBg)
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(
@@ -192,7 +193,7 @@ fun QuotationScreen(
                 }
 
                 // Breadcrumb + Search
-                Column(modifier = Modifier.fillMaxWidth().background(Color(0xFFF8F9FF))) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     ScreenBreadcrumb(segments = listOf("Sales", "Pricing & Quotations"), onClick = { onBreadCrumbClick() })
                     SearchFilterBar(
                         query = searchQuery,
@@ -260,7 +261,7 @@ fun QuotationScreen(
         if (quotationToDelete != null) {
             AlertDialog(
                 onDismissRequest = { quotationToDelete = null },
-                containerColor = Color.White,
+                containerColor = whiteBg,
                 shape = RoundedCornerShape(12.dp),
                 title = { Text("Delete Quotation", fontWeight = FontWeight.Bold, color = Color(0xFF111827)) },
                 text = { Text("Are you sure you want to delete this quotation? This action cannot be undone.", color = Color(0xFF6B7280)) },
@@ -272,7 +273,7 @@ fun QuotationScreen(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
                         shape = RoundedCornerShape(8.dp)
-                    ) { Text("Delete", color = Color.White) }
+                    ) { Text("Delete", color = whiteBg) }
                 },
                 dismissButton = {
                     OutlinedButton(

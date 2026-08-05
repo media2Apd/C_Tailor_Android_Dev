@@ -1,3 +1,12 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter"
+)
 package com.cuso.mobile.view.composable
 
 import androidx.compose.foundation.background
@@ -16,11 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.whiteBg
 
-/**
- * Reusable pagination footer — UI ஒண்ணு தான், எந்த screen-லயும் use பண்ணலாம்.
- * page/limit state and API call parent (ViewModel) தான் handle பண்ணணும்.
- */
+
 @Composable
 fun PaginationFooter(
     currentPage: Int,
@@ -37,7 +44,7 @@ fun PaginationFooter(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(whiteBg)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -66,7 +73,7 @@ fun PaginationFooter(
                 DropdownMenu(
                     expanded = showItemsPerPageDropdown,
                     onDismissRequest = { showItemsPerPageDropdown = false },
-                    containerColor = Color.White,
+                    containerColor = whiteBg,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     pageSizeOptions.forEach { count ->

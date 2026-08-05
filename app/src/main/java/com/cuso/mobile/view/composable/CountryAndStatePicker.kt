@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.utils.loadJsonFromAssets
 import kotlinx.coroutines.delay
@@ -55,7 +56,7 @@ fun CountryAndStatePicker(
         // ── Country Picker ──
         Text(
             "Country/Region",
-            color = Color.Black,
+            color = blackTitle,
             fontSize = 14.sp,
             modifier = Modifier.padding(bottom = 4.dp)
         )
@@ -74,7 +75,7 @@ fun CountryAndStatePicker(
         // ── State Picker ──
         Text(
             "State/Province",
-            color = Color.Black,
+            color = blackTitle,
             fontSize = 14.sp,
             modifier = Modifier.padding(bottom = 4.dp)
         )
@@ -138,7 +139,7 @@ fun SearchableDropdownContents(
             // ✅ Text perfectly centered, no internal padding issues
             Text(
                 text = selected.ifEmpty { placeholder },
-                color = if (selected.isEmpty()) Color.Gray else Color.Black,
+                color = if (selected.isEmpty()) Color.Gray else blackTitle,
                 fontSize = 14.sp,
                 maxLines = 1,
                 modifier = Modifier
@@ -177,13 +178,13 @@ fun SearchableDropdownContents(
                         },
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black,
+                            focusedTextColor = blackTitle,
+                            unfocusedTextColor = blackTitle,
                             focusedBorderColor = Color.Blue,
                             unfocusedBorderColor = Color.LightGray,
                             focusedContainerColor = whiteBg,
                             unfocusedContainerColor = whiteBg,
-                            cursorColor = Color.Black
+                            cursorColor = blackTitle
                         ),
                         shape = RoundedCornerShape(8.dp)
                     )
@@ -205,7 +206,7 @@ fun SearchableDropdownContents(
                             items(filteredItems) { item ->
                                 Text(
                                     text = item,
-                                    color = Color.Black,
+                                    color = blackTitle,
                                     fontSize = 15.sp,
                                     modifier = Modifier
                                         .fillMaxWidth()

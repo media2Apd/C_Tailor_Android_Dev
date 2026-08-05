@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DashedUploadBox
 import com.cuso.mobile.view.composable.DatePickerField
@@ -255,7 +256,7 @@ fun CreateServiceRequest(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ){
-                        Text("Trial Completed",color=Color.Black, fontSize = 12.sp)
+                        Text("Trial Completed",color=blackTitle, fontSize = 12.sp)
                         Spacer(Modifier.width(10.dp))
                         MiniSwitch(
                             checked = false,

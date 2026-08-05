@@ -23,7 +23,10 @@ import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 
 // ── Static data model ──
 data class PaymentItem(
@@ -70,28 +73,18 @@ fun AllPaymentScreen(
         // ── FIXED TOP HEADER ──
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(whiteBg)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("All Payment", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color(0xFF6B7280),
-                modifier = Modifier.size(22.dp)
-                    .clickable{
-                        onClose()
-                    }
-            )
+            TitleBar("All Payments", onClose = onClose)
+
         }
 
         // ── Breadcrumb + Search ──
         Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent)) {
             ScreenBreadcrumb(
-                segments = listOf("Finance", "Purchase Invoice"),
+                segments = listOf("Finance", "All Payments"),
                 onClick = { onBreadCrumbClick() }
             )
             SearchFilterBar(

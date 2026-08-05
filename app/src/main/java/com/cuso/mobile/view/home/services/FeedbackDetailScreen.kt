@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 
 // ── Design tokens ──
 private val AccentColor = Color(0xFF4F39F6)
@@ -108,19 +109,11 @@ fun FeedbackDetailScreen(
             // ── Header ──
             Row(
                 modifier = Modifier
-                    .background(whiteBg)
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                    .fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Feedback Details", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TitleColor)
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "Close",
-                    tint = LabelColor,
-                    modifier = Modifier.clickable(onClick = onDismiss)
-                )
+                TitleBar("Feedback Details", onClose= onDismiss)
             }
             HorizontalDivider(color = BorderColor)
         },
@@ -146,6 +139,7 @@ fun FeedbackDetailScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
                 ) {
                     Text(
                         "$feedbackId / $orderId",
@@ -171,48 +165,69 @@ fun FeedbackDetailScreen(
                     // ── Customer Information ──
                     SectionTitle("Customer Information")
                 }
-                InfoRow(label = "Full Name", value = fullName)
-                InfoRow(label = "Contact Number", value = contactNumber)
-                InfoRow(label = "Order Reference", value = orderReference, valueColor = LinkColor)
-                InfoRow(label = "Garment Type", value = garmentType)
-                InfoRow(label = "Actual Delivery Date", value = actualDeliveryDate)
-                InfoRow(label = "Status", value = status, valueColor = SuccessColor, valueWeight = FontWeight.SemiBold)
-
+                Column(Modifier.fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                ) {
+                    InfoRow(label = "Full Name", value = fullName)
+                    InfoRow(label = "Contact Number", value = contactNumber)
+                    InfoRow(
+                        label = "Order Reference",
+                        value = orderReference,
+                        valueColor = LinkColor
+                    )
+                    InfoRow(label = "Garment Type", value = garmentType)
+                    InfoRow(label = "Actual Delivery Date", value = actualDeliveryDate)
+                    InfoRow(
+                        label = "Status",
+                        value = status,
+                        valueColor = SuccessColor,
+                        valueWeight = FontWeight.SemiBold
+                    )
+                }
                 Spacer(Modifier.height(20.dp))
                 HorizontalDivider(color = BorderColor)
                 Spacer(Modifier.height(16.dp))
-
-                // ── Feedback Category (collapsible) ──
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { categoryExpanded = !categoryExpanded },
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(Modifier.fillMaxWidth()
+                    .padding(horizontal = 20.dp)
                 ) {
-                    Text("Feedback Category", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-                    Icon(
-                        if (categoryExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = null,
-                        tint = LabelColor
-                    )
-                }
+                    // ── Feedback Category (collapsible) ──
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { categoryExpanded = !categoryExpanded },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Feedback Category",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TitleColor
+                        )
+                        Icon(
+                            if (categoryExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = null,
+                            tint = LabelColor
+                        )
+                    }
 
-                AnimatedVisibility(visible = categoryExpanded) {
-                    Column {
-                        Spacer(Modifier.height(12.dp))
-                        CategoryChipGrid(categories = categories, selected = selectedCategory)
+
+                    AnimatedVisibility(visible = categoryExpanded) {
+                        Column {
+                            Spacer(Modifier.height(12.dp))
+                            CategoryChipGrid(categories = categories, selected = selectedCategory)
+                        }
                     }
                 }
 
                 Spacer(Modifier.height(20.dp))
                 HorizontalDivider(color = BorderColor)
-                Spacer(Modifier.height(16.dp))
 
                 // ── Feedback Details (satisfaction + comments) ──
                 Row(
                     modifier = Modifier.fillMaxWidth()
-                        .background(whiteBg),
+                        .background(whiteBg)
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -228,54 +243,68 @@ fun FeedbackDetailScreen(
                 }
 
                 Spacer(Modifier.height(14.dp))
-                Text("Overall Satisfaction", fontSize = 13.sp, color = MutedColor)
-                Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    StarRating(rating = overallSatisfaction)
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        "$overallSatisfaction / 5.0",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TitleColor
-                    )
-                }
-
-                Spacer(Modifier.height(14.dp))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(CommentBg, RoundedCornerShape(10.dp))
-                        .padding(14.dp)
+                Column(Modifier.fillMaxWidth()
+                    .padding(horizontal = 20.dp)
                 ) {
-                    Text("Customer Comments", fontSize = 12.sp, color = MutedColor)
+                    Text("Overall Satisfaction", fontSize = 13.sp, color = MutedColor)
                     Spacer(Modifier.height(6.dp))
-                    Text(
-                        "\"$customerComments\"",
-                        fontSize = 14.sp,
-                        color = TitleColor,
-                        lineHeight = 20.sp
-                    )
-                }
-
-                Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { /* helpful toggle */ }
-                    ) {
-                        Icon(Icons.Filled.ThumbUp, contentDescription = null, tint = LabelColor, modifier = Modifier.size(15.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Helpful ($helpfulCount)", fontSize = 13.sp, color = LabelColor)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        StarRating(rating = overallSatisfaction)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "$overallSatisfaction / 5.0",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TitleColor
+                        )
                     }
-                    Spacer(Modifier.width(20.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { /* share internal */ }
+
+                    Spacer(Modifier.height(14.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(CommentBg, RoundedCornerShape(10.dp))
+                            .padding(14.dp)
                     ) {
-                        Icon(Icons.Filled.Share, contentDescription = null, tint = LabelColor, modifier = Modifier.size(15.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Share Internal", fontSize = 13.sp, color = LabelColor)
+                        Text("Customer Comments", fontSize = 12.sp, color = MutedColor)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "\"$customerComments\"",
+                            fontSize = 14.sp,
+                            color = TitleColor,
+                            lineHeight = 20.sp
+                        )
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { /* helpful toggle */ }
+                        ) {
+                            Icon(
+                                Icons.Filled.ThumbUp,
+                                contentDescription = null,
+                                tint = LabelColor,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Helpful ($helpfulCount)", fontSize = 13.sp, color = LabelColor)
+                        }
+                        Spacer(Modifier.width(20.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { /* share internal */ }
+                        ) {
+                            Icon(
+                                Icons.Filled.Share,
+                                contentDescription = null,
+                                tint = LabelColor,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Share Internal", fontSize = 13.sp, color = LabelColor)
+                        }
                     }
                 }
 
@@ -283,29 +312,46 @@ fun FeedbackDetailScreen(
                 HorizontalDivider(color = BorderColor)
                 Spacer(Modifier.height(16.dp))
 
-                // ── Feedback Timeline ──
-                Text("Feedback Timeline", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-                Spacer(Modifier.height(16.dp))
-                timeline.forEachIndexed { index, entry ->
-                    TimelineRow(
-                        entry = entry,
-                        isLast = index == timeline.lastIndex
+                Row(Modifier.fillMaxWidth()
+                    .background(whiteBg)
+                    .padding(horizontal = 20.dp, vertical = 10.dp)) {
+                    // ── Feedback Timeline ──
+                    Text(
+                        "Feedback Timeline",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TitleColor
                     )
                 }
-
-                Spacer(Modifier.height(20.dp))
-
-                // ── View Full History button ──
-                OutlinedButton(
-                    onClick = onViewFullHistory,
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentColor),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentColor),
-                    modifier = Modifier.fillMaxWidth().height(46.dp)
+                Column(Modifier.fillMaxWidth()
+                    .padding(horizontal = 20.dp)
                 ) {
-                    Text("View Full History", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                }
+                    Spacer(Modifier.height(16.dp))
+                    timeline.forEachIndexed { index, entry ->
+                        TimelineRow(
+                            entry = entry,
+                            isLast = index == timeline.lastIndex
+                        )
+                    }
 
+
+                    Spacer(Modifier.height(20.dp))
+
+                    // ── View Full History button ──
+                    OutlinedButton(
+                        onClick = onViewFullHistory,
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AccentColor),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentColor),
+                        modifier = Modifier.fillMaxWidth().height(46.dp)
+                    ) {
+                        Text(
+                            "View Full History",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
                 Spacer(Modifier.height(24.dp))
             }
         }

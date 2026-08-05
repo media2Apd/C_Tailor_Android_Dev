@@ -36,6 +36,7 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 
 // ── Colors ───────────────────────────────────────────────────────────────────
 private val ActiveHalo    = Color(0xFFECEBFF)
@@ -116,35 +117,23 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 18.dp),
+                            .fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            "Tracking Overview",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = DarkText
-                        )
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = DarkText,
-                            modifier = Modifier
-                                .size(22.dp)
-                                .clickable { onClose() }
-                        )
+                        TitleBar("Tracking Overview", onClose = onClose)
+
                     }
                     HorizontalDivider(color = GrayBorder)
                 }
             }
         },
-        containerColor = Primary_background
+        containerColor = Color.Transparent
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color.Transparent)
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {

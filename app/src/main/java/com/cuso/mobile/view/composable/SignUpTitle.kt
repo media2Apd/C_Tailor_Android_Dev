@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.blackTitle
 
 @Composable
 fun SignUpTitle(){
@@ -17,6 +18,6 @@ fun SignUpTitle(){
         "Create Account",
         style = MaterialTheme.typography.headlineLarge,
         fontSize = 30.sp,
-        color = Color.Black
+        color = blackTitle
     )
 }

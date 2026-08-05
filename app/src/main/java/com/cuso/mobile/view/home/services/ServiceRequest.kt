@@ -18,6 +18,7 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.whiteBg
 
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
@@ -145,12 +146,9 @@ fun ServiceRequestScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
                     ) {
-                        Text("All Request", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        IconButton(onClick = onClose) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
-                        }
+                        TitleBar("All Request", onClose = onClose)
+
                     }
                 }
             }

@@ -60,7 +60,11 @@ import com.cuso.mobile.viewmodel.CustomerViewModel
 import kotlinx.coroutines.launch
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.customOutlinedButtonColors
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
@@ -191,19 +195,11 @@ fun CustomerDetailScreen(
                 // ── Header ──
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .background(whiteBg)
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Create customer", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = Color(0xFF111827),
-                        modifier = Modifier.clickable { onClose() }
-                    )
+                    TitleBar("Create customer", onClose = onClose)
                 }
                 Column(
                     Modifier
@@ -761,10 +757,10 @@ private fun MeasurementsStep(isEditMode: Boolean) {
                     .padding(10.dp)
             ) {
                 Text("LAST UPDATED", fontSize = 12.sp, color = Color(0xFF9CA3AF))
-                Text("15/12/2026", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
+                Text("15/12/2026", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = blackTitle)
             }
             Spacer(Modifier.height(14.dp))
-            Text("GARMENT TYPES COVERED", fontSize = 11.sp, color = Color.Black)
+            Text("GARMENT TYPES COVERED", fontSize = 11.sp, color = blackTitle)
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("Shirt", "Pant", "Suit", "Kurta").forEach { Chip(it) }
@@ -1211,7 +1207,7 @@ private fun TagChipOutlined(text: String, color: Color) {
 @Composable
 fun LabeledField(label: String, field: @Composable () -> Unit) {
     Column(modifier = Modifier.padding(bottom = 12.dp)) {
-        Text(label, fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.Medium)
+        Text(label, fontSize = 12.sp, color = blackTitle, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(4.dp))
         field()
     }

@@ -54,6 +54,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryTextColor
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
@@ -66,7 +67,7 @@ fun CardContentsForgotPassword(
 ) {
     val authViewModel: Authenticate = hiltViewModel()
 
-    // ✅ Email now comes in prefilled from the previous screen (e.g. login).
+    //  Email now comes in prefilled from the previous screen (e.g. login).
     // isEmailLocked tracks whether it should stay read-only.
     var email by rememberSaveable { mutableStateOf(prefilledEmail) }
     val isEmailLocked = prefilledEmail.isNotBlank()
@@ -86,24 +87,11 @@ fun CardContentsForgotPassword(
             .fillMaxWidth()
     ) {
         if (!isSubmitted) {
-//            Text(
-//                text = "Forgot Password",
-//                fontSize = 20.sp,
-//                color = Color.Black,
-//                fontWeight = FontWeight.Bold
-//            )
-//            Spacer(Modifier.height(6.dp))
-//            Text(
-//                text = "Enter your email to receive a password code",
-//                fontSize = 14.sp,
-//                color = Color(0xFF6B7280)
-//            )
-//            Spacer(Modifier.height(15.dp))
 
             Text("Email", fontSize = 14.sp, color = Color(0xFF374151), fontWeight = FontWeight.Bold)
             Spacer(Modifier.padding(top = 5.dp))
 
-            // ✅ Same email box as CardContentsLoginScreen, but readOnly + dimmed
+            //  Same email box as CardContentsLoginScreen, but readOnly + dimmed
             // when it arrived prefilled — user can see it but can't edit it.
             CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
                 BasicTextField(
@@ -112,7 +100,7 @@ fun CardContentsForgotPassword(
                     readOnly = isEmailLocked,
                     singleLine = true,
                     textStyle = TextStyle(
-                        color = if (isEmailLocked) Color(0xFF6B7280) else Color.Black,
+                        color = if (isEmailLocked) Color(0xFF6B7280) else blackTitle,
                         fontSize = 13.sp
                     ),
                     interactionSource = emailInteractionSource,
@@ -184,7 +172,7 @@ fun CardContentsForgotPassword(
                 }
             }
 
-            // ✅ Same button as login: 40dp height, RoundedCornerShape(5.dp),
+            //  Same button as login: 40dp height, RoundedCornerShape(5.dp),
             // Color(0xFF2563eb) fill, 16sp SemiBold label.
             CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
                 Button(
@@ -245,13 +233,13 @@ fun CardContentsForgotPassword(
                     Text("Password", fontSize = 14.sp, color = Color(0xFF374151))
                     Spacer(Modifier.padding(top = 5.dp))
 
-                    // ✅ Same password box as CardContentsLoginScreen.
+                    //  Same password box as CardContentsLoginScreen.
                     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
                         BasicTextField(
                             value = password,
                             onValueChange = { password = it },
                             singleLine = true,
-                            textStyle = TextStyle(color = Color.Black, fontSize = 13.sp),
+                            textStyle = TextStyle(color = blackTitle, fontSize = 13.sp),
                             visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             interactionSource = passwordInteractionSource,

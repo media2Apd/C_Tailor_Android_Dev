@@ -55,6 +55,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Popup
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
 @Suppress("UNUSED_PARAMETER")
@@ -142,7 +143,7 @@ fun ForgotOtpInput(
                         style = TextStyle(
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.Black,
+                            color = blackTitle,
                             textAlign = TextAlign.Center
                         )
                     )
@@ -182,7 +183,7 @@ fun ForgotOtpInput(
                                 ) {
                                     Text(
                                         text = " Paste | Select All",
-                                        color = Color.Black,
+                                        color = blackTitle,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium
                                     )

@@ -16,7 +16,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 
 // ── Static data models ──
 data class PaymentHistoryEntry(
@@ -53,27 +56,18 @@ fun PaymentDetailScreen(
         // ── FIXED TOP HEADER ──
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(whiteBg)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("All Payment", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color(0xFF6B7280),
-                modifier = Modifier.size(22.dp).run { this }
-                    .clickable {
-                        onClose()
-                    }
-            )
+            TitleBar("All Payments", onClose = onClose)
+
         }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color.Transparent)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -82,7 +76,6 @@ fun PaymentDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(whiteBg)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -110,7 +103,6 @@ fun PaymentDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(whiteBg)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -127,7 +119,6 @@ fun PaymentDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(whiteBg)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -172,7 +163,6 @@ fun PaymentDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(whiteBg)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {

@@ -28,6 +28,9 @@ import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextPrimary
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -103,7 +106,7 @@ fun LedgerScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Ledger", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Text("Ledger", fontSize = title_font, fontWeight = FontWeight.Bold, color = title_color)
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Close",
@@ -159,25 +162,25 @@ fun LedgerScreen(
                                 DataCardField(
                                     label = "Date",
                                     text = formatDate(entry.date),
-                                    textColor = Color.Black,
+                                    textColor = blackTitle,
                                     labelColor = TextSecondary
                                 ),
                                 DataCardField(
                                     label = "Debit",
                                     text = if (entry.debit > 0) formatLedgerAmount(entry.debit) else "-",
-                                    textColor = Color.Black,
+                                    textColor = blackTitle,
                                     labelColor = TextSecondary
                                 ),
                                 DataCardField(
                                     label = "Credit",
                                     text = if (entry.credit > 0) formatLedgerAmount(entry.credit) else "-",
-                                    textColor = Color.Black,
+                                    textColor = blackTitle,
                                     labelColor = TextSecondary
                                 ),
                                 DataCardField(
                                     label = "Balance",
                                     text = formatLedgerAmount(entry.balance),
-                                    textColor = Color.Black,
+                                    textColor = blackTitle,
                                     labelColor = TextSecondary
                                 )
                             )

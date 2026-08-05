@@ -56,6 +56,7 @@ import com.cuso.mobile.view.home.FormTextField
 
 // ── Reused date picker (same one HR uses) ──
 import com.cuso.mobile.view.composable.DatePickerField
+import com.cuso.mobile.view.composable.TitleBar
 
 // ── Your existing DataCard system ──
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -112,7 +113,7 @@ fun PurchaseOrderHeaderCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 10.dp)
-                .background(modelGray)
+                .background(Color.Transparent)
         ) {
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -170,14 +171,10 @@ fun CreatePurchaseOrderScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(whiteBg)
-                        .padding(horizontal = 20.dp, vertical = 18.dp)
 
                 ) {
-                    Text("Create Purchase Order", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TitleColor)
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
-                    }
+                    TitleBar("Create Purchase Order", onClose = onClose)
+
                 }
             }
         },

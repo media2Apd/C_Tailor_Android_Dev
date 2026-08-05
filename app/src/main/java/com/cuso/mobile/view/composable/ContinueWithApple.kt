@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
 @Suppress("UNUSED_PARAMETER")
@@ -57,7 +58,7 @@ fun ContinueWithApple(activity: Activity, navController: NavController) {
                 border = BorderStroke(1.dp, PrimaryBorder),
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = whiteBg,
-                    contentColor = Color.Black
+                    contentColor = blackTitle
                 ),
                 shape = RoundedCornerShape(5.dp)
             ) {
@@ -74,7 +75,7 @@ fun ContinueWithApple(activity: Activity, navController: NavController) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Continue with Apple",
-                            color = Color.Black,
+                            color = blackTitle,
                             fontSize = 14.sp
                         )
                     }

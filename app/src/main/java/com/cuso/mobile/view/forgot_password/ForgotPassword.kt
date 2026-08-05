@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AppLogo
 import com.cuso.mobile.view.composable.CardContentsForgotPassword
@@ -48,7 +49,7 @@ fun ForgotUserPassword(
             text = "Forgot Password",
             fontSize = 25.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Black
+            color = blackTitle
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(

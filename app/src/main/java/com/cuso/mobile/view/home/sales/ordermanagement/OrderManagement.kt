@@ -31,8 +31,12 @@ import com.cuso.mobile.model.sales.OrderManagementItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -99,22 +103,9 @@ fun OrderManagementScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Order Management", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "close",
-                        modifier = Modifier.size(22.dp).clickable { onBack() },
-                        tint = Color(0xFF111827)
-                    )
-                }
+                TitleBar("Orders Management", onClose = onBack)
+
             }
 
             // ── Breadcrumb + Search + Filter ──
@@ -249,7 +240,7 @@ private fun OrderManagementCard(
                 labelColor = paymentTextColor,
                 labelBackgroundColor = paymentBgColor,
                 text = "Total: ₹${formatIndianNumber((order.totalAmount ?: 0.0).toInt())}\n₹${formatIndianNumber(order.balanceAmount.toInt())} Due",
-                textColor = Color.Black
+                textColor = blackTitle
             )
         ),
         actions = listOf(

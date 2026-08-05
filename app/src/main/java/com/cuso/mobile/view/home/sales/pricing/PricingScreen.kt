@@ -33,9 +33,13 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
@@ -81,21 +85,12 @@ fun PricingScreen(
             // Header
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Pricing & Quotation", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = TextDark,
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clickable { onClose() }
-                )
+                TitleBar("Pricing", onClose = onClose)
+
             }
             HorizontalDivider(color = CardBorder)
             Column(
@@ -104,7 +99,7 @@ fun PricingScreen(
 
                 // Breadcrumb
                 ScreenBreadcrumb(
-                    segments = listOf("Sales", "Pricing & Quotations"),
+                    segments = listOf("Sales", "Pricing "),
                     onClick = {onBreadCrumbClick()}
                 )
 
@@ -268,7 +263,7 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                         Text(
                             "Garment Pricing",
                             fontSize = 12.sp,
-                            color = Color.Black
+                            color = blackTitle
                         )
 
                     }
@@ -296,13 +291,13 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                     Text(
                         "Base Range ₹",
                         fontSize = 12.sp,
-                        color = Color.Black
+                        color = blackTitle
                     )
                     Spacer(Modifier.weight(1f))
                     Text(
                         "${item.basePrice.toInt()}-${item.totalPrice.toInt()}",
                         fontSize = 12.sp,
-                        color = Color.Black
+                        color = blackTitle
                     )
                 }
             }

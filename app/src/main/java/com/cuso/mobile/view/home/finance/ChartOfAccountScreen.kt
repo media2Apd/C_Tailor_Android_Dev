@@ -47,10 +47,14 @@ package com.cuso.mobile.view.home.finance
     import com.cuso.mobile.ui.theme.BluePrimary
     import com.cuso.mobile.ui.theme.BorderGray
     import com.cuso.mobile.ui.theme.TextSecondary
+    import com.cuso.mobile.ui.theme.close_color
+    import com.cuso.mobile.ui.theme.title_color
+    import com.cuso.mobile.ui.theme.title_font
     import com.cuso.mobile.ui.theme.whiteBg
     import com.cuso.mobile.view.composable.DynamicIslandError
     import com.cuso.mobile.view.composable.FieldValidator
     import com.cuso.mobile.view.composable.ScreenBreadcrumb
+    import com.cuso.mobile.view.composable.TitleBar
     import com.cuso.mobile.view.composable.ValidationField
     import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
     import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
@@ -185,26 +189,12 @@ package com.cuso.mobile.view.home.finance
 
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .background(whiteBg)
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Chart Of Account",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
-                    )
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = Color(0xFF111827),
-                        modifier = Modifier
-                            .size(22.dp)
-                            .clickable { onClose() }
-                    )
+                    TitleBar("Chart of Accounts", onClose = onClose)
+
                 }
                 Column{
                     // ── Breadcrumb ──
@@ -497,7 +487,8 @@ package com.cuso.mobile.view.home.finance
                 Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .background(whiteBg)
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -507,14 +498,14 @@ package com.cuso.mobile.view.home.finance
                         AccountScreenMode.EDIT -> "Edit Account"
                         AccountScreenMode.CREATE -> "Create Account"
                     },
-                    fontSize = 20.sp,
+                    fontSize = title_font,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = title_color
                 )
                 Icon(
                     Icons.Default.Close,
                     contentDescription = "Close",
-                    tint = Color(0xFF111827),
+                    tint = close_color,
                     modifier = Modifier
                         .size(22.dp)
                         .clickable(enabled = !isSaving) { onClose() }

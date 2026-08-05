@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
 // ─────────────────────────────────────────────────────────────
@@ -60,7 +61,7 @@ fun PlanLimitDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.3f))
+                .background(blackTitle.copy(alpha = 0.3f))
                 .clickable { onDismiss() },
             contentAlignment = Alignment.TopCenter
         ) {

@@ -56,7 +56,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 
 // ─────────────────────────────────────────────────────────────
 // Screen
@@ -146,25 +149,9 @@ fun SalesOrderScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(whiteBg)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Sales Orders", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "close",
-                            modifier = Modifier.size(22.dp).clickable { onBack() },
-                            tint = Color(0xFF111827)
-                        )
-                    }
+                    TitleBar("Sales orders", onClose = onBack)
+
                 }
 
                 // ── Breadcrumb + Search + Status filter ──
@@ -243,7 +230,7 @@ fun SalesOrderScreen(
                                                     painter= painterResource(R.drawable.ic_person),
                                                     size = 30.dp,
                                                     backgroundColor = Color.Transparent,
-                                                    tint = Color.Black
+                                                    tint = blackTitle
                                                 ),
                                                 topBadgeText = order.status?.replaceFirstChar { it.uppercase() } ?: "—",
                                                 topBadgeTextColor = statusTextColor,

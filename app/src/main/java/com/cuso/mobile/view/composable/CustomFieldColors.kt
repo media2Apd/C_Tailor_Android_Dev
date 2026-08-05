@@ -7,42 +7,43 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
 
 @Composable
 fun customFieldColors() = TextFieldDefaults.colors(
-    disabledTextColor = Color.Black,
+    disabledTextColor = blackTitle,
     disabledContainerColor = whiteBg,
     disabledIndicatorColor = Color.Gray,
     disabledLabelColor = Color.Gray,
-    focusedTextColor = Color.Black,
-    unfocusedTextColor = Color.Black,
+    focusedTextColor = blackTitle,
+    unfocusedTextColor = blackTitle,
     focusedIndicatorColor = Primary,
     unfocusedIndicatorColor = PrimaryBorder,
-    focusedLabelColor = Color.Black,
-    cursorColor = Color.Black,
+    focusedLabelColor = blackTitle,
+    cursorColor = blackTitle,
     focusedContainerColor = whiteBg,
     unfocusedContainerColor = whiteBg,
     errorContainerColor = whiteBg,   // ← add this
     errorIndicatorColor = Color.Red,     // ← add this
-    errorCursorColor = Color.Black
+    errorCursorColor = blackTitle
 
 )
 
 @Composable
 fun customFieldOutlinedColors() = OutlinedTextFieldDefaults.colors(
-    disabledTextColor = Color.Black,
+    disabledTextColor = blackTitle,
     disabledContainerColor = whiteBg,
     disabledLabelColor = Color.Gray,
-    focusedTextColor = Color.Black,
-    unfocusedTextColor = Color.Black,
-    focusedLabelColor = Color.Black,
-    cursorColor = Color.Black,
+    focusedTextColor = blackTitle,
+    unfocusedTextColor = blackTitle,
+    focusedLabelColor = blackTitle,
+    cursorColor = blackTitle,
     focusedContainerColor = whiteBg,
     unfocusedContainerColor = whiteBg,
     errorContainerColor = whiteBg,   // ← add this
-    errorCursorColor = Color.Black,
+    errorCursorColor = blackTitle,
     focusedBorderColor = Primary,
     unfocusedBorderColor =  PrimaryBorder
 
@@ -51,7 +52,7 @@ fun customFieldOutlinedColors() = OutlinedTextFieldDefaults.colors(
 // ✅ NEW — Outlined Button custom colors (same theme as text fields)
 @Composable
 fun customOutlinedButtonColors() = ButtonDefaults.outlinedButtonColors(
-    contentColor = Color.Black,
+    contentColor = blackTitle,
     containerColor = whiteBg,
     disabledContentColor = Color.Gray,
     disabledContainerColor = whiteBg

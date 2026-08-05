@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.ui.theme.blackTitle
 
 @Composable
 fun Address(
@@ -16,7 +17,7 @@ fun Address(
     onAddressChange: (String) -> Unit
 ) {
     Column {
-        Text(" Address", color = Color.Black)
+        Text(" Address", color = blackTitle)
         OutlinedTextField(
             value = addressValue,
             onValueChange = onAddressChange,

@@ -39,8 +39,11 @@ import com.cuso.mobile.model.sales.OrderViewData
 import com.cuso.mobile.model.sales.OrderViewGarmentItem
 import com.cuso.mobile.model.sales.OrderViewStageGroup
 import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.viewmodel.OrderOverviewViewModel
 import com.cuso.mobile.viewmodel.OrderViewUiState
@@ -76,18 +79,12 @@ fun OrderDetailScreen(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(whiteBg)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("Orders Management", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark)
-            Icon(
-                Icons.Default.Close, contentDescription = "Close",
-                tint = TextDark,
-                modifier = Modifier.size(22.dp).clickable { onClose() }
-            )
+            TitleBar("Orders Management", onClose = onClose)
+
         }
         HorizontalDivider(color = Color(0xFFF0F0F0))
 

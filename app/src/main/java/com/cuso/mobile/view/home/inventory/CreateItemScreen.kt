@@ -52,6 +52,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.cuso.mobile.model.inventory.ItemType
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.close_color
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.viewmodel.CreateItemUiState
@@ -163,20 +167,20 @@ fun CreateItemScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(whiteBg)
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = if (isEditMode) "Edit Item" else "Create Item",
-                    fontSize = 20.sp,
+                    fontSize = title_font,
                     fontWeight = FontWeight.Bold,
-                    color = TitleColor
+                    color = title_color
                 )
                 Icon(
                     Icons.Filled.Close,
                     contentDescription = "Close",
-                    tint = LabelColor,
+                    tint = close_color,
                     modifier = Modifier.clickable {
                         viewModel.resetCreateItemForm()
                         onDismiss()
@@ -309,7 +313,7 @@ fun CreateItemScreen(
                                         .padding(8.dp)
                                         .size(28.dp)
                                         .clip(RoundedCornerShape(50))
-                                        .background(Color.Black.copy(alpha = 0.55f))
+                                        .background(blackTitle.copy(alpha = 0.55f))
                                         .clickable {
                                             viewModel.updateCreateItemForm {
                                                 it.copy(imageUri = null, existingImageUrl = null)

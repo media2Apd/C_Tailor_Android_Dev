@@ -119,6 +119,7 @@ import com.cuso.mobile.ui.theme.modelBorder
 import com.cuso.mobile.ui.theme.statLogoBg
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.home.finance.AllPaymentScreen
 import com.cuso.mobile.view.home.finance.AllSuppliersScreen
 import com.cuso.mobile.view.home.finance.ChartOfAccountScreen
@@ -177,12 +178,18 @@ import com.cuso.mobile.viewmodel.HrViewModel
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.view.home.logistics.TrackingOverviewScreen
 import kotlin.collections.isNotEmpty
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 
 // ── Design tokens (Primary color used everywhere for icons / accents) ──
 val LeadPrimary = Color(0xFF3B3BF9)
 val LeadPrimarySoft = Color(0xFFEEEEFE)
 val LeadmutedText = Color(0xFF9CA3AF)
-
 @Suppress("UnusedMaterial3ScaffoldPaddingParameter","UNUSED_PARAMETER")
 @Composable
 fun HomeScreen(navController: NavHostController) {
@@ -196,6 +203,13 @@ fun HomeScreen(navController: NavHostController) {
     val isLoggedOut: Boolean by viewModel.isLoggedOut.collectAsStateWithLifecycle(initialValue = false)
     val screenStack = remember { mutableStateListOf("home") }
     val currentScreen: String = screenStack.last()
+
+    // ✅ NEW — animation direction tracking (push vs pop)
+    var previousStackSize by remember { mutableIntStateOf(screenStack.size) }
+    val isForwardNavigation = screenStack.size >= previousStackSize
+    LaunchedEffect(screenStack.size) {
+        previousStackSize = screenStack.size
+    }
 
 
     val profileViewModel: ProfileViewModel = hiltViewModel()
@@ -238,6 +252,10 @@ fun HomeScreen(navController: NavHostController) {
 
     var showModulesPanel by remember { mutableStateOf(false) }
     var modulesPanelInitialExpanded by remember { mutableStateOf<String?>(null) }
+    //dynamicisland state
+    var comingSoonMessage by remember { mutableStateOf<String?>(null) }
+
+
     val orderOverviewViewModel: com.cuso.mobile.viewmodel.OrderOverviewViewModel = hiltViewModel()
     val editOverviewState by orderOverviewViewModel.overviewState.collectAsStateWithLifecycle()
     var editOrderId by remember { mutableStateOf<String?>(null) }
@@ -635,723 +653,750 @@ fun HomeScreen(navController: NavHostController) {
                     .padding(innerPadding)
                     .blurScrim(sidebarBlur)   // ✅ UPDATED: blurBehindSheet -> blurScrim
             ) {
-                when (currentScreen) {
-                    "settings" -> SettingsScreen(
-                        navController = navController,
-                        onMenuClick = { isDrawerOpen = true },
-                        onBack = { goBack() }
-                    )
-                    "home_organization_profile" -> SettingsScreen(
-                        navController = navController,
-                        onMenuClick = { isDrawerOpen = true }
-                    )
-                    "home_branch_management" -> BranchSettingsScreen(
-                        navController = navController,
-                        onMenuClick = { isDrawerOpen = true },
-                        onBack = { goBack() }
-                    )
-                    "home_department_teams" -> DepartmentSettingsScreen(
-                        navController = navController,
-                        onMenuClick = { isDrawerOpen = true },
-                        onBack = { goBack() }
-                    )
-                    "home_designation" -> DesignationScreen(
-                        navController = navController,
-                        onMenuClick = { isDrawerOpen = true },
-                        onBack = { goBack() }
-                    )
-
-                    "sales_settings" -> SalesSettingsScreen(
-                        navController = navController,
-                        onClose = {
-                            isSalesSettingsMode = false
-                            goBack()
-                        },
-                        onMenuClick = { isDrawerOpen = true }
-                    )
-                    "sales_garment_type" -> GarmentTypeContent(
-                        onClose = {
-                            isSalesSettingsMode = true
-                            goBack()
-                        },
-                        onMenuClick = { isDrawerOpen = true }
-                    )
-                    "home" -> HomeScreenContent(
-                        navController = navController,
-                        onNavigate = { route ->
-                            when (route) {
-                                "sales_lead" -> {
-                                    isSalesSettingsMode = false
-                                    navigateTo("sales_lead")
-                                }
-                                "sales_customers" -> {
-                                    isSalesSettingsMode = false
-                                    navigateTo("sales_customers")
-                                }
-                                "sales_sales_orders" -> {
-                                    isSalesSettingsMode = false
-                                    navigateTo("sales_sales_orders")
-                                }
-                                "sales_measurements" -> {
-                                    isSalesSettingsMode = false
-                                    navigateTo("sales_measurements")
-                                }
-                                "sales_pricing_quotation",
-                                "sales_pricing_and_quotations",
-                                "sales_pricing_&_quotations" -> {
-                                    isSalesSettingsMode = false
-                                    navigateTo("sales_pricing_quotation")
-                                }
-                                "services_customer_feedback", "customer_feedback" -> {
-                                    isSalesSettingsMode = false
-                                    navigateTo("services_customer_feedback")
-                                    isDrawerOpen = false
-                                }
-                                else -> {
-                                    Log.d("NAV_DEBUG", "Unhandled home navigation: $route")
-                                }
-                            }
-                        }
-                    )
-                    "sales_lead" -> LeadScreenContent(
-                        onCreateLead = { navigateTo("create_lead") },
-                        onViewLead = { navigateTo("view_lead") },
-                        onEditLead = { navigateTo("edit_lead") },
-                        onClose = {
-                            isSalesSettingsMode = false
-                            goBack()
-                        },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Sales"
-                            showModulesPanel = true
-                        }
-                    )
-                    "create_lead" -> CreateLeadScreen(
-                        onBack = { goBack() }
-                    )
-                    "view_lead" -> ViewLeadScreen(
-                        onBack = { goBack() },
-                        onEditLead = { navigateTo("edit_lead") }
-                    )
-                    "edit_lead" -> EditLeadScreen(
-                        onBack = { goBack() }
-                    )
-                    "create_order" -> {
-                        CreateOrderScreen(
-                            initialData = pendingOrderReviewData,
-                            onBack = {
-                                pendingOrderReviewData = null
-                                goBack()
-                            },
-                            onCancel = {
-                                pendingOrderReviewData = null
-                                goBack()
-                            },
-                            onNextStep = { orderReviewData ->
-                                pendingOrderReviewData = orderReviewData
-                                navigateTo("create_order_review")
-                            }
-                        )
-                    }
-                    "sales_sales_orders" -> SalesOrderScreen(
-                        navController = navController,
-                        onMenuClick = { isDrawerOpen = true },
-                        onBack = { goBack() },
-                        onCreateOrder = {
-                            pendingOrderReviewData = null
-                            navigateTo("create_order")
-                        },
-                        onViewOrder = { orderId ->
-                            selectedOrderId = orderId
-                            navigateTo("order_overview")
-                        },
-                        onEditOrder = { orderId ->
-                            editOrderId = orderId
-                        },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Sales"
-                            showModulesPanel = true
-                        }
-                    )
-                    "order_overview" -> {
-                        selectedOrderId?.let { id ->
-                            OrderOverviewScreen(
-                                orderId = id,
-                                onClose = {
-                                    selectedOrderId = null
-                                    goBack()
-                                },
-                                onEditOrder = { reviewData ->
-                                    pendingOrderReviewData = reviewData
-                                    selectedOrderId = null
-                                    navigateTo("create_order")
-                                },
-                                onCreateNew = {
-                                    pendingOrderReviewData = null
-                                    selectedOrderId = null
-                                    navigateTo("create_order")
-                                }
-                            )
-                        } ?: run { goBack() }
-                    }
-                    "sales_orders" -> OrderManagementScreen(
-                        navController = navController,
-                        onMenuClick = { isDrawerOpen = true },
-                        onBack = { goBack() },
-                        onViewOrder = { orderId ->
-                            selectedManagementOrderId = orderId
-                            navigateTo("order_management_overview")
-                        },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Sales"
-                            showModulesPanel = true
-                        }
-                    )
-                    "order_management_overview" -> {
-                        selectedManagementOrderId?.let { id ->
-                            OrderDetailScreen(
-                                orderId = id,
-                                onClose = {
-                                    selectedManagementOrderId = null
-                                    goBack()
-                                },
-                                onEditOrder = {
-                                    editOrderId = id
-                                }
-                            )
-                        } ?: run { goBack() }
-                    }
-                    "finance_trial_balance" -> TrialBalanceScreen(
-                        onClose = { goBack() },
-                        onAccountClick = { accountId, accountName ->
-                            selectedLedgerAccountId = accountId
-                            selectedLedgerAccountName = accountName
-                            navigateTo("finance_ledger")
-                        },
-                        onBreadcrumbClick = {
-                            modulesPanelInitialExpanded = "Finance"
-                            showModulesPanel = true
-                        }
-                    )
-
-                    "finance_ledger" -> {
-                        selectedLedgerAccountId?.let { id ->
-                            LedgerScreen(
-                                accountId = id,
-                                accountName = selectedLedgerAccountName,
-                                onClose = {
-                                    selectedLedgerAccountId = null
-                                    goBack()
-                                },
-                                onBreadcrumbClick = {
-                                    modulesPanelInitialExpanded = "Finance"
-                                    showModulesPanel = true
-                                }
-                            )
-                        } ?: run { goBack() }
-                    }
-
-                    "finance_chart_of_accounts" -> ChartOfAccountScreen(
-                        onClose = { goBack() },
-                        onBreadcrumbClick = {
-                            modulesPanelInitialExpanded = "Finance"
-                            showModulesPanel = true
-                        }
-                    )
-                    "finance_suppliers" -> AllSuppliersScreen(
-                        onClose = { goBack() },
-                        onBreadcrumbClick = {
-                            modulesPanelInitialExpanded = "Finance"
-                            showModulesPanel = true
-                        },
-                        onSupplierClick = { supplier ->
-                            selectedSupplier = supplier
-                            navigateTo("finance_supplier_detail")
-                        }
-                    )
-                    "finance_supplier_detail" -> {
-                        selectedSupplier?.let { supplier ->
-                            SupplierDetailScreen(
-                                supplier = supplier,
-                                onClose = {
-                                    selectedSupplier = null
-                                    goBack()
-                                },
-                                onBreadcrumbClick = {
-                                    modulesPanelInitialExpanded = "Finance"
-                                    showModulesPanel = true
-                                }
-                            )
-                        } ?: run { goBack() }
-                    }
-                    "inventory_items" -> InventoryScreen(
-                        onClose = { goBack() },
-                        onAddItem = { navigateTo("inventory_create_item") },
-                        onViewItem = { item ->
-                            selectedInventoryItemId = item._id
-                            navigateTo("inventory_item_detail")
-                        },
-                        onEditItem = { navigateTo("inventory_create_item") },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Inventory"
-                            showModulesPanel = true
-                        }
-                    )
-
-                    "inventory_low_stock_alerts" -> LowStockAlertsScreen(
-                        onClose = { goBack() },
-                        onReorderClick = { item ->
-                            selectedLowStockItem = item
-                            navigateTo("inventory_create_purchase_order")
-                        },
-                        onCreateNewItem = { navigateTo("inventory_create_purchase_order") },
-                        onBreadcrumbClick = {
-                            modulesPanelInitialExpanded = "Inventory"
-                            showModulesPanel = true
-                        }
-                    )
-
-                    "inventory_create_purchase_order" -> {
-                        CreatePurchaseOrderScreen(
-                            onClose = {
-                                selectedLowStockItem = null
-                                goBack()
-                            },
-                            onCancel = {
-                                selectedLowStockItem = null
-                                goBack()
-                            },
-                            onCreateOrder = {
-                                selectedLowStockItem = null
-                                goBack()
-                                goBack()
-                            }
-                        )
-                    }
-
-                    "hr_all_employees" -> AllEmployeesScreen(
-                        onDismiss = { goBack() },
-                        onAddEmployee = {
-                            employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.CREATE
-                            selectedEmployeeId = null
-                            navigateTo("hr_employee_onboarding")
-                        },
-                        onView = { employee ->
-                            employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.VIEW
-                            selectedEmployeeId = employee._id
-                            navigateTo("hr_employee_onboarding")
-                        },
-                        onEdit = { employee ->
-                            employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.EDIT
-                            selectedEmployeeId = employee._id
-                            navigateTo("hr_employee_onboarding")
-                        },
-                        onDelete = { employee ->
-                        },
-                        hrViewModel = hrViewModel,
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "HR"
-                            showModulesPanel = true
-                        }
-                    )
-                    "logistics_order_tracking" -> OrderTrackingScreen(
-                        onClose = { goBack() },
-                        onViewOrder = { order ->
-                            selectedOrderId = order.id
-                            navigateTo("tracking_overview")
-                        },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Logistics"
-                            showModulesPanel = true
-                        }
-                    )
-                    "tracking_overview" -> TrackingOverviewScreen(
-                        onClose = { goBack() }
-                    )
-
-                    "hr_employee_onboarding" -> EmployeeOnboardingScreen(
-                        mode = employeeScreenMode,
-                        memberIdToLoad = selectedEmployeeId,
-                        onDismiss = {
-                            selectedEmployeeId = null
-                            goBack()
-                        },
-                        onCreateEmployee = {
-                            selectedEmployeeId = null
-                            goBack()
-                        },
-                        onUpdateEmployee = {
-                            selectedEmployeeId = null
-                            goBack()
-                        },
-                        hrViewModel = hrViewModel
-                    )
-
-                    "inventory_create_item" -> CreateItemScreen(
-                        onDismiss = { goBack() },
-                        onItemCreated = { goBack() }
-                    )
-
-                    "inventory_item_detail" -> {
-                        selectedInventoryItemId?.let { id ->
-                            val itemDetailViewModel: com.cuso.mobile.viewmodel.InventoryViewModel = hiltViewModel()
-                            val selectedItem by itemDetailViewModel.selectedItem.collectAsStateWithLifecycle()
-                            val isLoadingDetail by itemDetailViewModel.isLoadingItemDetail.collectAsStateWithLifecycle()
-                            val detailError by itemDetailViewModel.itemDetailError.collectAsStateWithLifecycle()
-
-                            LaunchedEffect(id) {
-                                itemDetailViewModel.fetchInventoryItemDetail(id)
-                            }
-
-                            InventoryViewOne(
-                                item = selectedItem,
-                                isLoading = isLoadingDetail,
-                                errorMessage = detailError,
-                                onDismiss = {
-                                    selectedInventoryItemId = null
-                                    goBack()
-                                },
-                                onAdjustStock = { },
-                                onAdjustStockSubmit = { type, quantity, reason, notes ->
-                                    val apiType = when (type) {
-                                        AdjustmentType.INCREASE -> "increase"
-                                        AdjustmentType.DECREASE -> "decrease"
-                                        AdjustmentType.SET_EXACT -> "set"
-                                    }
-                                    itemDetailViewModel.adjustStock(
-                                        itemId = id,
-                                        adjustmentType = apiType,
-                                        quantity = quantity,
-                                        reason = reason,
-                                        notes = notes
-                                    )
-                                },
-                                onWarehouseTransfer = { },
-                                onReorderStock = { },
-                                onMarkInactive = { },
-                                onEdit = { },
-                                onShare = { }
-                            )
-                        } ?: run { goBack() }
-                    }
-
-                    "services_customer_feedback" -> CustomerFeedbackScreen(
-                        onDismiss = { goBack() },
-                        onView = { feedbackId ->
-                            selectedFeedbackId = feedbackId
-                            navigateTo("feedback_detail")
-                        },
-                        onEdit = { feedbackId -> },
-                        onDelete = { feedbackId -> },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Services"
-                            showModulesPanel = true
-                        }
-                    )
-                    "services_alteration_management" -> AlterationManagementScreen(
-                        onClose = {goBack()},
-                        onCreateNewAlteration = {navigateTo("create_alteration")},
-                        onBreadcrumbClick = {
-                            modulesPanelInitialExpanded = "Services"
-                            showModulesPanel=true
-                        },
-                        onViewClick = {}
-                    )
-
-                    "create_alteration" -> CreateAlterationManagementScreen (
-                        onClose = {goBack()},
-                    )
-
-                    "services_service_request" -> ServiceRequestScreen(
-                        onClose = {},
-                        onBreadcrumbClick = {},
-                        onCreateNewRequest = {navigateTo("create_request")},
-                        onViewClick = {navigateTo("review_services")}
-                    )
-                    "create_request" -> CreateServiceRequest()
-
-                    "review_services" -> ServiceOrderDetailsScreen(
-                        service = ServiceDetails(
-                            serviceRef = "SR-1045",
-                            reviewStatus = "Pending Review",
-                            service = "Bespoke Alteration",
-                            requestDate = "Oct 24, 2025",
-                            priority = "High",
-                            serviceCategory = "Suit Fitting & Adjustments",
-                            preferredCompletionDate = "Nov 15, 2023",
-                            serviceType = "Internal Production Refit",
-                            customerName = "Jonathan Sterling",
-                            phoneNumber = "+1 (555) 123-4567",
-                            emailAddress = "j.sterling@executive.com",
-                            shippingAddress = "452 Premium Way, Floor 12\nManhattan, NY 10001"
-                        ),
-                        order = OrderDetails(
-                            orderId = "#ORD-8829-23",
-                            status = "Completed",
-                            garmentItem = "Custom Charcoal 3-Piece Wool Suit",
-                            orderDate = "Sep 12, 2023",
-                            deliveryDate = "Oct 15, 2023",
-                            issueDescription = "The sleeves are approximately 2 inches too long...",
-                            internalNotes = "Check fabric elasticity before cutting...",
-                            attachmentCount = 3
-                        ),
-                        onBack = { goBack() },
-                        onViewFullOrderHistory = { navigateTo("order_history") }
-                    )
-
-                    "feedback_detail" -> FeedbackDetailScreen(
-                        onDismiss = {
-                            selectedFeedbackId = null
-                            goBack()
-                        }
-                    )
-                    "sales_pricing_quotation" -> QuotationScreen(
-                        onClose = { isSalesSettingsMode = false; goBack() },
-                        onAddNe = {
-                            editingPricingId = null
-                            quotationScreenMode = "create"
-                            navigateTo("create_quotation")
-                        },
-                        onView = { id ->
-                            editingPricingId = id
-                            quotationScreenMode = "view"
-                            navigateTo("create_quotation")
-                        },
-                        onEdit = { id ->
-                            editingPricingId = id
-                            quotationScreenMode = "edit"
-                            navigateTo("create_quotation")
-                        },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Sales"
-                            showModulesPanel = true
-                        }
-                    )
-
-                    "create_quotation" -> CreateQuotationScreen(
-                        quotationId = editingPricingId,
-                        mode = quotationScreenMode,
-                        onClose = { goBack() },
-                        onSave = { goBack() },
-                        token = token
-                    )
-                    "inventory_item_groups" -> AllItemGroupScreen(
-                        onDismiss = { goBack() },
-                        onAddItemGroup = { navigateTo("inventory_create_item_group") },
-                        onView = { groupId ->
-                            selectedItemGroupId = groupId
-                        },
-                        onEdit = { groupId ->
-                            selectedItemGroupId = groupId
-                            navigateTo("inventory_create_item_group")
-                        },
-                        onDelete = { groupId -> },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Inventory"
-                            showModulesPanel = true
-                        }
-                    )
-
-                    "inventory_create_item_group" -> CreateItemGroupScreen(
-                        onDismiss = {
-                            selectedItemGroupId = null
-                            goBack()
-                        },
-                        onSave = {
-                            selectedItemGroupId = null
-                            goBack()
-                        }
-                    )
-                    "sales_pricing_overview" -> PricingScreen(
-                        onClose = { isSalesSettingsMode = false; goBack() },
-                        onAddNewPricing = { editingPricingId = null; navigateTo("create_garment_pricing") },
-                        onCardClick = { pricingId -> editingPricingId = pricingId; navigateTo("create_garment_pricing") },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Sales"
-                            showModulesPanel = true
-                        }
-                    )
-
-                    "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
-                        onBack = { goBack() },
-                        onAddNewPricing = { editingPricingId = null; navigateTo("create_garment_pricing") },
-                        onCardClick = { pricingId -> editingPricingId = pricingId; navigateTo("create_garment_pricing") }
-                    )
-
-                    "create_garment_pricing" -> com.cuso.mobile.view.home.sales.pricing.AddGarmentPricingScreen(
-                        pricingId = editingPricingId,
-                        onClose = {
-                            editingPricingId = null
-                            goBack()
-                        },
-                        onSave = {
-                            editingPricingId = null
-                            goBack()
-                        }
-                    )
-                    "sales_customers" -> CustomerScreen(
-                        navController = navController,
-                        customerState = customerUiState,
-                        onSearch = customerViewModel::onSearch,
-                        onTypeFilterChange = customerViewModel::onTypeFilterChange,
-                        onPageChange = customerViewModel::onPageChange,
-                        onItemsPerPageChange = customerViewModel::onItemsPerPageChange,
-
-                        onClose = { goBack() },
-                        onCreateCustomer = { navigateTo("create_customer") },
-                        onView = { customer ->
-                            selectedCustomer = customer
-                            navigateTo("view_customer")
-                        },
-                        onEdit = { customer ->
-                            selectedCustomer = customer
-                            navigateTo("edit_customer")
-                        },
-                        onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Sales"
-                            showModulesPanel = true
-                        }
-                    )
-                    "finance_customers" -> FinanceCustomerScreen(
-                        onClose = { goBack() },
-                        onCustomerEdit = {},
-                        onCustomerClick = {},
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Finance"
-                            showModulesPanel = true
-                        }
-                    )
-                    "finance_expenses" -> ExpensesScreen(
-                        onClose = { goBack() },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Finance"
-                            showModulesPanel = true
-                        }
-                    )
-                    "finance_journal_screen" -> ManualJournalEntryScreen(
-                        onClose = { goBack() }
-                    )
-                    "finance_payments_received" -> AllPaymentScreen(
-                        onViewPayment = { navigateTo("payment_detail_screen") },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Finance"
-                            showModulesPanel = true
-                        }
-                    )
-                    "payment_detail_screen" -> PaymentDetailScreen(
-                        onClose = { goBack() }
-                    )
-
-                    "finance_sales_invoices" -> FinanceInvoiceScreen(
-                        onClose = { goBack() },
-                        onInvoiceClick = { invoice ->
-                            selectedInvoiceId = invoice.id
-                            navigateTo("finance_invoice_detail")
-                        },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Finance"
-                            showModulesPanel = true
-                        }
-                    )
-
-                    "finance_invoice_detail" -> {
-                        selectedInvoiceId?.let { id ->
-                            com.cuso.mobile.view.home.finance.InvoiceDetailScreen(
-                                invoiceId = id,
-                                onClose = {
-                                    selectedInvoiceId = null
-                                    goBack()
-                                },
-                                token = token
-                            )
-                        } ?: run { goBack() }
-                    }
-                    "logistics_delivery" -> DeliveryManagementScreen(
-                        onDismiss = { goBack() },
-                        onView = { navigateTo("delivery_detail") },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Logistics"
-                            showModulesPanel = true
-                        }
-                    )
-                    "delivery_detail" -> DeliveryDetailScreen(
-                        onDismiss = { goBack() }
-                    )
-
-                    "view_customer", "edit_customer" -> {
-                        val customer = selectedCustomer
-                        if (customer != null && customer.id.isNotBlank()) {
-                            CustomerDetailScreen(
-                                navController = navController,
-                                customerId = customer.id,
-                                startInEditMode = currentScreen == "edit_customer",
-                                onClose = {
-                                    selectedCustomer = null
-                                    goBack()
-                                },
-                                onUpdateSuccess = {
-                                    customerViewModel.refresh()
-                                    selectedCustomer = null
-                                    goBack()
-                                },
-                                onRequestEdit = { navigateTo("edit_customer") }
-                            )
+                AnimatedContent(
+                    targetState = currentScreen,
+                    modifier = Modifier.fillMaxSize(),
+                    transitionSpec = {
+                        if (isForwardNavigation) {
+                            (slideInHorizontally(
+                                animationSpec = tween(300),
+                                initialOffsetX = { fullWidth -> fullWidth }
+                            ) + fadeIn(tween(300))) togetherWith
+                                    (slideOutHorizontally(
+                                        animationSpec = tween(300),
+                                        targetOffsetX = { fullWidth -> -fullWidth / 4 }
+                                    ) + fadeOut(tween(300)))
                         } else {
-                            LaunchedEffect(Unit) {
-                                Toast.makeText(context, "Unable to load customer details", Toast.LENGTH_SHORT).show()
-                            }
-                            goBack()
+                            (slideInHorizontally(
+                                animationSpec = tween(300),
+                                initialOffsetX = { fullWidth -> -fullWidth / 4 }
+                            ) + fadeIn(tween(300))) togetherWith
+                                    (slideOutHorizontally(
+                                        animationSpec = tween(300),
+                                        targetOffsetX = { fullWidth -> fullWidth }
+                                    ) + fadeOut(tween(300)))
                         }
-                    }
+                    },
+                    label = "screen_transition"
+                ) { screen ->
+                    when (screen) {
+                        "settings" -> SettingsScreen(
+                            navController = navController,
+                            onMenuClick = { isDrawerOpen = true },
+                            onBack = { goBack() }
+                        )
+                        "home_organization_profile" -> SettingsScreen(
+                            navController = navController,
+                            onMenuClick = { isDrawerOpen = true },
+                            onBack = { goBack() }
 
-                    "sales_measurements" -> MeasurementsScreen(
-                        navController = navController,
-                        onBack = { goBack() },
-                        onCreateOrder = { navigateTo("create_order") },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Sales"
-                            showModulesPanel = true
-                        }
-                    )
-                    "create_order_review" -> {
-                        pendingOrderReviewData?.let { data ->
-                            CreateOrderNextStep(
-                                orderData = data,
-                                onBack = { goBack() },
-                                onSaveOrder = {
+                        )
+                        "home_branch_management" -> BranchSettingsScreen(
+                            navController = navController,
+                            onMenuClick = { isDrawerOpen = true },
+                            onBack = { goBack() }
+                        )
+                        "home_department_teams" -> DepartmentSettingsScreen(
+                            navController = navController,
+                            onMenuClick = { isDrawerOpen = true },
+                            onBack = { goBack() }
+                        )
+                        "home_designation" -> DesignationScreen(
+                            navController = navController,
+                            onMenuClick = { isDrawerOpen = true },
+                            onBack = { goBack() }
+                        )
+
+                        "sales_settings" -> SalesSettingsScreen(
+                            navController = navController,
+                            onClose = {
+                                isSalesSettingsMode = false
+                                goBack()
+                            },
+                            onMenuClick = { isDrawerOpen = true }
+                        )
+                        "sales_garment_type" -> GarmentTypeContent(
+                            onClose = {
+                                isSalesSettingsMode = true
+                                goBack()
+                            },
+                            onMenuClick = { isDrawerOpen = true }
+                        )
+                        "home" -> HomeScreenContent(
+                            navController = navController,
+                            onNavigate = { route ->
+                                when (route) {
+                                    "sales_lead" -> {
+                                        isSalesSettingsMode = false
+                                        navigateTo("sales_lead")
+                                    }
+                                    "sales_customers" -> {
+                                        isSalesSettingsMode = false
+                                        navigateTo("sales_customers")
+                                    }
+                                    "sales_sales_orders" -> {
+                                        isSalesSettingsMode = false
+                                        navigateTo("sales_sales_orders")
+                                    }
+                                    "sales_measurements" -> {
+                                        isSalesSettingsMode = false
+                                        navigateTo("sales_measurements")
+                                    }
+                                    "sales_pricing_quotation",
+                                    "sales_pricing_and_quotations",
+                                    "sales_pricing_&_quotations" -> {
+                                        isSalesSettingsMode = false
+                                        navigateTo("sales_pricing_quotation")
+                                    }
+                                    "services_customer_feedback", "customer_feedback" -> {
+                                        isSalesSettingsMode = false
+                                        navigateTo("services_customer_feedback")
+                                        isDrawerOpen = false
+                                    }
+                                    else -> {
+                                        Log.d("NAV_DEBUG", "Unhandled home navigation: $route")
+                                    }
+                                }
+                            }
+                        )
+                        "sales_lead" -> LeadScreenContent(
+                            onCreateLead = { navigateTo("create_lead") },
+                            onViewLead = { navigateTo("view_lead") },
+                            onEditLead = { navigateTo("edit_lead") },
+                            onClose = {
+                                isSalesSettingsMode = false
+                                goBack()
+                            },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Sales"
+                                showModulesPanel = true
+                            }
+                        )
+                        "create_lead" -> CreateLeadScreen(
+                            onBack = { goBack() }
+                        )
+                        "view_lead" -> ViewLeadScreen(
+                            onBack = { goBack() },
+                            onEditLead = { navigateTo("edit_lead") }
+                        )
+                        "edit_lead" -> EditLeadScreen(
+                            onBack = { goBack() }
+                        )
+                        "create_order" -> {
+                            CreateOrderScreen(
+                                initialData = pendingOrderReviewData,
+                                onBack = {
                                     pendingOrderReviewData = null
+                                    goBack()
+                                },
+                                onCancel = {
+                                    pendingOrderReviewData = null
+                                    goBack()
+                                },
+                                onNextStep = { orderReviewData ->
+                                    pendingOrderReviewData = orderReviewData
+                                    navigateTo("create_order_review")
+                                }
+                            )
+                        }
+                        "sales_sales_orders" -> SalesOrderScreen(
+                            navController = navController,
+                            onMenuClick = { isDrawerOpen = true },
+                            onBack = { goBack() },
+                            onCreateOrder = {
+                                pendingOrderReviewData = null
+                                navigateTo("create_order")
+                            },
+                            onViewOrder = { orderId ->
+                                selectedOrderId = orderId
+                                navigateTo("order_overview")
+                            },
+                            onEditOrder = { orderId ->
+                                editOrderId = orderId
+                            },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Sales"
+                                showModulesPanel = true
+                            }
+                        )
+                        "order_overview" -> {
+                            selectedOrderId?.let { id ->
+                                OrderOverviewScreen(
+                                    orderId = id,
+                                    onClose = {
+                                        selectedOrderId = null
+                                        goBack()
+                                    },
+                                    onEditOrder = { reviewData ->
+                                        pendingOrderReviewData = reviewData
+                                        selectedOrderId = null
+                                        navigateTo("create_order")
+                                    },
+                                    onCreateNew = {
+                                        pendingOrderReviewData = null
+                                        selectedOrderId = null
+                                        navigateTo("create_order")
+                                    }
+                                )
+                            } ?: run { goBack() }
+                        }
+                        "sales_orders" -> OrderManagementScreen(
+                            navController = navController,
+                            onMenuClick = { isDrawerOpen = true },
+                            onBack = { goBack() },
+                            onViewOrder = { orderId ->
+                                selectedManagementOrderId = orderId
+                                navigateTo("order_management_overview")
+                            },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Sales"
+                                showModulesPanel = true
+                            }
+                        )
+                        "order_management_overview" -> {
+                            selectedManagementOrderId?.let { id ->
+                                OrderDetailScreen(
+                                    orderId = id,
+                                    onClose = {
+                                        selectedManagementOrderId = null
+                                        goBack()
+                                    },
+                                    onEditOrder = {
+                                        editOrderId = id
+                                    }
+                                )
+                            } ?: run { goBack() }
+                        }
+                        "finance_trial_balance" -> TrialBalanceScreen(
+                            onClose = { goBack() },
+                            onAccountClick = { accountId, accountName ->
+                                selectedLedgerAccountId = accountId
+                                selectedLedgerAccountName = accountName
+                                navigateTo("finance_ledger")
+                            },
+                            onBreadcrumbClick = {
+                                modulesPanelInitialExpanded = "Finance"
+                                showModulesPanel = true
+                            }
+                        )
+
+                        "finance_ledger" -> {
+                            selectedLedgerAccountId?.let { id ->
+                                LedgerScreen(
+                                    accountId = id,
+                                    accountName = selectedLedgerAccountName,
+                                    onClose = {
+                                        selectedLedgerAccountId = null
+                                        goBack()
+                                    },
+                                    onBreadcrumbClick = {
+                                        modulesPanelInitialExpanded = "Finance"
+                                        showModulesPanel = true
+                                    }
+                                )
+                            } ?: run { goBack() }
+                        }
+
+                        "finance_chart_of_accounts" -> ChartOfAccountScreen(
+                            onClose = { goBack() },
+                            onBreadcrumbClick = {
+                                modulesPanelInitialExpanded = "Finance"
+                                showModulesPanel = true
+                            }
+                        )
+                        "finance_suppliers" -> AllSuppliersScreen(
+                            onClose = { goBack() },
+                            onBreadcrumbClick = {
+                                modulesPanelInitialExpanded = "Finance"
+                                showModulesPanel = true
+                            },
+                            onSupplierClick = { supplier ->
+                                selectedSupplier = supplier
+                                navigateTo("finance_supplier_detail")
+                            }
+                        )
+                        "finance_supplier_detail" -> {
+                            selectedSupplier?.let { supplier ->
+                                SupplierDetailScreen(
+                                    supplier = supplier,
+                                    onClose = {
+                                        selectedSupplier = null
+                                        goBack()
+                                    },
+                                    onBreadcrumbClick = {
+                                        modulesPanelInitialExpanded = "Finance"
+                                        showModulesPanel = true
+                                    }
+                                )
+                            } ?: run { goBack() }
+                        }
+                        "inventory_items" -> InventoryScreen(
+                            onClose = { goBack() },
+                            onAddItem = { navigateTo("inventory_create_item") },
+                            onViewItem = { item ->
+                                selectedInventoryItemId = item._id
+                                navigateTo("inventory_item_detail")
+                            },
+                            onEditItem = { navigateTo("inventory_create_item") },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Inventory"
+                                showModulesPanel = true
+                            }
+                        )
+
+                        "inventory_low_stock_alerts" -> LowStockAlertsScreen(
+                            onClose = { goBack() },
+                            onReorderClick = { item ->
+                                selectedLowStockItem = item
+                                navigateTo("inventory_create_purchase_order")
+                            },
+                            onCreateNewItem = { navigateTo("inventory_create_purchase_order") },
+                            onBreadcrumbClick = {
+                                modulesPanelInitialExpanded = "Inventory"
+                                showModulesPanel = true
+                            }
+                        )
+
+                        "inventory_create_purchase_order" -> {
+                            CreatePurchaseOrderScreen(
+                                onClose = {
+                                    selectedLowStockItem = null
+                                    goBack()
+                                },
+                                onCancel = {
+                                    selectedLowStockItem = null
+                                    goBack()
+                                },
+                                onCreateOrder = {
+                                    selectedLowStockItem = null
                                     goBack()
                                     goBack()
                                 }
                             )
-                        } ?: run { goBack() }
-                    }
-                    "profile-settings" -> ProfileSettingsScreen(
-                        onClose = { goBack() },
-                        onOrganizationSetup = { navigateTo("home_organization_profile") },
-                        onBranchManagement = { navigateTo("home_branch_management") },
-                        onDepartment = { navigateTo("home_department_teams") },
-                        onDesignation = { navigateTo("home_designation") },
-                        onLogout = {
-                            settingsViewModel.logout {
-                                authViewModel.logout {
-                                    navController.navigate("login") {
-                                        popUpTo(0) { inclusive = true }
+                        }
+
+                        "hr_all_employees" -> AllEmployeesScreen(
+                            onDismiss = { goBack() },
+                            onAddEmployee = {
+                                employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.CREATE
+                                selectedEmployeeId = null
+                                navigateTo("hr_employee_onboarding")
+                            },
+                            onView = { employee ->
+                                employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.VIEW
+                                selectedEmployeeId = employee._id
+                                navigateTo("hr_employee_onboarding")
+                            },
+                            onEdit = { employee ->
+                                employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.EDIT
+                                selectedEmployeeId = employee._id
+                                navigateTo("hr_employee_onboarding")
+                            },
+                            onDelete = { employee ->
+                            },
+                            hrViewModel = hrViewModel,
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "HR"
+                                showModulesPanel = true
+                            }
+                        )
+                        "logistics_order_tracking" -> OrderTrackingScreen(
+                            onClose = { goBack() },
+                            onViewOrder = { order ->
+                                selectedOrderId = order.id
+                                navigateTo("tracking_overview")
+                            },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Logistics"
+                                showModulesPanel = true
+                            }
+                        )
+                        "tracking_overview" -> TrackingOverviewScreen(
+                            onClose = { goBack() }
+                        )
+
+                        "hr_employee_onboarding" -> EmployeeOnboardingScreen(
+                            mode = employeeScreenMode,
+                            memberIdToLoad = selectedEmployeeId,
+                            onDismiss = {
+                                selectedEmployeeId = null
+                                goBack()
+                            },
+                            onCreateEmployee = {
+                                selectedEmployeeId = null
+                                goBack()
+                            },
+                            onUpdateEmployee = {
+                                selectedEmployeeId = null
+                                goBack()
+                            },
+                            hrViewModel = hrViewModel
+                        )
+
+                        "inventory_create_item" -> CreateItemScreen(
+                            onDismiss = { goBack() },
+                            onItemCreated = { goBack() }
+                        )
+
+                        "inventory_item_detail" -> {
+                            selectedInventoryItemId?.let { id ->
+                                val itemDetailViewModel: com.cuso.mobile.viewmodel.InventoryViewModel = hiltViewModel()
+                                val selectedItem by itemDetailViewModel.selectedItem.collectAsStateWithLifecycle()
+                                val isLoadingDetail by itemDetailViewModel.isLoadingItemDetail.collectAsStateWithLifecycle()
+                                val detailError by itemDetailViewModel.itemDetailError.collectAsStateWithLifecycle()
+
+                                LaunchedEffect(id) {
+                                    itemDetailViewModel.fetchInventoryItemDetail(id)
+                                }
+
+                                InventoryViewOne(
+                                    item = selectedItem,
+                                    isLoading = isLoadingDetail,
+                                    errorMessage = detailError,
+                                    onDismiss = {
+                                        selectedInventoryItemId = null
+                                        goBack()
+                                    },
+                                    onAdjustStock = { },
+                                    onAdjustStockSubmit = { type, quantity, reason, notes ->
+                                        val apiType = when (type) {
+                                            AdjustmentType.INCREASE -> "increase"
+                                            AdjustmentType.DECREASE -> "decrease"
+                                            AdjustmentType.SET_EXACT -> "set"
+                                        }
+                                        itemDetailViewModel.adjustStock(
+                                            itemId = id,
+                                            adjustmentType = apiType,
+                                            quantity = quantity,
+                                            reason = reason,
+                                            notes = notes
+                                        )
+                                    },
+                                    onWarehouseTransfer = { },
+                                    onReorderStock = { },
+                                    onMarkInactive = { },
+                                    onEdit = { },
+                                    onShare = { }
+                                )
+                            } ?: run { goBack() }
+                        }
+
+                        "services_customer_feedback" -> CustomerFeedbackScreen(
+                            onDismiss = { goBack() },
+                            onView = { feedbackId ->
+                                selectedFeedbackId = feedbackId
+                                navigateTo("feedback_detail")
+                            },
+                            onEdit = { feedbackId -> },
+                            onDelete = { feedbackId -> },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Services"
+                                showModulesPanel = true
+                            }
+                        )
+                        "services_alteration_management" -> AlterationManagementScreen(
+                            onClose = {goBack()},
+                            onCreateNewAlteration = {navigateTo("create_alteration")},
+                            onBreadcrumbClick = {
+                                modulesPanelInitialExpanded = "Services"
+                                showModulesPanel=true
+                            },
+                            onViewClick = {}
+                        )
+
+                        "create_alteration" -> CreateAlterationManagementScreen (
+                            onClose = {goBack()},
+                        )
+
+                        "services_service_request" -> ServiceRequestScreen(
+                            onClose = {},
+                            onBreadcrumbClick = {},
+                            onCreateNewRequest = {navigateTo("create_request")},
+                            onViewClick = {navigateTo("review_services")}
+                        )
+                        "create_request" -> CreateServiceRequest()
+
+                        "review_services" -> ServiceOrderDetailsScreen(
+                            service = ServiceDetails(
+                                serviceRef = "SR-1045",
+                                reviewStatus = "Pending Review",
+                                service = "Bespoke Alteration",
+                                requestDate = "Oct 24, 2025",
+                                priority = "High",
+                                serviceCategory = "Suit Fitting & Adjustments",
+                                preferredCompletionDate = "Nov 15, 2023",
+                                serviceType = "Internal Production Refit",
+                                customerName = "Jonathan Sterling",
+                                phoneNumber = "+1 (555) 123-4567",
+                                emailAddress = "j.sterling@executive.com",
+                                shippingAddress = "452 Premium Way, Floor 12\nManhattan, NY 10001"
+                            ),
+                            order = OrderDetails(
+                                orderId = "#ORD-8829-23",
+                                status = "Completed",
+                                garmentItem = "Custom Charcoal 3-Piece Wool Suit",
+                                orderDate = "Sep 12, 2023",
+                                deliveryDate = "Oct 15, 2023",
+                                issueDescription = "The sleeves are approximately 2 inches too long...",
+                                internalNotes = "Check fabric elasticity before cutting...",
+                                attachmentCount = 3
+                            ),
+                            onBack = { goBack() },
+                            onViewFullOrderHistory = { navigateTo("order_history") }
+                        )
+
+                        "feedback_detail" -> FeedbackDetailScreen(
+                            onDismiss = {
+                                selectedFeedbackId = null
+                                goBack()
+                            }
+                        )
+                        "sales_pricing_quotation" -> QuotationScreen(
+                            onClose = { isSalesSettingsMode = false; goBack() },
+                            onAddNe = {
+                                editingPricingId = null
+                                quotationScreenMode = "create"
+                                navigateTo("create_quotation")
+                            },
+                            onView = { id ->
+                                editingPricingId = id
+                                quotationScreenMode = "view"
+                                navigateTo("create_quotation")
+                            },
+                            onEdit = { id ->
+                                editingPricingId = id
+                                quotationScreenMode = "edit"
+                                navigateTo("create_quotation")
+                            },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Sales"
+                                showModulesPanel = true
+                            }
+                        )
+
+                        "create_quotation" -> CreateQuotationScreen(
+                            quotationId = editingPricingId,
+                            mode = quotationScreenMode,
+                            onClose = { goBack() },
+                            onSave = { goBack() },
+                            token = token
+                        )
+                        "inventory_item_groups" -> AllItemGroupScreen(
+                            onDismiss = { goBack() },
+                            onAddItemGroup = { navigateTo("inventory_create_item_group") },
+                            onView = { groupId ->
+                                selectedItemGroupId = groupId
+                            },
+                            onEdit = { groupId ->
+                                selectedItemGroupId = groupId
+                                navigateTo("inventory_create_item_group")
+                            },
+                            onDelete = { groupId -> },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Inventory"
+                                showModulesPanel = true
+                            }
+                        )
+
+                        "inventory_create_item_group" -> CreateItemGroupScreen(
+                            onDismiss = {
+                                selectedItemGroupId = null
+                                goBack()
+                            },
+                            onSave = {
+                                selectedItemGroupId = null
+                                goBack()
+                            }
+                        )
+                        "sales_pricing_overview" -> PricingScreen(
+                            onClose = { isSalesSettingsMode = false; goBack() },
+                            onAddNewPricing = { editingPricingId = null; navigateTo("create_garment_pricing") },
+                            onCardClick = { pricingId -> editingPricingId = pricingId; navigateTo("create_garment_pricing") },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Sales"
+                                showModulesPanel = true
+                            }
+                        )
+
+                        "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
+                            onBack = { goBack() },
+                            onAddNewPricing = { editingPricingId = null; navigateTo("create_garment_pricing") },
+                            onCardClick = { pricingId -> editingPricingId = pricingId; navigateTo("create_garment_pricing") }
+                        )
+
+                        "create_garment_pricing" -> com.cuso.mobile.view.home.sales.pricing.AddGarmentPricingScreen(
+                            pricingId = editingPricingId,
+                            onClose = {
+                                editingPricingId = null
+                                goBack()
+                            },
+                            onSave = {
+                                editingPricingId = null
+                                goBack()
+                            }
+                        )
+                        "sales_customers" -> CustomerScreen(
+                            navController = navController,
+                            customerState = customerUiState,
+                            onSearch = customerViewModel::onSearch,
+                            onTypeFilterChange = customerViewModel::onTypeFilterChange,
+                            onPageChange = customerViewModel::onPageChange,
+                            onItemsPerPageChange = customerViewModel::onItemsPerPageChange,
+
+                            onClose = { goBack() },
+                            onCreateCustomer = { navigateTo("create_customer") },
+                            onView = { customer ->
+                                selectedCustomer = customer
+                                navigateTo("view_customer")
+                            },
+                            onEdit = { customer ->
+                                selectedCustomer = customer
+                                navigateTo("edit_customer")
+                            },
+                            onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Sales"
+                                showModulesPanel = true
+                            }
+                        )
+                        "finance_customers" -> FinanceCustomerScreen(
+                            onClose = { goBack() },
+                            onCustomerEdit = {},
+                            onCustomerClick = {},
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Finance"
+                                showModulesPanel = true
+                            }
+                        )
+                        "finance_expenses" -> ExpensesScreen(
+                            onClose = { goBack() },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Finance"
+                                showModulesPanel = true
+                            }
+                        )
+                        "finance_journal_screen" -> ManualJournalEntryScreen(
+                            onClose = { goBack() }
+                        )
+                        "finance_payments_received" -> AllPaymentScreen(
+                            onViewPayment = { navigateTo("payment_detail_screen") },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Finance"
+                                showModulesPanel = true
+                            }
+                        )
+                        "payment_detail_screen" -> PaymentDetailScreen(
+                            onClose = { goBack() }
+                        )
+
+                        "finance_sales_invoices" -> FinanceInvoiceScreen(
+                            onClose = { goBack() },
+                            onInvoiceClick = { invoice ->
+                                selectedInvoiceId = invoice.id
+                                navigateTo("finance_invoice_detail")
+                            },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Finance"
+                                showModulesPanel = true
+                            }
+                        )
+
+                        "finance_invoice_detail" -> {
+                            selectedInvoiceId?.let { id ->
+                                com.cuso.mobile.view.home.finance.InvoiceDetailScreen(
+                                    invoiceId = id,
+                                    onClose = {
+                                        selectedInvoiceId = null
+                                        goBack()
+                                    },
+                                    token = token
+                                )
+                            } ?: run { goBack() }
+                        }
+                        "logistics_delivery" -> DeliveryManagementScreen(
+                            onDismiss = { goBack() },
+                            onView = { navigateTo("delivery_detail") },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Logistics"
+                                showModulesPanel = true
+                            }
+                        )
+                        "delivery_detail" -> DeliveryDetailScreen(
+                            onDismiss = { goBack() }
+                        )
+
+                        "view_customer", "edit_customer" -> {
+                            val customer = selectedCustomer
+                            if (customer != null && customer.id.isNotBlank()) {
+                                CustomerDetailScreen(
+                                    navController = navController,
+                                    customerId = customer.id,
+                                    startInEditMode = currentScreen == "edit_customer",
+                                    onClose = {
+                                        selectedCustomer = null
+                                        goBack()
+                                    },
+                                    onUpdateSuccess = {
+                                        customerViewModel.refresh()
+                                        selectedCustomer = null
+                                        goBack()
+                                    },
+                                    onRequestEdit = { navigateTo("edit_customer") }
+                                )
+                            } else {
+
+                                goBack()
+                            }
+                        }
+
+                        "sales_measurements" -> MeasurementsScreen(
+                            navController = navController,
+                            onBack = { goBack() },
+                            onCreateOrder = { navigateTo("create_order") },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Sales"
+                                showModulesPanel = true
+                            }
+                        )
+                        "create_order_review" -> {
+                            pendingOrderReviewData?.let { data ->
+                                CreateOrderNextStep(
+                                    orderData = data,
+                                    onBack = { goBack() },
+                                    onSaveOrder = {
+                                        pendingOrderReviewData = null
+                                        goBack()
+                                        goBack()
+                                    }
+                                )
+                            } ?: run { goBack() }
+                        }
+                        "profile-settings" -> ProfileSettingsScreen(
+                            onClose = { goBack() },
+                            onOrganizationSetup = { navigateTo("home_organization_profile") },
+                            onBranchManagement = { navigateTo("home_branch_management") },
+                            onDepartment = { navigateTo("home_department_teams") },
+                            onDesignation = { navigateTo("home_designation") },
+                            onLogout = {
+                                settingsViewModel.logout {
+                                    authViewModel.logout {
+                                        navController.navigate("login") {
+                                            popUpTo(0) { inclusive = true }
+                                        }
                                     }
                                 }
                             }
-                        }
-                    )
+                        )
 
-                    "reports_sales_reports" -> SalesOrderReportsScreen(
-                        onClose = { goBack() },
-                        onBreadCrumbClick = {
-                            modulesPanelInitialExpanded = "Reports"
-                            showModulesPanel = true
-                        }
-                    )
-                    else -> { }
+                        "reports_sales_reports" -> SalesOrderReportsScreen(
+                            onClose = { goBack() },
+                            onBreadCrumbClick = {
+                                modulesPanelInitialExpanded = "Reports"
+                                showModulesPanel = true
+                            }
+                        )
+                        else -> { }
+                    }
                 }
             }
         }
@@ -1372,17 +1417,14 @@ fun HomeScreen(navController: NavHostController) {
                 }
                 val navKey = normalizeRoute(rawNavKey)
 
-                // AFTER
                 val implementedRoutes = setOf(
                     "sales_lead", "sales_customers", "sales_measurements", "sales_sales_orders",
                     "sales_orders", "sales_pricing_overview", "sales_pricing_quotation",
-                    "finance_sales_invoices", "finance_customers", "finance_payments_received",
-                    "finance_suppliers", "finance_expenses", "finance_chart_of_accounts",
-                    "finance_journal_screen", "finance_trial_balance",
-                    "inventory_items", "inventory_item_groups",
-                    "inventory_low_stock_alerts",
-                    "logistics_delivery", "logistics_order_tracking",
-                    "services_customer_feedback","services_alteration_management","services_service_request", "hr_all_employees", "reports_sales_reports"
+
+                    "finance_sales_invoices", "finance_customers","finance_expenses",
+                    "finance_chart_of_accounts","finance_journal_screen", "finance_trial_balance",
+
+                    "inventory_items"
                 )
 
                 isSalesSettingsMode = false
@@ -1391,9 +1433,14 @@ fun HomeScreen(navController: NavHostController) {
                 if (navKey in implementedRoutes) {
                     navigateTo(navKey)
                 } else {
-                    Toast.makeText(context, "Coming soon", Toast.LENGTH_SHORT).show()
+                    comingSoonMessage = "Coming Soon"
                 }
             }
+        )
+        DynamicIslandSuccess(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = comingSoonMessage,
+            onDismiss = { comingSoonMessage = null }
         )
     }
 }

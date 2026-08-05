@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.FormDateField
 import com.cuso.mobile.view.home.LeadPrimary
@@ -73,7 +74,7 @@ private data class DatePickerPalette(
 
 private val LightDatePalette = DatePickerPalette(
     surface = whiteBg,
-    text = Color.Black,
+    text = blackTitle,
     subtext = Color(0xFF666666),
     accent = LeadPrimary,
     divider = Color(0xFFE0E0E0),
@@ -88,7 +89,7 @@ private val DarkDatePalette = DatePickerPalette(
     subtext = Color(0xFFAAAAAA),
     accent = Color(0xFF7C7CFF),
     divider = Color(0xFF3A3A4A),
-    accentText = Color.Black,
+    accentText = blackTitle,
     fieldBackground = Color(0xFF2A2A3D),    // ✅ NEW — subtle lighter shade than dialog bg
     fieldBorder = Color(0xFF3A3A4A)          // ✅ NEW — matches divider
 )

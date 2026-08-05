@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AppLogo
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
@@ -81,7 +82,7 @@ fun ResetPassword(
             text = "Reset Password",
             fontSize = 25.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Black
+            color = blackTitle
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
@@ -117,7 +118,7 @@ fun ResetPassword(
                         text = "New Password",
                         fontSize = 12.47.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = blackTitle
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -134,7 +135,7 @@ fun ResetPassword(
                                 errorMessage = null
                             },
                             singleLine = true,
-                            textStyle = TextStyle(color = Color.Black, fontSize = 13.sp),
+                            textStyle = TextStyle(color = blackTitle, fontSize = 13.sp),
                             visualTransformation = if (newPasswordVisible)
                                 VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -197,7 +198,7 @@ fun ResetPassword(
                         text = "Confirm Password",
                         fontSize = 12.47.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = blackTitle
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -211,7 +212,7 @@ fun ResetPassword(
                                 errorMessage = null
                             },
                             singleLine = true,
-                            textStyle = TextStyle(color = Color.Black, fontSize = 13.sp),
+                            textStyle = TextStyle(color = blackTitle, fontSize = 13.sp),
                             visualTransformation = if (confirmPasswordVisible)
                                 VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),

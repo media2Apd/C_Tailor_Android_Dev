@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
 @Suppress("UNUSED_PARAMETER")
@@ -31,10 +32,10 @@ fun GstBoxValue(
     var checked by remember { mutableStateOf(false) }
 
     Row {
-        Text("Tax Information", color = Color.Black)
+        Text("Tax Information", color = blackTitle)
         Spacer(Modifier.padding(top=10.dp))
         Row {
-            Text("Is this bussiness registered for GST/vat/TRN/Local Tax?", color = Color.Black)
+            Text("Is this bussiness registered for GST/vat/TRN/Local Tax?", color = blackTitle)
             Spacer(Modifier.weight(1f))
 
             Switch(
@@ -49,7 +50,7 @@ fun GstBoxValue(
 
     }
     Column {
-        Text(" GST/vat/TRN/Local Tax ID", color = Color.Black)
+        Text(" GST/vat/TRN/Local Tax ID", color = blackTitle)
         OutlinedTextField(
             value = gstValue,
             onValueChange = onGstChange,

@@ -18,6 +18,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.blackTitle
 
 @Composable
 fun OtpTitle(){
@@ -31,7 +32,7 @@ fun OtpTitle(){
             " Verify to ",Modifier,
             style = MaterialTheme.typography.headlineLarge,
             fontSize = 30.sp,
-            color = Color.Black,
+            color = blackTitle,
 
             )
         Spacer(Modifier.padding(bottom=10.dp))
@@ -69,7 +70,7 @@ fun OtpTitle(){
             " Account ",Modifier,
             style = MaterialTheme.typography.headlineLarge,
             fontSize = 30.sp,
-            color = Color.Black,
+            color = blackTitle,
 
             )
     }

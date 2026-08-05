@@ -63,6 +63,7 @@ import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.CountryAndStatePicker
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.SettingsTabs
 import com.cuso.mobile.view.home.reusablecomposables.TabItem
 import com.cuso.mobile.view.organization.OrgLabel
@@ -127,28 +128,12 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(whiteBg)
-                .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    "Organization setup",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = OrgTheme.TextPrimary
-                )
-                Spacer(Modifier.weight(1f))
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Close",
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clickable { onBack() },
-                    tint = OrgTheme.TextSecondary
-                )
+                TitleBar("Organization Setup", onClose = onBack)
             }
         }
 

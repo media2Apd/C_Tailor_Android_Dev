@@ -19,6 +19,7 @@ import com.cuso.mobile.ui.theme.TitleColor
 import com.cuso.mobile.ui.theme.whiteBg
 
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
@@ -128,12 +129,9 @@ fun AlterationManagementScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 16.dp)
                     ) {
-                        Text("Alteration Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TitleColor)
-                        IconButton(onClick = onClose) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
-                        }
+                        TitleBar("Alteration Management", onClose = onClose)
+
                     }
 
 

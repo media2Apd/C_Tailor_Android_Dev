@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
 @Composable
@@ -22,7 +23,7 @@ fun Email(
 
     ) {
     Column {
-        Text("Email", color = Color.Black)
+        Text("Email", color = blackTitle)
         OutlinedTextField(
             value = emailValue,
             onValueChange = onEmailChange,
@@ -33,12 +34,12 @@ fun Email(
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = whiteBg,
                 unfocusedContainerColor = whiteBg,
-                focusedIndicatorColor = Color.Black,
+                focusedIndicatorColor = blackTitle,
                 unfocusedIndicatorColor = Color.Gray,
-                cursorColor = Color.Black,
-                focusedLabelColor = Color.Black,
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black
+                cursorColor = blackTitle,
+                focusedLabelColor = blackTitle,
+                focusedTextColor = blackTitle,
+                unfocusedTextColor = blackTitle
             )
         )
     }

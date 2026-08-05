@@ -111,6 +111,10 @@ import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.close_color
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
@@ -120,6 +124,7 @@ import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.ValidationField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
@@ -167,11 +172,11 @@ fun LeadFormTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(whiteBg)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+        Text(title, fontSize = title_font, fontWeight = FontWeight.Bold, color = title_color)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
 
             if (isConverted) {
@@ -214,9 +219,9 @@ fun LeadFormTopBar(
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Close",
-                tint = Color(0xFF111827),
+                tint = close_color,
                 modifier = Modifier
-                    .size(22.dp)
+                    .size(20.dp)
                     .clickable(
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }
@@ -747,7 +752,7 @@ fun CreateLeadScreen(
                                                 type,
                                                 fontSize = 14.sp,
                                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                                color = if (isSelected) Color.Black else Color(0xFF6B7280)
+                                                color = if (isSelected) blackTitle else Color(0xFF6B7280)
                                             )
                                         }
                                     }
@@ -1323,27 +1328,10 @@ fun LeadScreenContent(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(whiteBg)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Lead Management", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color.Black,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clickable(
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-                                ) { onClose() }
-                        )
-                    }
+                    TitleBar("Lead Management",
+                        onClose= onClose)
                     Spacer(Modifier.height(8.dp))
                 }
 
@@ -1735,7 +1723,7 @@ fun ViewLeadScreen(
                                             tint = if (isSelected) LeadPrimary else Color(0xFF6B7280)
                                         )
                                         Spacer(Modifier.width(6.dp))
-                                        Text(type, fontSize = 14.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, color = if (isSelected) Color.Black else Color(0xFF6B7280))
+                                        Text(type, fontSize = 14.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, color = if (isSelected) blackTitle else Color(0xFF6B7280))
                                     }
                                 }
                             }
@@ -2188,7 +2176,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
+//                    .padding(padding)
             ) {
                 LeadFormTopBar(
                     title = "Edit Lead",
@@ -2201,7 +2189,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp, bottom = 90.dp),
+                    contentPadding = PaddingValues(0.dp, bottom = 90.dp),
                 ) {
                     item {
                         LeadInfoBanner("Edit the details below and save your changes.")
@@ -2293,7 +2281,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                             type,
                                             fontSize = 14.sp,
                                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                            color = if (isSelected) Color.Black else Color(0xFF6B7280)
+                                            color = if (isSelected) blackTitle else Color(0xFF6B7280)
                                         )
                                     }
                                 }

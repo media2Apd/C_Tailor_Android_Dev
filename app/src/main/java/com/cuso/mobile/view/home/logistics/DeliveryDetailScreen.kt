@@ -35,7 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
@@ -136,25 +139,12 @@ fun DeliveryDetailScreen(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                            .fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Delivery management",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TitleColor
-                        )
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = "Close",
-                            tint = LabelColor,
-                            modifier = Modifier
-                                .size(22.dp)
-                                .clickable(onClick = onDismiss)
-                        )
+                        TitleBar("Create customer", onClose = onDismiss)
+
                     }
                     HorizontalDivider(color = BorderColor)
                 }

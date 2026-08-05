@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
@@ -174,34 +175,17 @@ fun SalesOrderReportsScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            containerColor = whiteBg,
+            containerColor = Color.Transparent,
             topBar = {
-                Column {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                "Sales & Order Reports",
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TitleColor
-                            )
-                        },
-                        actions = {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = TitleColor,
-                                modifier = Modifier
-                                    .padding(end = 20.dp)
-                                    .size(22.dp)
-                                    .clickable(onClick = onClose)
-                            )
-                        },
-                        windowInsets = WindowInsets(top = 0),
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = whiteBg)
-                    )
+
+                    Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
+                        Column {
+                            TitleBar("Sales & Order Reports", onClose= onClose)
+
+                        }
+                    }
                     HorizontalDivider(color = BorderColor)
-                }
+
             },
             contentWindowInsets = WindowInsets(0, 0, 0, 0)
         ) { innerPadding ->
@@ -216,7 +200,7 @@ fun SalesOrderReportsScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Primary_background),
+                        .background(Color.Transparent),
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     item {

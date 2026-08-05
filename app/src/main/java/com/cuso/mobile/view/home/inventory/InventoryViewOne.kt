@@ -32,7 +32,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.toHealthDisplay
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -72,20 +74,17 @@ fun InventoryViewOne(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(whiteBg)
+            .background(Color.Transparent)
     ) {
         // ── Header ──
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Item Details", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color=Color.Black)
-            IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, contentDescription = "Back", tint = Color.Black)
-            }
+            TitleBar("Item Details", onClose = onDismiss)
+
         }
 
             when {
@@ -323,7 +322,7 @@ private fun SectionHeader(icon: androidx.compose.ui.graphics.vector.ImageVector,
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
+        Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = blackTitle)
     }
 }
 

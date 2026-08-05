@@ -42,6 +42,8 @@ import com.cuso.mobile.model.sales.QuotationItemDto
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -59,6 +61,7 @@ import com.cuso.mobile.viewmodel.SalesOrderViewModel
 import kotlin.time.Duration.Companion.milliseconds
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
+import com.cuso.mobile.view.composable.TitleBar
 
 // ── Model for one row in the list ──
 data class PricingItem(
@@ -163,32 +166,10 @@ fun QuotationScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(whiteBg)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            "Quotation List",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF111827)
-                        )
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color.Black,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clickable(
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-                                ) { onClose() }
-                        )
-                    }
+                    TitleBar("Quotation List", onClose = onClose)
+
                     Spacer(Modifier.height(8.dp))
                 }
 

@@ -441,8 +441,8 @@ class InvoicePdfGenerator(private val context: Context) {
       .logo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 
       .logo-icon {
-        width: 100px;
-        height: 100px;
+        width: 90px;
+        height: 90px;
         border-radius: 50%;
         background: #4F46E5;
         display: flex;
@@ -456,8 +456,8 @@ class InvoicePdfGenerator(private val context: Context) {
       }
 
       .logo-icon-img {
-        width: 200px;
-        height: 200px;
+        width: 100px;
+        height: 100px;
         object-fit: contain;
         border-radius: 8px;
         flex-shrink: 0;

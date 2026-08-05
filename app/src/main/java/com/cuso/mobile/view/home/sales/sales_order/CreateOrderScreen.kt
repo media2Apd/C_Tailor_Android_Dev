@@ -96,6 +96,8 @@ import java.io.File
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.utils.safeDate
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
@@ -630,9 +632,9 @@ fun CreateOrderScreen(
             ) {
                 Text(
                     if (isEditMode) "Edit Order" else "Create Order",
-                    fontSize = 20.sp,
+                    fontSize = title_font,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = title_color
                 )
                 Spacer(Modifier.weight(1f))
                 Icon(

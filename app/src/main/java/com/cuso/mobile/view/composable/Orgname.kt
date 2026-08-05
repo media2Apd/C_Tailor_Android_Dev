@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.ui.theme.blackTitle
 
 @Composable
 fun Orgname(
@@ -18,7 +19,7 @@ fun Orgname(
     onOrganizationChange: (String) -> Unit
 ) {
     Column {
-        Text("Organization Name", color = Color.Black)
+        Text("Organization Name", color = blackTitle)
         OutlinedTextField(
             value = organizationValue,
             onValueChange = onOrganizationChange,

@@ -22,8 +22,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
@@ -84,19 +88,12 @@ fun TrialBalanceScreen(
         // ── Title bar ──
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(whiteBg)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Trial Balance", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close",
-                tint = TextPrimary,
-                modifier = Modifier.size(22.dp).clickable { onClose() }
-            )
+            TitleBar("Trial Balance", onClose = onClose)
+
         }
 
         Column {
@@ -154,19 +151,19 @@ fun TrialBalanceScreen(
                                     DataCardField(
                                         label = "Debit",
                                         text = formatAmount(item.debit),
-                                        textColor = Color.Black,      // ✅ value in black
+                                        textColor = blackTitle,      // ✅ value in black
                                         labelColor = TextSecondary
                                     ),
                                     DataCardField(
                                         label = "Credit",
                                         text = formatAmount(item.credit),
-                                        textColor = Color.Black,      // ✅ value in black
+                                        textColor = blackTitle,      // ✅ value in black
                                         labelColor = TextSecondary
                                     ),
                                     DataCardField(
                                         label = "BAL",
                                         text = "${formatAmount(item.balanceAbs)} ${item.balanceLabel}",
-                                        textColor = Color.Black,      // ✅ value in black
+                                        textColor = blackTitle,      // ✅ value in black
                                         labelColor = TextSecondary
                                     )
                                 )

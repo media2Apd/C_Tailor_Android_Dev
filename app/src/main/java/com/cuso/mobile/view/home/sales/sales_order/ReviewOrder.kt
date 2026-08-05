@@ -68,6 +68,7 @@ import com.cuso.mobile.viewmodel.SalesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.whiteBg
 
@@ -155,6 +156,9 @@ data class PaymentInfo(
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN ROOT
 // ─────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────
+// SCREEN ROOT
+// ─────────────────────────────────────────────────────────────────────────
 @Composable
 fun OrderOverviewScreen(
     orderId: String,
@@ -192,8 +196,19 @@ fun OrderOverviewScreen(
     // Live blur radius and scrim alpha state driven by SmoothBottomSheet
     var assignSheetBlur by remember { mutableStateOf(0.dp) }
     var assignSheetScrim by remember { mutableStateOf(0f) }
-    // ⬅️ NEW — immediate flag, click ஆன உடனே true/false ஆகும் (scrim animation delay இல்லாம)
-    var isAssignSheetOpen by remember { mutableStateOf(false) }
+
+    // ⬅️ HOISTED — sheet-oda state ippo indha level-la irukku, so sheet-a
+    // blur Box-ku veliya vekka mudiyum
+    var selectedGarmentForSheet by remember { mutableStateOf<GarmentDetail?>(null) }
+    var assignSheetState by remember { mutableStateOf(SheetValue.Hidden) }
+    val isAssignSheetOpen = assignSheetState != SheetValue.Hidden
+
+    fun closeAssignSheet() {
+        assignSheetState = SheetValue.Hidden
+        assignSheetBlur = 0.dp     // ✅ explicit reset — cancel click ஆனாலும் blur odane pogum
+        assignSheetScrim = 0f
+        selectedGarmentForSheet = null
+    }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -202,6 +217,7 @@ fun OrderOverviewScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .background(whiteBg)
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -247,80 +263,100 @@ fun OrderOverviewScreen(
                 }
                 HorizontalDivider(color = BorderLight)
             }
-        }
-    ) { padding ->
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+
+        ) { padding ->
+        // ⬅️ Outer Box — blur Box-um sheet-um இதுல siblings ah irukkanga
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .blurScrim(assignSheetBlur)
         ) {
-            when (val s = state) {
-                is OrderOverviewState.Loading, OrderOverviewState.Idle -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CirculerProgressIndicatorReuse()
+            // ✅ Blur/scrim ONLY apply aagum indha inner Box-oda content-ku (background)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blurScrim(assignSheetBlur)
+            ) {
+                when (val s = state) {
+                    is OrderOverviewState.Loading, OrderOverviewState.Idle -> {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CirculerProgressIndicatorReuse()
+                        }
                     }
-                }
-                is OrderOverviewState.Error -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Failed to load order", color = Color.Red, fontWeight = FontWeight.Bold)
-                            Text(s.message, color = Color.Gray, fontSize = 13.sp)
-                            Spacer(Modifier.height(12.dp))
-                            Button(onClick = { viewModel.fetchSalesOverview(orderId) }) {
-                                Text("Retry")
+                    is OrderOverviewState.Error -> {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Failed to load order", color = Color.Red, fontWeight = FontWeight.Bold)
+                                Text(s.message, color = Color.Gray, fontSize = 13.sp)
+                                Spacer(Modifier.height(12.dp))
+                                Button(onClick = { viewModel.fetchSalesOverview(orderId) }) {
+                                    Text("Retry")
+                                }
                             }
                         }
                     }
-                }
-                is OrderOverviewState.Success -> {
-                    val garments: List<GarmentDetail> = remember(s.data) { extractGarments(s.data) }
-                    val payment: PaymentInfo = remember(s.data) { extractPayment(s.data) }
+                    is OrderOverviewState.Success -> {
+                        val garments: List<GarmentDetail> = remember(s.data) { extractGarments(s.data) }
+                        val payment: PaymentInfo = remember(s.data) { extractPayment(s.data) }
 
-                    when (selectedTab) {
-                        "Overview" -> OverviewTab(s.data)
-                        "Garments" -> GarmentsTab(
-                            garments = garments,
-                            onGoToAssignments = { selectedTab = "Assignments" }
-                        )
-                        "Assignments" -> AssignmentsTab(
-                            garments = garments,
-                            staffList = staffList,
-                            orderId = orderId,
-                            viewModel = viewModel,
-                            assignState = assignState,
-                            onBlurScrimChange = { r, sc -> assignSheetBlur = r; assignSheetScrim = sc },
-                            onSheetVisibilityChange = { isAssignSheetOpen = it }   // ⬅️ NEW
-                        )
-                        "Payment" -> PaymentTab(
-                            payment = payment,
-                            context = context,
-                            orderData = s.data,
-                            viewModel = viewModel
-                        )
+                        when (selectedTab) {
+                            "Overview" -> OverviewTab(s.data)
+                            "Garments" -> GarmentsTab(
+                                garments = garments,
+                                onGoToAssignments = { selectedTab = "Assignments" }
+                            )
+                            "Assignments" -> AssignmentsTab(
+                                garments = garments,
+                                onAssignClick = { garment ->
+                                    selectedGarmentForSheet = garment
+                                    assignSheetState = SheetValue.Expanded
+                                }
+                            )
+                            "Payment" -> PaymentTab(
+                                payment = payment,
+                                context = context,
+                                orderData = s.data,
+                                viewModel = viewModel
+                            )
+                        }
                     }
                 }
+
+                // ⬅️ sheet open ஆன உடனே FAB buttons hide, close ஆன உடனே visible
+                AnimatedVisibility(
+                    visible = !isAssignSheetOpen,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    StepNavigationFab(
+                        showBack = true,
+                        onBack = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
+                        backEnabled = currentOrderData != null,
+                        backLabel = "Edit Order",
+                        backWidthFraction = 0.45f,
+                        trailingWidthFraction = 0.45f,
+                        trailingAction = TrailingFabAction.Next(
+                            label = "Create New",
+                            onClick = onCreateNew
+                        )
+                    )
+                }
             }
 
-            // ⬅️ NEW — sheet open ஆன உடனே FAB buttons hide, close ஆன உடனே visible
-            AnimatedVisibility(
-                visible = !isAssignSheetOpen,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                StepNavigationFab(
-                    showBack = true,
-                    onBack = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
-                    backEnabled = currentOrderData != null,
-                    backLabel = "Edit Order",
-                    backWidthFraction = 0.45f,
-                    trailingWidthFraction = 0.45f,
-                    trailingAction = TrailingFabAction.Next(
-                        label = "Create New",
-                        onClick = onCreateNew
-                    )
-                )
-            }
+            // ✅ Sheet ippo blur Box-ku VELIYA — so blur adha touch pannadhu
+            AssignTailorsSheet(
+                garment = selectedGarmentForSheet,
+                staffList = staffList,
+                orderId = orderId,
+                viewModel = viewModel,
+                assignState = assignState,
+                sheetState = assignSheetState,
+                onStateChange = { assignSheetState = it },
+                onBlurScrimChange = { r, sc -> assignSheetBlur = r; assignSheetScrim = sc },
+                onDismiss = { closeAssignSheet() }
+            )
         }
     }
 }
@@ -489,7 +525,7 @@ private fun GarmentsTab(
             GarmentCard(g)
             if (idx != garments.lastIndex) Spacer(Modifier.height(16.dp))
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(40.dp))
     }
 }
 
@@ -499,7 +535,7 @@ private fun GarmentCard(garment: GarmentDetail) {
         modifier = Modifier
             .fillMaxWidth()
             .background(whiteBg, RoundedCornerShape(14.dp))
-            .padding(bottom = 4.dp)
+            .padding(10.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
@@ -576,24 +612,14 @@ private fun GarmentCard(garment: GarmentDetail) {
 // ─────────────────────────────────────────────────────────────────────────
 // ASSIGNMENTS TAB
 // ─────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────
+// ASSIGNMENTS TAB
+// ─────────────────────────────────────────────────────────────────────────
 @Composable
 private fun AssignmentsTab(
     garments: List<GarmentDetail>,
-    staffList: List<StaffDto>,
-    orderId: String,
-    viewModel: OrderOverviewViewModel,
-    assignState: AssignWorkersState,
-    onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> },
-    onSheetVisibilityChange: (Boolean) -> Unit = {}   // ⬅️ NEW
+    onAssignClick: (GarmentDetail) -> Unit   // ⬅️ sheet-oda state parent-la irukku, idhu vech trigger pannuvom
 ) {
-    var selectedGarment by remember { mutableStateOf<GarmentDetail?>(null) }
-    var assignSheetState by remember { mutableStateOf(SheetValue.Hidden) }
-
-    // ⬅️ NEW — sheet state மாறின உடனே parent-க்கு notify பண்ணும்
-    LaunchedEffect(assignSheetState) {
-        onSheetVisibilityChange(assignSheetState != SheetValue.Hidden)
-    }
-
     val hasAnyWorkerAssigned = garments.any { g ->
         g.assignment?.cuttingTailor != null ||
                 g.assignment?.stitchingTailor != null ||
@@ -607,8 +633,7 @@ private fun AssignmentsTab(
         !hasAnyWorkerAssigned -> {
             NoWorkersAssignedState(
                 onAssignWorker = {
-                    selectedGarment = garments.first()
-                    assignSheetState = SheetValue.Expanded   // ⬅️ இந்த page-ல நேரா fullscreen open ஆகணும்
+                    garments.firstOrNull()?.let { onAssignClick(it) }
                 }
             )
         }
@@ -642,31 +667,13 @@ private fun AssignmentsTab(
                     AssignmentCard(
                         garment = garment,
                         isFullyAssigned = isFullyAssigned,
-                        onAssignClick = {
-                            selectedGarment = garment
-                            assignSheetState = SheetValue.Expanded   // ⬅️ இந்த page-ல நேரா fullscreen open ஆகணும்
-                        }
+                        onAssignClick = { onAssignClick(garment) }
                     )
                     if (idx != garments.lastIndex) Spacer(Modifier.height(16.dp))
                 }
             }
         }
     }
-
-    AssignTailorsSheet(
-        garment = selectedGarment,
-        staffList = staffList,
-        orderId = orderId,
-        viewModel = viewModel,
-        assignState = assignState,
-        sheetState = assignSheetState,
-        onStateChange = { assignSheetState = it },
-        onBlurScrimChange = onBlurScrimChange,
-        onDismiss = {
-            assignSheetState = SheetValue.Hidden
-            selectedGarment = null
-        }
-    )
 }
 
 @Composable
@@ -881,6 +888,7 @@ private fun AssignmentRow(
 // ─────────────────────────────────────────────────────────────────────────
 // ASSIGN TAILORS SHEET
 // ─────────────────────────────────────────────────────────────────────────
+
 @Composable
 private fun AssignTailorsSheet(
     garment: GarmentDetail?,
@@ -1468,7 +1476,7 @@ private fun ReceivePaymentDialog(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onDismiss, enabled = !isSaving) {
@@ -1493,7 +1501,7 @@ private fun ReceivePaymentDialog(
                         shape = RoundedCornerShape(10.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, TabActive)
                     ) {
-                        Text("Save Only", color = TabActive, fontWeight = FontWeight.SemiBold)
+                        Text("Save ", color = TabActive, fontWeight = FontWeight.SemiBold)
                     }
                     Button(
                         onClick = {
@@ -1518,7 +1526,7 @@ private fun ReceivePaymentDialog(
                         } else {
                             Icon(Icons.Default.Print, contentDescription = null, tint = whiteBg, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Save & Print", color = whiteBg, fontWeight = FontWeight.SemiBold)
+                            Text("Print", color = whiteBg, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -1614,7 +1622,7 @@ private fun SectionTitle(title: String) {
         title,
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
-        color = Color.Black,
+        color = blackTitle,
         modifier = Modifier
             .fillMaxWidth()
             .background(SectionBg)
@@ -1669,7 +1677,7 @@ private fun InfoRow(label: String, value: String, valueColor: Color = TextPrimar
             .padding(vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, fontSize = 13.sp, color = Color.Black)
+        Text(label, fontSize = 13.sp, color = blackTitle)
         Text(value, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = valueColor)
     }
     HorizontalDivider(color = Color(0xFFF5F5F5))

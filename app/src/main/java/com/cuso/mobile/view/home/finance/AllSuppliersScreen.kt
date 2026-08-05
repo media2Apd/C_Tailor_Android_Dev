@@ -20,8 +20,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
@@ -65,21 +68,12 @@ private val dummySuppliers = List(6) {
         // ── Top bar ──
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-                .background(whiteBg),
+                .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("All Suppliers", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color(0xFF111827),
-                modifier = Modifier
-                    .size(22.dp)
-                    .clickable { onClose() }
-            )
+            TitleBar("All Suppliers", onClose = onClose)
+
         }
 
         // ── Breadcrumb ──

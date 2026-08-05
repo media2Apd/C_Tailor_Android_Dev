@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var sessionManager: SessionManager
 
-    // 👇 null while checking. Splash stays on screen as long as this is null.
+    //  null while checking. Splash stays on screen as long as this is null.
     private var isLoggedIn: Boolean? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,60 +78,9 @@ class MainActivity : ComponentActivity() {
                             val navController = rememberNavController()
                             var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
 
-//                    PricingQuotationScreen(onClose = {})
-                            // 👇 isLoggedIn is guaranteed non-null here since splash already waited for it
+
                             AppNav(activity = this@MainActivity, startLoggedIn = isLoggedIn == true)
-//                    EmployeeOnboardingScreen()
-//                    FinanceCustomerScreen(
-//                        onClose = { navController.popBackStack() },
-//                        onCustomerClick = { customerId ->
-//                            navController.navigate("customer_detail/$customerId")
-//                        }
-//
-//                    )
 
-                            //                    OrderManagementScreen(navController = navController)
-//
-//                    if (selectedCustomerId == null) {
-//                        FinanceCustomerScreen(
-//                            onClose = { /* navigate back or whatever */ },
-//                            onCustomerClick = { customerId ->
-//                                selectedCustomerId = customerId   // 👈 real id vandhudum idhu
-//                            }
-//                        )
-//                    } else {
-//                        CustomerDetailScreenStatic(
-//                            onClose = { selectedCustomerId = null },
-//                            customerId = selectedCustomerId!!
-//                        )
-//                    }
-//                    FinanceInvoiceScreen(
-//                        onClose = { navController.popBackStack() },
-//                        onInvoiceClick = { invoice ->
-//                            navController.navigate("invoice_detail/${invoice.id}")
-//                        }
-//                    )
-
-                            /*
-                    if (selectedInvoiceId == null) {
-                        FinanceInvoiceScreen(
-                            onClose = { navController.popBackStack() },
-                            onInvoiceClick = { invoice ->
-                                selectedInvoiceId = invoice.id
-                            }
-                        )
-                    } else {
-                        InvoiceDetailScreen(
-                            invoiceId = selectedInvoiceId!!,
-                            onClose = {
-                                selectedInvoiceId = null
-                            },
-                            onSharePdf = { *//* Handle share PDF *//* },
-                            onDownloadInvoice = { *//* Handle download invoice *//* }
-                        )
-                    }*/
-//                    TrialBalanceScreen()
-//                    TrackingOverviewScreen ()
 
                         }
                     }
@@ -145,7 +94,7 @@ class MainActivity : ComponentActivity() {
 fun AppNav(activity: Activity, startLoggedIn: Boolean) {
     val navController = rememberNavController()
 
-    // 👇 No more null-check, no more spinner box - resolved before first frame
+    //  No more null-check, no more spinner box - resolved before first frame
     val startDestination = if (startLoggedIn) "home" else "login?message={message}"
 
     NavHost(
@@ -334,13 +283,6 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
             LeadScreenContent()
         }
 
-        // TODO: add remaining sales routes as screens are built
-        // composable("sales_customers")                  { CustomersScreen(...) }
-        // composable("sales_measurements")               { MeasurementsScreen(...) }
-        // composable("sales_orders")                     { OrdersScreen(...) }
-        // composable("sales_overview")                   { OverviewScreen(...) }
-        // composable("sales_pricing_and_quotations")     { PricingScreen(...) }
-        // composable("sales_targets_vs_achievements")    { TargetsScreen(...) }
-        // composable("sales_salesperson_analytics")      { AnalyticsScreen(...) }
+       
     }
 }

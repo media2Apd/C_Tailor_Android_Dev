@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.FormDropdown
 
@@ -143,7 +144,7 @@ fun AdjustStockSheet(
                         .background(Color(0xFFF3F4F6)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(item.unit, modifier = Modifier.padding(horizontal = 14.dp), color = Color.Black, fontSize = 13.sp)
+                    Text(item.unit, modifier = Modifier.padding(horizontal = 14.dp), color = blackTitle, fontSize = 13.sp)
                 }
             }
 

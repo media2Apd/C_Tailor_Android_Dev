@@ -60,6 +60,7 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.BorderStroke
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import java.io.File
 
@@ -335,7 +336,7 @@ fun OrganizationProfile(
                 "Organizational Details",
                 style = MaterialTheme.typography.titleLarge,
                 fontSize = 20.sp,
-                color = Color.Black
+                color = blackTitle
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -400,7 +401,7 @@ fun OrganizationProfile(
                 "Regional Settings",
                 style = MaterialTheme.typography.titleMedium,
                 fontSize = 20.sp,
-                color = Color.Black
+                color = blackTitle
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -427,7 +428,7 @@ fun OrganizationProfile(
                 "Tax Information",
                 style = MaterialTheme.typography.titleMedium,
                 fontSize = 20.sp,
-                color = Color.Black
+                color = blackTitle
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -559,7 +560,7 @@ fun TermsScreen(
 
             Text(
                 text = "I'd like to receive marketing emails about product updates and special offers",
-                color = Color.Black, fontSize = 12.sp
+                color = blackTitle, fontSize = 12.sp
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
@@ -571,7 +572,7 @@ fun TermsScreen(
 fun OrgLabel(text: String) {
     Text(
         text = text,
-        color = Color.Black,
+        color = blackTitle,
         fontSize = 14.sp,
         fontWeight = FontWeight.Medium,
         modifier = Modifier.padding(bottom = 4.dp)
@@ -600,13 +601,13 @@ fun OrgTextField(
         ),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = Color.Blue,
-            unfocusedTextColor = Color.Black,
-            disabledTextColor = Color.Black,
+            unfocusedTextColor = blackTitle,
+            disabledTextColor = blackTitle,
             disabledBorderColor = Color.LightGray,
             disabledContainerColor = Color(0xFFF2F2F2),
             focusedBorderColor = Color.Blue,
             unfocusedBorderColor = Color.LightGray,
-            cursorColor = Color.Black,
+            cursorColor = blackTitle,
             unfocusedContainerColor = Color(0xFFF2F2F2),
             focusedContainerColor = whiteBg
         )
@@ -693,13 +694,13 @@ fun OrganizationDropdown(
                         },
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black,
+                            focusedTextColor = blackTitle,
+                            unfocusedTextColor = blackTitle,
                             focusedBorderColor = Color.Blue,
                             unfocusedBorderColor = Color.LightGray,
                             focusedContainerColor = whiteBg,
                             unfocusedContainerColor = whiteBg,
-                            cursorColor = Color.Black
+                            cursorColor = blackTitle
                         ),
                         shape = RoundedCornerShape(8.dp)
                     )
@@ -720,7 +721,7 @@ fun OrganizationDropdown(
                             items(filteredItems) { item ->
                                 Text(
                                     text = item,
-                                    color = Color.Black,
+                                    color = blackTitle,
                                     fontSize = 15.sp,
                                     modifier = Modifier
                                         .fillMaxWidth()

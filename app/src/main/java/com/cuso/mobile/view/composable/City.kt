@@ -10,13 +10,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.ui.theme.blackTitle
+
 @Composable
 fun City(
     cityValue: String,
     onCityChange: (String) -> Unit
 ) {
     Column {
-        Text(" City", color = Color.Black)
+        Text(" City", color = blackTitle)
         OutlinedTextField(
             value = cityValue,
             onValueChange = onCityChange,

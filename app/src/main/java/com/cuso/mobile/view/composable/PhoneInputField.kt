@@ -41,6 +41,7 @@ import com.cuso.mobile.model.countries
 import com.cuso.mobile.model.Country
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Refresh
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 
@@ -174,7 +175,7 @@ fun PhoneInputField(
                             text = {
                                 Text(
                                     "${country.flag} ${country.name} (${country.code})",
-                                    color = Color.Black,
+                                    color = blackTitle,
                                     fontSize = 14.sp
                                 )
                             },

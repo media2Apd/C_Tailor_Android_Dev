@@ -54,6 +54,7 @@ import com.google.android.gms.common.api.ApiException
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
 @Suppress("DEPRECATION")
@@ -145,7 +146,7 @@ fun ContinueWithGoogle(activity: Activity, navController: NavController) {
                 border = BorderStroke(1.dp, PrimaryBorder),
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = whiteBg,
-                    contentColor = Color.Black
+                    contentColor = blackTitle
                 ),
                 shape = RoundedCornerShape(5.dp)
             ) {
@@ -162,23 +163,13 @@ fun ContinueWithGoogle(activity: Activity, navController: NavController) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Continue with Google",
-                            color = Color.Black,
+                            color = blackTitle,
                             fontSize = 14.sp
                         )
                     }
                 }
             }
         }
-
-//        // 👇 Show error visibly on screen
-//        if (errorMessage != null) {
-//            Text(
-//                text = errorMessage!!,
-//                color = Color.Red,
-//                fontSize = 13.sp,
-//                modifier = Modifier.padding(top = 4.dp)
-//            )
-//        }
     }
 }
 

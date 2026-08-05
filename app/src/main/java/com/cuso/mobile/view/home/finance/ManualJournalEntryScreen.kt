@@ -23,8 +23,11 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.finance.JournalEntryItem
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
 import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
@@ -134,21 +137,12 @@ fun ManualJournalEntryScreen(
             // ── Title bar ──
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Manual Journal Entry", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = Color(0xFF111827),
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clickable { onClose() }
-                )
+                TitleBar("Manual Journal Entry", onClose = onClose)
+
             }
 
             Column {

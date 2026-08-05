@@ -42,6 +42,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.unit.DpOffset
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
     @Suppress("UNUSED_PARAMETER")
@@ -135,7 +136,7 @@ import com.cuso.mobile.ui.theme.whiteBg
                                 style = TextStyle(
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.Black,
+                                    color = blackTitle,
                                     textAlign = TextAlign.Center
                                 )
                             )
@@ -159,7 +160,7 @@ import com.cuso.mobile.ui.theme.whiteBg
                                 text = "Paste",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.Black
+                                color = blackTitle
                             )
                         },
                         onClick = {
@@ -181,7 +182,7 @@ import com.cuso.mobile.ui.theme.whiteBg
                                 text = "Select All",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.Black
+                                color = blackTitle
                             )
                         },
                         onClick = {

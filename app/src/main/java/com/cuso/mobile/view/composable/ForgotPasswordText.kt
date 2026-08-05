@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.blackTitle
 
 @Composable
 fun ForgotPasswordText(){
@@ -19,7 +20,7 @@ fun ForgotPasswordText(){
             " Forgot your password ?",
             style = MaterialTheme.typography.headlineLarge,
             fontSize = 30.sp,
-            color = Color.Black
+            color = blackTitle
         )
 
     }

@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
@@ -76,23 +77,11 @@ fun CustomerFeedbackScreen(
         // ── Header ──
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
+                .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Customer Feedback",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = TitleColor
-            )
-            Icon(
-                Icons.Filled.Close,
-                contentDescription = "Close",
-                tint = LabelColor,
-                modifier = Modifier.clickable(onClick = onDismiss)
-            )
+            TitleBar("Lead Management", onClose= onDismiss)
         }
 
         // ── Breadcrumb ──

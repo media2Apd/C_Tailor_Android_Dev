@@ -46,7 +46,7 @@
 //        Text(
 //            "Create New Password",
 //            fontSize = 20.sp,
-//            color = Color.Black
+//            color = blackTitle
 //        )
 //
 //        Spacer(modifier = Modifier.height(16.dp))

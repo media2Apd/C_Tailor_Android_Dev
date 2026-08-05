@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.ui.theme.blackTitle
 
 
 @Composable
@@ -29,7 +30,7 @@ fun PasswordInputField(
 ) {
     var isPasswordVisible by remember { mutableStateOf(false) }
     Column {
-        Text("Password", color = Color.Black)
+        Text("Password", color = blackTitle)
 
 
 

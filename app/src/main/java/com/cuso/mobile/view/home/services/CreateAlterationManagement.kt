@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
 import com.cuso.mobile.view.home.reusablecomposables.SheetValue
 import com.cuso.mobile.view.home.reusablecomposables.blurScrim
@@ -103,12 +104,9 @@ fun CreateAlterationManagementScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 16.dp)
                         ) {
-                            Text("Alteration Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TitleColor)
-                            IconButton(onClick = onClose) {
-                                Icon(Icons.Default.Close, contentDescription = "Close")
-                            }
+                            TitleBar("Alteration Management", onClose = onClose)
+
                         }
 
 
@@ -131,8 +129,7 @@ fun CreateAlterationManagementScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(StripBg)
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .background(Color.Transparent)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),

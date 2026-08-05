@@ -44,6 +44,9 @@ import com.cuso.mobile.model.sales.FabricOption
 import com.cuso.mobile.model.sales.QuotationItemInput
 import com.cuso.mobile.model.sales.QuotationOptionInput
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
@@ -356,7 +359,7 @@ fun CreateQuotationScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Create Quotation", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TitleDark)
+                Text("Create Quotation", fontSize = title_font, fontWeight = FontWeight.Bold, color = title_color)
                 Icon(
                     Icons.Default.Close,
                     contentDescription = "Close",
@@ -967,7 +970,7 @@ private fun QuantitySelector(
             Text(
                 "$quantity",
                 fontSize = 16.sp,
-                color=Color.Black,
+                color=blackTitle,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )

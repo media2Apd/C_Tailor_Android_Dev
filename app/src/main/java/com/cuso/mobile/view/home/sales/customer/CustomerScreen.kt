@@ -52,7 +52,11 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 
 fun String?.toDisplayDate(): String {
     if (this.isNullOrBlank()) return "—"
@@ -168,37 +172,13 @@ fun CustomerScreen(
                 // ── Top Bar ──────────────────────────────────────────
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .background(whiteBg)
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                        .fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(whiteBg)
-                            .padding(horizontal = 16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Customers", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = Color.Black,
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clickable(
-                                        indication = null,
-                                        interactionSource = remember { MutableInteractionSource() }
-                                    ) { onClose() }
-                            )
-                        }
-                    }
+
+                        TitleBar("Customers", onClose = onClose)
+
                 }
 
 
@@ -280,7 +260,7 @@ fun CustomerScreen(
                                                 image = DataCardImage(
                                                     painter=painterResource(R.drawable.ic_person),
                                                     size = 30.dp,
-                                                    tint = Color.Black,
+                                                    tint = blackTitle,
                                                     backgroundColor = Color.Transparent
                                                 ),
                                                 topBadgeText = badgeText,

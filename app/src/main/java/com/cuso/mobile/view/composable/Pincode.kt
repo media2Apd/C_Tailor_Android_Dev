@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.ui.theme.blackTitle
 
 @Composable
 fun Pincode(
@@ -18,7 +19,7 @@ fun Pincode(
     onPincodeChange: (String) -> Unit
 ) {
     Column {
-        Text("Pincode/Zip/Postal", color = Color.Black)
+        Text("Pincode/Zip/Postal", color = blackTitle)
         OutlinedTextField(
             value = pincodeValue,
             onValueChange = { input ->

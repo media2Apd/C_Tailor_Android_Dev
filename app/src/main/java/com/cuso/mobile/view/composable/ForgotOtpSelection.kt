@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.viewmodel.UiState
 
@@ -52,7 +53,7 @@ fun ForgotOtpSelection(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        Text("Enter your OTP",color=Color.Black, fontSize = 12.47.sp, fontWeight = FontWeight.Bold)
+        Text("Enter your OTP",color=blackTitle, fontSize = 12.47.sp, fontWeight = FontWeight.Bold)
 
     }
     Spacer(Modifier.padding(top=10.dp))

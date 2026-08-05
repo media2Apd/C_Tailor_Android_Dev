@@ -75,7 +75,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Dp
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 
 
 // ── Design tokens (same as EmployeeOnboardingScreen) ──
@@ -164,19 +166,12 @@ fun CreateItemGroupScreen(
             // ── Header ──
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                    .fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Create Item Groups", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TitleColor)
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "Close",
-                    tint = LabelColor,
-                    modifier = Modifier.clickable(onClick = onDismiss)
-                )
+                TitleBar("Create customer", onClose = onDismiss)
+
             }
             HorizontalDivider(color = BorderColor)
 
@@ -792,7 +787,7 @@ private fun AttributeValuesInput(
                     singleLine = true,
                     textStyle = TextStyle(
                         fontSize = 13.sp,
-                        color = Color.Black
+                        color = blackTitle
                     ),
                     decorationBox = { inner ->
                         if (inputText.isEmpty() && !isFocused) {

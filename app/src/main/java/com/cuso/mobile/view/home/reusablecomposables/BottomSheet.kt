@@ -2,6 +2,7 @@
 
 package com.cuso.mobile.view.home.reusablecomposables
 
+import com.cuso.mobile.ui.theme.blackTitle
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -135,7 +136,7 @@ fun SmoothBottomSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .blurScrim(blurRadiusDp.dp)  // ✅ BLUR applied only to scrim
-                .background(Color.Black.copy(alpha = scrimAlpha))
+                .background(blackTitle.copy(alpha = scrimAlpha))
                 .then(
                     if (scrimAlpha > 0.01f) {
                         Modifier.clickable(

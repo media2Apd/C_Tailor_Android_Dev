@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CardContentsLoginScreen
 import com.cuso.mobile.view.composable.AppLogo
@@ -65,8 +66,8 @@ fun LoginScreen(activity: Activity,
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
             containerColor = whiteBg,
-            title = { Text("Exit App",Modifier,color=Color.Black, fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to exit?",color=Color.Black) },
+            title = { Text("Exit App",Modifier,color=blackTitle, fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to exit?",color=blackTitle) },
             confirmButton = {
                 TextButton(onClick = {
                     (context as? Activity)?.finish()
@@ -76,7 +77,7 @@ fun LoginScreen(activity: Activity,
             },
             dismissButton = {
                 TextButton(onClick = { showExitDialog = false }) {
-                    Text("Cancel",color=Color.Black)
+                    Text("Cancel",color=blackTitle)
                 }
             }
         )

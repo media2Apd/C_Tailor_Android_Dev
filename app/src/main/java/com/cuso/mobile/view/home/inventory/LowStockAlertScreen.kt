@@ -3,6 +3,7 @@ package com.cuso.mobile.view.home.inventory
 // ─────────────────────────────────────────────
 // Imports
 // ─────────────────────────────────────────────
+import android.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,10 +41,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Your existing reusables ──
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
@@ -180,13 +184,9 @@ fun LowStockAlertsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(whiteBg)
-                            .padding(16.dp)
                     ) {
-                        Text("All Orders", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        IconButton(onClick = onClose) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
-                        }
+                        TitleBar("All Orders", onClose = onClose)
+
                     }
                 }
             }

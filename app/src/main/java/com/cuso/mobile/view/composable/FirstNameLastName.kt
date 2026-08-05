@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.ui.theme.blackTitle
 
 
 @Composable
@@ -26,7 +27,7 @@ fun FirstNameLastName(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("First Name", color = Color.Black)
+            Text("First Name", color = blackTitle)
             OutlinedTextField(
                 value = firstName,
                 onValueChange = onFirstNameChange,
@@ -43,7 +44,7 @@ fun FirstNameLastName(
         Spacer(modifier = Modifier.width(10.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text("Last Name", color = Color.Black)
+            Text("Last Name", color = blackTitle)
             OutlinedTextField(
                 value = lastName,
                 onValueChange = onLastNameChange,

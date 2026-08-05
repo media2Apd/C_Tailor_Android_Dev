@@ -70,11 +70,14 @@ import androidx.compose.ui.platform.LocalContext
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.ErrorFieldWrapper
 import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.ValidationField
 import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
 import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
@@ -137,21 +140,12 @@ fun ExpensesScreen(
         // ── Header ──
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(whiteBg)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("All Expenses", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color(0xFF111827),
-                modifier = Modifier
-                    .size(22.dp)
-                    .clickable { onClose() }
-            )
+            TitleBar("All Expense", onClose = onClose)
+
         }
         Column(Modifier.fillMaxWidth()
         ) {
@@ -523,21 +517,13 @@ fun AddExpenseScreen(
             // ── Header ──
             Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Add Expense", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color(0xFF111827),
-                modifier = Modifier
-                    .size(22.dp)
-                    .clickable(enabled = !isSaving) { onClose() }
-            )
-        }
+                TitleBar("Add Expense", onClose = onClose)
+
+            }
         HorizontalDivider(color = Color(0xFFF0F0F0))
 
 

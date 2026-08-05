@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CusoAppLogo
 import com.cuso.mobile.view.composable.ForgotOtpSelection
@@ -44,7 +45,7 @@ fun VerifyForgotPassword(navController: NavController, activity: Activity, submi
             text = "Verify OTP",
             fontSize = 21.39.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Black
+            color = blackTitle
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(

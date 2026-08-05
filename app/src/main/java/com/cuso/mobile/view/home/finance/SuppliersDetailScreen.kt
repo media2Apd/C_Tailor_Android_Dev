@@ -29,8 +29,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 
 private val AccentPurple = Color(0xFF3B3BF9)
 private val AccentPurpleSoft = Color(0xFFEEEEFE)
@@ -55,20 +58,12 @@ fun SupplierDetailScreen(
         // ── Top bar ──
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("All Suppliers", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close",
-                tint = TextPrimary,
-                modifier = Modifier
-                    .size(22.dp)
-                    .clickable { onClose() }
-            )
+            TitleBar("All Suppliers", onClose = onClose)
+
         }
 
         ScreenBreadcrumb(

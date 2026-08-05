@@ -21,6 +21,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,12 +36,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cuso.mobile.ui.theme.whiteBg
 import kotlinx.coroutines.delay
 
 // Circle diameter = icon size + (2 * padding) → perfect circle when text is hidden
 private val CIRCLE_SIZE = 40.dp
 private val ICON_SIZE = 18.dp
+
+// ── Theme-aware colors for the Dynamic Island pill ──
+private val PillBgLight = Color(0xFF1C1C1E)   // dark pill on light backgrounds (matches iOS style)
+private val PillBgDark = Color(0xFFF2F2F7)    // light pill on dark backgrounds
+private val PillTextLight = Color(0xFFFFFFFF)
+private val PillTextDark = Color(0xFF1C1C1E)
 
 @Composable
 private fun DynamicIslandBase(
@@ -51,6 +57,10 @@ private fun DynamicIslandBase(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     iconTint: Color
 ) {
+    val isDarkTheme = isSystemInDarkTheme()
+    val pillBgColor = if (isDarkTheme) PillBgDark else PillBgLight
+    val pillTextColor = if (isDarkTheme) PillTextDark else PillTextLight
+
     val dropY = remember { Animatable(-1f) }   // -1f = above screen, 0f = settled
     var isPresent by remember { mutableStateOf(false) }
     var showText by remember { mutableStateOf(false) }
@@ -62,26 +72,22 @@ private fun DynamicIslandBase(
             dropY.snapTo(-1f)
 
             // ── STEP 1: round circle drops down from top ──
-            // ── STEP 1: round circle drops down from top — slower, ~1 second ──
             dropY.animateTo(
                 targetValue = 0f,
                 animationSpec = tween(
                     durationMillis = 500,
-                    easing = FastOutSlowInEasing     // smooth
+                    easing = FastOutSlowInEasing
                 )
             )
 
             // ── STEP 3: circle settled → now expand width both sides + reveal text ──
-            // (icon automatically glides to its final "first" position because
-            // the Row is centered in the parent Box — as width grows outward
-            // on both sides, Compose animates the icon's position every frame)
             showText = true
 
             delay(durationMillis)
 
             // ── STEP 4 (reverse) part A: text hides, width shrinks back to circle ──
             showText = false
-            delay(220) // wait for shrink animation to finish
+            delay(220)
 
             // ── STEP 4 (reverse) part B: circle goes back up ──
             dropY.animateTo(
@@ -105,12 +111,12 @@ private fun DynamicIslandBase(
                         .dp.toPx()
                     alpha = 1f - (-dropY.value)
                 },
-            contentAlignment = Alignment.TopCenter   // keeps the pill centered as it grows both sides
+            contentAlignment = Alignment.TopCenter
         ) {
             Row(
                 modifier = Modifier
                     .height(CIRCLE_SIZE)
-                    .background(Color(0xFF1C1C1E), RoundedCornerShape(CIRCLE_SIZE / 2)),
+                    .background(pillBgColor, RoundedCornerShape(CIRCLE_SIZE / 2)),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // ── STEP 2: icon perfectly fit inside the circle ──
@@ -144,7 +150,7 @@ private fun DynamicIslandBase(
                 ) {
                     Text(
                         text = message ?: "",
-                        color = whiteBg,
+                        color = pillTextColor,
                         fontSize = 13.sp,
                         maxLines = 2,
                         modifier = Modifier.padding(end = 16.dp)
@@ -208,10 +214,6 @@ object ErrorMapper {
         }
     }
 }
-
-
-
-
 
 @Composable
 fun ErrorFieldWrapper(

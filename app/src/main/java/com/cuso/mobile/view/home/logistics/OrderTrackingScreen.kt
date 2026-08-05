@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
 import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
@@ -53,7 +54,7 @@ fun OrderTrackingScreen(
     var searchQuery by remember { mutableStateOf("") }
 
     Scaffold(
-        containerColor = Color(0xFFF5F5F7),
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0)
     ) { padding ->
         Column(
@@ -65,26 +66,12 @@ fun OrderTrackingScreen(
             // ── Top bar: title + close ──
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                    .fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "Order Tracking",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
-                )
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = Color(0xFF111827),
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clickable { onClose() }
-                )
+                TitleBar("Order Tracking", onClose = onClose)
+
             }
 
             // ── Breadcrumb ──

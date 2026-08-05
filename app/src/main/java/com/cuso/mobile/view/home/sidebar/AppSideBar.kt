@@ -67,6 +67,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
 import com.cuso.mobile.view.home.reusablecomposables.SheetValue
@@ -373,7 +374,7 @@ private fun AppSidebarContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = scrimAlpha))
+                .background(blackTitle.copy(alpha = scrimAlpha))
                 .clickable { onClose() }
                 .zIndex(1f)
         )
@@ -632,7 +633,7 @@ fun SidebarUserProfile(
                     text = "${user?.firstName.orEmpty()} ${user?.lastName.orEmpty()}".trim().ifBlank { "—" },
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = blackTitle
                 )
                 Text(
                     text = user?.email.orEmpty(),

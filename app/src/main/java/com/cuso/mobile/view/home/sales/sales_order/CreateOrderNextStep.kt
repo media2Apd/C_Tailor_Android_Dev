@@ -55,6 +55,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
 import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
@@ -294,7 +295,7 @@ fun CreateOrderNextStep(
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Close",
-                        tint = Color.Black,
+                        tint = blackTitle,
                         modifier = Modifier
                             .size(20.dp)
                             .clickable(

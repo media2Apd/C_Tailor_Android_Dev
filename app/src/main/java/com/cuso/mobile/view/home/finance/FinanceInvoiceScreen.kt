@@ -34,6 +34,7 @@ import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.pdfgenerator.InvoicePdfGenerator
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
@@ -239,7 +240,7 @@ private fun InvoiceHeaderCard(invoice: InvoiceViewOneData) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(whiteBg)
+            .background(Color.Transparent)
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         Row(
@@ -389,26 +390,11 @@ fun InvoiceDetailScreen(
         // ── Top bar ──
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(whiteBg)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = InvTextDark,
-                modifier = Modifier.size(24.dp).clickable { onClose() }
-            )
-            Spacer(Modifier.width(12.dp))
-            Text("All Invoice", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = InvTextDark)
-            Spacer(Modifier.weight(1f))
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close",
-                tint = InvTextDark,
-                modifier = Modifier.size(24.dp).clickable { onClose() }
-            )
+            TitleBar("All Invoices", onClose = onClose)
+
         }
         HorizontalDivider(color = Color(0xFFEEEEEE))
 

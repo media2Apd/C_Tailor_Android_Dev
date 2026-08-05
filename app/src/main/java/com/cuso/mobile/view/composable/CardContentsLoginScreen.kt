@@ -62,6 +62,7 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.PrimaryTextColor
 import com.cuso.mobile.ui.theme.TextLog
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
@@ -102,7 +103,7 @@ fun CardContentsLoginScreen(navController: NavController,
                         showEmailNotFound = false
                     },
                     singleLine = true,
-                    textStyle = TextStyle(color = Color.Black, fontSize = 13.sp),
+                    textStyle = TextStyle(color = blackTitle, fontSize = 13.sp),
                     interactionSource = interactionSource,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -216,7 +217,7 @@ fun CardContentsLoginScreen(navController: NavController,
                             text = submittedEmail,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color.Black,
+                            color = blackTitle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -247,7 +248,7 @@ fun CardContentsLoginScreen(navController: NavController,
                                 authViewModel.resetState()
                             },
                             singleLine = true,
-                            textStyle = TextStyle(color = Color.Black, fontSize = 13.sp),
+                            textStyle = TextStyle(color = blackTitle, fontSize = 13.sp),
                             visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             interactionSource = passwordInteractionSource,

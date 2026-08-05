@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
 @Suppress("UNUSED_PARAMETER")
@@ -27,7 +28,7 @@ fun TermsConditions(navController: NavController){
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Its Terms and Conditions page", color = Color.Black)
+            Text("Its Terms and Conditions page", color = blackTitle)
         }
     }
 }

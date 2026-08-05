@@ -19,8 +19,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.MenuAction
@@ -75,24 +78,17 @@ fun DeliveryManagementScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Primary_background)
+            .background(Color.Transparent)
     ) {
         // ── Header ──
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(whiteBg)
-                .padding(horizontal = 20.dp, vertical = 18.dp),
+                .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Delivery management", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TitleColor)
-            Icon(
-                Icons.Filled.Close,
-                contentDescription = "Close",
-                tint = LabelColor,
-                modifier = Modifier.clickable(onClick = onDismiss)
-            )
+            TitleBar("Create customer", onClose = onDismiss)
+
         }
 
         // ── Breadcrumb ──

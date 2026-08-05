@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.home.FormDropdown
@@ -270,7 +272,7 @@ fun JournalEntryFormScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(whiteBg)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -280,7 +282,7 @@ fun JournalEntryFormScreen(
                     "edit" -> "Edit Journal Entry"
                     else -> "Journal Entry Form"
                 },
-                fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827)
+                fontSize = title_font, fontWeight = FontWeight.Bold, color = title_color
             )
             Icon(
                 Icons.Default.Close,

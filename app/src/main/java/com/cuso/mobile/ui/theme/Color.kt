@@ -2,6 +2,7 @@
 package com.cuso.mobile.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
 
 //login sign up text colors
 val TextLog=Color(0xFF374151)
@@ -31,6 +32,7 @@ val lightGray=Color(0xFFF2F2F2)
 val Primary=Color(0xFF2f27ce)
 
 val Primary_background=Color(0xFFFAFAFB)
+//val Primary_background=Color(0xFF191970)
 
 val PrimaryBorder=Color(0xFFf0f1f3)
 
@@ -52,11 +54,17 @@ val PanelBg = Color(0xFFF7F7FA)
 
 val modelBg=Color(0xfff8f9ff)
 val modelBorder=Color(0xffe8eaf4)
+
+
 val statLogoBg=Color(0xff424656)
 
 val modelGray=Color(0xFFF1F5F9)
 val TitleColor = Color(0xFF1A1A1A)
 
+val title_font=24.sp
+val title_color=Color(0xFF1E293B)
 
+
+val close_color= Color(0xFF64748B)
 
 

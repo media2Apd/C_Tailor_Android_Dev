@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -57,13 +58,13 @@ fun TermsCheckbox(
         // FlowRow wraps its children onto the next line when they don't fit,
         // so "Privacy Policy" won't get clipped on narrow screens.
         FlowRow(modifier = Modifier.weight(1f)) {
-            Text(text = "I agree to ", color = Color.Black)
+            Text(text = "I agree to ", color = blackTitle)
             Text(
                 text = "Terms of Service",
                 color = Color.Blue,
                 modifier = Modifier.clickable { navController.navigate("terms") }
             )
-            Text(text = " and ", color = Color.Black)
+            Text(text = " and ", color = blackTitle)
             Text(
                 text = "Privacy Policy",
                 color = Color.Blue,

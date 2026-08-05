@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.viewmodel.SaleState
@@ -254,7 +255,7 @@ fun GarmentTypeContent(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         modifier = Modifier.size(22.dp),
-                        tint = Color.Black
+                        tint = blackTitle
                     )
                 }
 

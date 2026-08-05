@@ -30,6 +30,7 @@ import com.cuso.mobile.model.hr.displayStatus
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.reusablecomposables.DataCard
 import com.cuso.mobile.view.home.reusablecomposables.DataCardField
 import com.cuso.mobile.view.home.reusablecomposables.FabConfig
@@ -126,24 +127,12 @@ fun AllEmployeesScreen(
             // ── Header ──
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                    .fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "All Employees",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TitleColor
-                )
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "Close",
-                    tint = LabelColor,
-                    modifier = Modifier.clickable(onClick = onDismiss)
-                )
+                TitleBar("All Employees", onClose= onDismiss)
+
             }
 
             Column{

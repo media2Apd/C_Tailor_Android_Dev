@@ -51,6 +51,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.style.TextOverflow
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
 
@@ -114,7 +115,7 @@ fun SignUpOtpSelection(
                     text = savedEmail,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.Black,
+                    color = blackTitle,
                     maxLines = 1,
                     overflow=TextOverflow.Ellipsis
                 )
@@ -133,7 +134,7 @@ fun SignUpOtpSelection(
     }
     Spacer(Modifier.padding(top = 20.dp))
     Column {
-        Text("Enter Otp", color = Color.Black)
+        Text("Enter Otp", color = blackTitle)
     }
     Spacer(Modifier.padding(top = 10.dp))
     LoginOtpInput(

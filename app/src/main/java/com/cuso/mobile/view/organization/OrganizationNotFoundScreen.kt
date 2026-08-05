@@ -47,6 +47,7 @@ import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import androidx.core.net.toUri
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
 @Composable
@@ -116,7 +117,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                     text = "Tailor",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = blackTitle
                 )
             }
 
@@ -143,7 +144,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                 text = "Organization not found",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black,
+                color = blackTitle,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -277,8 +278,8 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                     .shadow(
                         elevation = 4.dp,
                         shape = RoundedCornerShape(12.dp),
-                        ambientColor = Color.Black.copy(alpha = 0.1f),
-                        spotColor = Color.Black.copy(alpha = 0.1f)
+                        ambientColor = blackTitle.copy(alpha = 0.1f),
+                        spotColor = blackTitle.copy(alpha = 0.1f)
                     )
                     .clip(RoundedCornerShape(12.dp))
                     .background(whiteBg)
@@ -307,7 +308,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                         text = "Need help?",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.Black
+                        color = blackTitle
                     )
                     Text(
                         text = "Contact our support team and we'll help you get started.",

@@ -48,6 +48,8 @@ import androidx.compose.ui.zIndex
 import com.cuso.mobile.ui.theme.Primary
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.unit.Dp
+import com.cuso.mobile.model.otpVerifyRequest
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Filter Section Data ──
@@ -170,7 +172,7 @@ fun FilterDrawer(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.35f))
+                .background(blackTitle.copy(alpha = 0.35f))
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
@@ -217,7 +219,7 @@ fun FilterDrawer(
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.Black,
+                        tint = blackTitle,
                         modifier = Modifier
                             .size(22.dp)
                             .clickable { state.close() }
@@ -226,14 +228,14 @@ fun FilterDrawer(
                         title,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = blackTitle
                     )
                 }
                 Text(
                     "Reset",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.Black,
+                    color = blackTitle,
                     modifier = Modifier.clickable {
                         currentSections = currentSections.map { section ->
                             section.copy(
@@ -397,7 +399,7 @@ private fun FilterSectionCard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(section.icon, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                Icon(section.icon, contentDescription = null, tint = blackTitle, modifier = Modifier.size(18.dp))
                 Text(section.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
             }
             Icon(
@@ -494,7 +496,7 @@ private fun CheckboxListBody(section: FilterSection, onOptionToggle: (String) ->
                     option.label,
                     fontSize = 14.sp,
                     fontWeight = if (option.isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (option.isSelected) Primary else Color.Black
+                    color = if (option.isSelected) Primary else blackTitle
                 )
             }
         }
@@ -728,7 +730,7 @@ fun SearchFilterBar(
     accentColor: Color = MaterialTheme.colorScheme.primary,
     borderColor: Color = DefaultBorderGray,
     textSecondaryColor: Color = DefaultTextSecondary,
-    height: Dp = 52.dp
+    height: Dp = 44.dp
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -737,7 +739,7 @@ fun SearchFilterBar(
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
-            placeholder = { Text(placeholder, color = textSecondaryColor) },
+            placeholder = { Text(placeholder, color = textSecondaryColor, fontSize = 14.sp) },
             leadingIcon = {
                 Icon(Icons.Default.Search, contentDescription = null, tint = textSecondaryColor)
             },
@@ -754,6 +756,7 @@ fun SearchFilterBar(
                 }
             },
             singleLine = true,
+            maxLines = 1,
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .weight(1f),

@@ -12,6 +12,7 @@ package com.cuso.mobile.view.home.services
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
@@ -30,13 +31,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.computeHorizontalBounds
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.TitleColor
 import com.cuso.mobile.ui.theme.modelGray
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 
 // ---------- Design tokens (derived from the reference screens) ----------
 private val AccentIndigo = Color(0xFF6C5CE7)
@@ -95,22 +99,21 @@ fun ServiceOrderDetailsScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
 
-            TopAppBar(
-                title = {
-                    Text(
-                        "Service Details",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 20.sp,
-                        color = TitleDark
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TitleDark)
+            Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TitleBar("Service Details", onClose = onBack)
+                        }
+
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = whiteBg)
-            )
+                }
+            }
         }
     ) { padding ->
         Column(
@@ -145,10 +148,16 @@ fun ServiceOrderDetailsScreen(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Row(
+                Modifier.fillMaxWidth()
+                    .background(whiteBg)
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                // ---- Requested Service ----
+                SectionHeader(icon = Icons.Default.Build, title = "Requested Service")
+            }
 
-            // ---- Requested Service ----
-            SectionHeader(icon = Icons.Default.Build, title = "Requested Service")
+
             SectionCard {
                 LabeledValue("Service Category", service.serviceCategory)
                 HorizontalDivider(
@@ -171,10 +180,14 @@ fun ServiceOrderDetailsScreen(
                 LabeledValue("Service Type", service.serviceType)
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            // ---- Customer Details ----
-            SectionHeader(icon = Icons.Default.Person, title = "Customer Details")
+            Row(
+                Modifier.fillMaxWidth()
+                    .background(whiteBg)
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                // ---- Customer Details ----
+                SectionHeader(icon = Icons.Default.Person, title = "Customer Details")
+            }
             SectionCard {
                 LabeledValue("Customer Name", service.customerName)
                 HorizontalDivider(
@@ -197,10 +210,14 @@ fun ServiceOrderDetailsScreen(
                 LabeledValue("Shipping Address", service.shippingAddress)
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            // ---- Original Order Details ----
-            SectionHeader(icon = Icons.Default.ShoppingBag, title = "Original Order Details")
+            Row(
+                Modifier.fillMaxWidth()
+                    .background(whiteBg)
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                // ---- Original Order Details ----
+                SectionHeader(icon = Icons.Default.ShoppingBag, title = "Original Order Details")
+            }
             SectionCard {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -231,10 +248,14 @@ fun ServiceOrderDetailsScreen(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            // ---- Issue Description ----
-            SectionHeader(icon = Icons.Default.Description, title = "Issue Description")
+            Row(
+                Modifier.fillMaxWidth()
+                    .background(whiteBg)
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                // ---- Issue Description ----
+                SectionHeader(icon = Icons.Default.Description, title = "Issue Description")
+            }
             SectionCard {
                 Text(
                     order.issueDescription,
@@ -244,12 +265,16 @@ fun ServiceOrderDetailsScreen(
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
+            Row(
+                Modifier.fillMaxWidth()
+                    .background(whiteBg)
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                // ---- Attachments ----
+                SectionHeader(icon = Icons.Default.AttachFile, title = "Attachments")
+            }
 
-            // ---- Attachments ----
-            SectionHeader(icon = Icons.Default.AttachFile, title = "Attachments")
-
-            Row(horizontalArrangement = Arrangement.Center,modifier=Modifier.background(modelGray).fillMaxWidth().padding(vertical=10.dp)) {
+            Row(horizontalArrangement = Arrangement.Center,modifier=Modifier.background(Color.Transparent).fillMaxWidth().padding(vertical=10.dp)) {
                 repeat(order.attachmentCount) {
                     Box(
                         modifier = Modifier
@@ -261,13 +286,18 @@ fun ServiceOrderDetailsScreen(
                     ) {
                         Icon(Icons.Outlined.Image, contentDescription = null, tint = LabelGray)
                     }
+                    Spacer(Modifier.width(10.dp))
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            // ---- Charges ----
-            SectionHeader(icon = null, title = "Charges")
+            Row(
+                Modifier.fillMaxWidth()
+                    .background(whiteBg)
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                // ---- Charges ----
+                SectionHeader(icon = null, title = "Charges")
+            }
             SectionCard {
                 var serviceCharge by remember { mutableStateOf("0.00") }
                 Row(
@@ -297,10 +327,14 @@ fun ServiceOrderDetailsScreen(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            // ---- Internal Notes ----
-            SectionHeader(icon = Icons.AutoMirrored.Filled.List, title = "Internal Notes")
+            Row(
+                Modifier.fillMaxWidth()
+                    .background(whiteBg)
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                // ---- Internal Notes ----
+                SectionHeader(icon = Icons.AutoMirrored.Filled.List, title = "Internal Notes")
+            }
             SectionCard {
                 Text(
                     order.internalNotes,
@@ -336,7 +370,7 @@ private fun SectionCard(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(modelGray)
+            .background(Color.Transparent)
             .border(1.dp, SubtleBorder)
             .padding(16.dp),
         content = content

@@ -42,6 +42,7 @@ import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
@@ -234,27 +235,15 @@ fun QuotationScreen(
 
         // Delete Alert Dialog
         if (quotationToDelete != null) {
-            AlertDialog(
-                onDismissRequest = { quotationToDelete = null },
-                containerColor = whiteBg,
-                shape = RoundedCornerShape(12.dp),
-                title = { Text("Delete Quotation", fontWeight = FontWeight.Bold, color = Color(0xFF111827)) },
-                text = { Text("Are you sure you want to delete this quotation? This action cannot be undone.", color = Color(0xFF6B7280)) },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            quotationViewModel.deleteQuotation(quotationToDelete!!.id)
-                            quotationToDelete = null
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) { Text("Delete", color = whiteBg) }
+            DeleteModel(
+                title = "Delete Quotation",
+                message = "Are you sure you want to delete this quotation? This action cannot be undone.",
+                onDismiss = {
+                    quotationToDelete = null
                 },
-                dismissButton = {
-                    OutlinedButton(
-                        onClick = { quotationToDelete = null },
-                        shape = RoundedCornerShape(8.dp)
-                    ) { Text("Cancel", color = Color(0xFF374151)) }
+                onDelete = {
+                    quotationViewModel.deleteQuotation(quotationToDelete!!.id)
+                    quotationToDelete = null
                 }
             )
         }

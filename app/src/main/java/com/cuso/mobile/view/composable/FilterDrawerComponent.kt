@@ -735,51 +735,107 @@ fun SearchFilterBar(
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        OutlinedTextField(
+
+        BasicTextField(
             value = query,
             onValueChange = onQueryChange,
-            placeholder = { Text(placeholder, color = textSecondaryColor, fontSize = 14.sp) },
-            leadingIcon = {
-                Icon(Icons.Default.Search, contentDescription = null, tint = textSecondaryColor)
-            },
-            trailingIcon = {
-                if (query.isNotEmpty()) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Clear",
-                        tint = textSecondaryColor,
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable { onQueryChange("") }
-                    )
-                }
-            },
             singleLine = true,
-            maxLines = 1,
-            shape = RoundedCornerShape(12.dp),
+            textStyle = TextStyle(
+                fontSize = 14.sp,
+                color = Color(0xFF111827)
+            ),
             modifier = Modifier
-                .weight(1f),
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedBorderColor = borderColor,
-                focusedBorderColor = accentColor,
-                focusedContainerColor = whiteBg,
-                unfocusedContainerColor = whiteBg
-            )
+                .weight(1f)
+                .height(height),
+            decorationBox = { innerTextField ->
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            whiteBg,
+                            RoundedCornerShape(12.dp)
+                        )
+                        .border(
+                            1.dp,
+                            borderColor,
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        tint = textSecondaryColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+
+                        if (query.isEmpty()) {
+                            Text(
+                                text = placeholder,
+                                fontSize = 14.sp,
+                                color = textSecondaryColor
+                            )
+                        }
+
+                        innerTextField()
+                    }
+
+                    if (query.isNotEmpty()) {
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Clear",
+                            tint = textSecondaryColor,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clickable {
+                                    onQueryChange("")
+                                }
+                        )
+                    }
+                }
+            }
         )
 
         if (showFilterIcon) {
+
             Box(
                 modifier = Modifier
                     .size(height)
                     .clip(RoundedCornerShape(12.dp))
                     .background(whiteBg)
-                    .border(1.dp, borderColor, RoundedCornerShape(12.dp))
-                    .clickable(enabled = onFilterClick != null) { onFilterClick?.invoke() },
+                    .border(
+                        1.dp,
+                        borderColor,
+                        RoundedCornerShape(12.dp)
+                    )
+                    .clickable(enabled = onFilterClick != null) {
+                        onFilterClick?.invoke()
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = Color(0xFF111827))
+
+                Icon(
+                    Icons.Default.FilterList,
+                    contentDescription = "Filter",
+                    tint = Color(0xFF111827),
+                    modifier = Modifier.size(22.dp)
+                )
             }
         }
     }

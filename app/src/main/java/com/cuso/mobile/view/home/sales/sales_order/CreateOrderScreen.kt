@@ -113,7 +113,6 @@ import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.TrailingFabButton
-
 // ─────────────────────────────────────────────────────────────
 // Data Models
 // ─────────────────────────────────────────────────────────────
@@ -1593,11 +1592,7 @@ fun CreateOrderScreen(
                 )
             }
 
-            DynamicIslandError(
-                modifier = Modifier.align(Alignment.TopCenter),
-                message = validationError,
-                onDismiss = { validationError = null }
-            )
+
 
 
             StepNavigationFab(
@@ -1640,7 +1635,9 @@ fun CreateOrderScreen(
                     }
                 )
             )
+
         }
+
             SmoothBottomSheet(
                 state = addCategorySheetState,
                 onStateChange = { addCategorySheetState = it },
@@ -1662,6 +1659,15 @@ fun CreateOrderScreen(
                 )
             }
 
+    }
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        DynamicIslandError(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = validationError,
+            onDismiss = { validationError = null }
+        )
     }
 }
 // Quick Add Category - pill style selectable buttons (matches design image)

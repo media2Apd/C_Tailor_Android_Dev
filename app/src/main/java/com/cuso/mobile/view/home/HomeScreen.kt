@@ -1426,6 +1426,9 @@ fun HomeScreen(navController: NavHostController) {
                     "finance_sales_invoices", "finance_customers","finance_expenses",
                     "finance_chart_of_accounts","finance_journal_screen", "finance_trial_balance",
 
+                    // HR
+                    "hr_all_employees",
+
                     "inventory_items"
                 )
 //                val implementedRoutes = setOf(
@@ -2374,7 +2377,7 @@ private fun RecentActivitySection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Recent Activity", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            Text("Recent Activity", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
             Text(
                 text = "View All",
                 fontSize = 14.sp,
@@ -2447,7 +2450,7 @@ private fun RecentCustomersSection(
     onNavigate: (String) -> Unit
 ) {
     Column {
-        Text("Recent Customers", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+        Text("Recent Customers", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
         Spacer(Modifier.height(12.dp))
 
         Column(

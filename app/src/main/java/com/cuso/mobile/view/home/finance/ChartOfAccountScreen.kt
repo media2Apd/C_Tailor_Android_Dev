@@ -51,6 +51,7 @@ package com.cuso.mobile.view.home.finance
     import com.cuso.mobile.ui.theme.title_color
     import com.cuso.mobile.ui.theme.title_font
     import com.cuso.mobile.ui.theme.whiteBg
+    import com.cuso.mobile.view.composable.DeleteModel
     import com.cuso.mobile.view.composable.DynamicIslandError
     import com.cuso.mobile.view.composable.FieldValidator
     import com.cuso.mobile.view.composable.ScreenBreadcrumb
@@ -343,26 +344,15 @@ package com.cuso.mobile.view.home.finance
         }
         //   NEW — Delete confirmation dialog
         accountPendingDelete?.let { account ->
-            AlertDialog(
-                onDismissRequest = { accountPendingDelete = null },
-                title = { Text("Delete Account") },
-                text = {
-                    Text("Are you sure you want to delete \"${account.accountName}\"? This action cannot be undone.")
+            DeleteModel(
+                title = "Delete Account",
+                message = "Are you sure you want to delete \"${account.accountName}\"? This action cannot be undone.",
+                onDismiss = {
+                    accountPendingDelete = null
                 },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            financeViewModel.deleteChartOfAccount(account._id)
-                            accountPendingDelete = null
-                        }
-                    ) {
-                        Text("Delete", color = Color(0xFFDC2626))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { accountPendingDelete = null }) {
-                        Text("Cancel")
-                    }
+                onDelete = {
+                    financeViewModel.deleteChartOfAccount(account._id)
+                    accountPendingDelete = null
                 }
             )
         }

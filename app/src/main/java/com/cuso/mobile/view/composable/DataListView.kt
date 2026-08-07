@@ -202,7 +202,7 @@ fun <T> DataCard(
             .let { m -> if (onClick != null) m.clickable { onClick(item) } else m },
         shape = RoundedCornerShape(0.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (containerBrush != null) Color.Transparent else whiteBg
+            containerColor = Color.Transparent
         )
     ) {
         Column(

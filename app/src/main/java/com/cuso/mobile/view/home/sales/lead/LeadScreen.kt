@@ -138,6 +138,7 @@ import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.formatLeadDate
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.FilterDrawer
@@ -334,7 +335,7 @@ fun LeadAccordionSection(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
                 ) { onExpandChange(!expanded) }
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding( vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -647,10 +648,11 @@ fun CreateLeadScreen(
 
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         item {
+                            Spacer(Modifier.padding(12.dp))
                             LeadInfoBanner("Fill the details below to create a new lead.")
                         }
 
@@ -1480,36 +1482,15 @@ fun LeadScreenContent(
     }
 
     if (leadToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { leadToDelete = null },
-            containerColor = whiteBg,
-            shape = RoundedCornerShape(12.dp),
-            title = {
-                Text("Delete Lead", fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+        DeleteModel(
+            title = "Delete Lead",
+            message = "Are you sure you want to delete this lead? This action cannot be undone.",
+            onDismiss = {
+                leadToDelete = null
             },
-            text = {
-                Text("Are you sure you want to delete this lead? This action cannot be undone.", color = Color(0xFF6B7280))
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        salesViewModel.deleteLead(leadToDelete!!.id)
-                        leadToDelete = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Delete", color = whiteBg)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { leadToDelete = null },
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Color(0xFFD1D5DB))
-                ) {
-                    Text("Cancel", color = Color(0xFF374151))
-                }
+            onDelete = {
+                salesViewModel.deleteLead(leadToDelete!!.id)
+                leadToDelete = null
             }
         )
     }

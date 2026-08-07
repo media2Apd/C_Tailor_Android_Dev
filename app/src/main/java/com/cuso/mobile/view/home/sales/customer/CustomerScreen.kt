@@ -51,6 +51,7 @@ import java.util.TimeZone
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.TitleBar
 
 fun String?.toDisplayDate(): String {
@@ -320,27 +321,17 @@ fun CustomerScreen(
     }
 
     customerPendingDelete?.let { customer ->
-        AlertDialog(
-            onDismissRequest = { customerPendingDelete = null },
-            title = { Text("Delete Customer") },
-            text = { Text("Are you sure you want to delete \"${customer.name}\"? This action cannot be undone.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDelete(customer)
-                        showDeleteSuccess = true
-                        customerPendingDelete = null
-                    }
-                ) {
-                    Text("Delete", color = Color(0xFFF44336))
-                }
+        DeleteModel(
+            title = "Delete Customer",
+            message = "Are you sure you want to delete \"${customer.name}\"? This action cannot be undone.",
+            onDismiss = {
+                customerPendingDelete = null
             },
-            dismissButton = {
-                TextButton(onClick = { customerPendingDelete = null }) {
-                    Text("Cancel")
-                }
-            },
-            containerColor = whiteBg
+            onDelete = {
+                onDelete(customer)
+                showDeleteSuccess = true
+                customerPendingDelete = null
+            }
         )
     }
 }

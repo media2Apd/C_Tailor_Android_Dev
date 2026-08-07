@@ -64,6 +64,7 @@ import com.cuso.mobile.viewmodel.SalesViewModel
 import com.cuso.mobile.viewmodel.UpdateBranchUiState
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
+import com.cuso.mobile.view.composable.TitleBar
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────
@@ -98,6 +99,14 @@ fun BranchSettingsScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+
+    // Blur & Scrim States for Add Sheet
+    var addSheetBlur by remember { mutableStateOf(0.dp) }
+    var addSheetScrim by remember { mutableFloatStateOf(0f) }
+
+// Blur & Scrim States for Edit Sheet
+    var editSheetBlur by remember { mutableStateOf(0.dp) }
+    var editSheetScrim by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(Unit) {
         branchViewModel.loadBranches()
@@ -173,39 +182,30 @@ fun BranchSettingsScreen(
     Scaffold(
         topBar = {
             Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 16.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                modifier = Modifier.size(22.dp).clickable { onBack() },
-                                tint = Color(0xFF111827)
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text("Branches", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TitleColor)
-                        }
-                        if (planLimits != null) {
-                            Text(
-                                text = "$currentBranchesCount/${planLimits.branchLimit}",
-                                fontSize = 13.sp,
-                                color = if (isBranchLimitReached) Color.Red else Color(0xFF6B7280)
-                            )
-                        }
-                    }
-                }
+                TitleBar("Branches", onClose = onBack)
+//                Column {
+//                    Row(
+//                        verticalAlignment = Alignment.CenterVertically,
+//                        horizontalArrangement = Arrangement.SpaceBetween,
+//                        modifier = Modifier
+//                            .fillMaxWidth()
+//                            .padding(horizontal = 20.dp, vertical = 16.dp)
+//                    ) {
+//                        if (planLimits != null) {
+//                            Text(
+//                                text = "$currentBranchesCount/${planLimits.branchLimit}",
+//                                fontSize = 13.sp,
+//                                color = if (isBranchLimitReached) Color.Red else Color(0xFF6B7280)
+//                            )
+//                        }
+//                    }
+//                }
             }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = Color.Transparent
 
-        ) { padding ->
+    ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             FabScaffold(
                 modifier = Modifier
@@ -381,61 +381,7 @@ fun BranchSettingsScreen(
                 )
             }
 
-            // ── SmoothBottomSheet for Edit Branch ──
-            editingBranch?.let { branch ->
-                SmoothBottomSheet(
-                    state = editSheetState,
-                    onStateChange = { newState ->
-                        editSheetState = newState
-                        if (newState == SheetValue.Hidden) {
-                            editingBranch = null
-                            branchViewModel.resetUpdateState()
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                    peekHeight = 200.dp,
-                    topInset = 48.dp,
-                    maxBlurRadius = 14.dp,
-                    maxScrimAlpha = 0.35f,
-                    sheetBackgroundColor = whiteBg,
-                    collapsedCornerRadius = 24.dp,
-                    dragCloseEnabled = true,
-                    scrollableContent = true,
-                    onDismissRequest = {
-                        editSheetState = SheetValue.Hidden
-                        editingBranch = null
-                        branchViewModel.resetUpdateState()
-                    }
-                ) {
-                    EditBranchSheetContent(
-                        branch = branch,
-                        staffList = staffList,
-                        isLoading = isUpdating,
-                        onDismiss = {
-                            editSheetState = SheetValue.Hidden
-                            editingBranch = null
-                            branchViewModel.resetUpdateState()
-                        },
-                        onUpdate = { request ->
-                            branchViewModel.updateBranch(
-                                branchId = branch.id,
-                                request = UpdateBranchRequest(
-                                    name = request.name,
-                                    address = UpdateBranchAddress(
-                                        street = request.street,
-                                        city = request.city,
-                                        postalCode = request.postalCode
-                                    ),
-                                    contactEmail = request.contactEmail,
-                                    contactMobile = request.contactMobile,
-                                    status = branch.status,
-                                    branchHead = request.branchHead
-                                )
-                            )
-                        }
-                    )
-                }
-            }
+
 
             // ── Plan Limit Dialog ──
             if (showPlanLimitDialog) {
@@ -446,6 +392,61 @@ fun BranchSettingsScreen(
                     onUpgrade = { showPlanLimitDialog = false }
                 )
             }
+        }
+    }
+    // ── SmoothBottomSheet for Edit Branch ──
+    editingBranch?.let { branch ->
+        SmoothBottomSheet(
+            state = editSheetState,
+            onStateChange = { newState ->
+                editSheetState = newState
+                if (newState == SheetValue.Hidden) {
+                    editingBranch = null
+                    branchViewModel.resetUpdateState()
+                }
+            },
+            modifier = Modifier.fillMaxSize(),
+            peekHeight = 200.dp,
+            topInset = 48.dp,
+            maxBlurRadius = 14.dp,
+            maxScrimAlpha = 0.35f,
+            sheetBackgroundColor = whiteBg,
+            collapsedCornerRadius = 24.dp,
+            dragCloseEnabled = true,
+            scrollableContent = true,
+            onDismissRequest = {
+                editSheetState = SheetValue.Hidden
+                editingBranch = null
+                branchViewModel.resetUpdateState()
+            }
+        ) {
+            EditBranchSheetContent(
+                branch = branch,
+                staffList = staffList,
+                isLoading = isUpdating,
+                onDismiss = {
+                    editSheetState = SheetValue.Hidden
+                    editingBranch = null
+                    branchViewModel.resetUpdateState()
+                },
+                onUpdate = { request ->
+                    branchViewModel.updateBranch(
+                        branchId = branch.id,
+                        request = UpdateBranchRequest(
+                            name = request.name,
+                            address = UpdateBranchAddress(
+                                street = request.street,
+                                city = request.city,
+                                postalCode = request.postalCode
+                            ),
+                            contactEmail = request.contactEmail,
+                            contactMobile = request.contactMobile,
+                            status = branch.status,
+                            branchHead = request.branchHead
+                        )
+                    )
+                }
+            )
         }
     }
 }

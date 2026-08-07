@@ -25,6 +25,7 @@ import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
@@ -255,18 +256,15 @@ fun ManualJournalEntryScreen(
     // shows on top of everything when deleteTarget is non-null.
     // Closes immediately on success/error (see LaunchedEffect above).
     deleteTarget?.let { entry ->
-        AlertDialog(
-            onDismissRequest = { deleteTarget = null },
-            containerColor = whiteBg,
-            title = { Text("Delete Journal Entry", fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to delete \"${entry.entryNumber}\"? This cannot be undone.") },
-            confirmButton = {
-                TextButton(onClick = { financeViewModel.deleteJournalEntry(entry.id) }) {
-                    Text("Delete", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
-                }
+        DeleteModel(
+            title = "Delete Journal Entry",
+            message = "Are you sure you want to delete \"${entry.entryNumber}\"? This action cannot be undone.",
+            onDismiss = {
+                deleteTarget = null
             },
-            dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) { Text("Cancel") }
+            onDelete = {
+                financeViewModel.deleteJournalEntry(entry.id)
+                deleteTarget = null
             }
         )
     }

@@ -166,7 +166,7 @@ class FinanceViewModel @Inject constructor(
     private val _createJournalState = MutableStateFlow<CreateJournalState>(CreateJournalState.Idle)
     val createJournalState: StateFlow<CreateJournalState> = _createJournalState.asStateFlow()
 
-    // ✅ NEW — Journal Entries: update
+    //   NEW — Journal Entries: update
     private val _updateJournalState = MutableStateFlow<UpdateJournalState>(UpdateJournalState.Idle)
     val updateJournalState: StateFlow<UpdateJournalState> = _updateJournalState.asStateFlow()
 
@@ -234,7 +234,7 @@ class FinanceViewModel @Inject constructor(
         _createJournalState.value = CreateJournalState.Idle
     }
 
-    // ✅ NEW — updates an existing journal entry by id, then refreshes the list
+    //   NEW — updates an existing journal entry by id, then refreshes the list
     fun updateJournal(
         id: String,
         branchId: String,
@@ -704,7 +704,7 @@ sealed class CreateJournalState {
     data class Error(val message: String) : CreateJournalState()
 }
 
-// ✅ NEW
+//   NEW
 sealed class UpdateJournalState {
     object Idle : UpdateJournalState()
     object Loading : UpdateJournalState()

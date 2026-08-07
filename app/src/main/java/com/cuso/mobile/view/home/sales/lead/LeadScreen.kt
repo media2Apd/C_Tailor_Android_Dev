@@ -136,18 +136,18 @@ import com.cuso.mobile.view.home.TimePickerField
 import com.cuso.mobile.view.home.buildFilterSections
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.formatLeadDate
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.FabConfig
-import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
-import com.cuso.mobile.view.home.reusablecomposables.FilterDrawer
-import com.cuso.mobile.view.home.reusablecomposables.FilterSection
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
-import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
-import com.cuso.mobile.view.home.reusablecomposables.rememberFilterDrawerState
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.FilterDrawer
+import com.cuso.mobile.view.composable.FilterSection
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.view.composable.rememberFilterDrawerState
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.viewmodel.ConvertOrderState
 import com.cuso.mobile.viewmodel.SaleState
@@ -890,15 +890,7 @@ fun CreateLeadScreen(
                                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                                if (isSelected) {
-                                                    Icon(
-                                                        Icons.Default.Check,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(14.dp),
-                                                        tint = LeadPrimary
-                                                    )
-                                                    Spacer(Modifier.width(4.dp))
-                                                }
+
                                                 Text(
                                                     option,
                                                     fontSize = 13.sp,
@@ -1178,9 +1170,7 @@ fun LeadScreenContent(
             is SaleState.Success<*> -> {
                 successMessage = "Lead Updated Successfully"
                 salesViewModel.fetchTableLeads()
-//                salesViewModel.fetchLeadDetails(l.id) { success ->
-//                    if (!success) errorMessage = "Failed to refresh lead details"
-//                }
+
                 salesViewModel.resetUpdateState()
             }
             is SaleState.Error -> {
@@ -1446,7 +1436,7 @@ fun LeadScreenContent(
 
                                                 footerFields = listOf(
                                                     DataCardField(
-                                                        icon = Icons.Default.AttachMoney,        // ✅ core icon, no extra dependency needed
+                                                        icon = Icons.Default.AttachMoney,        //   core icon, no extra dependency needed
                                                         iconTint = Color(0xFF6366F1),
                                                         iconBackgroundColor = Color(0xFFEEF2FF),
                                                         iconCircleSize = 24.dp,
@@ -1462,20 +1452,12 @@ fun LeadScreenContent(
                                                         "Delete", Icons.Default.Delete,
                                                         tint = Color(0xFFF44336), textColor = Color(0xFFF44336),
                                                         enabled = !isDeleting
-                                                    ) { leadToDelete = lead }   // ✅ existing state var, not orderToDelete
+                                                    ) { leadToDelete = lead }   //   existing state var, not orderToDelete
                                                 )
                                             )
                                         }
                                     }
                                 }
-
-//                                PaginationFooter(
-//                                    currentPage = currentPage,
-//                                    pageSize = pageSize,
-//                                    totalItems = totalLeads,
-//                                    onPageChange = { salesViewModel.onPageChange(it) },
-//                                    onItemsPerPageChange = { salesViewModel.onItemsPerPageChange(it) }
-//                                )
                             }
                         }
                     }

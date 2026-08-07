@@ -5,7 +5,6 @@ import androidx.room.RoomDatabase
 import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.database.dao.LeadDao
 import com.cuso.mobile.database.dao.OrganizationDao
-import com.cuso.mobile.database.dao.ProfileDao
 import com.cuso.mobile.database.dao.SalesStatusDao
 import com.cuso.mobile.database.dao.SalesSummaryDao
 import com.cuso.mobile.database.dao.SelectedGarmentDao
@@ -60,35 +59,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun selectedGarmentDao():  SelectedGarmentDao
 
     abstract class AppDatabase : RoomDatabase() {
-        abstract fun profileDao(): ProfileDao
+//        abstract fun profileDao(): ProfileDao
     }
-
-    // ⚠️ NOTE: This companion getDatabase() creates a database instance
-    // OUTSIDE of Hilt's singleton graph. If any code calls
-    // AppDatabase.getDatabase(context) directly while Hilt ALSO provides
-    // an AppDatabase via DatabaseModule, you get two separate Room
-    // instances on the same underlying file "cusotailor_db" — a classic
-    // source of "table already exists" / migration errors.
-    //
-    // Search your codebase for `AppDatabase.getDatabase(` — if anything
-    // outside of this file calls it, replace that usage with @Inject
-    // of AppDatabase instead, then delete this companion object.
-//    companion object {
-//        @Volatile
-//        private var INSTANCE: AppDatabase? = null
-//
-////        fun getDatabase(context: Context): AppDatabase {
-////            return INSTANCE ?: synchronized(this) {
-////                val instance = Room.databaseBuilder(
-////                    context.applicationContext,
-////                    AppDatabase::class.java,
-////                    "cusotailor_db"
-////                )
-////                    .fallbackToDestructiveMigration()
-////                    .build()
-////                INSTANCE = instance
-////                instance
-////            }
-////        }
-//    }
 }

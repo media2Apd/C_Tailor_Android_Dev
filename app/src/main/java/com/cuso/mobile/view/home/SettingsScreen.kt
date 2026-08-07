@@ -64,8 +64,8 @@ import com.cuso.mobile.view.composable.CountryAndStatePicker
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.home.reusablecomposables.SettingsTabs
-import com.cuso.mobile.view.home.reusablecomposables.TabItem
+import com.cuso.mobile.view.composable.SettingsTabs
+import com.cuso.mobile.view.composable.TabItem
 import com.cuso.mobile.view.organization.OrgLabel
 import com.cuso.mobile.view.organization.OrgOptions
 import com.cuso.mobile.view.organization.OrgOptions.companySizes

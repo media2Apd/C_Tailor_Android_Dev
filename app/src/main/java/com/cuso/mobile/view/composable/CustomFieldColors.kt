@@ -49,7 +49,7 @@ fun customFieldOutlinedColors() = OutlinedTextFieldDefaults.colors(
 
 )
 
-// ✅ NEW — Outlined Button custom colors (same theme as text fields)
+//   NEW — Outlined Button custom colors (same theme as text fields)
 @Composable
 fun customOutlinedButtonColors() = ButtonDefaults.outlinedButtonColors(
     contentColor = blackTitle,
@@ -58,7 +58,7 @@ fun customOutlinedButtonColors() = ButtonDefaults.outlinedButtonColors(
     disabledContainerColor = whiteBg
 )
 
-// ✅ NEW — Border color for outlined buttons (reuses same Primary theme border)
+//   NEW — Border color for outlined buttons (reuses same Primary theme border)
 //val CustomOutlinedButtonBorder: BorderStroke
 //    @Composable get() = BorderStroke(1.dp, PrimaryBorder)
 

@@ -1,4 +1,5 @@
 // In your model package - Update OrgGarmentModels.kt
+package com.cuso.mobile.model
 
 // GET Org Garments Response
 data class OrgGarmentResponse(

@@ -1,7 +1,6 @@
 package com.cuso.mobile.view.home.finance
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,20 +11,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
-import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.TitleBar
 
 // ── Static data model ──

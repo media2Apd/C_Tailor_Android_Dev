@@ -111,7 +111,7 @@ fun SearchableDropdownContents(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(40.dp)                                    // ✅ height 40dp
+                .height(40.dp)                                    //   height 40dp
                 .clickable { if (enabled) expanded = !expanded }
         ) {
             OutlinedTextField(
@@ -130,13 +130,13 @@ fun SearchableDropdownContents(
                     )
                 },
                 colors = OutlinedTextFieldDefaults.colors(
-                    disabledBorderColor = PrimaryBorder,      // ✅ BorderColor value
-                    disabledContainerColor = whiteBg,          // ✅ white background
+                    disabledBorderColor = PrimaryBorder,      //   BorderColor value
+                    disabledContainerColor = whiteBg,          //   white background
                     disabledTrailingIconColor = Color.LightGray
                 )
             )
 
-            // ✅ Text perfectly centered, no internal padding issues
+            //   Text perfectly centered, no internal padding issues
             Text(
                 text = selected.ifEmpty { placeholder },
                 color = if (selected.isEmpty()) Color.Gray else blackTitle,

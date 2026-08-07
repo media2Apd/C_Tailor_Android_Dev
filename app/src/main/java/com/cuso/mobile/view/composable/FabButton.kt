@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.home.reusablecomposables
+package com.cuso.mobile.view.composable
 
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
@@ -13,6 +13,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,12 +51,12 @@ fun FabScaffold(
     snackbarHostState: SnackbarHostState? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
-    // ✅ container size — needed to clamp drag within screen bounds
+    //  container size — needed to clamp drag within screen bounds
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    // ✅ fab's own size — needed to clamp so it doesn't go off-edge
+    //  fab's own size — needed to clamp so it doesn't go off-edge
     var fabSize by remember { mutableStateOf(IntSize.Zero) }
 
-    // ✅ drag offset from the FAB's default bottom-end position.
+    //  drag offset from the FAB's default bottom-end position.
     // null until the user actually drags it once — until then it renders
     // at the normal align(BottomEnd) + padding position.
     var dragOffset by remember { mutableStateOf<Offset?>(null) }
@@ -76,15 +77,15 @@ fun FabScaffold(
 
         if (fab != null) {
             val fabModifier = if (dragOffset != null) {
-                // ✅ once dragged, position is driven purely by the tracked offset
+                //  once dragged, position is driven purely by the tracked offset
                 Modifier.offset {
-                    androidx.compose.ui.unit.IntOffset(
+                    IntOffset(
                         dragOffset!!.x.roundToInt(),
                         dragOffset!!.y.roundToInt()
                     )
                 }
             } else {
-                // ✅ default resting spot — same as before
+                //   default resting spot — same as before
                 Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = fab.endPadding, bottom = fab.bottomPadding)
@@ -102,7 +103,7 @@ fun FabScaffold(
                             m.pointerInput(Unit) {
                                 detectDragGestures(
                                     onDragStart = {
-                                        // ✅ first drag — seed dragOffset from current visual
+                                        //  first drag — seed dragOffset from current visual
                                         // position (bottom-end) so it doesn't jump
                                         if (dragOffset == null) {
                                             dragOffset = Offset(

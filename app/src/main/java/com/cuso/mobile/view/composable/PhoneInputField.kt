@@ -45,10 +45,10 @@ import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 
-// ✅ NEW — library instance, no hardcoded data
+//  library instance, no hardcoded data
 private val phoneUtil: PhoneNumberUtil = PhoneNumberUtil.getInstance()
 
-// ✅ NEW — returns max national number digit length for a given ISO country code
+//  returns max national number digit length for a given ISO country code
 fun maxDigitsFor(iso: String): Int {
     return try {
         val example = phoneUtil.getExampleNumber(iso.uppercase())
@@ -58,17 +58,9 @@ fun maxDigitsFor(iso: String): Int {
     }
 }
 
-//// ✅ NEW — optional full validation (not just length)
-//fun isValidPhoneNumber(digits: String, iso: String): Boolean {
-//    return try {
-//        val parsed = phoneUtil.parse(digits, iso.uppercase())
-//        phoneUtil.isValidNumber(parsed)
-//    } catch (e: Exception) {
-//        false
-//    }
-//}
 
-// ✅ NEW — inserts "-" after the 5th digit visually, underlying value stays plain digits
+
+//  inserts "-" after the 5th digit visually, underlying value stays plain digits
 class PhoneNumberVisualTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val digits = text.text
@@ -100,7 +92,7 @@ fun PhoneInputField(
     enabled: Boolean = true,
     isLoading: Boolean = false ,
     onRetry: () -> Unit = {},
-    showRetryButton: Boolean = false,   // ✅ NEW — controls whether reload icon shows at all
+    showRetryButton: Boolean = false,   //  controls whether reload icon shows at all
     isError: Boolean = false,
     errorMessage: String? = null
 ) {
@@ -111,7 +103,7 @@ fun PhoneInputField(
         )
     }
 
-    // ✅ NEW — per-country max digit limit, derived from libphonenumber (no hardcoding)
+    // per-country max digit limit, derived from libphonenumber (no hardcoding)
     val maxDigits = maxDigitsFor(selectedCountry.iso)
 
     Column {
@@ -122,7 +114,7 @@ fun PhoneInputField(
                 .height(40.dp)
                 .border(
                     1.dp,
-                    if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),   // ✅ CHANGED — red border on error
+                    if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),   // red border on error
                     RoundedCornerShape(8.dp)
                 )
                 .background(
@@ -183,7 +175,7 @@ fun PhoneInputField(
                                 selectedCountry = country
                                 onCountryChange(country)
                                 expanded = false
-                                // ✅ NEW — trim number if it exceeds new country's max digit length
+                                //   NEW — trim number if it exceeds new country's max digit length
                                 val newMax = maxDigitsFor(country.iso)
                                 if (phoneValue.length > newMax) {
                                     onPhoneChange(phoneValue.take(newMax))
@@ -201,7 +193,7 @@ fun PhoneInputField(
                 value = phoneValue,
                 onValueChange = { input ->
                     val digitsOnly = input.filter { it.isDigit() }
-                    if (digitsOnly.length <= maxDigits) onPhoneChange(digitsOnly)   // ✅ CHANGED — country-specific cap
+                    if (digitsOnly.length <= maxDigits) onPhoneChange(digitsOnly)   //   CHANGED — country-specific cap
                 },
                 modifier = Modifier.weight(1f),
                 enabled = enabled,
@@ -212,7 +204,7 @@ fun PhoneInputField(
                 ),
                 cursorBrush = SolidColor(Color(0xFF374151)),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                visualTransformation = PhoneNumberVisualTransformation(),   // ✅ NEW — shows "-" after 5 digits
+                visualTransformation = PhoneNumberVisualTransformation(),   //   NEW — shows "-" after 5 digits
                 decorationBox = { inner ->
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (phoneValue.isEmpty()) {
@@ -232,7 +224,7 @@ fun PhoneInputField(
             if (isLoading) {
                 Spacer(modifier = Modifier.width(8.dp))
                 CirculerProgressIndicatorSmall()
-            } else if (showRetryButton) {          // ✅ CHANGED — only render reload icon when explicitly enabled
+            } else if (showRetryButton) {          //   CHANGED — only render reload icon when explicitly enabled
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(
                     Icons.Default.Refresh, null,
@@ -242,7 +234,7 @@ fun PhoneInputField(
             }
         }
 
-        // ✅ NEW — inline error message below the field
+        //   NEW — inline error message below the field
         if (isError && !errorMessage.isNullOrBlank()) {
             Text(
                 text = errorMessage,

@@ -30,7 +30,7 @@ data class CustomerOrder(
     @SerializedName("_id") val id: String,
     val orderNumber: String,
     val status: String,
-    val orderDate: String? = null,   // ✅ backend may omit this field
+    val orderDate: String? = null,   //   backend may omit this field
     val garments: List<CustomerGarment> = emptyList(),
     val totalAmount: Double? = null,
     val wearerType: String = "",

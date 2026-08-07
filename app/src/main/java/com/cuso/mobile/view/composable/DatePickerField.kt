@@ -79,8 +79,8 @@ private val LightDatePalette = DatePickerPalette(
     accent = LeadPrimary,
     divider = Color(0xFFE0E0E0),
     accentText = whiteBg,
-    fieldBackground = whiteBg,          // ✅ NEW
-    fieldBorder = Color(0xFFE5E7EB)          // ✅ NEW
+    fieldBackground = whiteBg,          //   NEW
+    fieldBorder = Color(0xFFE5E7EB)          //   NEW
 )
 
 private val DarkDatePalette = DatePickerPalette(
@@ -90,8 +90,8 @@ private val DarkDatePalette = DatePickerPalette(
     accent = Color(0xFF7C7CFF),
     divider = Color(0xFF3A3A4A),
     accentText = blackTitle,
-    fieldBackground = Color(0xFF2A2A3D),    // ✅ NEW — subtle lighter shade than dialog bg
-    fieldBorder = Color(0xFF3A3A4A)          // ✅ NEW — matches divider
+    fieldBackground = Color(0xFF2A2A3D),    //   NEW — subtle lighter shade than dialog bg
+    fieldBorder = Color(0xFF3A3A4A)          //   NEW — matches divider
 )
 
 private val DatePickerMonthNames = listOf(
@@ -103,19 +103,19 @@ private val DatePickerMonthNames = listOf(
 fun DatePickerField(
     value: String,
     onDateSelected: (String) -> Unit,
-    enabled: Boolean = true,   // ✅ false = view mode, field can't be tapped/opened
-    isError: Boolean = false   // ✅ NEW — red border when validation fails
+    enabled: Boolean = true,   //  false = view mode, field can't be tapped/opened
+    isError: Boolean = false   //   red border when validation fails
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
-    // ✅ Box wraps FormDateField so we can dim it and block clicks when disabled,
+    //  Box wraps FormDateField so we can dim it and block clicks when disabled,
     // without needing FormDateField itself to support an `enabled` parameter.
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(if (enabled) 1f else 0.5f)   // visually looks disabled, like other fields
             .then(
-                // ✅ NEW — red border overlay when isError, since FormDateField draws its own border internally
+                //  red border overlay when isError, since FormDateField draws its own border internally
                 if (isError) Modifier.border(1.dp, Color(0xFFEF4444), RoundedCornerShape(8.dp))
                 else Modifier
             )
@@ -180,8 +180,8 @@ private fun CustomDatePickerDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(40.dp)
-                        .background(palette.fieldBackground, RoundedCornerShape(8.dp))   // ✅ CHANGED
-                        .border(1.dp, palette.fieldBorder, RoundedCornerShape(8.dp))     // ✅ CHANGED
+                        .background(palette.fieldBackground, RoundedCornerShape(8.dp))   //   CHANGED
+                        .border(1.dp, palette.fieldBorder, RoundedCornerShape(8.dp))     //   CHANGED
                         .padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -206,7 +206,7 @@ private fun CustomDatePickerDialog(
                     OutlinedTextField(
                         value = manualText,
                         onValueChange = { manualText = it },
-                        label = { Text("dd-mm-yyyy", color = palette.subtext) },
+                        placeholder = { Text("dd-mm-yyyy", color = palette.subtext) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(

@@ -7,7 +7,8 @@
     "unused_parameter",
     "UnusedMaterial3ScaffoldPaddingParameter"
 )
-package com.cuso.mobile.view.home.reusablecomposables
+
+package com.cuso.mobile.view.composable
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

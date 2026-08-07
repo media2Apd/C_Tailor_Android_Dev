@@ -89,8 +89,8 @@ data class JournalEntryItem(
     val primaryAccountType: String
         get() = firstLine?.accountId?.accountType ?: "-"
 
-    val subAccountLabel: String
-        get() = firstLine?.accountId?.category ?: "-"
+//    val subAccountLabel: String
+//        get() = firstLine?.accountId?.category ?: "-"
 }
 
 data class JournalEntryPagination(
@@ -205,7 +205,7 @@ data class UpdateJournalEntryRequest(
 data class UpdateJournalEntryResponse(
     val success: Boolean,
     val message: String? = null,
-    val data: UpdateJournalEntryData? = null   // ✅ புதுசா தனி data class
+    val data: UpdateJournalEntryData? = null   //   புதுசா தனி data class
 )
 
 data class UpdateJournalEntryData(
@@ -226,7 +226,7 @@ data class UpdateJournalEntryData(
 )
 
 data class UpdateJournalEntryLine(
-    val accountId: String,   // ✅ String, object இல்ல — உங்க image-ல வந்த screenshot response அப்படி தான் இருக்கு
+    val accountId: String,   //   String, object இல்ல — உங்க image-ல வந்த screenshot response அப்படி தான் இருக்கு
     val debit: Double,
     val credit: Double,
     val description: String?,

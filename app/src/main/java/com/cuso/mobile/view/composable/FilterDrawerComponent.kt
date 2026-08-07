@@ -7,7 +7,8 @@
     "unused_parameter",
     "UnusedMaterial3ScaffoldPaddingParameter", "VariableNeverRead"
 )
-package com.cuso.mobile.view.home.reusablecomposables
+
+package com.cuso.mobile.view.composable
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -15,6 +16,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,7 +50,6 @@ import androidx.compose.ui.zIndex
 import com.cuso.mobile.ui.theme.Primary
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.unit.Dp
-import com.cuso.mobile.model.otpVerifyRequest
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
@@ -129,10 +130,10 @@ fun FilterDrawer(
     var currentSections by remember { mutableStateOf(sections) }
     var searchQuery by remember { mutableStateOf("") }
 
-    // ✅ Blur state for background
+    //  Blur state for background
     var filterDrawerBlur by remember { mutableStateOf(0.dp) }
 
-    // ✅ Sheet state for SmoothBottomSheet
+    //  Sheet state for SmoothBottomSheet
     var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
 
     val expandedMap = remember { mutableStateMapOf<String, Boolean>() }
@@ -150,7 +151,7 @@ fun FilterDrawer(
 
     val scope = rememberCoroutineScope()
 
-    // ✅ Handle sheet open/close based on state
+    //  Handle sheet open/close based on state
     LaunchedEffect(state.isOpen) {
         if (state.isOpen) {
             sheetState = SheetValue.Collapsed
@@ -197,7 +198,7 @@ fun FilterDrawer(
         onDismissRequest = { state.close() },
         onBlurScrimChange = { blur, _ ->
             filterDrawerBlur = blur
-            onBackgroundBlurChange(blur)   // ✅ ADD THIS — forward it up
+            onBackgroundBlurChange(blur)   //   ADD THIS — forward it up
         }
     ) {
         // ── Sheet Content ──
@@ -507,7 +508,7 @@ private fun CheckboxListBody(section: FilterSection, onOptionToggle: (String) ->
 @Composable
 private fun ChipRowBody(section: FilterSection, onOptionToggle: (String) -> Unit, showMore: Boolean, showCheckbox: Boolean) {
     Column {
-        androidx.compose.foundation.layout.FlowRow(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -692,7 +693,7 @@ fun FilterChip(
         modifier = Modifier.clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
         color = if (option.isSelected) Color(0xFF3B82F6) else Color(0xFFF1F5F9),
-        border = if (option.isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+        border = if (option.isSelected) null else BorderStroke(1.dp, Color(0xFFE2E8F0))
     ) {
         Text(
             option.label,

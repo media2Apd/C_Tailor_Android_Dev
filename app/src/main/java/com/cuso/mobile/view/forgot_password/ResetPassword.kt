@@ -62,13 +62,13 @@ fun ResetPassword(
     val confirmPasswordInteractionSource = remember { MutableInteractionSource() }
     val isConfirmError = confirmPassword.isNotBlank() && !passwordsMatch
 
-    // ✅ Column with verticalScroll + imePadding: centers when content fits,
+    //   Column with verticalScroll + imePadding: centers when content fits,
     // scrolls when it doesn't, and clears the keyboard — same base as
     // ForgotUserPassword / VerifyForgotPassword.
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFf5f5f5)) // ✅ matches the other forgot-password screens' page background
+            .background(Color(0xFFf5f5f5)) //   matches the other forgot-password screens' page background
             .verticalScroll(rememberScrollState())
             .imePadding(),
         verticalArrangement = Arrangement.Center,
@@ -77,7 +77,7 @@ fun ResetPassword(
         AppLogo()
         Spacer(modifier = Modifier.height(10.dp))
 
-        // ✅ Title styled the same as ForgotUserPassword / VerifyForgotPassword
+        //   Title styled the same as ForgotUserPassword / VerifyForgotPassword
         Text(
             text = "Reset Password",
             fontSize = 25.sp,
@@ -92,7 +92,7 @@ fun ResetPassword(
         )
         Spacer(modifier = Modifier.height(10.dp))
 
-        // ✅ Card wrapped in a Box(padding 20dp) with a 2dp white border and
+        //   Card wrapped in a Box(padding 20dp) with a 2dp white border and
         // 15dp corner radius — same treatment as the other forgot-password screens.
         Box(
             Modifier.padding(20.dp)
@@ -122,7 +122,7 @@ fun ResetPassword(
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // ✅ New Password field — BasicTextField + DecorationBox instead
+                    //   New Password field — BasicTextField + DecorationBox instead
                     // of OutlinedTextField, because this Material3 version's
                     // OutlinedTextField(value: String, ...) overload has no
                     // `contentPadding` param, which is required to make text fit
@@ -202,7 +202,7 @@ fun ResetPassword(
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // ✅ Confirm Password field — same BasicTextField + DecorationBox
+                    //   Confirm Password field — same BasicTextField + DecorationBox
                     // conversion, with the match-error state wired into isError.
                     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
                         BasicTextField(
@@ -248,7 +248,7 @@ fun ResetPassword(
                                             )
                                         }
                                     },
-                                    // ✅ 8dp to match the New Password field above and the
+                                    //   8dp to match the New Password field above and the
                                     // field shape used across the other forgot-password screens
                                     colors = customFieldColors(),
                                     contentPadding = PaddingValues(

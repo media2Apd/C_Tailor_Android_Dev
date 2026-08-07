@@ -21,7 +21,7 @@ data class ChartOfAccountItem(
     @SerializedName("accountType") val accountType: String = "",
     @SerializedName("category") val category: String? = null,
 
-    // ✅ CHANGED — was a plain nested field before; now uses the custom
+    //   CHANGED — was a plain nested field before; now uses the custom
     // adapter so BOTH "parentAccount": {...} and "parentAccount": "id"
     // deserialize correctly without crashing.
     @JsonAdapter(ParentAccountDeserializer::class)
@@ -88,7 +88,7 @@ class ParentAccountDeserializer : JsonDeserializer<ChartOfAccountItem?> {
 }
 
 
-// ✅ FIXED — parentAccount.parentAccount is ChartOfAccountItem? now (not JsonElement?),
+//   FIXED — parentAccount.parentAccount is ChartOfAccountItem? now (not JsonElement?),
 // so a plain null check is enough; .isJsonNull doesn't exist on this type.
 fun ChartOfAccountItem.indentLevel(): Int = when {
     parentAccount == null -> 0
@@ -152,7 +152,7 @@ data class ExpenseViewOneResponse(
     val data: ExpenseItem
 )
 
-// AFTER
+//  
 // Create expense response — accountId / paymentAccountId come back as plain
 // string IDs here (NOT populated objects like in list / view-one responses)
 data class CreateExpenseData(
@@ -196,7 +196,7 @@ data class CreatedChartOfAccountData(
     val accountName: String,
     val accountCode: String,
     val accountType: String,
-    val parentAccount: String?,   // ✅ String, not ChartOfAccountItem
+    val parentAccount: String?,   //   String, not ChartOfAccountItem
     val level: Int,
     val isGroup: Boolean,
     val isSystemAccount: Boolean,
@@ -216,5 +216,5 @@ data class CreatedChartOfAccountData(
 data class CreateChartOfAccountResponse(
     val success: Boolean,
     val message: String? = null,
-    val data: CreatedChartOfAccountData? = null   // ✅ was ChartOfAccountItem — changed
+    val data: CreatedChartOfAccountData? = null   //   was ChartOfAccountItem — changed
 )

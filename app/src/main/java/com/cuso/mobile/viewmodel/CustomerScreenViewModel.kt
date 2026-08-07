@@ -27,7 +27,7 @@ class CustomerViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<CustomerUiState>(CustomerUiState.Loading)
     val uiState: StateFlow<CustomerUiState> = _uiState.asStateFlow()
 
-    // ✅ AFTER
+    //    
     private var currentPage = 1
     private var currentLimit = 10
     private var currentSearch: String? = null
@@ -55,8 +55,8 @@ class CustomerViewModel @Inject constructor(
     ) {
         currentPage = page
         currentLimit = limit
-        _currentPageFlow.value = page      // ✅ NEW
-        _pageSizeFlow.value = limit        // ✅ NEW
+        _currentPageFlow.value = page      
+        _pageSizeFlow.value = limit        
 
         viewModelScope.launch {
             _uiState.update { CustomerUiState.Loading }
@@ -149,13 +149,13 @@ class CustomerViewModel @Inject constructor(
                             type = data.type,
                             name = data.name,
                             mobile = data.mobile,
-                            email = data.email ?: "",              // ✅ ADD
-                            gender = data.gender ?: "",            // ✅ ADD
-                            dob = data.dob ?: "",                  // ✅ ADD
+                            email = data.email ?: "",               
+                            gender = data.gender ?: "",             
+                            dob = data.dob ?: "",                   
                             status = data.status,
                             addressLine = data.address?.addressLine ?: "",
                             city = data.address?.city ?: "",
-                            area = data.address?.area ?: "",       // ✅ ADD
+                            area = data.address?.area ?: "",        
                             pincode = data.address?.pincode ?: ""
                         )
                     }
@@ -202,17 +202,17 @@ class CustomerViewModel @Inject constructor(
             type = form.type,
             name = form.name,
             mobile = form.mobile,
-            email = form.email.takeIf { it.isNotBlank() },      // ✅ ADD
-            gender = form.gender.takeIf { it.isNotBlank() },     // ✅ ADD
-            dob = form.dob.takeIf { it.isNotBlank() },           // ✅ ADD
+            email = form.email.takeIf { it.isNotBlank() },       
+            gender = form.gender.takeIf { it.isNotBlank() },      
+            dob = form.dob.takeIf { it.isNotBlank() },            
             status = form.status,
             address = CustomerViewAddress(
                 addressLine = form.addressLine,
                 city = form.city,
-                area = form.area,                                 // ✅ ADD
+                area = form.area,                                  
                 pincode = form.pincode
             ),
-            preferences = original.preferences,                   // ✅ ADD — re-send untouched preferences
+            preferences = original.preferences,                   //    — re-send untouched preferences
             referralCount = original.referralCount ?: 0,
             totalSpend = original.totalSpend ?: 0,
             pendingPayment = original.pendingPayment ?: 0,
@@ -313,13 +313,13 @@ data class CustomerFormState(
     val type: String = "individual",
     val name: String = "",
     val mobile: String = "",
-    val email: String = "",       // ✅ ADD
-    val gender: String = "",      // ✅ ADD
-    val dob: String = "",         // ✅ ADD
+    val email: String = "",        
+    val gender: String = "",       
+    val dob: String = "",          
     val status: String = "Active",
     val addressLine: String = "",
     val city: String = "",
-    val area: String = "",        // ✅ ADD
+    val area: String = "",         
     val pincode: String = ""
 )
 

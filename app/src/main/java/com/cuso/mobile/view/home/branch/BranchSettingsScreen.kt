@@ -10,8 +10,7 @@
 )
 package com.cuso.mobile.view.home.branch
 
-import CreateBranchAddress
-import CreateBranchRequest
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,24 +34,26 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.model.BranchItem
+import com.cuso.mobile.model.CreateBranchAddress
+import com.cuso.mobile.model.CreateBranchRequest
 import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.model.UpdateBranchAddress
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.TitleColor
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
-import com.cuso.mobile.view.home.reusablecomposables.FabConfig
-import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.PlanLimitDialog
+import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.BranchUiState
 import com.cuso.mobile.viewmodel.BranchViewModel
@@ -61,8 +62,8 @@ import com.cuso.mobile.viewmodel.ProfileUiState
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
 import com.cuso.mobile.viewmodel.UpdateBranchUiState
-import com.cuso.mobile.view.home.reusablecomposables.SheetValue
-import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
+import com.cuso.mobile.view.composable.SheetValue
+import com.cuso.mobile.view.composable.SmoothBottomSheet
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────

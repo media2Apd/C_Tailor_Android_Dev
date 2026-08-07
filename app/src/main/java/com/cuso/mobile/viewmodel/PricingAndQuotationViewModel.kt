@@ -81,22 +81,6 @@
                 _uiState.value = PricingQuotationUiState.Loading
                 try {
                     // TODO (API HOOKUP): replace loadDummyData() with the real call:
-                    //
-                    // val response = repository.getPricingQuotation()
-                    // if (response.isSuccess) {
-                    //     val data = response.getOrNull()
-                    //     if (data != null && data.success) {
-                    //         _uiState.value = PricingQuotationUiState.Success(data.data)
-                    //     } else {
-                    //         _uiState.value = PricingQuotationUiState.Error("Failed to load pricing data")
-                    //     }
-                    // } else {
-                    //     _uiState.value = PricingQuotationUiState.Error(
-                    //         response.exceptionOrNull()?.message ?: "Failed to load pricing data"
-                    //     )
-                    // }
-                    //
-                    // Until then, screen renders from dummy data below so UI stays unblocked.
                     delay(300.milliseconds) // simulate network
                     _uiState.value = PricingQuotationUiState.Success(loadDummyData())
                 } catch (e: Exception) {
@@ -277,7 +261,7 @@
         fun fetchGarmentPricingList() {
             viewModelScope.launch {
                 _garmentPricingListState.value = GarmentPricingListUiState.Loading
-                val result = repository.getGarmentPricingList()   // ✅ no token param
+                val result = repository.getGarmentPricingList()   //   no token param
                 result.fold(
                     onSuccess = { items -> _garmentPricingListState.value = GarmentPricingListUiState.Success(items) },
                     onFailure = { e -> _garmentPricingListState.value = GarmentPricingListUiState.Error(e.message ?: "Failed to load pricing list") }
@@ -288,7 +272,7 @@
         fun fetchGarmentPricingDetail(id: String) {
             viewModelScope.launch {
                 _garmentPricingDetailState.value = GarmentPricingDetailUiState.Loading
-                val result = repository.getGarmentPricingDetail(id)   // ✅ no token param
+                val result = repository.getGarmentPricingDetail(id)   //   no token param
                 result.fold(
                     onSuccess = { detail -> _garmentPricingDetailState.value = GarmentPricingDetailUiState.Success(detail) },
                     onFailure = { e -> _garmentPricingDetailState.value = GarmentPricingDetailUiState.Error(e.message ?: "Failed to load pricing detail") }

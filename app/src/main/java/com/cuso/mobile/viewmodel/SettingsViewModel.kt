@@ -17,7 +17,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val sessionManager: SessionManager   // 👈 added
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     // ── Organization State ──

@@ -3,7 +3,6 @@ package com.cuso.mobile.view.home.inventory
 // ─────────────────────────────────────────────
 // Imports
 // ─────────────────────────────────────────────
-import android.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,10 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -38,21 +34,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Your existing reusables ──
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.FabConfig
-import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.SearchFilterBar
 
 // ─────────────────────────────────────────────
 // Data model (static/dummy)
@@ -193,7 +186,7 @@ fun LowStockAlertsScreen(
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = Color.Transparent
-        // ❌ floatingActionButton slot removed — FabScaffold handles it now
+        //  floatingActionButton slot removed — FabScaffold handles it now
     ) { padding ->
         FabScaffold(
             modifier = Modifier

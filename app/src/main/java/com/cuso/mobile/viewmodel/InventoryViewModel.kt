@@ -189,7 +189,7 @@ class InventoryViewModel @Inject constructor(
             val result = inventoryRepository.adjustStock(itemId, adjustmentType, quantity, reason, notes)
             result.fold(
                 onSuccess = { updatedItem ->
-                    _selectedItem.value = updatedItem   // ✅ refresh the item shown in InventoryViewOne
+                    _selectedItem.value = updatedItem   //   refresh the item shown in InventoryViewOne
                     _adjustStockSuccess.value = true
                 },
                 onFailure = { e -> _adjustStockError.value = e.message ?: "Failed to adjust stock" }
@@ -220,7 +220,7 @@ class InventoryViewModel @Inject constructor(
         _expandedSection.value = ItemSection.ITEM_IDENTITY
     }
 
-    // ── ✅ NEW: Populate Create/Edit form from the View-One response (Edit flow) ──
+    // ──   NEW: Populate Create/Edit form from the View-One response (Edit flow) ──
     fun populateFormForEdit(item: InventoryItemviewone) {
         _createItemForm.value = com.cuso.mobile.model.inventory.CreateItemFormState(
             itemId = item._id,
@@ -231,7 +231,7 @@ class InventoryViewModel @Inject constructor(
             category = "",
             status = item.status,
             unit = item.unit,
-            autoGenerateSku = false,          // ✅ editing an existing item, SKU already assigned
+            autoGenerateSku = false,          //   editing an existing item, SKU already assigned
             returnable = false,
             hsnCode = "",
             taxPercentage = "",
@@ -273,7 +273,7 @@ class InventoryViewModel @Inject constructor(
             val result = inventoryRepository.createInventoryItem(context, form)
             _createItemUiState.value = result.fold(
                 onSuccess = { item ->
-                    // ✅ optionally push the new item into the list so it shows up immediately
+                    //   optionally push the new item into the list so it shows up immediately
                     _inventoryItems.value = listOf(item) + _inventoryItems.value
                     CreateItemUiState.Success(item)
                 },
@@ -296,7 +296,7 @@ class InventoryViewModel @Inject constructor(
         updateCreateItemForm { current ->
             current.copy(
                 autoGenerateSku = enabled,
-                sku = if (enabled) generateSku(current.name) else current.sku   // ✅ CHANGED — keep old value on OFF, don't clear
+                sku = if (enabled) generateSku(current.name) else current.sku   //   CHANGED — keep old value on OFF, don't clear
             )
         }
     }
@@ -327,7 +327,7 @@ class InventoryViewModel @Inject constructor(
         _viewOneError.value = null
     }
 
-    // ✅ Alias kept for readability at call sites that just want to clear the fetched item
+    //   Alias kept for readability at call sites that just want to clear the fetched item
     // (e.g. after consuming it to populate the edit form) without touching the sheet flag.
     fun clearViewOneItem() {
         _viewOneItem.value = null

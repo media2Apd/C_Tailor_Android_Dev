@@ -193,7 +193,7 @@ class HrRepository @Inject constructor(
 
             val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
             val filePart = MultipartBody.Part.createFormData(
-                "profilePicture",   // 👈 backend expect panra file field name confirm pannunga
+                "profilePicture",
                 file.name,
                 requestFile
             )

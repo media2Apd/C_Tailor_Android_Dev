@@ -1,14 +1,12 @@
 package com.cuso.mobile.view.home.inventory
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
@@ -29,25 +27,23 @@ import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.FabConfig
-import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.viewmodel.InventoryViewModel
 
 private val InventoryBg = Color(0xFFF5F5F5)
 
 // stockStatus badge colors — "Not Tracked" red/pink, "In Stock" green, "Low Stock" orange, fallback gray
 private fun inventoryStatusColors(status: String?): Pair<Color, Color> {
-    val safeStatus = status.orEmpty()   // ✅ CHANGED: null-safe fallback
+    val safeStatus = status.orEmpty()   //   CHANGED: null-safe fallback
     return when {
         safeStatus.contains("In Stock", ignoreCase = true) && !safeStatus.contains("inactive", ignoreCase = true) ->
             Pair(Color(0xFF16A34A), Color(0xFFDCFCE7))
@@ -68,7 +64,7 @@ fun InventoryScreen(
     onClose: () -> Unit = {},
     onAddItem: () -> Unit = {},
     onViewItem: (InventoryItem) -> Unit = {},
-    onEditItem: () -> Unit = {},   // ✅ CHANGED — no item param needed; form is populated in the ViewModel before navigating
+    onEditItem: () -> Unit = {},   //   CHANGED — no item param needed; form is populated in the ViewModel before navigating
     inventoryViewModel: InventoryViewModel = hiltViewModel(),
     onBreadCrumbClick: () -> Unit ={}
 
@@ -76,7 +72,7 @@ fun InventoryScreen(
     val items by inventoryViewModel.inventoryItems.collectAsStateWithLifecycle()
     val isLoading by inventoryViewModel.isLoadingInventoryItems.collectAsStateWithLifecycle()
     val errorMessage by inventoryViewModel.inventoryError.collectAsStateWithLifecycle()
-    val viewOneItem by inventoryViewModel.viewOneItem.collectAsStateWithLifecycle()   // ✅ drives the Edit prefill flow
+    val viewOneItem by inventoryViewModel.viewOneItem.collectAsStateWithLifecycle()   //   drives the Edit prefill flow
 
     var searchQuery by remember { mutableStateOf("") }
 
@@ -84,7 +80,7 @@ fun InventoryScreen(
         inventoryViewModel.fetchInventoryItems()
     }
 
-    // ✅ FIXED — once GetInventoryViewOne succeeds, push the response into the
+    //   FIXED — once GetInventoryViewOne succeeds, push the response into the
     // create/edit form state, then navigate to CreateItemScreen (which reads
     // that same form state and renders in Edit mode).
     LaunchedEffect(viewOneItem) {
@@ -234,7 +230,7 @@ fun InventoryScreen(
                                     MenuAction(
                                         label = "Edit",
                                         icon = Icons.Default.Edit,
-                                        onClick = { inventoryViewModel.onViewOneClicked(item._id) }   // ✅ triggers GetInventoryViewOne → prefill → navigate
+                                        onClick = { inventoryViewModel.onViewOneClicked(item._id) }   //   triggers GetInventoryViewOne → prefill → navigate
                                     ),
                                     MenuAction(
                                         label = "Delete",

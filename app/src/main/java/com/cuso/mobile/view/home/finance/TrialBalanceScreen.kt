@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,15 +22,13 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -55,7 +52,7 @@ private fun formatAmount(value: Double): String {
 fun TrialBalanceScreen(
     onClose: () -> Unit = {},
     onAccountClick: (accountId: String, accountName: String) -> Unit = { _, _ -> },
-    onBreadcrumbClick: () -> Unit = {},   // ✅ NEW
+    onBreadcrumbClick: () -> Unit = {},   //   NEW
     financeViewModel: FinanceViewModel = hiltViewModel()
 ) {
     val items by financeViewModel.trialBalanceList.collectAsStateWithLifecycle()
@@ -133,7 +130,7 @@ fun TrialBalanceScreen(
             else -> {
                 LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     items(filteredItems, key = { it.accountId }) { item ->
-                        // ✅ Reusing the shared DataCard component.
+                        //   Reusing the shared DataCard component.
                         // Debit / Credit / BAL passed as footerFields with asRow=true
                         // so DataCard renders each as a SpaceBetween row → label on
                         // the left, value on the right — all three values land on the
@@ -151,19 +148,19 @@ fun TrialBalanceScreen(
                                     DataCardField(
                                         label = "Debit",
                                         text = formatAmount(item.debit),
-                                        textColor = blackTitle,      // ✅ value in black
+                                        textColor = blackTitle,      //   value in black
                                         labelColor = TextSecondary
                                     ),
                                     DataCardField(
                                         label = "Credit",
                                         text = formatAmount(item.credit),
-                                        textColor = blackTitle,      // ✅ value in black
+                                        textColor = blackTitle,      //   value in black
                                         labelColor = TextSecondary
                                     ),
                                     DataCardField(
                                         label = "BAL",
                                         text = "${formatAmount(item.balanceAbs)} ${item.balanceLabel}",
-                                        textColor = blackTitle,      // ✅ value in black
+                                        textColor = blackTitle,      //   value in black
                                         labelColor = TextSecondary
                                     )
                                 )

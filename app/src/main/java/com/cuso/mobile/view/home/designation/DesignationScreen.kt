@@ -31,9 +31,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.model.DesignationItem
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.MenuAction
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import com.cuso.mobile.ui.theme.BluePrimary
@@ -44,11 +44,11 @@ import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
-import com.cuso.mobile.view.home.reusablecomposables.SheetValue
-import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
-import com.cuso.mobile.view.home.reusablecomposables.blurScrim
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.SheetValue
+import com.cuso.mobile.view.composable.SmoothBottomSheet
+import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.viewmodel.DesignationCreateState
 import com.cuso.mobile.viewmodel.DesignationDeleteState
 import com.cuso.mobile.viewmodel.DesignationUiState
@@ -321,7 +321,6 @@ fun DesignationScreen(
                 }
             }
 
-            // ── FAB Button ──
             // ── FAB Button ──
             Box(
                 modifier = Modifier

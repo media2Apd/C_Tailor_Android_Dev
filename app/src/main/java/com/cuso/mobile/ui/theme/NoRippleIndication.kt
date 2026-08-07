@@ -8,7 +8,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.node.DelegatableNode
 
-// ✅ New Modifier.Node based Indication — no ripple, no highlight, draws nothing extra
+//   New Modifier.Node based Indication — no ripple, no highlight, draws nothing extra
 object NoRippleIndication : IndicationNodeFactory {
 
     private class NoRippleIndicationNode : Modifier.Node(), DelegatableNode
@@ -21,7 +21,7 @@ object NoRippleIndication : IndicationNodeFactory {
     override fun hashCode(): Int = -1
 }
 
-// ✅ Wrapper composable — call this once at app root
+//   Wrapper composable — call this once at app root
 @Composable
 fun NoRippleProvider(content: @Composable () -> Unit) {
     CompositionLocalProvider(

@@ -10,8 +10,6 @@
 package com.cuso.mobile.view.home.sales.customer
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -23,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,13 +34,13 @@ import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
-import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.DataCardImage
+import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.viewmodel.CustomerCreateState
 import com.cuso.mobile.viewmodel.CustomerDeleteState
 import com.cuso.mobile.viewmodel.CustomerUiState
@@ -53,8 +50,6 @@ import java.util.Locale
 import java.util.TimeZone
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.TitleBar
 
@@ -291,13 +286,6 @@ fun CustomerScreen(
                                     }
                                 }
 
-//                                PaginationFooter(
-//                                    currentPage = currentPage,
-//                                    pageSize = pageSize,
-//                                    totalItems = total,
-//                                    onPageChange = { customerViewModel.onPageChange(it) },
-//                                    onItemsPerPageChange = { customerViewModel.onItemsPerPageChange(it) }
-//                                )
                             }
                         }
                     }

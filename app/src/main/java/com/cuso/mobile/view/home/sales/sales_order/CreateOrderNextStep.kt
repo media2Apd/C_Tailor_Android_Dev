@@ -57,8 +57,8 @@ import java.util.Locale
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.viewmodel.SalesViewModel
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ private val TextSecond = Color(0xFF6B7280)
 
 // ─── Data holder ──────────────────────────────────────────────────────────────
 data class OrderReviewData(
-    val orderId: String? = null,          // NEW
+    val orderId: String? = null,           
     val customerId: String,
     val branchId: String? = null,
     val fullName: String,
@@ -91,7 +91,7 @@ data class OrderReviewData(
     val discount: Double = 0.0,
     val paidSoFar: Double = 0.0,
     val designImages: List<Uri> = emptyList(),
-    val existingImageUrls: List<String> = emptyList(),   // NEW
+    val existingImageUrls: List<String> = emptyList(),    
     val voiceNoteUri: Uri? = null
 )
 
@@ -123,7 +123,7 @@ fun CreateOrderNextStep(
             }
         )
     }
-    val isEditMode = orderData.orderId != null   // NEW
+    val isEditMode = orderData.orderId != null    
 
     var itemCharges by remember(orderData.garments) {
         mutableStateOf(mapOf<String, List<ChargeItem>>())
@@ -154,7 +154,7 @@ fun CreateOrderNextStep(
 
     val actionState by salesOrderViewModel.actionState.collectAsStateWithLifecycle()
 
-    // ✅ FIX — removed the duplicate LaunchedEffect that used to fire onSaveOrder()
+    //   FIX — removed the duplicate LaunchedEffect that used to fire onSaveOrder()
     // a second time with an empty/dummy CreateOrderRequest whenever actionState
     // became Success. Navigation now happens ONLY once, from the real
     // createOrder(...) completion callback inside buildAndSaveOrder(), with the
@@ -170,8 +170,7 @@ fun CreateOrderNextStep(
         }
     }
 
-    // ✅ Build the request once, reused by the "Save Order" bottom bar button
-    // ✅ Build the request once, reused by the "Save Order" bottom bar button
+    //   Build the request once, reused by the "Save Order" bottom bar button
     fun buildAndSaveOrder() {
         val garmentRequests = orderData.garments.map { g ->
             val price = unitPrices[g.id]?.toDoubleOrNull() ?: 0.0
@@ -246,7 +245,7 @@ fun CreateOrderNextStep(
             status = "confirmed"
         )
 
-        // ✅ Common success callback - clears garments after successful save/update
+        //   Common success callback - clears garments after successful save/update
         val onOrderSuccess: (Any?) -> Unit = { _ ->
             // Clear all selected garments from Room database
             salesViewModel.clearAllSelectedGarments()
@@ -254,7 +253,7 @@ fun CreateOrderNextStep(
             onSaveOrder(request)
         }
 
-        // ✅ Call based on isEditMode with the success callback
+        //   Call based on isEditMode with the success callback
         if (isEditMode) {
             salesOrderViewModel.updateOrder(
                 orderId = orderData.orderId,
@@ -308,7 +307,7 @@ fun CreateOrderNextStep(
                 HorizontalDivider(color = BorderColor)
             }
         },
-        // AFTER
+        //  
         containerColor = Color.Transparent
 
     ) { padding ->
@@ -690,7 +689,7 @@ fun CreateOrderNextStep(
                 showBack = true,
                 onBack = onBack,
                 backLabel = "Back to Edit",
-                backEnabled = actionState !is OrderActionState.Loading,   // ✅ block "Back" while saving
+                backEnabled = actionState !is OrderActionState.Loading,   //   block "Back" while saving
                 backWidthFraction = 0.42f,
                 trailingWidthFraction = 0.42f,
                 trailingAction = TrailingFabAction.Update(

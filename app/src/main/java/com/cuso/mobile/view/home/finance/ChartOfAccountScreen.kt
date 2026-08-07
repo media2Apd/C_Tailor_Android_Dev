@@ -31,15 +31,15 @@ package com.cuso.mobile.view.home.finance
     import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
     import androidx.lifecycle.compose.collectAsStateWithLifecycle
     import com.cuso.mobile.model.finance.ChartOfAccountItem
-    import com.cuso.mobile.view.home.reusablecomposables.DataCard
-    import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+    import com.cuso.mobile.view.composable.DataCard
+    import com.cuso.mobile.view.composable.MenuAction
     import com.cuso.mobile.viewmodel.FinanceViewModel
     import com.cuso.mobile.model.finance.indentLevel
     import com.cuso.mobile.view.home.FormDropdown
     import com.cuso.mobile.view.home.FormLabel
     import com.cuso.mobile.view.home.FormTextField
-    import com.cuso.mobile.view.home.reusablecomposables.FabConfig
-    import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
+    import com.cuso.mobile.view.composable.FabConfig
+    import com.cuso.mobile.view.composable.FabScaffold
     import com.cuso.mobile.viewmodel.CreateAccountState
     import kotlinx.coroutines.launch
     import androidx.compose.material.icons.filled.Visibility
@@ -56,8 +56,8 @@ package com.cuso.mobile.view.home.finance
     import com.cuso.mobile.view.composable.ScreenBreadcrumb
     import com.cuso.mobile.view.composable.TitleBar
     import com.cuso.mobile.view.composable.ValidationField
-    import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-    import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+    import com.cuso.mobile.view.composable.ListSkeleton
+    import com.cuso.mobile.view.composable.SearchFilterBar
     import com.cuso.mobile.viewmodel.DeleteAccountState
     import com.cuso.mobile.viewmodel.UpdateAccountState
 
@@ -78,7 +78,7 @@ package com.cuso.mobile.view.home.finance
         onEditAccount: (ChartOfAccountItem) -> Unit = {},
         onDeleteAccount: (ChartOfAccountItem) -> Unit = {},
         financeViewModel: FinanceViewModel = hiltViewModel(),
-        onBreadcrumbClick: () -> Unit = {},   // ✅ NEW
+        onBreadcrumbClick: () -> Unit = {},   //   NEW
 
     )  {
         val accounts by financeViewModel.chartOfAccounts.collectAsStateWithLifecycle()
@@ -88,14 +88,14 @@ package com.cuso.mobile.view.home.finance
         var searchQuery by remember { mutableStateOf("") }
         var showAddAccount by remember { mutableStateOf(false) } // NEW — same pattern as showAddExpense
 
-// ✅ NEW — drives View / Edit reuse of AddAccountScreen
+//   NEW — drives View / Edit reuse of AddAccountScreen
         var screenMode by remember { mutableStateOf(AccountScreenMode.CREATE) }
         var selectedAccount by remember { mutableStateOf<ChartOfAccountItem?>(null) }
 
         val snackbarHostState = remember { SnackbarHostState() }
         val coroutineScope = rememberCoroutineScope()
 
-// ✅ NEW — delete confirmation
+//   NEW — delete confirmation
         var accountPendingDelete by remember { mutableStateOf<ChartOfAccountItem?>(null) }
         val deleteAccountState by financeViewModel.deleteAccountState.collectAsStateWithLifecycle()
 
@@ -157,13 +157,13 @@ package com.cuso.mobile.view.home.finance
                     selectedAccount = null
                     screenMode = AccountScreenMode.CREATE
                 },
-                onSaved = { message ->                          // ✅ CREATE success
+                onSaved = { message ->                          //   CREATE success
                     showAddAccount = false
                     selectedAccount = null
                     screenMode = AccountScreenMode.CREATE
                     financeViewModel.fetchChartOfAccounts()      // refresh list after add
                     coroutineScope.launch {
-                        snackbarHostState.showSnackbar(message)  // ✅ shows on ChartOfAccountScreen
+                        snackbarHostState.showSnackbar(message)  //   shows on ChartOfAccountScreen
                     }
                 },
                 onUpdate = { _, _, _, _, _ ->
@@ -298,7 +298,6 @@ package com.cuso.mobile.view.home.finance
                                                     }
                                                 )
                                             )
-                                            // ✅ isEditable = false na Edit option kaamikadhu (show aaga vendam)
                                             if (account.isEditable) {
                                                 add(
                                                     MenuAction(
@@ -313,7 +312,7 @@ package com.cuso.mobile.view.home.finance
                                                     )
                                                 )
                                             }
-                                            // ✅ System accounts can't be deleted — Delete action omitted entirely
+                                            //   System accounts can't be deleted — Delete action omitted entirely
                                             if (!account.isSystemAccount) {
                                                 add(
                                                     MenuAction(
@@ -334,7 +333,7 @@ package com.cuso.mobile.view.home.finance
                     }
                 }
             }
-            // ✅ NEW — Snackbar host, floats over the screen
+            //   NEW — Snackbar host, floats over the screen
             SnackbarHost(
                 hostState = snackbarHostState,
                 modifier = Modifier
@@ -342,7 +341,7 @@ package com.cuso.mobile.view.home.finance
                     .padding(16.dp)
             )
         }
-        // ✅ NEW — Delete confirmation dialog
+        //   NEW — Delete confirmation dialog
         accountPendingDelete?.let { account ->
             AlertDialog(
                 onDismissRequest = { accountPendingDelete = null },
@@ -412,7 +411,7 @@ package com.cuso.mobile.view.home.finance
         mode: AccountScreenMode = AccountScreenMode.CREATE,
         existingAccount: ChartOfAccountItem? = null,
         onClose: () -> Unit = {},
-        onSaved: (String) -> Unit = {},                                             // CREATE success
+        onSaved: (String) -> Unit = {},
         onUpdate: (String, String, String?, String?, String) -> Unit = { _, _, _, _, _ -> }
         // ↑ onUpdate params: accountName, accountType, description, parentAccountId, accountId
     ) {
@@ -447,7 +446,7 @@ package com.cuso.mobile.view.home.finance
         var errorMessage2 by remember { mutableStateOf("") }
         var errorField by remember { mutableStateOf<String?>(null) }
 
-// ✅ moved up — must be declared BEFORE isSaving references it
+//   moved up — must be declared BEFORE isSaving references it
         val updateAccountState by financeViewModel.updateAccountState.collectAsStateWithLifecycle()
 
         val isSaving = createAccountState is CreateAccountState.Loading ||
@@ -534,7 +533,7 @@ package com.cuso.mobile.view.home.finance
                         }
                         errorField = null
                     },
-                    enabled = fieldsEnabled,            // ✅ disabled in VIEW mode
+                    enabled = fieldsEnabled,            //   disabled in VIEW mode
                     isRequired = true,
                     isError = errorField == "accountType",
                     errorMessage = if (errorField == "accountType") "Account type is required" else null
@@ -709,7 +708,7 @@ package com.cuso.mobile.view.home.finance
                                     parentAccount = if (isSubAccount) selectedParent?._id else null
                                 )
                             } else {
-                                // ✅ CREATE
+                                //   CREATE
                                 financeViewModel.createChartOfAccount(
                                     accountName = accountName,
                                     accountType = accountType,

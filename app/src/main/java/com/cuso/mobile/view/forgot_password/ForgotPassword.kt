@@ -25,14 +25,14 @@ import com.cuso.mobile.view.composable.CardContentsForgotPassword
 fun ForgotUserPassword(
     activity: Activity,
     navController: NavController,
-    prefilledEmail: String = "" // ✅ passed in from the previous screen (e.g. login)
+    prefilledEmail: String = "" //   passed in from the previous screen (e.g. login)
 ) {
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFf5f5f5)) // ✅ matches LoginScreen's page background
-            // ✅ This screen can show an email field, then expand into an
+            .background(Color(0xFFf5f5f5)) //   matches LoginScreen's page background
+            //   This screen can show an email field, then expand into an
             // OTP input plus a password field once submitted — without
             // scroll + imePadding that extra content pushed past the
             // bottom of shorter screens or got covered by the keyboard.
@@ -44,7 +44,7 @@ fun ForgotUserPassword(
         AppLogo()
         Spacer(modifier = Modifier.height(10.dp))
 
-        // ✅ Title styled like LoginScreenTitle / "Reset Password" heading
+        //   Title styled like LoginScreenTitle / "Reset Password" heading
         Text(
             text = "Forgot Password",
             fontSize = 25.sp,
@@ -59,7 +59,7 @@ fun ForgotUserPassword(
         )
         Spacer(modifier = Modifier.height(10.dp))
 
-        // ✅ Card wrapped in a Box(padding 20dp) with a 2dp white border and
+        //   Card wrapped in a Box(padding 20dp) with a 2dp white border and
         // 15dp corner radius — same treatment as LoginScreen's card.
         Box(
             Modifier.padding(20.dp)

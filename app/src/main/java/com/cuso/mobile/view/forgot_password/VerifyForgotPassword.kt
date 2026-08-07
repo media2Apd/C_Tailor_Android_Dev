@@ -30,8 +30,8 @@ fun VerifyForgotPassword(navController: NavController, activity: Activity, submi
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFf5f5f5)) // ✅ matches ForgotUserPassword's page background
-            // ✅ Scrolls instead of clipping the OTP boxes/button on short
+            .background(Color(0xFFf5f5f5)) //   matches ForgotUserPassword's page background
+            //   Scrolls instead of clipping the OTP boxes/button on short
             // screens, and clears the keyboard when the OTP field is focused.
             .verticalScroll(rememberScrollState())
             .imePadding(),
@@ -40,7 +40,7 @@ fun VerifyForgotPassword(navController: NavController, activity: Activity, submi
     ) {
         CusoAppLogo()
 
-        // ✅ Title styled the same as ForgotUserPassword's heading
+        //   Title styled the same as ForgotUserPassword's heading
         Text(
             text = "Verify OTP",
             fontSize = 21.39.sp,
@@ -55,7 +55,7 @@ fun VerifyForgotPassword(navController: NavController, activity: Activity, submi
         )
         Spacer(modifier = Modifier.height(10.dp))
 
-        // ✅ Card wrapped in a Box(padding 20dp) with a 2dp white border and
+        //   Card wrapped in a Box(padding 20dp) with a 2dp white border and
         // 15dp corner radius — same treatment as ForgotUserPassword's card.
         Box(
             Modifier.padding(20.dp)

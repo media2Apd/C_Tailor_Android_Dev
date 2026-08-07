@@ -30,7 +30,7 @@ fun LoginOtpScreen(navController: NavController, activity: Activity, submittedEm
         modifier = Modifier
             .fillMaxSize()
             .background(whiteBg)
-            // ✅ Scrolls instead of clipping the OTP boxes/button on short
+            //   Scrolls instead of clipping the OTP boxes/button on short
             // screens, and clears the keyboard when the OTP field is focused.
             .verticalScroll(rememberScrollState())
             .imePadding(),

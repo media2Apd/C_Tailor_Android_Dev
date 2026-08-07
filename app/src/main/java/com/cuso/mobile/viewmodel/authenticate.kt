@@ -134,7 +134,7 @@ class Authenticate @Inject constructor(
 
     init {
         viewModelScope.launch {
-            // ✅ We don't need loadUser() here anymore because the 'user' Flow
+            //   We don't need loadUser() here anymore because the 'user' Flow
             // will fetch the data automatically as soon as it starts.
             loadOrganization()
             loadSettings()
@@ -273,7 +273,7 @@ class Authenticate @Inject constructor(
                 is GoogleLoginResult.ExistingUser -> {
                     val googleData = result.response.data
 
-                    // ✅ Google already returns branches as List<String>
+                    //   Google already returns branches as List<String>
                     // No conversion needed - Organization expects List<String>
                     val loginData = LoginData(
                         user = User(
@@ -298,7 +298,7 @@ class Authenticate @Inject constructor(
                                 totalMembers = googleData.user.organizationId.totalMembers,
                                 activeMembers = googleData.user.organizationId.activeMembers,
                                 segments = googleData.user.organizationId.segments,
-                                branches = googleData.user.organizationId.branches, // ✅ Already List<String>
+                                branches = googleData.user.organizationId.branches, //   Already List<String>
                                 isTaxId = googleData.user.organizationId.isTaxId,
                                 status = googleData.user.organizationId.status,
                                 isInternalOrganization = googleData.user.organizationId.isInternalOrganization,
@@ -622,10 +622,8 @@ class Authenticate @Inject constructor(
         val currentUser = user.value
         val currentMemberId = currentUser?.id
 
-        // 👈 LOG போடுங்கள் - இரண்டும் ஒன்றாக இருக்கிறதா என்று பாருங்கள்
         Log.d("PROFILE_PIC_DEBUG", "Target: $targetUserId | Current: $currentMemberId")
 
-        // சில சமயம் targetUserId-இல் "_id" இருக்கலாம், அதுவும் memberId-உம் ஒன்றாக இருக்க வேண்டும்
         if (targetUserId.isNullOrBlank() || currentMemberId.isNullOrBlank() || targetUserId != currentMemberId) {
             Log.d("PROFILE_PIC_DEBUG", "Mismatch! Update cancelled.")
             return
@@ -633,7 +631,6 @@ class Authenticate @Inject constructor(
 
         viewModelScope.launch {
             loginRepository.updateProfilePicture(currentUser.id, newUrl)
-            // loadUser() தேவையில்லை ஏனேனில் நாம் Flow பயன்படுத்துகிறோம்
         }
     }
 
@@ -643,10 +640,10 @@ class Authenticate @Inject constructor(
 
     fun logout(onLoggedOut: () -> Unit) {
         viewModelScope.launch {
-            // ✅ 1. Clear the Database
+            //   1. Clear the Database
             loginRepository.clearAll()
 
-            // ✅ 2. The 'user' Flow will automatically emit 'null' because the DB is now empty.
+            //   2. The 'user' Flow will automatically emit 'null' because the DB is now empty.
             // You don't need (and can't do) user.value = null.
 
             _organization.value = null
@@ -669,13 +666,6 @@ class Authenticate @Inject constructor(
     // ─────────────────────────────────────────────────────────────
     // Set Login Data (for external use)
     // ─────────────────────────────────────────────────────────────
-
-//    fun setLoginData(data: LoginData) {
-//        _loginData.value = data
-//        viewModelScope.launch {
-//            loadTokens()
-//        }
-//    }
 
     // Organization.kt — add this extension function at the bottom
 

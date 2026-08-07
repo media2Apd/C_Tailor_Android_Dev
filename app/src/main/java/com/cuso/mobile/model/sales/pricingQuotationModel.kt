@@ -2,14 +2,6 @@ package com.cuso.mobile.model.sales
 
 import com.google.gson.annotations.SerializedName
 
-// ---------- Response wrapper (future API shape) ----------
-
-//data class PricingQuotationResponse(
-//    @SerializedName("success")
-//    val success: Boolean,
-//    @SerializedName("data")
-//    val data: PricingQuotationData?
-//)
 
 data class PricingQuotationData(
     @SerializedName("stats")
@@ -72,13 +64,12 @@ data class PricingQuotationSaveRequest(
 )
 
 // ⚠️ ASSUMED field names — fabricAdjustments/designAdjustments/additionalCharges empty-a
-// vandhadhaala confirm pannala. "name"+"price" nu assume panniruken.
+
 data class PriceAdjustmentDto(
     @SerializedName("name")  val name: String,
     @SerializedName("price") val price: Double
 )
 
-// ⚠️ ASSUMED — bulkRules-um empty-a vandhadhu. "minQuantity"+"discountPercent" nu assume.
 data class BulkRuleDto(
     @SerializedName("minQuantity")     val minQuantity: Int,
     @SerializedName("discountPercent") val discountPercent: Double
@@ -108,42 +99,30 @@ data class PricingQuotationDataForSave(
 
 //PRICING DASHBOARD VIEW ALL
 
-
-// ── Request body for CREATE (POST) ──
-data class GarmentPricingRequest(
-    val garmentCategoryId: String,
-    val basePrice: Double,
-    val fabricAdjustments: List<PriceAdjustmentDto>,
-    val designAdjustments: List<PriceAdjustmentDto>,
-    val additionalCharges: List<PriceAdjustmentDto>,
-    val expressCharge: Double,
-    val bulkRules: List<BulkRuleDto>
-)
-
-// ── Request body for UPDATE (PUT/PATCH) ──
-data class GarmentPricingUpdateRequest(
-    val garmentCategoryId: String,
-    val basePrice: Double,
-    val fabricAdjustments: List<PriceAdjustmentDto>,
-    val designAdjustments: List<PriceAdjustmentDto>,
-    val additionalCharges: List<PriceAdjustmentDto>,
-    val expressCharge: Double,
-    val bulkRules: List<BulkRuleDto>
-)
-
-//// ── Response after create/update ──
-//data class GarmentPricingResponse(
-//    val id: String,
-//    val itemName: String,
+//
+//// ── Request body for CREATE (POST) ──
+//data class GarmentPricingRequest(
+//    val garmentCategoryId: String,
 //    val basePrice: Double,
-//    val fabricCost: Double,
-//    val designCost: Double,
-//    val additionalCost: Double,
+//    val fabricAdjustments: List<PriceAdjustmentDto>,
+//    val designAdjustments: List<PriceAdjustmentDto>,
+//    val additionalCharges: List<PriceAdjustmentDto>,
 //    val expressCharge: Double,
-//    val totalPrice: Double,
-//    val applicableGarment: Int,
-//    val status: Boolean
+//    val bulkRules: List<BulkRuleDto>
 //)
+//
+//// ── Request body for UPDATE (PUT/PATCH) ──
+//data class GarmentPricingUpdateRequest(
+//    val garmentCategoryId: String,
+//    val basePrice: Double,
+//    val fabricAdjustments: List<PriceAdjustmentDto>,
+//    val designAdjustments: List<PriceAdjustmentDto>,
+//    val additionalCharges: List<PriceAdjustmentDto>,
+//    val expressCharge: Double,
+//    val bulkRules: List<BulkRuleDto>
+//)
+
+
 
 // ── Wrapper matching your API's { success, data } shape ──
 data class ApiResponse<T>(
@@ -185,7 +164,7 @@ data class GarmentPricingDetailDto(
     @SerializedName("isActive")
     val status: Boolean = true,
 
-    // ✅ Backend never sends these — keep nullable/defaulted, don't rely on them
+    //   Backend never sends these — keep nullable/defaulted, don't rely on them
     val itemName: String? = null,
     val totalPrice: Double? = null
 )

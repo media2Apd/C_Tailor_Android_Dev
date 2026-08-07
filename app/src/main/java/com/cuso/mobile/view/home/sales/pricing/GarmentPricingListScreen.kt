@@ -35,9 +35,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.home.reusablecomposables.FabConfig
-import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.viewmodel.GarmentPricingListUiState
 import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 
@@ -111,7 +111,7 @@ fun GarmentPricingListScreen(
                     }
                 }
                 is GarmentPricingListUiState.Success -> {
-                    val uniqueItems = state.items.distinctBy { it.id }   // ✅ NEW — dedupe by id
+                    val uniqueItems = state.items.distinctBy { it.id }   //   NEW — dedupe by id
 
                     if (uniqueItems.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -124,7 +124,7 @@ fun GarmentPricingListScreen(
                                 .verticalScroll(rememberScrollState())
                                 .padding(16.dp)
                         ) {
-                            uniqueItems.forEach { item ->   // ✅ CHANGED
+                            uniqueItems.forEach { item ->   //   CHANGED
                                 GarmentPricingCard(
                                     item = item,
                                     onClick = { onCardClick(item.id) }

@@ -1,8 +1,5 @@
 package com.cuso.mobile.viewmodel
 
-import AddOrgGarmentResponse
-import OrgGarmentCategory
-import RemoveOrgGarmentResponse
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.database.entities.LeadEntity
@@ -28,6 +25,9 @@ import kotlinx.coroutines.launch
 import android.util.Log
 import com.cuso.mobile.database.dao.SelectedGarmentDao
 import com.cuso.mobile.database.entities.SelectedGarment
+import com.cuso.mobile.model.AddOrgGarmentResponse
+import com.cuso.mobile.model.OrgGarmentCategory
+import com.cuso.mobile.model.RemoveOrgGarmentResponse
 import com.cuso.mobile.model.sales.ConvertToOrderData
 import com.cuso.mobile.model.sales.OrderItem
 import com.cuso.mobile.model.sales.StatusData
@@ -181,34 +181,34 @@ class SalesViewModel @Inject constructor(
         searchJob?.cancel()
         if (mobile.length < 4) {
             _customerSearchResult.value = null
-            _isSearchingCustomer.value = false   // ✅ clear stale spinner
+            _isSearchingCustomer.value = false   //   clear stale spinner
             return
         }
         searchJob = viewModelScope.launch {
             delay(400.milliseconds)
             _isSearchingCustomer.value = true
 
-            val callStart = System.currentTimeMillis()   // ✅ NEW
+            val callStart = System.currentTimeMillis()
 
             val fullNumber = countryCode
                 .replace("+", "")
                 .plus(mobile.trim())
 
-            Log.d(TAG, "🔍 Searching customer: $fullNumber")   // ✅ NEW — debug log
+            Log.d(TAG, "🔍 Searching customer: $fullNumber")   //   — debug log
 
             val result = repository.searchCustomerByMobile(fullNumber)
 
             result
                 .onSuccess {
-                    Log.d(TAG, "✅ Customer search success: ${it.customer?.name}")   // ✅ NEW
+                    Log.d(TAG, "  Customer search success: ${it.customer?.name}")
                     _customerSearchResult.value = it
                 }
                 .onFailure {
-                    Log.e(TAG, "❌ Customer search failed: ${it.message}")   // ✅ NEW
+                    Log.e(TAG, "Customer search failed: ${it.message}")
                     _customerSearchResult.value = null
                 }
 
-            // ✅ ensures spinner is visible for at least 400ms — forces a real
+            //   ensures spinner is visible for at least 400ms — forces a real
             // suspension point so Compose can't collapse true→false into one frame
             val elapsed = System.currentTimeMillis() - callStart
             if (elapsed < 400) delay(400 - elapsed)
@@ -259,9 +259,9 @@ class SalesViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoadingSources.value = true
             try {
-                Log.d(TAG, "✅ All dropdown options fetched successfully")
+                Log.d(TAG, "  All dropdown options fetched successfully")
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Error fetching dropdown options: ${e.message}")
+                Log.e(TAG, " Error fetching dropdown options: ${e.message}")
             } finally {
                 _isLoadingSources.value = false
             }
@@ -275,7 +275,7 @@ class SalesViewModel @Inject constructor(
 
     fun setPageSize(size: Int) {
         _pageSize.value = size
-        _currentPage.value = 1        // size maarina udane page 1-ku reset
+        _currentPage.value = 1
         fetchTableLeads()
     }
 
@@ -283,13 +283,13 @@ class SalesViewModel @Inject constructor(
         _currentPage.value = page
         fetchTableLeads()
     }
-    // ✅ NEW — pagination state
+    //    — pagination state
 
 
     private val _totalLeads = MutableStateFlow(0)
     val totalLeads: StateFlow<Int> = _totalLeads.asStateFlow()
 
-    // ✅ NEW — pagination actions
+    //    — pagination actions
     fun onPageChange(newPage: Int) {
         _currentPage.value = newPage
         fetchTableLeads()
@@ -382,8 +382,8 @@ class SalesViewModel @Inject constructor(
             assignedStaff = data.appointment?.assignedStaff?._id,
             priority = data.appointment?.priority ?: "",
             followUpDate = data.appointment?.followUpDate ?: "",
-            internalNotes = data.notes?.find { it.type == "internal" }?.message ?: "",   // 👈 FIXED — .message
-            customerNotes = data.notes?.find { it.type == "customer" }?.message ?: ""    // 👈 FIXED — .message
+            internalNotes = data.notes?.find { it.type == "internal" }?.message ?: "",
+            customerNotes = data.notes?.find { it.type == "customer" }?.message ?: ""
         )
     }
     fun silentRefreshLead(leadId: String) {
@@ -486,7 +486,7 @@ class SalesViewModel @Inject constructor(
         viewModelScope.launch {
             repository.fetchActiveOrgGarmentIds()
                 .onSuccess { _activeOrgCategoryIds.value = it }
-                .onFailure { Log.e(TAG, "❌ fetchActiveOrgGarments error: ${it.message}") }
+                .onFailure { Log.e(TAG, " fetchActiveOrgGarments error: ${it.message}") }
         }
     }
 

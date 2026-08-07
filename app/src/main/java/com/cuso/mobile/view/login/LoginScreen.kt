@@ -88,7 +88,7 @@ fun LoginScreen(activity: Activity,
             is UiState.LoginSuccess -> {
 
                 val orgToken = state.orgToken
-                val org = state.organization        // ✅ fixed
+                val org = state.organization        //   fixed
                 val isOrgRegistered = org != null && org.orgSetupComplete
 
                 if (orgToken.isNullOrEmpty() || !isOrgRegistered) {
@@ -125,7 +125,7 @@ fun LoginScreen(activity: Activity,
                     .fillMaxSize()
                     .background(Color(0xFFf5f5f5))
 
-                    // ✅ Scrolls instead of clipping fields on short screens, and
+                    //   Scrolls instead of clipping fields on short screens, and
                     // pushes content above the keyboard instead of letting it
                     // cover the password field.
                     .verticalScroll(rememberScrollState()),

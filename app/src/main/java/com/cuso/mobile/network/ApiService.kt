@@ -1,18 +1,15 @@
-// com/cuso/mobile/network/ApiService.kt
 
 package com.cuso.mobile.network
 
-import ActiveOrgGarmentResponse
-import AddGarmentRequest
-import AddOrgGarmentResponse
-import CreateBranchRequest
-import CreateBranchResponse
-import GarmentCategoriesResponse
-import OrgGarmentResponse
-import RemoveOrgGarmentResponse
+
+import com.cuso.mobile.model.ActiveOrgGarmentResponse
+import com.cuso.mobile.model.AddGarmentRequest
+import com.cuso.mobile.model.AddOrgGarmentResponse
 import com.cuso.mobile.model.sales.ApiResponse
 import com.cuso.mobile.model.sales.AssignStageResponse
 import com.cuso.mobile.model.BranchListResponse
+import com.cuso.mobile.model.CreateBranchRequest
+import com.cuso.mobile.model.CreateBranchResponse
 import com.cuso.mobile.model.sales.CreateLeadFormRequest
 import com.cuso.mobile.model.sales.CreateLeadFormResponse
 import com.cuso.mobile.model.sales.CreateOrderResponse
@@ -84,6 +81,8 @@ import retrofit2.http.Query
 import com.cuso.mobile.model.sales.CustomerListResponse
 import com.cuso.mobile.model.sales.CustomerListResponseV2
 import com.cuso.mobile.model.DashboardResponse
+import com.cuso.mobile.model.OrgGarmentResponse
+import com.cuso.mobile.model.RemoveOrgGarmentResponse
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UploadOrganizationPictureResponse
 import com.cuso.mobile.model.finance.ChartOfAccountsResponse
@@ -120,6 +119,7 @@ import com.cuso.mobile.model.sales.ConvertLeadToOrderResponse
 import com.cuso.mobile.model.sales.ConvertToInvoiceRequest
 import com.cuso.mobile.model.sales.ConvertToInvoiceResponse
 import com.cuso.mobile.model.sales.DeleteCustomerResponse
+import com.cuso.mobile.model.sales.GarmentCategoriesResponse
 import com.cuso.mobile.model.sales.GarmentPricingDetailDto
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
 import com.cuso.mobile.model.sales.GarmentPricingResponse
@@ -293,32 +293,26 @@ interface ApiService {
 
     // ── Garment Categories ────────────────────────────────────────
 
-    // Existing - fetchGarmentCategories() uses this (GarmentCategoriesResponse)
     @GET("/api/org-garments/view-all")
     suspend fun getOrgGarments(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<GarmentCategoriesResponse>
 
-    // ✅ NEW - Same URL, OrgGarmentResponse return type
-    // fetchActiveOrgGarmentIds() uses this to find which common-categories are active
-    // React equivalent: SummaryApi.getAllCategories → res.data.data.categories.filter(c=>c.isActive).map(c=>c.categoryId._id)
+
     @GET("/api/org-garments/view-all")
     suspend fun getActiveOrgGarments(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<ActiveOrgGarmentResponse>
 
-    // Common categories display grid
-    // React equivalent: SummaryApi.getCommonCategories
+
     @GET("/api/common/categories/view-all")
     suspend fun getOrgGarmentCommonCategories(
         @Header("Authorization") accessToken: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<OrgGarmentResponse>
 
-    // Add org garment
-    // React equivalent: SummaryApi.addCategories
     @POST("/api/org-garments/add")
     suspend fun addOrgGarmentCategory(
         @Header("Authorization") accessToken: String,
@@ -326,8 +320,7 @@ interface ApiService {
         @Body request: AddGarmentRequest
     ): Response<AddOrgGarmentResponse>
 
-    // Remove org garment
-    // React equivalent: SummaryApi.removeOneCategory
+
     @DELETE("/api/org-garments/remove/{categoryId}")
     suspend fun removeOrgGarmentCategory(
         @Header("Authorization") accessToken: String,
@@ -361,7 +354,6 @@ interface ApiService {
     // ── Departments ───────────────────────────────────────────────
 
 
-    // Option 1: All unwrapped (recommended)
     @GET("/api/departments/view-all")
     suspend fun getDepartments(
         @Header("Authorization") token: String,
@@ -373,7 +365,7 @@ interface ApiService {
         @Header("Authorization") authorization: String,
         @Header("X-CSRF-TOKEN") csrfToken: String,
         @Body request: DepartmentCreateRequest
-    ): DepartmentCreateResponse  // ← Remove Response wrapper
+    ): DepartmentCreateResponse
 
     @PUT("/api/departments/update-one/{id}")
     suspend fun updateDepartment(
@@ -381,7 +373,7 @@ interface ApiService {
         @Header("X-CSRF-TOKEN") csrfToken: String,
         @Path("id") id: String,
         @Body request: DepartmentUpdateRequest
-    ): DepartmentUpdateResponse  // ← Remove Response wrapper
+    ): DepartmentUpdateResponse
 
 
     // ── Designations ──────────────────────────────────────────────
@@ -399,7 +391,6 @@ interface ApiService {
         @Body request: DesignationCreateRequest
     ): Response<DesignationCreateResponse>
 
-    // ✅ ADD THIS - Update Designation
     @PUT("/api/designations/update-one/{id}")
     suspend fun updateDesignation(
         @Header("Authorization") token: String,
@@ -408,7 +399,6 @@ interface ApiService {
         @Body request: DesignationUpdateRequest
     ): Response<DesignationUpdateResponse>
 
-    // ✅ ADD THIS - Delete Designation (Soft Delete)
     @DELETE("/api/designations/delete-one/{id}")
     suspend fun deleteDesignation(
         @Header("Authorization") token: String,
@@ -417,16 +407,14 @@ interface ApiService {
     ): Response<DesignationDeleteResponse>
 
     @Multipart
-    @POST("api/organizations/upload-picture")   // ⚠️ replace with actual endpoint
+    @POST("api/organizations/upload-picture")
     suspend fun uploadOrganizationPicture(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Part picture: MultipartBody.Part
     ): Response<UploadOrganizationPictureResponse>
 
-    // In ApiService.kt
-    // WITH this:
-    // PUT with plain JSON body, no multipart, no image field
+
     @PUT("/api/organizations/update-one")
     suspend fun updateOrganization(
         @Header("Authorization") token: String,
@@ -448,7 +436,6 @@ interface ApiService {
         @Query("toDate") toDate: String? = null
     ): Response<OrderResponse>
 
-    // ── Add these to your ApiService.kt after the getOrders() method ──
 
     // ── Add these to your ApiService.kt ──
 
@@ -494,7 +481,7 @@ interface ApiService {
         @Part("deliveryDate") deliveryDate: RequestBody? = null,
         @Part("totalAmount") totalAmount: RequestBody,
         @Part("status") status: RequestBody? = null,
-        @Part designImages: List<MultipartBody.Part>,           // pass emptyList() if none
+        @Part designImages: List<MultipartBody.Part>,
         @Part voiceNote: MultipartBody.Part?
     ): Response<CreateOrderResponse>
 
@@ -543,14 +530,14 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<DashboardResponse>
 
-    @GET("/api/customers/view-one/{id}")   // 🔁 replace with your real path
+    @GET("/api/customers/view-one/{id}")
     suspend fun getCustomerView(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<GetCustomerViewResponse>
 
-    @PUT("/api/customers/update-one/{id}") // 🔁 replace with your real path
+    @PUT("/api/customers/update-one/{id}")
     suspend fun updateCustomer(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -558,7 +545,7 @@ interface ApiService {
         @Body request: UpdateCustomerRequest
     ): Response<UpdateCustomerResponse>
 
-    @DELETE("/api/customers/delete-one/{id}")   // 🔁 replace with your real path
+    @DELETE("/api/customers/delete-one/{id}")
     suspend fun deleteCustomer(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -620,22 +607,20 @@ interface ApiService {
         @Query("status") status: String? = null
     ): Response<OrderManagementResponse>
 
-    @GET("/api/sales-orders/view-one/{orderId}")   // ✅ உங்க backend-oda actual route path-ஐ இங்க கொடுங்க
+    @GET("/api/sales-orders/view-one/{orderId}")
     suspend fun getOrdersView(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("orderId") orderId: String
     ): Response<OrderViewResponse>
 
-    // Add this endpoint to your ApiService interface
-    @POST("/api/pricing-quotations/garment-pricing/set-price-for-garment")  // Update with your actual endpoint
+    @POST("/api/pricing-quotations/garment-pricing/set-price-for-garment")
     suspend fun savePricingQuotation(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Body request: PricingQuotationSaveRequest
     ): Response<PricingQuotationSaveResponse>
 
-    // ── Dashboard: get all garment pricing cards ──
     @GET("/api/pricing-quotations/garment-pricing/view-all")
     suspend fun getGarmentPricingList(
         @Header("Authorization") token: String,
@@ -643,7 +628,6 @@ interface ApiService {
 
     ): ApiResponse<List<GarmentPricingListItemDto>>
 
-    // ── Get single record detail (for edit-screen prefill) ──
     @GET("/api/pricing-quotations/garment-pricing/view-one/{id}")
     suspend fun getGarmentPricingDetail(
         @Header("Authorization") token: String,
@@ -651,7 +635,6 @@ interface ApiService {
         @Path("id") id: String
     ): ApiResponse<GarmentPricingDetailDto>
 
-    // ApiService.kt — add this alongside savePricingQuotation
 
     @PUT("/api/pricing-quotations/garment-pricing/update-price-for-garment/{id}")
     suspend fun updatePricingQuotation(
@@ -742,7 +725,6 @@ interface ApiService {
         @Query("status") status: String? = null
     ): Response<InvoiceListResponse>
 
-    // Add this endpoint to ApiService interface:
 
     @GET("/api/finance/sales-invoices/view-one/{id}")
     suspend fun getInvoiceViewOne(
@@ -752,7 +734,7 @@ interface ApiService {
     ): Response<InvoiceViewOneResponse>
 
     // ── Chart of Accounts ──
-    @GET("/api/finance/chart-of-accounts/view-all")   // ⚠️ confirm exact path with backend
+    @GET("/api/finance/chart-of-accounts/view-all")
     suspend fun getChartOfAccounts(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
@@ -801,7 +783,7 @@ interface ApiService {
         @Body request: CreateChartOfAccountRequest
     ): Response<CreateChartOfAccountResponse>
 
-    @PUT("/api/finance/chart-of-accounts/update-one/{id}")   // ⚠️ CONFIRM this exact path + method (PUT vs PATCH) with your backend
+    @PUT("/api/finance/chart-of-accounts/update-one/{id}")   //  CONFIRM this exact path + method (PUT vs PATCH) with your backend
     suspend fun updateChartOfAccount(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -809,7 +791,7 @@ interface ApiService {
         @Body request: CreateChartOfAccountRequest   // same body shape as create
     ): Response<CreateChartOfAccountResponse>          // same response shape as create
 
-    @DELETE("/api/finance/chart-of-accounts/delete-one/{id}")   // ⚠️ confirm exact path with backend
+    @DELETE("/api/finance/chart-of-accounts/delete-one/{id}")   //️ confirm exact path with backend
     suspend fun deleteChartOfAccount(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -817,14 +799,14 @@ interface ApiService {
     ): Response<CreateChartOfAccountResponse>   // reusing same response shape (success + message)
 
     // ── Trial Balance ──
-    @GET("api/finance/trial-balance")   // ✅ ungaloda real endpoint path-a check pannunga
+    @GET("api/finance/trial-balance")
     suspend fun getTrialBalance(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<TrialBalanceResponse>
 
     // ── Journal Entries ──
-    @GET("/api/finance/journal-entry/view-all")   // ✅ ungaloda real endpoint path check pannunga
+    @GET("/api/finance/journal-entry/view-all")
     suspend fun getJournalEntries(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,

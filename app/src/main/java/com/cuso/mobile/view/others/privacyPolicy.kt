@@ -9,7 +9,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
@@ -23,7 +22,7 @@ fun PrivacyPolicy(navController: NavController){
             .fillMaxSize()
     ) {
         Column(
-            // 👇 Tell the column to expand so it can center its content on the screen
+            //  Tell the column to expand so it can center its content on the screen
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally

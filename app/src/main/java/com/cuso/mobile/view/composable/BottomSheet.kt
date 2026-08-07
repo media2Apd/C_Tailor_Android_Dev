@@ -1,7 +1,10 @@
 // SmoothBottomSheet.kt - Updated version
 
-package com.cuso.mobile.view.home.reusablecomposables
+package com.cuso.mobile.view.composable
 
+import android.graphics.RenderEffect
+import android.graphics.Shader
+import android.os.Build
 import com.cuso.mobile.ui.theme.blackTitle
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -11,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -48,15 +52,15 @@ import kotlinx.coroutines.launch
 
 enum class SheetValue { Hidden, Collapsed, Expanded }
 
-// ✅ BLUR is applied ONLY to the background scrim
+//   BLUR is applied ONLY to the background scrim
 // The sheet itself remains crystal clear
 fun Modifier.blurScrim(radius: Dp): Modifier = this.then(
     if (radius.value > 0f) {
         Modifier.graphicsLayer {
-            if (android.os.Build.VERSION.SDK_INT >= 31) {
+            if (Build.VERSION.SDK_INT >= 31) {
                 val px = radius.toPx().coerceAtLeast(0.01f)
-                renderEffect = android.graphics.RenderEffect
-                    .createBlurEffect(px, px, android.graphics.Shader.TileMode.CLAMP)
+                renderEffect = RenderEffect
+                    .createBlurEffect(px, px, Shader.TileMode.CLAMP)
                     .asComposeRenderEffect()
             }
         }
@@ -135,13 +139,13 @@ fun SmoothBottomSheet(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .blurScrim(blurRadiusDp.dp)  // ✅ BLUR applied only to scrim
+                .blurScrim(blurRadiusDp.dp)  //   BLUR applied only to scrim
                 .background(blackTitle.copy(alpha = scrimAlpha))
                 .then(
                     if (scrimAlpha > 0.01f) {
                         Modifier.clickable(
                             indication = null,
-                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                            interactionSource = remember { MutableInteractionSource() }
                         ) {
                             scope.launch {
                                 offsetY.animateTo(hiddenY, tween(300, easing = FastOutSlowInEasing))
@@ -160,15 +164,16 @@ fun SmoothBottomSheet(
                 .align(Alignment.BottomStart)
                 .clip(RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius))
                 .background(sheetBackgroundColor)
-                // ✅ No blur here - sheet stays clear
+                //   No blur here - sheet stays clear
                 .clickable(
                     indication = null,
-                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    interactionSource = remember { MutableInteractionSource() }
                 ) { /* consumes clicks */ }
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(whiteBg)
                     .draggable(
                         orientation = Orientation.Vertical,
                         state = rememberDraggableState { delta ->
@@ -207,7 +212,7 @@ fun SmoothBottomSheet(
                     )
                     .clickable(
                         indication = null,
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                        interactionSource = remember { MutableInteractionSource() }
                     ) {
                         scope.launch {
                             val target = if (expandFraction > 0.6f) collapsedY
@@ -252,7 +257,7 @@ fun SmoothBottomSheet(
                         .clickable(
                             enabled = expandFraction > 0.5f,
                             indication = null,
-                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                            interactionSource = remember { MutableInteractionSource() }
                         ) {
                             scope.launch {
                                 offsetY.animateTo(hiddenY, tween(300, easing = FastOutSlowInEasing))

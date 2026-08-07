@@ -26,8 +26,8 @@ data class LeadTableItem(
     @SerializedName("status") val status: Any,
     @SerializedName("appointment") val appointment: AppointmentTableItem?,
     @SerializedName("notes") val notes: List<NoteTableItem>?,
-    @SerializedName("convertedCustomerId") val convertedCustomerId: String?,   // ✅ NEW
-    @SerializedName("convertedOrderId") val convertedOrderId: String?,        // ✅ NEW
+    @SerializedName("convertedCustomerId") val convertedCustomerId: String?,   //   NEW
+    @SerializedName("convertedOrderId") val convertedOrderId: String?,        //   NEW
     @SerializedName("createdAt") val createdAt: String,
     @SerializedName("updatedAt") val updatedAt: String
 )
@@ -59,7 +59,7 @@ data class NoteTableItem(
     @SerializedName("addedAt") val addedAt: String
 )
 
-// ✅ Extension to convert LeadTableItem to LeadEntity (for edit/view only)
+//   Extension to convert LeadTableItem to LeadEntity (for edit/view only)
 fun LeadTableItem.toLeadEntity(): LeadEntity {
     // Extract status name
     val statusName = when (this.status) {
@@ -99,7 +99,7 @@ fun LeadTableItem.toLeadEntity(): LeadEntity {
         budgetMax = this.budgetRange.max,
         occasion = this.occasion ?: "",
         garments = garmentId,
-        enquiryDate = this.enquiryDate?:"",
+        enquiryDate = this.enquiryDate,
         requiredDate = this.requiredDate ?: "",
         source = this.source,
         status = statusName,

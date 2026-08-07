@@ -45,13 +45,13 @@ import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.FabConfig
-import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
-import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.viewmodel.BranchUiState
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.CreateExpenseState
@@ -70,8 +70,6 @@ import androidx.compose.ui.platform.LocalContext
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.ErrorFieldWrapper
@@ -79,9 +77,9 @@ import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.ValidationField
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.PlanLimitDialog
+import com.cuso.mobile.view.composable.SearchFilterBar
 
 private val ExpensePrimary = Color(0xFF3B3BF9)
 private val ExpenseBg = Color(0xFFF5F5F5)
@@ -107,7 +105,7 @@ fun ExpensesScreen(
     val isLoadingExpenses by financeViewModel.isLoadingExpenses.collectAsStateWithLifecycle()
     val expenseError by financeViewModel.expenseError.collectAsStateWithLifecycle()
 
-    // ✅ Fetch real expenses + chart of accounts when screen opens
+    //   Fetch real expenses + chart of accounts when screen opens
     LaunchedEffect(Unit) {
         financeViewModel.fetchExpenses()
         financeViewModel.fetchChartOfAccounts()
@@ -236,7 +234,7 @@ fun ExpensesScreen(
                 }
             }
 
-            // AFTER
+            //  
             else -> {
                 FabScaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -398,16 +396,16 @@ fun AddExpenseScreen(
     onClose: () -> Unit,
     onSaved: () -> Unit
 ) {
-    // AFTER
+    //  
     val chartOfAccounts by financeViewModel.chartOfAccounts.collectAsStateWithLifecycle()
     val isLoadingAccounts by financeViewModel.isLoadingChartOfAccounts.collectAsStateWithLifecycle()
     val createExpenseState by financeViewModel.createExpenseState.collectAsStateWithLifecycle()
     val createAccountState by financeViewModel.createAccountState.collectAsStateWithLifecycle()
-    // ✅ Category options = leaf Expense accounts (e.g. Salary, Rent, Electricity...)
+    //   Category options = leaf Expense accounts (e.g. Salary, Rent, Electricity...)
     val categoryAccounts = remember(chartOfAccounts) {
         chartOfAccounts.filter { it.accountType == "Expense" && !it.isGroup }
     }
-    // ✅ Payment Mode options = leaf Asset accounts you can pay FROM (Cash, Bank...)
+    //   Payment Mode options = leaf Asset accounts you can pay FROM (Cash, Bank...)
     val paymentAccounts = remember(chartOfAccounts) {
         chartOfAccounts.filter { it.accountType == "Asset" && it.allowManualEntry }
     }
@@ -416,7 +414,7 @@ fun AddExpenseScreen(
         mutableStateOf(SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()).format(Date()))
     }
 
-    // AFTER
+    //  
     var selectedCategory by remember { mutableStateOf<ChartOfAccountItem?>(null) }
     var categoryExpanded by remember { mutableStateOf(false) }
 
@@ -448,7 +446,7 @@ fun AddExpenseScreen(
     var referenceNumber by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
 
-    // AFTER
+    //  
     val isSaving = createExpenseState is CreateExpenseState.Loading
     val isSavingAccount = createAccountState is com.cuso.mobile.viewmodel.CreateAccountState.Loading
 
@@ -481,7 +479,7 @@ fun AddExpenseScreen(
         }
     }
 
-    // ✅ Handle save result
+    //   Handle save result
     LaunchedEffect(createExpenseState) {
         when (val state = createExpenseState) {
             is CreateExpenseState.Success -> {
@@ -496,7 +494,7 @@ fun AddExpenseScreen(
         }
     }
 
-    // ✅ Handle add-account result — same pattern as expense save
+    //   Handle add-account result — same pattern as expense save
     LaunchedEffect(createAccountState) {
         when (val state = createAccountState) {
             is com.cuso.mobile.viewmodel.CreateAccountState.Success -> {
@@ -553,7 +551,7 @@ fun AddExpenseScreen(
             Spacer(Modifier.height(14.dp))
 
 
-            // AFTER
+            //  
 // ── Category — real Chart of Accounts (Expense accounts) + Add New ──
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -614,14 +612,13 @@ fun AddExpenseScreen(
             Spacer(Modifier.height(14.dp))
 
             // ── Amount + Payment Mode ──
-            // ── Amount + Payment Mode ──
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(modifier = Modifier.weight(1f)) {
                     FormLabel("Amount", isRequired = true)
                     FormTextField(
                         value = amount,
                         onValueChange = { input ->
-                            // ✅ allow only digits + a single decimal point (e.g. "1250.50")
+                            //   allow only digits + a single decimal point (e.g. "1250.50")
                             val filtered = input
                                 .filterIndexed { index, c ->
                                     c.isDigit() || (c == '.' && input.indexOf('.') == index)
@@ -654,16 +651,6 @@ fun AddExpenseScreen(
                 }
             }
             Spacer(Modifier.height(14.dp))
-
-//            FormDropdown(
-//                label = "Expense Type",
-//                value = expenseType,
-//                expanded = expenseTypeExpanded,
-//                onExpandChange = { expenseTypeExpanded = it },
-//                options = expenseTypeOptions,
-//                onOptionSelected = { expenseType = it }
-//            )
-//            Spacer(Modifier.height(14.dp))
 
             FormLabel("Reference Number")
             FormTextField(
@@ -861,7 +848,7 @@ fun AddExpenseScreen(
                     Spacer(Modifier.height(20.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        // AFTER
+                        //  
                         OutlinedButton(
                             onClick = {
                                 showAddAccountDialog = false
@@ -873,7 +860,7 @@ fun AddExpenseScreen(
                         ) {
                             Text("Cancel", color = Color(0xFF374151))
                         }
-                        // AFTER
+                        //  
                         Button(
                             onClick = {
                                 if (newAccountName.isNotBlank()) {

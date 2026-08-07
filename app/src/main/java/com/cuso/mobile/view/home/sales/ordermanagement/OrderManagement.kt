@@ -8,7 +8,6 @@
 package com.cuso.mobile.view.home.sales.ordermanagement
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,7 +19,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,17 +30,15 @@ import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.formatIndianNumber
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.home.sales.sales_order.orderStatusColors
 import com.cuso.mobile.view.home.sales.sales_order.paymentStatusColors
 import com.cuso.mobile.viewmodel.OrderManagementUiState
@@ -63,7 +59,7 @@ fun OrderManagementScreen(
     onBreadCrumbClick: () -> Unit ={}
 
 ) {
-    val viewModel: OrderManagementViewModel = hiltViewModel()   // ✅ CHANGED
+    val viewModel: OrderManagementViewModel = hiltViewModel()   //   CHANGED
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -73,7 +69,7 @@ fun OrderManagementScreen(
     var showStatusDropdown by remember { mutableStateOf(false) }
 
     LaunchedEffect(page, statusFilter, searchQuery) {
-        viewModel.fetchOrderManagement(   // ✅ CHANGED
+        viewModel.fetchOrderManagement(   //   CHANGED
             page = page,
             limit = itemsPerPage,
             search = searchQuery.takeIf { it.isNotBlank() },
@@ -130,7 +126,7 @@ fun OrderManagementScreen(
                     isLoading -> {
                         ListSkeleton()
                     }
-                    orderState is OrderManagementUiState.Error -> {   // ✅ CHANGED
+                    orderState is OrderManagementUiState.Error -> {   //   CHANGED
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
@@ -155,7 +151,7 @@ fun OrderManagementScreen(
                             }
                         }
                     }
-                    orderState is OrderManagementUiState.Success -> {   // ✅ CHANGED
+                    orderState is OrderManagementUiState.Success -> {   //   CHANGED
                         if (orders.isEmpty()) {
                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -168,38 +164,13 @@ fun OrderManagementScreen(
                             Column(modifier = Modifier.fillMaxSize()) {
                                 LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
                                     items(orders) { order ->
-                                        OrderManagementCard(   // ✅ CHANGED — extracted, uses flat OrderManagementItem
+                                        OrderManagementCard(   //   CHANGED — extracted, uses flat OrderManagementItem
                                             order = order,
                                             onView = { onViewOrder(order.id) },
                                             onEdit = { onEditOrder(order.id) }
                                         )
                                     }
                                 }
-
-                                // ── Pagination footer ──
-//                                Box(modifier = Modifier.fillMaxWidth().background(whiteBg, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))) {
-//                                    Column {
-//                                        HorizontalDivider(color = Color(0xFFF0F0F0))
-//                                        Row(
-//                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-//                                            verticalAlignment = Alignment.CenterVertically,
-//                                            horizontalArrangement = Arrangement.SpaceBetween
-//                                        ) {
-//                                            val from = if (total == 0) 0 else (page - 1) * itemsPerPage + 1
-//                                            val to = minOf(page * itemsPerPage, total)
-//                                            Text("Showing $from - $to of $total", fontSize = 13.sp, color = Color(0xFF6B7280))
-//                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-//                                                IconButton(onClick = { if (page > 1) page-- }, enabled = page > 1, modifier = Modifier.size(28.dp)) {
-//                                                    Icon(Icons.Default.ChevronLeft, "Previous", tint = if (page > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
-//                                                }
-//                                                Text("$page - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
-//                                                IconButton(onClick = { if (page < totalPages) page++ }, enabled = page < totalPages, modifier = Modifier.size(28.dp)) {
-//                                                    Icon(Icons.Default.ChevronRight, "Next", tint = if (page < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
-//                                                }
-//                                            }
-//                                        }
-//                                    }
-//                                }
                             }
                         }
                     }
@@ -251,8 +222,7 @@ private fun OrderManagementCard(
 }
 
 // ── ISO date "2026-07-02T00:00:00.000Z" -> "02 Jul 2026" ──
-// order.deliveryDate ஒரு ISO string (Long timestamp இல்ல), அதனால sales_order package-ல
-// இருக்கிற Long.toDisplayDate() extension இங்க வேலை செய்யாது — தனி formatter
+
 private fun formatIsoDate(iso: String): String {
     if (iso.isBlank()) return "—"
     return try {

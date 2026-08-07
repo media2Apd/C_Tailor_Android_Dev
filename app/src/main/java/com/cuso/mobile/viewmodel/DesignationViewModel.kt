@@ -19,7 +19,7 @@ sealed class DesignationUiState {
     data class Error(val message: String) : DesignationUiState()
 }
 
-// ✅ ADD THIS - Update State
+//     - Update State
 sealed class DesignationUpdateState {
     object Idle : DesignationUpdateState()
     object Loading : DesignationUpdateState()
@@ -27,7 +27,7 @@ sealed class DesignationUpdateState {
     data class Error(val message: String) : DesignationUpdateState()
 }
 
-// ✅ ADD THIS - Delete State
+//     - Delete State
 sealed class DesignationDeleteState {
     object Idle : DesignationDeleteState()
     object Loading : DesignationDeleteState()
@@ -46,11 +46,11 @@ class DesignationViewModel @Inject constructor(
     private val _createState = MutableStateFlow<DesignationCreateState>(DesignationCreateState.Idle)
     val createState: StateFlow<DesignationCreateState> = _createState.asStateFlow()
 
-    // ✅ ADD THIS - Update State Flow
+    //     - Update State Flow
     private val _updateState = MutableStateFlow<DesignationUpdateState>(DesignationUpdateState.Idle)
     val updateState: StateFlow<DesignationUpdateState> = _updateState.asStateFlow()
 
-    // ✅ ADD THIS - Delete State Flow
+    //     - Delete State Flow
     private val _deleteState = MutableStateFlow<DesignationDeleteState>(DesignationDeleteState.Idle)
     val deleteState: StateFlow<DesignationDeleteState> = _deleteState.asStateFlow()
 
@@ -79,7 +79,7 @@ class DesignationViewModel @Inject constructor(
         }
     }
 
-    // ✅ ADD THIS - Update Designation
+    //     - Update Designation
     fun updateDesignation(id: String, name: String, code: String, description: String?) {
         viewModelScope.launch {
             _updateState.value = DesignationUpdateState.Loading
@@ -100,7 +100,7 @@ class DesignationViewModel @Inject constructor(
         }
     }
 
-    // ✅ ADD THIS - Delete Designation
+    //     - Delete Designation
     fun deleteDesignation(id: String) {
         viewModelScope.launch {
             _deleteState.value = DesignationDeleteState.Loading
@@ -120,12 +120,12 @@ class DesignationViewModel @Inject constructor(
         _createState.value = DesignationCreateState.Idle
     }
 
-    // ✅ ADD THIS - Reset Update State
+    //     - Reset Update State
     fun resetUpdateState() {
         _updateState.value = DesignationUpdateState.Idle
     }
 
-    // ✅ ADD THIS - Reset Delete State
+    //     - Reset Delete State
     fun resetDeleteState() {
         _deleteState.value = DesignationDeleteState.Idle
     }

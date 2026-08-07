@@ -144,12 +144,12 @@ class QuotationPdfGenerator(private val context: Context) {
             renderWidthPx,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        // ✅ CHANGED — JS must be enabled so we can poll <img>.complete to know
+        //   CHANGED — JS must be enabled so we can poll <img>.complete to know
         // when the network logoUrl image has actually finished loading.
         webView.settings.javaScriptEnabled = true
         webView.settings.loadWithOverviewMode = true
         webView.settings.useWideViewPort = true
-        // ✅ ADD — belt-and-suspenders: allow mixed content in case logoUrl is http://
+        //   ADD — belt-and-suspenders: allow mixed content in case logoUrl is http://
         // (still fix the URL to https:// on the backend/data side if you can — this is a fallback)
         webView.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
 
@@ -177,7 +177,7 @@ class QuotationPdfGenerator(private val context: Context) {
             }
         }
 
-        // ✅ ADD — polls document.images until every <img> is "complete"
+        //   ADD — polls document.images until every <img> is "complete"
         // (complete = true for both successful loads AND failed/broken loads,
         // so this can never hang forever on a bad URL — the 20-attempt cap below
         // is just an extra safety net for weird WebView/JS edge cases)
@@ -219,7 +219,7 @@ class QuotationPdfGenerator(private val context: Context) {
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 if (finished) return
-                // ✅ CHANGED — instead of a fixed 350ms delay, actively wait until
+                //   CHANGED — instead of a fixed 350ms delay, actively wait until
                 // every <img> (including the network logoUrl) has finished loading
                 view?.postDelayed({ waitForImagesThenRender() }, 100)
             }

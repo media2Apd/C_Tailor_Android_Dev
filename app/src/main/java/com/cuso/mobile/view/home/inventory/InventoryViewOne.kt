@@ -35,7 +35,7 @@ import com.cuso.mobile.model.inventory.toHealthDisplay
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
+import com.cuso.mobile.view.composable.ListSkeleton
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -60,7 +60,7 @@ fun InventoryViewOne(
     errorMessage: String?,
     onDismiss: () -> Unit,
     onAdjustStock: (InventoryItem) -> Unit = {},
-    onAdjustStockSubmit: (AdjustmentType, Double, String, String) -> Unit = { _, _, _, _ -> },   // ✅ NEW
+    onAdjustStockSubmit: (AdjustmentType, Double, String, String) -> Unit = { _, _, _, _ -> },   //   NEW
     onWarehouseTransfer: (InventoryItem) -> Unit = {},
     onReorderStock: (InventoryItem) -> Unit = {},
     onMarkInactive: (InventoryItem) -> Unit = {},
@@ -69,7 +69,7 @@ fun InventoryViewOne(
 ) {
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Overview, 1 = Transactions
-    var showAdjustStockSheet by remember { mutableStateOf(false) }   // ✅ NEW
+    var showAdjustStockSheet by remember { mutableStateOf(false) }   //   NEW
 
     Column(
         modifier = Modifier
@@ -131,7 +131,7 @@ fun InventoryViewOne(
 
                         Spacer(Modifier.height(16.dp))
                         Button(
-                            onClick = { showAdjustStockSheet = true },   // ✅ CHANGED
+                            onClick = { showAdjustStockSheet = true },   //   CHANGED
                             modifier = Modifier.fillMaxWidth().height(48.dp),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)
@@ -147,7 +147,7 @@ fun InventoryViewOne(
                         if (selectedTab == 0) {
                             OverviewContent(
                                 item = item,
-                                onAdjustStockClick = { showAdjustStockSheet = true },   // ✅ CHANGED
+                                onAdjustStockClick = { showAdjustStockSheet = true },   //   CHANGED
                                 onWarehouseTransfer = onWarehouseTransfer,
                                 onReorderStock = onReorderStock,
                                 onMarkInactive = onMarkInactive
@@ -162,18 +162,18 @@ fun InventoryViewOne(
             }
     }
 
-    // ✅ NEW — Adjust Stock bottom sheet (still inside InventoryViewOne, before its closing brace)
+    //   NEW — Adjust Stock bottom sheet (still inside InventoryViewOne, before its closing brace)
     if (showAdjustStockSheet && item != null) {
         AdjustStockSheet(
             item = item,
             onDismiss = { showAdjustStockSheet = false },
             onSubmit = { type, quantity, reason, notes ->
                 showAdjustStockSheet = false
-                onAdjustStockSubmit(type, quantity, reason, notes)   // ✅ CHANGED
+                onAdjustStockSubmit(type, quantity, reason, notes)   //   CHANGED
             }
         )
     }
-}   // ✅ this closes InventoryViewOne
+}   //   this closes InventoryViewOne
 
 @Composable
 private fun StatusBadge(active: Boolean) {
@@ -246,7 +246,7 @@ private fun TabChip(
 @Composable
 private fun OverviewContent(
     item: InventoryItem,
-    onAdjustStockClick: () -> Unit,          // ✅ CHANGED — was onAdjustStock: (InventoryItem) -> Unit
+    onAdjustStockClick: () -> Unit,          //   CHANGED — was onAdjustStock: (InventoryItem) -> Unit
     onWarehouseTransfer: (InventoryItem) -> Unit,
     onReorderStock: (InventoryItem) -> Unit,
     onMarkInactive: (InventoryItem) -> Unit
@@ -283,7 +283,7 @@ private fun OverviewContent(
     Spacer(Modifier.height(10.dp))
 
     Button(
-        onClick = onAdjustStockClick,        // ✅ CHANGED
+        onClick = onAdjustStockClick,        //   CHANGED
         modifier = Modifier.fillMaxWidth().height(48.dp),
         shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)

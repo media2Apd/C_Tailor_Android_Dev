@@ -38,9 +38,9 @@ import com.cuso.mobile.view.home.sales.lead.LeadAccordionSection
 import com.cuso.mobile.view.home.sales.lead.LeadFormTopBar
 import com.cuso.mobile.view.home.LeadPrimary
 import com.cuso.mobile.view.home.LeadmutedText
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.viewmodel.GarmentPricingDetailUiState
 import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
@@ -53,7 +53,7 @@ private data class DiscountRuleRow(val id: Int, val minQuantity: String, val dis
 fun AddGarmentPricingScreen(
     onClose: () -> Unit,
     onSave: () -> Unit = {},
-    pricingId: String? = null   // ✅ null = Add mode, non-null = Edit mode
+    pricingId: String? = null   //   null = Add mode, non-null = Edit mode
 ) {
     val isEditMode = pricingId != null
     android.util.Log.d("PricingDebug", "SCREEN OPENED with pricingId=$pricingId, isEditMode=$isEditMode")
@@ -71,7 +71,7 @@ fun AddGarmentPricingScreen(
     // ── Show error snackbar state ──
 
 
-// ── Field-level validation errors ──   ✅ ADD THESE TWO LINES
+// ── Field-level validation errors ──     ADD THESE TWO LINES
     var showGarmentTypeError by remember { mutableStateOf(false) }
     var showBasePriceError by remember { mutableStateOf(false) }
 
@@ -124,16 +124,15 @@ fun AddGarmentPricingScreen(
 
     // ── Prefill fields once detail data arrives (edit mode only) ──
 // ── Prefill fields once detail data arrives (edit mode only) ──
-    LaunchedEffect(detailState, garmentCategories, pricingId) {   // ✅ CHANGED — pricingId-ஐயும் key-ல சேர்த்துருக்கேன்
+    LaunchedEffect(detailState, garmentCategories, pricingId) {
         if (isEditMode && !prefilled) {
             when (val ds = detailState) {
                 is GarmentPricingDetailUiState.Success -> {
                     val detail = ds.detail
 
-                    // ✅ NEW — CRITICAL GUARD: fetched detail, current pricingId-க்கே சொந்தமான தானா nu check பண்ணுங்க
                     if (detail.id != pricingId) {
                         android.util.Log.d("PricingDebug", "IGNORING STALE detail (id=${detail.id}) for pricingId=$pricingId")
-                        return@LaunchedEffect   // ✅ stale state ah use பண்ணாம skip பண்ணுங்க
+                        return@LaunchedEffect
                     }
 
                     android.util.Log.d("PricingDebug", "PREFILL for pricingId=$pricingId -> detail.applicableGarmentId=${detail.applicableGarmentId}, basePrice=${detail.basePrice}")
@@ -184,7 +183,7 @@ fun AddGarmentPricingScreen(
 
     // ── Handle save / update action ──
     fun handleSave() {
-        // ✅ Reset field errors first
+        //   Reset field errors first
         showGarmentTypeError = false
         showBasePriceError = false
 
@@ -203,14 +202,14 @@ fun AddGarmentPricingScreen(
         }
 
         if (hasBasicError) {
-            errorMessage = "Please fill all required fields"   // ✅ trigger Dynamic Island too
+            errorMessage = "Please fill all required fields"   //   trigger Dynamic Island too
             showError = true
-            expandedSection = "basic_info"   // ✅ auto-open Basic Information
+            expandedSection = "basic_info"   //   auto-open Basic Information
             return
         }
 
         // Validate discount rules - ensure minQuantity is at least 1
-        // ✅ Discount rules are OPTIONAL — only validate rows the user actually added.
+        //   Discount rules are OPTIONAL — only validate rows the user actually added.
 // Rows left at "0" or otherwise incomplete are silently dropped, not blocked.
         val invalidRules = discountRules.filter {
             it.minQuantity.isNotBlank() && (it.minQuantity.toIntOrNull() ?: 0) < 1
@@ -332,13 +331,13 @@ fun AddGarmentPricingScreen(
                                         selectedGarmentCategoryId = garmentCategories
                                             .firstOrNull { it.categoryId.categoryName == selectedName }
                                             ?.id ?: ""
-                                        showGarmentTypeError = false   // ✅ clear error once user fixes it
+                                        showGarmentTypeError = false   //   clear error once user fixes it
                                     },
                                     isRequired = true,
                                     isError = showGarmentTypeError,
                                     errorMessage = "Please select a garment type"
                                 )
-                                // ✅ Edit mode: block all touches on the dropdown so it can't be changed
+                                //   Edit mode: block all touches on the dropdown so it can't be changed
                                 if (isEditMode) {
                                     Box(
                                         modifier = Modifier
@@ -356,7 +355,7 @@ fun AddGarmentPricingScreen(
                                 value = baseStitchingPrice,
                                 onValueChange = {
                                     baseStitchingPrice = it
-                                    showBasePriceError = false   // ✅ clear error once user types
+                                    showBasePriceError = false   //   clear error once user types
                                 },
                                 keyboardType = KeyboardType.Number,
                                 placeholder = "Standard stitching charge",
@@ -491,7 +490,7 @@ fun AddGarmentPricingScreen(
                                 OutlinedButton(
                                     onClick = {
                                         discountRules = discountRules + DiscountRuleRow(newId(), "0", "0")
-                                        showError = false   // ✅ clear once user adds a rule
+                                        showError = false   //   clear once user adds a rule
 
                                     },
                                     shape = RoundedCornerShape(8.dp),
@@ -664,7 +663,7 @@ private fun MiniNumberField(
 ) {
     Column(modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // ✅ Null-safe handling for label
+            //   Null-safe handling for label
             Text(
                 text = label ,
                 fontSize = 11.sp,

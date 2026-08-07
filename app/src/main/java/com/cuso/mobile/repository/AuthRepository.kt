@@ -277,23 +277,4 @@ class AuthRepository @Inject constructor(
             GoogleLoginResult.Failure("Network error: ${e.message}")
         }
     }
-
-
-
-
-//    // Login
-//    suspend fun login(email: String, password: String): Result<LoginResponse> {
-//        return try {
-//            val response = RetrofitClient.apiService.login(
-//                LoginRequest(email)
-//            )
-//            if (response.isSuccessful && response.body() != null) {
-//                Result.success(response.body()!!)
-//            } else {
-//                Result.failure(Exception("Invalid email or password"))
-//            }
-//        } catch (e: Exception) {
-//            Result.failure(Exception("Network error: ${e.message}"))
-//        }
-//    }
 }

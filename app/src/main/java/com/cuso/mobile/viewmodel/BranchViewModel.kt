@@ -1,9 +1,9 @@
 package com.cuso.mobile.viewmodel
 
-import CreateBranchRequest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.BranchItem
+import com.cuso.mobile.model.CreateBranchRequest
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.repository.SalesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel

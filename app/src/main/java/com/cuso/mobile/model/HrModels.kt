@@ -61,7 +61,7 @@ data class MemberItem(
     val branchId: MemberBranchRef? = null,
     val workingBranchId: String? = null,
     val departmentId: MemberDepartmentRef? = null,
-    val designationId: String? = null,           // ✅ FIXED — API returns a plain id string, not {_id, name}
+    val designationId: String? = null,           //   FIXED — API returns a plain id string, not {_id, name}
     val shiftId: String? = null,
     val firstName: String? = null,
     val lastName: String? = null,
@@ -81,7 +81,7 @@ data class MemberItem(
     val customRoleId: MemberCustomRoleRefList? = null
 )
 
-// ✅ NEW — matches the {_id, name} shape the list API actually returns for customRoleId
+//   NEW — matches the {_id, name} shape the list API actually returns for customRoleId
 data class MemberCustomRoleRefList(
     val _id: String? = null,
     val name: String? = null

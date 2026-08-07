@@ -54,7 +54,6 @@ import com.cuso.mobile.ui.theme.whiteBg
 fun OrganizationNotFoundScreen(navController: NavController) {
     val context = LocalContext.current
 
-    // Composable function top level la, existing `val context = LocalContext.current` kீழ add pannunga
     var isNavigating by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {

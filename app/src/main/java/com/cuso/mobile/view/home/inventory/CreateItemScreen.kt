@@ -64,8 +64,8 @@ import com.cuso.mobile.viewmodel.ItemSection
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
 import com.cuso.mobile.view.home.FormDropdown
-import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.ProfileViewModel
 
@@ -143,7 +143,7 @@ fun CreateItemScreen(
             else -> null
         }
 
-        currentErrorField = missingField?.first   // 👈 only updates here, nowhere else
+        currentErrorField = missingField?.first   //   only updates here, nowhere else
 
         if (missingField != null) {
             when (missingField.first) {

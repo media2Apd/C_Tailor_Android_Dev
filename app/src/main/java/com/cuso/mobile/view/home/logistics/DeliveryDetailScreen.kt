@@ -29,23 +29,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
 import com.cuso.mobile.view.home.inventory.AccordionSection
-import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
-import com.cuso.mobile.view.home.reusablecomposables.SheetValue
-import com.cuso.mobile.view.home.reusablecomposables.blurScrim
+import com.cuso.mobile.view.composable.SmoothBottomSheet
+import com.cuso.mobile.view.composable.SheetValue
+import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.view.home.sales.customer.OrderStatusStepper
 
 // ── Design tokens ──
@@ -452,7 +452,7 @@ fun DeliveryDetailScreen(
                             onValueChange = { searchQuery = it },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = TitleColor),
+                            textStyle = TextStyle(fontSize = 14.sp, color = TitleColor),
                             decorationBox = { inner ->
                                 if (searchQuery.isEmpty()) Text("Search Staff..", fontSize = 14.sp, color = MutedColor)
                                 inner()
@@ -550,7 +550,7 @@ fun DeliveryDetailScreen(
                                         "Nearest Route Match",
                                         fontSize = 11.sp,
                                         color = RecommendedColor,
-                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                                        fontStyle = FontStyle.Italic
                                     )
                                 }
                             }
@@ -574,7 +574,7 @@ fun DeliveryDetailScreen(
                             value = instructionNote,
                             onValueChange = { instructionNote = it },
                             modifier = Modifier.fillMaxWidth(),
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = TitleColor),
+                            textStyle = TextStyle(fontSize = 13.sp, color = TitleColor),
                             decorationBox = { inner ->
                                 if (instructionNote.isEmpty()) Text("Add an optional note...", fontSize = 13.sp, color = MutedColor)
                                 inner()
@@ -683,7 +683,7 @@ fun DeliveryDetailScreen(
                         value = statusNote,
                         onValueChange = { statusNote = it },
                         modifier = Modifier.fillMaxWidth(),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = TitleColor),
+                        textStyle = TextStyle(fontSize = 13.sp, color = TitleColor),
                         decorationBox = { inner ->
                             if (statusNote.isEmpty()) Text("Add an optional note...", fontSize = 13.sp, color = MutedColor)
                             inner()

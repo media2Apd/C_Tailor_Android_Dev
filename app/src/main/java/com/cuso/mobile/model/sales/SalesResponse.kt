@@ -48,7 +48,7 @@ data class SalesSummaryDto(
     @SerializedName("active")         val active:         Int,
     @SerializedName("inactive")       val inactive:       Int,
     @SerializedName("availableSlots") val availableSlots: Int?,
-    @SerializedName("categories")     val categories:     List<CategoryItem> = emptyList()  // ✅ added
+    @SerializedName("categories")     val categories:     List<CategoryItem> = emptyList()  //   added
 )
 
 data class CategoryItem(

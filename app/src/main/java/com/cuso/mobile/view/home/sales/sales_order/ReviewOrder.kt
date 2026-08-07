@@ -4,17 +4,19 @@
     "GrazieInspection",
     "AssignedValueIsNeverRead",
     "Unused_parameter", "VariableNeverRead", "SameParameterValue"
-
 )
 
 package com.cuso.mobile.view.home.sales.sales_order
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,7 +34,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -54,11 +58,11 @@ import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.pdfgenerator.OrderReceiptPdfGenerator
-import com.cuso.mobile.view.home.reusablecomposables.SheetValue
-import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
-import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
-import com.cuso.mobile.view.home.reusablecomposables.blurScrim
+import com.cuso.mobile.view.composable.SheetValue
+import com.cuso.mobile.view.composable.SmoothBottomSheet
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.viewmodel.AssignWorkersState
 import com.cuso.mobile.viewmodel.ConvertToInvoiceState
 import com.cuso.mobile.viewmodel.OrderOverviewState
@@ -71,13 +75,14 @@ import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
 
 // ─────────────────────────────────────────────────────────────────────────
 // THEME COLORS
 // ─────────────────────────────────────────────────────────────────────────
 private val TabActive = Color(0xFF4F46E5)
 private val TextPrimary = Color(0xFF111827)
-  private val mutedTextDark = Color(0xFF6B7280)
+private val mutedTextDark = Color(0xFF6B7280)
 private val SectionBg = Color(0xFFF9FAFB)
 private val BorderLight = Color(0xFFF0F0F0)
 private val StatusGreenBg = Color(0xFFDCFCE7)
@@ -156,9 +161,7 @@ data class PaymentInfo(
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN ROOT
 // ─────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────
-// SCREEN ROOT
-// ─────────────────────────────────────────────────────────────────────────
+@SuppressLint("UseOfNonLambdaOffsetOverload")
 @Composable
 fun OrderOverviewScreen(
     orderId: String,
@@ -193,159 +196,197 @@ fun OrderOverviewScreen(
     var selectedTab by remember { mutableStateOf("Overview") }
     val tabs = listOf("Overview", "Garments", "Assignments", "Payment")
 
-    // Live blur radius and scrim alpha state driven by SmoothBottomSheet
+    // Blur & Scrim States
     var assignSheetBlur by remember { mutableStateOf(0.dp) }
-    var assignSheetScrim by remember { mutableStateOf(0f) }
+    var assignSheetScrim by remember { mutableFloatStateOf(0f) }
 
-    // ⬅️ HOISTED — sheet-oda state ippo indha level-la irukku, so sheet-a
-    // blur Box-ku veliya vekka mudiyum
     var selectedGarmentForSheet by remember { mutableStateOf<GarmentDetail?>(null) }
     var assignSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     val isAssignSheetOpen = assignSheetState != SheetValue.Hidden
 
     fun closeAssignSheet() {
         assignSheetState = SheetValue.Hidden
-        assignSheetBlur = 0.dp     // ✅ explicit reset — cancel click ஆனாலும் blur odane pogum
+        assignSheetBlur = 0.dp
         assignSheetScrim = 0f
         selectedGarmentForSheet = null
     }
 
     Scaffold(
         containerColor = Color.Transparent,
-        topBar = {
-            Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(whiteBg)
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Order Details", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = TextPrimary,
-                        modifier = Modifier
-                            .size(22.dp)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) { onClose() }
-                    )
-                }
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    tabs.forEach { tab ->
-                        val isSelected = tab == selectedTab
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { selectedTab = tab }
-                                .padding(vertical = 10.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                tab,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) TabActive else mutedText
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .height(2.dp)
-                                    .fillMaxWidth(0.6f)
-                                    .background(if (isSelected) TabActive else Color.Transparent)
-                            )
-                        }
-                    }
-                }
-                HorizontalDivider(color = BorderLight)
-            }
-        },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-
-        ) { padding ->
-        // ⬅️ Outer Box — blur Box-um sheet-um இதுல siblings ah irukkanga
+        topBar = {
+            TitleBar("Order Details",onClose=onClose)
+        }
+    ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // ✅ Blur/scrim ONLY apply aagum indha inner Box-oda content-ku (background)
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blurScrim(assignSheetBlur)
-            ) {
-                when (val s = state) {
-                    is OrderOverviewState.Loading, OrderOverviewState.Idle -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CirculerProgressIndicatorReuse()
+            Column(modifier = Modifier.fillMaxSize()
+                .blurScrim(radius =assignSheetBlur )) {
+
+                // ── UNIFIED HEADER — NEVER blurred/tinted/covered ──
+                // Ensure these imports are added at the top:
+// import androidx.compose.animation.animateColorAsState
+// import androidx.compose.animation.core.animateFloatAsState
+// import androidx.compose.ui.draw.scale
+
+                Column(modifier = Modifier.background(whiteBg)) {
+                    // Get the index of the selected tab for horizontal indicator animation
+                    val selectedIndex = tabs.indexOf(selectedTab)
+
+                    // Animate the horizontal position of the indicator dash
+                    val indicatorOffset by animateFloatAsState(
+                        targetValue = selectedIndex.toFloat(),
+                        label = "TabIndicatorOffset"
+                    )
+
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        // Calculate the dynamic width of each tab based on screen size
+                        val tabWidth = maxWidth / tabs.size
+
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            tabs.forEach { tab ->
+                                val isSelected = tab == selectedTab
+
+                                // Smooth transition for text color
+                                val animatedTextColor by animateColorAsState(
+                                    targetValue = if (isSelected) TabActive else mutedText,
+                                    label = "TabTextColor"
+                                )
+
+                                // Smooth transition for scale (makes the active tab larger)
+                                val animatedScale by animateFloatAsState(
+                                    targetValue = if (isSelected) 1.15f else 1.0f,
+                                    label = "TabTextScale"
+                                )
+
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable(
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() }
+                                        ) { selectedTab = tab }
+                                        .padding(vertical = 12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = tab,
+                                        fontSize = 13.sp,
+                                        // FontWeight stays bold for active tab
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = animatedTextColor,
+                                        modifier = Modifier
+                                            .scale(animatedScale) // Apply the animated size increase
+                                            .padding(bottom = 4.dp)
+                                    )
+                                    // Spacer to ensure consistent height between states
+                                    Spacer(Modifier.height(4.dp))
+                                }
+                            }
                         }
+
+                        // Single animated sliding indicator dash
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .width(tabWidth * 0.5f) // Set width to 50% of the tab area
+                                .height(3.dp)
+                                // Slide the dash horizontally based on the animated index
+                                .offset(x = (tabWidth * indicatorOffset) + (tabWidth * 0.25f))
+                                .background(
+                                    color = TabActive,
+                                    shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
+                                )
+                        )
                     }
-                    is OrderOverviewState.Error -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Failed to load order", color = Color.Red, fontWeight = FontWeight.Bold)
-                                Text(s.message, color = Color.Gray, fontSize = 13.sp)
-                                Spacer(Modifier.height(12.dp))
-                                Button(onClick = { viewModel.fetchSalesOverview(orderId) }) {
-                                    Text("Retry")
+                    HorizontalDivider(color = BorderLight)
+                }
+
+                // ── CONTENT AREA — blur + bottom sheet CONFINED here only ──
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+
+                    // Tab content — this alone gets blurred
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blurScrim(assignSheetBlur)
+                            .graphicsLayer {
+                                alpha = 1f - (assignSheetScrim * 0.2f)
+                            }
+                    ) {
+                        when (val s = state) {
+                            is OrderOverviewState.Loading, OrderOverviewState.Idle -> {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    CirculerProgressIndicatorReuse()
+                                }
+                            }
+                            is OrderOverviewState.Error -> {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("Failed to load order", color = Color.Red, fontWeight = FontWeight.Bold)
+                                        Text(s.message, color = Color.Gray, fontSize = 13.sp)
+                                        Spacer(Modifier.height(12.dp))
+                                        Button(onClick = { viewModel.fetchSalesOverview(orderId) }) {
+                                            Text("Retry")
+                                        }
+                                    }
+                                }
+                            }
+                            is OrderOverviewState.Success -> {
+                                val garments: List<GarmentDetail> = remember(s.data) { extractGarments(s.data) }
+                                val payment: PaymentInfo = remember(s.data) { extractPayment(s.data) }
+
+                                when (selectedTab) {
+                                    "Overview" -> OverviewTab(s.data)
+                                    "Garments" -> GarmentsTab(
+                                        garments = garments,
+                                        onGoToAssignments = { selectedTab = "Assignments" }
+                                    )
+                                    "Assignments" -> AssignmentsTab(
+                                        garments = garments,
+                                        onAssignClick = { garment ->
+                                            selectedGarmentForSheet = garment
+                                            assignSheetState = SheetValue.Collapsed
+                                        }
+                                    )
+                                    "Payment" -> PaymentTab(
+                                        payment = payment,
+                                        context = context,
+                                        orderData = s.data,
+                                        viewModel = viewModel
+                                    )
                                 }
                             }
                         }
                     }
-                    is OrderOverviewState.Success -> {
-                        val garments: List<GarmentDetail> = remember(s.data) { extractGarments(s.data) }
-                        val payment: PaymentInfo = remember(s.data) { extractPayment(s.data) }
 
-                        when (selectedTab) {
-                            "Overview" -> OverviewTab(s.data)
-                            "Garments" -> GarmentsTab(
-                                garments = garments,
-                                onGoToAssignments = { selectedTab = "Assignments" }
+                    // ── FABs (moved inside content Box too, same behavior) ──
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = !isAssignSheetOpen,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        StepNavigationFab(
+                            showBack = true,
+                            onBack = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
+                            backEnabled = currentOrderData != null,
+                            backLabel = "Edit Order",
+                            backWidthFraction = 0.45f,
+                            trailingWidthFraction = 0.45f,
+                            trailingAction = TrailingFabAction.Next(
+                                label = "Create New",
+                                onClick = onCreateNew
                             )
-                            "Assignments" -> AssignmentsTab(
-                                garments = garments,
-                                onAssignClick = { garment ->
-                                    selectedGarmentForSheet = garment
-                                    assignSheetState = SheetValue.Expanded
-                                }
-                            )
-                            "Payment" -> PaymentTab(
-                                payment = payment,
-                                context = context,
-                                orderData = s.data,
-                                viewModel = viewModel
-                            )
-                        }
-                    }
-                }
-
-                // ⬅️ sheet open ஆன உடனே FAB buttons hide, close ஆன உடனே visible
-                AnimatedVisibility(
-                    visible = !isAssignSheetOpen,
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    StepNavigationFab(
-                        showBack = true,
-                        onBack = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
-                        backEnabled = currentOrderData != null,
-                        backLabel = "Edit Order",
-                        backWidthFraction = 0.45f,
-                        trailingWidthFraction = 0.45f,
-                        trailingAction = TrailingFabAction.Next(
-                            label = "Create New",
-                            onClick = onCreateNew
                         )
-                    )
+                    }
+
+                    // ── THE HALF-PAGE BOTTOM SHEET — now confined to content Box only ──
+
                 }
             }
-
-            // ✅ Sheet ippo blur Box-ku VELIYA — so blur adha touch pannadhu
             AssignTailorsSheet(
                 garment = selectedGarmentForSheet,
                 staffList = staffList,
@@ -355,11 +396,13 @@ fun OrderOverviewScreen(
                 sheetState = assignSheetState,
                 onStateChange = { assignSheetState = it },
                 onBlurScrimChange = { r, sc -> assignSheetBlur = r; assignSheetScrim = sc },
+                topInset = 0.dp,   // ✅ 0 here = "top of content Box" = right below header now
                 onDismiss = { closeAssignSheet() }
             )
         }
     }
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // EXTRACT HELPERS
@@ -612,13 +655,10 @@ private fun GarmentCard(garment: GarmentDetail) {
 // ─────────────────────────────────────────────────────────────────────────
 // ASSIGNMENTS TAB
 // ─────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────
-// ASSIGNMENTS TAB
-// ─────────────────────────────────────────────────────────────────────────
 @Composable
 private fun AssignmentsTab(
     garments: List<GarmentDetail>,
-    onAssignClick: (GarmentDetail) -> Unit   // ⬅️ sheet-oda state parent-la irukku, idhu vech trigger pannuvom
+    onAssignClick: (GarmentDetail) -> Unit
 ) {
     val hasAnyWorkerAssigned = garments.any { g ->
         g.assignment?.cuttingTailor != null ||
@@ -899,6 +939,7 @@ private fun AssignTailorsSheet(
     sheetState: SheetValue,
     onStateChange: (SheetValue) -> Unit,
     onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> },
+    topInset: Dp = 0.dp,
     onDismiss: () -> Unit
 ) {
     if (garment == null) return
@@ -930,179 +971,188 @@ private fun AssignTailorsSheet(
     SmoothBottomSheet(
         state = sheetState,
         onStateChange = onStateChange,
-        peekHeight = 640.dp,
+        collapsedFraction = 0.75f,   // ✅ container height-ன் 75% — screen size எதுவா இருந்தாலும் safe
+        topInset = topInset,
         onDismissRequest = onDismiss,
         onBlurScrimChange = onBlurScrimChange
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
+        // Added Surface to ensure the sheet has a solid background and doesn't look "see-through"
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = whiteBg,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
         ) {
-            Text(
-                "ASSIGN TAILORS",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                letterSpacing = 0.5.sp,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
-            Text(
-                "Manage workers for ${garment.type}.",
-                fontSize = 12.sp,
-                color = mutedText,
-                modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 16.dp),
-                textAlign = TextAlign.Center
-            )
-
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(SectionBg, RoundedCornerShape(10.dp))
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
-                Box(
+
+                Text(
+                    "ASSIGN TAILORS",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    letterSpacing = 0.5.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    "Manage workers for ${garment.type}.",
+                    fontSize = 12.sp,
+                    color = mutedText,
+                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 16.dp),
+                    textAlign = TextAlign.Center
+                )
+
+                Row(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(AvatarBg),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .background(SectionBg, RoundedCornerShape(10.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(garment.type.take(1), color = ChipPurpleText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(garment.type, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                    Text("Qty: ${garment.quantity}", fontSize = 12.sp, color = mutedText)
-                }
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        "TRIAL: ${if (garment.trialRequired) "YES" else "NO"}",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = mutedTextDark
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.ContentCut, contentDescription = null, tint = TabActive, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Production Assignment", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TabActive)
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            FormDropdown(
-                label = "Cutting Tailor",
-                value = selectedCutting?.let { "${it.firstName} ${it.lastName}" } ?: "Select an option",
-                expanded = cuttingExpanded,
-                onExpandChange = { cuttingExpanded = it },
-                options = staffNames,
-                onOptionSelected = { name -> staffNameToStaff[name]?.let { selectedCutting = it } }
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            FormDropdown(
-                label = "Stitching Tailor",
-                value = selectedStitching?.let { "${it.firstName} ${it.lastName}" } ?: "Select an option",
-                expanded = stitchingExpanded,
-                onExpandChange = { stitchingExpanded = it },
-                options = staffNames,
-                onOptionSelected = { name -> staffNameToStaff[name]?.let { selectedStitching = it } }
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            FormDropdown(
-                label = "Quality Inspector",
-                value = selectedQC?.let { "${it.firstName} ${it.lastName}" } ?: "Select an option",
-                expanded = qcExpanded,
-                onExpandChange = { qcExpanded = it },
-                options = staffNames,
-                onOptionSelected = { name -> staffNameToStaff[name]?.let { selectedQC = it } }
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Column(Modifier.weight(1f)) {
-                    FormDropdown(
-                        label = "Priority",
-                        value = priority,
-                        expanded = priorityExpanded,
-                        onExpandChange = { priorityExpanded = it },
-                        options = listOf("Low", "Medium", "High", "Urgent"),
-                        onOptionSelected = { priority = it }
-                    )
-                }
-                Column(Modifier.weight(1f)) {
-                    FormLabel("Completion Date")
-                    DatePickerField(
-                        value = completionDate,
-                        onDateSelected = { completionDate = it }
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                    enabled = !isAssigning
-                ) {
-                    Text("Cancel", color = TextPrimary, fontWeight = FontWeight.Medium)
-                }
-
-                Button(
-                    onClick = {
-                        if (selectedCutting != null && selectedStitching != null && selectedQC != null) {
-                            viewModel.assignWorkersToGarment(
-                                orderId = orderId,
-                                garmentItemId = garment.id,
-                                quantity = garment.quantity,
-                                cuttingStaffId = selectedCutting!!.id,
-                                stitchingStaffId = selectedStitching!!.id,
-                                qcStaffId = selectedQC!!.id
-                            )
-                            onDismiss()
-                        } else {
-                            Toast.makeText(context, "Please select all three workers", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = TabActive),
-                    enabled = !isAssigning
-                ) {
-                    if (isAssigning) {
-                        CirculerProgressIndicatorReuse()
-                    } else {
-                        Text("Assign Workers", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(AvatarBg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(garment.type.take(1), color = ChipPurpleText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(garment.type, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                        Text("Qty: ${garment.quantity}", fontSize = 12.sp, color = mutedText)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            "TRIAL: ${if (garment.trialRequired) "YES" else "NO"}",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = mutedTextDark
+                        )
                     }
                 }
-            }
 
-            Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(20.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.ContentCut, contentDescription = null, tint = TabActive, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Production Assignment", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TabActive)
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                FormDropdown(
+                    label = "Cutting Tailor",
+                    value = selectedCutting?.let { "${it.firstName} ${it.lastName}" } ?: "Select an option",
+                    expanded = cuttingExpanded,
+                    onExpandChange = { cuttingExpanded = it },
+                    options = staffNames,
+                    onOptionSelected = { name -> staffNameToStaff[name]?.let { selectedCutting = it } }
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                FormDropdown(
+                    label = "Stitching Tailor",
+                    value = selectedStitching?.let { "${it.firstName} ${it.lastName}" } ?: "Select an option",
+                    expanded = stitchingExpanded,
+                    onExpandChange = { stitchingExpanded = it },
+                    options = staffNames,
+                    onOptionSelected = { name -> staffNameToStaff[name]?.let { selectedStitching = it } }
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                FormDropdown(
+                    label = "Quality Inspector",
+                    value = selectedQC?.let { "${it.firstName} ${it.lastName}" } ?: "Select an option",
+                    expanded = qcExpanded,
+                    onExpandChange = { qcExpanded = it },
+                    options = staffNames,
+                    onOptionSelected = { name -> staffNameToStaff[name]?.let { selectedQC = it } }
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        FormDropdown(
+                            label = "Priority",
+                            value = priority,
+                            expanded = priorityExpanded,
+                            onExpandChange = { priorityExpanded = it },
+                            options = listOf("Low", "Medium", "High", "Urgent"),
+                            onOptionSelected = { priority = it }
+                        )
+                    }
+                    Column(Modifier.weight(1f)) {
+                        FormLabel("Completion Date")
+                        DatePickerField(
+                            value = completionDate,
+                            onDateSelected = { completionDate = it }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                        enabled = !isAssigning
+                    ) {
+                        Text("Cancel", color = TextPrimary, fontWeight = FontWeight.Medium)
+                    }
+
+                    Button(
+                        onClick = {
+                            if (selectedCutting != null && selectedStitching != null && selectedQC != null) {
+                                viewModel.assignWorkersToGarment(
+                                    orderId = orderId,
+                                    garmentItemId = garment.id,
+                                    quantity = garment.quantity,
+                                    cuttingStaffId = selectedCutting!!.id,
+                                    stitchingStaffId = selectedStitching!!.id,
+                                    qcStaffId = selectedQC!!.id
+                                )
+                                onDismiss()
+                            } else {
+                                Toast.makeText(context, "Please select all three workers", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = TabActive),
+                        enabled = !isAssigning
+                    ) {
+                        if (isAssigning) {
+                            CirculerProgressIndicatorReuse()
+                        } else {
+                            Text("Assign Workers", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp))
+            }
         }
     }
 }
@@ -1499,7 +1549,7 @@ private fun ReceivePaymentDialog(
                         },
                         enabled = !isSaving,
                         shape = RoundedCornerShape(10.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, TabActive)
+                        border = BorderStroke(1.dp, TabActive)
                     ) {
                         Text("Save ", color = TabActive, fontWeight = FontWeight.SemiBold)
                     }

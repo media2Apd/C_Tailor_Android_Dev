@@ -33,10 +33,10 @@ import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -70,7 +70,7 @@ fun LedgerScreen(
     accountId: String,
     accountName: String = "Ledger",
     onClose: () -> Unit = {},
-    onBreadcrumbClick: () -> Unit = {},   // ✅ NEW
+    onBreadcrumbClick: () -> Unit = {},   //   NEW
     financeViewModel: FinanceViewModel = hiltViewModel()
 ) {
     val items by financeViewModel.ledgerList.collectAsStateWithLifecycle()
@@ -157,7 +157,7 @@ fun LedgerScreen(
                             titleColor = TextPrimary,
                             titleFontSize = 15.sp,
                             subtitle = "${entry.journalNumber ?: "-"} • ${if (entry.credit > 0) "Credit" else "Debit"}",
-                            footerAsRows = true, // ✅ each field renders as a full-width SpaceBetween row, same as TrialBalanceScreen
+                            footerAsRows = true, //   each field renders as a full-width SpaceBetween row, same as TrialBalanceScreen
                             footerFields = listOf(
                                 DataCardField(
                                     label = "Date",

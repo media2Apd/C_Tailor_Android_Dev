@@ -82,9 +82,9 @@ import com.cuso.mobile.view.home.sales.sales_order.CreateOrderScreen
 import com.cuso.mobile.view.home.sales.sales_order.SalesOrderScreen
 import com.cuso.mobile.view.home.sales.sales_order.CreateOrderNextStep
 import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
-import com.cuso.mobile.view.home.reusablecomposables.FilterOption
-import com.cuso.mobile.view.home.reusablecomposables.FilterSection
-import com.cuso.mobile.view.home.reusablecomposables.FilterSectionType
+import com.cuso.mobile.view.composable.FilterOption
+import com.cuso.mobile.view.composable.FilterSection
+import com.cuso.mobile.view.composable.FilterSectionType
 import com.cuso.mobile.R
 import com.cuso.mobile.view.home.sidebar.ModulesPanel
 import com.cuso.mobile.view.home.sidebar.SidebarConfig
@@ -147,8 +147,8 @@ import com.cuso.mobile.view.home.logistics.DeliveryManagementScreen
 import com.cuso.mobile.view.home.logistics.OrderTrackingScreen
 import com.cuso.mobile.view.home.profile.ProfileSettingsScreen
 import com.cuso.mobile.view.home.reports.SalesOrderReportsScreen
-import com.cuso.mobile.view.home.reusablecomposables.DashboardSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.blurScrim
+import com.cuso.mobile.view.composable.DashboardSkeleton
+import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.view.home.sales.customer.CustomerDetailScreen
 import com.cuso.mobile.view.home.sales.ordermanagement.OrderManagementScreen
 import com.cuso.mobile.view.home.sales.pricing.PricingScreen
@@ -179,12 +179,15 @@ import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.view.home.logistics.TrackingOverviewScreen
 import kotlin.collections.isNotEmpty
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.ui.draw.scale
 
 // ── Design tokens (Primary color used everywhere for icons / accents) ──
 val LeadPrimary = Color(0xFF3B3BF9)
@@ -204,7 +207,7 @@ fun HomeScreen(navController: NavHostController) {
     val screenStack = remember { mutableStateListOf("home") }
     val currentScreen: String = screenStack.last()
 
-    // ✅ NEW — animation direction tracking (push vs pop)
+    //   NEW — animation direction tracking (push vs pop)
     var previousStackSize by remember { mutableIntStateOf(screenStack.size) }
     val isForwardNavigation = screenStack.size >= previousStackSize
     LaunchedEffect(screenStack.size) {
@@ -225,7 +228,7 @@ fun HomeScreen(navController: NavHostController) {
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
-    // ✅ NEW — Finance > Trial Balance > Ledger flow
+    //   NEW — Finance > Trial Balance > Ledger flow
     var selectedLedgerAccountId by remember { mutableStateOf<String?>(null) }
     var selectedLedgerAccountName by remember { mutableStateOf("Ledger") }
 
@@ -237,14 +240,14 @@ fun HomeScreen(navController: NavHostController) {
 
     var selectedManagementOrderId by remember { mutableStateOf<String?>(null) }
 
-    // ✅ NEW — Finance > Accounts Receivable > Sales Invoices flow
+    //   NEW — Finance > Accounts Receivable > Sales Invoices flow
     var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
 
-    // ✅ NEW — Inventory > Item Detail flow
+    //   NEW — Inventory > Item Detail flow
     var selectedInventoryItemId by remember { mutableStateOf<String?>(null) }
 
     var selectedLowStockItem by remember { mutableStateOf<LowStockItem?>(null) }
-    // ✅ NEW — HR > Employee Onboarding flow (Create / View / Edit)
+    //   NEW — HR > Employee Onboarding flow (Create / View / Edit)
     var employeeScreenMode by remember { mutableStateOf(com.cuso.mobile.view.home.hr.ScreenMode.CREATE) }
     var selectedEmployeeId by remember { mutableStateOf<String?>(null) }
 
@@ -265,10 +268,10 @@ fun HomeScreen(navController: NavHostController) {
 
     var selectedSupplier by remember { mutableStateOf<SupplierRow?>(null) }
 
-    // ✅ NEW — Services > Customer Feedback flow
+    //   NEW — Services > Customer Feedback flow
     var selectedFeedbackId by remember { mutableStateOf<String?>(null) }
 
-    // ✅ NEW — Inventory > Item Groups flow
+    //   NEW — Inventory > Item Groups flow
     var selectedItemGroupId by remember { mutableStateOf<String?>(null) }
 
     fun navigateTo(screen: String) {
@@ -354,7 +357,7 @@ fun HomeScreen(navController: NavHostController) {
 
     val showSalesPanel = isSalesSettingsMode
 
-    // ✅ NEW — System back button handling
+    //   NEW — System back button handling
     BackHandler(enabled = isDrawerOpen || showModulesPanel || screenStack.size > 1) {
         when {
             // Priority 1: close overlays first
@@ -651,7 +654,7 @@ fun HomeScreen(navController: NavHostController) {
                     .fillMaxSize()
                     .background(Color.Transparent)
                     .padding(innerPadding)
-                    .blurScrim(sidebarBlur)   // ✅ UPDATED: blurBehindSheet -> blurScrim
+                    .blurScrim(sidebarBlur)   //   UPDATED: blurBehindSheet -> blurScrim
             ) {
                 AnimatedContent(
                     targetState = currentScreen,
@@ -782,23 +785,7 @@ fun HomeScreen(navController: NavHostController) {
                         "edit_lead" -> EditLeadScreen(
                             onBack = { goBack() }
                         )
-                        "create_order" -> {
-                            CreateOrderScreen(
-                                initialData = pendingOrderReviewData,
-                                onBack = {
-                                    pendingOrderReviewData = null
-                                    goBack()
-                                },
-                                onCancel = {
-                                    pendingOrderReviewData = null
-                                    goBack()
-                                },
-                                onNextStep = { orderReviewData ->
-                                    pendingOrderReviewData = orderReviewData
-                                    navigateTo("create_order_review")
-                                }
-                            )
-                        }
+
                         "sales_sales_orders" -> SalesOrderScreen(
                             navController = navController,
                             onMenuClick = { isDrawerOpen = true },
@@ -819,6 +806,23 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+                        "create_order" -> {
+                            CreateOrderScreen(
+                                initialData = pendingOrderReviewData,
+                                onBack = {
+                                    pendingOrderReviewData = null
+                                    goBack()
+                                },
+                                onCancel = {
+                                    pendingOrderReviewData = null
+                                    goBack()
+                                },
+                                onNextStep = { orderReviewData ->
+                                    pendingOrderReviewData = orderReviewData
+                                    navigateTo("create_order_review")
+                                }
+                            )
+                        }
                         "order_overview" -> {
                             selectedOrderId?.let { id ->
                                 OrderOverviewScreen(
@@ -829,12 +833,10 @@ fun HomeScreen(navController: NavHostController) {
                                     },
                                     onEditOrder = { reviewData ->
                                         pendingOrderReviewData = reviewData
-                                        selectedOrderId = null
                                         navigateTo("create_order")
                                     },
                                     onCreateNew = {
                                         pendingOrderReviewData = null
-                                        selectedOrderId = null
                                         navigateTo("create_order")
                                     }
                                 )
@@ -1401,7 +1403,7 @@ fun HomeScreen(navController: NavHostController) {
             }
         }
 
-        // ✅ ModulesPanel remains the same
+        //   ModulesPanel remains the same
         ModulesPanel(
             isOpen = showModulesPanel,
             onClose = { showModulesPanel = false },
@@ -1426,6 +1428,31 @@ fun HomeScreen(navController: NavHostController) {
 
                     "inventory_items"
                 )
+//                val implementedRoutes = setOf(
+//                    // Sales
+//                    "sales_lead", "sales_customers", "sales_measurements", "sales_sales_orders",
+//                    "sales_orders", "sales_pricing_overview", "sales_pricing_quotation",
+//
+//                    // Finance
+//                    "finance_sales_invoices", "finance_customers", "finance_payments_received",
+//                    "finance_suppliers", "finance_expenses", "finance_chart_of_accounts",
+//                    "finance_journal_screen", "finance_trial_balance",
+//
+//                    // Inventory
+//                    "inventory_items", "inventory_item_groups", "inventory_low_stock_alerts",
+//
+//                    // Logistics
+//                    "logistics_delivery", "logistics_order_tracking",
+//
+//                    // Services
+//                    "services_customer_feedback", "services_alteration_management", "services_service_request",
+//
+//                    // HR
+//                    "hr_all_employees",
+//
+//                    // Reports
+//                    "reports_sales_reports"
+//                )
 
                 isSalesSettingsMode = false
                 showModulesPanel = false
@@ -1433,7 +1460,7 @@ fun HomeScreen(navController: NavHostController) {
                 if (navKey in implementedRoutes) {
                     navigateTo(navKey)
                 } else {
-                    comingSoonMessage = "Coming Soon"
+                    comingSoonMessage = "Coming Soon, Stay tuned !"
                 }
             }
         )
@@ -1770,25 +1797,19 @@ fun BottomBar(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // 1. Precise Top Shadow
-//                    .shadow(
-//                        elevation = 10.dp,
-//                        shape = bottomBarShape,
-//                        clip = false
-//                    )
-                    // 2. Strict Top Corner Clip
+                    .shadow(
+                        elevation = 12.dp,          // 80dp -> 12dp, romba diffuse aagama sharp ah theriyum
+                        shape = bottomBarShape,
+                        clip = false,
+                        ambientColor = Color.Black.copy(alpha = 0.45f),
+                        spotColor = Color.Black.copy(alpha = 0.55f)
+                    )
+
                     .clip(bottomBarShape),
-                    // 3. Subtle Top Border
-//                    .border(
-//                        width = 1.dp,
-//                        color = Color(0xFFE5E7EB),
-//                        shape = bottomBarShape
-//                    ),
-//                shape = bottomBarShape,
                 color = whiteBg,
+                shape = bottomBarShape,
                 tonalElevation = 0.dp
             ) {
-                // Window insets applied inside the Surface row for proper edge-to-edge padding
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1798,43 +1819,56 @@ fun BottomBar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    BottomNavItem(
-                        icon = R.drawable.home,
-                        label = "Home",
-                        isSelected = currentScreen == "home",
-                        selectedColor = Color(0xFF6C4FF6),
-                        onClick = { onMenuItemClick("home") }
-                    )
+                    // ✅ Left half — Home + Orders, evenly spaced within its own weight
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BottomNavItem(
+                            icon = R.drawable.home,
+                            label = "Home",
+                            isSelected = currentScreen == "home",
+                            selectedColor = Color(0xFF6C4FF6),
+                            onClick = { onMenuItemClick("home") }
+                        )
 
-                    BottomNavItem(
-                        icon = R.drawable.orders,
-                        label = "Orders",
-                        isSelected = currentScreen == "sales_sales_orders",
-                        selectedColor = Color(0xFF6C4FF6),
-                        onClick = { onMenuItemClick("sales_sales_orders") }
-                    )
+                        BottomNavItem(
+                            icon = R.drawable.orders,
+                            label = "Orders",
+                            isSelected = currentScreen == "sales_sales_orders",
+                            selectedColor = Color(0xFF6C4FF6),
+                            onClick = { onMenuItemClick("sales_sales_orders") }
+                        )
+                    }
 
-                    Spacer(modifier = Modifier.width(56.dp))
+                    Spacer(modifier = Modifier.width(64.dp))
 
-                    BottomNavItem(
-                        icon = R.drawable.reports,
-                        label = "Reports",
-                        isSelected = currentScreen == "reports",
-                        selectedColor = Color(0xFF6C4FF6),
-                        onClick = { onMenuItemClick("reports") }
-                    )
 
-                    // Modules Tab - Click properly opens the Modules Bottom Sheet
-                    BottomNavItem(
-                        icon = R.drawable.modules,
-                        label = "Modules",
-                        isSelected = currentScreen == "modules",
-                        selectedColor = Color(0xFF6C4FF6),
-                        onClick = {
-                            Log.d("BOTTOM_BAR", "Modules button clicked")
-                            onModulesClick()
-                        }
-                    )
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BottomNavItem(
+                            icon = R.drawable.reports,
+                            label = "Reports",
+                            isSelected = currentScreen == "reports_sales_reports",
+                            selectedColor = Color(0xFF6C4FF6),
+                            onClick = { onMenuItemClick("reports") }
+                        )
+
+                        BottomNavItem(
+                            icon = R.drawable.modules,
+                            label = "Modules",
+                            isSelected = currentScreen == "modules",
+                            selectedColor = Color(0xFF6C4FF6),
+                            onClick = {
+                                Log.d("BOTTOM_BAR", "Modules button clicked")
+                                onModulesClick()
+                            }
+                        )
+                    }
                 }
             }
 
@@ -1863,6 +1897,12 @@ fun BottomBar(
     }
 }
 
+// Ensure these are imported at the top of your file
+// import androidx.compose.animation.animateColorAsState
+// import androidx.compose.animation.core.animateFloatAsState
+// import androidx.compose.animation.core.tween
+// import androidx.compose.ui.draw.scale
+
 @Composable
 fun BottomNavItem(
     icon: Int,
@@ -1871,30 +1911,50 @@ fun BottomNavItem(
     selectedColor: Color = Color(0xFF6C4FF6),
     onClick: () -> Unit
 ) {
-    val color = if (isSelected) selectedColor else Color(0xFF9CA3AF)
+    // 1. Animate the color transition smoothly (300ms duration)
+    val animatedColor by animateColorAsState(
+        targetValue = if (isSelected) selectedColor else Color(0xFF9CA3AF),
+        animationSpec = tween(durationMillis = 300),
+        label = "BottomNavItemColor"
+    )
+
+    // 2. Optional: Animate scale to make the selected item slightly larger
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isSelected) 1.12f else 1.0f,
+        animationSpec = tween(durationMillis = 300),
+        label = "BottomNavItemScale"
+    )
+
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .clickable(
+                indication = null, // Removed default ripple to keep the focus on the animation
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .scale(animatedScale), // Apply the animated scale
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
             painter = painterResource(id = icon),
             contentDescription = label,
-            colorFilter = ColorFilter.tint(color),
+            // Use the animatedColor for the icon tint
+            colorFilter = ColorFilter.tint(animatedColor),
             modifier = Modifier.size(26.dp)
         )
+
         Spacer(modifier = Modifier.height(4.dp))
+
         Text(
             text = label,
-            color = color,
+            // Use the animatedColor for the text
+            color = animatedColor,
             fontSize = 11.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
 }
-
 // ─────────────────────────────────────────────────────────────
 // UI-side data models (built FROM api)
 // ─────────────────────────────────────────────────────────────
@@ -1917,7 +1977,6 @@ private data class QuickModule(
 
 
 // ── Data model ──
-// ── Data model ──
 data class ActivityCardItem(
     val icon: Painter,
     val iconBg: Color,
@@ -1934,19 +1993,6 @@ private data class RecentCustomer(
     val avatarColor: Color
 )
 
-//private fun mapActiveOrdersToActivity(orders: List<ActiveOrderItem>): List<ActivityItem> {
-//    return orders.take(4).map { order ->
-//        val statusLabel = order.status.replaceFirstChar { it.uppercase() }
-//        ActivityItem(
-//            icon = Icons.Default.ShoppingCart,
-//            iconBg = Color(0xFFDCFCE7),
-//            iconTint = Color(0xFF16A34A),
-//            title = "${order.customer} — Order ${order.orderNumber} ($statusLabel)",
-//            timeAgo = "",
-//            amount = if (order.amount > 0) "₹${formatIndianNumber(order.amount.toInt())}" else null
-//        )
-//    }
-//}
 
 private val CustomerAvatarPalette = listOf(
     Color(0xFFF59E0B), Color(0xFF3B82F6), Color(0xFFEC4899), Color(0xFF10B981), Color(0xFF6366F1)
@@ -2037,7 +2083,6 @@ private fun HomeScreenContentBody(
         is DashboardUiState.Success -> {
             val data = state.data
             val stats = remember(data) { mapApiStatsToUi(data.stats) }
-//            val activities = remember(data) { mapActiveOrdersToActivity(data.activeOrders) }
             val customers = remember(data) { mapOperationsToCustomers(data.operations) }
             val newLeadsCount = remember(data) {
                 data.leadChart.find { it.name.equals("New Enquiry", ignoreCase = true) }?.count ?: 0
@@ -2064,12 +2109,10 @@ private fun HomeScreenContentBody(
                         onNavigate = onNavigate
                     )
                 }
-//                if (activities.isNotEmpty()) {
-                    item {
-                        RecentActivitySection(onNavigate = onNavigate)
+                item {
+                    RecentActivitySection(onNavigate = onNavigate)
 
-                    }
-//                }
+                }
                 if (customers.isNotEmpty()) {
                     item {
                         RecentCustomersSection(
@@ -2299,98 +2342,7 @@ private fun mapApiStatsToUi(stats: List<DashboardStatDto>): List<DashboardStat> 
         DashboardStat(shortStatLabel(stat.title), valueText, icon, iconBg, iconTint, trendText, trendUp)
     }
 }
-//
-//// ── Recent Activity — driven by API `activeOrders` ──
-//@Composable
-//private fun RecentActivitySection(
-//    activities: List<ActivityItem>,
-//    onNavigate: (String) -> Unit
-//) {
-//    Column {
-//        Row(
-//            modifier = Modifier.fillMaxWidth()
-//            ,
-//            horizontalArrangement = Arrangement.SpaceBetween,
-//            verticalAlignment = Alignment.CenterVertically
-//        ) {
-//            Text("Recent Activity", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-//            Row(Modifier.fillMaxWidth()
-//                .clickable(
-//                    indication = null,
-//                    interactionSource = remember { MutableInteractionSource() }
-//                ) { onNavigate("sales_sales_orders") },
-//                horizontalArrangement = Arrangement.End) {
-//                Text(
-//                    "View All",
-//                    fontSize = 13.sp,
-//                    color = Color(0xFF7C3AED),
-//                    fontWeight = FontWeight.SemiBold,
-//                    modifier = Modifier
-//
-//                )
-//                Icon(imageVector = Icons.Default.ChevronRight, "right")
-//            }
-//        }
-//        Spacer(Modifier.height(12.dp))
-//
-//        Column(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .background(modelBg, RoundedCornerShape(14.dp))
-//                .border(1.dp, modelBorder,RoundedCornerShape((14.dp)))
-//        ) {
-//            activities.forEachIndexed { index, activity ->
-//                Row(
-//                    modifier = Modifier
-//                        .fillMaxWidth()
-//                        .clickable(
-//                            indication = null,
-//                            interactionSource = remember { MutableInteractionSource() }
-//                        ) { onNavigate("sales_sales_orders") }
-//                        .padding(14.dp),
-//                    verticalAlignment = Alignment.CenterVertically
-//                ) {
-//                    Box(
-//                        modifier = Modifier
-//                            .size(38.dp)
-//                            .clip(RoundedCornerShape(12.dp))
-//                            .background(activity.iconBg),
-//                        contentAlignment = Alignment.Center
-//                    ) {
-//                        Icon(activity.icon, contentDescription = null, tint = activity.iconTint, modifier = Modifier.size(18.dp))
-//                    }
-//                    Spacer(Modifier.width(12.dp))
-//                    Column(modifier = Modifier.weight(1f)) {
-//                        Text(
-//                            activity.title,
-//                            fontSize = 13.sp,
-//                            color = Color(0xFF111827),
-//                            fontWeight = FontWeight.Medium,
-//                            maxLines = 2,
-//                            overflow = TextOverflow.Ellipsis
-//                        )
-//                        if (activity.timeAgo.isNotBlank()) {
-//                            Spacer(Modifier.height(4.dp))
-//                            Text(activity.timeAgo, fontSize = 11.sp, color = Color(0xFF9CA3AF))
-//                        }
-//                    }
-//                    if (activity.amount != null) {
-//                        Spacer(Modifier.width(8.dp))
-//                        Text(activity.amount, fontSize = 13.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Bold)
-//                    }
-//                }
-//
-//                if (index != activities.lastIndex) {
-//                    HorizontalDivider(
-//                        modifier = Modifier.padding(start = 14.dp, end = 14.dp),
-//                        thickness = 1.dp,
-//                        color = modelBorder
-//                    )
-//                }
-//            }
-//        }
-//    }
-//}
+
 
 // ── Recent Activity ──
 @Composable
@@ -3097,33 +3049,19 @@ fun FormDateField(value: String, onClick: () -> Unit) {
             .height(40.dp)
             .background(whiteBg, RoundedCornerShape(8.dp))
             .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-            .clickable { onClick() }
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        BasicTextField(
-            value = value,
-            onValueChange = {},
-            readOnly = true,
-            singleLine = true,
-            textStyle = TextStyle(
-                fontSize = 14.sp,
-                color = Color(0xFF374151)
-            ),
-            modifier = Modifier.weight(1f),
-            decorationBox = { innerTextField ->
-                Box(contentAlignment = Alignment.CenterStart) {
-                    if (value.isEmpty()) {
-                        Text(
-                            text = "dd-mm-yyyy",
-                            fontSize = 14.sp,
-                            color = Color(0xFF9CA3AF)
-                        )
-                    }
-                    innerTextField()
-                }
-            }
+        Text(
+            text = value.ifEmpty { "dd-mm-yyyy" },   //  placeholder shown when no date picked
+            fontSize = 14.sp,
+            color = if (value.isEmpty()) Color(0xFF9CA3AF) else Color(0xFF374151),
+            modifier = Modifier.weight(1f)
         )
         Icon(
             Icons.Default.CalendarMonth,

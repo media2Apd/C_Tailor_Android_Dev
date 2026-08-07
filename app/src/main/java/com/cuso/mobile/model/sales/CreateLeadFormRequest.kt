@@ -11,12 +11,12 @@ data class CreateLeadFormRequest(
     val enquiryType: String,
     val estimatedQuantity: Int,
     val budgetRange: BudgetRange,
-    @SerializedName("garmentCategory")   // ✅ backend expects "garmentCategory", not "garments"
+    @SerializedName("garmentCategory")   //   backend expects "garmentCategory", not "garments"
     val garments: List<String>,
     val enquiryDate: String,
     val requiredDate: String,
     val source: String,
-    val leadOwner: String = "",   // ✅ NEW — staff ID, same convention as appointment.assignedStaff
+    val leadOwner: String = "",   //   NEW — staff ID, same convention as appointment.assignedStaff
     val person: LeadPerson,
     val contact: LeadContact,
     val appointment: LeadAppointment,
@@ -34,16 +34,16 @@ data class LeadPerson(
     val name: String,
     val phone: String,
     val email: String,
-    val gender: String,      // ✅ Make sure this is included
-    val dob: String          // ✅ Make sure this is included
+    val gender: String,      //   Make sure this is included
+    val dob: String          //   Make sure this is included
 )
 
 
 data class LeadContact(
-    val address: String,     // ✅ Make sure this is included
-    val area: String,        // ✅ Make sure this is included
-    val city: String,        // ✅ Make sure this is included
-    val preferredContactMethod: String  // ✅ Make sure this is included
+    val address: String,     //   Make sure this is included
+    val area: String,        //   Make sure this is included
+    val city: String,        //   Make sure this is included
+    val preferredContactMethod: String  //   Make sure this is included
 )
 
 data class LeadAppointment(
@@ -72,5 +72,5 @@ data class LeadData(
     val status: Any?, // Can be String or StatusObject
     val createdAt: String?,
     val garmentCategory: List<Any>? = null, // Can be String or Object
-    val occasion: String? = null  // ✅ ADD THIS
+    val occasion: String? = null  //   ADD THIS
 )

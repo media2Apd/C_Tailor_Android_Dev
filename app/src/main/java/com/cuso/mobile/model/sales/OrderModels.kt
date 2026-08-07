@@ -17,7 +17,7 @@ data class OrderApiResponse(
     @SerializedName("customerId")
     val customerId: CustomerApiResponse?,
     @SerializedName("garments")
-    val garments: List<GarmentApiResponse>? = null,   // ✅ create response omits this
+    val garments: List<GarmentApiResponse>? = null,   //   create response omits this
     @SerializedName("totalAmount")
     val totalAmount: Double? = null,
     @SerializedName("totalPaid")
@@ -150,37 +150,37 @@ data class Garment(
 //    val notes: String? = null
 //)
 
-data class CreateGarmentRequest(
-    @SerializedName("category")
-    val category: String,
-    @SerializedName("models")
-    val models: List<String>,
-    @SerializedName("quantity")
-    val quantity: Int,
-    @SerializedName("price")
-    val price: Double,
-    @SerializedName("total")
-    val total: Double
-)
+//data class CreateGarmentRequest(
+//    @SerializedName("category")
+//    val category: String,
+//    @SerializedName("models")
+//    val models: List<String>,
+//    @SerializedName("quantity")
+//    val quantity: Int,
+//    @SerializedName("price")
+//    val price: Double,
+//    @SerializedName("total")
+//    val total: Double
+//)
 
-data class UpdateOrderRequest(
-    @SerializedName("customerId")
-    val customerId: String? = null,
-    @SerializedName("garments")
-    val garments: List<CreateGarmentRequest>? = null,
-    @SerializedName("totalAmount")
-    val totalAmount: Int? = null,
-    @SerializedName("totalPaid")
-    val totalPaid: Int? = null,
-    @SerializedName("deliveryDate")
-    val deliveryDate: String? = null,
-    @SerializedName("status")
-    val status: String? = null,
-    @SerializedName("source")
-    val source: String? = null,
-    @SerializedName("notes")
-    val notes: String? = null
-)
+//data class UpdateOrderRequest(
+//    @SerializedName("customerId")
+//    val customerId: String? = null,
+//    @SerializedName("garments")
+//    val garments: List<CreateGarmentRequest>? = null,
+//    @SerializedName("totalAmount")
+//    val totalAmount: Int? = null,
+//    @SerializedName("totalPaid")
+//    val totalPaid: Int? = null,
+//    @SerializedName("deliveryDate")
+//    val deliveryDate: String? = null,
+//    @SerializedName("status")
+//    val status: String? = null,
+//    @SerializedName("source")
+//    val source: String? = null,
+//    @SerializedName("notes")
+//    val notes: String? = null
+//)
 
 // ─────────────────────────────────────────────────────────────
 // Mappers
@@ -190,7 +190,7 @@ fun OrderApiResponse.toOrderItem() = OrderItem(
     id            = id,
     orderNumber   = orderNumber,
     customerId    = customerId?.toCustomer(),
-    garments      = garments.orEmpty().map { it.toGarment() },   // ✅ safe even if null
+    garments      = garments.orEmpty().map { it.toGarment() },   //   safe even if null
     totalAmount   = totalAmount?.toInt(),
     totalPaid     = totalPaid,
     balanceAmount = balanceAmount,
@@ -239,19 +239,19 @@ private fun String.toEpochMillis(): Long? {
 
 data class CreateOrderRequest(
     @SerializedName("customer")
-    val customer: CustomerRequest,              // ✅ object, not customerId string
+    val customer: CustomerRequest,              //   object, not customerId string
     @SerializedName("branch")
-    val branch: String,                          // ✅ was missing entirely
+    val branch: String,                          //   was missing entirely
     @SerializedName("wearerType")
     val wearerType: String? = null,
     @SerializedName("source")
     val source: String? = null,
     @SerializedName("orderType")
-    val orderType: String? = null,                // ✅ was missing entirely
+    val orderType: String? = null,                //   was missing entirely
     @SerializedName("garments")
     val garments: List<CreateGarmentRequestForCreateOrder>,
     @SerializedName("paymentDetails")
-    val paymentDetails: PaymentDetailsRequest,    // ✅ nested object, not flat fields
+    val paymentDetails: PaymentDetailsRequest,    //   nested object, not flat fields
     @SerializedName("orderDate")
     val orderDate: String,
     @SerializedName("trialDate")
@@ -281,7 +281,7 @@ data class CreateGarmentRequestForCreateOrder(
     @SerializedName("categoryName")
     val categoryName: String? = null,
     @SerializedName("models")
-    val models: List<GarmentModelRequest> = emptyList(),   // ✅ objects, not plain strings
+    val models: List<GarmentModelRequest> = emptyList(),   //   objects, not plain strings
     @SerializedName("measurements")
     val measurements: Map<String, MeasurementValueRequest>? = null,
     @SerializedName("quantity")

@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.model.finance.JournalEntryLineRequest
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
@@ -49,16 +50,17 @@ import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
-import com.cuso.mobile.view.home.reusablecomposables.BackFabButton
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabButton
+import com.cuso.mobile.view.composable.BackFabButton
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.PlanLimitDialog
+import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.view.composable.TrailingFabButton
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.viewmodel.BranchUiState
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.CreateJournalState
 import com.cuso.mobile.viewmodel.FinanceViewModel
+import com.cuso.mobile.viewmodel.UpdateJournalState
 
 private val BorderGray = Color(0xFFE8E8ED)
 private val TextSecondary = Color(0xFF9A9AA8)
@@ -145,7 +147,7 @@ fun JournalEntryFormScreen(
 
     var date by remember {
         mutableStateOf(
-            // ✅ default to today's date in create mode; view/edit modes
+            //   default to today's date in create mode; view/edit modes
             // overwrite this from journalDetail in the LaunchedEffect below
             if (mode == "create")
                 java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault()).format(java.util.Date())
@@ -169,8 +171,8 @@ fun JournalEntryFormScreen(
 
     var journalRef by remember { mutableStateOf("") }
 
-// ✅ NEW — Documentation & Receipts upload state
-    // ✅ NEW — Documentation & Receipts upload state
+//   NEW — Documentation & Receipts upload state
+    //   NEW — Documentation & Receipts upload state
     var uploadedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
     val documentPickerLauncher = rememberLauncherForActivityResult(
@@ -181,7 +183,7 @@ fun JournalEntryFormScreen(
         }
     }
 
-// ✅ NEW — Plan gating for document upload
+//   NEW — Plan gating for document upload
     var showPlanLimitDialog by remember { mutableStateOf(false) }
 
 // TODO: replace this with the real plan coming from your org/session state
@@ -195,11 +197,11 @@ fun JournalEntryFormScreen(
     val isBalanced = remember(totalDebit, totalCredit) {
         kotlin.math.abs(totalDebit - totalCredit) < 0.001
     }
-    // ✅ NEW — every line must have an Account selected before posting
+    //   NEW — every line must have an Account selected before posting
     val allLinesHaveAccount = remember(lines) {
         lines.isNotEmpty() && lines.all { it.account.isNotBlank() }
     }
-    // ✅ NEW — button should stay disabled if totals are zero (nothing entered),
+    //   NEW — button should stay disabled if totals are zero (nothing entered),
     // debit/credit aren't balanced, or any line is missing an Account selection
     val canPost = remember(totalDebit, totalCredit, isBalanced, allLinesHaveAccount) {
         isBalanced && (totalDebit > 0.0 || totalCredit > 0.0) && allLinesHaveAccount
@@ -213,10 +215,10 @@ fun JournalEntryFormScreen(
         }
     }
 
-    // ✅ NEW — mirrors createJournalState handling above, but for edit/update
+    //   NEW — mirrors createJournalState handling above, but for edit/update
     val updateJournalState by financeViewModel.updateJournalState.collectAsStateWithLifecycle()
     LaunchedEffect(updateJournalState) {
-        if (updateJournalState is com.cuso.mobile.viewmodel.UpdateJournalState.Success) {
+        if (updateJournalState is UpdateJournalState.Success) {
             financeViewModel.resetUpdateJournalState()
             onSaved()
         }
@@ -307,15 +309,7 @@ fun JournalEntryFormScreen(
 
         val readyToShowForm = !isPrefillMode || (journalDetail != null && !isLoadingDetail)
 
-        // ✅ FIX — SCROLL BUG.
-        // Before: this Column(weight(1f).verticalScroll(...)) was closed right after
-        // just the "Expense Details" header Row, so the scroll modifier only ever
-        // wrapped that single collapsible header. All the real content below it —
-        // the field block, journal lines, Notes, Documentation & Receipts, and the
-        // Balance Summary — lived in their own separate Column()s *outside* this
-        // scrollable container, so none of that content could scroll at all.
-        //
-        // After: everything that should scroll together now lives inside this one
+        //  everything that should scroll together now lives inside this one
         // Column. Only the top title bar and the bottom Cancel/Post footer stay
         // outside, so they remain fixed while the body scrolls.
         if (readyToShowForm) {
@@ -399,13 +393,7 @@ fun JournalEntryFormScreen(
                         Spacer(Modifier.height(14.dp))
 
                         FormLabel("End Date")
-                        // ✅ FIX — DATE NOT RESPECTING VIEW MODE.
-                        // Before: only the onDateSelected callback was guarded with
-                        // `if (!isReadOnly)`, but the field itself was never told it
-                        // was disabled, so tapping it in View mode still opened the
-                        // calendar picker dialog (it just silently ignored the pick
-                        // afterwards — confusing since the field still looked editable).
-                        // After: pass `enabled = !isReadOnly` straight into DatePickerField
+                        //  pass `enabled = !isReadOnly` straight into DatePickerField
                         // so the field itself is visually + functionally disabled in
                         // View mode and the picker can't even be opened.
                         //
@@ -416,7 +404,7 @@ fun JournalEntryFormScreen(
                         // opens the dialog behind `enabled`.
                         DatePickerField(
                             value = date,
-                            enabled = !isReadOnly,   // ✅ NEW
+                            enabled = !isReadOnly,   //   NEW
                             onDateSelected = { if (!isReadOnly) date = it }
                         )
                         Spacer(Modifier.height(14.dp))
@@ -523,7 +511,7 @@ fun JournalEntryFormScreen(
                         }
                     }
 
-                    // ✅ NEW — show selected files with a remove option
+                    //   NEW — show selected files with a remove option
                     if (uploadedFiles.isNotEmpty()) {
                         Spacer(Modifier.height(10.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -681,10 +669,10 @@ fun JournalEntryFormScreen(
             if (!isReadOnly) {   // hide Post/Update button entirely in view mode
                 TrailingFabButton(
                     action = TrailingFabAction.Update(
-                        // ✅ CHANGED — loading now reflects whichever operation is in flight
+                        //   CHANGED — loading now reflects whichever operation is in flight
                         isLoading = createJournalState is CreateJournalState.Loading ||
-                                updateJournalState is com.cuso.mobile.viewmodel.UpdateJournalState.Loading,
-                        enabled = canPost,   // ✅ NEW — disabled until debit/credit are entered and balanced
+                                updateJournalState is UpdateJournalState.Loading,
+                        enabled = canPost,   //   NEW — disabled until debit/credit are entered and balanced
                         label = if (mode == "edit") "Update Journal" else "Post Journal",
                         onClick = {
                             if (canPost) {
@@ -692,7 +680,7 @@ fun JournalEntryFormScreen(
                                     val matchedAccount = accounts.find { "${it.accountCode} - ${it.accountName}" == line.account }
                                     val accountId = matchedAccount?._id
                                     if (accountId.isNullOrBlank()) return@mapNotNull null
-                                    com.cuso.mobile.model.finance.JournalEntryLineRequest(
+                                    JournalEntryLineRequest(
                                         accountId = accountId,
                                         debit = line.debit.toDoubleOrNull() ?: 0.0,
                                         credit = line.credit.toDoubleOrNull() ?: 0.0,
@@ -700,7 +688,7 @@ fun JournalEntryFormScreen(
                                     )
                                 }
                                 if (mode == "edit" && entryId != null) {
-                                    // ✅ CHANGED — was a TODO, now wired to the real update API
+
                                     financeViewModel.updateJournal(
                                         id = entryId,
                                         branchId = selectedBranchId,
@@ -727,10 +715,10 @@ fun JournalEntryFormScreen(
             }
 
 
-            // ✅ NEW — surfaces update-specific errors the same way create errors are shown
-            if (updateJournalState is com.cuso.mobile.viewmodel.UpdateJournalState.Error) {
+            //   NEW — surfaces update-specific errors the same way create errors are shown
+            if (updateJournalState is UpdateJournalState.Error) {
                 Text(
-                    (updateJournalState as com.cuso.mobile.viewmodel.UpdateJournalState.Error).message,
+                    (updateJournalState as UpdateJournalState.Error).message,
                     color = RedText,
                     fontSize = 12.sp
                 )
@@ -738,7 +726,7 @@ fun JournalEntryFormScreen(
         }
     }
 
-    // ✅ NEW — Plan limit dialog for document upload
+    //   NEW — Plan limit dialog for document upload
     if (showPlanLimitDialog) {
         PlanLimitDialog(
             title = "Feature restricted",

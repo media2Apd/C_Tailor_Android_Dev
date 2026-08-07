@@ -175,7 +175,7 @@ class InventoryRepository @Inject constructor(
                 inputStream?.close()
                 bytes?.let {
                     val requestBody = it.toRequestBody("image/*".toMediaTypeOrNull())
-                    okhttp3.MultipartBody.Part.createFormData("images", "item_image.jpg", requestBody)  // ✅ CHANGED: "image" → "images"
+                    okhttp3.MultipartBody.Part.createFormData("images", "item_image.jpg", requestBody)  //   CHANGED: "image" → "images"
                 }
             }
 

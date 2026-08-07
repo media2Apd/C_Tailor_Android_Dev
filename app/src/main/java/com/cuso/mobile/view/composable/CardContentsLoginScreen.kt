@@ -328,7 +328,7 @@ fun CardContentsLoginScreen(navController: NavController,
                             )
                         }
                         Spacer(modifier = Modifier.weight(1f))
-                        // ✅ Carry the typed email along so Forgot Password can
+                        //   Carry the typed email along so Forgot Password can
                         // arrive pre-filled and locked instead of blank.
                         Text("Forgot Password?", Modifier
                             .clickable{

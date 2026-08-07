@@ -46,7 +46,7 @@ fun ForgotOtpSelection(
     var isOtpComplete by remember { mutableStateOf(false) }
     var savedEmail by rememberSaveable { mutableStateOf(submittedEmail) }
 
-    // 👇 Observe accountState
+    //  Observe accountState
     val accountState by authViewModel.accountState.collectAsState()
     Row(
         Modifier.fillMaxWidth(),
@@ -57,7 +57,7 @@ fun ForgotOtpSelection(
 
     }
     Spacer(Modifier.padding(top=10.dp))
-    // 👇 React to state changes
+    //  React to state changes
     LaunchedEffect(accountState) {
         when (accountState) {
             is UiState.ForgotPasswordVerified -> {
@@ -78,7 +78,7 @@ fun ForgotOtpSelection(
     )
     ResendForgotOtpSection(onResendClick = { savedEmail }, email = savedEmail, authViewModel,savedEmail=savedEmail,otp)
 
-    // ... your existing UI ...
+    // ... existing UI ...
 
     Button(
         onClick = {

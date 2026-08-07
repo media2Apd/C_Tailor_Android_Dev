@@ -30,7 +30,7 @@ data class LeadEntity(
     val requiredDate: String?= null,
     val source: String,
     val status: String,
-    val leadOwner: String = "",          // ✅ NEW — default "" so existing LeadEntity(...) calls don't break
+    val leadOwner: String = "",          //   NEW — default "" so existing LeadEntity(...) calls don't break
     val appointmentRequired: Boolean,
     val appointmentDate: String,
     val appointmentTime: String?,
@@ -102,7 +102,7 @@ fun CreateLeadFormResponse.toEntity(request: CreateLeadFormRequest): LeadEntity 
         enquiryDate = request.enquiryDate,
         requiredDate = request.requiredDate,
         source = request.source,
-        leadOwner = request.leadOwner,        // ✅ NEW — assuming CreateLeadFormRequest gets a leadOwner field
+        leadOwner = request.leadOwner,        //   NEW — assuming CreateLeadFormRequest gets a leadOwner field
         appointmentRequired = request.appointment.isRequired,
         appointmentDate = request.appointment.date ?: "",
         appointmentTime = request.appointment.time,

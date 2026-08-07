@@ -71,7 +71,7 @@ class OrderOverviewViewModel @Inject constructor(
     private val _stageUpdateState = MutableStateFlow<StageUpdateState>(StageUpdateState.Idle)
     val stageUpdateState: StateFlow<StageUpdateState> = _stageUpdateState.asStateFlow()
 
-    // ✅ NEW — Convert to Invoice state
+    //   NEW — Convert to Invoice state
     private val _convertToInvoiceState = MutableStateFlow<ConvertToInvoiceState>(ConvertToInvoiceState.Idle)
     val convertToInvoiceState: StateFlow<ConvertToInvoiceState> = _convertToInvoiceState.asStateFlow()
 
@@ -177,7 +177,7 @@ class OrderOverviewViewModel @Inject constructor(
         transactionId: String = "",
         notes: String = "",
         paymentDate: String? = null,
-        paymentType: String = "full"  // ← ADD THIS PARAMETER
+        paymentType: String = "full"
     ) {
         viewModelScope.launch {
             _receivePaymentState.value = ReceivePaymentState.Loading
@@ -188,7 +188,7 @@ class OrderOverviewViewModel @Inject constructor(
                 transactionId = transactionId,
                 notes = notes,
                 paymentDate = paymentDate,
-                paymentType = paymentType  // ← PASS IT HERE
+                paymentType = paymentType
             )
                 .onSuccess { data ->
                     _receivePaymentState.value = ReceivePaymentState.Success(data)
@@ -204,7 +204,7 @@ class OrderOverviewViewModel @Inject constructor(
         _receivePaymentState.value = ReceivePaymentState.Idle
     }
 
-    // ✅ NEW — call this when "Convert to Invoice" button is clicked
+    //  — call this when "Convert to Invoice" button is clicked
     fun convertToInvoice(salesOrderId: String, dueDate: String? = null) {
         viewModelScope.launch {
             _convertToInvoiceState.value = ConvertToInvoiceState.Loading
@@ -218,9 +218,6 @@ class OrderOverviewViewModel @Inject constructor(
         }
     }
 
-//    fun resetConvertToInvoiceState() {
-//        _convertToInvoiceState.value = ConvertToInvoiceState.Idle
-//    }
 
 
     fun resetStageUpdateState() {
@@ -231,7 +228,5 @@ class OrderOverviewViewModel @Inject constructor(
         _assignWorkersState.value = AssignWorkersState.Idle
     }
 
-//    fun resetState() {
-//        _overviewState.value = OrderOverviewState.Idle
-//    }
+
 }

@@ -75,7 +75,7 @@ import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.ErrorFieldWrapper
 import com.cuso.mobile.view.composable.PhoneInputField
-import com.cuso.mobile.view.home.reusablecomposables.GovernmentIdValidator
+import com.cuso.mobile.view.composable.GovernmentIdValidator
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.viewmodel.Authenticate
 import androidx.activity.ComponentActivity
@@ -253,14 +253,9 @@ fun EmployeeOnboardingScreen(
     val uploadPictureState by hrViewModel.uploadPictureState.collectAsState()
 
     val deletePictureState by hrViewModel.deletePictureState.collectAsState()
-    val memberDetail by hrViewModel.memberDetail.collectAsState()   // ✅ idha idhku mேலே kondu vaanga
+    val memberDetail by hrViewModel.memberDetail.collectAsState()
 
-//    val currentUserId = authViewModel.user.value?.id
-//    val memberUserId = memberDetail?.userId?._id
-//
-//    if (!memberUserId.isNullOrBlank() && memberUserId == currentUserId) {
-//        authViewModel.updateUserProfilePictureIfCurrentUser(state.pictureUrl)
-//    }
+
     val cropLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -301,7 +296,7 @@ fun EmployeeOnboardingScreen(
                 .withOptions(options)
                 .getIntent(context)
 
-            cropLauncher.launch(uCropIntent) // கிராப் ஸ்கிரீன் ஓபன் ஆகும்
+            cropLauncher.launch(uCropIntent)
         }
     }
     LaunchedEffect(uploadPictureState) {
@@ -315,7 +310,6 @@ fun EmployeeOnboardingScreen(
                 val currentId = authViewModel.user
                 Log.d("PROFILE_PIC_DEBUG_UPLOAD", "target=$targetId current=$currentId")
 
-                // ✅ decision முழுசும் ViewModel எடுக்கும் — screen வெறும் target id தான் தர வேண்டும்
                 authViewModel.updateUserProfilePictureIfCurrentUser(
                     targetUserId = memberDetail?._id,
                     newUrl = state.pictureUrl
@@ -359,7 +353,6 @@ fun EmployeeOnboardingScreen(
     var selectedSecondaryReportingToId by remember { mutableStateOf<String?>(null) }
 
     val createMemberState by hrViewModel.createMemberState.collectAsState()
-//    val memberDetail by hrViewModel.memberDetail.collectAsState()
 
     // Add these state variables in your EmployeeOnboardingScreen
 // ── Government IDs validation states ──
@@ -450,12 +443,12 @@ fun EmployeeOnboardingScreen(
         if (isoDate.isBlank()) return "Select Date"
         return try {
             val input = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault())
-            val output = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())   // ✅ changed
+            val output = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())   //   changed
             output.format(input.parse(isoDate)!!)
         } catch (e: Exception) {
             try {
                 val input = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                val output = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())   // ✅ changed
+                val output = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())   //   changed
                 output.format(input.parse(isoDate)!!)
             } catch (e2: Exception) {
                 isoDate
@@ -488,7 +481,7 @@ fun EmployeeOnboardingScreen(
         designationViewModel.loadDesignations()
     }
 
-// ✅ NEW — separate effect, keyed on memberIdToLoad so it re-fires
+//   NEW — separate effect, keyed on memberIdToLoad so it re-fires
 // every time a DIFFERENT employee is opened, and clears stale data first
     LaunchedEffect(memberIdToLoad) {
         hrViewModel.clearMemberDetail()   // wipe old employee's data immediately
@@ -515,7 +508,6 @@ fun EmployeeOnboardingScreen(
             return@LaunchedEffect
         }
         Log.d("PREFILL_DEBUG", "Prefilling with firstName=${m.firstName}")
-//        val m = memberDetail ?: return@LaunchedEffect
 
         // Basic Information
         firstName = m.firstName.orEmpty()
@@ -628,11 +620,6 @@ fun EmployeeOnboardingScreen(
 
         existingProfilePictureUrl = m.profilePicture
     }
-//    LaunchedEffect(memberIdToLoad) {
-//        // New target member -> allow prefill to run again
-//        prefilled = false
-//    }
-
 
     // ── React to create/update result ──
     LaunchedEffect(createMemberState) {
@@ -641,7 +628,7 @@ fun EmployeeOnboardingScreen(
                 hrViewModel.resetCreateMemberState()
 
                 topSuccess = if (mode == ScreenMode.EDIT)
-                    "Employee updated successfully"      // ✅ NEW
+                    "Employee updated successfully"      //   NEW
                 else
                     "Employee created successfully"
                 if (mode == ScreenMode.EDIT) onUpdateEmployee() else onCreateEmployee()
@@ -1645,7 +1632,7 @@ fun EmployeeOnboardingScreen(
             onDismiss = { topError = null }
         )
 
-        DynamicIslandSuccess(                                    // ✅ NEW
+        DynamicIslandSuccess(
             modifier = Modifier.align(Alignment.TopCenter),
             message = topSuccess,
             onDismiss = { topSuccess = null }
@@ -1669,7 +1656,7 @@ fun EmployeeOnboardingScreen(
                 TextButton(onClick = {
                     showProfileOptionsDialog = false
                     if (memberIdToLoad != null) {
-                        hrViewModel.deleteProfilePicture(memberIdToLoad)   // ✅ backend call
+                        hrViewModel.deleteProfilePicture(memberIdToLoad)   //   backend call
                     } else {
                         // CREATE mode la member illa, local ah mattum clear pannunga
                         profileImageUri = null
@@ -1692,45 +1679,6 @@ fun uriToFile(context: android.content.Context, uri: Uri): File {
     }
     return file
 }
-
-// ── Accordion section (same pattern as CreateItemScreen.kt) ──
-//@Composable
-//private fun AccordionSection(
-//    icon: ImageVector,
-//    title: String,
-//    expanded: Boolean,
-//    onHeaderClick: () -> Unit,
-//    content: @Composable ColumnScope.() -> Unit
-//) {
-//    Column {
-//        Row(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .background(if (expanded) Color(0xFFF7F7FA) else whiteBg)
-//                .clickable { onHeaderClick() }
-//                .padding(horizontal = 20.dp, vertical = 16.dp),
-//            horizontalArrangement = Arrangement.SpaceBetween,
-//            verticalAlignment = Alignment.CenterVertically
-//        ) {
-//            Row(verticalAlignment = Alignment.CenterVertically) {
-//                Icon(icon, null, tint = AccentColor, modifier = Modifier.size(20.dp))
-//                Spacer(Modifier.width(10.dp))
-//                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
-//            }
-//            Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = LabelColor)
-//        }
-//        AnimatedVisibility(
-//            visible = expanded,
-//            enter = fadeIn() + expandVertically(),
-//            exit = fadeOut() + shrinkVertically()
-//        ) {
-//            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-//                content()
-//            }
-//        }
-//        HorizontalDivider(color = BorderColor)
-//    }
-//}
 
 // ── Permanent / Temporary segmented toggle (Address section) ──
 @Composable

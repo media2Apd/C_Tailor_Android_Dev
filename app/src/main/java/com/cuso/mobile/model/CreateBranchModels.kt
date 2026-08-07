@@ -1,4 +1,5 @@
-import com.cuso.mobile.model.BranchItem
+package com.cuso.mobile.model
+
 
 // In your model package - BranchModels.kt
 

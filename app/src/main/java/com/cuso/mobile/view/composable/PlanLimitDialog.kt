@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.home.reusablecomposables
+package com.cuso.mobile.view.composable
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*

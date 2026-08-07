@@ -15,8 +15,8 @@ fun OrderOverviewData.toOrderReviewData(): OrderReviewData {
         fullName = customer?.name?:"_" ,
         countryCode = "+91",
         phone = customer?.mobile?.takeLast(10)?:"",
-        gender = customer?.gender ?: "",  // ✅ Already has null safety
-        dressFor = order.wearerType ?: "",              // ✅ fix
+        gender = customer?.gender ?: "",  //   Already has null safety
+        dressFor = order.wearerType ?: "",
         address = customer?.address?.addressLine ?: "",
         garments = this.items.map { item ->
             SelectedGarment(
@@ -36,7 +36,7 @@ fun OrderOverviewData.toOrderReviewData(): OrderReviewData {
             )
         },
         orderDate = order.orderDate?.take(10)
-            ?.let { flipToDdMmYyyy(it) } ?: "",          // ✅ fix — இதுதான் அடுத்த crash-க்கு காரணமா இருக்கும்
+            ?.let { flipToDdMmYyyy(it) } ?: "",
         source = order.source ?: "",
         trialDate = order.trialDate?.take(10)?.let { flipToDdMmYyyy(it) } ?: "",
         deliveryDate = order.deliveryDate?.take(10)?.let { flipToDdMmYyyy(it) } ?: "",

@@ -9,7 +9,8 @@
     "unused"
 
 )
-package com.cuso.mobile.view.home.reusablecomposables
+
+package com.cuso.mobile.view.composable
 
 import java.util.regex.Pattern
 

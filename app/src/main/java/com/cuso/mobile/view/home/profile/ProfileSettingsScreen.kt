@@ -122,7 +122,7 @@ private fun ProfileSettingsContent(
     onLogout: () -> Unit
 ) {
     val authViewModel: Authenticate = hiltViewModel(
-        LocalContext.current as ComponentActivity   // ✅ இதை சேருங்க
+        LocalContext.current as ComponentActivity   //   இதை சேருங்க
     )
     val userEntity by authViewModel.user.collectAsStateWithLifecycle()
 

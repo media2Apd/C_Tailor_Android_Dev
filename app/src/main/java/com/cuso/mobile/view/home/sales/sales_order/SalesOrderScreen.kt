@@ -8,7 +8,6 @@
 package com.cuso.mobile.view.home.sales.sales_order
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,16 +17,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.MenuAction
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.MenuAction
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.res.painterResource
@@ -41,11 +39,11 @@ import com.cuso.mobile.ui.theme.redtext
 import com.cuso.mobile.ui.theme.yellowBg
 import com.cuso.mobile.ui.theme.yellowtext
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
-import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
-import com.cuso.mobile.view.home.reusablecomposables.FabConfig
-import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.composable.DataCardImage
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.viewmodel.OrderActionState
 import com.cuso.mobile.viewmodel.OrderUiState
 import com.cuso.mobile.viewmodel.SalesOrderViewModel
@@ -57,17 +55,12 @@ import java.util.Date
 import java.util.Locale
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.TitleBar
 
 // ─────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────
-
-
-
-
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun SalesOrderScreen(
@@ -252,37 +245,6 @@ fun SalesOrderScreen(
                                             )
                                         }
                                     }
-
-                                    // ── Pagination Footer ──
-//                                    Box(
-//                                        modifier = Modifier
-//                                            .fillMaxWidth()
-//                                            .background(whiteBg, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-//                                    ) {
-//                                        Column {
-//                                            HorizontalDivider(color = Color(0xFFF0F0F0))
-//                                            Row(
-//                                                modifier = Modifier
-//                                                    .fillMaxWidth()
-//                                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-//                                                verticalAlignment = Alignment.CenterVertically,
-//                                                horizontalArrangement = Arrangement.SpaceBetween
-//                                            ) {
-//                                                val from = if (total == 0) 0 else (page - 1) * itemsPerPage + 1
-//                                                val to = minOf(page * itemsPerPage, total)
-//                                                Text("Showing $from - $to of $total", fontSize = 13.sp, color = Color(0xFF6B7280))
-//                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-//                                                    IconButton(onClick = { if (page > 1) page-- }, enabled = page > 1, modifier = Modifier.size(28.dp)) {
-//                                                        Icon(Icons.Default.ChevronLeft, "Previous", tint = if (page > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
-//                                                    }
-//                                                    Text("$page - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
-//                                                    IconButton(onClick = { if (page < totalPages) page++ }, enabled = page < totalPages, modifier = Modifier.size(28.dp)) {
-//                                                        Icon(Icons.Default.ChevronRight, "Next", tint = if (page < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
-//                                                    }
-//                                                }
-//                                            }
-//                                        }
-//                                    }
                                 }
                             }
                         }
@@ -324,7 +286,7 @@ fun paymentStatusColors(status: String): Pair<Color, Color> = when (status.lower
     "paid"    -> greenBg to greentext
     "partial" -> yellowBg to yellowtext
     "unpaid"  -> redBg to redtext
-    else      -> Color(0xFFF3F4F6) to Color(0xFF6B7280)   // ← gray/disabled-a paakura andha color idhu than
+    else      -> Color(0xFFF3F4F6) to Color(0xFF6B7280)
 }
 fun Long?.toDisplayDate(): String {
     if (this == null) return "—"

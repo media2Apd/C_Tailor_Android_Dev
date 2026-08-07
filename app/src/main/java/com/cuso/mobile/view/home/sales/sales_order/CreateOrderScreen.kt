@@ -103,16 +103,16 @@ import com.cuso.mobile.utils.safeDate
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.customFieldOutlinedColors
 import com.cuso.mobile.view.home.FormTextField
-import com.cuso.mobile.view.home.reusablecomposables.BackFabButton
-import com.cuso.mobile.view.home.reusablecomposables.PlanLimitDialog
-import com.cuso.mobile.view.home.reusablecomposables.SegmentedSelector
-import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
-import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
-import com.cuso.mobile.view.home.reusablecomposables.blurScrim
+import com.cuso.mobile.view.composable.BackFabButton
+import com.cuso.mobile.view.composable.PlanLimitDialog
+import com.cuso.mobile.view.composable.SegmentedSelector
+import com.cuso.mobile.view.composable.SmoothBottomSheet
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
-import com.cuso.mobile.view.home.reusablecomposables.SheetValue
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabButton
+import com.cuso.mobile.view.composable.SheetValue
+import com.cuso.mobile.view.composable.TrailingFabButton
 
 // ─────────────────────────────────────────────────────────────
 // Data Models
@@ -131,7 +131,7 @@ data class MeasurementField(
     val unit: String = "inch"
 )
 
-// ✅ NEW — maps field key -> accordion section key (same idea as leadSectionFieldMap in CreateLeadScreen)
+//    — maps field key -> accordion section key (same idea as leadSectionFieldMap in CreateLeadScreen)
 private val orderSectionFieldMap = mapOf(
     "customer" to listOf("mobile", "fullName", "gender", "dressFor", "source"),
     "garment" to listOf("garments"),
@@ -141,7 +141,7 @@ private val orderSectionFieldMap = mapOf(
 // ─────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────
-// ✅ NEW — returns list of missing field labels for a garment, empty list = complete
+//    — returns list of missing field labels for a garment, empty list = complete
 private fun missingGarmentFields(g: SelectedGarment): List<String> {
     return buildList {
         if (g.fabricType.isBlank()) add("Fabric Type")
@@ -164,7 +164,7 @@ fun CreateOrderScreen(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
-    // ✅ Check if we're in edit mode
+    //   Check if we're in edit mode
     val isEditMode = initialData?.orderId != null
 
     var phone by rememberSaveable {
@@ -223,7 +223,7 @@ fun CreateOrderScreen(
     var showImagePickerOptions by rememberSaveable { mutableStateOf(false) }
     var capturedImageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
-    // ✅ Plan gating for media upload
+    //   Plan gating for media upload
     var showPlanLimitDialog by rememberSaveable { mutableStateOf(false) }
 
     // TODO: replace this with the real plan coming from your org/session state
@@ -232,7 +232,7 @@ fun CreateOrderScreen(
     val isMediaUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
             currentPlanName.equals("light", ignoreCase = true)
 
-    // ✅ NEW — Form validation state (mirrors CreateLeadScreen's pattern)
+    //   NEW — Form validation state (mirrors CreateLeadScreen's pattern)
     var errorField by remember { mutableStateOf<String?>(null) }
     var validationError by remember { mutableStateOf<String?>(null) }
     var garmentsError by remember { mutableStateOf(false) }
@@ -541,18 +541,18 @@ fun CreateOrderScreen(
             models = emptyList()
         )
         editingGarmentId = null
-        addCategorySheetState = SheetValue.Collapsed   // ✅ changed — was showGarmentDialog = true
+        addCategorySheetState = SheetValue.Collapsed
     }
 
     fun editGarmentDialog(garment: SelectedGarment) {
         tempGarment = garment
         editingGarmentId = garment.id
-        addCategorySheetState = SheetValue.Collapsed   // ✅ changed — was showGarmentDialog = true
+        addCategorySheetState = SheetValue.Collapsed
     }
 
     fun saveGarment() {
         salesViewModel.addOrUpdateGarment(tempGarment)
-        addCategorySheetState = SheetValue.Hidden   // ✅ changed — was showGarmentDialog = false
+        addCategorySheetState = SheetValue.Hidden
         garmentsError = false
     }
 
@@ -580,7 +580,7 @@ fun CreateOrderScreen(
         garmentsError = false
     }
 
-    // ✅ NEW — Validation function, same pattern as CreateLeadScreen.submitLead()
+    //   NEW — Validation function, same pattern as CreateLeadScreen.submitLead()
     fun validateOrderForm(): Boolean {
         val fields = listOf(
             ValidationField("mobile", phone, "Mobile Number is required"),
@@ -602,7 +602,7 @@ fun CreateOrderScreen(
             return false
         }
 
-        // ✅ Garments need their own check — at least one garment,
+        //   Garments need their own check — at least one garment,
         // with fabric type, color/tone, pattern, model & measurements filled
         val incompleteGarment = selectedGarments.firstOrNull { missingGarmentFields(it).isNotEmpty() }
         if (selectedGarments.isEmpty() || incompleteGarment != null) {
@@ -658,7 +658,7 @@ fun CreateOrderScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .blurScrim(addCategoryBlur)   // ✅ NEW
+                    .blurScrim(addCategoryBlur)
                     .verticalScroll(scrollState)
                     .padding(bottom = 16.dp)
             ) {
@@ -677,7 +677,7 @@ fun CreateOrderScreen(
                         contentAlignment = Alignment.CenterEnd
                     ) {
                         FormLabel("Phone ")
-                        // ⚠️ Assumes PhoneInputField supports isError/errorMessage — share the file if not.
+                        //  Assumes PhoneInputField supports isError/errorMessage — share the file if not.
                         PhoneInputField(
                             phoneValue = phone,
                             onPhoneChange = { newPhone ->
@@ -1022,7 +1022,7 @@ fun CreateOrderScreen(
                     )
                     Spacer(Modifier.height(8.dp))
 
-                    // ✅ NEW — inline error text for garments (no wrapper box, matches Lead-screen style)
+                    //   — inline error text for garments (no wrapper box, matches Lead-screen style)
                     if (garmentsError) {
                         Text(
                             "Add at least one garment — with fabric type, color/tone, pattern, model, and Chest & Sleeve Length filled",
@@ -1090,7 +1090,7 @@ fun CreateOrderScreen(
                                                     fontWeight = FontWeight.Bold,
                                                     color = Color(0xFF111827)
                                                 )
-                                                // ✅ NEW — visible warning badge if this specific garment is incomplete
+                                                //   NEW — visible warning badge if this specific garment is incomplete
                                                 val missing = missingGarmentFields(garment)
                                                 if (missing.isNotEmpty()) {
                                                     Box(
@@ -1112,7 +1112,7 @@ fun CreateOrderScreen(
                                                 fontSize = 12.sp,
                                                 color = Color(0xFF6B7280)
                                             )
-                                            // ✅ NEW — tells exactly what's missing, right under the card
+                                            //    — tells exactly what's missing, right under the card
                                             val missing = missingGarmentFields(garment)
                                             if (missing.isNotEmpty()) {
                                                 Text(
@@ -1171,7 +1171,7 @@ fun CreateOrderScreen(
                     onToggle = { expandedSection = if (expandedSection == "delivery") "" else "delivery" }
                 ) {
                     FormLabel("Order Date", isRequired = true)
-                    // ⚠️ Assumes DatePickerField supports isError/errorMessage — share the file if not.
+                    //  Assumes DatePickerField supports isError/errorMessage — share the file if not.
                     DatePickerField(
                         value = orderDate,
                         onDateSelected = {
@@ -1645,7 +1645,7 @@ fun CreateOrderScreen(
                 state = addCategorySheetState,
                 onStateChange = { addCategorySheetState = it },
                 peekHeight = 480.dp,
-                topInset = 60.dp,   // ✅ NEW — matches your "Create Order" topBar height, so Expanded stops right below it
+                topInset = 60.dp,   //    — matches your "Create Order" topBar height, so Expanded stops right below it
                 onDismissRequest = { addCategorySheetState = SheetValue.Hidden },
                 onBlurScrimChange = { r, s -> addCategoryBlur = r; addCategoryScrim = s }
             ) {
@@ -2379,7 +2379,6 @@ fun SegmentedToggle(
     }
 }
 
-// ── Model selector chips (Slim Fit / Shirt with icon) ──
 // ── Model selector chips (pill style, matches CategoryPillButton) ──
 @Composable
 fun ModelGridSelector(

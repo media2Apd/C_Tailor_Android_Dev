@@ -9,7 +9,6 @@ package com.cuso.mobile.view.home.sales.measurements
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -33,18 +32,16 @@ import androidx.navigation.NavController
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.FabConfig
-import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.viewmodel.MeasurementsUiState
 import com.cuso.mobile.viewmodel.MeasurementsViewModel
 
@@ -280,85 +277,6 @@ fun MeasurementsScreen(
                                     }
                                 }
                             }
-
-                            // ── Pagination ──
-//                            Row(
-//                                modifier = Modifier
-//                                    .fillMaxWidth()
-//                                    .background(whiteBg)
-//                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-//                                horizontalArrangement = Arrangement.SpaceBetween,
-//                                verticalAlignment = Alignment.CenterVertically
-//                            ) {
-//                                Row(
-//                                    verticalAlignment = Alignment.CenterVertically,
-//                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-//                                ) {
-//                                    val from = (page - 1) * itemsPerPage + 1
-//                                    val to = minOf(page * itemsPerPage, totalFilteredCount)
-//                                    Text("Showing $from - $to of $totalFilteredCount", fontSize = 13.sp, color = Color(0xFF6B7280))
-//
-//                                    Box {
-//                                        Row(
-//                                            modifier = Modifier
-//                                                .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
-//                                                .clickable { showItemsPerPageDropdown = true }
-//                                                .padding(horizontal = 8.dp, vertical = 4.dp),
-//                                            verticalAlignment = Alignment.CenterVertically,
-//                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-//                                        ) {
-//                                            Icon(Icons.Default.Settings, null, tint = Color(0xFF6B7280), modifier = Modifier.size(14.dp))
-//                                            Text("$itemsPerPage per page", fontSize = 13.sp, color = Color(0xFF374151))
-//                                        }
-//                                        DropdownMenu(
-//                                            expanded = showItemsPerPageDropdown,
-//                                            onDismissRequest = { showItemsPerPageDropdown = false },
-//                                            containerColor = whiteBg,
-//                                            shape = RoundedCornerShape(8.dp)
-//                                        ) {
-//                                            listOf(10, 25, 50, 100).forEach { count ->
-//                                                DropdownMenuItem(
-//                                                    text = { Text("$count per page", color = Color(0xFF111827)) },
-//                                                    onClick = {
-//                                                        itemsPerPage = count
-//                                                        page = 1
-//                                                        showItemsPerPageDropdown = false
-//                                                    }
-//                                                )
-//                                            }
-//                                        }
-//                                    }
-//                                }
-//
-//                                Row(
-//                                    verticalAlignment = Alignment.CenterVertically,
-//                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-//                                ) {
-//                                    IconButton(
-//                                        onClick = { if (page > 1) page-- },
-//                                        enabled = page > 1,
-//                                        modifier = Modifier.size(32.dp)
-//                                    ) {
-//                                        Icon(
-//                                            Icons.Default.ChevronLeft,
-//                                            contentDescription = "Previous",
-//                                            tint = if (page > 1) Color(0xFF374151) else Color(0xFFD1D5DB)
-//                                        )
-//                                    }
-//                                    Text("$page - $totalPagesFilteredCount", fontSize = 13.sp, color = Color(0xFF6B7280))
-//                                    IconButton(
-//                                        onClick = { if (page < totalPagesFilteredCount) page++ },
-//                                        enabled = page < totalPagesFilteredCount,
-//                                        modifier = Modifier.size(32.dp)
-//                                    ) {
-//                                        Icon(
-//                                            Icons.Default.ChevronRight,
-//                                            contentDescription = "Next",
-//                                            tint = if (page < totalPagesFilteredCount) Color(0xFF374151) else Color(0xFFD1D5DB)
-//                                        )
-//                                    }
-//                                }
-//                            }
                         }
                     }
                 }

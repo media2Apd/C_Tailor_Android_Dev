@@ -1,4 +1,3 @@
-//@file:Suppress("UNUSED_PARAMETER", "UNUSED", "RedundantSuppression", "unused")
 
 package com.cuso.mobile.view.home.finance
 
@@ -11,7 +10,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -37,12 +35,12 @@ import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.pdfgenerator.InvoicePdfGenerator
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.DataCardImage
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
-import com.cuso.mobile.view.home.reusablecomposables.MenuAction
-import com.cuso.mobile.view.home.reusablecomposables.SearchFilterBar
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.DataCardImage
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.ProfileUiState
@@ -55,7 +53,6 @@ private val InvmutedText = Color(0xFF9CA3AF)
 private val InvGreen = Color(0xFF16A34A)
 private val InvRed = Color(0xFFEF4444)
 private val InvYellow = Color(0xFFF59E0B)
-//private val InvBgLight = Color(0xFFF5F5F7)
 
 // ─────────────────────────────────────────────────────────────
 // FinanceInvoiceScreen — "All Invoice" list (View All)
@@ -427,80 +424,6 @@ fun InvoiceDetailScreen(
 
                 Column(modifier = Modifier.fillMaxSize()) {
                     InvoiceHeaderCard(invoice = invoice)
-
-                    // ── Action icons (Download / Share) — same as quotation screen ──
-//                    Row(
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .padding(horizontal = 16.dp, vertical = 8.dp),
-//                        horizontalArrangement = Arrangement.End,
-//                        verticalAlignment = Alignment.CenterVertically
-//                    ) {
-//                        IconButton(
-//                            onClick = {
-//                                if (!isDownloading) {
-//                                    isDownloading = true
-//                                    pdfGenerator.downloadInvoicePdf(pdfData) { saved ->
-//                                        isDownloading = false
-//                                        val msg = if (saved != null && saved.exists()) {
-//                                            "Invoice downloaded to Downloads folder"
-//                                        } else {
-//                                            "Failed to download invoice"
-//                                        }
-//                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-//                                    }
-//                                }
-//                            },
-//                            enabled = !isDownloading,
-//                            modifier = Modifier.size(40.dp)
-//                        ) {
-//                            if (isDownloading) {
-//                                CircularProgressIndicator(
-//                                    modifier = Modifier.size(20.dp),
-//                                    strokeWidth = 2.dp,
-//                                    color = InvPrimary
-//                                )
-//                            } else {
-//                                Icon(Icons.Default.Download, contentDescription = "Download", tint = InvPrimary)
-//                            }
-//                        }
-//
-//                        IconButton(
-//                            onClick = {
-//                                pdfGenerator.generatePdfFromHtml(
-//                                    data = pdfData,
-//                                    saveToDownloads = false
-//                                ) { saved ->
-//                                    if (saved != null && saved.exists()) {
-//                                        val shareUri = if (saved.file != null) {
-//                                            androidx.core.content.FileProvider.getUriForFile(
-//                                                context,
-//                                                "${context.packageName}.fileprovider",
-//                                                saved.file
-//                                            )
-//                                        } else {
-//                                            saved.uri
-//                                        }
-//                                        shareUri?.let { uri ->
-//                                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-//                                                type = "application/pdf"
-//                                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
-//                                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-//                                            }
-//                                            context.startActivity(
-//                                                android.content.Intent.createChooser(shareIntent, "Share Invoice PDF")
-//                                            )
-//                                        }
-//                                    } else {
-//                                        Toast.makeText(context, "Failed to generate invoice PDF", Toast.LENGTH_SHORT).show()
-//                                    }
-//                                }
-//                            },
-//                            modifier = Modifier.size(40.dp)
-//                        ) {
-//                            Icon(Icons.Default.Share, contentDescription = "Share", tint = InvPrimary)
-//                        }
-//                    }
 
                     // ── WebView renders the SAME html used for PDF export ──
                     // (identical pattern to CreateQuotationScreen's preview AndroidView)

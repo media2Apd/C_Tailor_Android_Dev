@@ -1,11 +1,5 @@
 package com.cuso.mobile.repository
 
-import AddGarmentRequest
-import AddOrgGarmentResponse
-import CreateBranchRequest
-import CreateBranchResponse
-import OrgGarmentCategory
-import RemoveOrgGarmentResponse
 import com.cuso.mobile.database.dao.LeadDao
 import com.cuso.mobile.database.dao.SalesStatusDao
 import com.cuso.mobile.database.dao.SalesSummaryDao
@@ -14,9 +8,13 @@ import com.cuso.mobile.database.entities.LeadEntity
 import com.cuso.mobile.database.entities.SalesStatusEntity
 import com.cuso.mobile.database.entities.SalesSummaryEntity
 import com.cuso.mobile.database.entities.toEntity
+import com.cuso.mobile.model.AddGarmentRequest
+import com.cuso.mobile.model.AddOrgGarmentResponse
 import com.cuso.mobile.model.sales.AssignStageResponse
 import com.cuso.mobile.model.BranchItem
 import com.cuso.mobile.model.BranchListResponse
+import com.cuso.mobile.model.CreateBranchRequest
+import com.cuso.mobile.model.CreateBranchResponse
 import com.cuso.mobile.model.sales.CategoryItem
 import com.cuso.mobile.model.sales.CreateLeadFormRequest
 import com.cuso.mobile.model.sales.CreateLeadFormResponse
@@ -54,6 +52,8 @@ import com.cuso.mobile.model.DesignationCreateResponse
 import com.cuso.mobile.model.DesignationUpdateRequest
 import com.cuso.mobile.model.DesignationUpdateResponse
 import com.cuso.mobile.model.DesignationDeleteResponse
+import com.cuso.mobile.model.OrgGarmentCategory
+import com.cuso.mobile.model.RemoveOrgGarmentResponse
 import com.cuso.mobile.model.sales.GarmentPricingDetailDto
 import com.cuso.mobile.model.sales.GarmentPricingItem
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
@@ -164,7 +164,7 @@ class SalesRepository @Inject constructor(
 
     // ── Table Leads ───────────────────────────────────────────────
 
-    // ✅ NEW — wrapper to carry total count along with leads
+    //   NEW — wrapper to carry total count along with leads
     data class TableLeadsResult(val leads: List<LeadTableItem>, val total: Int)
 
     suspend fun fetchTableData(page: Int = 1, limit: Int = 10): Result<TableLeadsResult> {
@@ -197,20 +197,6 @@ class SalesRepository @Inject constructor(
             Result.failure(e)
         }
     }
-
-//    suspend fun getLeadId(id: String): Result<String> {
-//        return try {
-//            val (accessToken, csrfToken) = getAuthHeaders()
-//            val response = api.getViewOne(accessToken, csrfToken, id)
-//            if (response.isSuccessful && response.body()?.success == true) {
-//                Result.success(response.body()!!.data._id)
-//            } else {
-//                Result.failure(Exception("Failed to get lead ID: ${response.code()}"))
-//            }
-//        } catch (e: Exception) {
-//            Result.failure(e)
-//        }
-//    }
 
     // ── Lead CRUD ─────────────────────────────────────────────────
 
@@ -753,7 +739,7 @@ class SalesRepository @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 val body = response.body()!!
 
-                // ✅ Now data is Organization (flat), fields accessed directly
+                //   Now data is Organization (flat), fields accessed directly
                 body.data?.let { org ->
                     organizationDao.updateOrganizationPicture(
                         orgId = org._id,

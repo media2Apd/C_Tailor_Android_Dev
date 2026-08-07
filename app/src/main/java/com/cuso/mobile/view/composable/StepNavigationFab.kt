@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.home.reusablecomposables
+package com.cuso.mobile.view.composable
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorForButton
 
 /**
  * Describes what the trailing (bottom-end) FAB should do/show.
@@ -37,18 +36,18 @@ import com.cuso.mobile.view.composable.CirculerProgressIndicatorForButton
  *  - Edit   -> switches a view-only screen into edit mode / navigates to edit
 // *  - Update -> submits the form (shows a spinner while  is true)
  */
-// AFTER
+//
 sealed class TrailingFabAction {
     data class Next(val label: String = "Next", val enabled: Boolean = true, val onClick: () -> Unit) : TrailingFabAction()
     data class Edit(val label: String = "Edit", val enabled: Boolean = true, val onClick: () -> Unit) : TrailingFabAction()
     data class Update(
         val isLoading: Boolean = false,
         val label: String = "Update",
-        val enabled: Boolean = true,   // ✅ NEW — controls button's clickable/disabled state
+        val enabled: Boolean = true,   //   NEW — controls button's clickable/disabled state
         val onClick: () -> Unit
     ) : TrailingFabAction()
 }
-/* AFTER
+/*
 * @param showBack whether to render the Back button at all (e.g. hide on step 0)
 * @param onBack invoked when Back is tapped
 * @param backLabel text shown on the Back button (defaults to "Back")
@@ -58,8 +57,7 @@ sealed class TrailingFabAction {
 *        from colliding). Leave null to keep the original wrap-content pill sizing.
 * @param trailingWidthFraction optional fraction of screen width for the trailing button
 */
-// AFTER
-// AFTER
+
 @Composable
 fun StepNavigationFab(
     modifier: Modifier = Modifier,
@@ -97,7 +95,7 @@ fun StepNavigationFab(
     }
 }
 
-// AFTER
+//
 @Composable
 fun BackFabButton(
     modifier: Modifier = Modifier,
@@ -130,7 +128,7 @@ fun TrailingFabButton(
     action: TrailingFabAction,
     modifier: Modifier = Modifier
 ) {
-    // ✅ NEW — resolve enabled state from whichever action variant is passed in
+    //   NEW — resolve enabled state from whichever action variant is passed in
     val isEnabled = when (action) {
         is TrailingFabAction.Next -> action.enabled
         is TrailingFabAction.Edit -> action.enabled
@@ -145,12 +143,12 @@ fun TrailingFabButton(
                 is TrailingFabAction.Update -> action.onClick()
             }
         },
-        enabled = isEnabled,   // ✅ NEW
+        enabled = isEnabled,
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = Primary,
             contentColor = whiteBg,
-            disabledContainerColor = Primary.copy(alpha = 0.4f),   // ✅ NEW — visual dim when disabled
+            disabledContainerColor = Primary.copy(alpha = 0.4f),   //   NEW — visual dim when disabled
             disabledContentColor = whiteBg.copy(alpha = 0.7f)
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),

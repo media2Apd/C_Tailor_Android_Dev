@@ -56,10 +56,10 @@ import com.cuso.mobile.ui.theme.whiteBg
         var textFieldValue by remember { mutableStateOf(TextFieldValue("")) }
         val focusRequester = remember { FocusRequester() }
 
-        // ✅ Use Compose's ClipboardManager — works across all API levels
+        //  Use Compose's ClipboardManager — works across all API levels
         val clipboardManager = LocalClipboardManager.current
 
-        // ✅ Controls the native-style DropdownMenu (closest to system toolbar)
+        //  Controls the native-style DropdownMenu (closest to system toolbar)
         var showPasteMenu by remember { mutableStateOf(false) }
 
         Box(
@@ -85,7 +85,7 @@ import com.cuso.mobile.ui.theme.whiteBg
                 decorationBox = { it() }
             )
 
-            // ✅ Anchor Box — DropdownMenu is attached here so it appears
+            //  Anchor Box — DropdownMenu is attached here so it appears
             // above the OTP row, just like the system toolbar would.
             Box(
                 modifier = Modifier
@@ -144,7 +144,7 @@ import com.cuso.mobile.ui.theme.whiteBg
                     }
                 }
 
-                // ✅ Material3 DropdownMenu — renders as a floating card above
+                //  Material3 DropdownMenu — renders as a floating card above
                 // the row, visually identical to the system paste toolbar.
                 DropdownMenu(
                     expanded = showPasteMenu,

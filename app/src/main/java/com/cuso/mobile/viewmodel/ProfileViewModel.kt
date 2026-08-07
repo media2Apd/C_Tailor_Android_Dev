@@ -48,8 +48,6 @@ class ProfileViewModel @Inject constructor(
     private val _updateState = MutableStateFlow<UpdateOrgUiState>(UpdateOrgUiState.Idle)
     val updateState: StateFlow<UpdateOrgUiState> = _updateState.asStateFlow()
 
-//    private val _uploadPictureState = MutableStateFlow<UploadPictureUiState>(UploadPictureUiState.Idle)
-//    val uploadPictureState: StateFlow<UploadPictureUiState> = _uploadPictureState.asStateFlow()
 
 
     // ─── Load Organization ───
@@ -88,29 +86,7 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-//    // ─── Upload Organization Picture ───
-//    fun uploadOrganizationPicture(token: String, pictureFile: java.io.File) {
-//        viewModelScope.launch {
-//            _uploadPictureState.value = UploadPictureUiState.Loading
-//
-//            val result = salesRepository.uploadOrganizationPicture("Bearer $token", pictureFile)
-//            result.fold(
-//                onSuccess = { response ->
-//                    _uploadPictureState.value = UploadPictureUiState.Success(
-//                        response.message ?: "Organization picture uploaded"
-//                    )
-//                    refreshOrganization(token)   // fresh logo URL
-//                },
-//                onFailure = { e ->
-//                    _uploadPictureState.value = UploadPictureUiState.Error(
-//                        e.message ?: "Something went wrong"
-//                    )
-//                }
-//            )
-//        }
-//    }
 
-    // ─── Update Organization (text fields + optional Base64 logo, all in one JSON request) ───
     // ─── Update Organization (text fields) + Upload Picture (separate API) ───
     fun updateOrganization(
         token: String,
@@ -157,7 +133,5 @@ class ProfileViewModel @Inject constructor(
     fun resetUpdateState() {
         _updateState.value = UpdateOrgUiState.Idle
     }
-//    fun resetUploadPictureState() {
-//        _uploadPictureState.value = UploadPictureUiState.Idle
-//    }
+
 }

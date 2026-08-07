@@ -53,8 +53,8 @@ import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
 import com.cuso.mobile.view.home.inventory.AccordionSection
 import com.cuso.mobile.view.home.inventory.FormTextArea
-import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 
 private val BorderColor = Color(0xFFE3E4E8)
@@ -115,14 +115,6 @@ fun CreateServiceRequest(
 
     // ── Internal Notes state ──
     var staffOnlyComments by remember { mutableStateOf("") }
-
-    // ── Charges state ──
-
-
-
-
-
-
 
     Scaffold(
         topBar = {
@@ -467,7 +459,7 @@ fun AmountInputBox(
                     Text(
                         text = placeholder,
                         fontSize = 14.sp,
-                        color = Color(0xFFB0B0B0), // 👈 placeholder grey
+                        color = Color(0xFFB0B0B0), //   placeholder grey
                         textAlign = TextAlign.Center
                     )
                 }
@@ -478,7 +470,7 @@ fun AmountInputBox(
 }
 @Composable
 fun ServicesSection() {
-    var fields by remember { mutableStateOf(listOf("")) }  // 👈 "0.00" ku pathila empty string
+    var fields by remember { mutableStateOf(listOf("")) }
 
     Column(Modifier.fillMaxWidth()) {
         fields.forEachIndexed { index, value ->
@@ -528,7 +520,7 @@ fun ServicesSection() {
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier
-                    .clickable { fields = fields + "" }  // 👈 idhைium empty
+                    .clickable { fields = fields + "" }
                     .padding(vertical = 4.dp)
             )
         }

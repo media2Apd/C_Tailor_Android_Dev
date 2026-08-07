@@ -24,7 +24,7 @@ sealed class OrderManagementUiState {
 @Suppress("UNUSED_PARAMETER")
 @HiltViewModel
 class OrderManagementViewModel @Inject constructor(
-    private val repository: SalesRepository   // ✅ class directly, same as OrderOverviewViewModel
+    private val repository: SalesRepository   //   class directly, same as OrderOverviewViewModel
 ) : ViewModel() {
 
     private val _orderState = MutableStateFlow<OrderManagementUiState>(OrderManagementUiState.Idle)

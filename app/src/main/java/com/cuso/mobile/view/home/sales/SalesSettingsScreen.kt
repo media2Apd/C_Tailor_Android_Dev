@@ -1,4 +1,3 @@
-// com/cuso/mobile/view/home/SalesSettingsScreen.kt
 
 package com.cuso.mobile.view.home.sales
 
@@ -117,7 +116,7 @@ fun GarmentTypeContent(
             selectedCategoryIds = activeOrgCategoryIds
             originalSelectedIds = activeOrgCategoryIds
             hasChanges = false
-            Log.d("GarmentType", "✅ Synced selection: $activeOrgCategoryIds")
+            Log.d("GarmentType", "  Synced selection: $activeOrgCategoryIds")
         }
     }
 
@@ -125,7 +124,7 @@ fun GarmentTypeContent(
     LaunchedEffect(addState) {
         when (val state = addState) {
             is SaleState.Success -> {
-                Log.d("GarmentType", "✅ Add successful")
+                Log.d("GarmentType", "  Add successful")
                 salesViewModel.resetAddGarmentState()
                 if (pendingAdds.isNotEmpty()) pendingAdds.removeAt(0)
 
@@ -144,7 +143,7 @@ fun GarmentTypeContent(
                 }
             }
             is SaleState.Error -> {
-                Log.e("GarmentType", "❌ Add failed: ${state.message}")
+                Log.e("GarmentType", " Add failed: ${state.message}")
                 showSnackbar("Failed to add: ${state.message}")
                 salesViewModel.resetAddGarmentState()
                 isSaving = false
@@ -161,7 +160,7 @@ fun GarmentTypeContent(
     LaunchedEffect(removeState) {
         when (val state = removeState) {
             is SaleState.Success -> {
-                Log.d("GarmentType", "✅ Remove successful")
+                Log.d("GarmentType", "  Remove successful")
                 salesViewModel.resetRemoveGarmentState()
                 if (pendingRemoves.isNotEmpty()) pendingRemoves.removeAt(0)
 

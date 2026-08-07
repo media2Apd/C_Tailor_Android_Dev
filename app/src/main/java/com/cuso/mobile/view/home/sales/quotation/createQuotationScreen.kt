@@ -50,8 +50,8 @@ import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
-import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator
 import com.cuso.mobile.viewmodel.CustomerViewModel
 import com.cuso.mobile.viewmodel.GarmentPricingUiState
@@ -275,7 +275,7 @@ fun CreateQuotationScreen(
             val dto = state.quotation
             selectedCustomerId = dto.customerId
 
-            // ✅ CHANGED — build selection for EVERY item, not just the first
+            //    — build selection for EVERY item, not just the first
             selectedGarments = dto.items.mapNotNull { item ->
                 val matchedGarment = garmentOptions.find { it.id == item.garmentCategoryId } ?: return@mapNotNull null
                 GarmentSelectionState(
@@ -330,7 +330,7 @@ fun CreateQuotationScreen(
     fun goToNextStep() {
         when (currentStep) {
             1 -> if (selectedCustomerId != null) currentStep++
-            2 -> if (selectedGarments.isNotEmpty()) currentStep++   // ✅ CHANGED
+            2 -> if (selectedGarments.isNotEmpty()) currentStep++   
             3 -> onSave()
         }
     }
@@ -374,7 +374,7 @@ fun CreateQuotationScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .then(
-                    // ✅ CHANGED — scroll allowed on step 3 too, EXCEPT when PDF preview WebView is showing
+                    //    — scroll allowed on step 3 too, EXCEPT when PDF preview WebView is showing
                     if (currentStep != 3 || !previewShown) Modifier.verticalScroll(rememberScrollState())
                     else Modifier
                 )
@@ -396,30 +396,30 @@ fun CreateQuotationScreen(
 
                 2 -> Step2GarmentDetails(
                     garmentOptions = garmentOptions,
-                    selectedGarments = selectedGarments,                          // ✅ CHANGED
-                    onToggleGarment = { garmentId ->                               // ✅ CHANGED
+                    selectedGarments = selectedGarments,                           
+                    onToggleGarment = { garmentId ->                                
                         selectedGarments = if (selectedGarments.any { it.garmentId == garmentId }) {
                             selectedGarments.filter { it.garmentId != garmentId }
                         } else {
                             selectedGarments + GarmentSelectionState(garmentId = garmentId)
                         }
                     },
-                    onSelectFabric = { garmentId, fabric ->                        // ✅ CHANGED
+                    onSelectFabric = { garmentId, fabric ->                         
                         updateGarment(garmentId) { it.copy(fabric = fabric) }
                     },
-                    onSelectDesign = { garmentId, design ->                        // ✅ CHANGED
+                    onSelectDesign = { garmentId, design ->                         
                         updateGarment(garmentId) { it.copy(design = design) }
                     },
-                    onToggleAddon = { garmentId, addon ->                           // ✅ CHANGED
+                    onToggleAddon = { garmentId, addon ->                            
                         updateGarment(garmentId) { sel ->
                             sel.copy(addons = if (sel.addons.contains(addon)) sel.addons - addon else sel.addons + addon)
                         }
                     },
-                    onQuantityChange = { garmentId, qty ->                          // ✅ CHANGED
+                    onQuantityChange = { garmentId, qty ->                           
                         updateGarment(garmentId) { it.copy(quantity = qty) }
                     },
                     isLoading = garmentPricingState is GarmentPricingUiState.Loading,
-                    garmentBreakdowns = garmentBreakdowns,                          // ✅ CHANGED
+                    garmentBreakdowns = garmentBreakdowns,                           
                     subtotal = subtotal,
                     tax = tax,
                     total = total
@@ -440,7 +440,7 @@ fun CreateQuotationScreen(
                     customerAddress = selectedCustomer?.let { "${it.name}\nPhone: ${it.phone}" } ?: "",
                     customerPhone = selectedCustomer?.phone ?: "",
                     customerId = selectedCustomerId,
-                    garmentBreakdowns = garmentBreakdowns,   // ✅ CHANGED — single source now
+                    garmentBreakdowns = garmentBreakdowns,   //    — single source now
                     quotationViewModel = quotationViewModel,
                     customerSnapshotName = selectedCustomer?.name ?: "",
                     customerSnapshotPhone = selectedCustomer?.phone ?: "",
@@ -658,8 +658,8 @@ private fun Step2GarmentDetails(
     GarmentOptionGrid(
         title = "Select Garment Type (multiple allowed)",
         options = garmentOptions,
-        selectedIds = selectedGarments.map { it.garmentId }.toSet(),   // ✅ CHANGED — set of ids
-        onToggle = onToggleGarment,                                     // ✅ CHANGED — toggle not replace
+        selectedIds = selectedGarments.map { it.garmentId }.toSet(),   //    — set of ids
+        onToggle = onToggleGarment,                                     //    — toggle not replace
         showPrice = true
     )
 
@@ -840,8 +840,8 @@ private fun OptionSelectionGrid(
 private fun GarmentOptionGrid(
     title: String,
     options: List<GarmentOption>,
-    selectedIds: Set<String>,     // ✅ CHANGED — was selectedId: String?
-    onToggle: (String) -> Unit,   // ✅ CHANGED — was onSelect
+    selectedIds: Set<String>,     //    — was selectedId: String?
+    onToggle: (String) -> Unit,   //    — was onSelect
     showPrice: Boolean = true
 ) {
     if (options.isEmpty()) return
@@ -853,7 +853,7 @@ private fun GarmentOptionGrid(
         options.chunked(2).forEach { rowItems ->
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 rowItems.forEach { option ->
-                    val selected = option.id in selectedIds   // ✅ CHANGED
+                    val selected = option.id in selectedIds    
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -864,7 +864,7 @@ private fun GarmentOptionGrid(
                                 shape = RoundedCornerShape(10.dp)
                             )
                             .background(if (selected) TintBg else whiteBg)
-                            .clickable { onToggle(option.id) }   // ✅ CHANGED
+                            .clickable { onToggle(option.id) }    
                             .padding(horizontal = 14.dp, vertical = 12.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -987,9 +987,6 @@ private fun QuantitySelector(
 // ─────────────────────────────────────────────────────────────
 // STEP 3 — Pricing Summary with PDF Preview
 // ─────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────
-// STEP 3 — Pricing Summary with PDF Preview
-// ─────────────────────────────────────────────────────────────
 @Suppress("unused_parameter")
 @Composable
 private fun Step3PricingSummary(
@@ -1017,7 +1014,6 @@ private fun Step3PricingSummary(
     ),
     onEdit: () -> Unit = {},
     customerId: String? = null,
-    // ✅ CHANGED — replaces garmentName/fabricName/designName/quantity/basePrice/fabricOption/designOption/addonOptions/garmentCategoryId
     garmentBreakdowns: List<GarmentBreakdown> = emptyList(),
     quotationViewModel: com.cuso.mobile.viewmodel.QuotationViewModel? = null,
     customerSnapshotName: String = "",
@@ -1047,7 +1043,6 @@ private fun Step3PricingSummary(
         when (saveState) {
             is com.cuso.mobile.viewmodel.QuotationSaveUiState.Success -> {
                 isSavingDraft = false
-                // Toast-க்கு பதிலாக DynamicIslandSuccess State-ஐ true ஆக்கவும்:
                 showDynamicIslandSuccess = true
                 dynamicIslandMessage = "Saved as draft successfully"
 
@@ -1066,7 +1061,7 @@ private fun Step3PricingSummary(
         }
     }
 
-    // ✅ CHANGED — builds ONE QuotationItemInput per garment in garmentBreakdowns
+    //    — builds ONE QuotationItemInput per garment in garmentBreakdowns
     fun buildSaveDraftRequest(): CreateQuotationRequest? {
         val custId = customerId ?: return null
         if (garmentBreakdowns.isEmpty()) return null
@@ -1114,7 +1109,7 @@ private fun Step3PricingSummary(
         )
     }
 
-    // ✅ CHANGED — pdf items built from ALL garments, not a single fallback item
+    //    — pdf items built from ALL garments, not a single fallback item
     val pdfData = remember(
         customerName, garmentBreakdowns, subtotal, total, logoBase64
     ) {
@@ -1218,10 +1213,10 @@ private fun Step3PricingSummary(
             }
 
             TipBanner("Tip: You can apply discounts in the next step.")
-            Spacer(Modifier.height(90.dp))   // ✅ CHANGED — extra bottom padding so FAB doesn't overlap last item
+            Spacer(Modifier.height(90.dp))   //    — extra bottom padding so FAB doesn't overlap last item
         }
 
-        QuickActionsRow(                      // ✅ MOVED outside the scroll column — stays pinned below
+        QuickActionsRow(                      //   MOVED outside the scroll column — stays pinned below
             onDiscount = {},
             onEdit = onEdit,
             onSaveDraft = saveDraftAction

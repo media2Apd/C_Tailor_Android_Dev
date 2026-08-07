@@ -15,7 +15,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -35,14 +34,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.mutedText
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.home.reusablecomposables.FabConfig
-import com.cuso.mobile.view.home.reusablecomposables.FabScaffold
-import com.cuso.mobile.view.home.reusablecomposables.ListSkeleton
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.viewmodel.GarmentPricingListUiState
 import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 
@@ -122,7 +119,7 @@ fun PricingScreen(
                     }
                 }
                 is GarmentPricingListUiState.Success -> {
-                    val uniqueItems = state.items.distinctBy { it.id }   // ✅ NEW — dedupe by id
+                    val uniqueItems = state.items.distinctBy { it.id }   //   NEW — dedupe by id
 
                     if (uniqueItems.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -135,11 +132,11 @@ fun PricingScreen(
                                 .verticalScroll(rememberScrollState())
                                 .padding(16.dp)
                         ) {
-                            PricingDashboard(items = uniqueItems)   // ✅ CHANGED — dashboard stats layum unique items base ah
+                            PricingDashboard(items = uniqueItems)
 
                             Spacer(Modifier.height(20.dp))
 
-                            uniqueItems.forEach { item ->   // ✅ CHANGED
+                            uniqueItems.forEach { item ->
                                 GarmentPricingCard(
                                     item = item,
                                     onClick = { onCardClick(item.id) }
@@ -204,20 +201,6 @@ private fun DashboardStatCard(label: String, value: String, modifier: Modifier =
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-//            Box(
-//                modifier = Modifier
-//                    .size(34.dp)
-//                    .background(PrimaryLight, CircleShape),
-//                contentAlignment = Alignment.Center
-//            ) {
-//                Icon(
-//                    Icons.Default.BarChart,
-//                    contentDescription = null,
-//                    tint = Primary,
-//                    modifier = Modifier.size(16.dp)
-//                )
-//            }
-//            Spacer(Modifier.width(10.dp))
             Column {
                 Text(label, fontSize = 11.sp, color = mutedText)
                 Text(value, fontSize = 14.sp, color = TextDark)

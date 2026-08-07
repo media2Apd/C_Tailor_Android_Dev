@@ -2,7 +2,6 @@
 
 package com.cuso.mobile.repository
 
-import android.util.Log
 import androidx.room.withTransaction
 import com.cuso.mobile.database.AppDatabase
 import com.cuso.mobile.database.entities.*
@@ -24,7 +23,7 @@ class LoginRepository @Inject constructor(
         db.withTransaction {
             clearAll()
             val user = loginData.user
-            val org = user.organizationId  // ✅ This is Organization (branches = List<String>)
+            val org = user.organizationId  //   This is Organization (branches = List<String>)
             val tokens = loginData.tokens
 
             // 1. Save User
@@ -84,7 +83,7 @@ class LoginRepository @Inject constructor(
                     OrgSegmentEntity(orgId = org._id, segment = it)
                 }
             )
-            // ✅ branches is List<String> from login API, so map directly
+            //   branches is List<String> from login API, so map directly
             db.organizationDao().insertBranches(
                 org.branches.map { branchId ->
                     OrgBranchEntity(orgId = org._id, branch = branchId)
@@ -143,21 +142,15 @@ class LoginRepository @Inject constructor(
             )
         }
     }
-    // LoginRepository.kt la
-// LoginRepository.kt
     suspend fun updateProfilePicture(userId: String, newUrl: String?) {
         val currentUser = db.userDao().getUser() ?: return
         if (currentUser.id != userId) return
 
         val updatedUser = currentUser.copy(profilePicture = newUrl)
-        db.userDao().updateUser(updatedUser) // 👈 இது முடிந்தவுடன் Flow தானாக TopBar-க்கு சொல்லும்
+        db.userDao().updateUser(updatedUser)
     }
     fun getUserFlow() = db.userDao().getUserFlow()
 
-    // Repository (DAO layer)
-    suspend fun clearLocalUser() {
-        db.userDao().clearUser()   // DELETE FROM user_table
-    }
     suspend fun clearAll() {
         db.userDao().clearUser()
         db.organizationDao().clearOrganization()
@@ -232,7 +225,7 @@ class LoginRepository @Inject constructor(
             db.organizationDao().insertSegments(
                 org.segments.map { OrgSegmentEntity(orgId = org.id, segment = it) }
             )
-            // ✅ Google branches are List<String>
+            //   Google branches are List<String>
             db.organizationDao().insertBranches(
                 org.branches.map { branchId ->
                     OrgBranchEntity(orgId = org.id, branch = branchId)
@@ -343,7 +336,7 @@ class LoginRepository @Inject constructor(
             db.organizationDao().insertSegments(
                 org.segments.map { OrgSegmentEntity(orgId = org._id, segment = it) }
             )
-            // ✅ branches is List<String> from Organization API response
+            //   branches is List<String> from Organization API response
             db.organizationDao().insertBranches(
                 org.branches.map { branchId ->
                     OrgBranchEntity(orgId = org._id, branch = branchId)

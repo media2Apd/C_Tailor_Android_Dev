@@ -22,12 +22,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -59,11 +57,11 @@ import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.TitleBar
 
 // ── Your existing DataCard system ──
-import com.cuso.mobile.view.home.reusablecomposables.DataCard
-import com.cuso.mobile.view.home.reusablecomposables.DataCardField
-import com.cuso.mobile.view.home.reusablecomposables.SegmentedSelector
-import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.SegmentedSelector
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TrailingFabAction
 
 // ── Design tokens (match EmployeeOnboardingScreen style) ──
 private val AccentColor = Color(0xFF3D3DFF)
@@ -362,7 +360,7 @@ fun CreatePurchaseOrderScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp) // ✅ NEW — match AccordionSection's horizontal inset
+                    .padding(horizontal = 20.dp) //   NEW — match AccordionSection's horizontal inset
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, AccentColor, RoundedCornerShape(8.dp))
                     .padding(24.dp),

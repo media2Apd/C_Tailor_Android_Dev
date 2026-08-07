@@ -69,8 +69,8 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.home.reusablecomposables.SmoothBottomSheet
-import com.cuso.mobile.view.home.reusablecomposables.SheetValue
+import com.cuso.mobile.view.composable.SmoothBottomSheet
+import com.cuso.mobile.view.composable.SheetValue
 
 // ─────────────────────────────────────────────────────────────
 // Data Classes for Menu Configuration
@@ -237,7 +237,7 @@ object SidebarConfig {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 🏠 FULL NAV BAR
+//  FULL NAV BAR
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -264,7 +264,7 @@ fun FullSideBar(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 📊 SALES NAV BAR
+//  SALES NAV BAR
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -321,7 +321,7 @@ private fun AppSidebarContent(
 
     val context = LocalContext.current
 
-    // ✅ NEW — drives blur/scrim reported up to the host screen
+    //   NEW — drives blur/scrim reported up to the host screen
     val blurRadius by animateDpAsState(
         targetValue = if (isOpen) 12.dp else 0.dp,
         animationSpec = tween(durationMillis = 250),
@@ -875,7 +875,7 @@ private const val HALF_FRACTION = 0.55f
 private const val FULL_FRACTION = 0.96f
 
 // ─────────────────────────────────────────────────────────────
-// 🏠 FULL MODULES PANEL
+//  FULL MODULES PANEL
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -911,7 +911,7 @@ fun ModulesPanelHeader(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // ✅ Single Column wrapping everything — this is what guarantees
+    //   Single Column wrapping everything — this is what guarantees
     // one continuous white surface behind title + divider + search bar.
     Column(
         modifier = modifier
@@ -932,17 +932,7 @@ fun ModulesPanelHeader(
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF111827)
             )
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color(0xFF374151),
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { onClose() }
-            )
+
         }
 
         // ── Divider ────────────────────────────────────────────
@@ -989,13 +979,11 @@ fun ModulesPanelHeader(
             )
         }
 
-        // Bottom hairline under the search bar (matches image)
-        HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 1.dp)
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// 🧩 Reusable Modules Panel Content — backed by SmoothBottomSheet
+//  Reusable Modules Panel Content — backed by SmoothBottomSheet
 // ─────────────────────────────────────────────────────────────
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1011,7 +999,7 @@ private fun ModulesPanelContent(
     initialExpandedCategory: String? = null,
     initialActiveSubItem: String? = null
 ) {
-    // ✅ Blur state for the background
+    //   Blur state for the background
     var modulesPanelBlur by remember { mutableStateOf(0.dp) }
 
     val context = LocalContext.current
@@ -1023,7 +1011,7 @@ private fun ModulesPanelContent(
     var activeSubItem by remember { mutableStateOf<String?>(null) }
     var expandedSubCategory by remember { mutableStateOf<String?>(null) }
 
-    // ✅ Sheet state for SmoothBottomSheet
+    //   Sheet state for SmoothBottomSheet
     var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
 
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -1043,7 +1031,7 @@ private fun ModulesPanelContent(
         derivedStateOf { buildFrequentlyUsed(context, menuItems).take(3) }
     }
 
-    // ✅ Handle sheet open/close and initial state
+    //   Handle sheet open/close and initial state
     LaunchedEffect(isOpen, initialExpandedModule, initialExpandedCategory, initialActiveSubItem) {
         if (isOpen) {
             sheetState = SheetValue.Collapsed
@@ -1078,7 +1066,7 @@ private fun ModulesPanelContent(
         sheetBackgroundColor = Color(0xFFFAFAFB),
         onDismissRequest = onClose,
         onBlurScrimChange = { blur, _ ->
-            modulesPanelBlur = blur  // ✅ Update blur state
+            modulesPanelBlur = blur  //   Update blur state
         }
     ) {
         Scaffold(
@@ -1099,13 +1087,6 @@ private fun ModulesPanelContent(
                 .background(Primary_background)
             )
             {
-
-                // ── Header ──
-
-
-
-
-                Spacer(Modifier.height(20.dp))
 
                 LazyColumn(
                     state = listState,

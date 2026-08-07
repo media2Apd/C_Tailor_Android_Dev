@@ -16,7 +16,7 @@ data class ViewOneLeadData(
     val garmentCategory: List<String>?,
     val estimatedQuantity: Int?,
     val source: String,
-    val leadOwner: AssignedStaffData? = null,   // ✅ NEW — same shape as assignedStaff ({ _id })
+    val leadOwner: AssignedStaffData? = null,   //    — same shape as assignedStaff ({ _id })
     val budgetRange: BudgetRangeData?,
     val occasion: String?,
     val enquiryDate: String,
@@ -75,7 +75,7 @@ data class AssignedStaffData(
     val _id: String
 )
 
-// ✅ FIX
+//   FIX
 data class NoteData(
     val _id: String? = null,
     val message: String,

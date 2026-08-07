@@ -14,12 +14,12 @@ data class User(
     val lastName: String = "",
     val email: String = "",
     val profilePicture: String = "",
-    val organizationId: Organization,  // ✅ Login API version
+    val organizationId: Organization,  //   Login API version
     val role: String,
     val memberId: String = ""
 )
 
-// ✅ This is the Login API version of Organization (branches = List<String>)
+//   This is the Login API version of Organization (branches = List<String>)
 data class Organization(
     val subscription: Subscription,
     val settings: Settings,
@@ -38,7 +38,7 @@ data class Organization(
     val totalMembers: Int,
     val activeMembers: Int,
     val segments: List<String>,
-    val branches: List<String>,  // ✅ Login API returns List<String>
+    val branches: List<String>,  //   Login API returns List<String>
     val isTaxId: Boolean,
     val status: String,
     val createdAt: String,
@@ -53,7 +53,7 @@ data class Organization(
     val plan: String? = null  // Login API returns plan as String ID
 )
 
-// ✅ This is the Organization API version (branches = List<Branch>)
+//   This is the Organization API version (branches = List<Branch>)
 data class OrganizationDetails(
     val subscription: Subscription,
     val settings: Settings,
@@ -72,7 +72,7 @@ data class OrganizationDetails(
     val totalMembers: Int,
     val activeMembers: Int,
     val segments: List<String>,
-    val branches: List<Branch>,  // ✅ Organization API returns List<Branch>
+    val branches: List<Branch>,  //   Organization API returns List<Branch>
     val isTaxId: Boolean,
     val status: String,
     val createdAt: String,
@@ -96,7 +96,7 @@ data class DefaultBranch(
     val slug: String? = null
 )
 
-// ✅ Branch data class (for Organization API)
+//   Branch data class (for Organization API)
 data class Branch(
     val address: BranchAddress?,
     val _id: String,
@@ -115,13 +115,13 @@ data class Branch(
     val __v: Int
 )
 
-// ✅ BranchAddress data class
+//   BranchAddress data class
 data class BranchAddress(
     val country: String,
     val state: String
 )
 
-// ✅ Plan data class (for Organization API)
+//   Plan data class (for Organization API)
 data class Plan(
     val _id: String,
     val name: String,

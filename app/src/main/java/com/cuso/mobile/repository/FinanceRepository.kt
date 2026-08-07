@@ -16,7 +16,7 @@ import com.cuso.mobile.model.finance.JournalEntryLineRequest
 import com.cuso.mobile.model.finance.JournalEntryListResponse
 import com.cuso.mobile.model.finance.LedgerItem
 import com.cuso.mobile.model.finance.TrialBalanceItem
-// ✅ NEW imports for update journal entry
+//   NEW imports for update journal entry
 import com.cuso.mobile.model.finance.UpdateJournalEntryRequest
 import com.cuso.mobile.model.finance.UpdateJournalEntryResponse
 import com.cuso.mobile.model.sales.CustomerDetailV2
@@ -414,7 +414,7 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    // ✅ NEW — Journal Entries: update
+    //   NEW — Journal Entries: update
     // PUT /api/finance/journal-entries/{id}
     suspend fun updateJournal(
         id: String,

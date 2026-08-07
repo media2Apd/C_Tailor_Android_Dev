@@ -42,8 +42,8 @@ data class InventoryItem(
     val stockStatus: String
 )
 
-// ✅ small helper — UI code everywhere just wants a display URL
-fun InventoryItem.firstImageUrl(): String? = images.firstOrNull()?.fileUrl
+//   small helper — UI code everywhere just wants a display URL
+//fun InventoryItem.firstImageUrl(): String? = images.firstOrNull()?.fileUrl
 
 data class InventoryImage(
     val fileUrl: String,
@@ -136,8 +136,8 @@ object ItemType {
 
 // In com.cuso.mobile.model.inventory
 data class CreateItemFormState(
-    val itemId: String? = null,           // ✅ NEW - tracks if we are editing
-    val existingImageUrl: String? = null, // ✅ NEW - shows image from server
+    val itemId: String? = null,           //   NEW - tracks if we are editing
+    val existingImageUrl: String? = null, //   NEW - shows image from server
     val itemType: String = ItemType.IN_HOUSE,
     val name: String = "",
     val sku: String = "",
@@ -169,7 +169,7 @@ data class CreateItemFormState(
     val openingStock: String = "",
     val imageUri: android.net.Uri? = null
 ) {
-    val isEditMode: Boolean get() = itemId != null   // NEW
+//    val isEditMode: Boolean get() = itemId != null   // NEW
 
     fun validate(): String? = when {
         name.isBlank() -> "Item name is required"

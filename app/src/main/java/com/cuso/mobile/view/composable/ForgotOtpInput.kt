@@ -73,7 +73,7 @@ fun ForgotOtpInput(
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
     Box(
-        // ✅ Side padding so boxes never touch screen edges on narrow devices.
+        //  Side padding so boxes never touch screen edges on narrow devices.
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
@@ -98,7 +98,7 @@ fun ForgotOtpInput(
             decorationBox = { it() }
         )
 
-        // ✅ Boxes were fixed at 55.dp with 10.dp gaps (~380dp total) which
+        //  Boxes were fixed at 55.dp with 10.dp gaps (~380dp total) which
         // overflowed on narrow phones (~320dp wide) and looked tiny/cramped
         // relative to the screen on tablets. Using weight(1f) + aspectRatio(1f)
         // makes each box a flexible, always-square fraction of the available
@@ -116,7 +116,7 @@ fun ForgotOtpInput(
 
                 Box(
                     modifier = Modifier
-                        .size(40.dp)                                        // ← .weight(1f).aspectRatio(1f) நீக்கி இதை போடுங்க
+                        .size(40.dp)
                         .border(
                             width = if (isFocused) 2.dp else 1.5.dp,
                             color = if (isFocused) Color(0xFF1D4ED8) else Color(0xFFD1D5DB),  // ← active/regular colors

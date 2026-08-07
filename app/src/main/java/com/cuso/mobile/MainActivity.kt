@@ -49,8 +49,6 @@ import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
 import com.cuso.mobile.view.organization.OrganizationNotFoundScreen
 import com.cuso.mobile.view.others.PrivacyPolicy
 import com.cuso.mobile.view.others.TermsConditions
-import com.cuso.mobile.view.signup_screen.SignUpOtpScreen
-import com.cuso.mobile.view.signup_screen.SignUpScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -159,25 +157,7 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
             )
         }
 
-        composable("signup") {
-            SignUpScreen(
-                navController = navController,
-                onSignUpSuccess = { navController.navigate("login") },
-                onNavigateToLogin = { navController.popBackStack() },
-                activity = activity
-            )
-        }
 
-        composable("signup_otp/{email}",
-            arguments = listOf(navArgument("email") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val email = backStackEntry.arguments?.getString("email") ?: ""
-            SignUpOtpScreen(
-                navController = navController,
-                activity = activity,
-                submittedEmail = email
-            )
-        }
 
         composable(
             "new-pass/{email}",

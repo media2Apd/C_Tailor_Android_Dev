@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.home.reusablecomposables
+package com.cuso.mobile.view.composable
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -73,7 +75,7 @@ data class DataCardField(
     val iconBackgroundColor: Color? = null,
     val iconCircleSize: Dp = 24.dp
 )
-
+//
 //data class DataCardBadge(
 //    val text: String,
 //    val textColor: Color,
@@ -179,7 +181,7 @@ fun <T> DataCard(
     eyebrowColor: Color = Color(0xFF6B7280),
     title: String,
     titleFontWeight: FontWeight = FontWeight.Normal,
-    titleFontSize: androidx.compose.ui.unit.TextUnit = 18.sp,
+    titleFontSize: TextUnit = 18.sp,
     titleColor: Color = Color(0xFF111827),
     subtitle: String? = null,
     footerFields: List<DataCardField> = emptyList(),
@@ -286,7 +288,7 @@ fun <T> DataCard(
                                     painter = image.painter,
                                     contentDescription = null,
                                     contentScale = ContentScale.Crop,
-                                    colorFilter = image.tint?.let { androidx.compose.ui.graphics.ColorFilter.tint(it) },
+                                    colorFilter = image.tint?.let { ColorFilter.tint(it) },
                                     modifier = Modifier.fillMaxSize()
                                 )
                                 image.vector != null -> Icon(

@@ -11,17 +11,17 @@ data class OrderManagementResponse(
 data class OrderManagementItem(
     @SerializedName("_id") val id: String,
     val orderNumber: String,
-    val totalAmount: Double? = null,      // சில entries-ல missing (SO-00027 பாருங்க)
-    val customerName: String? = null,     // சில entries-ல missing (SO-00016 பாருங்க)
+    val totalAmount: Double? = null,
+    val customerName: String? = null,
     val mobile: String? = null,
-    val garments: String = "",            // already formatted string: "Shirt (40), Pant (21)"
+    val garments: String = "",
     val totalGarments: Int = 0,
     val stageStatus: String = "",
     val orderStatus: String = "",
     val paymentStatus: String = "",
     val totalPaid: Double = 0.0,
     val balanceAmount: Double = 0.0,
-    val orderDate: String = "",           // ISO string: "2026-07-01T00:00:00.000Z"
+    val orderDate: String = "",
     val deliveryDate: String = ""
 )
 

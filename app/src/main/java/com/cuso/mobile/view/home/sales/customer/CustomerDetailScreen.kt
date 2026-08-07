@@ -48,9 +48,9 @@ import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.ErrorMapper
 import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.home.FormDropdown
-import com.cuso.mobile.view.home.reusablecomposables.StepNavigationFab
-import com.cuso.mobile.view.home.reusablecomposables.TrailingFabAction
-import com.cuso.mobile.view.home.reusablecomposables.dashedBorder
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.view.composable.dashedBorder
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.view.organization.OrgOptions
 import com.cuso.mobile.view.organization.OrganizationDropdown
@@ -61,8 +61,6 @@ import kotlinx.coroutines.launch
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.customOutlinedButtonColors

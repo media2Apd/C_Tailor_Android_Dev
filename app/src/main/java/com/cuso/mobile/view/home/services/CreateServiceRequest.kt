@@ -44,6 +44,7 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.DashedUploadBox
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.SelectableChipRow
@@ -51,7 +52,6 @@ import com.cuso.mobile.view.composable.rememberFilePickerLauncher
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
-import com.cuso.mobile.view.home.inventory.AccordionSection
 import com.cuso.mobile.view.home.inventory.FormTextArea
 import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TrailingFabAction

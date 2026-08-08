@@ -142,7 +142,6 @@ fun TrialBalanceScreen(
                                 title = item.account,
                                 trailingText = "Code: ${item.code}",
                                 titleColor = TextPrimary,
-                                titleFontSize = 16.sp,
                                 footerAsRows = true, // every field below renders as a full-width row
                                 footerFields = listOf(
                                     DataCardField(

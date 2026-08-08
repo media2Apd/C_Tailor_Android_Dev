@@ -5,6 +5,7 @@
     "SpellCheckingInspection",
     "GrazieInspection"
 )
+
 package com.cuso.mobile.view.login
 
 import android.app.Activity
@@ -12,72 +13,82 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.CardContentsLoginScreen
 import com.cuso.mobile.view.composable.AppLogo
+import com.cuso.mobile.view.composable.CardContentsLoginScreen
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.LoginScreenTitle
-import com.cuso.mobile.viewmodel.UiState
 import com.cuso.mobile.viewmodel.Authenticate
+import com.cuso.mobile.viewmodel.UiState
 
 @Suppress("UNUSED_PARAMETER", "VariableNeverRead")
 @Composable
-fun LoginScreen(activity: Activity,
-                navController: NavController,
-                onloginSuccess: (String)-> Unit,
-                authViewModel: Authenticate= hiltViewModel(),
-                prefilledEmail:String="",
-                resetSuccessMessage:String=""
-
+fun LoginScreen(
+    activity: Activity,
+    navController: NavController,
+    onloginSuccess: (String) -> Unit,
+    authViewModel: Authenticate = hiltViewModel(),
+    prefilledEmail: String = "",
+    resetSuccessMessage: String = ""
 ) {
-
+    // Access Adaptive Tokens
+    val tokens = LocalAppTokens.current
 
     val authState by authViewModel.accountState.collectAsState()
-    var isLoginMode by remember{ mutableStateOf(true) }
+    var isLoginMode by remember { mutableStateOf(true) }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val snackbarState = remember { SnackbarHostState() }
     var showExitDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     var successMessage by remember { mutableStateOf<String?>(null) }
-//    var snackbarMessage by remember { mutableStateOf<String?>(null) }
-
-
 
     BackHandler {
         showExitDialog = true
     }
+
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
             containerColor = whiteBg,
-            title = { Text("Exit App",Modifier,color=blackTitle, fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to exit?",color=blackTitle) },
+            title = {
+                Text(
+                    text = "Exit App",
+                    color = blackTitle,
+                    fontSize = tokens.h2, // Adaptive Font
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to exit?",
+                    color = blackTitle,
+                    fontSize = tokens.bodyMedium // Adaptive Font
+                )
+            },
             confirmButton = {
-                TextButton(onClick = {
-                    (context as? Activity)?.finish()
-                }) {
-                    Text("Exit", color = Color.Red)
+                TextButton(onClick = { (context as? Activity)?.finish() }) {
+                    Text("Exit", color = Color.Red, fontSize = tokens.bodyLarge)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showExitDialog = false }) {
-                    Text("Cancel",color=blackTitle)
+                    Text("Cancel", color = blackTitle, fontSize = tokens.bodyLarge)
                 }
             }
         )
@@ -86,9 +97,8 @@ fun LoginScreen(activity: Activity,
     LaunchedEffect(authState) {
         when (val state = authState) {
             is UiState.LoginSuccess -> {
-
                 val orgToken = state.orgToken
-                val org = state.organization        //   fixed
+                val org = state.organization
                 val isOrgRegistered = org != null && org.orgSetupComplete
 
                 if (orgToken.isNullOrEmpty() || !isOrgRegistered) {
@@ -99,9 +109,6 @@ fun LoginScreen(activity: Activity,
                     onloginSuccess("${state.firstName} ${state.lastName}")
                 }
                 authViewModel.resetState()
-            }
-            is UiState.Error -> {
-
             }
             is UiState.RegisterSuccess -> {
                 snackbarState.showSnackbar("Account created! Please log in.")
@@ -114,60 +121,71 @@ fun LoginScreen(activity: Activity,
         }
     }
 
-
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            snackbarHost={SnackbarHost(snackbarState)}
-        )
-        { padding ->
+            snackbarHost = { SnackbarHost(snackbarState) },
+            containerColor = Color(0xFFf5f5f5)
+        ) { padding ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFFf5f5f5))
-
-                    //   Scrolls instead of clipping fields on short screens, and
-                    // pushes content above the keyboard instead of letting it
-                    // cover the password field.
-                    .verticalScroll(rememberScrollState()),
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = tokens.screenPadding), // Adaptive Padding
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Spacer(modifier = Modifier.height(tokens.screenPadding * 2))
+
                 AppLogo()
-                Spacer(modifier = Modifier.height(10.dp))
+
+                Spacer(modifier = Modifier.height(tokens.screenPadding))
+
+                // Adaptive Title Container
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    LoginScreenTitle()
+                    LoginScreenTitle() // Inside this component, use tokens.h1
                 }
-                Spacer(modifier = Modifier.height(10.dp))
+
+                Spacer(modifier = Modifier.height(tokens.screenPadding))
+
+                // INDUSTRY GRADE: Limit card width on Tablets/Desktop
                 Box(
-                    Modifier.padding(20.dp)
+                    modifier = Modifier
+                        .widthIn(max = 480.dp) // Professional limit for login forms
+                        .fillMaxWidth()
                 ) {
                     Card(
                         modifier = Modifier
+                            .fillMaxWidth()
                             .border(
-                                width = 2.dp,
-                                color = whiteBg,
-                                shape = RoundedCornerShape(15.dp)
+                                width = 1.dp, // Thinner border for cleaner look
+                                color = Color.LightGray.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(16.dp)
                             ),
-                        shape = RoundedCornerShape(15.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = whiteBg
-                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = whiteBg),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        CardContentsLoginScreen(
-                            navController,
-                            activity,
-                            authViewModel,
-                            prefilledEmail = prefilledEmail
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        Spacer(Modifier.padding(bottom = 30.dp))
-
+                        Column(
+                            modifier = Modifier
+                                .padding(tokens.screenPadding) // Inner adaptive padding
+                        ) {
+                            CardContentsLoginScreen(
+                                navController,
+                                activity,
+                                authViewModel,
+                                prefilledEmail = prefilledEmail
+                                // Note: Ensure CardContentsLoginScreen uses tokens for its TextField/Buttons
+                            )
+                        }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(tokens.screenPadding * 2))
             }
         }
 
@@ -183,5 +201,4 @@ fun LoginScreen(activity: Activity,
             onDismiss = { successMessage = null }
         )
     }
-
 }

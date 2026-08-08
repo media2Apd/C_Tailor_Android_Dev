@@ -5,416 +5,182 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalMinimumInteractiveComponentSize
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.contentType
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.PrimaryBorder
-import com.cuso.mobile.ui.theme.PrimaryTextColor
-import com.cuso.mobile.ui.theme.TextLog
-import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
-
+import com.cuso.mobile.R
 
 @Composable
-fun CardContentsLoginScreen(navController: NavController,
-                            activity: Activity,
-                            authViewModel: Authenticate,
-                            prefilledEmail:String="")
-{
+fun CardContentsLoginScreen(
+    navController: NavController,
+    activity: Activity,
+    authViewModel: Authenticate,
+    prefilledEmail: String = ""
+) {
+    val tokens = LocalAppTokens.current
+    val focusManager = LocalFocusManager.current
 
     val accountState by authViewModel.accountState.collectAsState()
     var email by rememberSaveable { mutableStateOf(prefilledEmail) }
     var password by remember { mutableStateOf("") }
     var submittedEmail by rememberSaveable { mutableStateOf(prefilledEmail) }
     var isSubmitted by remember { mutableStateOf(prefilledEmail.isNotBlank()) }
-    var isPasswordVisible by remember { mutableStateOf(false) }
     var showEmailNotFound by remember { mutableStateOf(false) }
-    val interactionSource = remember { MutableInteractionSource() }
-    val isError = accountState is UiState.Error || accountState is UiState.EmailNotFound
-    val passwordInteractionSource = remember { MutableInteractionSource() }
-    val isPasswordError = accountState is UiState.Error
 
+    val isError = accountState is UiState.Error || accountState is UiState.EmailNotFound
+    val errorMsg = (accountState as? UiState.Error)?.message
 
     Column(
-        Modifier.padding(25.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            // Clear focus and hide keyboard when clicking background
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                focusManager.clearFocus()
+            }
+            .padding(tokens.screenPadding)
     ) {
-        Text("Email", fontSize = 14.sp,color= TextLog)
-        Spacer(Modifier.padding(top = 5.dp))
-        if(!isSubmitted) {
-            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                BasicTextField(
-                    value = email,
-                    onValueChange = {
-                        email = it
-                        authViewModel.resetState()
-                        showEmailNotFound = false
-                    },
-                    singleLine = true,
-                    textStyle = TextStyle(color = blackTitle, fontSize = 13.sp),
-                    interactionSource = interactionSource,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .semantics { contentType = ContentType.EmailAddress },
-                    decorationBox = { innerTextField ->
-                        OutlinedTextFieldDefaults.DecorationBox(
-                            value = email,
-                            innerTextField = innerTextField,
-                            enabled = true,
-                            singleLine = true,
-                            visualTransformation = VisualTransformation.None,
-                            interactionSource = interactionSource,
-                            isError = isError,
-                            placeholder = {
-                                Text(
-                                    "your@email.com",
-                                    color = PrimaryTextColor,
-                                    style = TextStyle(fontSize = 13.sp)
-                                )
-                            },
-                            leadingIcon = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        imageVector = Icons.Filled.Email,
-                                        contentDescription = "Email Icon",
-                                        tint = PrimaryTextColor,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            },
-                            colors = customFieldOutlinedColors(),
-                            contentPadding = PaddingValues(
-                                start = 12.dp,
-                                end = 12.dp,
-                                top = 0.dp,
-                                bottom = 0.dp
-                            ),
-                            container = {
-                                OutlinedTextFieldDefaults.Container(
-                                    enabled = true,
-                                    isError = isError,
-                                    interactionSource = interactionSource,
-                                    colors = customFieldOutlinedColors(),
-                                    shape = OutlinedTextFieldDefaults.shape
-                                )
-                            }
-                        )
-                    }
-                )
-            }
 
-            if (accountState is UiState.Error) {
-                Text(
-                    text = (accountState as UiState.Error).message,
-                    color = Color.Red,
-                    fontSize = 14.sp,
-                    modifier = Modifier
-                )
-            }
-            Spacer(Modifier.padding(top=20.dp))
+        if (!isSubmitted) {
+            CusoTextField(
+                value = email,
+                onValueChange = {
+                    email = it
+                    authViewModel.resetState()
+                    showEmailNotFound = false
+                },
+                leadingIconPainter = painterResource(R.drawable.ic_mail),
+                label = "Email",
+                placeholder = "your@email.com",
+                isError = isError,
+                errorText = errorMsg,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+            )
+
             LaunchedEffect(showEmailNotFound) {
                 if (showEmailNotFound) {
                     navController.navigate("org-not-found")
                     authViewModel.resetState()
                 }
             }
-
         }
 
         if (isSubmitted) {
+            // User identity box
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp)
                     .background(whiteBg)
-                    .border(2.dp, PrimaryBorder, shape = RoundedCornerShape(8.dp))
-                    .padding(horizontal = 16.dp)
+                    .border(1.dp, PrimaryBorder, shape = RoundedCornerShape(5.dp))
+                    .padding(horizontal = 12.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Circular icon
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(color = Color(0xFFF5F5F5)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.PersonOutline,
-                            contentDescription = null,
-                            tint = PrimaryTextColor,
-                            modifier = Modifier.size(18.dp)
-                        )
+                Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.PersonOutline, null, tint = PrimaryTextColor, modifier = Modifier.size(18.dp))
                     }
-
                     Spacer(modifier = Modifier.width(10.dp))
-
-                    // Text block takes remaining space
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Sign in as",
-                            fontSize = 11.sp,
-                            color = PrimaryTextColor
-                        )
-                        Text(
-                            text = submittedEmail,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = blackTitle,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Text("Sign in as", fontSize = tokens.caption, color = PrimaryTextColor)
+                        Text(submittedEmail, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = blackTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-
-                    // Change button pinned to end
                     Text(
-                        text = "Change",
-                        modifier = Modifier.clickable {
-                            navController.navigate("login")
-                        },
-                        color = Primary,
-                        fontSize = 11.sp
+                        "Change",
+                        modifier = Modifier.clickable { navController.navigate("login") }.padding(8.dp),
+                        color = Primary, fontSize = tokens.caption, fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(tokens.screenPadding))
+
+            CusoTextField(
+                value = password,
+                onValueChange = { password = it; authViewModel.resetState() },
+                label = "Password",
+                placeholder = "Enter password",
+                leadingIconPainter = painterResource(R.drawable.ic_lock),
+                isPassword = true,
+                isError = isError,
+                errorText = errorMsg,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+            )
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Text(
+                    "Forgot Password?",
+                    modifier = Modifier.clickable { navController.navigate("new-pass/${email}") }.padding(vertical = 8.dp),
+                    color = Color(0xFF0A42BE), fontSize = tokens.caption, fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        LaunchedEffect(accountState) {
+            if (accountState is UiState.EmailVerified) {
+                submittedEmail = email
+                isSubmitted = true
+            } else if (accountState is UiState.EmailNotFound) {
+                showEmailNotFound = true
+            }
+        }
+
+        Spacer(Modifier.height(tokens.screenPadding))
+
+        // Main Login/Verify Button - height 40dp, radius 5dp
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            Button(
+                onClick = {
+                    focusManager.clearFocus()
+                    if (!isSubmitted) authViewModel.verifyEmail(email)
+                    else authViewModel.login(email, password)
+                },
+                modifier = Modifier.height(40.dp).fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = whiteBg),
+                shape = RoundedCornerShape(5.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                if (accountState is UiState.Loading) {
+                    CirculerProgressIndicatorSmall()
+                } else {
+                    Text(
+                        text = if (isSubmitted) "Continue" else "Verify Email",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
         }
 
-        Spacer(Modifier.padding(top=20.dp))
-        if (isSubmitted){
-            Row {
-                Column {
-                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                        BasicTextField(
-                            value = password,
-                            onValueChange = {
-                                password = it
-                                authViewModel.resetState()
-                            },
-                            singleLine = true,
-                            textStyle = TextStyle(color = blackTitle, fontSize = 13.sp),
-                            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            interactionSource = passwordInteractionSource,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(40.dp)
-                                .semantics { contentType = ContentType.Password },
-                            decorationBox = { innerTextField ->
-                                OutlinedTextFieldDefaults.DecorationBox(
-                                    value = password,
-                                    innerTextField = innerTextField,
-                                    enabled = true,
-                                    singleLine = true,
-                                    visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                    interactionSource = passwordInteractionSource,
-                                    isError = isPasswordError,
-                                    placeholder = {
-                                        Text(
-                                            "Password",
-                                            color = PrimaryTextColor,
-                                            style = TextStyle(fontSize = 13.sp)
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Icon(
-                                                imageVector = Icons.Filled.Lock,
-                                                contentDescription = "Password Icon",
-                                                tint = PrimaryTextColor,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    },
-                                    trailingIcon = {
-                                        IconButton(
-                                            onClick = { isPasswordVisible = !isPasswordVisible },
-                                            modifier = Modifier.size(32.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                                contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
-                                                tint = Color.LightGray,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    },
-                                    colors = customFieldOutlinedColors(),
-                                    contentPadding = PaddingValues(
-                                        start = 12.dp,
-                                        end = 8.dp,
-                                        top = 0.dp,
-                                        bottom = 0.dp
-                                    ),
-                                    container = {
-                                        OutlinedTextFieldDefaults.Container(
-                                            enabled = true,
-                                            isError = isPasswordError,
-                                            interactionSource = passwordInteractionSource,
-                                            colors = customFieldOutlinedColors(),
-                                            shape = OutlinedTextFieldDefaults.shape
-                                        )
-                                    }
-                                )
-                            }
-                        )
-                    }
-                    Row(
-                        Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (accountState is UiState.Error) {
-                            Text(
-                                text = (accountState as UiState.Error).message,
-                                color = Color.Red,
-                                fontSize = 8.sp,
-                                modifier = Modifier.padding(start = 4.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        //   Carry the typed email along so Forgot Password can
-                        // arrive pre-filled and locked instead of blank.
-                        Text("Forgot Password?", Modifier
-                            .clickable{
-                                navController.navigate("new-pass/${email}")
-                            }
-                            .padding(bottom = 20.dp),
-                            color = Color(0xFF0A42BE), fontSize = 11.sp
-                        )
-                    }
-
-                }
-
-            }
-
-        }
-
-        LaunchedEffect(accountState) {
-            when (accountState) {
-
-                is UiState.EmailVerified -> {
-                    submittedEmail = email
-                    isSubmitted = true
-                }
-                is UiState.EmailNotFound->{
-                    showEmailNotFound=true
-                }
-
-
-                else -> {}
-            }
-        }
-
-        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-            Button(
-                onClick = {
-                    if (!isSubmitted) {
-                        authViewModel.verifyEmail(email)
-                    } else {
-                        authViewModel.login(
-                            email = email,
-                            password = password
-                        )
-                    }
-                },
-                modifier = Modifier
-                    .height(40.dp)
-                    .fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 0.dp, horizontal = 16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Primary,
-                    contentColor = whiteBg
-                ),
-                shape = RoundedCornerShape(5.dp)
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (accountState is UiState.Loading) {
-                        CirculerProgressIndicatorSmall()
-                    } else {
-                        Text(
-                            text = if (isSubmitted) "Continue" else "Verify Mail",
-                            color = whiteBg,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
-        }
-        Spacer(Modifier.height(20.dp))
-
+        Spacer(Modifier.height(tokens.screenPadding))
         OrText()
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(tokens.screenPadding))
 
-        Row {
-            ContinueWithGoogle(activity,navController)
-        }
-        Spacer(Modifier.padding(top=20.dp))
-        Row {
-            ContinueWithApple(activity,navController)
-        }
-        Spacer(Modifier.padding(top=10.dp))
-        Row {
-            SignUpText()
-        }
+        ContinueWithGoogle(activity, navController)
+        Spacer(Modifier.height(tokens.screenPadding / 2))
+        ContinueWithApple(activity, navController)
+
+        Spacer(Modifier.height(tokens.screenPadding))
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { SignUpText() }
     }
 }

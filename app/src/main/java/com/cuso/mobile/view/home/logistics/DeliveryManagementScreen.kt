@@ -111,7 +111,6 @@ fun DeliveryManagementScreen(
                 DataCard(
                     item = delivery,
                     title = "${delivery.recipientName} • Delivery Id",
-                    titleFontSize = 14.sp,
                     subtitle = delivery.deliveryId,
                     topBadgeText = delivery.status,
                     topBadgeTextColor = if (isInTransit) InTransitText else ReadyText,

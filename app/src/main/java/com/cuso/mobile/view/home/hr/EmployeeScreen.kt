@@ -182,7 +182,6 @@ fun AllEmployeesScreen(
                             DataCard(
                                 item = member,
                                 title = member.memberId ?: member._id,
-                                titleFontSize = 15.sp,
                                 subtitle = "${member.displayName()} • ${member.displayRole()}",
                                 topBadgeText = member.displayStatus(),
                                 topBadgeTextColor = if (isActive) ActiveText else InactiveText,

@@ -272,7 +272,6 @@ package com.cuso.mobile.view.home.finance
                                         modifier = Modifier.animateItem(),
                                         title = account.accountName,
                                         titleColor = titleColor,
-                                        titleFontSize = titleSize,
                                         subtitle = "Code: ${account.accountCode}   Type: ${account.accountType}   Sub: ${account.category ?: "-"}",
                                         topBadgeText = account.status,
                                         topBadgeTextColor = badgeFg,

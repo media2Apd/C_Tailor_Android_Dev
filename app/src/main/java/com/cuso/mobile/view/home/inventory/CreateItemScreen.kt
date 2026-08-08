@@ -68,6 +68,8 @@ import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.ProfileViewModel
+import com.cuso.mobile.view.composable.AccordionSection
+
 
 // ── Design tokens ──
 private val AccentColor = Color(0xFF4F39F6)
@@ -548,75 +550,95 @@ fun CreateItemScreen(
         )
     }
 }
-
-@Composable
-fun AccordionSection(
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    iconPainter: androidx.compose.ui.graphics.painter.Painter? = null, // New parameter for drawables
-    title: String,
-    expanded: Boolean,
-    onHeaderClick: () -> Unit,
-    iconTint: Color = Primary,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.Transparent)
-                .clickable { onHeaderClick() }
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Handle both ImageVector and Painter icons
-                when {
-                    icon != null -> {
-                        Icon(
-                            icon,
-                            null,
-                            tint = iconTint,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.width(10.dp))
-                    }
-                    iconPainter != null -> {
-                        Icon(
-                            painter = iconPainter,
-                            contentDescription = null,
-                            tint = iconTint,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.width(10.dp))
-                    }
-                }
-                Text(
-                    title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TitleColor
-                )
-            }
-            Icon(
-                if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                null,
-                tint = LabelColor
-            )
-        }
-        AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                content()
-            }
-        }
-        HorizontalDivider(color = BorderColor)
-    }
-}
-
+//
+//@Composable
+//fun AccordionSection(
+//    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+//    iconPainter: androidx.compose.ui.graphics.painter.Painter? = null, // New parameter for drawables
+//    title: String,
+//    subtitle: String? = null,
+//    expanded: Boolean,
+//    onHeaderClick: () -> Unit,
+//    iconTint: Color = Primary,
+//    trailing: @Composable (() -> Unit)? = null,
+//    content: @Composable ColumnScope.() -> Unit
+//) {
+//    Column {
+//        Row(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .background(Color.Transparent)
+//                .clickable { onHeaderClick() }
+//                .padding(vertical = 16.dp),
+//            horizontalArrangement = Arrangement.SpaceBetween,
+//            verticalAlignment = Alignment.CenterVertically
+//        ) {
+//            Row(
+//                modifier = Modifier.weight(1f),
+//                verticalAlignment = Alignment.CenterVertically
+//            ) {
+//                // Handle both ImageVector and Painter icons
+//                when {
+//                    icon != null -> {
+//                        Icon(
+//                            icon,
+//                            null,
+//                            tint = iconTint,
+//                            modifier = Modifier.size(20.dp)
+//                        )
+//                        Spacer(Modifier.width(10.dp))
+//                    }
+//                    iconPainter != null -> {
+//                        Icon(
+//                            painter = iconPainter,
+//                            contentDescription = null,
+//                            tint = iconTint,
+//                            modifier = Modifier.size(20.dp)
+//                        )
+//                        Spacer(Modifier.width(10.dp))
+//                    }
+//                }
+//                Column {
+//                    Text(
+//                        title,
+//                        fontSize = 16.sp,
+//                        fontWeight = FontWeight.SemiBold,
+//                        color = TitleColor
+//                    )
+//                    if (!subtitle.isNullOrBlank()) {
+//                        Text(
+//                            subtitle,
+//                            fontSize = 12.sp,
+//                            color = LabelColor
+//                        )
+//                    }
+//                }
+//            }
+//
+//            Row(verticalAlignment = Alignment.CenterVertically) {
+//                if (trailing != null) {
+//                    trailing()
+//                } else {
+//                    Icon(
+//                        if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+//                        null,
+//                        tint = LabelColor
+//                    )
+//                }
+//            }
+//        }
+//        AnimatedVisibility(
+//            visible = expanded,
+//            enter = fadeIn() + expandVertically(),
+//            exit = fadeOut() + shrinkVertically()
+//        ) {
+//            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp)) {
+//                content()
+//            }
+//        }
+//        HorizontalDivider(color = BorderColor)
+//    }
+//}
 @Composable
 private fun AppTextArea(value: String, onValueChange: (String) -> Unit) {
     OutlinedTextField(

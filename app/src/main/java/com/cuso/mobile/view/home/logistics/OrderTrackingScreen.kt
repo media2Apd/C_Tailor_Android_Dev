@@ -93,7 +93,6 @@ fun OrderTrackingScreen(
                     DataCard(
                         item = order,
                         title = order.date,
-                        titleFontSize = 15.sp,
                         titleFontWeight = FontWeight.SemiBold,
                         titleColor = Color(0xFF111827),
                         subtitle = "Location: ${order.location}    Updated By: ${order.updatedBy}",

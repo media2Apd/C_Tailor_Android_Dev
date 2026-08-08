@@ -34,7 +34,7 @@ val Primary=Color(0xFF2f27ce)
 val Primary_background=Color(0xFFFAFAFB)
 //val Primary_background=Color(0xFF191970)
 
-val PrimaryBorder=Color(0xFFf0f1f3)
+val PrimaryBorder=Color(0xFFE9EAEC)
 
 
 val PrimaryTextColor=Color(0xFF8d939d)

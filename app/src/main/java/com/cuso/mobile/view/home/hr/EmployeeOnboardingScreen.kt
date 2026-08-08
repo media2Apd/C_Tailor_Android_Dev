@@ -80,11 +80,11 @@ import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.viewmodel.Authenticate
 import androidx.activity.ComponentActivity
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
-import com.cuso.mobile.view.home.inventory.AccordionSection
 import com.yalantis.ucrop.UCrop
 import java.io.File
 import androidx.core.graphics.toColorInt
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AccordionSection
 
 
 // ── Design tokens (match screenshot) ──

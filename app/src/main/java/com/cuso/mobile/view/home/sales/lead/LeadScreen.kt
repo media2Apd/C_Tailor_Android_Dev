@@ -11,12 +11,8 @@ package com.cuso.mobile.view.home.sales.lead
 
 import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,7 +20,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -46,30 +41,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -89,16 +77,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.sales.BudgetRange
 import com.cuso.mobile.model.sales.CreateLeadFormRequest
 import com.cuso.mobile.model.sales.LeadAppointment
@@ -116,6 +103,7 @@ import com.cuso.mobile.ui.theme.close_color
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DatePickerField
@@ -158,6 +146,9 @@ import kotlin.text.ifEmpty
 
 // ─────────────────────────────────────────────────────────────
 // Reusable "Lead Form" UI kit
+// All font sizes / screen-level paddings now come from
+// LocalAppTokens.current (AppDesignTokens) instead of hardcoded sp/dp,
+// so this whole module scales across compact / medium / expanded windows.
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -169,11 +160,12 @@ fun LeadFormTopBar(
     isConverted: Boolean = true,
     onConvertToOrder: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(whiteBg)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
+            .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding * 0.8f),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -185,9 +177,12 @@ fun LeadFormTopBar(
                     Box(
                         modifier = Modifier
                             .background(badgeColor.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .padding(
+                                horizontal = tokens.screenPadding * 0.75f,
+                                vertical = tokens.screenPadding * 0.375f
+                            )
                     ) {
-                        Text(badgeText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = badgeColor)
+                        Text(badgeText, fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = badgeColor)
                     }
                 }
             } else {
@@ -198,7 +193,10 @@ fun LeadFormTopBar(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
                         ) { onConvertToOrder() }
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                        .padding(
+                            horizontal = tokens.screenPadding * 0.75f,
+                            vertical = tokens.screenPadding * 0.375f
+                        ),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -210,7 +208,7 @@ fun LeadFormTopBar(
                     )
                     Text(
                         "Convert to Order",
-                        fontSize = 12.sp,
+                        fontSize = tokens.caption,
                         fontWeight = FontWeight.SemiBold,
                         color = whiteBg
                     )
@@ -239,23 +237,24 @@ fun ConvertToOrderDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     Dialog(onDismissRequest = { if (!isLoading) onDismiss() }) {
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = whiteBg,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(modifier = Modifier.padding(tokens.screenPadding)) {
                 Text(
                     "Convert Lead to Order",
-                    fontSize = 18.sp,
+                    fontSize = tokens.h2,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
                     leadName,
-                    fontSize = 14.sp,
+                    fontSize = tokens.bodyMedium,
                     color = Color(0xFF6B7280)
                 )
                 Spacer(Modifier.height(20.dp))
@@ -264,7 +263,7 @@ fun ConvertToOrderDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss, enabled = !isLoading) {
-                        Text("Cancel", color = Color(0xFF6B7280))
+                        Text("Cancel", fontSize = tokens.bodyMedium, color = Color(0xFF6B7280))
                     }
                     Spacer(Modifier.width(8.dp))
                     Button(
@@ -275,7 +274,7 @@ fun ConvertToOrderDialog(
                         if (isLoading) {
                             CirculerProgressIndicatorSmall()
                         } else {
-                            Text("Convert", color = whiteBg)
+                            Text("Convert", fontSize = tokens.bodyMedium, color = whiteBg)
                         }
                     }
                 }
@@ -286,18 +285,19 @@ fun ConvertToOrderDialog(
 
 @Composable
 fun LeadInfoBanner(text: String) {
+    val tokens = LocalAppTokens.current
     var visible by remember { mutableStateOf(true) }
     AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(LeadPrimarySoft, RoundedCornerShape(10.dp))
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = tokens.screenPadding * 0.85f, vertical = tokens.screenPadding * 0.75f),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Default.Info, contentDescription = null, tint = LeadPrimary, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(10.dp))
-            Text(text, fontSize = 13.sp, color = Color(0xFF374151), modifier = Modifier.weight(1f))
+            Text(text, fontSize = tokens.bodySmall, color = Color(0xFF374151), modifier = Modifier.weight(1f))
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Dismiss",
@@ -313,63 +313,7 @@ fun LeadInfoBanner(text: String) {
     }
 }
 
-@Suppress("UNUSED_PARAMETER")
-@Composable
-fun LeadAccordionSection(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    expanded: Boolean,
-    onExpandChange: (Boolean) -> Unit,
-    trailing: (@Composable () -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f, label = "lead_chevron")
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) { onExpandChange(!expanded) }
-                .padding( vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-            }
-            Spacer(Modifier.width(8.dp))
-            if (trailing != null) {
-                trailing()
-            } else {
-                Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = Primary,
-                    modifier = Modifier
-                        .size(25.dp)
-                        .rotate(chevronRotation)
-                )
-            }
-        }
-        AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 16.dp)
-            ) {
-                content()
-            }
-        }
-    }
-}
+// LeadAccordionSection removed — this page now reuses the shared AccordionSection composable directly.
 
 private fun validateLeadFields(
     leadSource: String,
@@ -430,6 +374,8 @@ fun CreateLeadScreen(
     onBack: () -> Unit,
     onBreadCrumbClick: () -> Unit ={}
 ) {
+    val tokens = LocalAppTokens.current
+
     var leadSource       by remember { mutableStateOf("") }
     var enquiryDate      by remember { mutableStateOf("") }
     var leadOwner        by remember { mutableStateOf("") }
@@ -648,21 +594,19 @@ fun CreateLeadScreen(
 
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        contentPadding = PaddingValues(horizontal = tokens.screenPadding),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         item {
-                            Spacer(Modifier.padding(12.dp))
+                            Spacer(Modifier.height(tokens.screenPadding * 0.75f))
                             LeadInfoBanner("Fill the details below to create a new lead.")
                         }
 
                         item {
-                            LeadAccordionSection(
-                                icon = Icons.Default.Description,
+                            AccordionSection(
                                 title = "Lead Information",
-                                subtitle = "",
                                 expanded = expandedSection == "lead_info",
-                                onExpandChange = {
+                                onHeaderClick = {
                                     expandedSection =
                                         if (expandedSection == "lead_info") "" else "lead_info"
                                 }
@@ -678,7 +622,7 @@ fun CreateLeadScreen(
                                 Spacer(Modifier.height(14.dp))
                                 FormLabel("Enquiry Date", isRequired = true)
                                 DatePickerField(
-                                    value = enquiryDate.ifEmpty { "Select Date" },
+                                    value = enquiryDate,
                                     onDateSelected = { enquiryDate = it },
                                     isError = errorField == "enquiryDate")
                                 Spacer(Modifier.height(14.dp))
@@ -715,12 +659,10 @@ fun CreateLeadScreen(
                         }
 
                         item {
-                            LeadAccordionSection(
-                                icon = Icons.Default.Person,
+                            AccordionSection(
                                 title = "Customer Identity",
-                                subtitle = "Who is this lead for?",
                                 expanded = expandedSection == "customer",
-                                onExpandChange = {
+                                onHeaderClick = {
                                     expandedSection =
                                         if (expandedSection == "customer") "" else "customer"
                                 }
@@ -752,7 +694,7 @@ fun CreateLeadScreen(
                                             Spacer(Modifier.width(6.dp))
                                             Text(
                                                 type,
-                                                fontSize = 14.sp,
+                                                fontSize = tokens.bodyMedium,
                                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                                 color = if (isSelected) blackTitle else Color(0xFF6B7280)
                                             )
@@ -798,19 +740,17 @@ fun CreateLeadScreen(
                                     Spacer(Modifier.height(14.dp))
                                     FormLabel("Date of Birth")
                                     DatePickerField(
-                                        value = dob.ifEmpty { "Select Date" },
+                                        value = dob,
                                         onDateSelected = { dob = it })
                                 }
                             }
                         }
 
                         item {
-                            LeadAccordionSection(
-                                icon = Icons.Default.LocationOn,
+                            AccordionSection(
                                 title = "Location & Communication",
-                                subtitle = "Contact details and preferences",
                                 expanded = expandedSection == "location",
-                                onExpandChange = {
+                                onHeaderClick = {
                                     expandedSection =
                                         if (expandedSection == "location") "" else "location"
                                 }
@@ -836,12 +776,10 @@ fun CreateLeadScreen(
                         }
 
                         item {
-                            LeadAccordionSection(
-                                icon = Icons.AutoMirrored.Filled.Assignment,
+                            AccordionSection(
                                 title = "Enquiry Details",
-                                subtitle = "What are they looking for?",
                                 expanded = expandedSection == "enquiry",
-                                onExpandChange = {
+                                onHeaderClick = {
                                     expandedSection =
                                         if (expandedSection == "enquiry") "" else "enquiry"
                                 }
@@ -889,13 +827,16 @@ fun CreateLeadScreen(
                                                             selectedGarmentCategories + option
                                                         }
                                                 }
-                                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                                .padding(
+                                                    horizontal = tokens.screenPadding,
+                                                    vertical = tokens.screenPadding * 0.5f
+                                                )
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
 
                                                 Text(
                                                     option,
-                                                    fontSize = 13.sp,
+                                                    fontSize = tokens.bodySmall,
                                                     color = if (isSelected) LeadPrimary else Color(0xFF374151),
                                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                                                 )
@@ -915,7 +856,7 @@ fun CreateLeadScreen(
                                 Spacer(Modifier.height(14.dp))
                                 FormLabel("Required Date")
                                 DatePickerField(
-                                    value = requiredDate.ifEmpty { "Select Date" },
+                                    value = requiredDate,
                                     onDateSelected = { requiredDate = it })
                                 Spacer(Modifier.height(14.dp))
                                 FormLabel("Occasion")
@@ -924,12 +865,10 @@ fun CreateLeadScreen(
                         }
 
                         item {
-                            LeadAccordionSection(
-                                icon = Icons.Default.CalendarMonth,
+                            AccordionSection(
                                 title = "Appointment & Follow-Up",
-                                subtitle = "Schedule interactions",
                                 expanded = expandedSection == "appointment",
-                                onExpandChange = {
+                                onHeaderClick = {
                                     expandedSection =
                                         if (expandedSection == "appointment") "" else "appointment"
                                 },
@@ -946,7 +885,7 @@ fun CreateLeadScreen(
                                 if (appointmentRequired) {
                                     FormLabel("Appointment Date")
                                     DatePickerField(
-                                        value = appointmentDate.ifEmpty { "Select Date" },
+                                        value = appointmentDate,
                                         onDateSelected = { appointmentDate = it })
                                     Spacer(Modifier.height(14.dp))
                                     FormLabel("Appointment Time")
@@ -969,7 +908,7 @@ fun CreateLeadScreen(
                                     Spacer(Modifier.height(14.dp))
                                     FormLabel("Follow-up Date", isRequired = true)
                                     DatePickerField(
-                                        value = followUpDate.ifEmpty { "Select Date" },
+                                        value = followUpDate,
                                         onDateSelected = { followUpDate = it })
                                     Spacer(Modifier.height(14.dp))
                                     FormDropdown(
@@ -986,7 +925,7 @@ fun CreateLeadScreen(
                                 } else {
                                     Text(
                                         "No appointment scheduled.",
-                                        fontSize = 13.sp,
+                                        fontSize = tokens.bodySmall,
                                         color = LeadmutedText
                                     )
                                 }
@@ -994,12 +933,10 @@ fun CreateLeadScreen(
                         }
 
                         item {
-                            LeadAccordionSection(
-                                icon = Icons.Default.Description,
+                            AccordionSection(
                                 title = "Notes & References",
-                                subtitle = "Additional information and attachments",
                                 expanded = expandedSection == "notes",
-                                onExpandChange = {
+                                onHeaderClick = {
                                     expandedSection =
                                         if (expandedSection == "notes") "" else "notes"
                                 }
@@ -1046,7 +983,7 @@ fun CreateLeadScreen(
                                         indication = null,
                                         interactionSource = remember { MutableInteractionSource() }
                                     ) { clearAllFields() }
-                                    .padding(horizontal = 15.dp, vertical = 8.dp)
+                                    .padding(horizontal = tokens.screenPadding * 0.9f, vertical = 8.dp)
                             ) {
                                 Icon(
                                     Icons.Default.Delete,
@@ -1057,7 +994,7 @@ fun CreateLeadScreen(
                                 Spacer(Modifier.width(6.dp))
                                 Text(
                                     "Clear All",
-                                    fontSize = 13.sp,
+                                    fontSize = tokens.bodySmall,
                                     color = Primary,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -1088,6 +1025,7 @@ fun LeadScreenContent(
     onClose: () -> Unit = {},
     onBreadCrumbClick: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
     val salesViewModel: SalesViewModel = hiltViewModel()
 
     val leads by salesViewModel.tableLeads.collectAsStateWithLifecycle()
@@ -1336,7 +1274,7 @@ fun LeadScreenContent(
                     SearchFilterBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding * 0.75f),
                         placeholder = "Search Leads...",
                         accentColor = BluePrimary,
                         borderColor = BorderGray,
@@ -1364,11 +1302,11 @@ fun LeadScreenContent(
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
                                     Spacer(Modifier.height(8.dp))
-                                    Text("Error loading leads", color = Color.Red, fontWeight = FontWeight.Bold)
-                                    Text( "Something went wrong, Please try again after sometime", color = Color.Gray, fontSize = 14.sp)
+                                    Text("Error loading leads", fontSize = tokens.bodyMedium, color = Color.Red, fontWeight = FontWeight.Bold)
+                                    Text("Something went wrong, Please try again after sometime", fontSize = tokens.bodyMedium, color = Color.Gray)
                                     Spacer(Modifier.height(12.dp))
                                     Button(onClick = { salesViewModel.fetchTableLeads() }) {
-                                        Text("Retry")
+                                        Text("Retry", fontSize = tokens.bodyMedium)
                                     }
                                 }
                             }
@@ -1380,13 +1318,13 @@ fun LeadScreenContent(
                                     .background(whiteBg, RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Column(Modifier.padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Column(Modifier.padding(tokens.screenPadding * 2.5f), horizontalAlignment = Alignment.CenterHorizontally) {
                                     val hasFilters = filterSections.any { section -> section.options.any { it.isSelected } }
                                     Text(
                                         if (searchQuery.isNotBlank() || hasFilters)
                                             "No matching leads found"
                                         else "No Leads Yet",
-                                        fontSize = 18.sp,
+                                        fontSize = tokens.h2,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF111827)
                                     )
@@ -1395,7 +1333,7 @@ fun LeadScreenContent(
                                         if (searchQuery.isNotBlank() || hasFilters)
                                             "Try adjusting your search or filter"
                                         else "Start by creating your first lead",
-                                        fontSize = 14.sp,
+                                        fontSize = tokens.bodyMedium,
                                         color = Color(0xFF9CA3AF)
                                     )
                                     Spacer(Modifier.height(20.dp))
@@ -1403,9 +1341,12 @@ fun LeadScreenContent(
                                         onClick = onCreateLead,
                                         colors = ButtonDefaults.buttonColors(containerColor = Primary),
                                         shape = RoundedCornerShape(8.dp),
-                                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                                        contentPadding = PaddingValues(
+                                            horizontal = tokens.screenPadding,
+                                            vertical = tokens.screenPadding * 0.6f
+                                        )
                                     ) {
-                                        Text("Create Lead", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                        Text("Create Lead", fontSize = tokens.bodyMedium, color = whiteBg, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -1522,6 +1463,7 @@ fun ViewLeadScreen(
     onBack: () -> Unit,
     onEditLead: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     val salesViewModel: SalesViewModel = hiltViewModel()
 
     val lead by salesViewModel.selectedLead.collectAsStateWithLifecycle()
@@ -1555,7 +1497,7 @@ fun ViewLeadScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CirculerProgressIndicatorReuse()
                 Spacer(Modifier.height(8.dp))
-                Text("Loading lead details...", color = Color.Gray, fontSize = 14.sp)
+                Text("Loading lead details...", fontSize = tokens.bodyMedium, color = Color.Gray)
             }
         }
         return
@@ -1571,11 +1513,11 @@ fun ViewLeadScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(48.dp))
                 Spacer(Modifier.height(8.dp))
-                Text("Error loading lead", color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text(error ?: "Unknown error", color = Color.Gray, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
+                Text("Error loading lead", fontSize = tokens.h2, color = Color.Red, fontWeight = FontWeight.Bold)
+                Text(error ?: "Unknown error", fontSize = tokens.bodyMedium, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = tokens.screenPadding * 2f))
                 Spacer(Modifier.height(12.dp))
                 Button(onClick = { onBack() }, colors = ButtonDefaults.buttonColors(containerColor = LeadPrimary), shape = RoundedCornerShape(8.dp)) {
-                    Text("Go Back", color = whiteBg)
+                    Text("Go Back", fontSize = tokens.bodyMedium, color = whiteBg)
                 }
             }
         }
@@ -1637,15 +1579,17 @@ fun ViewLeadScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 90.dp)
+                    contentPadding = PaddingValues(
+                        start = tokens.screenPadding,
+                        end = tokens.screenPadding,
+                        bottom = 90.dp
+                    )
                 ) {
                     item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.Description,
+                        AccordionSection(
                             title = "Lead Information",
-                            subtitle = "Basic details about this lead",
                             expanded = sectionLeadInfo,
-                            onExpandChange = { sectionLeadInfo = it }
+                            onHeaderClick = { sectionLeadInfo = !sectionLeadInfo }
                         ) {
                             ViewFieldValue("Lead Source", l.source.ifEmpty { "—" })
                             ViewFieldValue("Enquiry Date", formatLeadDate(l.enquiryDate))
@@ -1655,12 +1599,10 @@ fun ViewLeadScreen(
                     }
 
                     item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.Person,
+                        AccordionSection(
                             title = "Customer Identity",
-                            subtitle = "Who is this lead for?",
                             expanded = sectionCustomer,
-                            onExpandChange = { sectionCustomer = it }
+                            onHeaderClick = { sectionCustomer = !sectionCustomer }
                         ) {
                             Row(
                                 modifier = Modifier
@@ -1686,7 +1628,7 @@ fun ViewLeadScreen(
                                             tint = if (isSelected) LeadPrimary else Color(0xFF6B7280)
                                         )
                                         Spacer(Modifier.width(6.dp))
-                                        Text(type, fontSize = 14.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, color = if (isSelected) blackTitle else Color(0xFF6B7280))
+                                        Text(type, fontSize = tokens.bodyMedium, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, color = if (isSelected) blackTitle else Color(0xFF6B7280))
                                     }
                                 }
                             }
@@ -1702,12 +1644,10 @@ fun ViewLeadScreen(
                     }
 
                     item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.LocationOn,
+                        AccordionSection(
                             title = "Location & Communication",
-                            subtitle = "Contact details and preferences",
                             expanded = sectionLocation,
-                            onExpandChange = { sectionLocation = it }
+                            onHeaderClick = { sectionLocation = !sectionLocation }
                         ) {
                             ViewFieldValue("Address", l.address.ifEmpty { "—" })
                             ViewFieldValue("Area / Zone", l.area.ifEmpty { "—" })
@@ -1717,12 +1657,10 @@ fun ViewLeadScreen(
                     }
 
                     item {
-                        LeadAccordionSection(
-                            icon = Icons.AutoMirrored.Filled.Assignment,
+                        AccordionSection(
                             title = "Enquiry Details",
-                            subtitle = "What are they looking for?",
                             expanded = sectionEnquiry,
-                            onExpandChange = { sectionEnquiry = it }
+                            onHeaderClick = { sectionEnquiry = !sectionEnquiry }
                         ) {
                             ViewFieldValue("Enquiry Type", l.enquiryType.ifEmpty { "—" })
                             ViewFieldValue("Estimated Quantity", if (l.estimatedQuantity == 0) "—" else l.estimatedQuantity.toString())
@@ -1730,7 +1668,7 @@ fun ViewLeadScreen(
                             Column(modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 6.dp)) {
-                                Text("Garment Category", fontSize = 12.sp, color = LeadmutedText, fontWeight = FontWeight.Medium)
+                                Text("Garment Category", fontSize = tokens.caption, color = LeadmutedText, fontWeight = FontWeight.Medium)
                                 Spacer(Modifier.height(4.dp))
                                 if (garmentNames.isNotEmpty()) {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1746,18 +1684,19 @@ fun ViewLeadScreen(
                                                         LeadPrimarySoft,
                                                         RoundedCornerShape(50.dp)
                                                     )
-                                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                                                    .padding(
+                                                        horizontal = tokens.screenPadding,
+                                                        vertical = tokens.screenPadding * 0.5f
+                                                    )
                                             ) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp), tint = LeadPrimary)
-                                                    Spacer(Modifier.width(4.dp))
-                                                    Text(garment, fontSize = 13.sp, color = LeadPrimary, fontWeight = FontWeight.SemiBold)
+                                                    Text(garment, fontSize = tokens.bodySmall, color = LeadPrimary, fontWeight = FontWeight.SemiBold)
                                                 }
                                             }
                                         }
                                     }
                                 } else {
-                                    Text("—", fontSize = 14.sp, color = Color(0xFF111827))
+                                    Text("—", fontSize = tokens.bodyMedium, color = Color(0xFF111827))
                                 }
                             }
 
@@ -1765,9 +1704,9 @@ fun ViewLeadScreen(
                                 .fillMaxWidth()
                                 .padding(vertical = 6.dp)) {
 
-                                Text("Budget Range", fontSize = 12.sp, color = LeadmutedText, fontWeight = FontWeight.Medium)
+                                Text("Budget Range", fontSize = tokens.caption, color = LeadmutedText, fontWeight = FontWeight.Medium)
                                 Spacer(Modifier.height(4.dp))
-                                Text("₹${formatIndianNumber(l.budgetMin)}  ₹${formatIndianNumber(l.budgetMax)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
+                                Text("₹${formatIndianNumber(l.budgetMin)}  ₹${formatIndianNumber(l.budgetMax)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = LeadPrimary)
                                 Spacer(Modifier.height(4.dp))
                                 BudgetRangeSlider(value = l.budgetMin.toFloat(), onValueChange = {}, enabled = false)
                                 Spacer(Modifier.height(4.dp))
@@ -1780,12 +1719,10 @@ fun ViewLeadScreen(
                     }
 
                     item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.CalendarMonth,
+                        AccordionSection(
                             title = "Appointment & Follow-Up",
-                            subtitle = "Schedule interactions",
                             expanded = sectionAppointment,
-                            onExpandChange = { sectionAppointment = it },
+                            onHeaderClick = { sectionAppointment = !sectionAppointment },
                             trailing = {
                                 MiniSwitch(
                                     checked = appointmentRequired,
@@ -1801,18 +1738,16 @@ fun ViewLeadScreen(
                                 ViewFieldValue("Follow-up Date", formatLeadDate(l.followUpDate))
                                 ViewFieldValue("Priority", l.priority?.ifEmpty { "Select an option" })
                             } else {
-                                Text("No appointment scheduled.", fontSize = 13.sp, color = LeadmutedText)
+                                Text("No appointment scheduled.", fontSize = tokens.bodySmall, color = LeadmutedText)
                             }
                         }
                     }
 
                     item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.Description,
+                        AccordionSection(
                             title = "Notes & References",
-                            subtitle = "Additional information and attachments",
                             expanded = sectionNotes,
-                            onExpandChange = { sectionNotes = it }
+                            onHeaderClick = { sectionNotes = !sectionNotes }
                         ) {
                             ViewFieldValue("Internal Notes", l.internalNotes.ifEmpty { "—" })
                             ViewFieldValue("Customer Notes", l.customerNotes.ifEmpty { "—" })
@@ -1885,12 +1820,13 @@ fun MiniSwitch(
 
 @Composable
 fun ViewFieldValue(label: String, value: String?) {
+    val tokens = LocalAppTokens.current
     Column(modifier = Modifier
         .fillMaxWidth()
         .padding(vertical = 6.dp)) {
         Text(
             label,
-            fontSize = 12.sp,
+            fontSize = tokens.caption,
             color = LeadmutedText,
             fontWeight = FontWeight.Medium
         )
@@ -1898,7 +1834,7 @@ fun ViewFieldValue(label: String, value: String?) {
         if (value != null) {
             Text(
                 value,
-                fontSize = 14.sp,
+                fontSize = tokens.bodyMedium,
                 color = Color(0xFF111827),
                 fontWeight = FontWeight.Normal
             )
@@ -1916,6 +1852,7 @@ fun ViewFieldValue(label: String, value: String?) {
 
 @Composable
 fun EditLeadScreen(onBack: () -> Unit) {
+    val tokens = LocalAppTokens.current
     val salesViewModel: SalesViewModel = hiltViewModel()
 
     var showConvertDialog by remember { mutableStateOf(false) }
@@ -1944,7 +1881,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CirculerProgressIndicatorReuse()
                 Spacer(Modifier.height(8.dp))
-                Text("Loading lead data...", color = Color.Gray, fontSize = 14.sp)
+                Text("Loading lead data...", fontSize = tokens.bodyMedium, color = Color.Gray)
             }
         }
         return
@@ -2152,19 +2089,21 @@ fun EditLeadScreen(onBack: () -> Unit) {
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(0.dp, bottom = 90.dp),
+                    contentPadding = PaddingValues(
+                        start = tokens.screenPadding,
+                        end = tokens.screenPadding,
+                        bottom = 90.dp
+                    ),
                 ) {
                     item {
                         LeadInfoBanner("Edit the details below and save your changes.")
                     }
 
                     item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.Description,
+                        AccordionSection(
                             title = "Lead Information",
-                            subtitle = "Basic details about this lead",
                             expanded = sectionLeadInfo,
-                            onExpandChange = { sectionLeadInfo = it }
+                            onHeaderClick = { sectionLeadInfo = !sectionLeadInfo }
                         ) {
                             FormDropdown(
                                 "Lead Source",
@@ -2178,7 +2117,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                             Spacer(Modifier.height(14.dp))
                             FormLabel("Enquiry Date", isRequired = true)
                             DatePickerField(
-                                value = enquiryDate.ifEmpty { "Select Date" },
+                                value = enquiryDate ,
                                 onDateSelected = { enquiryDate = it })
                             Spacer(Modifier.height(14.dp))
 
@@ -2208,12 +2147,10 @@ fun EditLeadScreen(onBack: () -> Unit) {
                     }
 
                     item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.Person,
+                        AccordionSection(
                             title = "Customer Identity",
-                            subtitle = "Who is this lead for?",
                             expanded = sectionCustomer,
-                            onExpandChange = { sectionCustomer = it }
+                            onHeaderClick = { sectionCustomer = !sectionCustomer }
                         ) {
                             Row(
                                 modifier = Modifier
@@ -2242,7 +2179,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                         Spacer(Modifier.width(6.dp))
                                         Text(
                                             type,
-                                            fontSize = 14.sp,
+                                            fontSize = tokens.bodyMedium,
                                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                             color = if (isSelected) blackTitle else Color(0xFF6B7280)
                                         )
@@ -2278,7 +2215,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                 Spacer(Modifier.height(14.dp))
                                 FormLabel("Date of Birth")
                                 DatePickerField(
-                                    value = dob.ifEmpty { "Select Date" },
+                                    value = dob ,
                                     onDateSelected = { dob = it }
                                 )
                             }
@@ -2286,12 +2223,10 @@ fun EditLeadScreen(onBack: () -> Unit) {
                     }
 
                     item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.LocationOn,
+                        AccordionSection(
                             title = "Location & Communication",
-                            subtitle = "Contact details and preferences",
                             expanded = sectionLocation,
-                            onExpandChange = { sectionLocation = it }
+                            onHeaderClick = { sectionLocation = !sectionLocation }
                         ) {
                             FormLabel("Address")
                             FormTextField(value = address, onValueChange = { address = it })
@@ -2314,12 +2249,10 @@ fun EditLeadScreen(onBack: () -> Unit) {
                     }
 
                     item {
-                        LeadAccordionSection(
-                            icon = Icons.AutoMirrored.Filled.Assignment,
+                        AccordionSection(
                             title = "Enquiry Details",
-                            subtitle = "What are they looking for?",
                             expanded = sectionEnquiry,
-                            onExpandChange = { sectionEnquiry = it }
+                            onHeaderClick = { sectionEnquiry = !sectionEnquiry }
                         ) {
                             FormDropdown(
                                 "Enquiry Type",
@@ -2341,19 +2274,19 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                 Row {
                                     Text(
                                         "Garment Categories",
-                                        fontSize = 13.sp,
+                                        fontSize = tokens.bodySmall,
                                         fontWeight = FontWeight.Medium,
                                         color = if (showGarmentError) Color.Red else Color.Gray
                                     )
                                     Text(
                                         " *",
-                                        fontSize = 13.sp,
+                                        fontSize = tokens.bodySmall,
                                         fontWeight = FontWeight.Medium,
                                         color = Color.Red
                                     )
                                     Text(
                                         " (Select one or more)",
-                                        fontSize = 11.sp,
+                                        fontSize = tokens.label,
                                         color = Color.Gray
                                     )
                                 }
@@ -2364,14 +2297,14 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                                            .padding(14.dp),
+                                            .padding(tokens.screenPadding * 0.85f),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                             CirculerProgressIndicatorReuse()
                                             Text(
                                                 "Loading categories...",
-                                                fontSize = 14.sp,
+                                                fontSize = tokens.bodyMedium,
                                                 color = Color(0xFF6B7280)
                                             )
                                         }
@@ -2404,21 +2337,16 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                                             }
                                                         showGarmentError = false
                                                     }
-                                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                                                    .padding(
+                                                        horizontal = tokens.screenPadding,
+                                                        vertical = tokens.screenPadding * 0.5f
+                                                    )
                                             ) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    if (isSelected) {
-                                                        Icon(
-                                                            Icons.Default.Check,
-                                                            contentDescription = null,
-                                                            modifier = Modifier.size(14.dp),
-                                                            tint = LeadPrimary
-                                                        )
-                                                        Spacer(Modifier.width(4.dp))
-                                                    }
+
                                                     Text(
                                                         option,
-                                                        fontSize = 13.sp,
+                                                        fontSize = tokens.bodySmall,
                                                         color = if (isSelected) LeadPrimary else Color(0xFF374151),
                                                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                                                     )
@@ -2430,7 +2358,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                         Spacer(Modifier.height(4.dp))
                                         Text(
                                             "Selected: ${selectedGarmentCategories.joinToString(", ")}",
-                                            fontSize = 12.sp,
+                                            fontSize = tokens.caption,
                                             color = Color(0xFF6B7280)
                                         )
                                     }
@@ -2440,7 +2368,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                     Spacer(Modifier.height(4.dp))
                                     Text(
                                         "Please select at least one garment category",
-                                        fontSize = 12.sp,
+                                        fontSize = tokens.caption,
                                         color = Color.Red
                                     )
                                 }
@@ -2457,18 +2385,16 @@ fun EditLeadScreen(onBack: () -> Unit) {
                             Spacer(Modifier.height(14.dp))
                             FormLabel("Required Date")
                             DatePickerField(
-                                value = requiredDate.ifEmpty { "Select Date" },
+                                value = requiredDate ,
                                 onDateSelected = { requiredDate = it })
                         }
                     }
 
                     item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.CalendarMonth,
+                        AccordionSection(
                             title = "Appointment & Follow-Up",
-                            subtitle = "Schedule interactions",
                             expanded = sectionAppointment && appointmentRequired,
-                            onExpandChange = { sectionAppointment = it },
+                            onHeaderClick = { sectionAppointment = !sectionAppointment },
                             trailing = {
                                 MiniSwitch(
                                     checked = appointmentRequired,
@@ -2482,7 +2408,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                             if (appointmentRequired) {
                                 FormLabel("Appointment Date")
                                 DatePickerField(
-                                    value = appointmentDate.ifEmpty { "Select Date" },
+                                    value = appointmentDate ,
                                     onDateSelected = { appointmentDate = it })
                                 Spacer(Modifier.height(14.dp))
                                 FormLabel("Appointment Time")
@@ -2500,7 +2426,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                                 Spacer(Modifier.height(14.dp))
                                 FormLabel("Follow-up Date")
                                 DatePickerField(
-                                    value = followUpDate.ifEmpty { "Select Date" },
+                                    value = followUpDate ,
                                     onDateSelected = { followUpDate = it })
                                 Spacer(Modifier.height(14.dp))
                                 FormDropdown(
@@ -2514,7 +2440,7 @@ fun EditLeadScreen(onBack: () -> Unit) {
                             } else {
                                 Text(
                                     "No appointment scheduled.",
-                                    fontSize = 13.sp,
+                                    fontSize = tokens.bodySmall,
                                     color = LeadmutedText
                                 )
                             }
@@ -2522,12 +2448,10 @@ fun EditLeadScreen(onBack: () -> Unit) {
                     }
 
                     item {
-                        LeadAccordionSection(
-                            icon = Icons.Default.Description,
+                        AccordionSection(
                             title = "Notes & References",
-                            subtitle = "Additional information",
                             expanded = sectionNotes,
-                            onExpandChange = { sectionNotes = it }
+                            onHeaderClick = { sectionNotes = !sectionNotes }
                         ) {
                             FormLabel("Internal Notes")
                             OutlinedTextField(
@@ -2661,9 +2585,11 @@ fun BudgetRangeLabels(
     min: Int = 1000,
     max: Int = 250000
 ) {
+    val tokens = LocalAppTokens.current
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text("₹${formatIndianNumber(min)}", fontSize = 12.sp, color = Color(0xFF6B7280))
-        Text("₹${formatIndianNumber(currentValue)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LeadPrimary)
-        Text("₹${formatIndianNumber(max)}", fontSize = 12.sp, color = Color(0xFF6B7280))
+        Text("₹${formatIndianNumber(min)}", fontSize = tokens.caption, color = Color(0xFF6B7280))
+        Text("₹${formatIndianNumber(currentValue)}", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = LeadPrimary)
+        Text("₹${formatIndianNumber(max)}", fontSize = tokens.caption, color = Color(0xFF6B7280))
     }
 }
+

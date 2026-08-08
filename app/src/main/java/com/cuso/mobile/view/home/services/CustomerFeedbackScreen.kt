@@ -107,7 +107,6 @@ fun CustomerFeedbackScreen(
                 DataCard(
                     item = feedback,
                     title = "${feedback.feedbackId} • Feedback ID",
-                    titleFontSize = 14.sp,
                     subtitle = feedback.organizationName,
                     topBadgeText = feedback.category,
                     topBadgeTextColor = CategoryText,

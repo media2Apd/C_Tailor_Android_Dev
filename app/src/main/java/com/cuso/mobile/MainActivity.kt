@@ -17,7 +17,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +34,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.adaptive_screen.getAdaptiveTokens
 import com.cuso.mobile.repository.SessionManager
 import com.cuso.mobile.ui.theme.CusoTailorTheme
 import com.cuso.mobile.ui.theme.NoRippleProvider
@@ -59,27 +65,39 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var sessionManager: SessionManager
 
-    //  null while checking. Splash stays on screen as long as this is null.
+    // Holds login state. Splash screen stays until this is not null.
     private var isLoggedIn: Boolean? = null
 
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+
         splashScreen.setKeepOnScreenCondition { isLoggedIn == null }
+
         lifecycleScope.launch {
             isLoggedIn = sessionManager.isLoggedIn()
             enableEdgeToEdge()
+
             setContent {
-                CusoTailorTheme {
-                    NoRippleProvider {
-                        Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
-                            val navController = rememberNavController()
-                            var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
+                // 1. Calculate the current WindowSizeClass (Compact, Medium, or Expanded)
+                val windowSizeClass = calculateWindowSizeClass(this@MainActivity)
 
+                // 2. Generate the adaptive design tokens based on screen width
+                val tokens = getAdaptiveTokens(windowSizeClass.widthSizeClass)
 
-                            AppNav(activity = this@MainActivity, startLoggedIn = isLoggedIn == true)
-
-
+                // 3. Provide the tokens to the entire UI tree using CompositionLocalProvider
+                // This prevents the IllegalStateException in child components like DynamicIsland
+                CompositionLocalProvider(LocalAppTokens provides tokens) {
+                    CusoTailorTheme {
+                        NoRippleProvider {
+                            Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
+                                AppNav(
+                                    activity = this@MainActivity,
+                                    startLoggedIn = isLoggedIn == true,
+                                    widthSizeClass = windowSizeClass.widthSizeClass
+                                )
+                            }
                         }
                     }
                 }
@@ -89,10 +107,14 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun AppNav(activity: Activity, startLoggedIn: Boolean) {
+fun AppNav(
+    activity: Activity,
+    startLoggedIn: Boolean,
+    widthSizeClass: WindowWidthSizeClass
+) {
     val navController = rememberNavController()
 
-    //  No more null-check, no more spinner box - resolved before first frame
+    // Determine entry point based on login session
     val startDestination = if (startLoggedIn) "home" else "login?message={message}"
 
     NavHost(
@@ -101,7 +123,7 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
         modifier = Modifier.fillMaxSize()
     ) {
 
-        // ── Auth ──────────────────────────────────────────────
+        // ── Authentication Flow ──────────────────────────────────
 
         composable("login?message={message}",
             arguments = listOf(navArgument("message") {
@@ -121,12 +143,6 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
             )
         }
 
-        composable("create-order") {
-            OrderFlowNavigator(
-                onFinish = { navController.popBackStack() }
-            )
-        }
-
         composable("login-with-email/{email}",
             arguments = listOf(navArgument("email") { type = NavType.StringType })
         ) { backStackEntry ->
@@ -142,9 +158,6 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
                 prefilledEmail = email
             )
         }
-        composable("org-not-found"){
-            OrganizationNotFoundScreen(navController)
-        }
 
         composable("login-otp/{email}",
             arguments = listOf(navArgument("email") { type = NavType.StringType })
@@ -156,8 +169,6 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
                 submittedEmail = email
             )
         }
-
-
 
         composable(
             "new-pass/{email}",
@@ -189,28 +200,32 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
             ResetPassword(resetToken = resetToken, navController = navController)
         }
 
-        // ── Static pages ──────────────────────────────────────
+        // ── Core Application Screens ───────────────────────────
 
-        composable("terms")   { TermsConditions(navController) }
-        composable("privacy") { PrivacyPolicy(navController) }
+        composable("home") {
+            HomeScreen(navController, widthSizeClass)
+        }
 
-        composable("org") {
-            OrganizationProfile(
-                onSetupComplete = {
-                    navController.navigate("home") {
-                        popUpTo("org") { inclusive = true }
-                    }
-                }
+        composable("create-order") {
+            OrderFlowNavigator(
+                onFinish = { navController.popBackStack() }
             )
         }
 
-        // ── Home ──────────────────────────────────────────────
-
-        composable("home") {
-            HomeScreen(navController)
+        composable("sales_sales_orders") {
+            SalesOrderScreen(
+                navController = navController,
+                onMenuClick = { navController.navigate("home") },
+                onBack = { navController.popBackStack() }
+            )
         }
 
-        // ── Home sidebar routes ───────────────────────────────
+        composable("sales_lead") {
+            // Updated to ensure LeadScreen is called with width class for adaptiveness
+            LeadScreenContent()
+        }
+
+        // ── Settings & Profile ────────────────────────────────
 
         composable("home_organization_profile") {
             OrganizationProfile(
@@ -241,28 +256,26 @@ fun AppNav(activity: Activity, startLoggedIn: Boolean) {
         }
 
         composable("home_designation") {
-            SettingsScreen(
-                navController = navController
+            SettingsScreen(navController = navController)
+        }
+
+        composable("org") {
+            OrganizationProfile(
+                onSetupComplete = {
+                    navController.navigate("home") {
+                        popUpTo("org") { inclusive = true }
+                    }
+                }
             )
         }
 
-        // ── Sales sidebar routes ──────────────────────────────
-
-        composable("sales_lead") {
-            HomeScreen(navController) // TODO: replace with LeadScreen
+        composable("org-not-found") {
+            OrganizationNotFoundScreen(navController)
         }
 
-        composable("sales_sales_orders") {
-            SalesOrderScreen(
-                navController = navController,
-                onMenuClick = { navController.navigate("home") },
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("lead") {
-            LeadScreenContent()
-        }
+        // ── Legal & Static ───────────────────────────────────
 
-       
+        composable("terms")   { TermsConditions(navController) }
+        composable("privacy") { PrivacyPolicy(navController) }
     }
 }

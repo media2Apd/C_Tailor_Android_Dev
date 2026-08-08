@@ -30,11 +30,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.BulkRuleDto
 import com.cuso.mobile.model.sales.PriceAdjustmentDto
+import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
-import com.cuso.mobile.view.home.sales.lead.LeadAccordionSection
 import com.cuso.mobile.view.home.sales.lead.LeadFormTopBar
 import com.cuso.mobile.view.home.LeadPrimary
 import com.cuso.mobile.view.home.LeadmutedText
@@ -308,12 +308,11 @@ fun AddGarmentPricingScreen(
                 ) {
                     // ── 1. Basic Information ──
                     item {
-                        LeadAccordionSection(
+                        AccordionSection(
                             icon = Icons.Default.Description,
                             title = "Basic Information",
-                            subtitle = "",
                             expanded = expandedSection == "basic_info",
-                            onExpandChange = { expandedSection = if (expandedSection == "basic_info") "" else "basic_info" }
+                            onHeaderClick = { expandedSection = if (expandedSection == "basic_info") "" else "basic_info" }
                         ) {
                             Box(
                                 modifier = Modifier
@@ -368,12 +367,11 @@ fun AddGarmentPricingScreen(
 
                     // ── 2. Fabric Price Adjustments ──
                     item {
-                        LeadAccordionSection(
+                        AccordionSection(
                             icon = Icons.Default.Checkroom,
                             title = "Fabric Price Adjustments",
-                            subtitle = "",
                             expanded = expandedSection == "fabric",
-                            onExpandChange = { expandedSection = if (expandedSection == "fabric") "" else "fabric" }
+                            onHeaderClick = { expandedSection = if (expandedSection == "fabric") "" else "fabric" }
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 OutlinedButton(
@@ -404,12 +402,11 @@ fun AddGarmentPricingScreen(
 
                     // ── 3. Design / Style Options ──
                     item {
-                        LeadAccordionSection(
+                        AccordionSection(
                             icon = Icons.Default.Style,
                             title = "Design / Style Options",
-                            subtitle = "",
                             expanded = expandedSection == "style",
-                            onExpandChange = { expandedSection = if (expandedSection == "style") "" else "style" }
+                            onHeaderClick = { expandedSection = if (expandedSection == "style") "" else "style" }
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 OutlinedButton(
@@ -440,12 +437,11 @@ fun AddGarmentPricingScreen(
 
                     // ── 4. Additional Charges ──
                     item {
-                        LeadAccordionSection(
+                        AccordionSection(
                             icon = Icons.Default.AttachMoney,
                             title = "Additional Charges",
-                            subtitle = "",
                             expanded = expandedSection == "charges",
-                            onExpandChange = { expandedSection = if (expandedSection == "charges") "" else "charges" }
+                            onHeaderClick = { expandedSection = if (expandedSection == "charges") "" else "charges" }
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 OutlinedButton(
@@ -476,12 +472,11 @@ fun AddGarmentPricingScreen(
 
                     // ── 5. Quantity Discount Rules ──
                     item {
-                        LeadAccordionSection(
+                        AccordionSection(
                             icon = Icons.Default.LocalOffer,
                             title = "Quantity Discount Rules",
-                            subtitle = "",
                             expanded = expandedSection == "discount_rules",
-                            onExpandChange = { expandedSection = if (expandedSection == "discount_rules") "" else "discount_rules" }
+                            onHeaderClick = { expandedSection = if (expandedSection == "discount_rules") "" else "discount_rules" }
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 if (showError && errorMessage.isNotEmpty()) {
@@ -490,8 +485,7 @@ fun AddGarmentPricingScreen(
                                 OutlinedButton(
                                     onClick = {
                                         discountRules = discountRules + DiscountRuleRow(newId(), "0", "0")
-                                        showError = false   //   clear once user adds a rule
-
+                                        showError = false
                                     },
                                     shape = RoundedCornerShape(8.dp),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, LeadPrimary),

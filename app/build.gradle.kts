@@ -179,4 +179,8 @@ dependencies {
     //UCrop for ProfileImageCrop
     implementation(libs.ucrop)
 
+    //window app size class
+    implementation (libs.androidx.compose.material3.window.size.class1)
+
+
 }

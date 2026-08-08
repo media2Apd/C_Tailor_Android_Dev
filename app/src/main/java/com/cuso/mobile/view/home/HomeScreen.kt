@@ -187,7 +187,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.ui.draw.scale
+import com.cuso.mobile.adaptive_screen.AppDesignTokens
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.adaptive_screen.getAdaptiveTokens
 
 // ── Design tokens (Primary color used everywhere for icons / accents) ──
 val LeadPrimary = Color(0xFF3B3BF9)
@@ -195,7 +199,7 @@ val LeadPrimarySoft = Color(0xFFEEEEFE)
 val LeadmutedText = Color(0xFF9CA3AF)
 @Suppress("UnusedMaterial3ScaffoldPaddingParameter","UNUSED_PARAMETER")
 @Composable
-fun HomeScreen(navController: NavHostController) {
+fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSizeClass) {
     val viewModel: HomeViewModel = hiltViewModel()
     val authViewModel: Authenticate = hiltViewModel()
     val hrViewModel: HrViewModel = hiltViewModel()
@@ -206,6 +210,8 @@ fun HomeScreen(navController: NavHostController) {
     val isLoggedOut: Boolean by viewModel.isLoggedOut.collectAsStateWithLifecycle(initialValue = false)
     val screenStack = remember { mutableStateListOf("home") }
     val currentScreen: String = screenStack.last()
+    val tokens = getAdaptiveTokens(widthSizeClass)
+
 
     //   NEW — animation direction tracking (push vs pop)
     var previousStackSize by remember { mutableIntStateOf(screenStack.size) }
@@ -444,6 +450,9 @@ fun HomeScreen(navController: NavHostController) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalAppTokens provides tokens) {
+
+
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = Primary_background,
@@ -514,6 +523,7 @@ fun HomeScreen(navController: NavHostController) {
                                 navigateTo("sales_customers")
                                 isDrawerOpen = false
                             }
+
                             "finance_expenses" -> {
                                 isSalesSettingsMode = false
                                 navigateTo("finance_expenses")
@@ -549,6 +559,7 @@ fun HomeScreen(navController: NavHostController) {
                                 navigateTo("sales_pricing_quotation")
                                 isDrawerOpen = false
                             }
+
                             "finance_journal_entry", "finance_journal_entries" -> {
                                 isSalesSettingsMode = false
                                 navigateTo("finance_journal_screen")
@@ -577,6 +588,7 @@ fun HomeScreen(navController: NavHostController) {
                                 navigateTo("settings")
                                 isDrawerOpen = false
                             }
+
                             "finance_trial_balance" -> {
                                 isSalesSettingsMode = false
                                 navigateTo("finance_trial_balance")
@@ -594,31 +606,37 @@ fun HomeScreen(navController: NavHostController) {
                                 navigateTo("inventory_item_groups")
                                 isDrawerOpen = false
                             }
+
                             "inventory_orders", "inventory_procurement_orders" -> {
                                 isSalesSettingsMode = false
                                 navigateTo("inventory_low_stock_alerts")
                                 isDrawerOpen = false
                             }
+
                             "hr_all_employees" -> {
                                 isSalesSettingsMode = false
                                 navigateTo("hr_all_employees")
                                 isDrawerOpen = false
                             }
+
                             "logistics_delivery" -> {
                                 isSalesSettingsMode = false
                                 navigateTo("logistics_delivery")
                                 isDrawerOpen = false
                             }
+
                             "reports_sales_reports", "reports_finance_reports" -> {
                                 isSalesSettingsMode = false
                                 navigateTo("reports_sales_reports")
                                 isDrawerOpen = false
                             }
+
                             "reports" -> {
                                 isSalesSettingsMode = false
                                 navigateTo("reports_sales_reports")
                                 isDrawerOpen = false
                             }
+
                             else -> {
                                 Log.d("NAV_DEBUG", "Unhandled route: $route")
                                 try {
@@ -688,22 +706,26 @@ fun HomeScreen(navController: NavHostController) {
                             onMenuClick = { isDrawerOpen = true },
                             onBack = { goBack() }
                         )
+
                         "home_organization_profile" -> SettingsScreen(
                             navController = navController,
                             onMenuClick = { isDrawerOpen = true },
                             onBack = { goBack() }
 
                         )
+
                         "home_branch_management" -> BranchSettingsScreen(
                             navController = navController,
                             onMenuClick = { isDrawerOpen = true },
                             onBack = { goBack() }
                         )
+
                         "home_department_teams" -> DepartmentSettingsScreen(
                             navController = navController,
                             onMenuClick = { isDrawerOpen = true },
                             onBack = { goBack() }
                         )
+
                         "home_designation" -> DesignationScreen(
                             navController = navController,
                             onMenuClick = { isDrawerOpen = true },
@@ -718,6 +740,7 @@ fun HomeScreen(navController: NavHostController) {
                             },
                             onMenuClick = { isDrawerOpen = true }
                         )
+
                         "sales_garment_type" -> GarmentTypeContent(
                             onClose = {
                                 isSalesSettingsMode = true
@@ -725,43 +748,52 @@ fun HomeScreen(navController: NavHostController) {
                             },
                             onMenuClick = { isDrawerOpen = true }
                         )
+
                         "home" -> HomeScreenContent(
                             navController = navController,
+                            widthSizeClass = widthSizeClass,
                             onNavigate = { route ->
                                 when (route) {
                                     "sales_lead" -> {
                                         isSalesSettingsMode = false
                                         navigateTo("sales_lead")
                                     }
+
                                     "sales_customers" -> {
                                         isSalesSettingsMode = false
                                         navigateTo("sales_customers")
                                     }
+
                                     "sales_sales_orders" -> {
                                         isSalesSettingsMode = false
                                         navigateTo("sales_sales_orders")
                                     }
+
                                     "sales_measurements" -> {
                                         isSalesSettingsMode = false
                                         navigateTo("sales_measurements")
                                     }
+
                                     "sales_pricing_quotation",
                                     "sales_pricing_and_quotations",
                                     "sales_pricing_&_quotations" -> {
                                         isSalesSettingsMode = false
                                         navigateTo("sales_pricing_quotation")
                                     }
+
                                     "services_customer_feedback", "customer_feedback" -> {
                                         isSalesSettingsMode = false
                                         navigateTo("services_customer_feedback")
                                         isDrawerOpen = false
                                     }
+
                                     else -> {
                                         Log.d("NAV_DEBUG", "Unhandled home navigation: $route")
                                     }
                                 }
                             }
                         )
+
                         "sales_lead" -> LeadScreenContent(
                             onCreateLead = { navigateTo("create_lead") },
                             onViewLead = { navigateTo("view_lead") },
@@ -775,13 +807,16 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "create_lead" -> CreateLeadScreen(
                             onBack = { goBack() }
                         )
+
                         "view_lead" -> ViewLeadScreen(
                             onBack = { goBack() },
                             onEditLead = { navigateTo("edit_lead") }
                         )
+
                         "edit_lead" -> EditLeadScreen(
                             onBack = { goBack() }
                         )
@@ -806,6 +841,7 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "create_order" -> {
                             CreateOrderScreen(
                                 initialData = pendingOrderReviewData,
@@ -823,6 +859,7 @@ fun HomeScreen(navController: NavHostController) {
                                 }
                             )
                         }
+
                         "order_overview" -> {
                             selectedOrderId?.let { id ->
                                 OrderOverviewScreen(
@@ -842,6 +879,7 @@ fun HomeScreen(navController: NavHostController) {
                                 )
                             } ?: run { goBack() }
                         }
+
                         "sales_orders" -> OrderManagementScreen(
                             navController = navController,
                             onMenuClick = { isDrawerOpen = true },
@@ -855,6 +893,7 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "order_management_overview" -> {
                             selectedManagementOrderId?.let { id ->
                                 OrderDetailScreen(
@@ -869,6 +908,7 @@ fun HomeScreen(navController: NavHostController) {
                                 )
                             } ?: run { goBack() }
                         }
+
                         "finance_trial_balance" -> TrialBalanceScreen(
                             onClose = { goBack() },
                             onAccountClick = { accountId, accountName ->
@@ -906,6 +946,7 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "finance_suppliers" -> AllSuppliersScreen(
                             onClose = { goBack() },
                             onBreadcrumbClick = {
@@ -917,6 +958,7 @@ fun HomeScreen(navController: NavHostController) {
                                 navigateTo("finance_supplier_detail")
                             }
                         )
+
                         "finance_supplier_detail" -> {
                             selectedSupplier?.let { supplier ->
                                 SupplierDetailScreen(
@@ -932,6 +974,7 @@ fun HomeScreen(navController: NavHostController) {
                                 )
                             } ?: run { goBack() }
                         }
+
                         "inventory_items" -> InventoryScreen(
                             onClose = { goBack() },
                             onAddItem = { navigateTo("inventory_create_item") },
@@ -1002,6 +1045,7 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "logistics_order_tracking" -> OrderTrackingScreen(
                             onClose = { goBack() },
                             onViewOrder = { order ->
@@ -1013,6 +1057,7 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "tracking_overview" -> TrackingOverviewScreen(
                             onClose = { goBack() }
                         )
@@ -1042,7 +1087,8 @@ fun HomeScreen(navController: NavHostController) {
 
                         "inventory_item_detail" -> {
                             selectedInventoryItemId?.let { id ->
-                                val itemDetailViewModel: com.cuso.mobile.viewmodel.InventoryViewModel = hiltViewModel()
+                                val itemDetailViewModel: com.cuso.mobile.viewmodel.InventoryViewModel =
+                                    hiltViewModel()
                                 val selectedItem by itemDetailViewModel.selectedItem.collectAsStateWithLifecycle()
                                 val isLoadingDetail by itemDetailViewModel.isLoadingItemDetail.collectAsStateWithLifecycle()
                                 val detailError by itemDetailViewModel.itemDetailError.collectAsStateWithLifecycle()
@@ -1096,26 +1142,28 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "services_alteration_management" -> AlterationManagementScreen(
-                            onClose = {goBack()},
-                            onCreateNewAlteration = {navigateTo("create_alteration")},
+                            onClose = { goBack() },
+                            onCreateNewAlteration = { navigateTo("create_alteration") },
                             onBreadcrumbClick = {
                                 modulesPanelInitialExpanded = "Services"
-                                showModulesPanel=true
+                                showModulesPanel = true
                             },
                             onViewClick = {}
                         )
 
-                        "create_alteration" -> CreateAlterationManagementScreen (
-                            onClose = {goBack()},
+                        "create_alteration" -> CreateAlterationManagementScreen(
+                            onClose = { goBack() },
                         )
 
                         "services_service_request" -> ServiceRequestScreen(
                             onClose = {},
                             onBreadcrumbClick = {},
-                            onCreateNewRequest = {navigateTo("create_request")},
-                            onViewClick = {navigateTo("review_services")}
+                            onCreateNewRequest = { navigateTo("create_request") },
+                            onViewClick = { navigateTo("review_services") }
                         )
+
                         "create_request" -> CreateServiceRequest()
 
                         "review_services" -> ServiceOrderDetailsScreen(
@@ -1153,6 +1201,7 @@ fun HomeScreen(navController: NavHostController) {
                                 goBack()
                             }
                         )
+
                         "sales_pricing_quotation" -> QuotationScreen(
                             onClose = { isSalesSettingsMode = false; goBack() },
                             onAddNe = {
@@ -1183,6 +1232,7 @@ fun HomeScreen(navController: NavHostController) {
                             onSave = { goBack() },
                             token = token
                         )
+
                         "inventory_item_groups" -> AllItemGroupScreen(
                             onDismiss = { goBack() },
                             onAddItemGroup = { navigateTo("inventory_create_item_group") },
@@ -1210,10 +1260,15 @@ fun HomeScreen(navController: NavHostController) {
                                 goBack()
                             }
                         )
+
                         "sales_pricing_overview" -> PricingScreen(
                             onClose = { isSalesSettingsMode = false; goBack() },
-                            onAddNewPricing = { editingPricingId = null; navigateTo("create_garment_pricing") },
-                            onCardClick = { pricingId -> editingPricingId = pricingId; navigateTo("create_garment_pricing") },
+                            onAddNewPricing = {
+                                editingPricingId = null; navigateTo("create_garment_pricing")
+                            },
+                            onCardClick = { pricingId ->
+                                editingPricingId = pricingId; navigateTo("create_garment_pricing")
+                            },
                             onBreadCrumbClick = {
                                 modulesPanelInitialExpanded = "Sales"
                                 showModulesPanel = true
@@ -1222,8 +1277,12 @@ fun HomeScreen(navController: NavHostController) {
 
                         "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
                             onBack = { goBack() },
-                            onAddNewPricing = { editingPricingId = null; navigateTo("create_garment_pricing") },
-                            onCardClick = { pricingId -> editingPricingId = pricingId; navigateTo("create_garment_pricing") }
+                            onAddNewPricing = {
+                                editingPricingId = null; navigateTo("create_garment_pricing")
+                            },
+                            onCardClick = { pricingId ->
+                                editingPricingId = pricingId; navigateTo("create_garment_pricing")
+                            }
                         )
 
                         "create_garment_pricing" -> com.cuso.mobile.view.home.sales.pricing.AddGarmentPricingScreen(
@@ -1237,6 +1296,7 @@ fun HomeScreen(navController: NavHostController) {
                                 goBack()
                             }
                         )
+
                         "sales_customers" -> CustomerScreen(
                             navController = navController,
                             customerState = customerUiState,
@@ -1261,6 +1321,7 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "finance_customers" -> FinanceCustomerScreen(
                             onClose = { goBack() },
                             onCustomerEdit = {},
@@ -1270,6 +1331,7 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "finance_expenses" -> ExpensesScreen(
                             onClose = { goBack() },
                             onBreadCrumbClick = {
@@ -1277,9 +1339,11 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "finance_journal_screen" -> ManualJournalEntryScreen(
                             onClose = { goBack() }
                         )
+
                         "finance_payments_received" -> AllPaymentScreen(
                             onViewPayment = { navigateTo("payment_detail_screen") },
                             onBreadCrumbClick = {
@@ -1287,6 +1351,7 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "payment_detail_screen" -> PaymentDetailScreen(
                             onClose = { goBack() }
                         )
@@ -1315,6 +1380,7 @@ fun HomeScreen(navController: NavHostController) {
                                 )
                             } ?: run { goBack() }
                         }
+
                         "logistics_delivery" -> DeliveryManagementScreen(
                             onDismiss = { goBack() },
                             onView = { navigateTo("delivery_detail") },
@@ -1323,6 +1389,7 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "delivery_detail" -> DeliveryDetailScreen(
                             onDismiss = { goBack() }
                         )
@@ -1360,6 +1427,7 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
+
                         "create_order_review" -> {
                             pendingOrderReviewData?.let { data ->
                                 CreateOrderNextStep(
@@ -1373,6 +1441,7 @@ fun HomeScreen(navController: NavHostController) {
                                 )
                             } ?: run { goBack() }
                         }
+
                         "profile-settings" -> ProfileSettingsScreen(
                             onClose = { goBack() },
                             onOrganizationSetup = { navigateTo("home_organization_profile") },
@@ -1397,11 +1466,13 @@ fun HomeScreen(navController: NavHostController) {
                                 showModulesPanel = true
                             }
                         )
-                        else -> { }
+
+                        else -> {}
                     }
                 }
             }
         }
+    }
 
         //   ModulesPanel remains the same
         ModulesPanel(
@@ -2023,13 +2094,16 @@ private fun mapOperationsToCustomers(ops: List<OperationItem>): List<RecentCusto
 @Composable
 fun HomeScreenContent(
     navController: NavHostController,
+    widthSizeClass: WindowWidthSizeClass,
     onNavigate: (String) -> Unit = {}
 ) {
+    val designTokens = getAdaptiveTokens(widthSizeClass)
+
     val baseDensity = LocalDensity.current
     CompositionLocalProvider(
         LocalDensity provides Density(density = baseDensity.density, fontScale = 1f)
     ) {
-        HomeScreenContentBody(navController = navController, onNavigate = onNavigate)
+        HomeScreenContentBody(navController = navController, onNavigate = onNavigate, designTokens = designTokens )
     }
 }
 @Suppress("UNUSED_PARAMETER")
@@ -2037,7 +2111,8 @@ fun HomeScreenContent(
 @Composable
 private fun HomeScreenContentBody(
     navController: NavHostController,
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    designTokens: AppDesignTokens
 ) {
     val dashboardViewModel: DashboardViewModel = hiltViewModel()
     val uiState by dashboardViewModel.uiState.collectAsStateWithLifecycle()
@@ -2095,7 +2170,7 @@ private fun HomeScreenContentBody(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Transparent),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                contentPadding = PaddingValues(horizontal = designTokens.screenPadding, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 item {
@@ -2105,7 +2180,7 @@ private fun HomeScreenContentBody(
                         onNavigate = onNavigate
                     )
                 }
-                item { StatsGrid(stats) }
+                item { StatsGrid(stats,designTokens) }
                 item {
                     QuickModulesSection(
                         modules = quickModules,
@@ -2187,13 +2262,24 @@ private fun GreetingCard(
 
 // ── Stats grid — 2x2 cards, driven by API `stats` array ──
 @Composable
-private fun StatsGrid(stats: List<DashboardStat>) {
+private fun StatsGrid(stats: List<DashboardStat>,tokens: AppDesignTokens) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        stats.chunked(2).forEach { rowStats ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                rowStats.forEach { stat -> DashboardStatCard(
-                    stat = stat, modifier = Modifier.weight(1f)) }
-                if (rowStats.size == 1) Spacer(Modifier.weight(1f))
+        stats.chunked(tokens.gridColumns).forEach { rowStats ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                rowStats.forEach { stat ->
+                    DashboardStatCard(
+                        stat = stat,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (rowStats.size < tokens.gridColumns) {
+                    repeat(tokens.gridColumns - rowStats.size) {
+                        Spacer(Modifier.weight(1f))
+                    }
+                }
             }
         }
     }

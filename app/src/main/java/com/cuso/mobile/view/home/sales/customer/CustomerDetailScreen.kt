@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.DynamicIslandError
@@ -62,6 +63,7 @@ import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.customOutlinedButtonColors
 import com.cuso.mobile.view.home.FormLabel
@@ -81,6 +83,12 @@ private val customerSectionFieldMap = mapOf(
     "location" to listOf("address", "areaZone", "city")
 )
 
+// ─────────────────────────────────────────────────────────────
+// International-standard spacing / radius scale
+// (4 / 8 / 12 / 16 / 24 / 32 — Material & iOS HIG aligned)
+// Card corner radius standardized to 12dp / 16dp / 20dp tiers.
+// ─────────────────────────────────────────────────────────────
+
 @Composable
 fun CustomerDetailScreen(
     navController: NavController,
@@ -91,6 +99,8 @@ fun CustomerDetailScreen(
     onUpdateSuccess: () -> Unit = onClose,
     onRequestEdit: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
+
     val detailState by viewModel.detailState.collectAsState()
     val formState by viewModel.formState.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
@@ -202,7 +212,7 @@ fun CustomerDetailScreen(
                 Column(
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 15.dp)
+                        .padding(horizontal = tokens.screenPadding)
                 ) {
                     Spacer(Modifier.padding(top = 10.dp))
                     // ── Stepper ──
@@ -221,7 +231,7 @@ fun CustomerDetailScreen(
                         .fillMaxWidth()
                         .background(Color.Transparent)
                         .verticalScroll(rememberScrollState())
-                        .padding(16.dp)
+                        .padding(tokens.screenPadding)
                         .padding(bottom = 90.dp)
                 ) {
                     when (currentStep) {
@@ -278,11 +288,13 @@ fun OrderStatusStepper(
     currentStep: Int,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalAppTokens.current
+
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = tokens.screenPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             stepLabels.forEachIndexed { index, _ ->
@@ -357,7 +369,7 @@ fun OrderStatusStepper(
                             else -> Text(
                                 text = "${index + 1}",
                                 color = Color(0xFF9CA3AF),
-                                fontSize = 12.sp,
+                                fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -394,7 +406,7 @@ fun OrderStatusStepper(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = tokens.screenPadding),
             verticalAlignment = Alignment.Top
         ) {
             stepLabels.forEachIndexed { index, label ->
@@ -405,8 +417,8 @@ fun OrderStatusStepper(
                     if (index == currentStep) {
                         Text(
                             text = label,
-                            fontSize = 10.5.sp,
-                            lineHeight = 13.sp,
+                            fontSize = tokens.caption,
+                            lineHeight = tokens.caption * 1.25f,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF3F37F3),
                             textAlign = TextAlign.Center,
@@ -439,6 +451,8 @@ private fun PersonalInformationStep(
     email: String,
     onEmailChange: (String) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     when (detailState) {
         is CustomerDetailUiState.Loading -> {
             Box(Modifier.fillMaxWidth().padding(vertical = 60.dp), contentAlignment = Alignment.Center) {
@@ -452,7 +466,7 @@ private fun PersonalInformationStep(
             ) {
                 Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(40.dp))
                 Spacer(Modifier.height(8.dp))
-                Text(detailState.message, color = Color.Red, fontSize = 14.sp)
+                Text(detailState.message, color = Color.Red, fontSize = tokens.bodyMedium)
             }
         }
         is CustomerDetailUiState.Success -> {
@@ -486,8 +500,8 @@ private fun PersonalInformationStep(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFEFF6FF), RoundedCornerShape(8.dp))
-                        .padding(10.dp),
+                        .background(Color(0xFFEFF6FF), RoundedCornerShape(12.dp))
+                        .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.Info, null, tint = Color(0xFF3B82F6), modifier = Modifier.size(16.dp))
@@ -495,7 +509,7 @@ private fun PersonalInformationStep(
                     Text(
                         if (isEditMode) "Edit mode — update the details below."
                         else "Viewing customer details. Tap Edit to make changes.",
-                        fontSize = 12.sp,
+                        fontSize = tokens.bodySmall,
                         color = Color(0xFF1E40AF),
                         modifier = Modifier.weight(1f)
                     )
@@ -503,12 +517,12 @@ private fun PersonalInformationStep(
 
                 Spacer(Modifier.height(16.dp))
 
-                AccordionSectionCard(
+                AccordionSection(
                     iconPainter = painterResource(R.drawable.ic_person),
                     title = "Customer Identity",
                     subtitle = "Basic customer information",
                     expanded = expandedSection == "identity",
-                    onToggle = { expandedSection = if (expandedSection == "identity") "" else "identity" }
+                    onHeaderClick = { expandedSection = if (expandedSection == "identity") "" else "identity" }
                 ) {
                     Spacer(Modifier.height(16.dp))
 
@@ -555,12 +569,12 @@ private fun PersonalInformationStep(
 
                 Spacer(Modifier.height(12.dp))
 
-                AccordionSectionCard(
+                AccordionSection(
                     iconPainter = painterResource(R.drawable.ic_date_of_birth),
                     title = "Customer Details",
                     subtitle = "Communication Preferences",
                     expanded = expandedSection == "details",
-                    onToggle = { expandedSection = if (expandedSection == "details") "" else "details" }
+                    onHeaderClick = { expandedSection = if (expandedSection == "details") "" else "details" }
                 ) {
                     Spacer(Modifier.height(16.dp))
 
@@ -594,7 +608,7 @@ private fun PersonalInformationStep(
                         enabled = isEditMode
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text("Preferred Language", color = Color(0xFF9CA3AF), fontSize = 13.sp)
+                    Text("Preferred Language", color = Color(0xFF9CA3AF), fontSize = tokens.bodySmall)
                     OrganizationDropdown(
                         items = OrgOptions.languages,
                         selected = language,
@@ -614,12 +628,12 @@ private fun PersonalInformationStep(
 
                 Spacer(Modifier.height(12.dp))
 
-                AccordionSectionCard(
+                AccordionSection(
                     iconPainter = painterResource(R.drawable.ic_location),
                     title = "Location & Communication",
                     subtitle = "Contact details",
                     expanded = expandedSection == "location",
-                    onToggle = { expandedSection = if (expandedSection == "location") "" else "location" }
+                    onHeaderClick = { expandedSection = if (expandedSection == "location") "" else "location" }
                 ) {
                     Spacer(Modifier.height(16.dp))
                     FormLabel("Address")
@@ -659,88 +673,22 @@ private fun PersonalInformationStep(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Accordion Section Helper Card
-// ─────────────────────────────────────────────────────────────
-@Composable
-fun AccordionSectionCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    iconPainter: androidx.compose.ui.graphics.painter.Painter? = null,
-    iconTint: Color = Color(0xFF3B3BF9),
-    title: String,
-    subtitle: String? = null,
-    expanded: Boolean,
-    onToggle: () -> Unit,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    val chevronRotation by animateFloatAsState(
-        if (expanded) 180f else 0f, label = "accordion_chevron"
-    )
 
-    val hasIcon = icon != null || iconPainter != null
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onToggle() }
-                .padding(vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (hasIcon) {
-                when {
-                    iconPainter != null -> Icon(painter = iconPainter, contentDescription = null, tint = iconTint, modifier = Modifier.size(24.dp))
-                    icon != null -> Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(24.dp))
-                }
-                Spacer(Modifier.width(15.dp))
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(title, fontWeight = FontWeight.Normal, fontSize = 15.sp, color = Color(0xFF0F172A))
-                if (subtitle != null) {
-                    Text(subtitle, fontSize = 12.sp, color = Color(0xFF6B7280))
-                }
-            }
-            Icon(
-                Icons.Default.KeyboardArrowDown,
-                contentDescription = if (expanded) "Collapse" else "Expand",
-                tint = Color(0xFF6B7280),
-                modifier = Modifier.size(22.dp).rotate(chevronRotation)
-            )
-        }
-        AnimatedVisibility(
-            visible = expanded,
-            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
-            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically()
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 1.dp, vertical = 4.dp).padding(bottom = 14.dp)) {
-                content()
-            }
-        }
-
-        HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
-            thickness = 1.dp,
-            color = Color(0xFFE5E7EB)
-        )
-    }
-}
 
 // ─────────────────────────────────────────────────────────────
 // STEP 2 — Measurements Step
 // ─────────────────────────────────────────────────────────────
 @Composable
 private fun MeasurementsStep(isEditMode: Boolean) {
+    val tokens = LocalAppTokens.current
     var expandedSection by remember { mutableStateOf("profile") }
 
     Column {
-        AccordionSectionCard(
+        AccordionSection(
             title = "Measurement Profile",
             subtitle = "Linked measurement records (read-only)",
             expanded = expandedSection == "profile",
-            onToggle = { expandedSection = if (expandedSection == "profile") "" else "profile" }
+            onHeaderClick = { expandedSection = if (expandedSection == "profile") "" else "profile" }
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 StatBox(modifier = Modifier.weight(1f), value = "3", label = "ACTIVE ORDERS", highlight = true)
@@ -751,14 +699,14 @@ private fun MeasurementsStep(isEditMode: Boolean) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, PrimaryBorder, RoundedCornerShape(8.dp))
-                    .padding(10.dp)
+                    .border(1.dp, PrimaryBorder, RoundedCornerShape(12.dp))
+                    .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 10.dp)
             ) {
-                Text("LAST UPDATED", fontSize = 12.sp, color = Color(0xFF9CA3AF))
-                Text("15/12/2026", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = blackTitle)
+                Text("LAST UPDATED", fontSize = tokens.bodySmall, color = Color(0xFF9CA3AF))
+                Text("15/12/2026", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = blackTitle)
             }
             Spacer(Modifier.height(14.dp))
-            Text("GARMENT TYPES COVERED", fontSize = 11.sp, color = blackTitle)
+            Text("GARMENT TYPES COVERED", fontSize = tokens.caption, color = blackTitle)
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("Shirt", "Pant", "Suit", "Kurta").forEach { Chip(it) }
@@ -770,12 +718,12 @@ private fun MeasurementsStep(isEditMode: Boolean) {
                 onClick = {},
                 enabled = isEditMode,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(12.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF3B3BF9))
             ) {
                 Icon(Icons.Default.Add, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Add New Measurement", color = Color(0xFF3B3BF9))
+                Text("Add New Measurement", color = Color(0xFF3B3BF9), fontSize = tokens.bodyMedium)
             }
 
             Spacer(Modifier.height(8.dp))
@@ -790,10 +738,10 @@ private fun MeasurementsStep(isEditMode: Boolean) {
 
         Spacer(Modifier.height(12.dp))
 
-        AccordionSectionCard(
+        AccordionSection(
             title = "Measurement Insights",
             expanded = expandedSection == "insights",
-            onToggle = { expandedSection = if (expandedSection == "insights") "" else "insights" }
+            onHeaderClick = { expandedSection = if (expandedSection == "insights") "" else "insights" }
         ) {
             InsightRow(label = "Total Alterations", value = "12")
             Spacer(Modifier.height(12.dp))
@@ -801,9 +749,9 @@ private fun MeasurementsStep(isEditMode: Boolean) {
                 Box(
                     modifier = Modifier
                         .background(Color(0xFFFEF3C7), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 4.dp)
                 ) {
-                    Text("MEDIUM", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFB45309))
+                    Text("MEDIUM", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = Color(0xFFB45309))
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -811,27 +759,27 @@ private fun MeasurementsStep(isEditMode: Boolean) {
                 Box(
                     modifier = Modifier
                         .background(Color(0xFFDCFCE7), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 4.dp)
                 ) {
-                    Text("NO", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
+                    Text("NO", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
                 }
             }
         }
 
         Spacer(Modifier.height(12.dp))
 
-        AccordionSectionCard(
+        AccordionSection(
             title = "Measurement Profile",
             expanded = expandedSection == "notes",
-            onToggle = { expandedSection = if (expandedSection == "notes") "" else "notes" }
+            onHeaderClick = { expandedSection = if (expandedSection == "notes") "" else "notes" }
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFEF9C3), RoundedCornerShape(8.dp))
-                    .padding(12.dp)
+                    .background(Color(0xFFFEF9C3), RoundedCornerShape(12.dp))
+                    .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 12.dp)
             ) {
-                Text("Prefers Slightly Loose Fitting", fontSize = 13.sp, color = Color(0xFF713F12))
+                Text("Prefers Slightly Loose Fitting", fontSize = tokens.bodyMedium, color = Color(0xFF713F12))
             }
         }
     }
@@ -842,6 +790,7 @@ private fun MeasurementsStep(isEditMode: Boolean) {
 // ─────────────────────────────────────────────────────────────
 @Composable
 private fun OrderPaymentStep() {
+    val tokens = LocalAppTokens.current
     var expandedSection by remember { mutableStateOf("") }
 
     Column {
@@ -856,48 +805,48 @@ private fun OrderPaymentStep() {
         }
         Spacer(Modifier.height(16.dp))
 
-        AccordionSectionCard(
+        AccordionSection(
             title = "Payment Overview",
             subtitle = "",
             expanded = expandedSection == "payment",
-            onToggle = { expandedSection = if (expandedSection == "payment") "" else "payment" }
+            onHeaderClick = { expandedSection = if (expandedSection == "payment") "" else "payment" }
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFECFDF5), RoundedCornerShape(10.dp))
-                    .padding(14.dp)
+                    .background(Color(0xFFECFDF5), RoundedCornerShape(12.dp))
+                    .padding(horizontal = tokens.screenPadding * 0.85f, vertical = 14.dp)
             ) {
                 Column {
-                    Text("Total Spend", fontSize = 12.sp, color = Color(0xFF16A34A))
+                    Text("Total Spend", fontSize = tokens.bodySmall, color = Color(0xFF16A34A))
                     Spacer(Modifier.height(4.dp))
-                    Text("436,800", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
+                    Text("436,800", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
                 }
             }
             Spacer(Modifier.height(10.dp))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFEF2F2), RoundedCornerShape(10.dp))
-                    .padding(14.dp)
+                    .background(Color(0xFFFEF2F2), RoundedCornerShape(12.dp))
+                    .padding(horizontal = tokens.screenPadding * 0.85f, vertical = 14.dp)
             ) {
                 Column {
-                    Text("Pending Payment", fontSize = 12.sp, color = Color(0xFFDC2626))
+                    Text("Pending Payment", fontSize = tokens.bodySmall, color = Color(0xFFDC2626))
                     Spacer(Modifier.height(4.dp))
-                    Text("8,500", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFFB91C1C))
+                    Text("8,500", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Color(0xFFB91C1C))
                 }
             }
         }
 
         Spacer(Modifier.height(12.dp))
 
-        AccordionSectionCard(
+        AccordionSection(
             title = "Order History",
             subtitle = "Complete order timeline",
             expanded = expandedSection == "history",
-            onToggle = { expandedSection = if (expandedSection == "history") "" else "history" }
+            onHeaderClick = { expandedSection = if (expandedSection == "history") "" else "history" }
         ) {
-            Text("Frequently Ordered Garments", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+            Text("Frequently Ordered Garments", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("Formal Shirt", "Trousers", "Suit").forEach { Chip(it) }
@@ -926,6 +875,7 @@ private data class OrderHistoryRow(
 
 @Composable
 private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
+    val tokens = LocalAppTokens.current
     val scrollState = rememberScrollState()
 
     val colOrderId = 90.dp
@@ -943,14 +893,14 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
         Row(
             modifier = Modifier
                 .width(totalWidth)
-                .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp))
-                .padding(horizontal = 12.dp, vertical = 14.dp)
+                .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp))
+                .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 14.dp)
         ) {
-            Text("Order ID", fontSize = 14.sp, color = Color(0xFF374151), modifier = Modifier.width(colOrderId))
-            Text("Date", fontSize = 14.sp, color = Color(0xFF374151), modifier = Modifier.width(colDate))
-            Text("Garment", fontSize = 14.sp, color = Color(0xFF374151), modifier = Modifier.width(colGarment))
-            Text("Amount", fontSize = 14.sp, color = Color(0xFF374151), modifier = Modifier.width(colAmount))
-            Text("Status", fontSize = 14.sp, color = Color(0xFF374151), modifier = Modifier.width(colStatus))
+            Text("Order ID", fontSize = tokens.bodyMedium, color = Color(0xFF374151), modifier = Modifier.width(colOrderId))
+            Text("Date", fontSize = tokens.bodyMedium, color = Color(0xFF374151), modifier = Modifier.width(colDate))
+            Text("Garment", fontSize = tokens.bodyMedium, color = Color(0xFF374151), modifier = Modifier.width(colGarment))
+            Text("Amount", fontSize = tokens.bodyMedium, color = Color(0xFF374151), modifier = Modifier.width(colAmount))
+            Text("Status", fontSize = tokens.bodyMedium, color = Color(0xFF374151), modifier = Modifier.width(colStatus))
         }
 
         orders.forEachIndexed { index, row ->
@@ -960,21 +910,21 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
                     .padding(vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(row.orderId, fontSize = 15.sp, color = Color(0xFF111827), modifier = Modifier.width(colOrderId))
-                Text(row.date, fontSize = 14.sp, color = Color(0xFF111827), modifier = Modifier.width(colDate))
+                Text(row.orderId, fontSize = tokens.bodyMedium, color = Color(0xFF111827), modifier = Modifier.width(colOrderId))
+                Text(row.date, fontSize = tokens.bodySmall, color = Color(0xFF111827), modifier = Modifier.width(colDate))
                 Text(
-                    row.garment, fontSize = 15.sp, color = Color(0xFF111827),
+                    row.garment, fontSize = tokens.bodyMedium, color = Color(0xFF111827),
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.width(colGarment)
                 )
-                Text(row.amount, fontSize = 15.sp, color = Color(0xFF111827), modifier = Modifier.width(colAmount))
+                Text(row.amount, fontSize = tokens.bodyMedium, color = Color(0xFF111827), modifier = Modifier.width(colAmount))
                 Box(modifier = Modifier.width(colStatus)) {
                     Box(
                         modifier = Modifier
                             .background(Color(0xFFFEE2E2), RoundedCornerShape(50))
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                            .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 5.dp)
                     ) {
-                        Text(row.status, fontSize = 12.sp, color = Color(0xFFDC2626), fontWeight = FontWeight.Medium)
+                        Text(row.status, fontSize = tokens.caption, color = Color(0xFFDC2626), fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -990,14 +940,15 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
 // ─────────────────────────────────────────────────────────────
 @Composable
 private fun PreferencesStep() {
+    val tokens = LocalAppTokens.current
     var expandedSection by remember { mutableStateOf("fabric") }
 
     Column {
-        AccordionSectionCard(
+        AccordionSection(
             title = "Fabric Preferences",
             subtitle = "Customer's preferred fabric types",
             expanded = expandedSection == "fabric",
-            onToggle = { expandedSection = if (expandedSection == "fabric") "" else "fabric" }
+            onHeaderClick = { expandedSection = if (expandedSection == "fabric") "" else "fabric" }
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("Cotton", "Linen", "Silk", "Wool").forEach { Chip(it) }
@@ -1010,11 +961,11 @@ private fun PreferencesStep() {
 
         Spacer(Modifier.height(12.dp))
 
-        AccordionSectionCard(
+        AccordionSection(
             title = "Style Preferences",
             subtitle = "Customer's preferred styles",
             expanded = expandedSection == "style",
-            onToggle = { expandedSection = if (expandedSection == "style") "" else "style" }
+            onHeaderClick = { expandedSection = if (expandedSection == "style") "" else "style" }
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("Slim Fit", "Regular Fit", "Mandarin Collar").forEach { Chip(it) }
@@ -1067,15 +1018,15 @@ private fun PreferencesStep() {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFEEF2FF), RoundedCornerShape(10.dp))
-                .padding(14.dp)
+                .background(Color(0xFFEEF2FF), RoundedCornerShape(12.dp))
+                .padding(horizontal = tokens.screenPadding * 0.85f, vertical = 14.dp)
         ) {
             Column {
-                Text("Special Privileges", fontWeight = FontWeight.Bold, color = Color(0xFF3B3BF9), fontSize = 14.sp)
+                Text("Special Privileges", fontWeight = FontWeight.Bold, color = Color(0xFF3B3BF9), fontSize = tokens.bodyMedium)
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "Priority booking, 10% discount on all suit orders, Free home delivery.",
-                    fontSize = 12.sp,
+                    fontSize = tokens.caption,
                     color = Color(0xFF4B5563)
                 )
             }
@@ -1131,81 +1082,87 @@ private fun NotesTagsStep(isEditMode: Boolean) {
 
 @Composable
 private fun SectionHeader(title: String, subtitle: String) {
+    val tokens = LocalAppTokens.current
     Column {
-        Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color(0xFF111827))
+        Text(title, fontWeight = FontWeight.Bold, fontSize = tokens.h2, color = Color(0xFF111827))
         Spacer(Modifier.height(2.dp))
-        Text(subtitle, fontSize = 13.sp, color = Color(0xFF9CA3AF))
+        Text(subtitle, fontSize = tokens.bodySmall, color = Color(0xFF9CA3AF))
     }
 }
 
 @Composable
 private fun NoteCard(text: String, bgColor: Color, borderColor: Color, textColor: Color) {
+    val tokens = LocalAppTokens.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(bgColor, RoundedCornerShape(10.dp))
-            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
-            .padding(14.dp)
+            .background(bgColor, RoundedCornerShape(12.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+            .padding(horizontal = tokens.screenPadding * 0.9f, vertical = 14.dp)
     ) {
-        Text(text, fontSize = 14.sp, color = textColor)
+        Text(text, fontSize = tokens.bodyMedium, color = textColor)
     }
 }
 
 @Composable
 private fun DashedAddButton(text: String, onClick: () -> Unit, enabled: Boolean) {
+    val tokens = LocalAppTokens.current
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
-            .dashedBorder(color = Color(0xFFD1D5DB), strokeWidth = 1.dp, cornerRadius = 10.dp),
-        shape = RoundedCornerShape(10.dp),
+            .dashedBorder(color = Color(0xFFD1D5DB), strokeWidth = 1.dp, cornerRadius = 12.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF6B7280)),
         border = null,
-        contentPadding = PaddingValues(vertical = 14.dp)
+        contentPadding = PaddingValues(horizontal = tokens.screenPadding, vertical = 14.dp)
     ) {
         Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp), tint = Color(0xFF6B7280))
         Spacer(Modifier.width(6.dp))
-        Text(text, fontSize = 14.sp, color = Color(0xFF6B7280))
+        Text(text, fontSize = tokens.bodyMedium, color = Color(0xFF6B7280))
     }
 }
 
 @Composable
 private fun SolidAddButton(text: String, onClick: () -> Unit, enabled: Boolean) {
+    val tokens = LocalAppTokens.current
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier.wrapContentWidth(),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF111827)),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD1D5DB)),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+        contentPadding = PaddingValues(horizontal = tokens.screenPadding * 0.85f, vertical = 10.dp)
     ) {
         Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp), tint = Color(0xFF111827))
         Spacer(Modifier.width(6.dp))
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
+        Text(text, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
     }
 }
 
 @Composable
 private fun TagChipOutlined(text: String, color: Color) {
+    val tokens = LocalAppTokens.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .background(color.copy(alpha = 0.08f), RoundedCornerShape(1.dp))
-            .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(1.dp))
-            .padding(horizontal = 12.dp, vertical = 7.dp)
+            .background(color.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+            .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+            .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 7.dp)
     ) {
         Icon(Icons.Outlined.LocalOffer, null, tint = color, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(5.dp))
-        Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color)
+        Text(text, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = color)
     }
 }
 
 @Composable
 fun LabeledField(label: String, field: @Composable () -> Unit) {
+    val tokens = LocalAppTokens.current
     Column(modifier = Modifier.padding(bottom = 12.dp)) {
-        Text(label, fontSize = 12.sp, color = blackTitle, fontWeight = FontWeight.Medium)
+        Text(label, fontSize = tokens.bodySmall, color = blackTitle, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(4.dp))
         field()
     }
@@ -1219,30 +1176,31 @@ private fun StatBox(
     highlight: Boolean = false,
     valueColor: Color = Color(0xFF111827)
 ) {
+    val tokens = LocalAppTokens.current
     Column(
         modifier = modifier
             .background(
                 if (highlight) Color(0xFFEEF2FF) else Color(0xFFFAFAFB),
-                RoundedCornerShape(14.dp)
+                RoundedCornerShape(16.dp)
             )
             .then(
-                if (!highlight) Modifier.border(1.dp, Color(0xFFECECF1), RoundedCornerShape(14.dp))
+                if (!highlight) Modifier.border(1.dp, Color(0xFFECECF1), RoundedCornerShape(16.dp))
                 else Modifier
             )
-            .padding(vertical = 18.dp, horizontal = 10.dp),
+            .padding(vertical = 18.dp, horizontal = tokens.screenPadding * 0.6f),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
             value,
-            fontSize = 22.sp,
+            fontSize = tokens.h2,
             fontWeight = FontWeight.Bold,
             color = if (highlight) Color(0xFF3B3BF9) else Color(0xFF0F172A)
         )
         Spacer(Modifier.height(6.dp))
         Text(
             label,
-            fontSize = 11.sp,
+            fontSize = tokens.caption,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 0.5.sp,
             color = if (highlight) Color(0xFF6366F1) else Color(0xFF9CA3AF)
@@ -1257,19 +1215,20 @@ private fun OrderStatBox(
     value: String,
     highlight: Boolean = false
 ) {
+    val tokens = LocalAppTokens.current
     Column(
         modifier = modifier
             .background(
                 if (highlight) Color(0xFFDCFCE7) else Color(0xFFF3F4F6),
-                RoundedCornerShape(14.dp)
+                RoundedCornerShape(16.dp)
             )
-            .padding(vertical = 16.dp, horizontal = 14.dp)
+            .padding(vertical = 16.dp, horizontal = tokens.screenPadding * 0.85f)
     ) {
-        Text(label, fontSize = 13.sp, color = Color(0xFF6B7280))
+        Text(label, fontSize = tokens.bodySmall, color = Color(0xFF6B7280))
         Spacer(Modifier.height(6.dp))
         Text(
             value,
-            fontSize = 22.sp,
+            fontSize = tokens.h2,
             fontWeight = FontWeight.Bold,
             color = if (highlight) Color(0xFF16A34A) else Color(0xFF111827)
         )
@@ -1278,23 +1237,25 @@ private fun OrderStatBox(
 
 @Composable
 private fun Chip(text: String) {
+    val tokens = LocalAppTokens.current
     Box(
         modifier = Modifier
             .background(Color(0xFFE1E0FF), RoundedCornerShape(8.dp))
-            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .padding(horizontal = tokens.screenPadding * 0.9f, vertical = 8.dp)
     ) {
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF07006C))
+        Text(text, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF07006C))
     }
 }
 
 @Composable
 private fun TagChip(text: String, color: Color) {
+    val tokens = LocalAppTokens.current
     Box(
         modifier = Modifier
             .background(color.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 6.dp)
     ) {
-        Text(text, fontSize = 12.sp, color = color)
+        Text(text, fontSize = tokens.bodySmall, color = color)
     }
 }
 
@@ -1310,14 +1271,15 @@ private fun InfoPill(
     bgColor: Color,
     borderColor: Color? = null
 ) {
+    val tokens = LocalAppTokens.current
     Column(
         modifier = modifier
-            .background(bgColor, RoundedCornerShape(14.dp))
+            .background(bgColor, RoundedCornerShape(16.dp))
             .then(
-                if (borderColor != null) Modifier.border(1.dp, borderColor, RoundedCornerShape(14.dp))
+                if (borderColor != null) Modifier.border(1.dp, borderColor, RoundedCornerShape(16.dp))
                 else Modifier
             )
-            .padding(vertical = 16.dp, horizontal = 10.dp),
+            .padding(vertical = 16.dp, horizontal = tokens.screenPadding * 0.6f),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         when {
@@ -1329,32 +1291,34 @@ private fun InfoPill(
             icon != null -> Icon(imageVector = icon, contentDescription = null, tint = labelColor, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.height(8.dp))
-        Text(label, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = labelColor, textAlign = TextAlign.Center)
+        Text(label, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = labelColor, textAlign = TextAlign.Center)
         Spacer(Modifier.height(2.dp))
-        Text(sub, fontSize = 11.sp, color = subColor, textAlign = TextAlign.Center)
+        Text(sub, fontSize = tokens.caption, color = subColor, textAlign = TextAlign.Center)
     }
 }
 
 @Composable
 private fun InsightRow(label: String, value: String) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = 13.sp, color = Color(0xFF374151))
-        Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+        Text(label, fontSize = tokens.bodySmall, color = Color(0xFF374151))
+        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
     }
 }
 
 @Composable
 private fun InsightRow(label: String, trailing: @Composable () -> Unit) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = 13.sp, color = Color(0xFF374151))
+        Text(label, fontSize = tokens.bodySmall, color = Color(0xFF374151))
         trailing()
     }
 }
@@ -1367,6 +1331,7 @@ private fun OutlinedIconActionButton(
     onClick: () -> Unit,
     enabled: Boolean = true
 ) {
+    val tokens = LocalAppTokens.current
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
@@ -1375,14 +1340,14 @@ private fun OutlinedIconActionButton(
             .dashedBorder(
                 color = Color.Gray,
                 strokeWidth = 1.dp,
-                cornerRadius = 8.dp
+                cornerRadius = 12.dp
             ),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = customOutlinedButtonColors(),
         border = null
     ) {
         Icon(icon, null, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(6.dp))
-        Text(text)
+        Text(text, fontSize = tokens.bodyMedium)
     }
 }

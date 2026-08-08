@@ -119,7 +119,6 @@ fun AllItemGroupScreen(
                     DataCard(
                         item = group,
                         title = group.name,
-                        titleFontSize = 15.sp,
                         subtitle = group.attributes,
                         topBadgeText = "${group.itemCount} Items",
                         topBadgeTextColor = CountBadgeText,

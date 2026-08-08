@@ -347,7 +347,6 @@ fun SalesOrderReportsScreen(
                         DataCard(
                             item = channel,
                             title = "${channel.name} • ${channel.subTitle}",
-                            titleFontSize = 14.sp,
                             titleFontWeight = FontWeight.SemiBold,
                             trailingText = null,
                             footerAsRows = true,

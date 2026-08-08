@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.modelGray
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AccordionSection
 
 // ── Reused from HomeScreen.kt (com.cuso.mobile.view.home) ──
 import com.cuso.mobile.view.home.FormDropdown
@@ -94,7 +95,6 @@ fun PurchaseOrderHeaderCard(
         DataCard(
             item = code,
             title = "$code  ·  $name  ·  $stockQty",
-            titleFontSize = 14.sp,
             topBadgeText = "Low",
             topBadgeTextColor = Color(0xFFE53935),
             topBadgeBgColor = Color(0xFFFDE7E7),

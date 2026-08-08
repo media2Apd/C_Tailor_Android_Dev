@@ -298,7 +298,6 @@ fun BranchSettingsScreen(
                                                 topBadgeInline = false,
                                                 title = (branch.name ?: "Unnamed") + if (branch.isMainBranch) " ⭐" else "",
                                                 titleFontWeight = FontWeight.Bold,
-                                                titleFontSize = 16.sp,
                                                 titleColor = Color(0xFF111827),
                                                 subtitle = branch.branchId ?: "-",
                                                 dateText = branch.branchId ?: "-",

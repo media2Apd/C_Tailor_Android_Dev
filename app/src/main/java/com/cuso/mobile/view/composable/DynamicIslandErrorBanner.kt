@@ -9,6 +9,7 @@
     "unusedvariable"
 )
 package com.cuso.mobile.view.composable
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -35,16 +36,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import kotlinx.coroutines.delay
 
-// Circle diameter = icon size + (2 * padding) → perfect circle when text is hidden
+// Circle diameter logic
 private val CIRCLE_SIZE = 40.dp
 private val ICON_SIZE = 18.dp
 
-// ── Theme-aware colors for the Dynamic Island pill ──
-private val PillBgLight = Color(0xFF1C1C1E)   // dark pill on light backgrounds (matches iOS style)
-private val PillBgDark = Color(0xFFF2F2F7)    // light pill on dark backgrounds
+// Theme-aware colors
+private val PillBgLight = Color(0xFF1C1C1E)
+private val PillBgDark = Color(0xFFF2F2F7)
 private val PillTextLight = Color(0xFFFFFFFF)
 private val PillTextDark = Color(0xFF1C1C1E)
 
@@ -57,11 +58,12 @@ private fun DynamicIslandBase(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     iconTint: Color
 ) {
+    val tokens = LocalAppTokens.current
     val isDarkTheme = isSystemInDarkTheme()
     val pillBgColor = if (isDarkTheme) PillBgDark else PillBgLight
     val pillTextColor = if (isDarkTheme) PillTextDark else PillTextLight
 
-    val dropY = remember { Animatable(-1f) }   // -1f = above screen, 0f = settled
+    val dropY = remember { Animatable(-1f) }
     var isPresent by remember { mutableStateOf(false) }
     var showText by remember { mutableStateOf(false) }
 
@@ -71,25 +73,22 @@ private fun DynamicIslandBase(
             showText = false
             dropY.snapTo(-1f)
 
-            // ── STEP 1: round circle drops down from top ──
+            // Step 1: Drop down animation
             dropY.animateTo(
                 targetValue = 0f,
-                animationSpec = tween(
-                    durationMillis = 500,
-                    easing = FastOutSlowInEasing
-                )
+                animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
             )
 
-            // ── STEP 3: circle settled → now expand width both sides + reveal text ──
+            // Step 2: Expand and reveal text
             showText = true
 
             delay(durationMillis)
 
-            // ── STEP 4 (reverse) part A: text hides, width shrinks back to circle ──
+            // Step 3: Shrink and hide text
             showText = false
             delay(220)
 
-            // ── STEP 4 (reverse) part B: circle goes back up ──
+            // Step 4: Retract up
             dropY.animateTo(
                 targetValue = -1f,
                 animationSpec = tween(220, easing = FastOutSlowInEasing)
@@ -107,8 +106,7 @@ private fun DynamicIslandBase(
                 .padding(top = 3.dp)
                 .fillMaxWidth()
                 .graphicsLayer {
-                    translationY = dropY.value * 20
-                        .dp.toPx()
+                    translationY = dropY.value * 20.dp.toPx()
                     alpha = 1f - (-dropY.value)
                 },
             contentAlignment = Alignment.TopCenter
@@ -119,7 +117,6 @@ private fun DynamicIslandBase(
                     .background(pillBgColor, RoundedCornerShape(CIRCLE_SIZE / 2)),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // ── STEP 2: icon perfectly fit inside the circle ──
                 Box(
                     modifier = Modifier.size(CIRCLE_SIZE),
                     contentAlignment = Alignment.Center
@@ -132,7 +129,6 @@ private fun DynamicIslandBase(
                     )
                 }
 
-                // Text container — expands/shrinks, pushing the pill wider on both sides
                 AnimatedVisibility(
                     visible = showText,
                     enter = fadeIn(tween(200, delayMillis = 100)) +
@@ -151,9 +147,9 @@ private fun DynamicIslandBase(
                     Text(
                         text = message ?: "",
                         color = pillTextColor,
-                        fontSize = 13.sp,
+                        fontSize = tokens.bodySmall, // Applied Adaptive Token
                         maxLines = 2,
-                        modifier = Modifier.padding(end = 16.dp)
+                        modifier = Modifier.padding(end = tokens.screenPadding) // Applied Adaptive Token
                     )
                 }
             }
@@ -181,9 +177,8 @@ fun DynamicIslandSuccess(
     DynamicIslandBase(modifier, message, onDismiss, durationMillis, Icons.Default.CheckCircle, Color(0xFF4ADE80))
 }
 
-// Central place to map raw backend error strings to user-friendly messages
+// ── Error Mapper retained as per original structure ──
 object ErrorMapper {
-
     private val errorMap = mapOf(
         "email already exists" to "This email is already registered.",
         "invalid credentials" to "Incorrect email or password.",
@@ -201,7 +196,6 @@ object ErrorMapper {
         return key?.let { errorMap[it] } ?: "Something went wrong. Please try again."
     }
 
-    // Optional: map raw error to which field it belongs to (for red border + accordion open)
     fun fieldFor(rawMessage: String?): String? {
         if (rawMessage.isNullOrBlank()) return null
         return when {
@@ -221,6 +215,7 @@ fun ErrorFieldWrapper(
     errorMessage: String? = null,
     content: @Composable () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     Column {
         Box(
             modifier = Modifier
@@ -235,12 +230,14 @@ fun ErrorFieldWrapper(
             Text(
                 text = errorMessage ?: "",
                 color = Color(0xFFEF4444),
-                fontSize = 12.sp,
+                fontSize = tokens.label, // Applied Adaptive Token
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
         }
     }
 }
+
+// ── Helper functions retained as per original structure ──
 fun fieldFor(rawMessage: String?): String? {
     if (rawMessage.isNullOrBlank()) return null
     return when {

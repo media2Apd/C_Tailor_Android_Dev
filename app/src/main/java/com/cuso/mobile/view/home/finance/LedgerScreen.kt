@@ -155,7 +155,6 @@ fun LedgerScreen(
                             item = entry,
                             title = entry.reference ?: "-",
                             titleColor = TextPrimary,
-                            titleFontSize = 15.sp,
                             subtitle = "${entry.journalNumber ?: "-"} • ${if (entry.credit > 0) "Credit" else "Debit"}",
                             footerAsRows = true, //   each field renders as a full-width SpaceBetween row, same as TrialBalanceScreen
                             footerFields = listOf(

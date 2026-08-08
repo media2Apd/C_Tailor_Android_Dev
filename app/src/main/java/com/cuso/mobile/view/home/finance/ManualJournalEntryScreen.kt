@@ -209,7 +209,6 @@ fun ManualJournalEntryScreen(
                                     item = entry,
                                     title = entry.entryNumber,
                                     titleColor = Color(0xFF111827),
-                                    titleFontSize = 18.sp,
                                     subtitle = "${entry.primaryAccountName}   •   Code: ${entry.primaryAccountCode}   •   Type: ${entry.primaryAccountType}",
                                     topBadgeText = entry.status,
                                     topBadgeTextColor = badgeFg,

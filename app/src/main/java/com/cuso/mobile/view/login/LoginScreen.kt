@@ -3,38 +3,33 @@
     "ASSIGNED_VALUE_IS_NEVER_READ",
     "unused",
     "SpellCheckingInspection",
-    "GrazieInspection"
+    "GrazieInspection",
+    "UnusedMaterial3ScaffoldPaddingParameter"
 )
 
 package com.cuso.mobile.view.login
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.AppLogo
+import com.cuso.mobile.view.composable.AuthScreenScaffold
 import com.cuso.mobile.view.composable.CardContentsLoginScreen
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
-import com.cuso.mobile.view.composable.LoginScreenTitle
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 
 @Suppress("UNUSED_PARAMETER", "VariableNeverRead")
 @Composable
@@ -46,7 +41,7 @@ fun LoginScreen(
     prefilledEmail: String = "",
     resetSuccessMessage: String = ""
 ) {
-    // Access Adaptive Tokens
+    // Access Adaptive Tokens (still needed here for the exit dialog text)
     val tokens = LocalAppTokens.current
 
     val authState by authViewModel.accountState.collectAsState()
@@ -126,66 +121,22 @@ fun LoginScreen(
             snackbarHost = { SnackbarHost(snackbarState) },
             containerColor = Color(0xFFf5f5f5)
         ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = tokens.screenPadding), // Adaptive Padding
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Spacer(modifier = Modifier.height(tokens.screenPadding * 2))
-
-                AppLogo()
-
-                Spacer(modifier = Modifier.height(tokens.screenPadding))
-
-                // Adaptive Title Container
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Reusable structure: background + scroll + adaptive padding +
+                // logo + title + subtitle + width-limited bordered card
+                AuthScreenScaffold(
+                    title = "Welcome to CUSO Tailor",
+                    subtitle = "Please login using the form below"
                 ) {
-                    LoginScreenTitle() // Inside this component, use tokens.h1
+                    // Only the screen-specific form content goes here
+                    CardContentsLoginScreen(
+                        navController,
+                        activity,
+                        authViewModel,
+                        prefilledEmail = prefilledEmail
+                        // Note: Ensure CardContentsLoginScreen uses tokens for its TextField/Buttons
+                    )
                 }
-
-                Spacer(modifier = Modifier.height(tokens.screenPadding))
-
-                // INDUSTRY GRADE: Limit card width on Tablets/Desktop
-                Box(
-                    modifier = Modifier
-                        .widthIn(max = 480.dp) // Professional limit for login forms
-                        .fillMaxWidth()
-                ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(
-                                width = 1.dp, // Thinner border for cleaner look
-                                color = Color.LightGray.copy(alpha = 0.5f),
-                                shape = RoundedCornerShape(16.dp)
-                            ),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = whiteBg),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .padding(tokens.screenPadding) // Inner adaptive padding
-                        ) {
-                            CardContentsLoginScreen(
-                                navController,
-                                activity,
-                                authViewModel,
-                                prefilledEmail = prefilledEmail
-                                // Note: Ensure CardContentsLoginScreen uses tokens for its TextField/Buttons
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(tokens.screenPadding * 2))
             }
         }
 

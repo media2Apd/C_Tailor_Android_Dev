@@ -5,15 +5,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -23,6 +21,7 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
+import com.cuso.mobile.R
 
 @Composable
 fun CardContentsForgotPassword(
@@ -65,7 +64,7 @@ fun CardContentsForgotPassword(
             onValueChange = { if (!isEmailLocked) email = it },
             label = "Email",
             placeholder = "your@email.com",
-            leadingIconVector = Icons.Filled.Email,
+            leadingIconPainter = painterResource(R.drawable.ic_mail),
             isError = isError,
             errorText = errorMsg,
             // Visual feedback for locked email

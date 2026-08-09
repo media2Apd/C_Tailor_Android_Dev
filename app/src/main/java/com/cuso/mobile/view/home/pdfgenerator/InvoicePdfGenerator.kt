@@ -676,7 +676,7 @@ class InvoicePdfGenerator(private val context: Context) {
           <div class="party-detail">${data.shipToAddress}</div>
           <div class="ref-block">
             <div class="ref-label">Reference:</div>
-            Order ID: ${data.orderReference.ifEmpty { "N/A" }}
+            Order ID:  "N/A" }
           </div>
         </div>
       </div>

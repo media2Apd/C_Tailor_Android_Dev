@@ -39,7 +39,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
@@ -56,6 +55,9 @@ import com.cuso.mobile.view.home.inventory.FormTextArea
 import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
+// ── NEW: adaptive design tokens ──
+import com.cuso.mobile.adaptive_screen.AppDesignTokens
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 
 private val BorderColor = Color(0xFFE3E4E8)
 
@@ -66,6 +68,15 @@ fun CreateServiceRequest(
     onCreateServiceRequest: () -> Unit = {},
     isSubmitting: Boolean = false // wire this to your ViewModel's loading state
 ) {
+    // ── Adaptive tokens: pulled from LocalAppTokens (set at app root via
+    // CompositionLocalProvider(LocalAppTokens provides getAdaptiveTokens(...))) ──
+    val tokens: AppDesignTokens = LocalAppTokens.current
+    val sectionGap = tokens.screenPadding                    // ~16 / 24 / 32.dp
+    val fieldGap = tokens.screenPadding * 0.75f               // ~12 / 18 / 24.dp
+    val smallGap = tokens.screenPadding * 0.5f                 // ~8 / 12 / 16.dp
+    val tinyGap = tokens.screenPadding * 0.3f                  // ~5 / 7 / 10.dp
+    val adaptiveCorner = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+
     var expandedSection by remember { mutableStateOf("Customer Information") }
 
     // ── Customer Information state ──
@@ -128,11 +139,11 @@ fun CreateServiceRequest(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(sectionGap)
                     ) {
-                        Text("Create Service Request", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Text("Create Service Request", fontSize = tokens.h1, fontWeight = FontWeight.Bold)
                         IconButton(onClick = onClose) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
+                            Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(tokens.iconSize))
                         }
                     }
                     HorizontalDivider(color = BorderColor)
@@ -154,7 +165,7 @@ fun CreateServiceRequest(
                     .fillMaxSize()
                     .background(Color.Transparent)
                     .verticalScroll(rememberScrollState())
-                    .padding(bottom = 90.dp) // clearance so content never sits under the FAB row
+                    .padding(bottom = tokens.buttonHeight * 1.9f) // clearance so content never sits under the FAB row
             ) {
                 // ── Customer Information (expanded by default) ──
                 AccordionSection(
@@ -172,7 +183,7 @@ fun CreateServiceRequest(
                         placeholder = "Enter Customer Name"
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Customer ID")
                     FormTextField(
                         value = customerId,
@@ -180,7 +191,7 @@ fun CreateServiceRequest(
                         placeholder = "Enter Customer ID"
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Phone Number")
                     FormTextField(
                         value = phoneNumber,
@@ -189,7 +200,7 @@ fun CreateServiceRequest(
                         keyboardType = KeyboardType.Phone
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Email Address")
                     FormTextField(
                         value = emailAddress,
@@ -218,7 +229,7 @@ fun CreateServiceRequest(
                             orderId = selected
                         }
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     FormLabel("Garment Name")
                     FormTextField(
@@ -226,7 +237,7 @@ fun CreateServiceRequest(
                         onValueChange = { garmentName = it },
                         placeholder = "Enter Garment Name"
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     FormLabel("Garment Type")
                     FormTextField(
@@ -235,21 +246,21 @@ fun CreateServiceRequest(
                         placeholder = "Enter Garment Type",
                         keyboardType = KeyboardType.Phone
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     FormLabel("Delivery Date")
                     DatePickerField(
                         value = deliveryDate,
                         onDateSelected = {deliveryDate = it}
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ){
-                        Text("Trial Completed",color=blackTitle, fontSize = 12.sp)
-                        Spacer(Modifier.width(10.dp))
+                        Text("Trial Completed", color = blackTitle, fontSize = tokens.caption)
+                        Spacer(Modifier.width(smallGap))
                         MiniSwitch(
                             checked = false,
                             onCheckedChange = { checked = it}
@@ -259,7 +270,12 @@ fun CreateServiceRequest(
                             Modifier
                                 .background(Color(0xFFb2e6c3), RoundedCornerShape(30.dp))
                         ){
-                            Text("Delivered",Modifier.padding(horizontal = 16.dp, vertical = 3.dp), color = Color(0xFF0AB83E), fontSize = 12.sp )
+                            Text(
+                                "Delivered",
+                                Modifier.padding(horizontal = smallGap, vertical = tinyGap),
+                                color = Color(0xFF0AB83E),
+                                fontSize = tokens.caption
+                            )
                         }
 
                     }
@@ -284,7 +300,7 @@ fun CreateServiceRequest(
                             serviceType = selected
                         }
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     FormDropdown(
                         label = "Priority",
@@ -296,7 +312,7 @@ fun CreateServiceRequest(
                             priority = selected
                         }
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     FormLabel("Issue Description")
                     FormTextArea(
@@ -325,9 +341,9 @@ fun CreateServiceRequest(
                             garmentsForService = selected
                         }
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Issue Areas")
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     SelectableChipRow(
                         options = garmentOptions,
                         selectedOptions = selectedGarmentCategories,
@@ -363,7 +379,7 @@ fun CreateServiceRequest(
                         value = preferredServiceDate,
                         onDateSelected = {preferredServiceDate = it}
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     FormLabel("Resolution Notes")
                     FormTextArea(
@@ -382,11 +398,11 @@ fun CreateServiceRequest(
                         expandedSection = if (expandedSection == "Internal Notes") "" else "Internal Notes"
                     }
                 ) {
-                        FormLabel("Staff-only comments")
-                        FormTextArea(
-                            value = staffOnlyComments,
-                            onValueChange = { staffOnlyComments = it }
-                        )
+                    FormLabel("Staff-only comments")
+                    FormTextArea(
+                        value = staffOnlyComments,
+                        onValueChange = { staffOnlyComments = it }
+                    )
                 }
 
                 // ── Charges ──
@@ -398,7 +414,7 @@ fun CreateServiceRequest(
                     }
                 ) {
 
-                        ServicesSection()
+                    ServicesSection()
 
 
                 }
@@ -408,7 +424,7 @@ fun CreateServiceRequest(
             StepNavigationFab(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(90.dp)
+                    .height(tokens.buttonHeight * 1.9f)
                     .align(Alignment.BottomCenter),
                 showBack = true,
                 onBack = onCancel,
@@ -432,12 +448,13 @@ fun AmountInputBox(
     modifier: Modifier = Modifier,
     placeholder: String = "0.00"
 ) {
+    val tokens = LocalAppTokens.current
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         singleLine = true,
         textStyle = LocalTextStyle.current.copy(
-            fontSize = 14.sp,
+            fontSize = tokens.bodyMedium,
             color = Color(0xFF1A1A1A),
             textAlign = TextAlign.Center
         ),
@@ -445,20 +462,20 @@ fun AmountInputBox(
         cursorBrush = SolidColor(Primary),
         modifier = modifier
             .width(80.dp)
-            .height(38.dp)
-            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(8.dp))
-            .background(whiteBg, RoundedCornerShape(8.dp)),
+            .height(tokens.fieldHeight * 0.9f)
+            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f)),
         decorationBox = { innerTextField ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = tokens.screenPadding * 0.5f),
                 contentAlignment = Alignment.Center
             ) {
                 if (value.isEmpty()) {
                     Text(
                         text = placeholder,
-                        fontSize = 14.sp,
+                        fontSize = tokens.bodyMedium,
                         color = Color(0xFFB0B0B0), //   placeholder grey
                         textAlign = TextAlign.Center
                     )
@@ -470,6 +487,7 @@ fun AmountInputBox(
 }
 @Composable
 fun ServicesSection() {
+    val tokens = LocalAppTokens.current
     var fields by remember { mutableStateOf(listOf("")) }
 
     Column(Modifier.fillMaxWidth()) {
@@ -477,11 +495,11 @@ fun ServicesSection() {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(vertical = tokens.screenPadding * 0.25f),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Services", fontSize = 14.sp, color = Color(0xFF1A1A1A))
+                Text("Services", fontSize = tokens.bodyMedium, color = Color(0xFF1A1A1A))
                 Spacer(Modifier.weight(1f))
 
                 AmountInputBox(
@@ -490,38 +508,38 @@ fun ServicesSection() {
                         fields = fields.toMutableList().also { it[index] = newValue }
                     }
                 )
-                 Spacer(Modifier.width(8.dp))
-                 Icon(
-                     imageVector = Icons.Default.Close,
-                     contentDescription = "Remove field",
-                     tint = Color(0xFF9CA3AF),
-                     modifier = Modifier
-                         .size(18.dp)
-                         .clickable {
-                             fields = fields.toMutableList().also { it.removeAt(index) }
-                         }
-                 )
+                Spacer(Modifier.width(tokens.screenPadding * 0.5f))
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Remove field",
+                    tint = Color(0xFF9CA3AF),
+                    modifier = Modifier
+                        .size(tokens.iconSize)
+                        .clickable {
+                            fields = fields.toMutableList().also { it.removeAt(index) }
+                        }
+                )
 
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(tokens.screenPadding * 0.5f))
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.Add, null, tint = Primary)
-            Spacer(Modifier.width(10.dp))
+            Icon(Icons.Default.Add, null, tint = Primary, modifier = Modifier.size(tokens.iconSize))
+            Spacer(Modifier.width(tokens.screenPadding * 0.6f))
 
             Text(
                 text = "Add field",
                 color = Primary,
-                fontSize = 13.sp,
+                fontSize = tokens.bodySmall,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier
                     .clickable { fields = fields + "" }
-                    .padding(vertical = 4.dp)
+                    .padding(vertical = tokens.screenPadding * 0.25f)
             )
         }
     }

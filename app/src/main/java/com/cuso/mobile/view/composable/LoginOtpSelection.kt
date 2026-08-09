@@ -3,7 +3,6 @@ package com.cuso.mobile.view.composable
 import android.app.Activity
 import android.util.Log
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -31,21 +29,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.navigation.NavController
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.viewmodel.Authenticate
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.style.TextOverflow
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.whiteBg
-
 
 @Composable
 fun LoginOtpSelection(
@@ -53,9 +48,13 @@ fun LoginOtpSelection(
     activity: Activity,
     submittedEmail: String
 ) {
-    //disables back button
+    // Disable back button on this screen
     BackHandler(enabled = true) {
     }
+
+    // Read adaptive design tokens provided at the app root
+    val tokens = LocalAppTokens.current
+
     val authViewModel: Authenticate = hiltViewModel()
 
     var otp by remember { mutableStateOf("") }
@@ -63,65 +62,70 @@ fun LoginOtpSelection(
     var isOtpComplete by remember { mutableStateOf(false) }
     var savedEmail by rememberSaveable { mutableStateOf(submittedEmail) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(whiteBg)
-            .border(2.dp, Color.LightGray, shape = RoundedCornerShape(8.dp))
-            .padding(16.dp)
+    // NOTE: No border/background here anymore. This content already sits
+    // inside AuthScreenScaffold's Card, so adding another bordered Box
+    // created a "card inside card" look. Now it's just a plain row.
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .size(tokens.iconSize * 2.5f) // Avatar circle scaled from base icon size
+                .clip(CircleShape)
+                .background(color = Color(0xFFF5F5F5)),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(CircleShape)
-                    .background(color = Color(0xFFF5F5F5)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.PersonOutline,
-                    contentDescription = null,
-                    tint = Color.DarkGray,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "OTP sent to",
-                    fontSize = 16.sp,
-                    color = Color.Gray
-                )
-                Text(
-                    text = savedEmail,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = blackTitle,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Text(
-                text = "Change",
-                modifier = Modifier.clickable {
-                    navController.navigate("login")
-                },
-                color = Color.Blue,
-                fontSize = 16.sp
+            Icon(
+                imageVector = Icons.Filled.PersonOutline,
+                contentDescription = null,
+                tint = Color.DarkGray,
+                modifier = Modifier.size(tokens.iconSize)
             )
         }
+
+        Spacer(modifier = Modifier.width(tokens.cardPadding / 2))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "OTP sent to",
+                fontSize = tokens.bodySmall,
+                color = Color.Gray
+            )
+            Text(
+                text = savedEmail,
+                fontSize = tokens.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = blackTitle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Text(
+            text = "Change",
+            modifier = Modifier.clickable {
+                navController.navigate("login")
+            },
+            color = Color.Blue,
+            fontSize = tokens.bodyMedium
+        )
     }
-    Spacer(Modifier.padding(top = 20.dp))
-    Column {
-        Text("Enter Otp", color = blackTitle)
-    }
-    Spacer(Modifier.padding(top = 10.dp))
+
+    // FIX: Single, moderate gap instead of stacking multiple full
+    // screenPadding-sized spacers, which was making the card look
+    // stretched/tall on larger (Medium/Expanded) window sizes.
+    Spacer(Modifier.height(tokens.cardPadding))
+
+    Text(
+        text = "Enter your OTP",
+        color = blackTitle,
+        fontSize = tokens.bodyLarge,
+        fontWeight = FontWeight.SemiBold
+    )
+
+    Spacer(Modifier.height(tokens.cardPadding / 2))
+
     LoginOtpInput(
         activity = activity,
         onOtpComplete = { enteredOtp ->
@@ -129,31 +133,33 @@ fun LoginOtpSelection(
             isOtpComplete = true
         }
     )
+
+    Spacer(Modifier.height(tokens.cardPadding / 2))
+
     Row(
         Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            "Sign in using password",
-            Modifier
-                .clickable {
-                    navController.navigate("login-with-email/${savedEmail}") {
-                        popUpTo(0) {  }
-                    }
-                },
-            color = Color.Blue, fontSize = 14.sp
+            text = "Sign in using password",
+            modifier = Modifier.clickable {
+                navController.navigate("login-with-email/${savedEmail}") {
+                    popUpTo(0) { }
+                }
+            },
+            color = Color.Blue,
+            fontSize = tokens.bodySmall
         )
         Spacer(Modifier.weight(1f))
         ResendLoginOtpSection(onResendClick = { savedEmail }, email = savedEmail, authViewModel)
     }
 
-    Spacer(Modifier.padding(top = 10.dp))
+    Spacer(Modifier.height(tokens.cardPadding))
 
-    // ⬇️ replaced block
+    // Handle OTP verification result
     LaunchedEffect(verifyResult) {
         verifyResult?.let { result ->
             result.onSuccess { response ->
-
                 val org = response.data.user.organizationId
 
                 if (org.orgSetupComplete) {
@@ -165,7 +171,6 @@ fun LoginOtpSelection(
                         popUpTo(0) { inclusive = true }
                     }
                 }
-
             }.onFailure { error ->
                 Log.e("OTP_API", "Login OTP verification failed", error)
             }
@@ -175,27 +180,26 @@ fun LoginOtpSelection(
     Button(
         onClick = {
             if (isOtpComplete) {
-                authViewModel.verifyOtp(
-                    savedEmail, otp
-                )
+                authViewModel.verifyOtp(savedEmail, otp)
             }
         },
         enabled = isOtpComplete,
         modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp),
+            .height(tokens.buttonHeight),
         colors = ButtonDefaults.buttonColors(
             containerColor = Primary,
-            contentColor = whiteBg
+            contentColor = Color.White
         ),
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(tokens.cardCornerRadius / 2)
     ) {
         Text(
             text = "Verify and continue",
-            fontSize = 20.sp,
+            fontSize = tokens.bodyLarge,
             fontWeight = FontWeight.SemiBold
         )
     }
-    Spacer(Modifier.padding(top = 10.dp))
+
+    Spacer(Modifier.height(tokens.cardPadding / 2))
     BackToSignIn(navController)
 }

@@ -43,7 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.modelGray
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
@@ -64,7 +64,7 @@ import com.cuso.mobile.view.composable.SegmentedSelector
 import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TrailingFabAction
 
-// ── Design tokens (match EmployeeOnboardingScreen style) ──
+// ── Design tokens (colors only — sizing now comes from AppDesignTokens) ──
 private val AccentColor = Color(0xFF3D3DFF)
 private val BorderColor = Color(0xFFE3E4E8)
 private val TitleColor = Color(0xFF111827)
@@ -91,6 +91,7 @@ fun PurchaseOrderHeaderCard(
     suggestedQty: String,
     utilizationPercent: Int
 ) {
+    val tokens = LocalAppTokens.current
     Column {
         DataCard(
             item = code,
@@ -110,15 +111,15 @@ fun PurchaseOrderHeaderCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .padding(horizontal = tokens.cardPadding * 0.5f, vertical = tokens.cardPadding * 0.35f)
                 .background(Color.Transparent)
         ) {
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Stock Utilization Gauge", fontSize = 12.sp, color = LabelColor)
-                Text("$utilizationPercent% CAPACITY", fontSize = 12.sp, color = Color(0xFFE53935))
+                Text("Stock Utilization Gauge", fontSize = tokens.caption, color = LabelColor)
+                Text("$utilizationPercent% CAPACITY", fontSize = tokens.caption, color = Color(0xFFE53935))
             }
             Spacer(Modifier.height(6.dp))
             StockUtilizationGauge(percentage = utilizationPercent)
@@ -136,6 +137,8 @@ fun CreatePurchaseOrderScreen(
     onCancel: () -> Unit,
     onCreateOrder: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     var expandedSection by remember { mutableStateOf("supplier") }
 
     // ── Supplier & Warehouse ──
@@ -152,7 +155,7 @@ fun CreatePurchaseOrderScreen(
     var unitPrice by remember { mutableStateOf("200") }
 
     // ── Delivery ──
-    var expectedDelivery by remember { mutableStateOf("Select Date") }
+    var expectedDelivery by remember { mutableStateOf(" ") }
     var priority by remember { mutableStateOf(PoPriority.URGENT) }
     var notes by remember { mutableStateOf("") }
 
@@ -184,7 +187,7 @@ fun CreatePurchaseOrderScreen(
                 StepNavigationFab(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(76.dp),
+                        .height(tokens.buttonHeight * 1.65f),
                     showBack = true,
                     onBack = onCancel,
                     backLabel = "Cancel",
@@ -216,7 +219,7 @@ fun CreatePurchaseOrderScreen(
                 suggestedQty = "200M",
                 utilizationPercent = 40
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(tokens.screenPadding * 0.8f))
 
             // ── Supplier & Warehouse ──
             AccordionSection(
@@ -234,7 +237,7 @@ fun CreatePurchaseOrderScreen(
                     onOptionSelected = { supplier = it }
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                 FormDropdown(
                     label = "Warehouse",
                     value = warehouse,
@@ -246,12 +249,12 @@ fun CreatePurchaseOrderScreen(
 
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = LabelColor, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = LabelColor, modifier = Modifier.size(tokens.iconSize * 0.9f))
                     Spacer(Modifier.width(4.dp))
-                    Text("Mumbai   ★ 4.8   Avg 5 days", fontSize = 12.sp, color = LabelColor)
+                    Text("Mumbai   ★ 4.8   Avg 5 days", fontSize = tokens.caption, color = LabelColor)
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(tokens.screenPadding * 0.6f))
 
             // ── Purchase Details ──
             AccordionSection(
@@ -268,7 +271,7 @@ fun CreatePurchaseOrderScreen(
                     keyboardType = KeyboardType.Number
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                 FormLabel("Unit Price (₹)")
                 FormTextField(
                     value = unitPrice,
@@ -277,13 +280,13 @@ fun CreatePurchaseOrderScreen(
                     keyboardType = KeyboardType.Number
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.45f))
                         .background(Color(0xFFEDEDFB))
-                        .padding(12.dp)
+                        .padding(tokens.cardPadding * 0.4f)
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -292,26 +295,26 @@ fun CreatePurchaseOrderScreen(
                         Column {
                             Text(
                                 "Total Order Value",
-                                fontSize = 13.sp,
+                                fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = AccentColor
                             )
                             Text(
                                 "Excluding Taxes & Shipping",
-                                fontSize = 11.sp,
+                                fontSize = tokens.label,
                                 color = LabelColor
                             )
                         }
                         Text(
                             "₹${"%,d".format(totalOrderValue)}",
-                            fontSize = 16.sp,
+                            fontSize = tokens.bodyLarge,
                             fontWeight = FontWeight.Bold,
                             color = AccentColor
                         )
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(tokens.screenPadding * 0.6f))
 
             // ── Delivery ──
             AccordionSection(
@@ -326,7 +329,7 @@ fun CreatePurchaseOrderScreen(
                     onDateSelected = { expectedDelivery = it }
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                 FormLabel("Priority")
                 SegmentedSelector(
                     options = PoPriority.entries,
@@ -338,13 +341,13 @@ fun CreatePurchaseOrderScreen(
                     unselectedTextColor = TitleColor
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.8f))
 
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(tokens.screenPadding * 0.6f))
             Column(
                 Modifier.fillMaxWidth()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = tokens.screenPadding)
             ){
                 FormLabel("Additional Notes")
                 FormTextArea(
@@ -360,16 +363,16 @@ fun CreatePurchaseOrderScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp) //   NEW — match AccordionSection's horizontal inset
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, AccentColor, RoundedCornerShape(8.dp))
-                    .padding(24.dp),
+                    .padding(horizontal = tokens.screenPadding) //   NEW — match AccordionSection's horizontal inset
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.45f))
+                    .border(1.dp, AccentColor, RoundedCornerShape(tokens.cardCornerRadius * 0.45f))
+                    .padding(tokens.cardPadding * 0.85f),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.CloudUpload, contentDescription = null, tint = LabelColor)
-                    Text("Drag & Drop specification sheets", fontSize = 13.sp, color = LabelColor)
-                    Text("Max 5MB · PDF, JPG, PNG", fontSize = 11.sp, color = Color(0xFFB0B0B0))
+                    Icon(Icons.Default.CloudUpload, contentDescription = null, tint = LabelColor, modifier = Modifier.size(tokens.iconSize * 1.2f))
+                    Text("Drag & Drop specification sheets", fontSize = tokens.bodySmall, color = LabelColor)
+                    Text("Max 5MB · PDF, JPG, PNG", fontSize = tokens.label, color = Color(0xFFB0B0B0))
                 }
             }
         }
@@ -389,14 +392,15 @@ fun FormTextArea(
     textColor: Color = TitleColor,
     placeholderColor: Color = LabelColor
 ) {
+    val tokens = LocalAppTokens.current
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = placeholderColor, fontSize = 13.sp) },
+        placeholder = { Text(placeholder, color = placeholderColor, fontSize = tokens.bodySmall) },
         minLines = minLines,
         maxLines = maxLines,
-        shape = RoundedCornerShape(8.dp),
-        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = textColor),
+        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.45f),
+        textStyle = androidx.compose.ui.text.TextStyle(fontSize = tokens.bodyMedium, color = textColor),
         colors = OutlinedTextFieldDefaults.colors(
             unfocusedBorderColor = borderColor,
             focusedBorderColor = focusedBorderColor,

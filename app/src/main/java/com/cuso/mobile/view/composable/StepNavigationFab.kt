@@ -34,30 +34,39 @@ import com.cuso.mobile.ui.theme.whiteBg
  * Pick ONE depending on your screen's current state:
  *  - Next   -> normal "go to next step" pill
  *  - Edit   -> switches a view-only screen into edit mode / navigates to edit
-// *  - Update -> submits the form (shows a spinner while  is true)
+ *  - Update -> submits the form (shows a spinner while is true)
  */
-//
 sealed class TrailingFabAction {
-    data class Next(val label: String = "Next", val enabled: Boolean = true, val onClick: () -> Unit) : TrailingFabAction()
-    data class Edit(val label: String = "Edit", val enabled: Boolean = true, val onClick: () -> Unit) : TrailingFabAction()
+    data class Next(
+        val label: String = "Next",
+        val enabled: Boolean = true,
+        val onClick: () -> Unit
+    ) : TrailingFabAction()
+
+    data class Edit(
+        val label: String = "Edit",
+        val enabled: Boolean = true,
+        val onClick: () -> Unit
+    ) : TrailingFabAction()
+
     data class Update(
         val isLoading: Boolean = false,
         val label: String = "Update",
-        val enabled: Boolean = true,   //   NEW — controls button's clickable/disabled state
+        val enabled: Boolean = true,
         val onClick: () -> Unit
     ) : TrailingFabAction()
 }
-/*
-* @param showBack whether to render the Back button at all (e.g. hide on step 0)
-* @param onBack invoked when Back is tapped
-* @param backLabel text shown on the Back button (defaults to "Back")
-* @param trailingAction the right-hand action to render; pass null to hide it entirely
-* @param backWidthFraction optional fraction of screen width for the Back button
-*        (pass this when labels are long, e.g. "Cancel", to stop the two buttons
-*        from colliding). Leave null to keep the original wrap-content pill sizing.
-* @param trailingWidthFraction optional fraction of screen width for the trailing button
-*/
 
+/**
+ * @param showBack whether to render the Back button at all (e.g. hide on step 0)
+ * @param onBack invoked when Back is tapped
+ * @param backLabel text shown on the Back button (defaults to "Back")
+ * @param trailingAction the right-hand action to render; pass null to hide it entirely
+ * @param backWidthFraction optional fraction of screen width for the Back button
+ * @param trailingWidthFraction optional fraction of screen width for the trailing button
+ * @param showBackArrow whether to show arrow icon on the back button (default: true)
+ * @param showTrailingArrow whether to show arrow icon on the trailing button (default: true)
+ */
 @Composable
 fun StepNavigationFab(
     modifier: Modifier = Modifier,
@@ -67,8 +76,9 @@ fun StepNavigationFab(
     backLabel: String = "Back",
     backEnabled: Boolean = true,
     backWidthFraction: Float? = null,
-    trailingWidthFraction: Float? = null
-
+    trailingWidthFraction: Float? = null,
+    showBackArrow: Boolean = true,
+    showTrailingArrow: Boolean = true
 ) {
     Box(modifier.fillMaxSize()) {
         if (showBack) {
@@ -76,6 +86,7 @@ fun StepNavigationFab(
                 onClick = onBack,
                 label = backLabel,
                 enabled = backEnabled,
+                showArrow = showBackArrow,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(start = 10.dp, bottom = 14.dp)
@@ -86,6 +97,7 @@ fun StepNavigationFab(
         if (trailingAction != null) {
             TrailingFabButton(
                 action = trailingAction,
+                showArrow = showTrailingArrow,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 10.dp, bottom = 14.dp)
@@ -95,14 +107,13 @@ fun StepNavigationFab(
     }
 }
 
-//
 @Composable
 fun BackFabButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     label: String = "Back",
-    enabled: Boolean = true
-
+    enabled: Boolean = true,
+    showArrow: Boolean = true
 ) {
     OutlinedButton(
         onClick = onClick,
@@ -117,8 +128,10 @@ fun BackFabButton(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
         modifier = modifier
     ) {
-        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
+        if (showArrow) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+        }
         Text(label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
     }
 }
@@ -126,13 +139,13 @@ fun BackFabButton(
 @Composable
 fun TrailingFabButton(
     action: TrailingFabAction,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showArrow: Boolean = true
 ) {
-    //   NEW — resolve enabled state from whichever action variant is passed in
     val isEnabled = when (action) {
         is TrailingFabAction.Next -> action.enabled
         is TrailingFabAction.Edit -> action.enabled
-        is TrailingFabAction.Update -> action.enabled && !action.isLoading   // also block taps while loading
+        is TrailingFabAction.Update -> action.enabled && !action.isLoading
     }
 
     Button(
@@ -148,7 +161,7 @@ fun TrailingFabButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = Primary,
             contentColor = whiteBg,
-            disabledContainerColor = Primary.copy(alpha = 0.4f),   //   NEW — visual dim when disabled
+            disabledContainerColor = Primary.copy(alpha = 0.4f),
             disabledContentColor = whiteBg.copy(alpha = 0.7f)
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
@@ -157,9 +170,13 @@ fun TrailingFabButton(
     ) {
         when (action) {
             is TrailingFabAction.Next -> {
-                Text(action.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.width(8.dp))
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                if (showArrow) {
+                    Text(action.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                } else {
+                    Text(action.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
             is TrailingFabAction.Edit -> {
                 Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))

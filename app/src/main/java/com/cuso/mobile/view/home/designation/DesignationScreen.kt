@@ -5,7 +5,6 @@
     "DEPRECATION",
     "AssignedValueIsNeverRead",
     "GrazieInspection",
-    "SpellCheckingInspection",
     "unusedvariable"
 )
 package com.cuso.mobile.view.home.designation
@@ -41,6 +40,7 @@ import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
+import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
@@ -49,6 +49,8 @@ import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.blurScrim
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.viewmodel.DesignationCreateState
 import com.cuso.mobile.viewmodel.DesignationDeleteState
 import com.cuso.mobile.viewmodel.DesignationUiState
@@ -57,7 +59,7 @@ import com.cuso.mobile.viewmodel.DesignationViewModel
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────
-// DesignationScreen with SmoothBottomSheet
+// DesignationScreen with SmoothBottomSheet and FabScaffold
 // ─────────────────────────────────────────────────────────────
 
 @Suppress("UNUSED_PARAMETER")
@@ -154,7 +156,21 @@ fun DesignationScreen(
     val totalPages = maxOf(1, if (filteredDesignations.isNotEmpty()) (filteredDesignations.size + itemsPerPage - 1) / itemsPerPage else 1)
     val pagedDesignations = filteredDesignations.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // FAB configuration
+    val fabConfig = FabConfig(
+        label = "Add Designation",
+        icon = Icons.Default.Add,
+        onClick = { addSheetState = SheetValue.Expanded },
+        endPadding = 10.dp,
+        bottomPadding = 50.dp,
+        draggable = true
+    )
+
+    FabScaffold(
+        modifier = Modifier.fillMaxSize(),
+        fab = fabConfig,
+        snackbarHostState = snackbarHostState
+    ) {
         Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
             // ── HEADER - Always solid (NO BLUR) ──
@@ -320,30 +336,7 @@ fun DesignationScreen(
                     }
                 }
             }
-
-            // ── FAB Button ──
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 50.dp, end = 10.dp)
-            ) {
-                Button(
-                    onClick = { addSheetState = SheetValue.Expanded },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2F27CE)),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Add Designation", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                        Spacer(Modifier.width(6.dp))
-                        Icon(Icons.Default.Add, contentDescription = null, tint = whiteBg, modifier = Modifier.size(18.dp))
-                    }
-                }
-            }
         }
-
-        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
 
         // ── SmoothBottomSheet for Add Designation ──
         SmoothBottomSheet(
@@ -426,11 +419,13 @@ fun DesignationScreen(
 
         // ── Delete Confirmation Dialog ──
         showDeleteDialog?.let { designation ->
-            DeleteConfirmationDialog(
-                designation = designation,
-                isLoading = deleteState is DesignationDeleteState.Loading,
+            DeleteModel(
+                title = "Delete Designation",
+                message = "Are you sure you want to delete '${designation.name}'?\nThis action cannot be undone.",
                 onDismiss = { showDeleteDialog = null },
-                onConfirm = { viewModel.deleteDesignation(designation.id) }
+                onDelete = {
+                    viewModel.deleteDesignation(designation.id)
+                }
             )
         }
     }
@@ -651,59 +646,3 @@ fun EditDesignationSheetContent(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// DeleteConfirmationDialog (kept as Dialog since it's a simple alert)
-// ─────────────────────────────────────────────────────────────
-
-@Composable
-fun DeleteConfirmationDialog(
-    designation: DesignationItem,
-    isLoading: Boolean,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                "Delete Designation",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
-            )
-        },
-        text = {
-            Text(
-                "Are you sure you want to delete '${designation.name}'?",
-                fontSize = 14.sp,
-                color = Color(0xFF374151)
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                enabled = !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFEF4444)
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                if (isLoading) {
-                    CirculerProgressIndicatorReuse()
-                } else {
-                    Text("Delete", color = whiteBg)
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                enabled = !isLoading
-            ) {
-                Text("Cancel", color = Color(0xFF6B7280))
-            }
-        },
-        containerColor = whiteBg,
-        shape = RoundedCornerShape(16.dp)
-    )
-}

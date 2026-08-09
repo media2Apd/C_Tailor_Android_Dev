@@ -8,7 +8,7 @@
     "unused_variable",
     "unused_parameter",
     "UnusedMaterial3ScaffoldPaddingParameter"
-    )
+)
 package com.cuso.mobile.view.home.logistics
 
 import androidx.compose.foundation.BorderStroke
@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.whiteBg
@@ -48,7 +49,7 @@ import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.view.home.sales.customer.OrderStatusStepper
 
-// ── Design tokens ──
+// ── Design tokens (colors only — sizing now comes from AppDesignTokens) ──
 private val AccentColor = Color(0xFF4F39F6)
 private val BorderColor = Color(0xFFE3E4E8)
 private val LabelColor = Color(0xFF111827)
@@ -74,7 +75,6 @@ private data class StaffMember(
     val nearestRouteMatch: Boolean = false
 )
 
-private val ActionButtonHeight = 40.dp
 private val ActionButtonContentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,6 +85,8 @@ fun DeliveryDetailScreen(
     onUpdateStatusConfirm: (String) -> Unit = {},
     onMarkCompleted: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
+
     val recipientName = "Raji"
     val orderCode = "001"
     var status by remember { mutableStateOf("In Transit") }
@@ -143,7 +145,7 @@ fun DeliveryDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TitleBar("Create customer", onClose = onDismiss)
+                        TitleBar("Delivery Management", onClose = onDismiss)
 
                     }
                     HorizontalDivider(color = BorderColor)
@@ -161,22 +163,22 @@ fun DeliveryDetailScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .padding(horizontal = tokens.screenPadding, vertical = tokens.cardPadding * 0.4f)
                     ) {
                         Button(
                             onClick = onMarkCompleted,
                             colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
                             contentPadding = ActionButtonContentPadding,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(ActionButtonHeight)
+                                .height(tokens.buttonHeight)
                         ) {
                             Text(
                                 text = "Mark as Completed",
                                 color = whiteBg,
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 15.sp,
+                                fontSize = tokens.bodyMedium,
                                 maxLines = 1
                             )
                         }
@@ -196,104 +198,104 @@ fun DeliveryDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 10.dp)
+                    .padding(horizontal = tokens.screenPadding * 0.5f)
             ) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.6f))
 
                 // Order Header Card
 
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                Column(modifier = Modifier.padding(tokens.cardPadding * 0.5f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "$recipientName / $orderCode",
+                            fontSize = tokens.h2,
+                            fontWeight = FontWeight.Bold,
+                            color = TitleColor
+                        )
+                        Box(
+                            modifier = Modifier
+                                .background(InTransitBg, RoundedCornerShape(20.dp))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                "$recipientName / $orderCode",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TitleColor
+                                status,
+                                fontSize = tokens.caption,
+                                color = InTransitText,
+                                fontWeight = FontWeight.SemiBold
                             )
-                            Box(
-                                modifier = Modifier
-                                    .background(InTransitBg, RoundedCornerShape(20.dp))
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    status,
-                                    fontSize = 12.sp,
-                                    color = InTransitText,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-
-                        Spacer(Modifier.height(10.dp))
-                        HorizontalDivider(color = BorderColor.copy(alpha = 0.5f))
-                        Spacer(Modifier.height(10.dp))
-
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            SummaryColumn(label = "Customer", value = customer, modifier = Modifier.weight(1f))
-                            SummaryColumn(label = "Est.Delivery", value = estDelivery, modifier = Modifier.weight(1f))
-                            SummaryColumn(label = "Delivery Location", value = deliveryLocation, modifier = Modifier.weight(1f))
                         }
                     }
 
+                    Spacer(Modifier.height(tokens.screenPadding * 0.5f))
+                    HorizontalDivider(color = BorderColor.copy(alpha = 0.5f))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.5f))
 
-                Spacer(Modifier.height(10.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        SummaryColumn(label = "Customer", value = customer, modifier = Modifier.weight(1f))
+                        SummaryColumn(label = "Est.Delivery", value = estDelivery, modifier = Modifier.weight(1f))
+                        SummaryColumn(label = "Delivery Location", value = deliveryLocation, modifier = Modifier.weight(1f))
+                    }
+                }
+
+
+                Spacer(Modifier.height(tokens.screenPadding * 0.5f))
 
                 // Assign Staff Button
                 OutlinedButton(
                     onClick = { assignStaffSheetState = SheetValue.Expanded },
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
                     border = BorderStroke(1.dp, Primary),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
                     contentPadding = ActionButtonContentPadding,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(ActionButtonHeight)
+                        .height(tokens.buttonHeight)
                 ) {
                     Text(
                         selectedStaff?.let { "Assigned: $it" } ?: "+ Assign Staff",
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
+                        fontSize = tokens.bodySmall,
                         maxLines = 1
                     )
                 }
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.5f))
 
                 // Order Stepper Card
 
-                    OrderStatusStepper(
-                        stepLabels = stepLabels,
-                        currentStep = currentStepIndex,
-                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 2.dp)
-                    )
+                OrderStatusStepper(
+                    stepLabels = stepLabels,
+                    currentStep = currentStepIndex,
+                    modifier = Modifier.padding(vertical = tokens.screenPadding * 0.5f, horizontal = 2.dp)
+                )
 
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.5f))
 
                 // Update Status Button
                 Button(
                     onClick = { updateStatusSheetState = SheetValue.Expanded },
                     colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
                     contentPadding = ActionButtonContentPadding,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(ActionButtonHeight)
+                        .height(tokens.buttonHeight)
                 ) {
                     Text(
                         "Update Status",
                         color = whiteBg,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp,
+                        fontSize = tokens.bodyMedium,
                         maxLines = 1
                     )
                 }
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.5f))
 
                 // Accordion Sections
                 AccordionSection(
@@ -312,7 +314,7 @@ fun DeliveryDetailScreen(
                         options = listOf("Delhivery", "Blue Dart", "DTDC", "India Post"),
                         onOptionSelected = { courierPartner = it }
                     )
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.6f))
                     FormDropdown(
                         label = "Service Type",
                         value = serviceType,
@@ -343,7 +345,7 @@ fun DeliveryDetailScreen(
                             FormTextField(value = length, onValueChange = { length = it }, placeholder = "Optional", keyboardType = KeyboardType.Number)
                         }
                     }
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.6f))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Column(modifier = Modifier.weight(1f)) {
                             FormLabel("Width (cm)")
@@ -356,32 +358,32 @@ fun DeliveryDetailScreen(
                     }
                 }
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.5f))
 
                 // Order Summary Card
 
-                    Column(modifier = Modifier.padding(0.dp)) {
-                        //Header
-                        Row() {
-                            Text(
-                                "Order Summary",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TitleColor
-                            )
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        SummaryRow("Total quantity", totalQuantity)
-                        SummaryRow("Subtotal", subtotal)
-                        SummaryRow("Delivery Charge", deliveryCharge)
-                        Spacer(Modifier.height(6.dp))
-                        HorizontalDivider(color = BorderColor)
-                        Spacer(Modifier.height(8.dp))
-                        SummaryRow("Grand Total", grandTotal, isBold = true)
+                Column(modifier = Modifier.padding(0.dp)) {
+                    //Header
+                    Row {
+                        Text(
+                            "Order Summary",
+                            fontSize = tokens.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TitleColor
+                        )
                     }
+                    Spacer(Modifier.height(tokens.screenPadding * 0.5f))
+                    SummaryRow("Total quantity", totalQuantity)
+                    SummaryRow("Subtotal", subtotal)
+                    SummaryRow("Delivery Charge", deliveryCharge)
+                    Spacer(Modifier.height(6.dp))
+                    HorizontalDivider(color = BorderColor)
+                    Spacer(Modifier.height(8.dp))
+                    SummaryRow("Grand Total", grandTotal, isBold = true)
+                }
 
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(tokens.screenPadding))
             }
         }
 
@@ -421,62 +423,62 @@ fun DeliveryDetailScreen(
             ) {
                 Text(
                     "STAFF ALLOCATION",
-                    fontSize = 13.sp,
+                    fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.Bold,
                     color = TitleColor,
                     letterSpacing = 0.5.sp,
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 16.dp)
+                        .padding(bottom = tokens.screenPadding * 0.8f)
                 )
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = tokens.screenPadding * 0.8f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
                         modifier = Modifier
                             .weight(1f)
-                            .height(44.dp)
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp))
+                            .height(tokens.fieldHeight)
+                            .background(Color(0xFFF3F4F6), RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
                             .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Search, contentDescription = null, tint = MutedColor, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Search, contentDescription = null, tint = MutedColor, modifier = Modifier.size(tokens.iconSize))
                         Spacer(Modifier.width(8.dp))
                         BasicTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            textStyle = TextStyle(fontSize = 14.sp, color = TitleColor),
+                            textStyle = TextStyle(fontSize = tokens.bodyMedium, color = TitleColor),
                             decorationBox = { inner ->
-                                if (searchQuery.isEmpty()) Text("Search Staff..", fontSize = 14.sp, color = MutedColor)
+                                if (searchQuery.isEmpty()) Text("Search Staff..", fontSize = tokens.bodyMedium, color = MutedColor)
                                 inner()
                             }
                         )
                     }
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
-                            .background(whiteBg, RoundedCornerShape(10.dp))
-                            .border(1.dp, BorderColor, RoundedCornerShape(10.dp)),
+                            .size(tokens.fieldHeight)
+                            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
+                            .border(1.dp, BorderColor, RoundedCornerShape(tokens.cardCornerRadius * 0.65f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = LabelColor, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = LabelColor, modifier = Modifier.size(tokens.iconSize))
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.7f))
 
                 Column(
                     modifier = Modifier
                         .weight(1f, fill = false)
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = tokens.screenPadding * 0.8f)
                 ) {
                     filteredStaff.forEach { staff ->
                         val isSelected = tempSelectedStaff == staff.name
@@ -485,7 +487,7 @@ fun DeliveryDetailScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
                                 .background(if (isSelected) SelectedBg else Color.Transparent)
                                 .clickable(enabled = !isDisabled) { tempSelectedStaff = staff.name }
                                 .padding(vertical = 12.dp, horizontal = 10.dp),
@@ -503,35 +505,35 @@ fun DeliveryDetailScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         staff.name,
-                                        fontSize = 14.sp,
+                                        fontSize = tokens.bodyMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         color = if (isDisabled) MutedColor else TitleColor
                                     )
                                     if (staff.isRecommended) {
                                         Spacer(Modifier.width(8.dp))
-                                        Text("Recommended", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = RecommendedColor)
+                                        Text("Recommended", fontSize = tokens.label, fontWeight = FontWeight.SemiBold, color = RecommendedColor)
                                     }
                                 }
                                 Spacer(Modifier.height(2.dp))
-                                Text(staff.role, fontSize = 12.sp, color = MutedColor)
+                                Text(staff.role, fontSize = tokens.caption, color = MutedColor)
                                 Spacer(Modifier.height(4.dp))
 
                                 if (isDisabled) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Active Deliveries: —", fontSize = 12.sp, color = MutedColor)
+                                        Text("Active Deliveries: —", fontSize = tokens.caption, color = MutedColor)
                                         Spacer(Modifier.width(10.dp))
                                         Box(modifier = Modifier
                                             .size(6.dp)
                                             .clip(CircleShape)
                                             .background(UnavailableRed))
                                         Spacer(Modifier.width(4.dp))
-                                        Text("Unavailable", fontSize = 12.sp, color = UnavailableRed)
+                                        Text("Unavailable", fontSize = tokens.caption, color = UnavailableRed)
                                     }
                                 } else {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Active Deliveries: ${staff.activeDeliveries}", fontSize = 12.sp, color = LabelColor)
+                                        Text("Active Deliveries: ${staff.activeDeliveries}", fontSize = tokens.caption, color = LabelColor)
                                         Spacer(Modifier.width(10.dp))
-                                        Text("${staff.successRate}% Success", fontSize = 12.sp, color = SuccessGreen, fontWeight = FontWeight.Medium)
+                                        Text("${staff.successRate}% Success", fontSize = tokens.caption, color = SuccessGreen, fontWeight = FontWeight.Medium)
                                         Spacer(Modifier.width(10.dp))
                                         val (dotColor, statusText) = if (staff.availability == "Available")
                                             SuccessGreen to "Available" else BusyOrange to "Busy"
@@ -540,7 +542,7 @@ fun DeliveryDetailScreen(
                                             .clip(CircleShape)
                                             .background(dotColor))
                                         Spacer(Modifier.width(4.dp))
-                                        Text(statusText, fontSize = 12.sp, color = dotColor)
+                                        Text(statusText, fontSize = tokens.caption, color = dotColor)
                                     }
                                 }
 
@@ -548,7 +550,7 @@ fun DeliveryDetailScreen(
                                     Spacer(Modifier.height(2.dp))
                                     Text(
                                         "Nearest Route Match",
-                                        fontSize = 11.sp,
+                                        fontSize = tokens.label,
                                         color = RecommendedColor,
                                         fontStyle = FontStyle.Italic
                                     )
@@ -560,46 +562,46 @@ fun DeliveryDetailScreen(
                     }
 
                     Spacer(Modifier.height(8.dp))
-                    Text("Instruction for Staff", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = LabelColor)
+                    Text("Instruction for Staff", fontSize = tokens.caption, fontWeight = FontWeight.Medium, color = LabelColor)
                     Spacer(Modifier.height(6.dp))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(80.dp)
-                            .background(whiteBg, RoundedCornerShape(8.dp))
-                            .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
+                            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                            .border(1.dp, BorderColor, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                             .padding(12.dp)
                     ) {
                         BasicTextField(
                             value = instructionNote,
                             onValueChange = { instructionNote = it },
                             modifier = Modifier.fillMaxWidth(),
-                            textStyle = TextStyle(fontSize = 13.sp, color = TitleColor),
+                            textStyle = TextStyle(fontSize = tokens.bodySmall, color = TitleColor),
                             decorationBox = { inner ->
-                                if (instructionNote.isEmpty()) Text("Add an optional note...", fontSize = 13.sp, color = MutedColor)
+                                if (instructionNote.isEmpty()) Text("Add an optional note...", fontSize = tokens.bodySmall, color = MutedColor)
                                 inner()
                             }
                         )
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.7f))
                 }
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                        .padding(horizontal = tokens.screenPadding * 0.8f, vertical = tokens.screenPadding * 0.8f),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
                         onClick = { assignStaffSheetState = SheetValue.Hidden },
                         modifier = Modifier
                             .weight(1f)
-                            .height(ActionButtonHeight),
-                        shape = RoundedCornerShape(10.dp),
+                            .height(tokens.buttonHeight),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
                         border = BorderStroke(1.dp, AccentColor),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
                     ) {
-                        Text("Cancel", fontWeight = FontWeight.SemiBold)
+                        Text("Cancel", fontWeight = FontWeight.SemiBold, fontSize = tokens.bodyMedium)
                     }
                     Button(
                         onClick = {
@@ -612,12 +614,12 @@ fun DeliveryDetailScreen(
                         enabled = tempSelectedStaff != null,
                         modifier = Modifier
                             .weight(1f)
-                            .height(ActionButtonHeight),
+                            .height(tokens.buttonHeight),
                         contentPadding = ActionButtonContentPadding,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
                         colors = ButtonDefaults.buttonColors(containerColor = Primary)
                     ) {
-                        Text("Assign Staff", color = whiteBg, fontWeight = FontWeight.SemiBold)
+                        Text("Assign Staff", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = tokens.bodyMedium)
                     }
                 }
             }
@@ -642,23 +644,23 @@ fun DeliveryDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = tokens.screenPadding * 0.8f)
             ) {
                 Text(
                     "UPDATE ORDER STATUS",
-                    fontSize = 14.sp,
+                    fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = TitleColor,
                     letterSpacing = 0.5.sp,
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 16.dp)
+                        .padding(bottom = tokens.screenPadding * 0.8f)
                 )
 
-                Text("$recipientName / $orderCode", fontSize = 13.sp, color = LabelColor)
-                Spacer(Modifier.height(16.dp))
+                Text("$recipientName / $orderCode", fontSize = tokens.bodySmall, color = LabelColor)
+                Spacer(Modifier.height(tokens.screenPadding * 0.8f))
 
-                Text("ORDER STATUS", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedColor, letterSpacing = 0.5.sp)
+                Text("ORDER STATUS", fontSize = tokens.label, fontWeight = FontWeight.SemiBold, color = MutedColor, letterSpacing = 0.5.sp)
                 Spacer(Modifier.height(6.dp))
                 FormDropdown(
                     value = tempStatus,
@@ -667,30 +669,30 @@ fun DeliveryDetailScreen(
                     options = listOf("Ready", "Assigned", "In Transit", "Out For Delivery", "Delivered"),
                     onOptionSelected = { tempStatus = it }
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.8f))
 
-                Text("NOTES", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedColor, letterSpacing = 0.5.sp)
+                Text("NOTES", fontSize = tokens.label, fontWeight = FontWeight.SemiBold, color = MutedColor, letterSpacing = 0.5.sp)
                 Spacer(Modifier.height(6.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(90.dp)
-                        .background(whiteBg, RoundedCornerShape(8.dp))
-                        .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
+                        .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                        .border(1.dp, BorderColor, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                         .padding(12.dp)
                 ) {
                     BasicTextField(
                         value = statusNote,
                         onValueChange = { statusNote = it },
                         modifier = Modifier.fillMaxWidth(),
-                        textStyle = TextStyle(fontSize = 13.sp, color = TitleColor),
+                        textStyle = TextStyle(fontSize = tokens.bodySmall, color = TitleColor),
                         decorationBox = { inner ->
-                            if (statusNote.isEmpty()) Text("Add an optional note...", fontSize = 13.sp, color = MutedColor)
+                            if (statusNote.isEmpty()) Text("Add an optional note...", fontSize = tokens.bodySmall, color = MutedColor)
                             inner()
                         }
                     )
                 }
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(tokens.screenPadding))
 
                 Button(
                     onClick = {
@@ -700,36 +702,36 @@ fun DeliveryDetailScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(ActionButtonHeight),
-                    shape = RoundedCornerShape(10.dp),
+                        .height(tokens.buttonHeight),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
                     contentPadding = ActionButtonContentPadding,
                     colors = ButtonDefaults.buttonColors(containerColor = Primary)
                 ) {
-                    Text("Update Status", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("Update Status", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = tokens.bodyMedium)
                 }
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(
                     onClick = { updateStatusSheetState = SheetValue.Hidden },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(ActionButtonHeight),
+                        .height(tokens.buttonHeight),
                     contentPadding = ActionButtonContentPadding,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
                     border = BorderStroke(1.dp, BorderColor),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TitleColor)
                 ) {
-                    Text("Cancel", fontWeight = FontWeight.Medium)
+                    Text("Cancel", fontWeight = FontWeight.Medium, fontSize = tokens.bodyMedium)
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                 HorizontalDivider(color = BorderColor)
                 Spacer(Modifier.height(10.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Schedule, contentDescription = null, tint = MutedColor, modifier = Modifier.size(13.dp))
+                    Icon(Icons.Default.Schedule, contentDescription = null, tint = MutedColor, modifier = Modifier.size(tokens.iconSize * 0.7f))
                     Spacer(Modifier.width(6.dp))
-                    Text("LAST UPDATED 2M AGO BY J.DOE", fontSize = 11.sp, color = MutedColor)
+                    Text("LAST UPDATED 2M AGO BY J.DOE", fontSize = tokens.label, color = MutedColor)
                 }
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(tokens.screenPadding))
             }
         }
     }
@@ -739,25 +741,27 @@ fun DeliveryDetailScreen(
 
 @Composable
 private fun SummaryColumn(label: String, value: String, modifier: Modifier = Modifier) {
+    val tokens = LocalAppTokens.current
     Column(modifier = modifier) {
-        Text(label, fontSize = 11.sp, color = MutedColor)
+        Text(label, fontSize = tokens.caption, color = MutedColor)
         Spacer(Modifier.height(2.dp))
-        Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = TitleColor)
     }
 }
 
 @Composable
 private fun SummaryRow(label: String, value: String, isBold: Boolean = false) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, fontSize = 13.sp, color = if (isBold) TitleColor else MutedColor, fontWeight = if (isBold) FontWeight.SemiBold else FontWeight.Normal)
+        Text(label, fontSize = tokens.bodySmall, color = if (isBold) TitleColor else MutedColor, fontWeight = if (isBold) FontWeight.SemiBold else FontWeight.Normal)
         Text(
             value,
-            fontSize = if (isBold) 15.sp else 13.sp,
+            fontSize = if (isBold) tokens.bodyLarge else tokens.bodySmall,
             color = TitleColor,
             fontWeight = if (isBold) FontWeight.Bold else FontWeight.Medium
         )

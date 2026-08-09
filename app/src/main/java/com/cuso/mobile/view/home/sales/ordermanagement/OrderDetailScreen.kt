@@ -25,9 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -38,19 +36,24 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.sales.OrderViewData
 import com.cuso.mobile.model.sales.OrderViewGarmentItem
 import com.cuso.mobile.model.sales.OrderViewStageGroup
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.PanelBg
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.TextPrimary
+import com.cuso.mobile.ui.theme.disabled
+import com.cuso.mobile.ui.theme.greenBg
+import com.cuso.mobile.ui.theme.greentext
+import com.cuso.mobile.ui.theme.lightGray
 import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.redtext
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.ui.theme.yellowBg
+import com.cuso.mobile.ui.theme.yellowtext
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.viewmodel.OrderOverviewViewModel
 import com.cuso.mobile.viewmodel.OrderViewUiState
 import com.cuso.mobile.viewmodel.OrderViewViewModel
 import com.cuso.mobile.viewmodel.StageUpdateState
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
-private val Primary = Color(0xFF3B3BF9)
-private val TextDark = Color(0xFF111827)
 
 /**
  * Main Order Detail Screen providing a deep view into specific order progress,
@@ -60,7 +63,8 @@ private val TextDark = Color(0xFF111827)
 fun OrderDetailScreen(
     orderId: String,
     onClose: () -> Unit,
-    onEditOrder: () -> Unit = {}
+    onEditOrder: () -> Unit = {},
+    onAssignAllStages: (String) -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
     val viewModel: OrderViewViewModel = hiltViewModel()
@@ -78,8 +82,9 @@ fun OrderDetailScreen(
             .fillMaxSize()
             .background(Color.Transparent)
     ) {
-        TitleBar("Order Management", onClose = onClose)
-        HorizontalDivider(color = Color(0xFFF0F0F0))
+        // Simple header: back chevron + title (matches design)
+        TitleBar("Order Management",onClose = onClose)
+        HorizontalDivider(color = BorderGray)
 
         when (val state = uiState) {
             is OrderViewUiState.Loading, OrderViewUiState.Idle -> {
@@ -88,12 +93,15 @@ fun OrderDetailScreen(
             is OrderViewUiState.Error -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(40.dp))
+                        Icon(Icons.Default.Warning, null, tint = redtext, modifier = Modifier.size(40.dp))
                         Spacer(Modifier.height(12.dp))
-                        Text(state.message, color = Color.Red, fontSize = tokens.bodySmall)
+                        Text(state.message, color = redtext, fontSize = tokens.bodySmall)
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = { viewModel.getOrdersView(orderId) }) {
-                            Text("Retry", fontSize = tokens.bodyMedium)
+                        Button(
+                            onClick = { viewModel.getOrdersView(orderId) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                        ) {
+                            Text("Retry", fontSize = tokens.bodyMedium, color = Color.White)
                         }
                     }
                 }
@@ -103,6 +111,7 @@ fun OrderDetailScreen(
                     orderId = orderId,
                     data = state.data,
                     onEditOrder = onEditOrder,
+                    onAssignAllStages = onAssignAllStages,
                     overviewViewModel = overviewViewModel,
                     stageUpdateState = stageUpdateState,
                     onRefresh = { viewModel.getOrdersView(orderId) }
@@ -117,6 +126,7 @@ private fun OrderDetailContent(
     orderId: String,
     data: OrderViewData,
     onEditOrder: () -> Unit = {},
+    onAssignAllStages: (String) -> Unit = {},
     overviewViewModel: OrderOverviewViewModel,
     stageUpdateState: StageUpdateState,
     onRefresh: () -> Unit
@@ -129,9 +139,6 @@ private fun OrderDetailContent(
 
     var stageIndex by remember(garmentIndex) { mutableIntStateOf(0) }
     val currentStage = currentStageGroup?.stages?.getOrNull(stageIndex)
-
-    var fabricExpanded by remember { mutableStateOf(false) }
-    var measurementsExpanded by remember { mutableStateOf(false) }
 
     val stageStatusOverrides = remember(garmentIndex) { mutableStateMapOf<String, String>() }
 
@@ -153,14 +160,14 @@ private fun OrderDetailContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // Customer and Order Meta Info
+        // ── Customer and Order Meta Info ──────────────────────────
         Column(modifier = Modifier.padding(tokens.screenPadding)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(order.customerId?.name ?: "—", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = TextDark)
+                Text(order.customerId?.name ?: "—", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Surface(
                     color = Primary.copy(alpha = 0.12f),
                     shape = RoundedCornerShape(20.dp)
@@ -178,9 +185,9 @@ private fun OrderDetailContent(
             Spacer(Modifier.height(16.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                InfoColumn("Garment Type", order.branch?.name ?: "—")
+                InfoColumn("Garment", order.branch?.name ?: "—")
                 InfoColumn("Order Date", formatIso(order.orderDate ?: ""))
-                InfoColumn("Delivery Date", formatIso(order.deliveryDate ?: ""))
+                InfoColumn("Delivery", formatIso(order.deliveryDate ?: ""))
             }
 
             Spacer(Modifier.height(20.dp))
@@ -193,7 +200,7 @@ private fun OrderDetailContent(
                     shape = RoundedCornerShape(8.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Primary)
                 ) {
-                    Text("Edit Order", fontWeight = FontWeight.SemiBold, fontSize = tokens.bodySmall)
+                    Text("Edit Order", color = Primary, fontWeight = FontWeight.SemiBold, fontSize = tokens.bodySmall)
                 }
 
                 Button(
@@ -207,7 +214,27 @@ private fun OrderDetailContent(
             }
         }
 
-        // Garment Navigation chips
+        // ── Customer Contact ──────────────────────────────────────
+        SectionHeader("Customer Contact")
+        Row(
+            modifier = Modifier
+                .padding(horizontal = tokens.screenPadding)
+                .padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Call, contentDescription = null, tint = mutedText, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                order.customerId?.mobile ?: "—",
+                fontSize = tokens.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = TextPrimary
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // ── Garment Navigation chips (only if multiple items) ────
         if (data.items.size > 1) {
             Column(modifier = Modifier.padding(horizontal = tokens.screenPadding)) {
                 Text("Select Garment Item", fontSize = tokens.bodySmall, color = mutedText)
@@ -225,56 +252,7 @@ private fun OrderDetailContent(
             Spacer(Modifier.height(16.dp))
         }
 
-        // Adaptive Fabric Details Accordion
-        AccordionSection(
-            title = "Fabric & Material Details",
-            icon = Icons.Default.Description,
-            expanded = fabricExpanded,
-            onHeaderClick = { fabricExpanded = !fabricExpanded }
-        ) {
-            currentItem?.let { item ->
-                item.fabricDetails?.let { fabric ->
-                    LabelValueRow("Fabric Type", fabric.fabricType.ifBlank { "—" })
-                    LabelValueRow("Color", fabric.color.ifBlank { "—" })
-                    LabelValueRow("Pattern", fabric.pattern.ifBlank { "—" })
-                    LabelValueRow("Source", fabric.fabricSource.ifBlank { "—" })
-                    LabelValueRow("Trial Required", if (item.trialRequired) "Yes" else "No")
-                    LabelValueRow("Stitching Charge", "₹${item.stitchingCharge}")
-                    LabelValueRow("Quantity", "${item.quantity}")
-                }
-            }
-        }
-
-        // Adaptive Measurements Accordion
-        AccordionSection(
-            title = "Measurements",
-            icon = Icons.Default.Straighten,
-            expanded = measurementsExpanded,
-            onHeaderClick = { measurementsExpanded = !measurementsExpanded }
-        ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = whiteBg),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(tokens.screenPadding * 0.75f)) {
-                    val measurements = currentItem?.measurementSnapshot
-                    if (!measurements.isNullOrEmpty()) {
-                        measurements.forEach { (fieldName, measurementValues) ->
-                            val value = measurementValues.value.joinToString(", ")
-                            val unit = measurementValues.unit ?: ""
-                            LabelValueRow(fieldName, if (value.isNotBlank()) "$value $unit" else "—")
-                        }
-                    } else {
-                        Text("No specific measurement data recorded.", fontSize = tokens.bodySmall, color = mutedText)
-                    }
-                }
-            }
-        }
-
-        // Garment Progress and Quick-Action Status Control
-        Spacer(Modifier.height(24.dp))
+        // ── Garment header + stage count + Assign All Stages ─────
         currentItem?.let { item ->
             val totalStages = currentStageGroup?.stages?.size ?: 0
             val completedStages = currentStageGroup?.stages?.count {
@@ -282,24 +260,79 @@ private fun OrderDetailContent(
             } ?: 0
 
             Column(modifier = Modifier.padding(horizontal = tokens.screenPadding)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(item.categoryName, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = TextDark)
-                    Text("$completedStages/$totalStages Stages Completed", fontSize = tokens.caption, color = Primary)
-                }
-                Spacer(Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { if (totalStages > 0) completedStages.toFloat() / totalStages else 0f },
-                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(50)),
-                    color = Primary,
-                    trackColor = Color(0xFFE5E7EB)
+                Text(
+                    "Garment ${garmentIndex + 1} — ${item.categoryName}",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
                 )
+                Spacer(Modifier.height(4.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(item.categoryName, fontSize = tokens.bodySmall, color = mutedText)
+                    Text("$completedStages/$totalStages Stages", fontSize = tokens.bodySmall, color = mutedText)
+                }
+                Spacer(Modifier.height(12.dp))
+                Button(
+                    onClick = { onAssignAllStages(item.id) },
+                    modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) {
+                    Text("Complete All Stages", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = tokens.bodySmall)
+                }
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
 
-        // Production Stage Management Card
-        currentStage?.let { stage ->
+        // ── Measurements (2-column grid) ──────────────────────────
+        SectionHeader("Measurements")
+        Column(modifier = Modifier.padding(horizontal = tokens.screenPadding)) {
+            val measurements = currentItem?.measurementSnapshot?.toList() ?: emptyList()
+            if (measurements.isEmpty()) {
+                Text("No specific measurement data recorded.", fontSize = tokens.bodySmall, color = mutedText)
+            } else {
+                measurements.chunked(2).forEach { rowPair ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowPair.forEach { (fieldName, measurementValues) ->
+                            val value = measurementValues.value.joinToString(", ")
+                            val unit = measurementValues.unit ?: ""
+                            MeasurementCard(
+                                label = fieldName,
+                                value = if (value.isNotBlank()) "$value $unit" else "— in",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        if (rowPair.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        // ── Fabric & Material (no accordion, always visible) ─────
+        SectionHeader("Fabric & Material")
+        Column(modifier = Modifier.padding(horizontal = tokens.screenPadding)) {
+            currentItem?.fabricDetails?.let { fabric ->
+                LabelValueRow("Type", fabric.fabricType.ifBlank { "—" })
+                LabelValueRow("Color", fabric.color.ifBlank { "—" })
+                LabelValueRow("Pattern", fabric.pattern.ifBlank { "—" })
+                LabelValueRow("Source", fabric.fabricSource.ifBlank { "—" })
+                // NOTE: "Priority" isn't in OrderViewGarmentItem/fabricDetails yet.
+                // Wire this to the real field once it's added to the model.
+                LabelValueRow("Priority", "Low")
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        // ── Production Stages ─────────────────────────────────────
+        SectionHeader("Production Stages")
+        currentStageGroup?.stages?.forEachIndexed { index, stage ->
             var statusExpanded by remember(stage.id) { mutableStateOf(false) }
             var selectedStatus by remember(stage.id) { mutableStateOf(stageStatusOverrides[stage.id] ?: stage.status) }
             var stageNotes by remember(stage.id) { mutableStateOf("") }
@@ -313,84 +346,44 @@ private fun OrderDetailContent(
             }
 
             val isAssigned = stage.assignedTo.isNotEmpty()
-            val isUnlocked = stageIndex == unlockedStageIndex
+            val isUnlocked = index == unlockedStageIndex
             val committedStatus = stageStatusOverrides[stage.id] ?: stage.status
             val isCommittedCompleted = normalizeStatus(committedStatus) == "completed"
             val isUpdating = (stageUpdateState as? StageUpdateState.Loading)?.stageId == stage.id
             val buttonEnabled = isAssigned && isUnlocked && selectedStatus != committedStatus && !isUpdating
 
-            Surface(
-                modifier = Modifier.padding(tokens.screenPadding),
-                shape = RoundedCornerShape(16.dp),
-                color = whiteBg,
-                shadowElevation = 2.dp,
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF3F4F6))
-            ) {
-                Column(modifier = Modifier.padding(tokens.screenPadding)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stage.stageName.replaceFirstChar { it.uppercase() }, fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold)
-                            val workers = stage.assignedTo.joinToString { "${it.firstName} ${it.lastName}" }
-                            Text(workers.ifBlank { "Unassigned" }, fontSize = tokens.bodySmall, color = if(isAssigned) Primary else Color.Red)
-                        }
-                        CustomStatusDropdown(
-                            selectedStatus = selectedStatus,
-                            expanded = statusExpanded,
-                            enabled = isUnlocked && !isCommittedCompleted && !isUpdating,
-                            onExpandChange = { statusExpanded = it },
-                            onStatusSelected = { selectedStatus = it }
-                        )
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-                    Box(modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp)).padding(12.dp)) {
-                        BasicTextField(
-                            value = stageNotes,
-                            onValueChange = { if(isUnlocked) stageNotes = it },
-                            enabled = isUnlocked,
-                            textStyle = TextStyle(fontSize = tokens.bodySmall, color = TextDark),
-                            modifier = Modifier.fillMaxWidth(),
-                            decorationBox = { inner ->
-                                if (stageNotes.isEmpty()) Text("Add stage notes...", fontSize = tokens.bodySmall, color = mutedText)
-                                inner()
-                            }
-                        )
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-                    Button(
-                        onClick = {
-                            overviewViewModel.updateStage(orderId, currentItem!!.id, stage.id, stage.stageName, normalizeStatus(selectedStatus))
-                        },
-                        enabled = buttonEnabled,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = if (buttonEnabled) Primary else Color(0xFFF3F4F6))
-                    ) {
-                        if (isUpdating) CirculerProgressIndicatorSmall()
-                        else Text(if(isCommittedCompleted) "Completed" else "Update Status", fontSize = tokens.bodySmall)
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-                    // Step Navigation within stages
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        IconButton(onClick = { if(stageIndex > 0) stageIndex-- }, enabled = stageIndex > 0) {
-                            Icon(Icons.Default.ChevronLeft, null)
-                        }
-                        IconButton(onClick = { stageIndex++ }, enabled = stageIndex < (currentStageGroup?.stages?.size ?: 0) - 1) {
-                            Icon(Icons.Default.ChevronRight, null)
-                        }
-                    }
-                }
-            }
+            StageCard(
+                stageNumber = index + 1,
+                stageName = stage.stageName,
+                isUnlocked = isUnlocked,
+                isAssigned = isAssigned,
+                quantity = currentItem?.quantity ?: 0,
+                selectedStatus = selectedStatus,
+                statusExpanded = statusExpanded,
+                onStatusExpandChange = { statusExpanded = it },
+                onStatusSelected = { selectedStatus = it },
+                isCommittedCompleted = isCommittedCompleted,
+                stageNotes = stageNotes,
+                onNotesChange = { if (isUnlocked) stageNotes = it },
+                isUpdating = isUpdating,
+                buttonEnabled = buttonEnabled,
+                onButtonClick = {
+                    overviewViewModel.updateStage(orderId, currentItem.id, stage.id, stage.stageName, normalizeStatus(selectedStatus))
+                },
+                tokens = tokens
+            )
+            Spacer(Modifier.height(12.dp))
         }
 
-        // Activity and Logs Section
+        Spacer(Modifier.height(8.dp))
+
+        // ── Activity & Alerts ─────────────────────────────────────
         Column(modifier = Modifier.padding(tokens.screenPadding)) {
-            Text("Activity & History", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold)
+            Text("Activity & Alerts", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
             Spacer(Modifier.height(12.dp))
 
             if (stageActivityCards.isEmpty() && trialCard == null) {
-                Text("No activity logs available for this order.", fontSize = tokens.caption, color = mutedText)
+                Text("No activity yet", fontSize = tokens.caption, color = mutedText)
             } else {
                 trialCard?.let { ActivityLogCard(it) }
                 stageActivityCards.forEach { ActivityLogCard(it) }
@@ -406,11 +399,23 @@ private fun OrderDetailContent(
 // ─────────────────────────────────────────────────────────────
 
 @Composable
+private fun SectionHeader(title: String) {
+    val tokens = LocalAppTokens.current
+    Text(
+        title,
+        fontSize = tokens.bodyMedium,
+        fontWeight = FontWeight.Bold,
+        color = TextPrimary,
+        modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = 8.dp)
+    )
+}
+
+@Composable
 private fun InfoColumn(label: String, value: String) {
     val tokens = LocalAppTokens.current
     Column {
         Text(label, fontSize = tokens.label, color = mutedText)
-        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = TextDark)
+        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = TextPrimary)
     }
 }
 
@@ -422,7 +427,24 @@ private fun LabelValueRow(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, fontSize = tokens.bodySmall, color = mutedText)
-        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextDark)
+        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
+    }
+}
+
+@Composable
+private fun MeasurementCard(label: String, value: String, modifier: Modifier = Modifier) {
+    val tokens = LocalAppTokens.current
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(10.dp),
+        color = PanelBg,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(label, fontSize = tokens.caption, color = mutedText)
+            Spacer(Modifier.height(4.dp))
+            Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        }
     }
 }
 
@@ -438,7 +460,7 @@ private fun ActivityLogCard(data: ActivityCardData) {
             Icon(data.icon, null, tint = data.accentColor, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
             Column {
-                Text(data.title, fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold)
+                Text(data.title, fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Text(data.subtitle, fontSize = tokens.caption, color = mutedText)
             }
         }
@@ -454,16 +476,16 @@ private fun CustomStatusDropdown(
     onStatusSelected: (String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
+    val (textColor, bgColor) = statusColors(selectedStatus)
     Box {
         Surface(
             modifier = Modifier.clickable(enabled = enabled) { onExpandChange(!expanded) },
             shape = RoundedCornerShape(8.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, if(enabled) Primary.copy(0.3f) else Color(0xFFE5E7EB)),
-            color = Color.White
+            color = bgColor
         ) {
             Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(selectedStatus.replaceFirstChar { it.uppercase() }, fontSize = tokens.caption, fontWeight = FontWeight.Medium)
-                Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(16.dp))
+                Text(selectedStatus.replaceFirstChar { it.uppercase() }, fontSize = tokens.caption, fontWeight = FontWeight.Medium, color = textColor)
+                Icon(Icons.Default.ArrowDropDown, null, tint = textColor, modifier = Modifier.size(16.dp))
             }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { onExpandChange(false) }) {
@@ -483,14 +505,114 @@ private fun GarmentChip(label: String, isSelected: Boolean, onClick: () -> Unit)
     Surface(
         modifier = Modifier.clickable { onClick() },
         shape = RoundedCornerShape(50),
-        color = if (isSelected) Primary else Color(0xFFF3F4F6)
+        color = if (isSelected) Primary else PanelBg
     ) {
         Text(
             label,
             fontSize = tokens.caption,
-            color = if (isSelected) Color.White else TextDark,
+            color = if (isSelected) Color.White else TextPrimary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
         )
+    }
+}
+
+@Composable
+private fun StageCard(
+    stageNumber: Int,
+    stageName: String,
+    isUnlocked: Boolean,
+    isAssigned: Boolean,
+    quantity: Int,
+    selectedStatus: String,
+    statusExpanded: Boolean,
+    onStatusExpandChange: (Boolean) -> Unit,
+    onStatusSelected: (String) -> Unit,
+    isCommittedCompleted: Boolean,
+    stageNotes: String,
+    onNotesChange: (String) -> Unit,
+    isUpdating: Boolean,
+    buttonEnabled: Boolean,
+    onButtonClick: () -> Unit,
+    tokens: com.cuso.mobile.adaptive_screen.AppDesignTokens
+) {
+    val stageLabelColor = if (isUnlocked) greentext else mutedText
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = tokens.screenPadding),
+        shape = RoundedCornerShape(16.dp),
+        color = whiteBg,
+        shadowElevation = 1.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Stage $stageNumber", fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = stageLabelColor)
+                    Text(stageName.replaceFirstChar { it.uppercase() }, fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
+                }
+                CustomStatusDropdown(
+                    selectedStatus = selectedStatus,
+                    expanded = statusExpanded,
+                    enabled = isUnlocked && !isCommittedCompleted && !isUpdating,
+                    onExpandChange = onStatusExpandChange,
+                    onStatusSelected = onStatusSelected
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.RadioButtonUnchecked,
+                    contentDescription = null,
+                    tint = if (isAssigned) greentext else mutedText,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    if (isAssigned) "Assigned" else "Not assigned",
+                    fontSize = tokens.caption,
+                    color = if (isAssigned) greentext else mutedText
+                )
+                Text(" · Qty: 0/$quantity", fontSize = tokens.caption, color = mutedText)
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Box(modifier = Modifier.fillMaxWidth().border(1.dp, BorderGray, RoundedCornerShape(8.dp)).padding(12.dp)) {
+                BasicTextField(
+                    value = stageNotes,
+                    onValueChange = onNotesChange,
+                    enabled = isUnlocked,
+                    textStyle = TextStyle(fontSize = tokens.bodySmall, color = TextPrimary),
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { inner ->
+                        if (stageNotes.isEmpty()) Text("Add stage notes...", fontSize = tokens.bodySmall, color = mutedText)
+                        inner()
+                    }
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            val buttonLabel = when {
+                !isAssigned -> "Not Assigned"
+                isCommittedCompleted -> "Completed"
+                else -> "Quick Update"
+            }
+            Button(
+                onClick = onButtonClick,
+                enabled = buttonEnabled,
+                modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (buttonEnabled) Primary else disabled,
+                    disabledContainerColor = lightGray
+                )
+            ) {
+                if (isUpdating) CirculerProgressIndicatorSmall()
+                else Text(buttonLabel, fontSize = tokens.bodySmall, color = if (buttonEnabled) Color.White else mutedText)
+            }
+        }
     }
 }
 
@@ -508,6 +630,12 @@ private data class ActivityCardData(
 
 private fun normalizeStatus(status: String) = status.trim().lowercase().replace(" ", "_")
 
+private fun statusColors(status: String): Pair<Color, Color> = when (normalizeStatus(status)) {
+    "completed" -> greentext to greenBg
+    "in_progress" -> Primary to Primary.copy(alpha = 0.12f)
+    else -> yellowtext to yellowBg
+}
+
 private fun formatIso(iso: String): String {
     if (iso.isBlank()) return "—"
     return try {
@@ -522,8 +650,8 @@ private fun buildTrialActivityCard(trialDateIso: String?): ActivityCardData? {
         title = "Scheduled Trial",
         subtitle = "Expected on ${formatIso(trialDateIso)}",
         icon = Icons.Default.Event,
-        accentColor = Color(0xFFF59E0B),
-        bgColor = Color(0xFFFEF3C7)
+        accentColor = yellowtext,
+        bgColor = yellowBg
     )
 }
 
@@ -539,8 +667,8 @@ private fun buildStageActivityCards(
                 title = "${stage.stageName.uppercase()} Completed",
                 subtitle = "Item: $garmentName",
                 icon = Icons.Default.CheckCircle,
-                accentColor = Color(0xFF22C55E),
-                bgColor = Color(0xFFDBFCE7)
+                accentColor = greentext,
+                bgColor = greenBg
             )
         }
     }

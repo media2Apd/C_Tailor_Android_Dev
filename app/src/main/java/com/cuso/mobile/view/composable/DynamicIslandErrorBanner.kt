@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import kotlinx.coroutines.delay
 
-// Circle diameter logic
+// Circle diameter used ONLY for the icon bubble now — not for the whole pill
 private val CIRCLE_SIZE = 40.dp
 private val ICON_SIZE = 18.dp
 
@@ -104,6 +104,13 @@ private fun DynamicIslandBase(
             modifier = modifier
                 .statusBarsPadding()
                 .padding(top = 3.dp)
+                // FIX: Cap how wide the pill can grow on tablets/large screens
+                // so long messages wrap into readable lines instead of
+                // stretching into one giant edge-to-edge bar.
+                .widthIn(max = 380.dp)
+                // FIX: Side padding so the pill never touches screen edges
+                // on narrow phones.
+                .padding(horizontal = tokens.screenPadding)
                 .fillMaxWidth()
                 .graphicsLayer {
                     translationY = dropY.value * 20.dp.toPx()
@@ -113,9 +120,19 @@ private fun DynamicIslandBase(
         ) {
             Row(
                 modifier = Modifier
-                    .height(CIRCLE_SIZE)
+                    // FIX: Removed the fixed .height(CIRCLE_SIZE). The Row now
+                    // wraps its own content height, so when the message spans
+                    // 2-3 lines, the whole pill grows taller instead of the
+                    // text getting clipped inside a fixed 40.dp bar.
+                    // A minimum height keeps the pill looking correct for
+                    // short, single-line messages.
+                    .defaultMinSize(minHeight = CIRCLE_SIZE)
                     .background(pillBgColor, RoundedCornerShape(CIRCLE_SIZE / 2)),
-                verticalAlignment = Alignment.CenterVertically
+                // FIX: Top-aligned instead of center-aligned, so on multi-line
+                // messages the icon sits next to the FIRST line of text
+                // instead of being vertically centered against the whole
+                // (now taller) text block.
+                verticalAlignment = Alignment.Top
             ) {
                 Box(
                     modifier = Modifier.size(CIRCLE_SIZE),
@@ -147,9 +164,20 @@ private fun DynamicIslandBase(
                     Text(
                         text = message ?: "",
                         color = pillTextColor,
-                        fontSize = tokens.bodySmall, // Applied Adaptive Token
-                        maxLines = 2,
-                        modifier = Modifier.padding(end = tokens.screenPadding) // Applied Adaptive Token
+                        fontSize = tokens.bodySmall,
+                        // FIX: Increased from 2 to 3 lines so longer error
+                        // messages (like validation errors) have enough
+                        // room to fully display without truncating.
+                        maxLines = 3,
+                        // FIX: Vertical padding added so text isn't flush
+                        // against the top/bottom edges of the now-taller
+                        // pill, matching the icon's vertical centering
+                        // within its own 40.dp box.
+                        modifier = Modifier.padding(
+                            end = tokens.screenPadding,
+                            top = (CIRCLE_SIZE - tokens.bodySmall.value.dp) / 2,
+                            bottom = tokens.screenPadding / 4
+                        )
                     )
                 }
             }
@@ -230,7 +258,7 @@ fun ErrorFieldWrapper(
             Text(
                 text = errorMessage ?: "",
                 color = Color(0xFFEF4444),
-                fontSize = tokens.label, // Applied Adaptive Token
+                fontSize = tokens.label,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
         }

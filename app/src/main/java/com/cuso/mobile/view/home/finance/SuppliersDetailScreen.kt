@@ -12,7 +12,6 @@
 package com.cuso.mobile.view.home.finance
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,22 +22,25 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.mutedText
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.view.composable.TabItem
+import com.cuso.mobile.view.composable.SettingsTabs
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TrailingFabAction
 
 private val AccentPurple = Color(0xFF3B3BF9)
 private val AccentPurpleSoft = Color(0xFFEEEEFE)
 private val TextPrimary = Color(0xFF111827)
-  private val mutedTextDark = Color(0xFF6B7280)
+private val mutedTextDark = Color(0xFF6B7280)
 private val SectionBg = Color(0xFFF9FAFB)
 private val BorderLight = Color(0xFFF0F0F0)
 
@@ -48,103 +50,140 @@ fun SupplierDetailScreen(
     onClose: () -> Unit = {},
     onBreadcrumbClick: () -> Unit = {}
 ) {
-    var selectedTab by remember { mutableStateOf("Overview") }
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    var isDownloading by remember { mutableStateOf(false) }
+    var isSharing by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-    ) {
-        // ── Top bar ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TitleBar("All Suppliers", onClose = onClose)
-
-        }
-
-        ScreenBreadcrumb(
-            segments = listOf("Finance", "All Suppliers"),
-            onClick = onBreadcrumbClick
+    // Define tabs with icons
+    val tabs = listOf(
+        TabItem(
+            label = "Overview",
+            icon = Icons.Default.Description
+        ),
+        TabItem(
+            label = "Transactions",
+            icon = Icons.Default.Receipt
         )
+    )
 
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
+                .background(Color.Transparent)
         ) {
-            Spacer(Modifier.height(12.dp))
-
-            // ── Name + contact row ──
-            Text(supplier.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Call, contentDescription = null, tint = mutedText, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("916369460554", fontSize = 12.sp, color = mutedTextDark)
-                Spacer(Modifier.width(12.dp))
-                Icon(Icons.Default.Email, contentDescription = null, tint = mutedText, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("arjun@royalfurnitures.com", fontSize = 12.sp, color = mutedTextDark)
-            }
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = mutedText, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("20-03-2026", fontSize = 12.sp, color = mutedTextDark)
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // ── Tab switcher ──
+            // ── Top bar ──
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(SectionBg, RoundedCornerShape(10.dp))
-                    .padding(4.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                listOf("Overview" to Icons.Default.Description, "Transactions" to Icons.Default.Receipt).forEach { (tab, icon) ->
-                    val isSelected = tab == selectedTab
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) AccentPurple else Color.Transparent)
-                            .clickable { selectedTab = tab }
-                            .padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            icon,
-                            contentDescription = null,
-                            tint = if (isSelected) whiteBg else mutedTextDark,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            tab,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (isSelected) whiteBg else mutedTextDark
-                        )
-                    }
+                TitleBar("All Suppliers", onClose = onClose)
+            }
+
+            ScreenBreadcrumb(
+                segments = listOf("Finance", "All Suppliers"),
+                onClick = onBreadcrumbClick
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .weight(1f)
+            ) {
+                Spacer(Modifier.height(12.dp))
+
+                // ── Name + contact row ──
+                Text(supplier.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Call, contentDescription = null, tint = mutedText, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("916369460554", fontSize = 12.sp, color = mutedTextDark)
+                    Spacer(Modifier.width(12.dp))
+                    Icon(Icons.Default.Email, contentDescription = null, tint = mutedText, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("arjun@royalfurnitures.com", fontSize = 12.sp, color = mutedTextDark)
                 }
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = mutedText, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("20-03-2026", fontSize = 12.sp, color = mutedTextDark)
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // ── Reusable SettingsTabs ──
+                SettingsTabs(
+                    tabs = tabs,
+                    selectedIndex = selectedTabIndex,
+                    onTabSelected = { selectedTabIndex = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    containerColor = whiteBg,
+                    selectedBackgroundColor = Color(0xFFEEF0FF),
+                    selectedTextColor = Primary,
+                    unselectedTextColor = TextSecondary,
+                    selectedIconColor = Primary,
+                    unselectedIconColor = TextSecondary,
+                    borderColor = Color(0xFFE5E7EB),
+                    cornerRadius = 12.dp,
+                    selectedCornerRadius = 10.dp
+                )
+
+                Spacer(Modifier.height(20.dp))
+
+                when (selectedTabIndex) {
+                    0 -> SupplierOverviewTab()
+                    1 -> SupplierTransactionsTab()
+                }
+
+                Spacer(Modifier.height(80.dp)) // Extra space for FAB
             }
-
-            Spacer(Modifier.height(20.dp))
-
-            when (selectedTab) {
-                "Overview" -> SupplierOverviewTab()
-                "Transactions" -> SupplierTransactionsTab()
-            }
-
-            Spacer(Modifier.height(24.dp))
         }
+
+        // ── StepNavigationFab at bottom with Share and Download ──
+        StepNavigationFab(
+            modifier = Modifier.fillMaxSize(),
+            showBack = true,
+            onBack = {
+                isSharing = true
+                // Handle Share action
+                // In real implementation, call your share function
+            },
+            showBackArrow = false,
+            showTrailingArrow = false,
+            backLabel = "Share",
+            backEnabled = !isSharing,
+            backWidthFraction = 0.28f,
+            trailingAction = TrailingFabAction.Next(
+                label = "Download Invoice",
+                enabled = !isDownloading,
+                onClick = {
+                    isDownloading = true
+                    // Handle Download action
+                    // In real implementation, call your download function
+                }
+            )
+        )
+    }
+
+    // Reset states when done (in real implementation)
+    LaunchedEffect(isDownloading) {
+//        if (isDownloading) {
+//            // Simulate async operation
+//            // Reset after completion
+//        }
+    }
+
+    LaunchedEffect(isSharing) {
+//        if (isSharing) {
+//            // Simulate async operation
+//            // Reset after completion
+//        }
     }
 }
 
@@ -355,32 +394,5 @@ private fun SupplierTransactionsTab() {
             fontSize = 8.sp,
             color = mutedText
         )
-    }
-
-    Spacer(Modifier.height(20.dp))
-
-    // ── Action buttons ──
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedButton(
-            onClick = { },
-            modifier = Modifier.weight(1f).height(48.dp),
-            shape = RoundedCornerShape(10.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, AccentPurple),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentPurple)
-        ) {
-            Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("Share PDF", fontWeight = FontWeight.Medium)
-        }
-        Button(
-            onClick = { },
-            modifier = Modifier.weight(1f).height(48.dp),
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = AccentPurple)
-        ) {
-            Icon(Icons.Default.Download, contentDescription = null, tint = whiteBg, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("Download Invoice", color = whiteBg, fontWeight = FontWeight.Medium)
-        }
     }
 }

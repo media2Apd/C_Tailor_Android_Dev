@@ -35,7 +35,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
@@ -85,9 +84,13 @@ import java.io.File
 import androidx.core.graphics.toColorInt
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
+// ── NEW: adaptive design tokens ──
+import com.cuso.mobile.adaptive_screen.AppDesignTokens
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 
 
 // ── Design tokens (match screenshot) ──
+// NOTE: colors stay constant across screen sizes; only spacing/typography adapts now.
 private val AccentColor = Color(0xFF4F39F6)
 private val BorderColor = Color(0xFFE3E4E8)
 private val LabelColor = Color(0xFF6B7280)
@@ -95,7 +98,6 @@ private val TitleColor = Color(0xFF111827)
 private val WarnBg = Color(0xFFFFF7E6)
 private val WarnBorder = Color(0xFFFCE3B0)
 private val WarnText = Color(0xFF9A6A17)
-private val FieldShape = RoundedCornerShape(10.dp)
 
 // ── Screen mode ──
 enum class ScreenMode { CREATE, VIEW, EDIT }
@@ -107,15 +109,15 @@ data class EducationEntry(
     val instituteName: String = "",
     val degree: String = "",
     val specialization: String = "",
-    val completionDate: String = "Select Date"
+    val completionDate: String = " "
 )
 
 data class ExperienceEntry(
     val id: String = java.util.UUID.randomUUID().toString(),
     val companyName: String = "",
     val jobTitle: String = "",
-    val fromDate: String = "Select Date",
-    val toDate: String = "Select Date",
+    val fromDate: String = " ",
+    val toDate: String = " ",
     val jobDescription: String = "",
     val isCurrentRole: Boolean = false
 )
@@ -134,6 +136,18 @@ fun EmployeeOnboardingScreen(
     departmentViewModel: DepartmentViewModel = hiltViewModel(),
     designationViewModel: DesignationViewModel = hiltViewModel()
 ) {
+    // ── Adaptive tokens: pulled from LocalAppTokens (set up once at the root
+    // of the app via CompositionLocalProvider(LocalAppTokens provides getAdaptiveTokens(...))) ──
+    val tokens: AppDesignTokens = LocalAppTokens.current
+
+    // Derived spacing scale so every gap in this screen breathes with screen size
+    val sectionGap = tokens.screenPadding                    // ~16 / 24 / 32.dp
+    val fieldGap = tokens.screenPadding * 0.75f               // ~12 / 18 / 24.dp (replaces old flat 16.dp)
+    val smallGap = tokens.screenPadding * 0.5f                 // ~8 / 12 / 16.dp
+    val tinyGap = tokens.screenPadding * 0.3f                  // ~5 / 7 / 10.dp
+    val adaptiveFieldShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
+    val avatarSize = tokens.cardHeight * 0.85f                 // scales the profile photo circle
+
     // TopBar.kt la um SAME MAADHIRI:
     val authViewModel: Authenticate = hiltViewModel(
         LocalContext.current as ComponentActivity
@@ -163,7 +177,7 @@ fun EmployeeOnboardingScreen(
 
     var personalPhoneCountry by remember { mutableStateOf<Country?>(null) }
 
-    var dob by remember { mutableStateOf("Select Date") }
+    var dob by remember { mutableStateOf(" ") }
     var gender by remember { mutableStateOf("Select Gender") }
     var genderExpanded by remember { mutableStateOf(false) }
     var maritalStatus by remember { mutableStateOf("Select Marital Status") }
@@ -198,7 +212,7 @@ fun EmployeeOnboardingScreen(
     // ── Work Info (static, single set of fields) ──
     var memberId by remember { mutableStateOf("") }
     var employeeCode by remember { mutableStateOf("") }
-    var doj by remember { mutableStateOf("Select Date") }
+    var doj by remember { mutableStateOf(" ") }
     var branch by remember { mutableStateOf("Select Branch") }
     var branchExpanded by remember { mutableStateOf(false) }
     var department by remember { mutableStateOf("Select Department") }
@@ -413,7 +427,7 @@ fun EmployeeOnboardingScreen(
     // ADJUST the display pattern below to match whatever DatePickerField actually returns/expects
     // ── date helpers ──
     fun toApiDate(displayDate: String): String {
-        if (displayDate.isBlank() || displayDate == "Select Date") return ""
+        if (displayDate.isBlank() || displayDate == " ") return ""
         return try {
             // Try multiple formats
             val formats = listOf(
@@ -440,7 +454,7 @@ fun EmployeeOnboardingScreen(
     }
 
     fun formatDateForDisplay(isoDate: String): String {
-        if (isoDate.isBlank()) return "Select Date"
+        if (isoDate.isBlank()) return " "
         return try {
             val input = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault())
             val output = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())   //   changed
@@ -462,9 +476,9 @@ fun EmployeeOnboardingScreen(
             lastName.isBlank() -> "Last Name"
             workPhone.isBlank() -> "Work Phone"
             personalPhone.isBlank() -> "Personal Phone"
-            dob.isBlank() || dob == "Select Date" -> "Date of Birth"
+            dob.isBlank() || dob == " " -> "Date of Birth"
             gender.isBlank() || gender == "Select Gender" -> "Gender"
-            doj.isBlank() || doj == "Select Date" -> "Date of Joining"
+            doj.isBlank() || doj == " " -> "Date of Joining"
             department == "Select Department" -> "Department"
             role == "Select Role" -> "Role"
             else -> null
@@ -515,7 +529,7 @@ fun EmployeeOnboardingScreen(
         workPhone = m.workMobile.orEmpty()
         personalPhone = m.personalMobile.orEmpty()
 
-        dob = m.dob?.let { formatDateForDisplay(it) } ?: "Select Date"
+        dob = m.dob?.let { formatDateForDisplay(it) } ?: " "
         gender = m.gender?.replaceFirstChar { it.uppercase() } ?: "Select Gender"
         maritalStatus =
             m.martialStatus?.replaceFirstChar { it.uppercase() } ?: "Select Marital Status"
@@ -550,7 +564,7 @@ fun EmployeeOnboardingScreen(
                     specialization = edu.specialization.orEmpty(),
                     completionDate = edu.completionDate?.let {
                         formatDateForDisplay(it)
-                    } ?: "Select Date"
+                    } ?: " "
                 )
             )
         }
@@ -564,7 +578,7 @@ fun EmployeeOnboardingScreen(
                     jobTitle = exp.jobTitle.orEmpty(),
                     fromDate = exp.fromDate?.let {
                         formatDateForDisplay(it)
-                    } ?: "Select Date",
+                    } ?: " ",
 
                     jobDescription = exp.jobDescription.orEmpty(),
                     isCurrentRole = exp.isRelevant
@@ -574,7 +588,7 @@ fun EmployeeOnboardingScreen(
 
         // Work Info
         memberId = m.memberId.orEmpty()
-        doj = m.doj?.let { formatDateForDisplay(it) } ?: "Select Date"
+        doj = m.doj?.let { formatDateForDisplay(it) } ?: " "
         workLocation = m.workingDistrict.orEmpty()
         employmentType =
             m.employmentType?.replaceFirstChar { it.uppercase() } ?: "Select Employment Type"
@@ -652,7 +666,7 @@ fun EmployeeOnboardingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(whiteBg)
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                    .padding(horizontal = sectionGap, vertical = smallGap + tinyGap),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -662,7 +676,7 @@ fun EmployeeOnboardingScreen(
                         ScreenMode.EDIT -> "Edit Employee"
                         ScreenMode.CREATE -> "Employee Onboarding"
                     },
-                    fontSize = 20.sp,
+                    fontSize = tokens.h1,
                     fontWeight = FontWeight.Bold,
                     color = TitleColor
                 )
@@ -670,10 +684,12 @@ fun EmployeeOnboardingScreen(
                     Icons.Filled.Close,
                     contentDescription = "Close",
                     tint = LabelColor,
-                    modifier = Modifier.clickable {
-                        hrViewModel.clearMemberDetail()
-                        onDismiss()
-                    }
+                    modifier = Modifier
+                        .size(tokens.iconSize)
+                        .clickable {
+                            hrViewModel.clearMemberDetail()
+                            onDismiss()
+                        }
                 )
             }
             HorizontalDivider(color = BorderColor)
@@ -682,7 +698,10 @@ fun EmployeeOnboardingScreen(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(bottom = if (mode == ScreenMode.VIEW) 20.dp else 90.dp)
+                    .padding(
+                        bottom = if (mode == ScreenMode.VIEW) sectionGap
+                        else tokens.buttonHeight + sectionGap * 2
+                    )
             ) {
                 // ── Basic Information ──
                 AccordionSection(
@@ -695,7 +714,7 @@ fun EmployeeOnboardingScreen(
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Box(
                             modifier = Modifier
-                                .size(88.dp)
+                                .size(avatarSize)
                                 .clip(CircleShape)
                                 .background(AccentColor)
                                 .clickable(enabled = !isReadOnly) {
@@ -716,7 +735,7 @@ fun EmployeeOnboardingScreen(
                                         model = profileImageUri,
                                         contentDescription = "Profile Photo",
                                         contentScale = ContentScale.Crop,
-                                        modifier = Modifier.size(88.dp).clip(CircleShape)
+                                        modifier = Modifier.size(avatarSize).clip(CircleShape)
                                     )
                                 }
                                 !existingProfilePictureUrl.isNullOrBlank() -> {
@@ -724,25 +743,25 @@ fun EmployeeOnboardingScreen(
                                         model = existingProfilePictureUrl,
                                         contentDescription = "Profile Photo",
                                         contentScale = ContentScale.Crop,
-                                        modifier = Modifier.size(88.dp).clip(CircleShape)
+                                        modifier = Modifier.size(avatarSize).clip(CircleShape)
                                     )
                                 }
                                 initials != "?" -> {
-                                    Text(initials, color = whiteBg, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                                    Text(initials, color = whiteBg, fontSize = tokens.h1, fontWeight = FontWeight.Bold)
                                 }
                                 else -> {
                                     Icon(
                                         imageVector = Icons.Default.CameraAlt,
                                         contentDescription = "Upload Photo",
                                         tint = whiteBg,
-                                        modifier = Modifier.size(32.dp)
+                                        modifier = Modifier.size(tokens.iconSize * 1.7f)
                                     )
                                 }
                             }
                         }
                     }
 
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(sectionGap))
                     FormLabel("First Name")
                     FormTextField(
                         value = firstName,
@@ -757,7 +776,7 @@ fun EmployeeOnboardingScreen(
                         errorMessage = if (currentErrorField == "First Name") "First name is required" else null
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Last Name")
                     FormTextField(
                         value = lastName,
@@ -771,7 +790,7 @@ fun EmployeeOnboardingScreen(
                         isError = currentErrorField == "Last Name",
                         errorMessage = if (currentErrorField == "Last Name") "Last name is required" else null
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Work Email")
                     FormTextField(
                         value = workEmail,
@@ -780,7 +799,7 @@ fun EmployeeOnboardingScreen(
                         keyboardType = KeyboardType.Email
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Personal Email")
                     FormTextField(
                         value = personalEmail,
@@ -789,7 +808,7 @@ fun EmployeeOnboardingScreen(
                         keyboardType = KeyboardType.Email
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Work Phone")
                     PhoneInputField(
                         phoneValue = workPhone,
@@ -803,7 +822,7 @@ fun EmployeeOnboardingScreen(
                         isError = currentErrorField == "Work Phone",
                         errorMessage = if (currentErrorField == "Work Phone") "Work phone is required" else null
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Personal Phone")
                     PhoneInputField(
                         phoneValue = personalPhone,
@@ -817,7 +836,7 @@ fun EmployeeOnboardingScreen(
                         isError = currentErrorField == "Personal Phone",
                         errorMessage = if (currentErrorField == "Personal Phone") "Personal phone is required" else null
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Date of Birth")
                     DatePickerField(
                         value = dob,
@@ -829,7 +848,7 @@ fun EmployeeOnboardingScreen(
                         },
                         isError = currentErrorField == "Date of Birth"
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     ErrorFieldWrapper(isError = currentErrorField == "Gender") {
                         FormDropdown(
                             label = "Gender",
@@ -846,7 +865,7 @@ fun EmployeeOnboardingScreen(
                         )
                     }
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormDropdown(
                         label = "Marital Status",
                         value = maritalStatus,
@@ -869,7 +888,7 @@ fun EmployeeOnboardingScreen(
                         onSelect = { if (!isReadOnly) addressTab = it }
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     if (addressTab == "Permanent") {
                         CountryAndStatePicker(
                             selectedCountry = country,
@@ -877,13 +896,13 @@ fun EmployeeOnboardingScreen(
                             onCountryChange = { if (!isReadOnly) country = it },
                             onStateChange = { if (!isReadOnly) state = it }
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(fieldGap))
                         FormLabel("City")
                         FormTextField(value = city, onValueChange = { if (!isReadOnly) city = it }, placeholder = "Enter Your City")
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(fieldGap))
                         FormLabel("Postal Code")
                         FormTextField(value = postalCode, onValueChange = { if (!isReadOnly) postalCode = it }, placeholder = "Enter postal code", keyboardType = KeyboardType.Number)
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(fieldGap))
                         FormLabel("Street Address")
                         FormTextField(value = streetAddress, onValueChange = { if (!isReadOnly) streetAddress = it }, placeholder = "Enter street address")
                     } else {
@@ -893,13 +912,13 @@ fun EmployeeOnboardingScreen(
                             onCountryChange = { if (!isReadOnly) tempCountry = it },
                             onStateChange = { if (!isReadOnly) tempState = it }
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(fieldGap))
                         FormLabel("City")
                         FormTextField(value = tempCity, onValueChange = { if (!isReadOnly) tempCity = it }, placeholder = "Enter Your City")
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(fieldGap))
                         FormLabel("Postal Code")
                         FormTextField(value = tempPostalCode, onValueChange = { if (!isReadOnly) tempPostalCode = it }, placeholder = "Enter postal code", keyboardType = KeyboardType.Number)
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(fieldGap))
                         FormLabel("Street Address")
                         FormTextField(value = tempStreetAddress, onValueChange = { if (!isReadOnly) tempStreetAddress = it }, placeholder = "Enter street address")
                     }
@@ -915,7 +934,7 @@ fun EmployeeOnboardingScreen(
                     // ── PAN Number ──
                     FormLabel("PAN Number")
                     Column {
-                        OutlinedTextField(
+                        FormTextField(
                             value = pan,
                             onValueChange = {
                                 if (!isReadOnly) {
@@ -928,53 +947,68 @@ fun EmployeeOnboardingScreen(
                                     }
                                 }
                             },
-                            placeholder = { Text("Enter PAN Number (e.g., ABCDE1234F)", color = Color(0xFF9CA3AF)) },
-                            shape = FieldShape,
+                            placeholder = "Enter PAN Number (e.g., ABCDE1234F)",
                             enabled = !isReadOnly,
                             isError = panError != null,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = if (panError != null) Color(0xFFDC2626) else BorderColor,
-                                focusedBorderColor = if (panError != null) Color(0xFFDC2626) else AccentColor,
-                                errorBorderColor = Color(0xFFDC2626)
-                            ),
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                capitalization = KeyboardCapitalization.Characters,
-                                keyboardType = KeyboardType.Text
-                            )
+                            errorMessage = null, // the Column below already shows the message
+                            keyboardType = KeyboardType.Text,
+                            keyboardCapitalization = KeyboardCapitalization.Characters
                         )
                         if (panError != null) {
                             Text(
                                 text = panError!!,
                                 color = Color(0xFFDC2626),
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(top = 4.dp)
+                                fontSize = tokens.caption,
+                                modifier = Modifier.padding(top = tinyGap)
                             )
                         }
                         if (pan.isNotEmpty() && panError == null && pan.length == 10) {
                             Text(
                                 text = "✓ Valid PAN number",
                                 color = Color(0xFF059669),
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(top = 4.dp)
+                                fontSize = tokens.caption,
+                                modifier = Modifier.padding(top = tinyGap)
                             )
                         }
                         if (pan.isNotEmpty() && pan.length < 10) {
                             Text(
                                 text = "PAN must be 10 characters (${pan.length}/10)",
                                 color = Color(0xFFD97706),
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(top = 4.dp)
+                                fontSize = tokens.caption,
+                                modifier = Modifier.padding(top = tinyGap)
                             )
                         }
                     }
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     // ── Aadhaar Number ──
                     FormLabel("Aadhaar Number")
                     Column {
-                        OutlinedTextField(
+                        val aadhaarVisualTransformation = remember {
+                            VisualTransformation { text ->
+                                val trimmed = text.text.take(12)
+                                val formatted = trimmed.chunked(4).joinToString(" ")
+
+                                val offsetMapping = object : OffsetMapping {
+                                    override fun originalToTransformed(offset: Int): Int {
+                                        val o = offset.coerceIn(0, trimmed.length)
+                                        val spacesBefore = (o - 1).coerceAtLeast(0) / 4
+                                        return (o + spacesBefore).coerceIn(0, formatted.length)
+                                    }
+
+                                    override fun transformedToOriginal(offset: Int): Int {
+                                        val o = offset.coerceIn(0, formatted.length)
+                                        val spacesBefore =
+                                            formatted.substring(0, o).count { it == ' ' }
+                                        return (o - spacesBefore).coerceIn(0, trimmed.length)
+                                    }
+                                }
+
+                                TransformedText(AnnotatedString(formatted), offsetMapping)
+                            }
+                        }
+                        FormTextField(
                             value = aadhaar,
                             onValueChange = {
                                 if (!isReadOnly) {
@@ -987,75 +1021,45 @@ fun EmployeeOnboardingScreen(
                                     }
                                 }
                             },
-                            placeholder = { Text("Enter 12-digit Aadhaar Number", color = Color(0xFF9CA3AF)) },
-                            shape = FieldShape,
+                            placeholder = "Enter 12-digit Aadhaar Number",
                             enabled = !isReadOnly,
                             isError = aadhaarError != null,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = if (aadhaarError != null) Color(0xFFDC2626) else BorderColor,
-                                focusedBorderColor = if (aadhaarError != null) Color(0xFFDC2626) else AccentColor,
-                                errorBorderColor = Color(0xFFDC2626)
-                            ),
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                keyboardType = KeyboardType.Number
-                            ),
-                            visualTransformation = remember {
-                                VisualTransformation { text ->
-                                    val trimmed = text.text.take(12)
-                                    val formatted = trimmed.chunked(4).joinToString(" ")
-
-                                    val offsetMapping = object : OffsetMapping {
-                                        override fun originalToTransformed(offset: Int): Int {
-                                            val o = offset.coerceIn(0, trimmed.length)
-                                            val spacesBefore = (o - 1).coerceAtLeast(0) / 4
-                                            return (o + spacesBefore).coerceIn(0, formatted.length)
-                                        }
-
-                                        override fun transformedToOriginal(offset: Int): Int {
-                                            val o = offset.coerceIn(0, formatted.length)
-                                            val spacesBefore =
-                                                formatted.substring(0, o).count { it == ' ' }
-                                            return (o - spacesBefore).coerceIn(0, trimmed.length)
-                                        }
-                                    }
-
-                                    TransformedText(AnnotatedString(formatted), offsetMapping)
-                                }
-                            }
+                            errorMessage = null, // the Column below already shows the message
+                            keyboardType = KeyboardType.Number,
+                            visualTransformation = aadhaarVisualTransformation
                         )
                         if (aadhaarError != null) {
                             Text(
                                 text = aadhaarError!!,
                                 color = Color(0xFFDC2626),
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(top = 4.dp)
+                                fontSize = tokens.caption,
+                                modifier = Modifier.padding(top = tinyGap)
                             )
                         }
                         if (aadhaar.isNotEmpty() && aadhaarError == null && aadhaar.length == 12) {
                             Text(
                                 text = "✓ Valid Aadhaar number",
                                 color = Color(0xFF059669),
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(top = 4.dp)
+                                fontSize = tokens.caption,
+                                modifier = Modifier.padding(top = tinyGap)
                             )
                         }
                         if (aadhaar.isNotEmpty() && aadhaar.length < 12) {
                             Text(
                                 text = "Aadhaar must be 12 digits (${aadhaar.length}/12)",
                                 color = Color(0xFFD97706),
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(top = 4.dp)
+                                fontSize = tokens.caption,
+                                modifier = Modifier.padding(top = tinyGap)
                             )
                         }
                     }
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     // ── UAN Number ──
                     FormLabel("UAN Number")
                     Column {
-                        OutlinedTextField(
+                        FormTextField(
                             value = uan,
                             onValueChange = {
                                 if (!isReadOnly) {
@@ -1068,57 +1072,49 @@ fun EmployeeOnboardingScreen(
                                     }
                                 }
                             },
-                            placeholder = { Text("Enter 12-digit UAN Number", color = Color(0xFF9CA3AF)) },
-                            shape = FieldShape,
+                            placeholder = "Enter 12-digit UAN Number",
                             enabled = !isReadOnly,
                             isError = uanError != null,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = if (uanError != null) Color(0xFFDC2626) else BorderColor,
-                                focusedBorderColor = if (uanError != null) Color(0xFFDC2626) else AccentColor,
-                                errorBorderColor = Color(0xFFDC2626)
-                            ),
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                keyboardType = KeyboardType.Number
-                            )
+                            errorMessage = null, // the Column below already shows the message
+                            keyboardType = KeyboardType.Number
                         )
                         if (uanError != null) {
                             Text(
                                 text = uanError!!,
                                 color = Color(0xFFDC2626),
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(top = 4.dp)
+                                fontSize = tokens.caption,
+                                modifier = Modifier.padding(top = tinyGap)
                             )
                         }
                         if (uan.isNotEmpty() && uanError == null && uan.length == 12) {
                             Text(
                                 text = "✓ Valid UAN number",
                                 color = Color(0xFF059669),
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(top = 4.dp)
+                                fontSize = tokens.caption,
+                                modifier = Modifier.padding(top = tinyGap)
                             )
                         }
                         if (uan.isNotEmpty() && uan.length < 12) {
                             Text(
                                 text = "UAN must be 12 digits (${uan.length}/12)",
                                 color = Color(0xFFD97706),
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(top = 4.dp)
+                                fontSize = tokens.caption,
+                                modifier = Modifier.padding(top = tinyGap)
                             )
                         }
                     }
 
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(smallGap + tinyGap))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(WarnBg, RoundedCornerShape(8.dp))
-                            .border(1.dp, WarnBorder, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                            .background(WarnBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                            .border(1.dp, WarnBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                            .padding(horizontal = smallGap, vertical = smallGap * 0.8f)
                     ) {
                         Text(
                             "These IDs are sensitive information and will be stored securely.",
-                            fontSize = 12.sp,
+                            fontSize = tokens.caption,
                             color = WarnText
                         )
                     }
@@ -1134,9 +1130,9 @@ fun EmployeeOnboardingScreen(
                     if (educationList.isEmpty()) {
                         Text(
                             "No education added",
-                            fontSize = 13.sp,
+                            fontSize = tokens.bodySmall,
                             color = LabelColor,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            modifier = Modifier.padding(vertical = smallGap)
                         )
                     } else {
                         educationList.forEachIndexed { index, entry ->
@@ -1145,17 +1141,17 @@ fun EmployeeOnboardingScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Education ${index + 1}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                                Text("Education ${index + 1}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TitleColor)
                                 if (!isReadOnly) {
                                     Icon(
                                         Icons.Filled.Delete,
                                         contentDescription = "Remove",
                                         tint = Color(0xFFDC2626),
-                                        modifier = Modifier.size(18.dp).clickable { educationList.remove(entry) }
+                                        modifier = Modifier.size(tokens.iconSize).clickable { educationList.remove(entry) }
                                     )
                                 }
                             }
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height(smallGap))
                             FormLabel("Institute Name")
                             FormTextField(
                                 value = entry.instituteName,
@@ -1163,7 +1159,7 @@ fun EmployeeOnboardingScreen(
                                 placeholder = "Enter Institute Name"
                             )
 
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(fieldGap))
                             FormLabel("Degree/Diploma")
                             FormTextField(
                                 value = entry.degree,
@@ -1171,7 +1167,7 @@ fun EmployeeOnboardingScreen(
                                 placeholder = "Enter Degree/Diploma"
                             )
 
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(fieldGap))
                             FormLabel("Specialization")
                             FormTextField(
                                 value = entry.specialization,
@@ -1179,7 +1175,7 @@ fun EmployeeOnboardingScreen(
                                 placeholder = "Enter Specialization"
                             )
 
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(fieldGap))
                             FormLabel("Completion Date")
                             DatePickerField(
                                 value = entry.completionDate,
@@ -1187,24 +1183,24 @@ fun EmployeeOnboardingScreen(
                             )
 
                             if (index != educationList.lastIndex) {
-                                Spacer(Modifier.height(16.dp))
+                                Spacer(Modifier.height(fieldGap))
                                 HorizontalDivider(color = BorderColor)
-                                Spacer(Modifier.height(16.dp))
+                                Spacer(Modifier.height(fieldGap))
                             }
                         }
                     }
 
                     if (!isReadOnly) {
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(fieldGap))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, AccentColor, RoundedCornerShape(8.dp))
+                                .border(1.dp, AccentColor, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                                 .clickable { educationList.add(EducationEntry()) }
-                                .padding(vertical = 10.dp),
+                                .padding(vertical = smallGap),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("+ Add Education", color = AccentColor, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                            Text("+ Add Education", color = AccentColor, fontWeight = FontWeight.Medium, fontSize = tokens.bodyMedium)
                         }
                     }
                 }
@@ -1219,9 +1215,9 @@ fun EmployeeOnboardingScreen(
                     if (experienceList.isEmpty()) {
                         Text(
                             "No experience added",
-                            fontSize = 13.sp,
+                            fontSize = tokens.bodySmall,
                             color = LabelColor,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            modifier = Modifier.padding(vertical = smallGap)
                         )
                     } else {
                         experienceList.forEachIndexed { index, entry ->
@@ -1230,17 +1226,17 @@ fun EmployeeOnboardingScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Experience ${index + 1}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                                Text("Experience ${index + 1}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TitleColor)
                                 if (!isReadOnly) {
                                     Icon(
                                         Icons.Filled.Delete,
                                         contentDescription = "Remove",
                                         tint = Color(0xFFDC2626),
-                                        modifier = Modifier.size(18.dp).clickable { experienceList.remove(entry) }
+                                        modifier = Modifier.size(tokens.iconSize).clickable { experienceList.remove(entry) }
                                     )
                                 }
                             }
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height(smallGap))
                             FormLabel("Company Name")
                             FormTextField(
                                 value = entry.companyName,
@@ -1248,7 +1244,7 @@ fun EmployeeOnboardingScreen(
                                 placeholder = "Enter Company Name"
                             )
 
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(fieldGap))
                             FormLabel("Job Title")
                             FormTextField(
                                 value = entry.jobTitle,
@@ -1256,14 +1252,14 @@ fun EmployeeOnboardingScreen(
                                 placeholder = "Enter Job Title"
                             )
 
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(fieldGap))
                             FormLabel("From Date")
                             DatePickerField(
                                 value = entry.fromDate,
                                 onDateSelected = { if (!isReadOnly) experienceList[experienceList.indexOf(entry)] = entry.copy(fromDate = it) }
                             )
 
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(fieldGap))
                             FormLabel("To Date")
                             DatePickerField(
                                 value = entry.toDate,
@@ -1271,22 +1267,23 @@ fun EmployeeOnboardingScreen(
                                 enabled = !entry.isCurrentRole && !isReadOnly
                             )
 
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(fieldGap))
                             FormLabel("Job Description")
                             OutlinedTextField(
                                 value = entry.jobDescription,
                                 onValueChange = { if (!isReadOnly) experienceList[experienceList.indexOf(entry)] = entry.copy(jobDescription = it) },
-                                placeholder = { Text("Enter Job Description", color = Color(0xFF9CA3AF)) },
-                                shape = FieldShape,
+                                placeholder = { Text("Enter Job Description", fontSize = tokens.bodyMedium, color = Color(0xFF9CA3AF)) },
+                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = tokens.bodyMedium),
+                                shape = adaptiveFieldShape,
                                 enabled = !isReadOnly,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     unfocusedBorderColor = BorderColor,
                                     focusedBorderColor = AccentColor
                                 ),
-                                modifier = Modifier.fillMaxWidth().height(100.dp)
+                                modifier = Modifier.fillMaxWidth().height(tokens.fieldHeight * 2.2f)
                             )
 
-                            Spacer(Modifier.height(10.dp))
+                            Spacer(Modifier.height(smallGap * 0.8f))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Checkbox(
                                     checked = entry.isCurrentRole,
@@ -1296,28 +1293,28 @@ fun EmployeeOnboardingScreen(
                                     enabled = !isReadOnly,
                                     colors = CheckboxDefaults.colors(checkedColor = AccentColor)
                                 )
-                                Text("This experience is relevant to current role", fontSize = 13.sp, color = LabelColor)
+                                Text("This experience is relevant to current role", fontSize = tokens.bodySmall, color = LabelColor)
                             }
 
                             if (index != experienceList.lastIndex) {
-                                Spacer(Modifier.height(16.dp))
+                                Spacer(Modifier.height(fieldGap))
                                 HorizontalDivider(color = BorderColor)
-                                Spacer(Modifier.height(16.dp))
+                                Spacer(Modifier.height(fieldGap))
                             }
                         }
                     }
 
                     if (!isReadOnly) {
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(fieldGap))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, AccentColor, RoundedCornerShape(8.dp))
+                                .border(1.dp, AccentColor, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                                 .clickable { experienceList.add(ExperienceEntry()) }
-                                .padding(vertical = 10.dp),
+                                .padding(vertical = smallGap),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("+ Add Experience", color = AccentColor, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                            Text("+ Add Experience", color = AccentColor, fontWeight = FontWeight.Medium, fontSize = tokens.bodyMedium)
                         }
                     }
                 }
@@ -1332,11 +1329,11 @@ fun EmployeeOnboardingScreen(
                     FormLabel("Member ID")
                     FormTextField(value = memberId, onValueChange = { if (!isReadOnly) memberId = it }, placeholder = "Enter Member ID")
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Employee Code")
                     FormTextField(value = employeeCode, onValueChange = { if (!isReadOnly) employeeCode = it }, placeholder = "Enter Employee Code")
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Date of Joining")
                     DatePickerField(
                         value = doj,
@@ -1348,7 +1345,7 @@ fun EmployeeOnboardingScreen(
                         },
                         isError = currentErrorField == "Date of Joining"
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormDropdown(
                         label = "Branch",
                         value = branch,
@@ -1363,7 +1360,7 @@ fun EmployeeOnboardingScreen(
                         }
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormDropdown(
                         label = "Department",
                         value = department,
@@ -1381,7 +1378,7 @@ fun EmployeeOnboardingScreen(
                         errorMessage = if (currentErrorField == "Department") "Department is required" else null
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormDropdown(
                         label = "Designation",
                         value = designation,
@@ -1396,7 +1393,7 @@ fun EmployeeOnboardingScreen(
                         }
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormDropdown(
                         label = "Role",
                         value = role,
@@ -1414,7 +1411,7 @@ fun EmployeeOnboardingScreen(
                         errorMessage = if (currentErrorField == "Role") "Role is required" else null
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormDropdown(
                         label = "Shift",
                         value = shift,
@@ -1428,7 +1425,7 @@ fun EmployeeOnboardingScreen(
                             }
                         }
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormDropdown(
                         label = "Employment Type",
                         value = employmentType,
@@ -1438,11 +1435,11 @@ fun EmployeeOnboardingScreen(
                         onOptionSelected = { if (!isReadOnly) employmentType = it }
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Work Location")
                     FormTextField(value = workLocation, onValueChange = { if (!isReadOnly) workLocation = it }, placeholder = "Enter Work Location")
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormDropdown(
                         label = "Reporting To",
                         value = reportingTo,
@@ -1456,7 +1453,7 @@ fun EmployeeOnboardingScreen(
                             }
                         }
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
                     FormDropdown(
                         label = "Secondary Reporting To",
                         value = secondaryReportingTo,
@@ -1481,7 +1478,7 @@ fun EmployeeOnboardingScreen(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .background(whiteBg)
-                    .padding(horizontal = 20.dp, vertical = 14.dp)
+                    .padding(horizontal = sectionGap, vertical = smallGap + tinyGap)
             ) {
                 Button(
                     onClick = {
@@ -1613,14 +1610,14 @@ fun EmployeeOnboardingScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
+                    modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight)
                 ) {
                     Text(
                         text = if (mode == ScreenMode.EDIT) "Save Changes" else "Create Employee",
                         color = whiteBg,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
+                        fontSize = tokens.bodyLarge
                     )
                 }
             }
@@ -1642,14 +1639,14 @@ fun EmployeeOnboardingScreen(
     if (showProfileOptionsDialog && !isReadOnly) {
         AlertDialog(
             onDismissRequest = { showProfileOptionsDialog = false },
-            title = { Text("Profile Photo", fontWeight = FontWeight.SemiBold, color = TitleColor) },
-            text = { Text("Choose an action for your profile photo", fontSize = 13.sp, color = LabelColor) },
+            title = { Text("Profile Photo", fontWeight = FontWeight.SemiBold, fontSize = tokens.h2, color = TitleColor) },
+            text = { Text("Choose an action for your profile photo", fontSize = tokens.bodySmall, color = LabelColor) },
             confirmButton = {
                 TextButton(onClick = {
                     showProfileOptionsDialog = false
                     imagePickerLauncher.launch("image/*")
                 }) {
-                    Text("Upload New", color = AccentColor, fontWeight = FontWeight.Medium)
+                    Text("Upload New", color = AccentColor, fontWeight = FontWeight.Medium, fontSize = tokens.bodyMedium)
                 }
             },
             dismissButton = {
@@ -1663,7 +1660,7 @@ fun EmployeeOnboardingScreen(
                         existingProfilePictureUrl = null
                     }
                 }) {
-                    Text("Delete Profile", color = Color(0xFFDC2626), fontWeight = FontWeight.Medium)
+                    Text("Delete Profile", color = Color(0xFFDC2626), fontWeight = FontWeight.Medium, fontSize = tokens.bodyMedium)
                 }
             },
             containerColor = whiteBg
@@ -1681,29 +1678,33 @@ fun uriToFile(context: android.content.Context, uri: Uri): File {
 }
 
 // ── Permanent / Temporary segmented toggle (Address section) ──
+// Now reads LocalAppTokens directly since it's a standalone composable.
 @Composable
 private fun AddressTypeToggle(selected: String, onSelect: (String) -> Unit) {
+    val tokens = LocalAppTokens.current
+    val toggleShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, BorderColor, FieldShape)
-            .padding(4.dp)
+            .border(1.dp, BorderColor, toggleShape)
+            .padding(tokens.screenPadding * 0.25f)
     ) {
         listOf("Permanent", "Temporary").forEach { option ->
             val isSelected = selected == option
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .background(if (isSelected) AccentColor else Color.Transparent, RoundedCornerShape(8.dp))
+                    .background(if (isSelected) AccentColor else Color.Transparent, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                     .clickable { onSelect(option) }
-                    .padding(vertical = 9.dp),
+                    .padding(vertical = tokens.screenPadding * 0.55f),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     "$option Address",
                     color = if (isSelected) whiteBg else LabelColor,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 13.sp
+                    fontSize = tokens.bodySmall
                 )
             }
         }

@@ -48,7 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.view.home.FormDropdown
 import com.cuso.mobile.view.home.FormLabel
 import com.cuso.mobile.view.home.FormTextField
@@ -81,12 +81,11 @@ import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.TitleBar
 
 
-// ── Design tokens (same as EmployeeOnboardingScreen) ──
+// ── Design tokens (colors only — sizing now comes from AppDesignTokens) ──
 private val AccentColor = Color(0xFF4F39F6)
 private val BorderColor = Color(0xFFE3E4E8)
 private val LabelColor = Color(0xFF6B7280)
 private val TitleColor = Color(0xFF111827)
-private val FieldShape = RoundedCornerShape(10.dp)
 private val ChipBg = Color(0xFFEDE9FE)
 private val ChipText = Color(0xFF4F39F6)
 
@@ -113,6 +112,9 @@ fun CreateItemGroupScreen(
     onDismiss: () -> Unit = {},
     onSave: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
+    val FieldShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
+
     var expandedSection by remember { mutableStateOf("Item Group Information") }
 
     // ── Item Group Information ──
@@ -180,7 +182,7 @@ fun CreateItemGroupScreen(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(bottom = 90.dp)
+                    .padding(bottom = tokens.buttonHeight * 2f)
             ) {
                 // ── 1. Item Group Information ──
                 AccordionSection(
@@ -196,7 +198,7 @@ fun CreateItemGroupScreen(
                         placeholder = "Enter Item Group Name"
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormDropdown(
                         label = "Unit",
                         value = unit,
@@ -206,12 +208,12 @@ fun CreateItemGroupScreen(
                         onOptionSelected = { unit = it }
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormLabel("Description")
                     OutlinedTextField(
                         value = description,
                         onValueChange = { description = it },
-                        placeholder = { Text("Add detailed information about this fabric group..", color = Color(0xFF9CA3AF), fontSize = 13.sp) },
+                        placeholder = { Text("Add detailed information about this fabric group..", color = Color(0xFF9CA3AF), fontSize = tokens.bodySmall) },
                         shape = FieldShape,
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = BorderColor,
@@ -238,22 +240,22 @@ fun CreateItemGroupScreen(
                         onOptionSelected = { brand = it }
                     )
 
-                    Spacer(Modifier.height(18.dp))
-                    Text("Item Group Image", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = LabelColor)
+                    Spacer(Modifier.height(tokens.screenPadding * 0.9f))
+                    Text("Item Group Image", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = LabelColor)
                     Spacer(Modifier.height(8.dp))
                     UploadImageBox()
 
-                    Spacer(Modifier.height(18.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.9f))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Status", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleColor)
+                        Text("Status", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TitleColor)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 if (status) "Active" else "Inactive",
-                                fontSize = 13.sp,
+                                fontSize = tokens.bodySmall,
                                 color = if (status) AccentColor else LabelColor,
                                 fontWeight = FontWeight.Medium
                             )
@@ -284,11 +286,11 @@ fun CreateItemGroupScreen(
                                 .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
                                 .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
-                            Text("Max 3 Attributes", fontSize = 11.sp, color = LabelColor)
+                            Text("Max 3 Attributes", fontSize = tokens.label, color = LabelColor)
                         }
                         Text(
                             "+ Add Attribute",
-                            fontSize = 13.sp,
+                            fontSize = tokens.bodySmall,
                             color = AccentColor,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.clickable {
@@ -300,17 +302,17 @@ fun CreateItemGroupScreen(
                     Spacer(Modifier.height(10.dp))
                     Text(
                         "Each combination of attributes creates a separate item automatically.",
-                        fontSize = 12.sp,
+                        fontSize = tokens.caption,
                         color = LabelColor
                     )
 
                     attributesList.forEachIndexed { index, entry ->
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(Color(0xFFF7F7FA))
-                                .padding(14.dp)
+                                .padding(tokens.cardPadding * 0.5f)
                         ) {
                             Column {
                                 Row(
@@ -322,7 +324,7 @@ fun CreateItemGroupScreen(
                                         contentDescription = "Remove",
                                         tint = Color(0xFFDC2626),
                                         modifier = Modifier
-                                            .size(16.dp)
+                                            .size(tokens.iconSize * 0.9f)
                                             .clickable { attributesList.removeAt(index) }
                                     )
                                 }
@@ -333,7 +335,7 @@ fun CreateItemGroupScreen(
                                     placeholder = "e.g. Color, Size"
                                 )
                                 Spacer(Modifier.height(12.dp))
-                                Text("Values", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = LabelColor)
+                                Text("Values", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = LabelColor)
                                 Spacer(Modifier.height(6.dp))
                                 AttributeValuesInput(
                                     values = entry.values,
@@ -360,12 +362,12 @@ fun CreateItemGroupScreen(
                     )
                     Text(
                         "Updates cost for all generated variants",
-                        fontSize = 11.sp,
+                        fontSize = tokens.label,
                         color = LabelColor,
                         modifier = Modifier.padding(top = 4.dp)
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormLabel("Selling Price (Default)")
                     FormTextField(
                         value = sellingPrice,
@@ -375,7 +377,7 @@ fun CreateItemGroupScreen(
                     )
                     Text(
                         "Updates cost for all generated variants",
-                        fontSize = 11.sp,
+                        fontSize = tokens.label,
                         color = LabelColor,
                         modifier = Modifier.padding(top = 4.dp)
                     )
@@ -400,7 +402,7 @@ fun CreateItemGroupScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .background(if (isSelected) Color(0xFFE3E0FB) else Color.Transparent, RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) Color(0xFFE3E0FB) else Color.Transparent, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                                     .clickable { matrixMode = option }
                                     .padding(vertical = 9.dp),
                                 contentAlignment = Alignment.Center
@@ -409,7 +411,7 @@ fun CreateItemGroupScreen(
                                     option,
                                     color = if (isSelected) AccentColor else LabelColor,
                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                    fontSize = 13.sp
+                                    fontSize = tokens.bodySmall
                                 )
                             }
                         }
@@ -423,13 +425,13 @@ fun CreateItemGroupScreen(
                     ) {
                         Text(
                             "${selectedSizes.size}/${sizeOptions.size} Selected",
-                            fontSize = 12.sp,
+                            fontSize = tokens.caption,
                             color = LabelColor
                         )
                         Row {
                             Text(
                                 "Select All",
-                                fontSize = 12.sp,
+                                fontSize = tokens.caption,
                                 color = AccentColor,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.clickable {
@@ -440,7 +442,7 @@ fun CreateItemGroupScreen(
                             Spacer(Modifier.width(12.dp))
                             Text(
                                 "Clear All",
-                                fontSize = 12.sp,
+                                fontSize = tokens.caption,
                                 color = LabelColor,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.clickable { selectedSizes.clear() }
@@ -448,8 +450,8 @@ fun CreateItemGroupScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(16.dp))
-                    Text("Color", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = LabelColor)
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                    Text("Color", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = LabelColor)
                     Spacer(Modifier.height(8.dp))
                     Row {
                         colorOptions.forEach { color ->
@@ -458,13 +460,13 @@ fun CreateItemGroupScreen(
                                     .background(ChipBg, RoundedCornerShape(6.dp))
                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
-                                Text(color, fontSize = 13.sp, color = ChipText, fontWeight = FontWeight.Medium)
+                                Text(color, fontSize = tokens.bodySmall, color = ChipText, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
 
-                    Spacer(Modifier.height(16.dp))
-                    Text("Size", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = LabelColor)
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                    Text("Size", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = LabelColor)
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         sizeOptions.forEach { size ->
@@ -477,7 +479,7 @@ fun CreateItemGroupScreen(
                                     },
                                     colors = CheckboxDefaults.colors(checkedColor = AccentColor)
                                 )
-                                Text(size, fontSize = 13.sp, color = TitleColor)
+                                Text(size, fontSize = tokens.bodySmall, color = TitleColor)
                             }
                         }
                     }
@@ -500,7 +502,7 @@ fun CreateItemGroupScreen(
                                 onCheckedChange = { trackInventory = it },
                                 colors = CheckboxDefaults.colors(checkedColor = AccentColor)
                             )
-                            Text("Track inventory for this group", fontSize = 13.sp, color = TitleColor)
+                            Text("Track inventory for this group", fontSize = tokens.bodySmall, color = TitleColor)
                         }
                     }
 
@@ -508,13 +510,13 @@ fun CreateItemGroupScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(40.dp)
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                            .height(tokens.fieldHeight)
+                            .background(Color(0xFFF3F4F6), RoundedCornerShape(tokens.cardCornerRadius * 0.55f))
                             .padding(horizontal = 12.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Search, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Filled.Search, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(tokens.iconSize * 0.9f))
                             Spacer(Modifier.width(8.dp))
                             BasicTextField(
                                 value = variantSearch,
@@ -523,7 +525,7 @@ fun CreateItemGroupScreen(
                                 singleLine = true,
                                 decorationBox = { inner ->
                                     if (variantSearch.isEmpty()) {
-                                        Text("Search", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                                        Text("Search", fontSize = tokens.bodySmall, color = Color(0xFF9CA3AF))
                                     }
                                     inner()
                                 }
@@ -536,17 +538,17 @@ fun CreateItemGroupScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFFF7F7FA), RoundedCornerShape(10.dp))
+                                .background(Color(0xFFF7F7FA), RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { variants[index] = variant.copy(isExpanded = !variant.isExpanded) }
-                                    .padding(14.dp),
+                                    .padding(tokens.cardPadding * 0.5f),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(variant.label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                                Text(variant.label, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TitleColor)
                                 Icon(
                                     if (variant.isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                                     contentDescription = null,
@@ -555,7 +557,7 @@ fun CreateItemGroupScreen(
                             }
 
                             AnimatedVisibility(visible = variant.isExpanded) {
-                                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                                Column(modifier = Modifier.padding(horizontal = tokens.cardPadding * 0.5f, vertical = 8.dp)) {
                                     FormLabel("SKU")
                                     FormTextField(
                                         value = variant.sku,
@@ -601,7 +603,7 @@ fun CreateItemGroupScreen(
                                             Spacer(Modifier.width(6.dp))
                                             Text(
                                                 if (variant.isActive) "Active" else "Inactive",
-                                                fontSize = 13.sp,
+                                                fontSize = tokens.bodySmall,
                                                 color = AccentColor,
                                                 fontWeight = FontWeight.Medium
                                             )
@@ -614,10 +616,10 @@ fun CreateItemGroupScreen(
                                                 Icons.Filled.Delete,
                                                 contentDescription = null,
                                                 tint = AccentColor,
-                                                modifier = Modifier.size(15.dp)
+                                                modifier = Modifier.size(tokens.iconSize * 0.8f)
                                             )
                                             Spacer(Modifier.width(4.dp))
-                                            Text("Delete Variant", fontSize = 13.sp, color = AccentColor, fontWeight = FontWeight.Medium)
+                                            Text("Delete Variant", fontSize = tokens.bodySmall, color = AccentColor, fontWeight = FontWeight.Medium)
                                         }
                                     }
                                     Spacer(Modifier.height(10.dp))
@@ -626,8 +628,8 @@ fun CreateItemGroupScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(20.dp))
-                    Text("Bulk Update", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                    Spacer(Modifier.height(tokens.screenPadding))
+                    Text("Bulk Update", fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold, color = TitleColor)
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -652,10 +654,10 @@ fun CreateItemGroupScreen(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth().height(46.dp)
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
+                        modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight)
                     ) {
-                        Text("Apply To All varient", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text("Apply To All varient", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = tokens.bodyMedium)
                     }
                 }
             }
@@ -667,25 +669,25 @@ fun CreateItemGroupScreen(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .background(whiteBg)
-                .padding(horizontal = 20.dp, vertical = 14.dp),
+                .padding(horizontal = tokens.screenPadding, vertical = tokens.cardPadding * 0.5f),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             OutlinedButton(
                 onClick = onDismiss,
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = TitleColor),
-                modifier = Modifier.weight(1f).height(48.dp)
+                modifier = Modifier.weight(1f).height(tokens.buttonHeight + 2.dp)
             ) {
-                Text("Cancel", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text("Cancel", fontWeight = FontWeight.SemiBold, fontSize = tokens.bodyMedium)
             }
             Button(
                 onClick = onSave,
                 colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.weight(1f).height(48.dp)
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
+                modifier = Modifier.weight(1f).height(tokens.buttonHeight + 2.dp)
             ) {
-                Text("Save Item Group", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text("Save Item Group", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = tokens.bodyMedium)
             }
         }
     }
@@ -694,6 +696,7 @@ fun CreateItemGroupScreen(
 // ── Upload image dashed box (matches image 3) ──
 @Composable
 private fun UploadImageBox() {
+    val tokens = LocalAppTokens.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -701,18 +704,18 @@ private fun UploadImageBox() {
             .border(
                 width = 1.5.dp,
                 color = AccentColor,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
             )
-            .background(Color(0xFFFAFAFF), RoundedCornerShape(10.dp))
+            .background(Color(0xFFFAFAFF), RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
             .clickable { /* image picker — wire later */ },
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Filled.CloudUpload, contentDescription = null, tint = AccentColor, modifier = Modifier.size(26.dp))
+            Icon(Icons.Filled.CloudUpload, contentDescription = null, tint = AccentColor, modifier = Modifier.size(tokens.iconSize * 1.45f))
             Spacer(Modifier.height(6.dp))
-            Text("Upload Image", fontSize = 13.sp, color = AccentColor, fontWeight = FontWeight.Medium)
+            Text("Upload Image", fontSize = tokens.bodySmall, color = AccentColor, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(2.dp))
-            Text("PNG, JPG up to 5MB", fontSize = 11.sp, color = LabelColor)
+            Text("PNG, JPG up to 5MB", fontSize = tokens.label, color = LabelColor)
         }
     }
 }
@@ -724,13 +727,14 @@ private fun AttributeValuesInput(
     values: List<String>,
     onValuesChange: (List<String>) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     var inputText by remember { mutableStateOf("") }
     var isFocused by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, BorderColor, FieldShape)
+            .border(1.dp, BorderColor, RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
             .padding(8.dp)
     ) {
         // Flow layout for chips
@@ -749,7 +753,7 @@ private fun AttributeValuesInput(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             value,
-                            fontSize = 13.sp,
+                            fontSize = tokens.bodySmall,
                             color = ChipText,
                             fontWeight = FontWeight.Medium
                         )
@@ -783,14 +787,14 @@ private fun AttributeValuesInput(
                         .focusRequester(FocusRequester()),
                     singleLine = true,
                     textStyle = TextStyle(
-                        fontSize = 13.sp,
+                        fontSize = tokens.bodySmall,
                         color = blackTitle
                     ),
                     decorationBox = { inner ->
                         if (inputText.isEmpty() && !isFocused) {
                             Text(
                                 "Add..",
-                                fontSize = 13.sp,
+                                fontSize = tokens.bodySmall,
                                 color = Color(0xFF9CA3AF)
                             )
                         }

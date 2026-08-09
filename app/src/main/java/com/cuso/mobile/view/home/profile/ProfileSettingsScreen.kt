@@ -2,10 +2,6 @@ package com.cuso.mobile.view.home.profile
 
 import android.annotation.SuppressLint
 import androidx.activity.ComponentActivity
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,8 +29,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.viewmodel.Authenticate
-import kotlinx.coroutines.delay
-import kotlin.time.Duration.Companion.milliseconds
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.TextSecondary
 
@@ -47,8 +41,25 @@ private data class SettingsMenuItem(
     val subtitle: String,
     val onClick: () -> Unit
 )
-@Suppress("UNUSED_PARAMETER")
 
+/**
+ *   NOTE ON THE SLIDE ANIMATION:
+ * This screen used to wrap itself in its own `AnimatedVisibility` (slide-in on enter,
+ * slide-out + 300ms delay before calling onClose() on exit). That created a DOUBLE
+ * animation: this screen's own exit-slide would finish first (revealing blank/white
+ * space because HomeScreen's outer `AnimatedContent` hadn't swapped screens yet),
+ * and only after the 300ms delay would onClose() fire and trigger the OUTER
+ * AnimatedContent transition in HomeScreen.kt — causing that white flash in between.
+ *
+ * HomeScreen.kt already animates every screen swap via a single `AnimatedContent`
+ * (slide + fade, 300ms). So this screen now behaves like every other screen in the
+ * app (CreateLeadScreen, BranchSettingsScreen, etc.) — a plain composable with no
+ * animation of its own — and lets that one outer transition drive the slide.
+ * That removes the double-transition gap and matches the same smooth, single-source
+ * animation used everywhere else in the app.
+ */
+@Suppress("UNUSED_PARAMETER")
+@SuppressLint("ContextCastToActivity")
 @Composable
 fun ProfileSettingsScreen(
     onClose: () -> Unit,
@@ -60,66 +71,6 @@ fun ProfileSettingsScreen(
     onDesignation: () -> Unit = {},
     onHelpSupport: () -> Unit = {},
     onLogout: () -> Unit = {}
-) {
-    // ── Animation state ──
-    var visible by remember { mutableStateOf(false) }
-
-    // Slide IN as soon as this composable enters composition
-    LaunchedEffect(Unit) {
-        visible = true
-    }
-
-    // Called by the Close icon / back action — slides OUT, then navigates away
-    val animatedClose: () -> Unit = {
-        visible = false
-    }
-
-    // Wait for the exit animation to finish before actually leaving the screen
-    LaunchedEffect(visible) {
-        if (!visible) {
-            delay(300.milliseconds) // must match the animation duration below
-            onClose()
-        }
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = slideInHorizontally(
-            initialOffsetX = { fullWidth -> fullWidth },
-            animationSpec = tween(durationMillis = 300)
-        ),
-        exit = slideOutHorizontally(
-            targetOffsetX = { fullWidth -> fullWidth },
-            animationSpec = tween(durationMillis = 300)
-        )
-    ) {
-        ProfileSettingsContent(
-            onClose = animatedClose,
-            onGoToProfile = onGoToProfile,
-            onOrganizationSetup = onOrganizationSetup,
-            onBranchManagement = onBranchManagement,
-            onDepartment = onDepartment,
-            onTeams = onTeams,
-            onDesignation = onDesignation,
-            onHelpSupport = onHelpSupport,
-            onLogout = onLogout
-        )
-    }
-}
-@SuppressLint("ContextCastToActivity")
-@Suppress("UNUSED_PARAMETER")
-
-@Composable
-private fun ProfileSettingsContent(
-    onClose: () -> Unit,
-    onGoToProfile: () -> Unit,
-    onOrganizationSetup: () -> Unit,
-    onBranchManagement: () -> Unit,
-    onDepartment: () -> Unit,
-    onTeams: () -> Unit,
-    onDesignation: () -> Unit,
-    onHelpSupport: () -> Unit,
-    onLogout: () -> Unit
 ) {
     val authViewModel: Authenticate = hiltViewModel(
         LocalContext.current as ComponentActivity   //   இதை சேருங்க

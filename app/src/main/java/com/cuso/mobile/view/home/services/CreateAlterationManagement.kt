@@ -30,13 +30,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.blurScrim
+// ── NEW: adaptive design tokens ──
+import com.cuso.mobile.adaptive_screen.AppDesignTokens
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 
 // ─────────────────────────────────────────────
 // Shared colors used across all screens
@@ -74,6 +76,14 @@ private data class Measurement(val point: String, val original: String, val alte
 fun CreateAlterationManagementScreen(
     onClose: () -> Unit
 ) {
+    // ── Adaptive tokens ──
+    val tokens: AppDesignTokens = LocalAppTokens.current
+    val sectionGap = tokens.screenPadding
+    val fieldGap = tokens.screenPadding * 0.75f
+    val smallGap = tokens.screenPadding * 0.5f
+    val tinyGap = tokens.screenPadding * 0.3f
+    val adaptiveCorner = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+
     var updateStatusSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var assignTailorSheetState by remember { mutableStateOf(SheetValue.Hidden) }
 
@@ -122,7 +132,7 @@ fun CreateAlterationManagementScreen(
                     .background(Color.Transparent)
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(horizontal = sectionGap, vertical = fieldGap)
                     .blurScrim(currentBlur)
             ) {
 
@@ -139,45 +149,45 @@ fun CreateAlterationManagementScreen(
                         Row {
                             Text(
                                 "ALT-882",
-                                fontSize = 13.sp,
+                                fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = TitleColor
                             )
-                            Text(" / SO-450", fontSize = 13.sp, color = MutedLabel)
+                            Text(" / SO-450", fontSize = tokens.bodySmall, color = MutedLabel)
                         }
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(AccentBg)
-                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                                .padding(horizontal = smallGap, vertical = tinyGap)
                         ) {
                             Text(
                                 "In Progress",
-                                fontSize = 11.sp,
+                                fontSize = tokens.caption,
                                 fontWeight = FontWeight.Medium,
                                 color = Accent
                             )
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(smallGap))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(40.dp)
+                        horizontalArrangement = Arrangement.spacedBy(sectionGap * 2.5f)
                     ) {
                         Column {
-                            Text("Customer", fontSize = 11.sp, color = MutedLabel)
+                            Text("Customer", fontSize = tokens.caption, color = MutedLabel)
                             Text(
                                 "Liam Henderson",
-                                fontSize = 13.sp,
+                                fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = TitleColor
                             )
                         }
                         Column {
-                            Text("Priority", fontSize = 11.sp, color = MutedLabel)
+                            Text("Priority", fontSize = tokens.caption, color = MutedLabel)
                             Text(
                                 "High Priority",
-                                fontSize = 13.sp,
+                                fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = PriorityRed
                             )
@@ -187,84 +197,84 @@ fun CreateAlterationManagementScreen(
 
                 OutlinedButton(
                     onClick = { assignTailorSheetState = SheetValue.Collapsed },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight),
+                    shape = adaptiveCorner,
                     border = BorderStroke(1.dp, Accent),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
                 ) {
                     Icon(
                         Icons.Default.Add,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(tokens.iconSize)
                     )
-                    Spacer(Modifier.width(6.dp))
-                    Text("Assign Tailor", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.width(smallGap * 0.75f))
+                    Text("Assign Tailor", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold)
                 }
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(sectionGap))
 
                 AlterationStepper()
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(fieldGap))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Current Status: ", fontSize = 13.sp, color = LabelColor)
+                    Text("Current Status: ", fontSize = tokens.bodySmall, color = LabelColor)
                     Text(
                         "In Progress",
-                        fontSize = 13.sp,
+                        fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = Accent
                     )
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(smallGap))
 
                 Button(
                     onClick = { updateStatusSheetState = SheetValue.Collapsed },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight),
+                    shape = adaptiveCorner,
                     colors = ButtonDefaults.buttonColors(containerColor = Primary)
                 ) {
                     Text(
                         "Update Status",
-                        fontSize = 15.sp,
+                        fontSize = tokens.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = whiteBg
                     )
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(sectionGap * 1.5f))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.Inventory2,
                         contentDescription = null,
                         tint = Accent,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(tokens.iconSize)
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(smallGap))
                     Text(
                         "Garment & Alteration Details",
-                        fontSize = 15.sp,
+                        fontSize = tokens.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = TitleColor
                     )
                 }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(fieldGap))
 
-                Text("Garment Type", fontSize = 11.sp, color = MutedLabel)
-                Spacer(Modifier.height(2.dp))
+                Text("Garment Type", fontSize = tokens.caption, color = MutedLabel)
+                Spacer(Modifier.height(tinyGap * 0.6f))
                 Text(
                     "Bespoke Blazer",
-                    fontSize = 14.sp,
+                    fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = TitleColor
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(smallGap))
                 HorizontalDivider(color = BorderColor)
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(smallGap))
 
-                Text("Fabric", fontSize = 11.sp, color = MutedLabel)
-                Spacer(Modifier.height(4.dp))
+                Text("Fabric", fontSize = tokens.caption, color = MutedLabel)
+                Spacer(Modifier.height(tinyGap))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
@@ -272,73 +282,73 @@ fun CreateAlterationManagementScreen(
                             .clip(CircleShape)
                             .background(NavyFabric)
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(smallGap))
                     Text(
                         "Navy Wool (Super 120s)",
-                        fontSize = 14.sp,
+                        fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = TitleColor
                     )
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(smallGap))
                 HorizontalDivider(color = BorderColor)
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(smallGap))
 
-                Text("Alteration Notes", fontSize = 11.sp, color = MutedLabel)
-                Spacer(Modifier.height(6.dp))
+                Text("Alteration Notes", fontSize = tokens.caption, color = MutedLabel)
+                Spacer(Modifier.height(tinyGap))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(adaptiveCorner)
                         .background(NotesBg)
-                        .padding(12.dp)
+                        .padding(smallGap)
                 ) {
                     Text(
                         "\"Shorten sleeves by 1.25 inches. Ensure the functional buttonholes are preserved and spaced correctly from the new edge.\"",
-                        fontSize = 13.sp,
+                        fontSize = tokens.bodySmall,
                         color = TitleColor
                     )
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(sectionGap * 1.5f))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.Straighten,
                         contentDescription = null,
                         tint = Accent,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(tokens.iconSize)
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(smallGap))
                     Text(
                         "Measurement Adjustments",
-                        fontSize = 15.sp,
+                        fontSize = tokens.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = TitleColor
                     )
                 }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(fieldGap))
 
                 MeasurementTable()
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(sectionGap * 1.5f))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.PhotoCamera,
                         contentDescription = null,
                         tint = Accent,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(tokens.iconSize)
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(smallGap))
                     Text(
                         "Trial & Documentation",
-                        fontSize = 15.sp,
+                        fontSize = tokens.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = TitleColor
                     )
                 }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(fieldGap))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -350,14 +360,14 @@ fun CreateAlterationManagementScreen(
                             Icons.Default.CalendarMonth,
                             contentDescription = null,
                             tint = MutedLabel,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(tokens.iconSize * 0.9f)
                         )
-                        Spacer(Modifier.width(6.dp))
+                        Spacer(Modifier.width(smallGap * 0.75f))
                         Column {
-                            Text("Trial Date", fontSize = 11.sp, color = MutedLabel)
+                            Text("Trial Date", fontSize = tokens.caption, color = MutedLabel)
                             Text(
                                 "Oct 24, 2023 - 2:00 PM",
-                                fontSize = 13.sp,
+                                fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = TitleColor
                             )
@@ -365,19 +375,19 @@ fun CreateAlterationManagementScreen(
                     }
                     OutlinedButton(
                         onClick = { /* TODO: change trial date */ },
-                        shape = RoundedCornerShape(8.dp),
+                        shape = adaptiveCorner,
                         border = BorderStroke(1.dp, Accent),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = smallGap, vertical = tinyGap)
                     ) {
-                        Text("Change", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Change", fontSize = tokens.caption, fontWeight = FontWeight.SemiBold)
                     }
                 }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(fieldGap))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(smallGap)
                 ) {
                     PhotoPlaceholder(
                         label = "BEFORE",
@@ -391,24 +401,24 @@ fun CreateAlterationManagementScreen(
                     )
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(sectionGap * 1.5f))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.Person,
                         contentDescription = null,
                         tint = Accent,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(tokens.iconSize)
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(smallGap))
                     Text(
                         "Assigned Tailor",
-                        fontSize = 15.sp,
+                        fontSize = tokens.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = TitleColor
                     )
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(smallGap))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -418,85 +428,85 @@ fun CreateAlterationManagementScreen(
                             .background(AccentBg),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("AR", color = Accent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("AR", color = Accent, fontWeight = FontWeight.Bold, fontSize = tokens.bodyMedium)
                     }
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(smallGap))
                     Column {
                         Text(
                             "Antonio Rossi",
-                            fontSize = 15.sp,
+                            fontSize = tokens.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = TitleColor
                         )
                         Row {
-                            Text("Senior Tailor  •  ", fontSize = 12.sp, color = LabelColor)
-                            Text("Suiting Expert", fontSize = 12.sp, color = Accent)
+                            Text("Senior Tailor  •  ", fontSize = tokens.caption, color = LabelColor)
+                            Text("Suiting Expert", fontSize = tokens.caption, color = Accent)
                         }
                     }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(smallGap))
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(adaptiveCorner)
                         .background(Color(0xFFefeff8))
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = sectionGap, vertical = smallGap),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text("Active Jobs", fontSize = 12.sp, color = MutedLabel)
+                        Text("Active Jobs", fontSize = tokens.caption, color = MutedLabel)
                         Text(
                             "4",
-                            fontSize = 16.sp,
+                            fontSize = tokens.h2,
                             fontWeight = FontWeight.Bold,
                             color = TitleColor
                         )
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("Success Rate", fontSize = 12.sp, color = MutedLabel)
+                        Text("Success Rate", fontSize = tokens.caption, color = MutedLabel)
                         Text(
                             "98%",
-                            fontSize = 16.sp,
+                            fontSize = tokens.h2,
                             fontWeight = FontWeight.Bold,
                             color = SuccessColor
                         )
                     }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(smallGap))
 
                 OutlinedButton(
                     onClick = { /* TODO: navigate to tailor profile */ },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = adaptiveCorner,
                     border = BorderStroke(1.dp, Accent),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
                 ) {
                     Text(
                         "View Profile & Capacity",
-                        fontSize = 14.sp,
+                        fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(sectionGap * 1.5f))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.History,
                         contentDescription = null,
                         tint = Accent,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(tokens.iconSize)
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(smallGap))
                     Text(
                         "Activity Log & Notes",
-                        fontSize = 15.sp,
+                        fontSize = tokens.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = TitleColor
                     )
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(fieldGap))
 
                 val activities = listOf(
                     Triple(
@@ -526,25 +536,25 @@ fun CreateAlterationManagementScreen(
                                 )
                             }
                         }
-                        Spacer(Modifier.width(12.dp))
-                        Column(modifier = Modifier.padding(bottom = 16.dp)) {
+                        Spacer(Modifier.width(smallGap))
+                        Column(modifier = Modifier.padding(bottom = fieldGap)) {
                             Text(
                                 title,
-                                fontSize = 13.sp,
+                                fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = TitleColor
                             )
                             note?.let {
-                                Spacer(Modifier.height(2.dp))
-                                Text(it, fontSize = 12.sp, color = LabelColor)
+                                Spacer(Modifier.height(tinyGap))
+                                Text(it, fontSize = tokens.caption, color = LabelColor)
                             }
-                            Spacer(Modifier.height(2.dp))
-                            Text(meta, fontSize = 11.sp, color = MutedLabel)
+                            Spacer(Modifier.height(tinyGap))
+                            Text(meta, fontSize = tokens.caption, color = MutedLabel)
                         }
                     }
                 }
 
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(tinyGap))
 
                 OutlinedTextField(
                     value = comment,
@@ -552,18 +562,18 @@ fun CreateAlterationManagementScreen(
                     placeholder = {
                         Text(
                             "Add a comment or update...",
-                            fontSize = 13.sp,
+                            fontSize = tokens.bodySmall,
                             color = MutedLabel
                         )
                     },
-                    shape = RoundedCornerShape(10.dp),
+                    shape = adaptiveCorner,
                     trailingIcon = {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
                             contentDescription = "Send",
                             tint = Accent,
                             modifier = Modifier
-                                .size(20.dp)
+                                .size(tokens.iconSize)
                                 .clip(CircleShape)
                                 .clickable { comment = "" }
                         )
@@ -576,7 +586,7 @@ fun CreateAlterationManagementScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = tinyGap),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row {
@@ -584,35 +594,35 @@ fun CreateAlterationManagementScreen(
                             Icons.Default.AttachFile,
                             contentDescription = null,
                             tint = MutedLabel,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(tokens.iconSize * 0.9f)
                         )
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(smallGap))
                         Icon(
                             Icons.Default.EmojiEmotions,
                             contentDescription = null,
                             tint = MutedLabel,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(tokens.iconSize * 0.9f)
                         )
                     }
-                    Text("Press Enter to send", fontSize = 11.sp, color = MutedLabel)
+                    Text("Press Enter to send", fontSize = tokens.caption, color = MutedLabel)
                 }
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(sectionGap))
 
                 Button(
                     onClick = { },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight),
+                    shape = adaptiveCorner,
                     colors = ButtonDefaults.buttonColors(containerColor = Accent)
                 ) {
                     Text(
                         "Mark as Completed",
-                        fontSize = 15.sp,
+                        fontSize = tokens.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = whiteBg
                     )
                 }
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(sectionGap))
             }
 
 
@@ -630,112 +640,112 @@ fun CreateAlterationManagementScreen(
                 }
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = sectionGap, vertical = smallGap)
                 ) {
                     Text(
                         "UPDATE STATUS",
-                        fontSize = 13.sp,
+                        fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = TitleColor,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(tinyGap))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Text("ALT-882", fontSize = 12.sp, color = MutedLabel)
-                        Text(" / SO-450", fontSize = 12.sp, color = MutedLabel)
+                        Text("ALT-882", fontSize = tokens.caption, color = MutedLabel)
+                        Text(" / SO-450", fontSize = tokens.caption, color = MutedLabel)
                     }
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(sectionGap))
 
                     Text(
                         "Alteration Status",
-                        fontSize = 13.sp,
+                        fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = TitleColor
                     )
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(tinyGap))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
+                            .clip(adaptiveCorner)
+                            .border(1.dp, BorderColor, adaptiveCorner)
                             .clickable {  }
-                            .padding(horizontal = 14.dp, vertical = 14.dp),
+                            .padding(horizontal = fieldGap, vertical = fieldGap),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(selectedStatus, fontSize = 14.sp, color = TitleColor)
+                        Text(selectedStatus, fontSize = tokens.bodyMedium, color = TitleColor)
                         Icon(
                             Icons.Default.KeyboardArrowDown,
                             contentDescription = null,
                             tint = LabelColor
                         )
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     Text(
                         "Notes",
-                        fontSize = 13.sp,
+                        fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = TitleColor
                     )
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(tinyGap))
                     OutlinedTextField(
                         value = statusNotes,
                         onValueChange = { statusNotes = it },
                         placeholder = {
                             Text(
                                 "Add an optional note...",
-                                fontSize = 13.sp,
+                                fontSize = tokens.bodySmall,
                                 color = MutedLabel
                             )
                         },
                         minLines = 3,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = adaptiveCorner,
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = BorderColor,
                             focusedBorderColor = Accent
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(sectionGap))
 
                     Button(
                         onClick = { updateStatusSheetState = SheetValue.Hidden },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight),
+                        shape = adaptiveCorner,
                         colors = ButtonDefaults.buttonColors(containerColor = Accent)
                     ) {
                         Text(
                             "Update Status",
-                            fontSize = 15.sp,
+                            fontSize = tokens.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = whiteBg
                         )
                     }
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(smallGap))
                     OutlinedButton(
                         onClick = { updateStatusSheetState = SheetValue.Hidden },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight),
+                        shape = adaptiveCorner,
                         border = BorderStroke(1.dp, BorderColor),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TitleColor)
                     ) {
-                        Text("Cancel", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Cancel", fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold)
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     Text(
                         "LAST UPDATED 2D AGO BY J. DOE",
-                        fontSize = 10.sp,
+                        fontSize = tokens.label,
                         color = MutedLabel,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(sectionGap))
                 }
             }
 
@@ -753,40 +763,40 @@ fun CreateAlterationManagementScreen(
                 }
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = sectionGap, vertical = smallGap)
                 ) {
                     Text(
                         "ASSIGN TAILOR",
-                        fontSize = 13.sp,
+                        fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = TitleColor,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(tinyGap))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Text("ALT-882", fontSize = 12.sp, color = MutedLabel)
-                        Text(" / SO-450", fontSize = 12.sp, color = MutedLabel)
+                        Text("ALT-882", fontSize = tokens.caption, color = MutedLabel)
+                        Text(" / SO-450", fontSize = tokens.caption, color = MutedLabel)
                     }
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(sectionGap))
 
                     Text(
                         "Select Tailor",
-                        fontSize = 13.sp,
+                        fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = TitleColor
                     )
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(tinyGap))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
+                            .clip(adaptiveCorner)
+                            .border(1.dp, BorderColor, adaptiveCorner)
                             .clickable {  }
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                            .padding(horizontal = fieldGap, vertical = smallGap),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -797,29 +807,29 @@ fun CreateAlterationManagementScreen(
                                     .clip(CircleShape)
                                     .background(Color(0xFFE5E7EB))
                             )
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(smallGap))
                             Column {
                                 Text(
                                     "Alessandro Ricci",
-                                    fontSize = 14.sp,
+                                    fontSize = tokens.bodyMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = TitleColor
                                 )
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         "Workload: 2 Active Jobs  ",
-                                        fontSize = 11.sp,
+                                        fontSize = tokens.caption,
                                         color = MutedLabel
                                     )
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(10.dp))
                                             .background(Color(0xFFE7F8EE))
-                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            .padding(horizontal = smallGap, vertical = tinyGap * 0.6f)
                                     ) {
                                         Text(
                                             "Available",
-                                            fontSize = 10.sp,
+                                            fontSize = tokens.label,
                                             color = SuccessColor,
                                             fontWeight = FontWeight.Medium
                                         )
@@ -833,36 +843,36 @@ fun CreateAlterationManagementScreen(
                             tint = LabelColor
                         )
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     Text(
                         "Target Completion Date",
-                        fontSize = 13.sp,
+                        fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = TitleColor
                     )
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(tinyGap))
                     OutlinedTextField(
                         value = targetDate,
                         onValueChange = { targetDate = it },
-                        placeholder = { Text("MM/DD/YYYY", fontSize = 13.sp, color = MutedLabel) },
+                        placeholder = { Text("MM/DD/YYYY", fontSize = tokens.bodySmall, color = MutedLabel) },
                         trailingIcon = {
                             Icon(
                                 Icons.Default.CalendarMonth,
                                 contentDescription = null,
                                 tint = LabelColor,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(tokens.iconSize)
                             )
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = adaptiveCorner,
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = BorderColor,
                             focusedBorderColor = Accent
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -870,13 +880,13 @@ fun CreateAlterationManagementScreen(
                     ) {
                         Text(
                             "Tailor Weekly Capacity",
-                            fontSize = 13.sp,
+                            fontSize = tokens.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = Accent
                         )
-                        Text("65% Full", fontSize = 12.sp, color = LabelColor)
+                        Text("65% Full", fontSize = tokens.caption, color = LabelColor)
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(smallGap))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -892,69 +902,69 @@ fun CreateAlterationManagementScreen(
                                 .background(Accent)
                         )
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(smallGap))
                     Text(
                         "Ricci typically completes 8 alterations per week. Current queue: 5.",
-                        fontSize = 11.sp,
+                        fontSize = tokens.caption,
                         color = LabelColor
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(fieldGap))
 
                     Text(
                         "Instruction for Staff",
-                        fontSize = 13.sp,
+                        fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = TitleColor
                     )
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(tinyGap))
                     OutlinedTextField(
                         value = staffInstructions,
                         onValueChange = { staffInstructions = it },
                         placeholder = {
                             Text(
                                 "Add an optional note...",
-                                fontSize = 13.sp,
+                                fontSize = tokens.bodySmall,
                                 color = MutedLabel
                             )
                         },
                         minLines = 3,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = adaptiveCorner,
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = BorderColor,
                             focusedBorderColor = Accent
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(sectionGap * 1.5f))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(smallGap)
                     ) {
                         OutlinedButton(
                             onClick = { assignTailorSheetState = SheetValue.Hidden },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f).height(tokens.buttonHeight),
+                            shape = adaptiveCorner,
                             border = BorderStroke(1.dp, BorderColor),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = TitleColor)
                         ) {
-                            Text("Cancel", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Cancel", fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold)
                         }
                         Button(
                             onClick = { assignTailorSheetState = SheetValue.Hidden },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f).height(tokens.buttonHeight),
+                            shape = adaptiveCorner,
                             colors = ButtonDefaults.buttonColors(containerColor = Primary)
                         ) {
                             Text(
                                 "Assign Staff",
-                                fontSize = 15.sp,
+                                fontSize = tokens.bodyLarge,
                                 fontWeight = FontWeight.SemiBold,
                                 color = whiteBg
                             )
                         }
                     }
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(sectionGap))
                 }
             }
         }
@@ -966,6 +976,7 @@ fun CreateAlterationManagementScreen(
 // ─────────────────────────────────────────────
 @Composable
 private fun AlterationStepper() {
+    val tokens = LocalAppTokens.current
     val steps = listOf(
         Step("Requested", StepState.DONE),
         Step("Assigned", StepState.DONE),
@@ -1005,10 +1016,10 @@ private fun AlterationStepper() {
                         Spacer(Modifier.weight(1f))
                     }
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.3f))
                 Text(
                     step.label,
-                    fontSize = 11.sp,
+                    fontSize = tokens.label,
                     fontWeight = if (step.state == StepState.CURRENT) FontWeight.Bold else FontWeight.Medium,
                     color = when (step.state) {
                         StepState.DONE -> StepGreen
@@ -1024,6 +1035,7 @@ private fun AlterationStepper() {
 
 @Composable
 private fun StepCircle(index: Int, step: Step) {
+    val tokens = LocalAppTokens.current
     when (step.state) {
         StepState.DONE -> {
             Box(
@@ -1061,7 +1073,7 @@ private fun StepCircle(index: Int, step: Step) {
                     .background(StepGrayBg),
                 contentAlignment = Alignment.Center
             ) {
-                Text((index + 1).toString(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = StepGrayText)
+                Text((index + 1).toString(), fontSize = tokens.label, fontWeight = FontWeight.SemiBold, color = StepGrayText)
             }
         }
     }
@@ -1072,6 +1084,7 @@ private fun StepCircle(index: Int, step: Step) {
 // ─────────────────────────────────────────────
 @Composable
 private fun MeasurementTable() {
+    val tokens = LocalAppTokens.current
     val rows = listOf(
         Measurement("Chest", "42.0\"", "41.5\"", "-0.5\""),
         Measurement("Waist", "36.0\"", "35.2\"", "-0.8\""),
@@ -1080,30 +1093,30 @@ private fun MeasurementTable() {
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth()) {
-            Text("Point", fontSize = 12.sp, color = MutedLabel, modifier = Modifier.weight(1.4f))
-            Text("Original", fontSize = 12.sp, color = MutedLabel, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
-            Text("Altered", fontSize = 12.sp, color = MutedLabel, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
-            Text("Diff", fontSize = 12.sp, color = MutedLabel, modifier = Modifier.weight(0.8f), textAlign = TextAlign.End)
+            Text("Point", fontSize = tokens.caption, color = MutedLabel, modifier = Modifier.weight(1.4f))
+            Text("Original", fontSize = tokens.caption, color = MutedLabel, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+            Text("Altered", fontSize = tokens.caption, color = MutedLabel, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+            Text("Diff", fontSize = tokens.caption, color = MutedLabel, modifier = Modifier.weight(0.8f), textAlign = TextAlign.End)
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(tokens.screenPadding * 0.6f))
         HorizontalDivider(color = BorderColor)
 
         rows.forEach { row ->
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = tokens.screenPadding * 0.75f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(row.point, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TitleColor, modifier = Modifier.weight(1.4f))
-                Text(row.original, fontSize = 13.sp, color = TitleColor, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                Text(row.point, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TitleColor, modifier = Modifier.weight(1.4f))
+                Text(row.original, fontSize = tokens.bodySmall, color = TitleColor, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
                 Text(
                     row.altered,
-                    fontSize = 13.sp,
+                    fontSize = tokens.bodySmall,
                     fontWeight = if (row.alteredHighlighted) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (row.alteredHighlighted) Accent else TitleColor,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.End
                 )
-                Text(row.diff, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = PriorityRed, modifier = Modifier.weight(0.8f), textAlign = TextAlign.End)
+                Text(row.diff, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = PriorityRed, modifier = Modifier.weight(0.8f), textAlign = TextAlign.End)
             }
             HorizontalDivider(color = BorderColor)
         }
@@ -1115,21 +1128,22 @@ private fun MeasurementTable() {
 // ─────────────────────────────────────────────
 @Composable
 private fun PhotoPlaceholder(label: String, badgeColor: Color, modifier: Modifier = Modifier) {
+    val tokens = LocalAppTokens.current
     Box(
         modifier = modifier
             .height(120.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
             .background(SectionBg)
-            .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+            .border(1.dp, BorderColor, RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
     ) {
         Box(
             modifier = Modifier
-                .padding(8.dp)
-                .clip(RoundedCornerShape(6.dp))
+                .padding(tokens.screenPadding * 0.5f)
+                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
                 .background(badgeColor)
-                .padding(horizontal = 10.dp, vertical = 3.dp)
+                .padding(horizontal = tokens.screenPadding * 0.6f, vertical = tokens.screenPadding * 0.2f)
         ) {
-            Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
+            Text(label, fontSize = tokens.label, fontWeight = FontWeight.SemiBold, color = whiteBg)
         }
     }
 }

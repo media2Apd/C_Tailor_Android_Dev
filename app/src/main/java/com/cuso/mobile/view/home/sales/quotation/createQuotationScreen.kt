@@ -367,7 +367,8 @@ fun CreateQuotationScreen(
                     modifier = Modifier.size(22.dp).clickable { onClose() }
                 )
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
         Column(
             modifier = Modifier

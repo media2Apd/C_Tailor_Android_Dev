@@ -32,7 +32,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
@@ -49,7 +49,7 @@ import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.view.composable.rememberFilterDrawerState
 
-// ── Design tokens ──
+// ── Design tokens (screen-specific accent colors; sizing/spacing now comes from LocalAppTokens) ──
 private val ReportPrimary = Color(0xFF4F39F6)
 private val LostRed = Color(0xFFEF4444)
 private val ConvertedGreen = Color(0xFF16A34A)
@@ -80,6 +80,8 @@ fun SalesOrderReportsScreen(
     onClose: () -> Unit,
     onBreadCrumbClick: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
+
     var selectedReportType by remember { mutableStateOf("Sales Report") }
     var reportTypeSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var exportSheetState by remember { mutableStateOf(SheetValue.Hidden) }
@@ -88,7 +90,6 @@ fun SalesOrderReportsScreen(
     var reportTypeBlur by remember { mutableStateOf(0.dp) }
     var filterBlur by remember { mutableStateOf(0.dp) }
     var exportBlur by remember { mutableStateOf(0.dp) }
-    val backgroundBlur = maxOf(reportTypeBlur, filterBlur, exportBlur)
 
     var filterSections by remember {
         mutableStateOf(
@@ -176,292 +177,307 @@ fun SalesOrderReportsScreen(
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
             topBar = {
-
-                    Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
-                        Column {
-                            TitleBar("Sales & Order Reports", onClose= onClose)
-
-                        }
+                // ✅ TitleBar lives purely in Scaffold's topBar slot. Nothing that
+                // draws a scrim/blur is a sibling of this anymore, so it can
+                // never visually sit on top of it.
+                Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
+                    Column {
+                        TitleBar("Sales & Order Reports", onClose = onClose)
                     }
-                    HorizontalDivider(color = BorderColor)
-
+                }
+                HorizontalDivider(color = BorderColor)
             },
             contentWindowInsets = WindowInsets(0, 0, 0, 0)
         ) { innerPadding ->
 
-            // ── Background content area below TopBar with Blur ──
+            // ── Everything below the TitleBar (already offset via innerPadding) ──
+            // The bottom sheets are now nested INSIDE this Box instead of being
+            // siblings of Scaffold. Their scrim/blur is bounded to this Box's
+            // size, which excludes the TitleBar area entirely — so opening a
+            // sheet can never dim or blur the title.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .blurScrim(backgroundBlur)
             ) {
-                LazyColumn(
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Transparent),
-                    contentPadding = PaddingValues(bottom = 24.dp)
+                        .blurScrim(maxOf(reportTypeBlur, exportBlur, filterBlur))
                 ) {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(end = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(modifier = Modifier.weight(1f)) {
-                                ScreenBreadcrumb(
-                                    listOf("Reports", "Sales & Order Reports"),
-                                    onClick = { onBreadCrumbClick() }
-                                )
-                            }
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Transparent),
+                        contentPadding = PaddingValues(bottom = tokens.screenPadding * 1.5f)
+                    ) {
+                        item {
                             Row(
-                                modifier = Modifier
-                                    .clickable { exportSheetState = SheetValue.Collapsed }
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                modifier = Modifier.fillMaxWidth().padding(end = tokens.screenPadding),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    Icons.Default.FileUpload,
-                                    contentDescription = "Export",
-                                    tint = ReportPrimary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    "Export",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = ReportPrimary
-                                )
+                                Box(modifier = Modifier.weight(1f)) {
+                                    ScreenBreadcrumb(
+                                        listOf("Reports", "Sales & Order Reports"),
+                                        onClick = { onBreadCrumbClick() }
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .clickable { exportSheetState = SheetValue.Collapsed }
+                                        .padding(horizontal = tokens.screenPadding / 2, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.FileUpload,
+                                        contentDescription = "Export",
+                                        tint = ReportPrimary,
+                                        modifier = Modifier.size(tokens.iconSize)
+                                    )
+                                    Text(
+                                        "Export",
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = ReportPrimary
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    item {
-                        Column(Modifier.fillMaxWidth()) {
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-                                FormLabel("Report Type")
+                        item {
+                            Column(Modifier.fillMaxWidth()) {
+                                Row(Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding)) {
+                                    FormLabel("Report Type")
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = tokens.screenPadding, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(tokens.fieldHeight)
+                                                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius / 1.5f))
+                                                .border(
+                                                    1.dp,
+                                                    Color(0xFFE5E7EB),
+                                                    RoundedCornerShape(tokens.cardCornerRadius / 1.5f)
+                                                )
+                                                .clickable {
+                                                    reportTypeSheetState = SheetValue.Collapsed
+                                                }
+                                                .padding(horizontal = tokens.screenPadding * 0.85f),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                selectedReportType,
+                                                fontSize = tokens.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = TitleColor
+                                            )
+                                            Icon(
+                                                Icons.Default.KeyboardArrowDown,
+                                                null,
+                                                tint = MutedColor,
+                                                modifier = Modifier.size(tokens.iconSize)
+                                            )
+                                        }
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(tokens.fieldHeight)
+                                            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius / 1.5f))
+                                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius / 1.5f))
+                                            .clickable { filterDrawerState.open() },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.FilterList,
+                                            contentDescription = "Filter",
+                                            tint = TitleColor,
+                                            modifier = Modifier.size(tokens.iconSize)
+                                        )
+                                    }
+                                }
                             }
+                            Spacer(Modifier.height(14.dp))
+                        }
+
+                        item {
+                            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                stats.chunked(2).forEach { row ->
+                                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        row.forEach { stat ->
+                                            ReportStatCard(
+                                                stat,
+                                                Modifier.weight(1f)
+                                            )
+                                        }
+                                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(10.dp))
+                        }
+
+                        item {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    .background(whiteBg)
+                                    .padding(horizontal = tokens.screenPadding, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Performance Breakdown",
+                                    fontSize = tokens.bodyMedium,
+                                    fontWeight = FontWeight.Normal,
+                                    color = TitleColor
+                                )
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = "Search",
+                                    tint = MutedColor,
+                                    modifier = Modifier.size(tokens.iconSize)
+                                )
+                            }
+                            Spacer(Modifier.height(10.dp))
+                        }
+
+                        items(channels, key = { it.id }) { channel ->
+                            DataCard(
+                                item = channel,
+                                title = "${channel.name} • ${channel.subTitle}",
+                                titleFontWeight = FontWeight.SemiBold,
+                                trailingText = null,
+                                footerAsRows = true,
+                                footerFields = listOf(
+                                    DataCardField(
+                                        text = "${channel.negativeCount} $negativeSuffix",
+                                        textColor = LostRed,
+                                        asRow = true
+                                    ),
+                                    DataCardField(
+                                        text = "${channel.positiveCount} $positiveSuffix",
+                                        textColor = ConvertedGreen,
+                                        asRow = true
+                                    )
+                                ),
+                                actions = listOf(
+                                    MenuAction(
+                                        label = "View",
+                                        icon = Icons.Default.Visibility,
+                                        onClick = { }
+                                    ),
+                                    MenuAction(
+                                        label = "Export",
+                                        icon = Icons.Default.FileUpload,
+                                        onClick = { }
+                                    )
+                                ),
+                                content = {
                                     Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(46.dp)
-                                            .background(whiteBg, RoundedCornerShape(10.dp))
-                                            .border(
-                                                1.dp,
-                                                Color(0xFFE5E7EB),
-                                                RoundedCornerShape(10.dp)
-                                            )
-                                            .clickable {
-                                                reportTypeSheetState = SheetValue.Collapsed
-                                            }
-                                            .padding(horizontal = 14.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End
                                     ) {
                                         Text(
-                                            selectedReportType,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.SemiBold,
+                                            channel.trailingText,
+                                            fontSize = tokens.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
                                             color = TitleColor
                                         )
-                                        Icon(
-                                            Icons.Default.KeyboardArrowDown,
-                                            null,
-                                            tint = MutedColor,
-                                            modifier = Modifier.size(18.dp)
-                                        )
                                     }
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .size(46.dp)
-                                        .background(whiteBg, RoundedCornerShape(10.dp))
-                                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
-                                        .clickable { filterDrawerState.open() },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.FilterList,
-                                        contentDescription = "Filter",
-                                        tint = TitleColor,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(14.dp))
-                    }
-
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            stats.chunked(2).forEach { row ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    row.forEach { stat ->
-                                        ReportStatCard(
-                                            stat,
-                                            Modifier.weight(1f)
-                                        )
-                                    }
-                                    if (row.size == 1) Spacer(Modifier.weight(1f))
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(10.dp))
-                    }
-
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(whiteBg)
-                                .padding(horizontal = 20.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "Performance Breakdown",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Normal,
-                                color = TitleColor
-                            )
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = MutedColor,
-                                modifier = Modifier.size(18.dp)
                             )
                         }
-                        Spacer(Modifier.height(10.dp))
-                    }
-
-                    items(channels, key = { it.id }) { channel ->
-                        DataCard(
-                            item = channel,
-                            title = "${channel.name} • ${channel.subTitle}",
-                            titleFontWeight = FontWeight.SemiBold,
-                            trailingText = null,
-                            footerAsRows = true,
-                            footerFields = listOf(
-                                DataCardField(
-                                    text = "${channel.negativeCount} $negativeSuffix",
-                                    textColor = LostRed,
-                                    asRow = true
-                                ),
-                                DataCardField(
-                                    text = "${channel.positiveCount} $positiveSuffix",
-                                    textColor = ConvertedGreen,
-                                    asRow = true
-                                )
-                            ),
-                            actions = listOf(
-                                MenuAction(
-                                    label = "View",
-                                    icon = Icons.Default.Visibility,
-                                    onClick = { }
-                                ),
-                                MenuAction(
-                                    label = "Export",
-                                    icon = Icons.Default.FileUpload,
-                                    onClick = { }
-                                )
-                            ),
-                            content = {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End
-                                ) {
-                                    Text(
-                                        channel.trailingText,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TitleColor
-                                    )
-                                }
-                            }
-                        )
                     }
                 }
+
+                // ── Bottom sheets — nested inside the same padded/bounded Box ──
+                // topInset is 0 now: the TitleBar is structurally outside this
+                // Box already, so there's nothing left to manually inset for.
+                SmoothBottomSheet(
+                    state = reportTypeSheetState,
+                    onStateChange = { reportTypeSheetState = it },
+                    peekHeight = 480.dp,
+                    topInset = 0.dp,
+                    maxBlurRadius = 16.dp,
+                    maxScrimAlpha = 0.45f,
+                    scrollableContent = false,
+                    onBlurScrimChange = { blur, _ -> reportTypeBlur = blur },
+                    onDismissRequest = { reportTypeSheetState = SheetValue.Hidden }
+                ) {
+                    ReportTypeSelectorContent(
+                        selected = selectedReportType,
+                        onSelect = {
+                            selectedReportType = it
+                            reportTypeSheetState = SheetValue.Hidden
+                        }
+                    )
+                }
+
+                SmoothBottomSheet(
+                    state = exportSheetState,
+                    onStateChange = { exportSheetState = it },
+                    peekHeight = 340.dp,
+                    topInset = 0.dp,
+                    maxBlurRadius = 16.dp,
+                    maxScrimAlpha = 0.45f,
+                    scrollableContent = false,
+                    onBlurScrimChange = { blur, _ -> exportBlur = blur },
+                    onDismissRequest = { exportSheetState = SheetValue.Hidden }
+                ) {
+                    ExportReportSheetContent(onDismiss = { exportSheetState = SheetValue.Hidden })
+                }
+
+                // ✅ Moved inside the same padded/bounded Box as the sheets above,
+                // instead of being a sibling of Scaffold. Its scrim/blur is now
+                // bounded to this Box's size, which excludes the TitleBar —
+                // so opening the filter drawer can never dim or blur the title.
+                FilterDrawer(
+                    state = filterDrawerState,
+                    title = "Filter Report",
+                    sections = filterSections,
+                    onApply = { updated -> filterSections = updated },
+                    onClearAll = { },
+                    onBackgroundBlurChange = { blur -> filterBlur = blur }
+                )
             }
         }
-
-        // ── Smooth Bottom Sheet for Report Type (Stops below TitleBar with topInset = 60.dp) ──
-        SmoothBottomSheet(
-            state = reportTypeSheetState,
-            onStateChange = { reportTypeSheetState = it },
-            peekHeight = 480.dp,
-            topInset = 60.dp,
-            maxBlurRadius = 16.dp,
-            maxScrimAlpha = 0.45f,
-            scrollableContent = false,
-            onBlurScrimChange = { blur, _ -> reportTypeBlur = blur },
-            onDismissRequest = { reportTypeSheetState = SheetValue.Hidden }
-        ) {
-            ReportTypeSelectorContent(
-                selected = selectedReportType,
-                onSelect = {
-                    selectedReportType = it
-                    reportTypeSheetState = SheetValue.Hidden
-                }
-            )
-        }
-
-        // ── Smooth Bottom Sheet for Export (Stops below TitleBar with topInset = 60.dp) ──
-        SmoothBottomSheet(
-            state = exportSheetState,
-            onStateChange = { exportSheetState = it },
-            peekHeight = 340.dp,
-            topInset = 60.dp,
-            maxBlurRadius = 16.dp,
-            maxScrimAlpha = 0.45f,
-            scrollableContent = false,
-            onBlurScrimChange = { blur, _ -> exportBlur = blur },
-            onDismissRequest = { exportSheetState = SheetValue.Hidden }
-        ) {
-            ExportReportSheetContent(onDismiss = { exportSheetState = SheetValue.Hidden })
-        }
     }
-
-    FilterDrawer(
-        state = filterDrawerState,
-        title = "Filter Report",
-        sections = filterSections,
-        onApply = { updated -> filterSections = updated },
-        onClearAll = { },
-        onBackgroundBlurChange = { blur -> filterBlur = blur }
-    )
 }
 
 @Composable
 private fun ReportStatCard(stat: ReportStat, modifier: Modifier = Modifier) {
+    val tokens = LocalAppTokens.current
     Column(
         modifier = modifier
             .background(whiteBg)
-            .padding(14.dp)
+            .padding(tokens.screenPadding * 0.85f)
     ) {
-        Text(stat.label, fontSize = 11.sp, color = MutedColor, fontWeight = FontWeight.Medium)
+        Text(stat.label, fontSize = tokens.caption, color = MutedColor, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(8.dp))
-        Text(stat.value, fontSize = 12.sp, color = TitleColor, fontWeight = FontWeight.Bold)
+        Text(stat.value, fontSize = tokens.bodySmall, color = TitleColor, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 if (stat.trendUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
                 contentDescription = null,
                 tint = if (stat.trendUp) ConvertedGreen else LostRed,
-                modifier = Modifier.size(12.dp)
+                modifier = Modifier.size(tokens.iconSize * 0.65f)
             )
             Spacer(Modifier.width(2.dp))
             Text(
                 stat.trendText,
-                fontSize = 11.sp,
+                fontSize = tokens.caption,
                 fontWeight = FontWeight.SemiBold,
                 color = if (stat.trendUp) ConvertedGreen else LostRed
             )
@@ -474,6 +490,7 @@ private fun ReportTypeSelectorContent(
     selected: String,
     onSelect: (String) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     val recent = listOf("Sales Report", "Order Reports", "Customer Report")
     val favorites = listOf("Sales Report", "Order Reports", "Inventory Report")
     val all = listOf("Sales Report", "Order Reports", "Inventory Report", "Purchase Report", "Customer Report", "Delivery Report")
@@ -484,29 +501,29 @@ private fun ReportTypeSelectorContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = tokens.screenPadding)
     ) {
-        Text("Report Type", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TitleColor)
+        Text("Report Type", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = TitleColor)
         Spacer(Modifier.height(12.dp))
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(44.dp)
-                .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp))
-                .padding(horizontal = 12.dp),
+                .height(tokens.fieldHeight)
+                .background(Color(0xFFF3F4F6), RoundedCornerShape(tokens.cardCornerRadius / 1.5f))
+                .padding(horizontal = tokens.screenPadding * 0.75f),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.Search, null, tint = MutedColor, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.Search, null, tint = MutedColor, modifier = Modifier.size(tokens.iconSize))
             Spacer(Modifier.width(8.dp))
             BasicTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                textStyle = TextStyle(fontSize = 14.sp, color = TitleColor),
+                textStyle = TextStyle(fontSize = tokens.bodyMedium, color = TitleColor),
                 decorationBox = { inner ->
-                    if (searchQuery.isEmpty()) Text("Search reports...", fontSize = 14.sp, color = MutedColor)
+                    if (searchQuery.isEmpty()) Text("Search reports...", fontSize = tokens.bodyMedium, color = MutedColor)
                     inner()
                 }
             )
@@ -514,7 +531,7 @@ private fun ReportTypeSelectorContent(
 
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             Spacer(Modifier.height(16.dp))
-            Text("RECENT REPORTS", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedColor)
+            Text("RECENT REPORTS", fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = MutedColor)
             Spacer(Modifier.height(4.dp))
             recent.filter { it.contains(searchQuery, ignoreCase = true) }.forEach { label ->
                 Row(
@@ -524,16 +541,16 @@ private fun ReportTypeSelectorContent(
                         .padding(vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.History, null, tint = MutedColor, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.History, null, tint = MutedColor, modifier = Modifier.size(tokens.iconSize * 0.9f))
                     Spacer(Modifier.width(10.dp))
-                    Text(label, fontSize = 14.sp, color = TitleColor)
+                    Text(label, fontSize = tokens.bodyMedium, color = TitleColor)
                 }
             }
 
             Spacer(Modifier.height(8.dp))
             HorizontalDivider(color = BorderColor)
             Spacer(Modifier.height(12.dp))
-            Text("⭐ FAVORITE REPORTS", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedColor)
+            Text("⭐ FAVORITE REPORTS", fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = MutedColor)
             Spacer(Modifier.height(4.dp))
             favorites.filter { it.contains(searchQuery, ignoreCase = true) }.forEach { label ->
                 ReportTypeRow(
@@ -550,7 +567,7 @@ private fun ReportTypeSelectorContent(
             Spacer(Modifier.height(8.dp))
             HorizontalDivider(color = BorderColor)
             Spacer(Modifier.height(12.dp))
-            Text("ALL REPORTS", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MutedColor)
+            Text("ALL REPORTS", fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = MutedColor)
             Spacer(Modifier.height(4.dp))
             all.filter { it.contains(searchQuery, ignoreCase = true) }.forEach { label ->
                 ReportTypeRow(
@@ -576,6 +593,7 @@ private fun ReportTypeRow(
     onClick: () -> Unit,
     onFavoriteToggle: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -586,12 +604,12 @@ private fun ReportTypeRow(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (isSelected) {
-                Icon(Icons.Default.Check, null, tint = ReportPrimary, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Check, null, tint = ReportPrimary, modifier = Modifier.size(tokens.iconSize * 0.9f))
                 Spacer(Modifier.width(8.dp))
             }
             Text(
                 label,
-                fontSize = 14.sp,
+                fontSize = tokens.bodyMedium,
                 color = if (isSelected) ReportPrimary else TitleColor,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
             )
@@ -601,7 +619,7 @@ private fun ReportTypeRow(
             contentDescription = "Favorite",
             tint = if (isFavorite) Color(0xFFF59E0B) else Color(0xFFD1D5DB),
             modifier = Modifier
-                .size(18.dp)
+                .size(tokens.iconSize)
                 .clickable(onClick = onFavoriteToggle)
         )
     }
@@ -609,9 +627,10 @@ private fun ReportTypeRow(
 
 @Composable
 private fun ExportReportSheetContent(onDismiss: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-        Text("Export Report", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TitleColor)
-        Text("Choose an export option", fontSize = 12.sp, color = MutedColor)
+    val tokens = LocalAppTokens.current
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding)) {
+        Text("Export Report", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = TitleColor)
+        Text("Choose an export option", fontSize = tokens.caption, color = MutedColor)
         Spacer(Modifier.height(12.dp))
 
         ExportOptionRow(Icons.Default.PictureAsPdf, Color(0xFFEF4444), "Export as PDF") { onDismiss() }
@@ -622,10 +641,10 @@ private fun ExportReportSheetContent(onDismiss: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         OutlinedButton(
             onClick = onDismiss,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape = RoundedCornerShape(10.dp)
+            modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight),
+            shape = RoundedCornerShape(tokens.cardCornerRadius / 1.5f)
         ) {
-            Text("Cancel", color = TitleColor, fontWeight = FontWeight.Medium)
+            Text("Cancel", fontSize = tokens.bodyMedium, color = TitleColor, fontWeight = FontWeight.Medium)
         }
         Spacer(Modifier.height(20.dp))
     }
@@ -633,6 +652,7 @@ private fun ExportReportSheetContent(onDismiss: () -> Unit) {
 
 @Composable
 private fun ExportOptionRow(icon: ImageVector, iconColor: Color, label: String, onClick: () -> Unit) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -644,16 +664,16 @@ private fun ExportOptionRow(icon: ImageVector, iconColor: Color, label: String, 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .size(tokens.fieldHeight * 0.8f)
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius / 1.5f))
                     .background(iconColor.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp))
+                Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(tokens.iconSize))
             }
             Spacer(Modifier.width(12.dp))
-            Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleColor)
+            Text(label, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TitleColor)
         }
-        Icon(Icons.Default.ChevronRight, null, tint = MutedColor, modifier = Modifier.size(18.dp))
+        Icon(Icons.Default.ChevronRight, null, tint = MutedColor, modifier = Modifier.size(tokens.iconSize))
     }
 }

@@ -44,7 +44,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -97,6 +96,7 @@ import com.cuso.mobile.model.sales.toLeadEntity
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.close_color
@@ -950,10 +950,11 @@ fun CreateLeadScreen(
                                         .height(100.dp),
                                     shape = RoundedCornerShape(8.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        unfocusedBorderColor = Color(0xFFE5E7EB),
+                                        unfocusedBorderColor = PrimaryBorder,
                                         focusedBorderColor = LeadPrimary,
                                         unfocusedContainerColor = whiteBg,
-                                        focusedContainerColor = whiteBg
+                                        focusedContainerColor = whiteBg,
+                                        focusedTextColor = blackTitle
                                     )
                                 )
                                 Spacer(Modifier.height(14.dp))
@@ -1367,7 +1368,7 @@ fun LeadScreenContent(
                                             val (badgeText, badgeColor) = resolveStatusBadge(lead)
                                             DataCard(
                                                 item = lead,
-                                                dateText = "Order ID: ${lead.convertedOrderId}",   // or lead.leadNumber if you have one
+                                                dateText = "Order ID: order id not found",   // or lead.leadNumber if you have one
                                                 showDateIcon = false,
 
                                                 topBadgeText = badgeText,

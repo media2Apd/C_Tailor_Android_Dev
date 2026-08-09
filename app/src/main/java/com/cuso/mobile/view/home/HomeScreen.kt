@@ -453,1026 +453,1038 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         CompositionLocalProvider(LocalAppTokens provides tokens) {
 
 
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = Primary_background,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
-                TopBar(
-                    onProfileClick = {
-                        navigateTo("profile-settings")
-                    }
-                )
-            },
-            bottomBar = {
-                BottomBar(
-                    navController = navController,
-                    isSettingsOpen = showHomePanel || showSalesPanel,
-                    currentScreen = currentScreen,
-                    isDrawerOpen = isDrawerOpen,
-                    onDrawerToggle = { isDrawerOpen = !isDrawerOpen },
-                    onDrawerClose = { isDrawerOpen = false },
-                    onSettingsClick = {
-                        if (
-                            currentScreen == "sales_lead" ||
-                            currentScreen == "create_lead" ||
-                            currentScreen == "view_lead" ||
-                            currentScreen == "edit_lead"
-                        ) {
-                            isSalesSettingsMode = true
-                            navigateTo("sales_settings")
-                        } else {
-                            if (showHomePanel || showSalesPanel) {
-                                isSalesSettingsMode = false
-                                resetToHome()
-                            } else {
-                                navigateTo("settings")
-                            }
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                containerColor = Primary_background,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                topBar = {
+                    TopBar(
+                        onProfileClick = {
+                            navigateTo("profile-settings")
                         }
-                    },
-                    onMenuItemClick = { route ->
-                        when (route) {
-                            "home_organization_profile" -> {
-                                navigateTo("home_organization_profile")
-                                isDrawerOpen = false
-                            }
-
-                            "home_branch_management" -> {
-                                navigateTo("home_branch_management")
-                                isDrawerOpen = false
-                            }
-
-                            "home_department_teams" -> {
-                                navigateTo("home_department_teams")
-                                isDrawerOpen = false
-                            }
-
-                            "home_designation" -> {
-                                navigateTo("home_designation")
-                                isDrawerOpen = false
-                            }
-
-                            "sales_lead" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("sales_lead")
-                                isDrawerOpen = false
-                            }
-
-                            "sales_customers" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("sales_customers")
-                                isDrawerOpen = false
-                            }
-
-                            "finance_expenses" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("finance_expenses")
-                                isDrawerOpen = false
-                            }
-
-                            "sales_measurements" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("sales_measurements")
-                                isDrawerOpen = false
-                            }
-
-                            "sales_sales_orders", "sales_sales_&_orders" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("sales_sales_orders")
-                                isDrawerOpen = false
-                            }
-
-                            "sales_orders" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("sales_orders")
-                                isDrawerOpen = false
-                            }
-
-                            "sales_garment_type" -> {
-                                navigateTo("sales_garment_type")
-                                isDrawerOpen = false
-                            }
-
-                            "sales_pricing_quotation", "sales_pricing_and_quotations",
-                            "sales_pricing_&_quotations" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("sales_pricing_quotation")
-                                isDrawerOpen = false
-                            }
-
-                            "finance_journal_entry", "finance_journal_entries" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("finance_journal_screen")
-                                isDrawerOpen = false
-                            }
-
-                            "finance_chart_of_accounts" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("finance_chart_of_accounts")
-                                isDrawerOpen = false
-                            }
-
-                            "finance_sales_invoices", "finance_accounts_receivable" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("finance_sales_invoices")
-                                isDrawerOpen = false
-                            }
-
-                            "home" -> {
-                                isSalesSettingsMode = false
-                                resetToHome()
-                                isDrawerOpen = false
-                            }
-
-                            "settings" -> {
-                                navigateTo("settings")
-                                isDrawerOpen = false
-                            }
-
-                            "finance_trial_balance" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("finance_trial_balance")
-                                isDrawerOpen = false
-                            }
-
-                            "inventory_items", "inventory_all_items" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("inventory_items")
-                                isDrawerOpen = false
-                            }
-
-                            "inventory_item_groups" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("inventory_item_groups")
-                                isDrawerOpen = false
-                            }
-
-                            "inventory_orders", "inventory_procurement_orders" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("inventory_low_stock_alerts")
-                                isDrawerOpen = false
-                            }
-
-                            "hr_all_employees" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("hr_all_employees")
-                                isDrawerOpen = false
-                            }
-
-                            "logistics_delivery" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("logistics_delivery")
-                                isDrawerOpen = false
-                            }
-
-                            "reports_sales_reports", "reports_finance_reports" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("reports_sales_reports")
-                                isDrawerOpen = false
-                            }
-
-                            "reports" -> {
-                                isSalesSettingsMode = false
-                                navigateTo("reports_sales_reports")
-                                isDrawerOpen = false
-                            }
-
-                            else -> {
-                                Log.d("NAV_DEBUG", "Unhandled route: $route")
-                                try {
-                                    navController.navigate(route)
-                                } catch (_: Exception) {
-                                    if (route.startsWith("sales_")) {
-                                        navigateTo(route)
-                                    }
-                                }
-                                isDrawerOpen = false
-                            }
-                        }
-                    },
-                    onModulesClick = {
-                        modulesPanelInitialExpanded = menuForScreen(currentScreen)
-                        showModulesPanel = true
-                    },
-                    onLogout = {
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    },
-                    showHomePanel = showHomePanel,
-                    showSalesPanel = showSalesPanel,
-                    isSalesSettingsMode = isSalesSettingsMode,
-                    onBlurScrimChange = { radius, _ -> sidebarBlur = radius }
-                )
-            }
-
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Transparent)
-                    .padding(innerPadding)
-                    .blurScrim(sidebarBlur)   //   UPDATED: blurBehindSheet -> blurScrim
-            ) {
-                AnimatedContent(
-                    targetState = currentScreen,
-                    modifier = Modifier.fillMaxSize(),
-                    transitionSpec = {
-                        if (isForwardNavigation) {
-                            (slideInHorizontally(
-                                animationSpec = tween(300),
-                                initialOffsetX = { fullWidth -> fullWidth }
-                            ) + fadeIn(tween(300))) togetherWith
-                                    (slideOutHorizontally(
-                                        animationSpec = tween(300),
-                                        targetOffsetX = { fullWidth -> -fullWidth / 4 }
-                                    ) + fadeOut(tween(300)))
-                        } else {
-                            (slideInHorizontally(
-                                animationSpec = tween(300),
-                                initialOffsetX = { fullWidth -> -fullWidth / 4 }
-                            ) + fadeIn(tween(300))) togetherWith
-                                    (slideOutHorizontally(
-                                        animationSpec = tween(300),
-                                        targetOffsetX = { fullWidth -> fullWidth }
-                                    ) + fadeOut(tween(300)))
-                        }
-                    },
-                    label = "screen_transition"
-                ) { screen ->
-                    when (screen) {
-                        "settings" -> SettingsScreen(
-                            navController = navController,
-                            onMenuClick = { isDrawerOpen = true },
-                            onBack = { goBack() }
-                        )
-
-                        "home_organization_profile" -> SettingsScreen(
-                            navController = navController,
-                            onMenuClick = { isDrawerOpen = true },
-                            onBack = { goBack() }
-
-                        )
-
-                        "home_branch_management" -> BranchSettingsScreen(
-                            navController = navController,
-                            onMenuClick = { isDrawerOpen = true },
-                            onBack = { goBack() }
-                        )
-
-                        "home_department_teams" -> DepartmentSettingsScreen(
-                            navController = navController,
-                            onMenuClick = { isDrawerOpen = true },
-                            onBack = { goBack() }
-                        )
-
-                        "home_designation" -> DesignationScreen(
-                            navController = navController,
-                            onMenuClick = { isDrawerOpen = true },
-                            onBack = { goBack() }
-                        )
-
-                        "sales_settings" -> SalesSettingsScreen(
-                            navController = navController,
-                            onClose = {
-                                isSalesSettingsMode = false
-                                goBack()
-                            },
-                            onMenuClick = { isDrawerOpen = true }
-                        )
-
-                        "sales_garment_type" -> GarmentTypeContent(
-                            onClose = {
+                    )
+                },
+                bottomBar = {
+                    BottomBar(
+                        navController = navController,
+                        isSettingsOpen = showHomePanel || showSalesPanel,
+                        currentScreen = currentScreen,
+                        isDrawerOpen = isDrawerOpen,
+                        onDrawerToggle = { isDrawerOpen = !isDrawerOpen },
+                        onDrawerClose = { isDrawerOpen = false },
+                        onSettingsClick = {
+                            if (
+                                currentScreen == "sales_lead" ||
+                                currentScreen == "create_lead" ||
+                                currentScreen == "view_lead" ||
+                                currentScreen == "edit_lead"
+                            ) {
                                 isSalesSettingsMode = true
-                                goBack()
-                            },
-                            onMenuClick = { isDrawerOpen = true }
-                        )
-
-                        "home" -> HomeScreenContent(
-                            navController = navController,
-                            widthSizeClass = widthSizeClass,
-                            onNavigate = { route ->
-                                when (route) {
-                                    "sales_lead" -> {
-                                        isSalesSettingsMode = false
-                                        navigateTo("sales_lead")
-                                    }
-
-                                    "sales_customers" -> {
-                                        isSalesSettingsMode = false
-                                        navigateTo("sales_customers")
-                                    }
-
-                                    "sales_sales_orders" -> {
-                                        isSalesSettingsMode = false
-                                        navigateTo("sales_sales_orders")
-                                    }
-
-                                    "sales_measurements" -> {
-                                        isSalesSettingsMode = false
-                                        navigateTo("sales_measurements")
-                                    }
-
-                                    "sales_pricing_quotation",
-                                    "sales_pricing_and_quotations",
-                                    "sales_pricing_&_quotations" -> {
-                                        isSalesSettingsMode = false
-                                        navigateTo("sales_pricing_quotation")
-                                    }
-
-                                    "services_customer_feedback", "customer_feedback" -> {
-                                        isSalesSettingsMode = false
-                                        navigateTo("services_customer_feedback")
-                                        isDrawerOpen = false
-                                    }
-
-                                    else -> {
-                                        Log.d("NAV_DEBUG", "Unhandled home navigation: $route")
-                                    }
-                                }
-                            }
-                        )
-
-                        "sales_lead" -> LeadScreenContent(
-                            onCreateLead = { navigateTo("create_lead") },
-                            onViewLead = { navigateTo("view_lead") },
-                            onEditLead = { navigateTo("edit_lead") },
-                            onClose = {
-                                isSalesSettingsMode = false
-                                goBack()
-                            },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Sales"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "create_lead" -> CreateLeadScreen(
-                            onBack = { goBack() }
-                        )
-
-                        "view_lead" -> ViewLeadScreen(
-                            onBack = { goBack() },
-                            onEditLead = { navigateTo("edit_lead") }
-                        )
-
-                        "edit_lead" -> EditLeadScreen(
-                            onBack = { goBack() }
-                        )
-
-                        "sales_sales_orders" -> SalesOrderScreen(
-                            navController = navController,
-                            onMenuClick = { isDrawerOpen = true },
-                            onBack = { goBack() },
-                            onCreateOrder = {
-                                pendingOrderReviewData = null
-                                navigateTo("create_order")
-                            },
-                            onViewOrder = { orderId ->
-                                selectedOrderId = orderId
-                                navigateTo("order_overview")
-                            },
-                            onEditOrder = { orderId ->
-                                editOrderId = orderId
-                            },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Sales"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "create_order" -> {
-                            CreateOrderScreen(
-                                initialData = pendingOrderReviewData,
-                                onBack = {
-                                    pendingOrderReviewData = null
-                                    goBack()
-                                },
-                                onCancel = {
-                                    pendingOrderReviewData = null
-                                    goBack()
-                                },
-                                onNextStep = { orderReviewData ->
-                                    pendingOrderReviewData = orderReviewData
-                                    navigateTo("create_order_review")
-                                }
-                            )
-                        }
-
-                        "order_overview" -> {
-                            selectedOrderId?.let { id ->
-                                OrderOverviewScreen(
-                                    orderId = id,
-                                    onClose = {
-                                        selectedOrderId = null
-                                        goBack()
-                                    },
-                                    onEditOrder = { reviewData ->
-                                        pendingOrderReviewData = reviewData
-                                        navigateTo("create_order")
-                                    },
-                                    onCreateNew = {
-                                        pendingOrderReviewData = null
-                                        navigateTo("create_order")
-                                    }
-                                )
-                            } ?: run { goBack() }
-                        }
-
-                        "sales_orders" -> OrderManagementScreen(
-                            navController = navController,
-                            onMenuClick = { isDrawerOpen = true },
-                            onBack = { goBack() },
-                            onViewOrder = { orderId ->
-                                selectedManagementOrderId = orderId
-                                navigateTo("order_management_overview")
-                            },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Sales"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "order_management_overview" -> {
-                            selectedManagementOrderId?.let { id ->
-                                OrderDetailScreen(
-                                    orderId = id,
-                                    onClose = {
-                                        selectedManagementOrderId = null
-                                        goBack()
-                                    },
-                                    onEditOrder = {
-                                        editOrderId = id
-                                    }
-                                )
-                            } ?: run { goBack() }
-                        }
-
-                        "finance_trial_balance" -> TrialBalanceScreen(
-                            onClose = { goBack() },
-                            onAccountClick = { accountId, accountName ->
-                                selectedLedgerAccountId = accountId
-                                selectedLedgerAccountName = accountName
-                                navigateTo("finance_ledger")
-                            },
-                            onBreadcrumbClick = {
-                                modulesPanelInitialExpanded = "Finance"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "finance_ledger" -> {
-                            selectedLedgerAccountId?.let { id ->
-                                LedgerScreen(
-                                    accountId = id,
-                                    accountName = selectedLedgerAccountName,
-                                    onClose = {
-                                        selectedLedgerAccountId = null
-                                        goBack()
-                                    },
-                                    onBreadcrumbClick = {
-                                        modulesPanelInitialExpanded = "Finance"
-                                        showModulesPanel = true
-                                    }
-                                )
-                            } ?: run { goBack() }
-                        }
-
-                        "finance_chart_of_accounts" -> ChartOfAccountScreen(
-                            onClose = { goBack() },
-                            onBreadcrumbClick = {
-                                modulesPanelInitialExpanded = "Finance"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "finance_suppliers" -> AllSuppliersScreen(
-                            onClose = { goBack() },
-                            onBreadcrumbClick = {
-                                modulesPanelInitialExpanded = "Finance"
-                                showModulesPanel = true
-                            },
-                            onSupplierClick = { supplier ->
-                                selectedSupplier = supplier
-                                navigateTo("finance_supplier_detail")
-                            }
-                        )
-
-                        "finance_supplier_detail" -> {
-                            selectedSupplier?.let { supplier ->
-                                SupplierDetailScreen(
-                                    supplier = supplier,
-                                    onClose = {
-                                        selectedSupplier = null
-                                        goBack()
-                                    },
-                                    onBreadcrumbClick = {
-                                        modulesPanelInitialExpanded = "Finance"
-                                        showModulesPanel = true
-                                    }
-                                )
-                            } ?: run { goBack() }
-                        }
-
-                        "inventory_items" -> InventoryScreen(
-                            onClose = { goBack() },
-                            onAddItem = { navigateTo("inventory_create_item") },
-                            onViewItem = { item ->
-                                selectedInventoryItemId = item._id
-                                navigateTo("inventory_item_detail")
-                            },
-                            onEditItem = { navigateTo("inventory_create_item") },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Inventory"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "inventory_low_stock_alerts" -> LowStockAlertsScreen(
-                            onClose = { goBack() },
-                            onReorderClick = { item ->
-                                selectedLowStockItem = item
-                                navigateTo("inventory_create_purchase_order")
-                            },
-                            onCreateNewItem = { navigateTo("inventory_create_purchase_order") },
-                            onBreadcrumbClick = {
-                                modulesPanelInitialExpanded = "Inventory"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "inventory_create_purchase_order" -> {
-                            CreatePurchaseOrderScreen(
-                                onClose = {
-                                    selectedLowStockItem = null
-                                    goBack()
-                                },
-                                onCancel = {
-                                    selectedLowStockItem = null
-                                    goBack()
-                                },
-                                onCreateOrder = {
-                                    selectedLowStockItem = null
-                                    goBack()
-                                    goBack()
-                                }
-                            )
-                        }
-
-                        "hr_all_employees" -> AllEmployeesScreen(
-                            onDismiss = { goBack() },
-                            onAddEmployee = {
-                                employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.CREATE
-                                selectedEmployeeId = null
-                                navigateTo("hr_employee_onboarding")
-                            },
-                            onView = { employee ->
-                                employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.VIEW
-                                selectedEmployeeId = employee._id
-                                navigateTo("hr_employee_onboarding")
-                            },
-                            onEdit = { employee ->
-                                employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.EDIT
-                                selectedEmployeeId = employee._id
-                                navigateTo("hr_employee_onboarding")
-                            },
-                            onDelete = { employee ->
-                            },
-                            hrViewModel = hrViewModel,
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "HR"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "logistics_order_tracking" -> OrderTrackingScreen(
-                            onClose = { goBack() },
-                            onViewOrder = { order ->
-                                selectedOrderId = order.id
-                                navigateTo("tracking_overview")
-                            },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Logistics"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "tracking_overview" -> TrackingOverviewScreen(
-                            onClose = { goBack() }
-                        )
-
-                        "hr_employee_onboarding" -> EmployeeOnboardingScreen(
-                            mode = employeeScreenMode,
-                            memberIdToLoad = selectedEmployeeId,
-                            onDismiss = {
-                                selectedEmployeeId = null
-                                goBack()
-                            },
-                            onCreateEmployee = {
-                                selectedEmployeeId = null
-                                goBack()
-                            },
-                            onUpdateEmployee = {
-                                selectedEmployeeId = null
-                                goBack()
-                            },
-                            hrViewModel = hrViewModel
-                        )
-
-                        "inventory_create_item" -> CreateItemScreen(
-                            onDismiss = { goBack() },
-                            onItemCreated = { goBack() }
-                        )
-
-                        "inventory_item_detail" -> {
-                            selectedInventoryItemId?.let { id ->
-                                val itemDetailViewModel: com.cuso.mobile.viewmodel.InventoryViewModel =
-                                    hiltViewModel()
-                                val selectedItem by itemDetailViewModel.selectedItem.collectAsStateWithLifecycle()
-                                val isLoadingDetail by itemDetailViewModel.isLoadingItemDetail.collectAsStateWithLifecycle()
-                                val detailError by itemDetailViewModel.itemDetailError.collectAsStateWithLifecycle()
-
-                                LaunchedEffect(id) {
-                                    itemDetailViewModel.fetchInventoryItemDetail(id)
-                                }
-
-                                InventoryViewOne(
-                                    item = selectedItem,
-                                    isLoading = isLoadingDetail,
-                                    errorMessage = detailError,
-                                    onDismiss = {
-                                        selectedInventoryItemId = null
-                                        goBack()
-                                    },
-                                    onAdjustStock = { },
-                                    onAdjustStockSubmit = { type, quantity, reason, notes ->
-                                        val apiType = when (type) {
-                                            AdjustmentType.INCREASE -> "increase"
-                                            AdjustmentType.DECREASE -> "decrease"
-                                            AdjustmentType.SET_EXACT -> "set"
-                                        }
-                                        itemDetailViewModel.adjustStock(
-                                            itemId = id,
-                                            adjustmentType = apiType,
-                                            quantity = quantity,
-                                            reason = reason,
-                                            notes = notes
-                                        )
-                                    },
-                                    onWarehouseTransfer = { },
-                                    onReorderStock = { },
-                                    onMarkInactive = { },
-                                    onEdit = { },
-                                    onShare = { }
-                                )
-                            } ?: run { goBack() }
-                        }
-
-                        "services_customer_feedback" -> CustomerFeedbackScreen(
-                            onDismiss = { goBack() },
-                            onView = { feedbackId ->
-                                selectedFeedbackId = feedbackId
-                                navigateTo("feedback_detail")
-                            },
-                            onEdit = { feedbackId -> },
-                            onDelete = { feedbackId -> },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Services"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "services_alteration_management" -> AlterationManagementScreen(
-                            onClose = { goBack() },
-                            onCreateNewAlteration = { navigateTo("create_alteration") },
-                            onBreadcrumbClick = {
-                                modulesPanelInitialExpanded = "Services"
-                                showModulesPanel = true
-                            },
-                            onViewClick = {}
-                        )
-
-                        "create_alteration" -> CreateAlterationManagementScreen(
-                            onClose = { goBack() },
-                        )
-
-                        "services_service_request" -> ServiceRequestScreen(
-                            onClose = {},
-                            onBreadcrumbClick = {},
-                            onCreateNewRequest = { navigateTo("create_request") },
-                            onViewClick = { navigateTo("review_services") }
-                        )
-
-                        "create_request" -> CreateServiceRequest()
-
-                        "review_services" -> ServiceOrderDetailsScreen(
-                            service = ServiceDetails(
-                                serviceRef = "SR-1045",
-                                reviewStatus = "Pending Review",
-                                service = "Bespoke Alteration",
-                                requestDate = "Oct 24, 2025",
-                                priority = "High",
-                                serviceCategory = "Suit Fitting & Adjustments",
-                                preferredCompletionDate = "Nov 15, 2023",
-                                serviceType = "Internal Production Refit",
-                                customerName = "Jonathan Sterling",
-                                phoneNumber = "+1 (555) 123-4567",
-                                emailAddress = "j.sterling@executive.com",
-                                shippingAddress = "452 Premium Way, Floor 12\nManhattan, NY 10001"
-                            ),
-                            order = OrderDetails(
-                                orderId = "#ORD-8829-23",
-                                status = "Completed",
-                                garmentItem = "Custom Charcoal 3-Piece Wool Suit",
-                                orderDate = "Sep 12, 2023",
-                                deliveryDate = "Oct 15, 2023",
-                                issueDescription = "The sleeves are approximately 2 inches too long...",
-                                internalNotes = "Check fabric elasticity before cutting...",
-                                attachmentCount = 3
-                            ),
-                            onBack = { goBack() },
-                            onViewFullOrderHistory = { navigateTo("order_history") }
-                        )
-
-                        "feedback_detail" -> FeedbackDetailScreen(
-                            onDismiss = {
-                                selectedFeedbackId = null
-                                goBack()
-                            }
-                        )
-
-                        "sales_pricing_quotation" -> QuotationScreen(
-                            onClose = { isSalesSettingsMode = false; goBack() },
-                            onAddNe = {
-                                editingPricingId = null
-                                quotationScreenMode = "create"
-                                navigateTo("create_quotation")
-                            },
-                            onView = { id ->
-                                editingPricingId = id
-                                quotationScreenMode = "view"
-                                navigateTo("create_quotation")
-                            },
-                            onEdit = { id ->
-                                editingPricingId = id
-                                quotationScreenMode = "edit"
-                                navigateTo("create_quotation")
-                            },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Sales"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "create_quotation" -> CreateQuotationScreen(
-                            quotationId = editingPricingId,
-                            mode = quotationScreenMode,
-                            onClose = { goBack() },
-                            onSave = { goBack() },
-                            token = token
-                        )
-
-                        "inventory_item_groups" -> AllItemGroupScreen(
-                            onDismiss = { goBack() },
-                            onAddItemGroup = { navigateTo("inventory_create_item_group") },
-                            onView = { groupId ->
-                                selectedItemGroupId = groupId
-                            },
-                            onEdit = { groupId ->
-                                selectedItemGroupId = groupId
-                                navigateTo("inventory_create_item_group")
-                            },
-                            onDelete = { groupId -> },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Inventory"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "inventory_create_item_group" -> CreateItemGroupScreen(
-                            onDismiss = {
-                                selectedItemGroupId = null
-                                goBack()
-                            },
-                            onSave = {
-                                selectedItemGroupId = null
-                                goBack()
-                            }
-                        )
-
-                        "sales_pricing_overview" -> PricingScreen(
-                            onClose = { isSalesSettingsMode = false; goBack() },
-                            onAddNewPricing = {
-                                editingPricingId = null; navigateTo("create_garment_pricing")
-                            },
-                            onCardClick = { pricingId ->
-                                editingPricingId = pricingId; navigateTo("create_garment_pricing")
-                            },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Sales"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
-                            onBack = { goBack() },
-                            onAddNewPricing = {
-                                editingPricingId = null; navigateTo("create_garment_pricing")
-                            },
-                            onCardClick = { pricingId ->
-                                editingPricingId = pricingId; navigateTo("create_garment_pricing")
-                            }
-                        )
-
-                        "create_garment_pricing" -> com.cuso.mobile.view.home.sales.pricing.AddGarmentPricingScreen(
-                            pricingId = editingPricingId,
-                            onClose = {
-                                editingPricingId = null
-                                goBack()
-                            },
-                            onSave = {
-                                editingPricingId = null
-                                goBack()
-                            }
-                        )
-
-                        "sales_customers" -> CustomerScreen(
-                            navController = navController,
-                            customerState = customerUiState,
-                            onSearch = customerViewModel::onSearch,
-                            onTypeFilterChange = customerViewModel::onTypeFilterChange,
-                            onPageChange = customerViewModel::onPageChange,
-                            onItemsPerPageChange = customerViewModel::onItemsPerPageChange,
-
-                            onClose = { goBack() },
-                            onCreateCustomer = { navigateTo("create_customer") },
-                            onView = { customer ->
-                                selectedCustomer = customer
-                                navigateTo("view_customer")
-                            },
-                            onEdit = { customer ->
-                                selectedCustomer = customer
-                                navigateTo("edit_customer")
-                            },
-                            onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Sales"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "finance_customers" -> FinanceCustomerScreen(
-                            onClose = { goBack() },
-                            onCustomerEdit = {},
-                            onCustomerClick = {},
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Finance"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "finance_expenses" -> ExpensesScreen(
-                            onClose = { goBack() },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Finance"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "finance_journal_screen" -> ManualJournalEntryScreen(
-                            onClose = { goBack() }
-                        )
-
-                        "finance_payments_received" -> AllPaymentScreen(
-                            onViewPayment = { navigateTo("payment_detail_screen") },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Finance"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "payment_detail_screen" -> PaymentDetailScreen(
-                            onClose = { goBack() }
-                        )
-
-                        "finance_sales_invoices" -> FinanceInvoiceScreen(
-                            onClose = { goBack() },
-                            onInvoiceClick = { invoice ->
-                                selectedInvoiceId = invoice.id
-                                navigateTo("finance_invoice_detail")
-                            },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Finance"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "finance_invoice_detail" -> {
-                            selectedInvoiceId?.let { id ->
-                                com.cuso.mobile.view.home.finance.InvoiceDetailScreen(
-                                    invoiceId = id,
-                                    onClose = {
-                                        selectedInvoiceId = null
-                                        goBack()
-                                    },
-                                    token = token
-                                )
-                            } ?: run { goBack() }
-                        }
-
-                        "logistics_delivery" -> DeliveryManagementScreen(
-                            onDismiss = { goBack() },
-                            onView = { navigateTo("delivery_detail") },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Logistics"
-                                showModulesPanel = true
-                            }
-                        )
-
-                        "delivery_detail" -> DeliveryDetailScreen(
-                            onDismiss = { goBack() }
-                        )
-
-                        "view_customer", "edit_customer" -> {
-                            val customer = selectedCustomer
-                            if (customer != null && customer.id.isNotBlank()) {
-                                CustomerDetailScreen(
-                                    navController = navController,
-                                    customerId = customer.id,
-                                    startInEditMode = currentScreen == "edit_customer",
-                                    onClose = {
-                                        selectedCustomer = null
-                                        goBack()
-                                    },
-                                    onUpdateSuccess = {
-                                        customerViewModel.refresh()
-                                        selectedCustomer = null
-                                        goBack()
-                                    },
-                                    onRequestEdit = { navigateTo("edit_customer") }
-                                )
+                                navigateTo("sales_settings")
                             } else {
-
-                                goBack()
+                                if (showHomePanel || showSalesPanel) {
+                                    isSalesSettingsMode = false
+                                    resetToHome()
+                                } else {
+                                    navigateTo("settings")
+                                }
                             }
-                        }
+                        },
+                        onMenuItemClick = { route ->
+                            when (route) {
+                                "home_organization_profile" -> {
+                                    navigateTo("home_organization_profile")
+                                    isDrawerOpen = false
+                                }
 
-                        "sales_measurements" -> MeasurementsScreen(
-                            navController = navController,
-                            onBack = { goBack() },
-                            onCreateOrder = { navigateTo("create_order") },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Sales"
-                                showModulesPanel = true
+                                "home_branch_management" -> {
+                                    navigateTo("home_branch_management")
+                                    isDrawerOpen = false
+                                }
+
+                                "home_department_teams" -> {
+                                    navigateTo("home_department_teams")
+                                    isDrawerOpen = false
+                                }
+
+                                "home_designation" -> {
+                                    navigateTo("home_designation")
+                                    isDrawerOpen = false
+                                }
+
+                                "sales_lead" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("sales_lead")
+                                    isDrawerOpen = false
+                                }
+
+                                "sales_customers" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("sales_customers")
+                                    isDrawerOpen = false
+                                }
+
+                                "finance_expenses" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("finance_expenses")
+                                    isDrawerOpen = false
+                                }
+
+                                "sales_measurements" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("sales_measurements")
+                                    isDrawerOpen = false
+                                }
+
+                                "sales_sales_orders", "sales_sales_&_orders" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("sales_sales_orders")
+                                    isDrawerOpen = false
+                                }
+
+                                "sales_orders" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("sales_orders")
+                                    isDrawerOpen = false
+                                }
+
+                                "sales_garment_type" -> {
+                                    navigateTo("sales_garment_type")
+                                    isDrawerOpen = false
+                                }
+
+                                "sales_pricing_quotation", "sales_pricing_and_quotations",
+                                "sales_pricing_&_quotations" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("sales_pricing_quotation")
+                                    isDrawerOpen = false
+                                }
+
+                                "finance_journal_entry", "finance_journal_entries" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("finance_journal_screen")
+                                    isDrawerOpen = false
+                                }
+
+                                "finance_chart_of_accounts" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("finance_chart_of_accounts")
+                                    isDrawerOpen = false
+                                }
+
+                                "finance_sales_invoices", "finance_accounts_receivable" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("finance_sales_invoices")
+                                    isDrawerOpen = false
+                                }
+
+                                "home" -> {
+                                    isSalesSettingsMode = false
+                                    resetToHome()
+                                    isDrawerOpen = false
+                                }
+
+                                "settings" -> {
+                                    navigateTo("settings")
+                                    isDrawerOpen = false
+                                }
+
+                                "finance_trial_balance" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("finance_trial_balance")
+                                    isDrawerOpen = false
+                                }
+
+                                "inventory_items", "inventory_all_items" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("inventory_items")
+                                    isDrawerOpen = false
+                                }
+
+                                "inventory_item_groups" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("inventory_item_groups")
+                                    isDrawerOpen = false
+                                }
+
+                                "inventory_orders", "inventory_procurement_orders" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("inventory_low_stock_alerts")
+                                    isDrawerOpen = false
+                                }
+
+                                "hr_all_employees" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("hr_all_employees")
+                                    isDrawerOpen = false
+                                }
+
+                                "logistics_delivery" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("logistics_delivery")
+                                    isDrawerOpen = false
+                                }
+
+                                "reports_sales_reports", "reports_finance_reports" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("reports_sales_reports")
+                                    isDrawerOpen = false
+                                }
+
+                                else -> {
+                                    Log.d("NAV_DEBUG", "Unhandled route: $route")
+                                    try {
+                                        navController.navigate(route)
+                                    } catch (_: Exception) {
+                                        if (route.startsWith("sales_")) {
+                                            navigateTo(route)
+                                        }
+                                    }
+                                    isDrawerOpen = false
+                                }
                             }
-                        )
+                        },
+                        onModulesClick = {
+                            modulesPanelInitialExpanded = menuForScreen(currentScreen)
+                            showModulesPanel = true
+                        },
+                        onLogout = {
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
+                        showHomePanel = showHomePanel,
+                        showSalesPanel = showSalesPanel,
+                        isSalesSettingsMode = isSalesSettingsMode,
+                        onBlurScrimChange = { radius, _ -> sidebarBlur = radius }
+                    )
+                }
 
-                        "create_order_review" -> {
-                            pendingOrderReviewData?.let { data ->
-                                CreateOrderNextStep(
-                                    orderData = data,
-                                    onBack = { goBack() },
-                                    onSaveOrder = {
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Transparent)
+                        .padding(innerPadding)
+                        .blurScrim(sidebarBlur)   //   UPDATED: blurBehindSheet -> blurScrim
+                ) {
+                    AnimatedContent(
+                        targetState = currentScreen,
+                        modifier = Modifier.fillMaxSize(),
+                        transitionSpec = {
+                            // Industry-style push/pop transition: incoming screen eases in with
+                            // FastOutSlowInEasing (Material's standard "emphasized" curve) while the
+                            // outgoing screen fades a touch faster so there's never a blank frame
+                            // between the two — both animations run on the SAME AnimatedContent,
+                            // so nothing else should add its own slide/fade on top of this one.
+                            val slideSpec = tween<androidx.compose.ui.unit.IntOffset>(
+                                durationMillis = 320,
+                                easing = androidx.compose.animation.core.FastOutSlowInEasing
+                            )
+                            val fadeInSpec = tween<Float>(
+                                durationMillis = 220,
+                                easing = androidx.compose.animation.core.LinearOutSlowInEasing
+                            )
+                            val fadeOutSpec = tween<Float>(
+                                durationMillis = 180,
+                                easing = androidx.compose.animation.core.FastOutLinearInEasing
+                            )
+                            if (isForwardNavigation) {
+                                (slideInHorizontally(
+                                    animationSpec = slideSpec,
+                                    initialOffsetX = { fullWidth -> fullWidth }
+                                ) + fadeIn(fadeInSpec)) togetherWith
+                                        (slideOutHorizontally(
+                                            animationSpec = slideSpec,
+                                            targetOffsetX = { fullWidth -> -fullWidth / 5 }
+                                        ) + fadeOut(fadeOutSpec))
+                            } else {
+                                (slideInHorizontally(
+                                    animationSpec = slideSpec,
+                                    initialOffsetX = { fullWidth -> -fullWidth / 5 }
+                                ) + fadeIn(fadeInSpec)) togetherWith
+                                        (slideOutHorizontally(
+                                            animationSpec = slideSpec,
+                                            targetOffsetX = { fullWidth -> fullWidth }
+                                        ) + fadeOut(fadeOutSpec))
+                            }.using(
+                                androidx.compose.animation.SizeTransform(clip = false)
+                            )
+                        },
+                        label = "screen_transition"
+                    ) { screen ->
+                        when (screen) {
+                            "settings" -> SettingsScreen(
+                                navController = navController,
+                                onMenuClick = { isDrawerOpen = true },
+                                onBack = { goBack() }
+                            )
+
+                            "home_organization_profile" -> SettingsScreen(
+                                navController = navController,
+                                onMenuClick = { isDrawerOpen = true },
+                                onBack = { goBack() }
+
+                            )
+
+                            "home_branch_management" -> BranchSettingsScreen(
+                                navController = navController,
+                                onMenuClick = { isDrawerOpen = true },
+                                onBack = { goBack() }
+                            )
+
+                            "home_department_teams" -> DepartmentSettingsScreen(
+                                navController = navController,
+                                onMenuClick = { isDrawerOpen = true },
+                                onBack = { goBack() }
+                            )
+
+                            "home_designation" -> DesignationScreen(
+                                navController = navController,
+                                onMenuClick = { isDrawerOpen = true },
+                                onBack = { goBack() }
+                            )
+
+                            "sales_settings" -> SalesSettingsScreen(
+                                navController = navController,
+                                onClose = {
+                                    isSalesSettingsMode = false
+                                    goBack()
+                                },
+                                onMenuClick = { isDrawerOpen = true }
+                            )
+
+                            "sales_garment_type" -> GarmentTypeContent(
+                                onClose = {
+                                    isSalesSettingsMode = true
+                                    goBack()
+                                },
+                                onMenuClick = { isDrawerOpen = true }
+                            )
+
+                            "home" -> HomeScreenContent(
+                                navController = navController,
+                                widthSizeClass = widthSizeClass,
+                                onNavigate = { route ->
+                                    when (route) {
+                                        "sales_lead" -> {
+                                            isSalesSettingsMode = false
+                                            navigateTo("sales_lead")
+                                        }
+
+                                        "sales_customers" -> {
+                                            isSalesSettingsMode = false
+                                            navigateTo("sales_customers")
+                                        }
+
+                                        "sales_sales_orders" -> {
+                                            isSalesSettingsMode = false
+                                            navigateTo("sales_sales_orders")
+                                        }
+
+                                        "sales_measurements" -> {
+                                            isSalesSettingsMode = false
+                                            navigateTo("sales_measurements")
+                                        }
+
+                                        "sales_pricing_quotation",
+                                        "sales_pricing_and_quotations",
+                                        "sales_pricing_&_quotations" -> {
+                                            isSalesSettingsMode = false
+                                            navigateTo("sales_pricing_quotation")
+                                        }
+
+                                        "services_customer_feedback", "customer_feedback" -> {
+                                            isSalesSettingsMode = false
+                                            navigateTo("services_customer_feedback")
+                                            isDrawerOpen = false
+                                        }
+
+                                        else -> {
+                                            Log.d("NAV_DEBUG", "Unhandled home navigation: $route")
+                                        }
+                                    }
+                                }
+                            )
+
+                            "sales_lead" -> LeadScreenContent(
+                                onCreateLead = { navigateTo("create_lead") },
+                                onViewLead = { navigateTo("view_lead") },
+                                onEditLead = { navigateTo("edit_lead") },
+                                onClose = {
+                                    isSalesSettingsMode = false
+                                    goBack()
+                                },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Sales"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "create_lead" -> CreateLeadScreen(
+                                onBack = { goBack() }
+                            )
+
+                            "view_lead" -> ViewLeadScreen(
+                                onBack = { goBack() },
+                                onEditLead = { navigateTo("edit_lead") }
+                            )
+
+                            "edit_lead" -> EditLeadScreen(
+                                onBack = { goBack() }
+                            )
+
+                            "sales_sales_orders" -> SalesOrderScreen(
+                                navController = navController,
+                                onMenuClick = { isDrawerOpen = true },
+                                onBack = { goBack() },
+                                onCreateOrder = {
+                                    pendingOrderReviewData = null
+                                    navigateTo("create_order")
+                                },
+                                onViewOrder = { orderId ->
+                                    selectedOrderId = orderId
+                                    navigateTo("order_overview")
+                                },
+                                onEditOrder = { orderId ->
+                                    editOrderId = orderId
+                                },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Sales"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "create_order" -> {
+                                CreateOrderScreen(
+                                    initialData = pendingOrderReviewData,
+                                    onBack = {
                                         pendingOrderReviewData = null
+                                        goBack()
+                                    },
+                                    onCancel = {
+                                        pendingOrderReviewData = null
+                                        goBack()
+                                    },
+                                    onNextStep = { orderReviewData ->
+                                        pendingOrderReviewData = orderReviewData
+                                        navigateTo("create_order_review")
+                                    }
+                                )
+                            }
+
+                            "order_overview" -> {
+                                selectedOrderId?.let { id ->
+                                    OrderOverviewScreen(
+                                        orderId = id,
+                                        onClose = {
+                                            selectedOrderId = null
+                                            goBack()
+                                        },
+                                        onEditOrder = { reviewData ->
+                                            pendingOrderReviewData = reviewData
+                                            navigateTo("create_order")
+                                        },
+                                        onCreateNew = {
+                                            pendingOrderReviewData = null
+                                            navigateTo("create_order")
+                                        }
+                                    )
+                                } ?: run { goBack() }
+                            }
+
+                            "sales_orders" -> OrderManagementScreen(
+                                navController = navController,
+                                onMenuClick = { isDrawerOpen = true },
+                                onBack = { goBack() },
+                                onViewOrder = { orderId ->
+                                    selectedManagementOrderId = orderId
+                                    navigateTo("order_management_overview")
+                                },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Sales"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "order_management_overview" -> {
+                                selectedManagementOrderId?.let { id ->
+                                    OrderDetailScreen(
+                                        orderId = id,
+                                        onClose = {
+                                            selectedManagementOrderId = null
+                                            goBack()
+                                        },
+                                        onEditOrder = {
+                                            editOrderId = id
+                                        }
+                                    )
+                                } ?: run { goBack() }
+                            }
+
+                            "finance_trial_balance" -> TrialBalanceScreen(
+                                onClose = { goBack() },
+                                onAccountClick = { accountId, accountName ->
+                                    selectedLedgerAccountId = accountId
+                                    selectedLedgerAccountName = accountName
+                                    navigateTo("finance_ledger")
+                                },
+                                onBreadcrumbClick = {
+                                    modulesPanelInitialExpanded = "Finance"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "finance_ledger" -> {
+                                selectedLedgerAccountId?.let { id ->
+                                    LedgerScreen(
+                                        accountId = id,
+                                        accountName = selectedLedgerAccountName,
+                                        onClose = {
+                                            selectedLedgerAccountId = null
+                                            goBack()
+                                        },
+                                        onBreadcrumbClick = {
+                                            modulesPanelInitialExpanded = "Finance"
+                                            showModulesPanel = true
+                                        }
+                                    )
+                                } ?: run { goBack() }
+                            }
+
+                            "finance_chart_of_accounts" -> ChartOfAccountScreen(
+                                onClose = { goBack() },
+                                onBreadcrumbClick = {
+                                    modulesPanelInitialExpanded = "Finance"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "finance_suppliers" -> AllSuppliersScreen(
+                                onClose = { goBack() },
+                                onBreadcrumbClick = {
+                                    modulesPanelInitialExpanded = "Finance"
+                                    showModulesPanel = true
+                                },
+                                onSupplierClick = { supplier ->
+                                    selectedSupplier = supplier
+                                    navigateTo("finance_supplier_detail")
+                                }
+                            )
+
+                            "finance_supplier_detail" -> {
+                                selectedSupplier?.let { supplier ->
+                                    SupplierDetailScreen(
+                                        supplier = supplier,
+                                        onClose = {
+                                            selectedSupplier = null
+                                            goBack()
+                                        },
+                                        onBreadcrumbClick = {
+                                            modulesPanelInitialExpanded = "Finance"
+                                            showModulesPanel = true
+                                        }
+                                    )
+                                } ?: run { goBack() }
+                            }
+
+                            "inventory_items" -> InventoryScreen(
+                                onClose = { goBack() },
+                                onAddItem = { navigateTo("inventory_create_item") },
+                                onViewItem = { item ->
+                                    selectedInventoryItemId = item._id
+                                    navigateTo("inventory_item_detail")
+                                },
+                                onEditItem = { navigateTo("inventory_create_item") },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Inventory"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "inventory_low_stock_alerts" -> LowStockAlertsScreen(
+                                onClose = { goBack() },
+                                onReorderClick = { item ->
+                                    selectedLowStockItem = item
+                                    navigateTo("inventory_create_purchase_order")
+                                },
+                                onCreateNewItem = { navigateTo("inventory_create_purchase_order") },
+                                onBreadcrumbClick = {
+                                    modulesPanelInitialExpanded = "Inventory"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "inventory_create_purchase_order" -> {
+                                CreatePurchaseOrderScreen(
+                                    onClose = {
+                                        selectedLowStockItem = null
+                                        goBack()
+                                    },
+                                    onCancel = {
+                                        selectedLowStockItem = null
+                                        goBack()
+                                    },
+                                    onCreateOrder = {
+                                        selectedLowStockItem = null
                                         goBack()
                                         goBack()
                                     }
                                 )
-                            } ?: run { goBack() }
-                        }
+                            }
 
-                        "profile-settings" -> ProfileSettingsScreen(
-                            onClose = { goBack() },
-                            onOrganizationSetup = { navigateTo("home_organization_profile") },
-                            onBranchManagement = { navigateTo("home_branch_management") },
-                            onDepartment = { navigateTo("home_department_teams") },
-                            onDesignation = { navigateTo("home_designation") },
-                            onLogout = {
-                                settingsViewModel.logout {
-                                    authViewModel.logout {
-                                        navController.navigate("login") {
-                                            popUpTo(0) { inclusive = true }
+                            "hr_all_employees" -> AllEmployeesScreen(
+                                onDismiss = { goBack() },
+                                onAddEmployee = {
+                                    employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.CREATE
+                                    selectedEmployeeId = null
+                                    navigateTo("hr_employee_onboarding")
+                                },
+                                onView = { employee ->
+                                    employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.VIEW
+                                    selectedEmployeeId = employee._id
+                                    navigateTo("hr_employee_onboarding")
+                                },
+                                onEdit = { employee ->
+                                    employeeScreenMode = com.cuso.mobile.view.home.hr.ScreenMode.EDIT
+                                    selectedEmployeeId = employee._id
+                                    navigateTo("hr_employee_onboarding")
+                                },
+                                onDelete = { employee ->
+                                },
+                                hrViewModel = hrViewModel,
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "HR"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "logistics_order_tracking" -> OrderTrackingScreen(
+                                onClose = { goBack() },
+                                onViewOrder = { order ->
+                                    selectedOrderId = order.id
+                                    navigateTo("tracking_overview")
+                                },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Logistics"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "tracking_overview" -> TrackingOverviewScreen(
+                                onClose = { goBack() }
+                            )
+
+                            "hr_employee_onboarding" -> EmployeeOnboardingScreen(
+                                mode = employeeScreenMode,
+                                memberIdToLoad = selectedEmployeeId,
+                                onDismiss = {
+                                    selectedEmployeeId = null
+                                    goBack()
+                                },
+                                onCreateEmployee = {
+                                    selectedEmployeeId = null
+                                    goBack()
+                                },
+                                onUpdateEmployee = {
+                                    selectedEmployeeId = null
+                                    goBack()
+                                },
+                                hrViewModel = hrViewModel
+                            )
+
+                            "inventory_create_item" -> CreateItemScreen(
+                                onDismiss = { goBack() },
+                                onItemCreated = { goBack() }
+                            )
+
+                            "inventory_item_detail" -> {
+                                selectedInventoryItemId?.let { id ->
+                                    val itemDetailViewModel: com.cuso.mobile.viewmodel.InventoryViewModel =
+                                        hiltViewModel()
+                                    val selectedItem by itemDetailViewModel.selectedItem.collectAsStateWithLifecycle()
+                                    val isLoadingDetail by itemDetailViewModel.isLoadingItemDetail.collectAsStateWithLifecycle()
+                                    val detailError by itemDetailViewModel.itemDetailError.collectAsStateWithLifecycle()
+
+                                    LaunchedEffect(id) {
+                                        itemDetailViewModel.fetchInventoryItemDetail(id)
+                                    }
+
+                                    InventoryViewOne(
+                                        item = selectedItem,
+                                        isLoading = isLoadingDetail,
+                                        errorMessage = detailError,
+                                        onDismiss = {
+                                            selectedInventoryItemId = null
+                                            goBack()
+                                        },
+                                        onAdjustStock = { },
+                                        onAdjustStockSubmit = { type, quantity, reason, notes ->
+                                            val apiType = when (type) {
+                                                AdjustmentType.INCREASE -> "increase"
+                                                AdjustmentType.DECREASE -> "decrease"
+                                                AdjustmentType.SET_EXACT -> "set"
+                                            }
+                                            itemDetailViewModel.adjustStock(
+                                                itemId = id,
+                                                adjustmentType = apiType,
+                                                quantity = quantity,
+                                                reason = reason,
+                                                notes = notes
+                                            )
+                                        },
+                                        onWarehouseTransfer = { },
+                                        onReorderStock = { },
+                                        onMarkInactive = { },
+                                        onEdit = { },
+                                        onShare = { }
+                                    )
+                                } ?: run { goBack() }
+                            }
+
+                            "services_customer_feedback" -> CustomerFeedbackScreen(
+                                onDismiss = { goBack() },
+                                onView = { feedbackId ->
+                                    selectedFeedbackId = feedbackId
+                                    navigateTo("feedback_detail")
+                                },
+                                onEdit = { feedbackId -> },
+                                onDelete = { feedbackId -> },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Services"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "services_alteration_management" -> AlterationManagementScreen(
+                                onClose = { goBack() },
+                                onCreateNewAlteration = { navigateTo("create_alteration") },
+                                onBreadcrumbClick = {
+                                    modulesPanelInitialExpanded = "Services"
+                                    showModulesPanel = true
+                                },
+                                onViewClick = {}
+                            )
+
+                            "create_alteration" -> CreateAlterationManagementScreen(
+                                onClose = { goBack() },
+                            )
+
+                            "services_service_request" -> ServiceRequestScreen(
+                                onClose = {},
+                                onBreadcrumbClick = {},
+                                onCreateNewRequest = { navigateTo("create_request") },
+                                onViewClick = { navigateTo("review_services") }
+                            )
+
+                            "create_request" -> CreateServiceRequest()
+
+                            "review_services" -> ServiceOrderDetailsScreen(
+                                service = ServiceDetails(
+                                    serviceRef = "SR-1045",
+                                    reviewStatus = "Pending Review",
+                                    service = "Bespoke Alteration",
+                                    requestDate = "Oct 24, 2025",
+                                    priority = "High",
+                                    serviceCategory = "Suit Fitting & Adjustments",
+                                    preferredCompletionDate = "Nov 15, 2023",
+                                    serviceType = "Internal Production Refit",
+                                    customerName = "Jonathan Sterling",
+                                    phoneNumber = "+1 (555) 123-4567",
+                                    emailAddress = "j.sterling@executive.com",
+                                    shippingAddress = "452 Premium Way, Floor 12\nManhattan, NY 10001"
+                                ),
+                                order = OrderDetails(
+                                    orderId = "#ORD-8829-23",
+                                    status = "Completed",
+                                    garmentItem = "Custom Charcoal 3-Piece Wool Suit",
+                                    orderDate = "Sep 12, 2023",
+                                    deliveryDate = "Oct 15, 2023",
+                                    issueDescription = "The sleeves are approximately 2 inches too long...",
+                                    internalNotes = "Check fabric elasticity before cutting...",
+                                    attachmentCount = 3
+                                ),
+                                onBack = { goBack() },
+                                onViewFullOrderHistory = { navigateTo("order_history") }
+                            )
+
+                            "feedback_detail" -> FeedbackDetailScreen(
+                                onDismiss = {
+                                    selectedFeedbackId = null
+                                    goBack()
+                                }
+                            )
+
+                            "sales_pricing_quotation" -> QuotationScreen(
+                                onClose = { isSalesSettingsMode = false; goBack() },
+                                onAddNe = {
+                                    editingPricingId = null
+                                    quotationScreenMode = "create"
+                                    navigateTo("create_quotation")
+                                },
+                                onView = { id ->
+                                    editingPricingId = id
+                                    quotationScreenMode = "view"
+                                    navigateTo("create_quotation")
+                                },
+                                onEdit = { id ->
+                                    editingPricingId = id
+                                    quotationScreenMode = "edit"
+                                    navigateTo("create_quotation")
+                                },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Sales"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "create_quotation" -> CreateQuotationScreen(
+                                quotationId = editingPricingId,
+                                mode = quotationScreenMode,
+                                onClose = { goBack() },
+                                onSave = { goBack() },
+                                token = token
+                            )
+
+                            "inventory_item_groups" -> AllItemGroupScreen(
+                                onDismiss = { goBack() },
+                                onAddItemGroup = { navigateTo("inventory_create_item_group") },
+                                onView = { groupId ->
+                                    selectedItemGroupId = groupId
+                                },
+                                onEdit = { groupId ->
+                                    selectedItemGroupId = groupId
+                                    navigateTo("inventory_create_item_group")
+                                },
+                                onDelete = { groupId -> },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Inventory"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "inventory_create_item_group" -> CreateItemGroupScreen(
+                                onDismiss = {
+                                    selectedItemGroupId = null
+                                    goBack()
+                                },
+                                onSave = {
+                                    selectedItemGroupId = null
+                                    goBack()
+                                }
+                            )
+
+                            "sales_pricing_overview" -> PricingScreen(
+                                onClose = { isSalesSettingsMode = false; goBack() },
+                                onAddNewPricing = {
+                                    editingPricingId = null; navigateTo("create_garment_pricing")
+                                },
+                                onCardClick = { pricingId ->
+                                    editingPricingId = pricingId; navigateTo("create_garment_pricing")
+                                },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Sales"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
+                                onBack = { goBack() },
+                                onAddNewPricing = {
+                                    editingPricingId = null; navigateTo("create_garment_pricing")
+                                },
+                                onCardClick = { pricingId ->
+                                    editingPricingId = pricingId; navigateTo("create_garment_pricing")
+                                }
+                            )
+
+                            "create_garment_pricing" -> com.cuso.mobile.view.home.sales.pricing.AddGarmentPricingScreen(
+                                pricingId = editingPricingId,
+                                onClose = {
+                                    editingPricingId = null
+                                    goBack()
+                                },
+                                onSave = {
+                                    editingPricingId = null
+                                    goBack()
+                                }
+                            )
+
+                            "sales_customers" -> CustomerScreen(
+                                navController = navController,
+                                customerState = customerUiState,
+                                onSearch = customerViewModel::onSearch,
+                                onTypeFilterChange = customerViewModel::onTypeFilterChange,
+                                onPageChange = customerViewModel::onPageChange,
+                                onItemsPerPageChange = customerViewModel::onItemsPerPageChange,
+
+                                onClose = { goBack() },
+                                onCreateCustomer = { navigateTo("create_customer") },
+                                onView = { customer ->
+                                    selectedCustomer = customer
+                                    navigateTo("view_customer")
+                                },
+                                onEdit = { customer ->
+                                    selectedCustomer = customer
+                                    navigateTo("edit_customer")
+                                },
+                                onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Sales"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "finance_customers" -> FinanceCustomerScreen(
+                                onClose = { goBack() },
+                                onCustomerEdit = {},
+                                onCustomerClick = {},
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Finance"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "finance_expenses" -> ExpensesScreen(
+                                onClose = { goBack() },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Finance"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "finance_journal_screen" -> ManualJournalEntryScreen(
+                                onClose = { goBack() }
+                            )
+
+                            "finance_payments_received" -> AllPaymentScreen(
+                                onViewPayment = { navigateTo("payment_detail_screen") },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Finance"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "payment_detail_screen" -> PaymentDetailScreen(
+                                onClose = { goBack() }
+                            )
+
+                            "finance_sales_invoices" -> FinanceInvoiceScreen(
+                                onClose = { goBack() },
+                                onInvoiceClick = { invoice ->
+                                    selectedInvoiceId = invoice.id
+                                    navigateTo("finance_invoice_detail")
+                                },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Finance"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "finance_invoice_detail" -> {
+                                selectedInvoiceId?.let { id ->
+                                    com.cuso.mobile.view.home.finance.InvoiceDetailScreen(
+                                        invoiceId = id,
+                                        onClose = {
+                                            selectedInvoiceId = null
+                                            goBack()
+                                        },
+                                        token = token
+                                    )
+                                } ?: run { goBack() }
+                            }
+
+                            "logistics_delivery" -> DeliveryManagementScreen(
+                                onDismiss = { goBack() },
+                                onView = { navigateTo("delivery_detail") },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Logistics"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "delivery_detail" -> DeliveryDetailScreen(
+                                onDismiss = { goBack() }
+                            )
+
+                            "view_customer", "edit_customer" -> {
+                                val customer = selectedCustomer
+                                if (customer != null && customer.id.isNotBlank()) {
+                                    CustomerDetailScreen(
+                                        navController = navController,
+                                        customerId = customer.id,
+                                        startInEditMode = currentScreen == "edit_customer",
+                                        onClose = {
+                                            selectedCustomer = null
+                                            goBack()
+                                        },
+                                        onUpdateSuccess = {
+                                            customerViewModel.refresh()
+                                            selectedCustomer = null
+                                            goBack()
+                                        },
+                                        onRequestEdit = { navigateTo("edit_customer") }
+                                    )
+                                } else {
+                                    goBack()
+                                }
+                            }
+
+                            "sales_measurements" -> MeasurementsScreen(
+                                navController = navController,
+                                onBack = { goBack() },
+                                onCreateOrder = { navigateTo("create_order") },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Sales"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "create_order_review" -> {
+                                pendingOrderReviewData?.let { data ->
+                                    CreateOrderNextStep(
+                                        orderData = data,
+                                        onBack = { goBack() },
+                                        onSaveOrder = {
+                                            pendingOrderReviewData = null
+                                            goBack()
+                                            goBack()
+                                        }
+                                    )
+                                } ?: run { goBack() }
+                            }
+
+                            "profile-settings" -> ProfileSettingsScreen(
+                                onClose = { goBack() },
+                                onOrganizationSetup = { navigateTo("home_organization_profile") },
+                                onBranchManagement = { navigateTo("home_branch_management") },
+                                onDepartment = { navigateTo("home_department_teams") },
+                                onDesignation = { navigateTo("home_designation") },
+                                onLogout = {
+                                    settingsViewModel.logout {
+                                        authViewModel.logout {
+                                            navController.navigate("login") {
+                                                popUpTo(0) { inclusive = true }
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        )
+                            )
 
-                        "reports_sales_reports" -> SalesOrderReportsScreen(
-                            onClose = { goBack() },
-                            onBreadCrumbClick = {
-                                modulesPanelInitialExpanded = "Reports"
-                                showModulesPanel = true
-                            }
-                        )
+                            "reports_sales_reports" -> SalesOrderReportsScreen(
+                                onClose = { goBack() },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Reports"
+                                    showModulesPanel = true
+                                }
+                            )
 
-                        else -> {}
+                            else -> {}
+                        }
                     }
                 }
             }
         }
-    }
 
         //   ModulesPanel remains the same
         ModulesPanel(
@@ -1491,42 +1503,30 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 val navKey = normalizeRoute(rawNavKey)
 
                 val implementedRoutes = setOf(
+                    // Sales
                     "sales_lead", "sales_customers", "sales_measurements", "sales_sales_orders",
                     "sales_orders", "sales_pricing_overview", "sales_pricing_quotation",
 
-                    "finance_sales_invoices", "finance_customers","finance_expenses",
-                    "finance_chart_of_accounts","finance_journal_screen", "finance_trial_balance",
+                    // Finance
+                    "finance_sales_invoices", "finance_customers", "finance_payments_received",
+                    "finance_suppliers", "finance_expenses", "finance_chart_of_accounts",
+                    "finance_journal_screen", "finance_trial_balance",
+
+                    // Inventory
+                    "inventory_items", "inventory_item_groups", "inventory_low_stock_alerts",
+
+                    // Logistics
+                    "logistics_delivery", "logistics_order_tracking",
+
+                    // Services
+                    "services_customer_feedback", "services_alteration_management", "services_service_request",
 
                     // HR
                     "hr_all_employees",
 
-                    "inventory_items"
+                    // Reports
+                    "reports_sales_reports"
                 )
-//                val implementedRoutes = setOf(
-//                    // Sales
-//                    "sales_lead", "sales_customers", "sales_measurements", "sales_sales_orders",
-//                    "sales_orders", "sales_pricing_overview", "sales_pricing_quotation",
-//
-//                    // Finance
-//                    "finance_sales_invoices", "finance_customers", "finance_payments_received",
-//                    "finance_suppliers", "finance_expenses", "finance_chart_of_accounts",
-//                    "finance_journal_screen", "finance_trial_balance",
-//
-//                    // Inventory
-//                    "inventory_items", "inventory_item_groups", "inventory_low_stock_alerts",
-//
-//                    // Logistics
-//                    "logistics_delivery", "logistics_order_tracking",
-//
-//                    // Services
-//                    "services_customer_feedback", "services_alteration_management", "services_service_request",
-//
-//                    // HR
-//                    "hr_all_employees",
-//
-//                    // Reports
-//                    "reports_sales_reports"
-//                )
 
                 isSalesSettingsMode = false
                 showModulesPanel = false
@@ -1559,6 +1559,8 @@ fun TopBar(
     onNotificationClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
+
     // EmployeeOnboardingScreen.kt la:
     val authViewModel: Authenticate = hiltViewModel(
         LocalContext.current as ComponentActivity
@@ -1638,21 +1640,21 @@ fun TopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 0.dp),
+                .padding(horizontal = tokens.screenPadding, vertical = 0.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             // ── Left: Logo ──
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.height(56.dp)
+                modifier = Modifier.height(tokens.buttonHeight * 1.25f)
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.cuso_tailor_logo),
                     contentDescription = "Logo",
                     tint = Color.Unspecified,
                     modifier = Modifier
-                        .size(90.dp)
+                        .size(tokens.buttonHeight * 2f)
                 )
             }
 
@@ -1663,14 +1665,14 @@ fun TopBar(
                     contentDescription = "Search",
                     tint = Color(0xFF4B5563),
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(tokens.iconSize * 1.3f)
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
                         ) { onSearchClick() }
                 )
 
-                Spacer(modifier = Modifier.width(18.dp))
+                Spacer(modifier = Modifier.width(tokens.screenPadding * 0.9f))
 
                 Box {
                     Icon(
@@ -1678,7 +1680,7 @@ fun TopBar(
                         contentDescription = "Notifications",
                         tint = Color(0xFF4B5563),
                         modifier = Modifier
-                            .size(24.dp)
+                            .size(tokens.iconSize * 1.3f)
                             .clickable(
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
@@ -1687,7 +1689,7 @@ fun TopBar(
                     if (hasNotification) {
                         Box(
                             modifier = Modifier
-                                .size(9.dp)
+                                .size(tokens.iconSize * 0.5f)
                                 .align(Alignment.TopEnd)
                                 .offset(x = 2.dp, y = (-1).dp)
                                 .clip(CircleShape)
@@ -1697,11 +1699,11 @@ fun TopBar(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(18.dp))
+                Spacer(modifier = Modifier.width(tokens.screenPadding * 0.9f))
 
                 // ── Profile picture / initials ──
                 val profilePicture = user?.profilePicture
-                val avatarSize = if (isPanelMode) 38.dp else 42.dp
+                val avatarSize = if (isPanelMode) tokens.buttonHeight * 0.86f else tokens.buttonHeight * 0.95f
 
                 if (!profilePicture.isNullOrBlank()) {
                     AsyncImage(
@@ -1738,7 +1740,7 @@ fun TopBar(
                             text = initials,
                             color = whiteBg,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = tokens.bodySmall
                         )
                     }
                 }
@@ -1764,6 +1766,7 @@ fun BottomBar(
     isSalesSettingsMode: Boolean = false,
     onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> }
 ) {
+    val tokens = LocalAppTokens.current
     val authViewModel: Authenticate = hiltViewModel()
     val userEntity by authViewModel.user.collectAsStateWithLifecycle()
 
@@ -1855,8 +1858,8 @@ fun BottomBar(
 
         // ── TOP-ONLY ROUNDED SHAPE (Bottom corners strictly 0.dp) ──
         val bottomBarShape = RoundedCornerShape(
-            topStart = 24.dp,
-            topEnd = 24.dp,
+            topStart = tokens.cardCornerRadius * 1.6f,
+            topEnd = tokens.cardCornerRadius * 1.6f,
             bottomStart = 0.dp,
             bottomEnd = 0.dp
         )
@@ -1888,8 +1891,8 @@ fun BottomBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .windowInsetsPadding(WindowInsets.navigationBars)
-                        .height(76.dp)
-                        .padding(horizontal = 20.dp),
+                        .height(tokens.buttonHeight * 1.7f)
+                        .padding(horizontal = tokens.screenPadding * 1.25f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -1916,7 +1919,7 @@ fun BottomBar(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(64.dp))
+                    Spacer(modifier = Modifier.width(tokens.buttonHeight * 1.45f))
 
 
                     Row(
@@ -1929,7 +1932,7 @@ fun BottomBar(
                             label = "Reports",
                             isSelected = currentScreen == "reports_sales_reports",
                             selectedColor = Color(0xFF6C4FF6),
-                            onClick = { onMenuItemClick("reports") }
+                            onClick = { onMenuItemClick("reports_sales_reports") }
                         )
 
                         BottomNavItem(
@@ -1951,7 +1954,7 @@ fun BottomBar(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .offset(y = (-22).dp)
-                    .size(64.dp)
+                    .size(tokens.buttonHeight * 1.45f)
                     .shadow(10.dp, CircleShape)
                     .clip(CircleShape)
                     .background(Color(0xFF6C4FF6))
@@ -1964,7 +1967,7 @@ fun BottomBar(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Create New",
                     tint = whiteBg,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(tokens.iconSize * 1.9f)
                 )
             }
         }
@@ -1985,6 +1988,8 @@ fun BottomNavItem(
     selectedColor: Color = Color(0xFF6C4FF6),
     onClick: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     // 1. Animate the color transition smoothly (300ms duration)
     val animatedColor by animateColorAsState(
         targetValue = if (isSelected) selectedColor else Color(0xFF9CA3AF),
@@ -2006,7 +2011,7 @@ fun BottomNavItem(
                 indication = null, // Removed default ripple to keep the focus on the animation
                 interactionSource = remember { MutableInteractionSource() }
             ) { onClick() }
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = tokens.screenPadding * 0.5f, vertical = tokens.screenPadding * 0.25f)
             .scale(animatedScale), // Apply the animated scale
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -2015,7 +2020,7 @@ fun BottomNavItem(
             contentDescription = label,
             // Use the animatedColor for the icon tint
             colorFilter = ColorFilter.tint(animatedColor),
-            modifier = Modifier.size(26.dp)
+            modifier = Modifier.size(tokens.iconSize * 1.45f)
         )
 
         Spacer(modifier = Modifier.height(4.dp))
@@ -2024,7 +2029,7 @@ fun BottomNavItem(
             text = label,
             // Use the animatedColor for the text
             color = animatedColor,
-            fontSize = 11.sp,
+            fontSize = tokens.caption,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
@@ -2129,7 +2134,11 @@ private fun HomeScreenContentBody(
             QuickModule("Deals", R.drawable.ic_speaker),
             QuickModule("Tickets", R.drawable.ic_ticket),
             QuickModule("Email", R.drawable.ic_contact),
-            QuickModule("Calendar", R.drawable.ic_contact)
+            QuickModule("Calendar", R.drawable.ic_contact),
+            QuickModule("Orders", R.drawable.ic_contact),
+            QuickModule("Reports", R.drawable.ic_contact),
+            QuickModule("Customer feedback", R.drawable.ic_contact),
+            QuickModule("Quotation Screen", R.drawable.ic_contact)
         )
     }
 
@@ -2146,11 +2155,11 @@ private fun HomeScreenContentBody(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(40.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text("Failed to load dashboard", color = Color.Red, fontWeight = FontWeight.Bold)
-                    Text("Something went wrong, Please Try again after sometime", color = Color.Gray, fontSize = 13.sp)
-                    Spacer(Modifier.height(12.dp))
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(designTokens.iconSize * 2.2f))
+                    Spacer(Modifier.height(designTokens.screenPadding * 0.5f))
+                    Text("Failed to load dashboard", color = Color.Red, fontWeight = FontWeight.Bold, fontSize = designTokens.bodyMedium)
+                    Text("Something went wrong, Please Try again after sometime", color = Color.Gray, fontSize = designTokens.bodySmall)
+                    Spacer(Modifier.height(designTokens.screenPadding * 0.75f))
                     Button(onClick = { dashboardViewModel.loadDashboard() }) {
                         Text("Retry")
                     }
@@ -2170,8 +2179,8 @@ private fun HomeScreenContentBody(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Transparent),
-                contentPadding = PaddingValues(horizontal = designTokens.screenPadding, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                contentPadding = PaddingValues(horizontal = designTokens.screenPadding, vertical = designTokens.screenPadding),
+                verticalArrangement = Arrangement.spacedBy(designTokens.screenPadding * 1.25f)
             ) {
                 item {
                     GreetingCard(
@@ -2199,7 +2208,7 @@ private fun HomeScreenContentBody(
                         )
                     }
                 }
-                item { Spacer(Modifier.height(8.dp)) }
+                item { Spacer(Modifier.height(designTokens.screenPadding * 0.5f)) }
             }
         }
         else -> {
@@ -2215,11 +2224,12 @@ private fun GreetingCard(
     newLeadsCount: Int,
     onNavigate: (String) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .height(tokens.cardHeight)
+            .clip(RoundedCornerShape(tokens.cardCornerRadius * 1.6f))
             .background(Color(0xFF2F27CE))
             .clickable(
                 indication = null,
@@ -2233,27 +2243,27 @@ private fun GreetingCard(
             tint = Color(0xFFF8F7FF).copy(alpha = 0.25f),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .size(90.dp)
+                .size(tokens.iconSize * 5f)
                 .offset(x = -(1).dp, y = 25.dp)
         )
 
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .padding(20.dp),
+                .padding(tokens.screenPadding),
             verticalArrangement = Arrangement.Center
         ) {
             Text(
                 "Good Morning, $userName",
                 color = whiteBg,
-                fontSize = 22.sp,
+                fontSize = tokens.h1,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(tokens.screenPadding * 0.375f))
             Text(
                 "You have $newLeadsCount new leads to review today.",
                 color = Color(0xFFF8F7FF).copy(alpha = 0.85f),
-                fontSize = 14.sp,
+                fontSize = tokens.bodyMedium,
                 fontWeight = FontWeight.Normal
             )
         }
@@ -2263,15 +2273,16 @@ private fun GreetingCard(
 // ── Stats grid — 2x2 cards, driven by API `stats` array ──
 @Composable
 private fun StatsGrid(stats: List<DashboardStat>,tokens: AppDesignTokens) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.75f)) {
         stats.chunked(tokens.gridColumns).forEach { rowStats ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.75f)
             ) {
                 rowStats.forEach { stat ->
                     DashboardStatCard(
                         stat = stat,
+                        tokens = tokens,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -2286,12 +2297,12 @@ private fun StatsGrid(stats: List<DashboardStat>,tokens: AppDesignTokens) {
 }
 
 @Composable
-private fun DashboardStatCard(stat: DashboardStat, modifier: Modifier = Modifier) {
+private fun DashboardStatCard(stat: DashboardStat, tokens: AppDesignTokens, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .background(Color(0xFFf8f9ff), RoundedCornerShape(20.dp))
-            .border(1.dp,Color(0xFFe8eaf4),RoundedCornerShape(20.dp))
-            .padding(14.dp)
+            .background(Color(0xFFf8f9ff), RoundedCornerShape(tokens.cardCornerRadius * 1.6f))
+            .border(1.dp,Color(0xFFe8eaf4),RoundedCornerShape(tokens.cardCornerRadius * 1.6f))
+            .padding(tokens.cardPadding * 0.7f)
     ) {
         Row(Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -2300,36 +2311,36 @@ private fun DashboardStatCard(stat: DashboardStat, modifier: Modifier = Modifier
                 painter = painterResource(id = stat.icon),
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(stat.iconTint),
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(tokens.iconSize)
             )
-            Spacer(Modifier.width(5.dp))
+            Spacer(Modifier.width(tokens.screenPadding * 0.3f))
 
             Text(
                 stat.label,
-                fontSize = 13.sp,
+                fontSize = tokens.bodySmall,
                 color = statLogoBg,
                 fontWeight = FontWeight.Medium
             )
         }
-        Spacer(Modifier.height(10.dp))
-        Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.height(tokens.screenPadding * 0.6f))
+        Spacer(Modifier.height(tokens.screenPadding * 0.1f))
 
-        Text(stat.value, fontSize = 20.sp, color = if(stat.label=="Revenue"||stat.label=="Pending"){Color(0xFF2F27CE)}else{Color(0xFF0B1C30)}, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(4.dp))
+        Text(stat.value, fontSize = tokens.h2, color = if(stat.label=="Revenue"||stat.label=="Pending"){Color(0xFF2F27CE)}else{Color(0xFF0B1C30)}, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(tokens.screenPadding * 0.25f))
         when (stat.trendUp) {
-            true -> TrendRow(icon = Icons.Default.ArrowUpward, text = stat.trendText, color = Color(0xFF16A34A))
-            false -> TrendRow(icon = Icons.Default.ArrowDownward, text = stat.trendText, color = Color(0xFFEF4444))
-            null -> Text(stat.trendText, fontSize = 11.sp, color = Color(0xFF9CA3AF))
+            true -> TrendRow(icon = Icons.Default.ArrowUpward, text = stat.trendText, color = Color(0xFF16A34A), tokens = tokens)
+            false -> TrendRow(icon = Icons.Default.ArrowDownward, text = stat.trendText, color = Color(0xFFEF4444), tokens = tokens)
+            null -> Text(stat.trendText, fontSize = tokens.label, color = Color(0xFF9CA3AF))
         }
     }
 }
 
 @Composable
-private fun TrendRow(icon: ImageVector, text: String, color: Color) {
+private fun TrendRow(icon: ImageVector, text: String, color: Color, tokens: AppDesignTokens) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(12.dp))
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(tokens.iconSize * 0.65f))
         Spacer(Modifier.width(2.dp))
-        Text(text, fontSize = 12.sp, color = color, fontWeight = FontWeight.SemiBold)
+        Text(text, fontSize = tokens.caption, color = color, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -2339,14 +2350,15 @@ private fun QuickModulesSection(
     modules: List<QuickModule>,
     onNavigate: (String) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     Column {
-        Text("Quick Modules", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-        Spacer(Modifier.height(12.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Quick Modules", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+        Spacer(Modifier.height(tokens.screenPadding * 0.75f))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding)) {
             items(modules) { module ->
                 Column(
                     modifier = Modifier
-                        .width(64.dp)
+                        .width(tokens.buttonHeight * 1.45f)
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
@@ -2358,6 +2370,11 @@ private fun QuickModulesSection(
                                 "Tickets" -> null
                                 "Email" -> null
                                 "Calendar" -> null
+                                "Orders" -> null
+                                "Reports" -> null
+                                "Customer feedback" -> null
+                                "Sales invoice" -> null
+                                "Quotation Screen" -> null
                                 else -> null
                             }
                             route?.let { onNavigate(it) }
@@ -2366,17 +2383,17 @@ private fun QuickModulesSection(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .size(tokens.buttonHeight * 1.27f)
+                            .clip(RoundedCornerShape(tokens.cardCornerRadius))
                             .background(Color(0xFFDCE9FF)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon( painterResource(module.icon), contentDescription = module.label, tint = Color(0xFF2F27CE), modifier = Modifier.size(24.dp))
+                        Icon( painterResource(module.icon), contentDescription = module.label, tint = Color(0xFF2F27CE), modifier = Modifier.size(tokens.iconSize * 1.3f))
                     }
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.375f))
                     Text(
                         module.label,
-                        fontSize = 12.sp,
+                        fontSize = tokens.caption,
                         color = blackTitle,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -2438,6 +2455,7 @@ private fun mapApiStatsToUi(stats: List<DashboardStatDto>): List<DashboardStat> 
 private fun RecentActivitySection(
     onNavigate: (String) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     val activities = listOf(
         ActivityCardItem(
             icon = painterResource(R.drawable.ic_handshake),
@@ -2463,10 +2481,10 @@ private fun RecentActivitySection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Recent Activity", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            Text("Recent Activity", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
             Text(
                 text = "View All",
-                fontSize = 14.sp,
+                fontSize = tokens.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF6C4FF6),
                 modifier = Modifier.clickable(
@@ -2476,25 +2494,25 @@ private fun RecentActivitySection(
             )
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(tokens.screenPadding * 0.875f))
 
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.75f)) {
             activities.forEach { activity ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(modelBg, RoundedCornerShape(16.dp))
-                        .border(1.dp,modelBorder, RoundedCornerShape(16.dp))
+                        .background(modelBg, RoundedCornerShape(tokens.cardCornerRadius))
+                        .border(1.dp,modelBorder, RoundedCornerShape(tokens.cardCornerRadius))
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
                         ) { onNavigate("sales_sales_orders") }
-                        .padding(14.dp),
+                        .padding(tokens.cardPadding * 0.7f),
                     verticalAlignment = Alignment.Top
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(tokens.buttonHeight)
                             .background(activity.iconBg, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
@@ -2502,26 +2520,26 @@ private fun RecentActivitySection(
                             painter =  activity.icon,
                             contentDescription = null,
                             tint = activity.iconTint,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(tokens.iconSize)
                         )
                     }
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(tokens.screenPadding * 0.75f))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             activity.title,
-                            fontSize = 15.sp,
+                            fontSize = tokens.bodyLarge,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF111827),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            lineHeight = 20.sp
+                            lineHeight = (tokens.bodyLarge.value * 1.25f).sp
                         )
-                        Spacer(Modifier.height(6.dp))
-                        Text(activity.timeAgo, fontSize = 12.sp, color = TextSecondary)
+                        Spacer(Modifier.height(tokens.screenPadding * 0.375f))
+                        Text(activity.timeAgo, fontSize = tokens.caption, color = TextSecondary)
                     }
                     if (activity.amount != null) {
-                        Spacer(Modifier.width(8.dp))
-                        Text(activity.amount, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
+                        Spacer(Modifier.width(tokens.screenPadding * 0.5f))
+                        Text(activity.amount, fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
                     }
                 }
             }
@@ -2535,15 +2553,16 @@ private fun RecentCustomersSection(
     customers: List<RecentCustomer>,
     onNavigate: (String) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     Column {
-        Text("Recent Customers", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-        Spacer(Modifier.height(12.dp))
+        Text("Recent Customers", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+        Spacer(Modifier.height(tokens.screenPadding * 0.75f))
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(modelBg, RoundedCornerShape(14.dp))
-                .border(1.dp, modelBorder,RoundedCornerShape((14.dp)))
+                .background(modelBg, RoundedCornerShape(tokens.cardCornerRadius))
+                .border(1.dp, modelBorder,RoundedCornerShape(tokens.cardCornerRadius))
         ) {
             customers.forEachIndexed { index, customer ->
                 Row(
@@ -2553,29 +2572,29 @@ private fun RecentCustomersSection(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
                         ) { onNavigate("sales_customers") }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(horizontal = tokens.cardPadding * 0.7f, vertical = tokens.cardPadding * 0.6f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(tokens.buttonHeight)
                             .clip(CircleShape)
                             .background(customer.avatarColor.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(customer.initials, color = customer.avatarColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(customer.initials, color = customer.avatarColor, fontWeight = FontWeight.Bold, fontSize = tokens.bodySmall)
                     }
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(tokens.screenPadding * 0.75f))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(customer.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                        Text(customer.role, fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                        Text(customer.name, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                        Text(customer.role, fontSize = tokens.caption, color = Color(0xFF9CA3AF))
                     }
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(25.dp))
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(tokens.iconSize * 1.4f))
                 }
 
                 if (index != customers.lastIndex) {
                     HorizontalDivider(
-                        modifier = Modifier.padding(start = 14.dp, end = 14.dp),
+                        modifier = Modifier.padding(start = tokens.cardPadding * 0.7f, end = tokens.cardPadding * 0.7f),
                         thickness = 1.dp,
                         color = modelBorder
                     )
@@ -2584,7 +2603,6 @@ private fun RecentCustomersSection(
         }
     }
 }
-
 // ─────────────────────────────────────────────────────────────
 // buildFilterSections
 // ─────────────────────────────────────────────────────────────
@@ -2713,6 +2731,7 @@ fun TimePickerField(
     onTimeSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalAppTokens.current
     var showPicker by remember { mutableStateOf(false) }
 
     var selectedHour by remember(value) {
@@ -2753,23 +2772,23 @@ fun TimePickerField(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(whiteBg, RoundedCornerShape(8.dp))
-            .border(1.dp, PrimaryBorder, RoundedCornerShape(8.dp))
+            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+            .border(1.dp, PrimaryBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
             .clickable { showPicker = true }
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = tokens.cardPadding * 0.6f, vertical = tokens.screenPadding * 0.375f),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             text = value.ifEmpty { "Select Time" },
-            fontSize = 14.sp,
+            fontSize = tokens.bodyMedium,
             color = if (value.isEmpty()) Color(0xFF9CA3AF) else Color(0xFF374151)
         )
         Icon(
             Icons.Default.Schedule,
             contentDescription = null,
             tint = Color.Gray,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(tokens.iconSize)
         )
     }
 
@@ -2777,11 +2796,11 @@ fun TimePickerField(
         AlertDialog(
             onDismissRequest = { showPicker = false },
             containerColor = whiteBg,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(tokens.cardCornerRadius),
             title = {
                 Text(
                     "Appointment Time",
-                    fontSize = 18.sp,
+                    fontSize = tokens.h2,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
                 )
@@ -2840,6 +2859,11 @@ fun CustomTimePicker(
     onMinuteChange: (Int) -> Unit,
     onAmPmChange: (Boolean) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+    val itemHeight = tokens.fieldHeight
+    val wheelHeight = itemHeight * 4.5f
+    val rowHeight = itemHeight * 6.3f
+
     val hourOptions = (1..12).toList()
     val minuteOptions = (0..59).map { String.format("%02d", it) }
 
@@ -2913,8 +2937,8 @@ fun CustomTimePicker(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(280.dp)
-            .padding(vertical = 8.dp),
+            .height(rowHeight)
+            .padding(vertical = tokens.screenPadding * 0.5f),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -2922,16 +2946,16 @@ fun CustomTimePicker(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Hour", fontSize = 12.sp, color = LeadmutedText, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(4.dp))
+            Text("Hour", fontSize = tokens.caption, color = LeadmutedText, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(tokens.screenPadding * 0.25f))
 
-            Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().height(wheelHeight)) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height(itemHeight)
                         .align(Alignment.Center)
-                        .background(LeadPrimarySoft, RoundedCornerShape(8.dp))
+                        .background(LeadPrimarySoft, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                 )
 
                 LazyColumn(
@@ -2949,13 +2973,13 @@ fun CustomTimePicker(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp)
-                                .padding(horizontal = 8.dp),
+                                .height(itemHeight)
+                                .padding(horizontal = tokens.screenPadding * 0.5f),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = String.format("%02d", h),
-                                fontSize = if (isSelected) 24.sp else 18.sp,
+                                fontSize = if (isSelected) tokens.h1 else tokens.bodyLarge,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) LeadPrimary else Color(0xFF6B7280)
                             )
@@ -2965,22 +2989,22 @@ fun CustomTimePicker(
             }
         }
 
-        Text(":", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827), modifier = Modifier.padding(horizontal = 4.dp))
+        Text(":", fontSize = tokens.h1, fontWeight = FontWeight.Bold, color = Color(0xFF111827), modifier = Modifier.padding(horizontal = tokens.screenPadding * 0.25f))
 
         Column(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Minute", fontSize = 12.sp, color = LeadmutedText, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(4.dp))
+            Text("Minute", fontSize = tokens.caption, color = LeadmutedText, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(tokens.screenPadding * 0.25f))
 
-            Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().height(wheelHeight)) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height(itemHeight)
                         .align(Alignment.Center)
-                        .background(LeadPrimarySoft, RoundedCornerShape(8.dp))
+                        .background(LeadPrimarySoft, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                 )
 
                 LazyColumn(
@@ -2998,13 +3022,13 @@ fun CustomTimePicker(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp)
-                                .padding(horizontal = 8.dp),
+                                .height(itemHeight)
+                                .padding(horizontal = tokens.screenPadding * 0.5f),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = m,
-                                fontSize = if (isSelected) 24.sp else 18.sp,
+                                fontSize = if (isSelected) tokens.h1 else tokens.bodyLarge,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) LeadPrimary else Color(0xFF6B7280)
                             )
@@ -3015,42 +3039,42 @@ fun CustomTimePicker(
         }
 
         Column(
-            modifier = Modifier.weight(0.8f).padding(start = 8.dp),
+            modifier = Modifier.weight(0.8f).padding(start = tokens.screenPadding * 0.5f),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("AM/PM", fontSize = 12.sp, color = LeadmutedText, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(4.dp))
+            Text("AM/PM", fontSize = tokens.caption, color = LeadmutedText, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(tokens.screenPadding * 0.25f))
 
             Column(
-                modifier = Modifier.fillMaxWidth().height(200.dp).padding(vertical = 20.dp),
+                modifier = Modifier.fillMaxWidth().height(wheelHeight).padding(vertical = tokens.screenPadding * 1.25f),
                 verticalArrangement = Arrangement.Center
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .height(itemHeight)
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                         .background(if (isAm) LeadPrimary else Color.Transparent)
                         .clickable { onAmPmChange(true) }
-                        .padding(8.dp),
+                        .padding(tokens.screenPadding * 0.5f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("AM", fontSize = 16.sp, fontWeight = if (isAm) FontWeight.Bold else FontWeight.Normal, color = if (isAm) whiteBg else Color(0xFF6B7280))
+                    Text("AM", fontSize = tokens.bodyMedium, fontWeight = if (isAm) FontWeight.Bold else FontWeight.Normal, color = if (isAm) whiteBg else Color(0xFF6B7280))
                 }
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.5f))
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .height(itemHeight)
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                         .background(if (!isAm) LeadPrimary else Color.Transparent)
                         .clickable { onAmPmChange(false) }
-                        .padding(8.dp),
+                        .padding(tokens.screenPadding * 0.5f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("PM", fontSize = 16.sp, fontWeight = if (!isAm) FontWeight.Bold else FontWeight.Normal, color = if (!isAm) whiteBg else Color(0xFF6B7280))
+                    Text("PM", fontSize = tokens.bodyMedium, fontWeight = if (!isAm) FontWeight.Bold else FontWeight.Normal, color = if (!isAm) whiteBg else Color(0xFF6B7280))
                 }
             }
         }
@@ -3059,23 +3083,24 @@ fun CustomTimePicker(
 
 @Composable
 fun FormLabel(text: String?, isRequired: Boolean = false) {
+    val tokens = LocalAppTokens.current
     Row {
         Text(
             text ?: "",
-            fontSize = 13.sp,
+            fontSize = tokens.bodySmall,
             fontWeight = FontWeight.Medium,
             color = Color.Gray
         )
         if (isRequired) {
             Text(
                 text = " *",
-                fontSize = 13.sp,
+                fontSize = tokens.bodySmall,
                 fontWeight = FontWeight.Medium,
                 color = Color.Red
             )
         }
     }
-    Spacer(Modifier.height(6.dp))
+    Spacer(Modifier.height(tokens.screenPadding * 0.375f))
 }
 
 @Suppress("UNUSED_PARAMETER")
@@ -3087,26 +3112,32 @@ fun FormTextField(
     placeholder: String = "",
     isError: Boolean = false,
     errorMessage: String? = null,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    // ── NEW: needed for PAN (uppercase) / Aadhaar (spaced grouping) ──
+    keyboardCapitalization: androidx.compose.ui.text.input.KeyboardCapitalization =
+        androidx.compose.ui.text.input.KeyboardCapitalization.None,
+    visualTransformation: androidx.compose.ui.text.input.VisualTransformation =
+        androidx.compose.ui.text.input.VisualTransformation.None
 ) {
+    val tokens = LocalAppTokens.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(40.dp)
+            .height(tokens.fieldHeight)
             .background(
                 if (enabled) whiteBg else Color(0xFFF3F4F6),
-                RoundedCornerShape(8.dp)
+                RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
             )
             .border(
                 1.dp,
                 if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
-                RoundedCornerShape(8.dp)
+                RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
             )
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = tokens.cardPadding * 0.6f),
         contentAlignment = Alignment.CenterStart
     ) {
         if (value.isEmpty() && placeholder.isNotEmpty()) {
-            Text(placeholder, fontSize = 14.sp, color = Color(0xFF9CA3AF))
+            Text(placeholder, fontSize = tokens.bodyMedium, color = Color(0xFF9CA3AF))
         }
         BasicTextField(
             value = value,
@@ -3114,9 +3145,13 @@ fun FormTextField(
             enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = keyboardType,
+                capitalization = keyboardCapitalization
+            ),
+            visualTransformation = visualTransformation,
             textStyle = TextStyle(
-                fontSize = 14.sp,
+                fontSize = tokens.bodyMedium,
                 color = if (enabled) Color(0xFF374151) else Color(0xFF6B7280)
             )
         )
@@ -3124,42 +3159,13 @@ fun FormTextField(
     if (isError && !errorMessage.isNullOrBlank()) {
         Text(
             errorMessage,
-            fontSize = 11.sp,
+            fontSize = tokens.label,
             color = Color(0xFFEF4444),
-            modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+            modifier = Modifier.padding(top = tokens.screenPadding * 0.25f, start = tokens.screenPadding * 0.25f)
         )
     }
 }
-@Composable
-fun FormDateField(value: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(40.dp)
-            .background(whiteBg, RoundedCornerShape(8.dp))
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) { onClick() }
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = value.ifEmpty { "dd-mm-yyyy" },   //  placeholder shown when no date picked
-            fontSize = 14.sp,
-            color = if (value.isEmpty()) Color(0xFF9CA3AF) else Color(0xFF374151),
-            modifier = Modifier.weight(1f)
-        )
-        Icon(
-            Icons.Default.CalendarMonth,
-            contentDescription = null,
-            tint = Color.Gray,
-            modifier = Modifier.size(18.dp)
-        )
-    }
-}
+
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -3175,10 +3181,11 @@ fun FormDropdown(
     isError: Boolean = false,
     errorMessage: String? = null
 ) {
+    val tokens = LocalAppTokens.current
     if (!label.isNullOrEmpty()) {
         FormLabel(label, isRequired)
     } else {
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(tokens.screenPadding * 0.375f))
     }
 
     val density = LocalDensity.current
@@ -3189,24 +3196,24 @@ fun FormDropdown(
             modifier = Modifier
                 .fillMaxWidth()
                 .onGloballyPositioned { coordinates -> triggerWidthPx = coordinates.size.width }
-                .height(40.dp)
+                .height(tokens.fieldHeight)
                 .background(
                     if (enabled) whiteBg else Color(0xFFF3F4F6),
-                    RoundedCornerShape(8.dp)
+                    RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
                 )
                 .border(
                     1.dp,
                     if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
-                    RoundedCornerShape(8.dp)
+                    RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
                 )
                 .clickable(enabled = enabled) { onExpandChange(true) }
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = tokens.cardPadding * 0.6f),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 value,
-                fontSize = 12.sp,
+                fontSize = tokens.bodySmall,
                 color = when {
                     !enabled -> Color(0xFF9CA3AF)
                     value == "Select an option" -> Color(0xFF9CA3AF)
@@ -3224,15 +3231,15 @@ fun FormDropdown(
                 expanded = expanded,
                 onDismissRequest = { onExpandChange(false) },
                 containerColor = whiteBg,
-                shape = RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
                 modifier = Modifier
                     .width(with(density) { triggerWidthPx.toDp() })
-                    .heightIn(max = 180.dp)
+                    .heightIn(max = tokens.fieldHeight * 4.5f)
             ) {
                 options.forEach { option ->
                     Text(
                         text = option,
-                        fontSize = 14.sp,
+                        fontSize = tokens.bodyMedium,
                         color = Color(0xFF374151),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -3240,7 +3247,7 @@ fun FormDropdown(
                                 onOptionSelected(option)
                                 onExpandChange(false)
                             }
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(horizontal = tokens.cardPadding * 0.6f, vertical = tokens.screenPadding * 0.5f)
                     )
                 }
             }
@@ -3318,7 +3325,7 @@ fun menuForScreen(screen: String): String = when {
 }
 
 fun String.toIsoDate(): String {
-    if (this.isEmpty() || this == "Select Date") return ""
+    if (this.isEmpty() || this == " ") return ""
     return try {
         val parts = this.split("-")
         if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}T00:00:00.000Z" else ""

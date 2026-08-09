@@ -13,11 +13,6 @@ package com.cuso.mobile.view.home.inventory
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,8 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -47,11 +40,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.inventory.ItemType
-import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.close_color
 import com.cuso.mobile.ui.theme.title_color
@@ -71,13 +63,12 @@ import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.view.composable.AccordionSection
 
 
-// ── Design tokens ──
+// ── Design tokens (colors only — sizing now comes from AppDesignTokens) ──
 private val AccentColor = Color(0xFF4F39F6)
 private val BorderColor = Color(0xFFE3E4E8)
 private val LabelColor = Color(0xFF6B7280)
 private val TitleColor = Color(0xFF111827)
 private val PlaceholderColor = Color(0xFF9CA3AF)
-private val FieldShape = RoundedCornerShape(10.dp)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,6 +78,9 @@ fun CreateItemScreen(
     viewModel: InventoryViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val tokens = LocalAppTokens.current
+    val FieldShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
+
     val profileState by profileViewModel.uiState.collectAsState()
     val planName = (profileState as? com.cuso.mobile.viewmodel.ProfileUiState.Success)
         ?.data?.organization?.plan?.name.orEmpty()
@@ -169,7 +163,7 @@ fun CreateItemScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(whiteBg)
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                    .padding(horizontal = tokens.screenPadding, vertical = tokens.cardPadding * 0.55f),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -183,10 +177,12 @@ fun CreateItemScreen(
                     Icons.Filled.Close,
                     contentDescription = "Close",
                     tint = close_color,
-                    modifier = Modifier.clickable {
-                        viewModel.resetCreateItemForm()
-                        onDismiss()
-                    }
+                    modifier = Modifier
+                        .size(tokens.iconSize)
+                        .clickable {
+                            viewModel.resetCreateItemForm()
+                            onDismiss()
+                        }
                 )
             }
             HorizontalDivider(color = BorderColor)
@@ -195,7 +191,7 @@ fun CreateItemScreen(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(bottom = 90.dp)
+                    .padding(bottom = tokens.buttonHeight * 2f)
             ) {
                 // ── Item Identity ──
                 AccordionSection(
@@ -213,7 +209,7 @@ fun CreateItemScreen(
                         onSelectB = { viewModel.updateCreateItemForm { it.copy(itemType = ItemType.CLIENT) } }
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormLabel("Item Name")
                     FormTextField(
                         value = formState.name,
@@ -225,7 +221,7 @@ fun CreateItemScreen(
                         errorMessage = if (currentErrorField == "itemName") "Item name is required" else null
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormLabel("SKU")
                     FormTextField(
                         value = formState.sku,
@@ -244,7 +240,7 @@ fun CreateItemScreen(
                         )
                     }
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormDropdown(
                         label = "Unit of Measure",
                         value = formState.unit.ifBlank { "Select Unit" },
@@ -258,7 +254,7 @@ fun CreateItemScreen(
                         errorMessage = if (currentErrorField == "unit") "Unit is required" else null
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     ToggleRow(
                         title = "Returnable Item",
                         subtitle = "Customer can request return/refund",
@@ -269,7 +265,7 @@ fun CreateItemScreen(
                         titleFirst = true
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormLabel("Category")
 
                     FormTextField(
@@ -279,7 +275,7 @@ fun CreateItemScreen(
                         isError = currentErrorField == "category",
                         errorMessage = if (currentErrorField == "category") "Category is required" else null
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormDropdown(
                         label = "Status",
                         value = formState.status.ifBlank { "active" },
@@ -323,13 +319,13 @@ fun CreateItemScreen(
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Filled.Close, null, tint = whiteBg, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Filled.Close, null, tint = whiteBg, modifier = Modifier.size(tokens.iconSize * 0.9f))
                                 }
                             }
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 "Tap to replace image",
-                                fontSize = 12.sp,
+                                fontSize = tokens.caption,
                                 color = AccentColor,
                                 modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
                             )
@@ -342,9 +338,9 @@ fun CreateItemScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Filled.CloudUpload, null, tint = LabelColor, modifier = Modifier.size(26.dp))
+                                    Icon(Icons.Filled.CloudUpload, null, tint = LabelColor, modifier = Modifier.size(tokens.iconSize * 1.45f))
                                     Spacer(Modifier.height(8.dp))
-                                    Text("Click to upload", fontSize = 13.sp, color = TitleColor)
+                                    Text("Click to upload", fontSize = tokens.bodySmall, color = TitleColor)
                                 }
                             }
                         }
@@ -386,7 +382,7 @@ fun CreateItemScreen(
                                 )
                             }
                         }
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                         FormLabel("Weight (kg)")
                         FormTextField(
                             value = formState.weight,
@@ -394,14 +390,14 @@ fun CreateItemScreen(
                             placeholder = "0.00",
                             keyboardType = KeyboardType.Number
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                         FormLabel("Manufacturer")
                         FormTextField(
                             value = formState.manufacturer,
                             onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(manufacturer = v) } },
                             placeholder = "Brand Name"
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                         FormLabel("Brand")
                         FormTextField(
                             value = formState.brand,
@@ -426,7 +422,7 @@ fun CreateItemScreen(
                             placeholder = "HSN",
                             keyboardType = KeyboardType.Number
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                         FormLabel("Tax Percentage (%)")
                         FormTextField(
                             value = formState.taxPercentage,
@@ -434,7 +430,7 @@ fun CreateItemScreen(
                             placeholder = "0",
                             keyboardType = KeyboardType.Number
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                         ToggleRow(
                             title = "Price is Tax Inclusive",
                             checked = formState.taxInclusive,
@@ -460,7 +456,7 @@ fun CreateItemScreen(
                         isError = currentErrorField == "sellingPrice",
                         errorMessage = if (currentErrorField == "sellingPrice") "Selling price is required" else null
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormDropdown(
                         label = "Sales Account",
                         value = formState.salesAccount.ifBlank { "General Revenue" },
@@ -471,7 +467,7 @@ fun CreateItemScreen(
                         isError = currentErrorField == "salesAccount",
                         errorMessage = if (currentErrorField == "salesAccount") "Sales account is required" else null
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormLabel("Sales Description")
                     AppTextArea(
                         value = formState.salesDescription,
@@ -495,7 +491,7 @@ fun CreateItemScreen(
                         isError = currentErrorField == "costPrice",
                         errorMessage = if (currentErrorField == "costPrice") "Cost price is required" else null
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormDropdown(
                         label = "Purchase Account",
                         value = formState.purchaseAccount.ifBlank { "Cost of Goods Sold" },
@@ -506,14 +502,14 @@ fun CreateItemScreen(
                         isError = currentErrorField == "purchaseAccount",
                         errorMessage = if (currentErrorField == "purchaseAccount") "Purchase account is required" else null
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormLabel("Preferred Vendor")
                     FormTextField(
                         value = formState.preferredVendor,
                         onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(preferredVendor = v) } },
                         placeholder = "0.00"
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
                     FormLabel("Purchase Description")
                     AppTextArea(
                         value = formState.purchaseDescription,
@@ -550,102 +546,15 @@ fun CreateItemScreen(
         )
     }
 }
-//
-//@Composable
-//fun AccordionSection(
-//    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-//    iconPainter: androidx.compose.ui.graphics.painter.Painter? = null, // New parameter for drawables
-//    title: String,
-//    subtitle: String? = null,
-//    expanded: Boolean,
-//    onHeaderClick: () -> Unit,
-//    iconTint: Color = Primary,
-//    trailing: @Composable (() -> Unit)? = null,
-//    content: @Composable ColumnScope.() -> Unit
-//) {
-//    Column {
-//        Row(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .background(Color.Transparent)
-//                .clickable { onHeaderClick() }
-//                .padding(vertical = 16.dp),
-//            horizontalArrangement = Arrangement.SpaceBetween,
-//            verticalAlignment = Alignment.CenterVertically
-//        ) {
-//            Row(
-//                modifier = Modifier.weight(1f),
-//                verticalAlignment = Alignment.CenterVertically
-//            ) {
-//                // Handle both ImageVector and Painter icons
-//                when {
-//                    icon != null -> {
-//                        Icon(
-//                            icon,
-//                            null,
-//                            tint = iconTint,
-//                            modifier = Modifier.size(20.dp)
-//                        )
-//                        Spacer(Modifier.width(10.dp))
-//                    }
-//                    iconPainter != null -> {
-//                        Icon(
-//                            painter = iconPainter,
-//                            contentDescription = null,
-//                            tint = iconTint,
-//                            modifier = Modifier.size(20.dp)
-//                        )
-//                        Spacer(Modifier.width(10.dp))
-//                    }
-//                }
-//                Column {
-//                    Text(
-//                        title,
-//                        fontSize = 16.sp,
-//                        fontWeight = FontWeight.SemiBold,
-//                        color = TitleColor
-//                    )
-//                    if (!subtitle.isNullOrBlank()) {
-//                        Text(
-//                            subtitle,
-//                            fontSize = 12.sp,
-//                            color = LabelColor
-//                        )
-//                    }
-//                }
-//            }
-//
-//            Row(verticalAlignment = Alignment.CenterVertically) {
-//                if (trailing != null) {
-//                    trailing()
-//                } else {
-//                    Icon(
-//                        if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-//                        null,
-//                        tint = LabelColor
-//                    )
-//                }
-//            }
-//        }
-//        AnimatedVisibility(
-//            visible = expanded,
-//            enter = fadeIn() + expandVertically(),
-//            exit = fadeOut() + shrinkVertically()
-//        ) {
-//            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp)) {
-//                content()
-//            }
-//        }
-//        HorizontalDivider(color = BorderColor)
-//    }
-//}
+
 @Composable
 private fun AppTextArea(value: String, onValueChange: (String) -> Unit) {
+    val tokens = LocalAppTokens.current
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text("Write description...", color = PlaceholderColor) },
-        shape = FieldShape,
+        placeholder = { Text("Write description...", color = PlaceholderColor, fontSize = tokens.bodySmall) },
+        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
         colors = OutlinedTextFieldDefaults.colors(
             unfocusedBorderColor = BorderColor,
             focusedBorderColor = AccentColor
@@ -660,6 +569,8 @@ private fun SegmentedToggle(
     selectedA: Boolean,
     onSelectA: () -> Unit, onSelectB: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+    val FieldShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -673,14 +584,15 @@ private fun SegmentedToggle(
 
 @Composable
 private fun SegmentedOption(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val tokens = LocalAppTokens.current
     Box(
         modifier = modifier
-            .background(if (selected) AccentColor else Color.Transparent, RoundedCornerShape(8.dp))
+            .background(if (selected) AccentColor else Color.Transparent, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
             .clickable { onClick() }
             .padding(vertical = 5.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = if (selected) whiteBg else LabelColor, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+        Text(text, color = if (selected) whiteBg else LabelColor, fontWeight = FontWeight.Medium, fontSize = tokens.bodyMedium)
     }
 }
 
@@ -690,6 +602,7 @@ private fun ToggleRow(
     checked: Boolean, onCheckedChange: (Boolean) -> Unit,
     titleFirst: Boolean
 ) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -697,14 +610,14 @@ private fun ToggleRow(
     ) {
         if (titleFirst) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleColor)
-                subtitle?.let { Text(it, fontSize = 12.sp, color = LabelColor) }
+                Text(title, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TitleColor)
+                subtitle?.let { Text(it, fontSize = tokens.caption, color = LabelColor) }
             }
             MiniSwitch(checked = checked, onCheckedChange = onCheckedChange)
         } else {
             MiniSwitch(checked = checked, onCheckedChange = onCheckedChange)
             Spacer(Modifier.width(10.dp))
-            Text(title, fontSize = 13.sp, color = LabelColor)
+            Text(title, fontSize = tokens.bodySmall, color = LabelColor)
         }
     }
 }

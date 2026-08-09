@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalShipping
@@ -32,13 +31,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.TitleBar
 
-// ── Colors ───────────────────────────────────────────────────────────────────
+// ── Colors (sizing now comes from AppDesignTokens) ──────────────────────────
 private val ActiveHalo    = Color(0xFFECEBFF)
 private val GreenActive   = Color(0xFF22C55E)
 private val GrayLight     = Color(0xFFE5E7EB)
@@ -47,8 +46,6 @@ private val GrayText      = Color(0xFF9CA3AF)
 private val DarkText      = Color(0xFF111827)
 private val InTransitBg   = Color(0xFFEEEEFF)
 private val InTransitText = Color(0xFF4F46E5)
-
-private val paddingValue = 20.dp
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 private data class TimelineStep(
@@ -104,6 +101,8 @@ private val timelineSteps = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
+    val tokens = LocalAppTokens.current
+
     // Each step tracks whether it has been completed/ticked
     val tickedStates = remember { mutableStateListOf(*timelineSteps.map { it.defaultActive }.toTypedArray()) }
 
@@ -128,6 +127,7 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                 }
             }
         },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = Color.Transparent
     ) { innerPadding ->
         Column(
@@ -137,12 +137,12 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(tokens.screenPadding * 0.8f))
 
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = paddingValue)
+                    .padding(horizontal = tokens.screenPadding)
             ) {
 
                 // ── Order ID + Badge ──────────────────────────────────────────────
@@ -153,7 +153,7 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                 ) {
                     Text(
                         "ORD-88294-LX",
-                        fontSize = 16.sp,
+                        fontSize = tokens.h2,
                         fontWeight = FontWeight.Bold,
                         color = DarkText
                     )
@@ -165,7 +165,7 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                     ) {
                         Text(
                             "IN TRANSIT",
-                            fontSize = 11.sp,
+                            fontSize = tokens.label,
                             fontWeight = FontWeight.Bold,
                             color = InTransitText,
                             letterSpacing = 0.5.sp
@@ -173,7 +173,7 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.7f))
 
                 // ── Info row ──────────────────────────────────────────────────────
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -184,7 +184,7 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                     InfoCell("Est. Delivery", "Oct 27, 2023", Modifier.weight(1f))
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.8f))
 
                 // ── Buttons ───────────────────────────────────────────────────────
                 Row(
@@ -193,22 +193,22 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                 ) {
                     OutlinedButton(
                         onClick = {},
-                        modifier = Modifier.weight(1f).height(46.dp),
-                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f).height(tokens.buttonHeight),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
                         border = androidx.compose.foundation.BorderStroke(1.5.dp, Primary)
-                    ) { Text("View Shipment", fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
+                    ) { Text("View Shipment", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold) }
 
                     Button(
                         onClick = {},
-                        modifier = Modifier.weight(1f).height(46.dp),
-                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f).height(tokens.buttonHeight),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
                         colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                    ) { Text("Update Status", fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
+                    ) { Text("Update Status", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold) }
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(tokens.screenPadding * 1.2f))
             HorizontalDivider(color = GrayBorder)
 
             // ── Tracking Timeline ─────────────────────────────────────────────
@@ -216,23 +216,23 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                 Modifier
                     .fillMaxWidth()
                     .background(whiteBg)
-                    .padding(horizontal = 20.dp, vertical = 10.dp)
+                    .padding(horizontal = tokens.screenPadding, vertical = tokens.cardPadding * 0.35f)
             ) {
                 Text(
                     "Tracking Timeline",
-                    fontSize = 16.sp,
+                    fontSize = tokens.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     color = DarkText
                 )
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(tokens.screenPadding * 0.8f))
 
             // Find active step index (first unticked step)
             val activeIndex = tickedStates.indexOfFirst { !it }
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = paddingValue)
+                    .padding(horizontal = tokens.screenPadding)
             ) {
 
                 timelineSteps.forEachIndexed { index, step ->
@@ -256,20 +256,20 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                 Modifier
                     .fillMaxWidth()
                     .background(whiteBg)
-                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                    .padding(horizontal = tokens.screenPadding * 0.5f, vertical = tokens.cardPadding * 0.35f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(painter = painterResource(R.drawable.ic_info), contentDescription = "shipment information")
                 Spacer(Modifier.width(8.dp))
-                Text("Shipment Information", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = DarkText)
+                Text("Shipment Information", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = DarkText)
             }
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = paddingValue)
+                    .padding(horizontal = tokens.screenPadding)
             ) {
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.6f))
                 ShipmentInfoRow("Origin", "Warehouse A, New Delhi")
                 HorizontalDivider(color = GrayBorder)
                 ShipmentInfoRow("Destination", "742 Evergreen Terrace, Springfield")
@@ -277,7 +277,7 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                 ShipmentInfoRow("Package Weight", "2.5 KG")
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(tokens.screenPadding))
             HorizontalDivider(color = GrayBorder)
 
             // ── Courier Details ───────────────────────────────────────────────
@@ -285,27 +285,27 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                 Modifier
                     .fillMaxWidth()
                     .background(whiteBg)
-                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                    .padding(horizontal = tokens.screenPadding * 0.5f, vertical = tokens.cardPadding * 0.35f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(tokens.iconSize * 1.55f),
                     contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.TwoWheeler, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp)) }
+                ) { Icon(Icons.Default.TwoWheeler, contentDescription = null, tint = Primary, modifier = Modifier.size(tokens.iconSize * 0.9f)) }
                 Spacer(Modifier.width(8.dp))
-                Text("Courier Details", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = DarkText)
+                Text("Courier Details", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = DarkText)
             }
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = paddingValue)
+                    .padding(horizontal = tokens.screenPadding)
             ) {
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 0.6f))
                 CourierDetailRow("Courier", "Velocity Express")
                 HorizontalDivider(color = GrayBorder)
                 CourierDetailRow("Service Type", "Next Day Air")
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(tokens.screenPadding * 1.6f))
             }
         }
     }
@@ -320,6 +320,8 @@ private fun AnimatedTimelineItem(
     isLast: Boolean,
     onToggle: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     // Bounce scale when ticked/active
     val scale by animateFloatAsState(
         targetValue = if (isTicked || isActive) 1f else 0.95f,
@@ -334,6 +336,9 @@ private fun AnimatedTimelineItem(
         label = "lineFill"
     )
 
+    val circleOuterSize = tokens.iconSize * 2.4f
+    val circleInnerSize = tokens.iconSize * 2.0f
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -342,15 +347,15 @@ private fun AnimatedTimelineItem(
         // ── Icon column + halo + connector ─────────────────────────────
         Box(
             modifier = Modifier
-                .width(44.dp)
+                .width(circleOuterSize)
                 .fillMaxHeight(),
             contentAlignment = Alignment.TopCenter
         ) {
-            // 1. Connector bar drawn BEHIND circle (starts from center of circle at 22.dp down to bottom of row)
+            // 1. Connector bar drawn BEHIND circle (starts from center of circle down to bottom of row)
             if (!isLast) {
                 Box(
                     modifier = Modifier
-                        .padding(top = 22.dp)
+                        .padding(top = circleOuterSize / 2)
                         .width(2.5.dp)
                         .fillMaxHeight()
                         .background(GrayBorder)
@@ -370,14 +375,14 @@ private fun AnimatedTimelineItem(
             Box(
                 modifier = Modifier
                     .scale(scale)
-                    .size(44.dp),
+                    .size(circleOuterSize),
                 contentAlignment = Alignment.Center
             ) {
                 // Soft purple halo behind active step (e.g. "In Transit")
                 if (isActive && !isTicked) {
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(circleOuterSize)
                             .background(ActiveHalo, CircleShape)
                     )
                 }
@@ -385,7 +390,7 @@ private fun AnimatedTimelineItem(
                 // Inner Step Icon Circle
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(circleInnerSize)
                         .clip(CircleShape)
                         .background(
                             when {
@@ -410,14 +415,14 @@ private fun AnimatedTimelineItem(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Completed",
                                 tint = whiteBg,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(tokens.iconSize)
                             )
                         } else {
                             Icon(
                                 imageVector = step.icon,
                                 contentDescription = null,
                                 tint = if (isActive) whiteBg else Color(0xFF6B7280),
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(tokens.iconSize)
                             )
                         }
                     }
@@ -434,13 +439,13 @@ private fun AnimatedTimelineItem(
         ) {
             Text(
                 text = step.title,
-                fontSize = 15.sp,
+                fontSize = tokens.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = DarkText
             )
-            Text(step.subtitle, fontSize = 13.sp, color = GrayText)
-            step.description?.let { Text(it, fontSize = 13.sp, color = GrayText) }
-            step.time?.let { Text(it, fontSize = 12.sp, color = GrayText) }
+            Text(step.subtitle, fontSize = tokens.bodySmall, color = GrayText)
+            step.description?.let { Text(it, fontSize = tokens.bodySmall, color = GrayText) }
+            step.time?.let { Text(it, fontSize = tokens.caption, color = GrayText) }
         }
     }
 }
@@ -448,10 +453,11 @@ private fun AnimatedTimelineItem(
 // ── Helpers ──────────────────────────────────────────────────────────────────
 @Composable
 private fun InfoCell(label: String, value: String, modifier: Modifier = Modifier) {
+    val tokens = LocalAppTokens.current
     Column(modifier = modifier.padding(horizontal = 4.dp)) {
-        Text(label, fontSize = 11.sp, color = GrayText)
+        Text(label, fontSize = tokens.caption, color = GrayText)
         Spacer(Modifier.height(2.dp))
-        Text(value, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = DarkText)
+        Text(value, fontSize = tokens.caption, fontWeight = FontWeight.Medium, color = DarkText)
     }
 }
 
@@ -462,21 +468,23 @@ private fun VerticalDividerLine() {
 
 @Composable
 private fun ShipmentInfoRow(label: String, value: String) {
+    val tokens = LocalAppTokens.current
     Column(modifier = Modifier.padding(vertical = 10.dp)) {
-        Text(label, fontSize = 12.sp, color = GrayText)
+        Text(label, fontSize = tokens.caption, color = GrayText)
         Spacer(Modifier.height(2.dp))
-        Text(value, fontSize = 14.sp, color = DarkText)
+        Text(value, fontSize = tokens.bodyMedium, color = DarkText)
     }
 }
 
 @Composable
 private fun CourierDetailRow(label: String, value: String) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, fontSize = 13.sp, color = GrayText)
-        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = DarkText)
+        Text(label, fontSize = tokens.bodySmall, color = GrayText)
+        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = DarkText)
     }
 }
 
@@ -484,5 +492,13 @@ private fun CourierDetailRow(label: String, value: String) {
 @Preview(showBackground = true, widthDp = 380, heightDp = 900)
 @Composable
 fun TrackingOverviewPreview() {
-    MaterialTheme { TrackingOverviewScreen() }
+    MaterialTheme {
+        CompositionLocalProvider(
+            LocalAppTokens provides com.cuso.mobile.adaptive_screen.getAdaptiveTokens(
+                androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
+            )
+        ) {
+            TrackingOverviewScreen()
+        }
+    }
 }

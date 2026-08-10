@@ -51,6 +51,7 @@ import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.DesignationCreateState
 import com.cuso.mobile.viewmodel.DesignationDeleteState
 import com.cuso.mobile.viewmodel.DesignationUiState
@@ -177,32 +178,9 @@ fun DesignationScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            modifier = Modifier.size(22.dp).clickable { onBack() },
-                            tint = Color(0xFF111827)
-                        )
-                        Text(
-                            "Designation",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF111827)
-                        )
-                    }
-                }
+                TitleBar("Designation", onClose = onBack)
             }
 
             // ── MAIN CONTENT with blur ──

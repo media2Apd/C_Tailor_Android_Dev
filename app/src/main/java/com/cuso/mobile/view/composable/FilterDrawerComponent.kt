@@ -50,6 +50,7 @@ import androidx.compose.ui.zIndex
 import com.cuso.mobile.ui.theme.Primary
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.unit.Dp
+import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
@@ -194,11 +195,11 @@ fun FilterDrawer(
         expandedFraction = FilterFullFraction,
         dragCloseEnabled = true,
         scrollableContent = false,
-        sheetBackgroundColor = Color(0xFFf8f9ff),
+        sheetBackgroundColor = Primary_background,
         onDismissRequest = { state.close() },
         onBlurScrimChange = { blur, _ ->
             filterDrawerBlur = blur
-            onBackgroundBlurChange(blur)   //   ADD THIS — forward it up
+            onBackgroundBlurChange(blur)
         }
     ) {
         // ── Sheet Content ──

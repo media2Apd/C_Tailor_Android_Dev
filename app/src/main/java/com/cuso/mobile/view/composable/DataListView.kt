@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cuso.mobile.adaptive_screen.LocalAppTokens // Global design system tokens
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.lightGray
 import com.cuso.mobile.ui.theme.whiteBg
 
@@ -188,7 +190,9 @@ fun <T> DataCard(
     bottomBadgeCornerRadius: Dp = 20.dp,
     eyebrowText: String? = null,
     eyebrowColor: Color = Color(0xFF6B7280),
-    title: String,
+    title: String? = null,
+    smalltitle: String? = null,
+    percentage: String? =null,
     titleFontWeight: FontWeight = FontWeight.SemiBold,
     titleColor: Color = Color(0xFF111827),
     subtitle: String? = null,
@@ -208,7 +212,7 @@ fun <T> DataCard(
     val tokens = LocalAppTokens.current
 
     // Formats title to Title Case (e.g., "john doe" -> "John Doe")
-    val formattedTitle = remember(title) { title.toTitleCase() }
+    val formattedTitle = remember(title) { title?.toTitleCase() }
 
     Card(
         modifier = modifier
@@ -285,19 +289,49 @@ fun <T> DataCard(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = formattedTitle,
-                        fontSize = tokens.h2, // Adaptive heading
-                        fontWeight = titleFontWeight,
-                        color = titleColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (formattedTitle != null) {
+                            Text(
+                                text = formattedTitle,
+                                fontSize = tokens.h2, // Adaptive heading
+                                fontWeight = titleFontWeight,
+                                color = titleColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (smalltitle != null) {
+                            Text(
+                                text = smalltitle,
+                                fontSize = tokens.bodySmall, // Adaptive heading
+                                fontWeight = FontWeight.Normal,
+                                color = titleColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(Modifier.width(5.dp))
+
+                        if (percentage != null) {
+                            Text(
+                                text = percentage,
+                                fontSize = tokens.bodySmall, // Adaptive heading
+                                fontWeight = FontWeight.Normal,
+                                color = Primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
                     if (subtitle != null) {
                         Spacer(Modifier.height(2.dp))
                         Text(
                             text = subtitle,
-                            fontSize = tokens.bodySmall, // Adaptive detail text
+                            fontSize = tokens.caption, // Adaptive detail text
                             color = Color(0xFF6B7280),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -367,4 +401,80 @@ fun <T> DataCard(
         }
     }
     HorizontalDivider(color = lightGray, thickness = 1.dp)
+}
+
+data class DataCardStat(
+    val label: String,
+    val value: String,
+    val valueColor: Color = Color(0xFF111827)
+)
+
+@Composable
+fun DataCardStatsRow(
+    stats: List<DataCardStat>,
+    modifier: Modifier = Modifier
+) {
+    val tokens = LocalAppTokens.current
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        stats.forEach { stat ->
+            Column {
+                Text(
+                    text = stat.label,
+                    fontSize = tokens.caption,
+                    color = Color(0xFF9CA3AF),
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stat.value,
+                    fontSize = tokens.bodyMedium,
+                    color = stat.valueColor,
+                    fontWeight = FontWeight.Normal
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DataCardProgressBar(
+    progress: Float,
+    progressColor: Color,
+    modifier: Modifier = Modifier,
+    trackColor: Color = Color(0xFFF3F4F6),
+    height: Dp = 6.dp
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(height)
+            .clip(RoundedCornerShape(999.dp))
+            .background(trackColor)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                .clip(RoundedCornerShape(999.dp))
+                .background(progressColor)
+        )
+    }
+}
+
+@Composable
+fun DataCardCaptionText(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF9CA3AF)
+) {
+    val tokens = LocalAppTokens.current
+    Text(
+        text = text,
+        fontSize = tokens.caption,
+        color = color,
+        modifier = modifier
+    )
 }

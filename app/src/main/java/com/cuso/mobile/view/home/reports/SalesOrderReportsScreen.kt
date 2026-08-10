@@ -33,6 +33,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.redtext
+import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
@@ -50,12 +55,12 @@ import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.view.composable.rememberFilterDrawerState
 
 // ── Design tokens (screen-specific accent colors; sizing/spacing now comes from LocalAppTokens) ──
-private val ReportPrimary = Color(0xFF4F39F6)
-private val LostRed = Color(0xFFEF4444)
+private val ReportPrimary = Primary
+private val LostRed = redtext
 private val ConvertedGreen = Color(0xFF16A34A)
-private val TitleColor = Color(0xFF111827)
-private val MutedColor = Color(0xFF9CA3AF)
-private val BorderColor = Color(0xFFF0F0F0)
+private val TitleColor = title_color
+private val MutedColor = mutedText
+private val BorderColor = PrimaryBorder
 
 // ── Data Models ──
 private data class ReportStat(

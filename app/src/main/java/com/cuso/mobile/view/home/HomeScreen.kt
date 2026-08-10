@@ -192,6 +192,16 @@ import androidx.compose.ui.draw.scale
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.adaptive_screen.getAdaptiveTokens
+import com.cuso.mobile.view.home.hr.AttendanceDetailScreen
+import com.cuso.mobile.view.home.hr.AttendanceScreen
+import com.cuso.mobile.view.home.reports.DeadStockReportScreen
+import com.cuso.mobile.view.home.reports.FinanceReportPage
+import com.cuso.mobile.view.home.reports.InventoryReportPage
+import com.cuso.mobile.view.home.reports.LowStockScreen
+import com.cuso.mobile.view.home.reports.ProfitAndLossReportScreen
+import com.cuso.mobile.view.home.reports.PurchaseReportScreen
+import com.cuso.mobile.view.home.reports.StockSummaryScreen
+import com.cuso.mobile.view.home.reports.WarehouseReportScreen
 
 // ── Design tokens (Primary color used everywhere for icons / accents) ──
 val LeadPrimary = Color(0xFF3B3BF9)
@@ -256,6 +266,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     //   NEW — HR > Employee Onboarding flow (Create / View / Edit)
     var employeeScreenMode by remember { mutableStateOf(com.cuso.mobile.view.home.hr.ScreenMode.CREATE) }
     var selectedEmployeeId by remember { mutableStateOf<String?>(null) }
+
+//   NEW — HR > Attendance > Attendance Detail flow
+    var selectedAttendanceId by remember { mutableStateOf<String?>(null) }
 
     var isSalesSettingsMode by remember { mutableStateOf(false) }
 
@@ -418,6 +431,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             }
             currentScreen == "hr_employee_onboarding" -> {
                 selectedEmployeeId = null
+                goBack()
+            }
+            currentScreen == "hr_attendance_detail" -> {
+                selectedAttendanceId = null
                 goBack()
             }
             currentScreen == "feedback_detail" -> {
@@ -619,15 +636,21 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                     isDrawerOpen = false
                                 }
 
+                                "hr_attendance" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("hr_attendance")
+                                    isDrawerOpen = false
+                                }
+
                                 "logistics_delivery" -> {
                                     isSalesSettingsMode = false
                                     navigateTo("logistics_delivery")
                                     isDrawerOpen = false
                                 }
 
-                                "reports_sales_reports", "reports_finance_reports" -> {
+                                "reports_sales", "reports_finance_reports" -> {
                                     isSalesSettingsMode = false
-                                    navigateTo("reports_sales_reports")
+                                    navigateTo("reports_sales")
                                     isDrawerOpen = false
                                 }
 
@@ -1058,6 +1081,32 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                     showModulesPanel = true
                                 }
                             )
+                            "hr_attendance" -> AttendanceScreen(
+                                onClose = { goBack() },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "HR"
+                                    showModulesPanel = true
+                                },
+                                onRecordClick = { recordId ->
+                                    selectedAttendanceId = recordId
+                                    navigateTo("hr_attendance_detail")
+                                }
+                            )
+                            "hr_attendance_detail" -> {
+                                AttendanceDetailScreen(
+                                    onClose = {
+                                        selectedAttendanceId = null
+                                        goBack()
+                                    },
+                                    onBreadCrumbClick = {
+                                        modulesPanelInitialExpanded = "HR"
+                                        showModulesPanel = true
+                                    },
+                                    onHistoryClick = { date ->
+                                        // future: navigate to a specific history date's detail if needed
+                                    }
+                                )
+                            }
 
                             "logistics_order_tracking" -> OrderTrackingScreen(
                                 onClose = { goBack() },
@@ -1471,13 +1520,78 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 }
                             )
 
-                            "reports_sales_reports" -> SalesOrderReportsScreen(
+                            "reports_sales" -> SalesOrderReportsScreen(
                                 onClose = { goBack() },
                                 onBreadCrumbClick = {
                                     modulesPanelInitialExpanded = "Reports"
                                     showModulesPanel = true
                                 }
                             )
+
+                            "reports_inventory" -> InventoryReportPage(
+                                onClose = { goBack() },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Reports"
+                                    showModulesPanel = true
+                                },
+                                onReportClick = { route ->
+                                    val implementedInventoryReports = setOf(
+                                        "reports_inventory_stock_summary",
+                                        "reports_inventory_low_stock",
+                                        "reports_inventory_warehouse_report",
+                                        "reports_inventory_purchase_report",
+                                        "reports_inventory_dead_stock"
+                                    )
+                                    if (route in implementedInventoryReports) {
+                                        navigateTo(route)
+                                    } else {
+                                        comingSoonMessage = "Coming Soon, Stay tuned !"
+                                    }
+                                }
+                            )
+
+                            "reports_inventory_stock_summary" -> StockSummaryScreen(
+                                onClose = { goBack() }
+                            )
+
+                            "reports_inventory_low_stock" -> LowStockScreen(
+                                onClose = { goBack() }
+                            )
+
+                            "reports_inventory_warehouse_report" -> WarehouseReportScreen(
+                                onClose = { goBack() }
+                            )
+
+                            "reports_inventory_purchase_report" -> PurchaseReportScreen(
+                                onClose = { goBack() }
+                            )
+
+                            "reports_inventory_dead_stock" -> DeadStockReportScreen(
+                                onClose = { goBack() }
+                            )
+
+                            "reports_finance" -> FinanceReportPage(
+                                onClose = { goBack() },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Reports"
+                                    showModulesPanel = true
+                                },
+                                onReportClick = { route ->
+                                    val implementedFinanceReports = setOf(
+                                        "reports_finance_profit_and_loss_report"
+
+                                    )
+                                    if (route in implementedFinanceReports) {
+                                        navigateTo(route)
+                                    } else {
+                                        comingSoonMessage = "Coming Soon, Stay tuned !"
+                                    }
+                                }
+                            )
+                            "reports_finance_profit_and_loss_report" -> ProfitAndLossReportScreen(
+                                onClose = { goBack() }
+                            )
+
 
                             else -> {}
                         }
@@ -1523,9 +1637,13 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
                     // HR
                     "hr_all_employees",
+                    "hr_attendance",
 
                     // Reports
-                    "reports_sales_reports"
+                    "reports_sales",
+                    "reports_inventory",
+                    "reports_finance"
+
                 )
 
                 isSalesSettingsMode = false
@@ -1930,9 +2048,9 @@ fun BottomBar(
                         BottomNavItem(
                             icon = R.drawable.reports,
                             label = "Reports",
-                            isSelected = currentScreen == "reports_sales_reports",
+                            isSelected = currentScreen == "reports_sales",
                             selectedColor = Color(0xFF6C4FF6),
-                            onClick = { onMenuItemClick("reports_sales_reports") }
+                            onClick = { onMenuItemClick("reports_sales") }
                         )
 
                         BottomNavItem(
@@ -3298,7 +3416,18 @@ fun normalizeRoute(rawKey: String): String {
         "hr_employees"                 -> "hr_all_employees"
 
         // Reports
-        "reports_sales_reports"        -> "reports_sales_reports"
+        "reports_sales"             -> "reports_sales"
+        "reports_marketing"         -> "reports_marketing"
+        "reports_inventory"         -> "reports_inventory"
+        "reports_reports_inventory" -> "reports_inventory" // Handling prefix from ModulesPanel
+        "reports_finance"           -> "reports_finance"
+        "reports_reports_finance"   -> "reports_finance" // Handling prefix from ModulesPanel
+        "reports_human_resource"    -> "reports_human_resource"
+        "reports_logistics"         -> "reports_logistics"
+        "reports_it"                -> "reports_it"
+        "reports_legal"             -> "reports_legal"
+
+
 
         else -> rawKey
     }
@@ -3320,6 +3449,7 @@ fun menuForScreen(screen: String): String = when {
     screen.startsWith("inventory_") -> "Inventory"
     screen.startsWith("hr_") -> "HR"
     screen.startsWith("logistics_") || screen == "tracking_overview" -> "Logistics"
+    screen.startsWith("reports_") -> "Reports"
 
     else -> "Home"
 }

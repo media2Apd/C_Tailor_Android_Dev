@@ -59,6 +59,7 @@ import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
+import com.cuso.mobile.view.composable.TitleBar
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────
@@ -180,17 +181,9 @@ fun DepartmentSettingsScreen(
             Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
                 Column(
-                    modifier = Modifier.fillMaxWidth().background(whiteBg).padding(horizontal = 16.dp, vertical = 12.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", modifier = Modifier.size(22.dp).clickable { onBack() }, tint = Color(0xFF111827))
-                            Text("Department", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                        }
-                        if (planLimits != null) {
-                            Text("$currentDepartments/${planLimits.departmentLimit}", fontSize = 13.sp, color = if (isDepartmentLimitReached) Color.Red else Color(0xFF6B7280))
-                        }
-                    }
+                    TitleBar("Department", onClose = onBack)
                 }
 
                 Column(modifier = Modifier.fillMaxWidth()) {

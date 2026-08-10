@@ -65,6 +65,7 @@ import com.cuso.mobile.viewmodel.UpdateBranchUiState
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.view.composable.blurScrim
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────
@@ -100,13 +101,17 @@ fun BranchSettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    // Blur & Scrim States for Add Sheet
+    // Blur states - same pattern as DesignationScreen, driven by SmoothBottomSheet's own callback
     var addSheetBlur by remember { mutableStateOf(0.dp) }
-    var addSheetScrim by remember { mutableFloatStateOf(0f) }
-
-// Blur & Scrim States for Edit Sheet
     var editSheetBlur by remember { mutableStateOf(0.dp) }
-    var editSheetScrim by remember { mutableFloatStateOf(0f) }
+
+    // True whenever either sheet is not hidden, used to decide if content should blur
+    val isAnySheetOpen = addSheetState != SheetValue.Hidden || editSheetState != SheetValue.Hidden
+    val currentBlur = when {
+        addSheetState != SheetValue.Hidden -> addSheetBlur
+        editSheetState != SheetValue.Hidden -> editSheetBlur
+        else -> 0.dp
+    }
 
     LaunchedEffect(Unit) {
         branchViewModel.loadBranches()
@@ -178,56 +183,42 @@ fun BranchSettingsScreen(
     val totalPages = maxOf(1, if (filteredBranches.isNotEmpty()) (filteredBranches.size + itemsPerPage - 1) / itemsPerPage else 1)
     val pagedBranches = filteredBranches.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
 
-    // ── Scaffold with TopBar ──
-    Scaffold(
-        topBar = {
+    // Removed Scaffold's topBar slot for TitleBar - it lived in a separate layout
+    // region from the sheet's scrim, which let the scrim bleed into it.
+    // TitleBar is now placed directly inside FabScaffold's body, outside the blurred Box,
+    // exactly like DesignationScreen. This guarantees it never blurs or dims.
+    FabScaffold(
+        modifier = Modifier.fillMaxSize(),
+        fab = FabConfig(
+            label = "Add Branch",
+            icon = Icons.Default.Add,
+            onClick = {
+                if (isBranchLimitReached) {
+                    showPlanLimitDialog = true
+                } else {
+                    addSheetState = SheetValue.Expanded
+                }
+            },
+            endPadding = 16.dp,
+            bottomPadding = 16.dp,
+            draggable = true
+        ),
+        snackbarHostState = snackbarHostState
+    ) {
+        Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+
+            // ── HEADER - Always solid, never blurred or dimmed ──
             Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
                 TitleBar("Branches", onClose = onBack)
-//                Column {
-//                    Row(
-//                        verticalAlignment = Alignment.CenterVertically,
-//                        horizontalArrangement = Arrangement.SpaceBetween,
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .padding(horizontal = 20.dp, vertical = 16.dp)
-//                    ) {
-//                        if (planLimits != null) {
-//                            Text(
-//                                text = "$currentBranchesCount/${planLimits.branchLimit}",
-//                                fontSize = 13.sp,
-//                                color = if (isBranchLimitReached) Color.Red else Color(0xFF6B7280)
-//                            )
-//                        }
-//                    }
-//                }
             }
-        },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = Color.Transparent
 
-    ) { padding ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            FabScaffold(
+            // ── MAIN CONTENT - blur applied only here while a sheet is open ──
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
-                fab = FabConfig(
-                    label = "Add Branch",
-                    icon = Icons.Default.Add,
-                    onClick = {
-                        if (isBranchLimitReached) {
-                            showPlanLimitDialog = true
-                        } else {
-                            addSheetState = SheetValue.Expanded
-                        }
-                    },
-                    endPadding = 16.dp,
-                    bottomPadding = 16.dp,
-                    draggable = true
-                ),
-                snackbarHostState = snackbarHostState
+                    .blurScrim(if (isAnySheetOpen) currentBlur else 0.dp)
             ) {
-                Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+                Column(modifier = Modifier.fillMaxSize()) {
                     ScreenBreadcrumb(
                         segments = listOf("Settings", "Branches"),
                         onClick = { /* TODO: hook to modules panel */ }
@@ -339,74 +330,20 @@ fun BranchSettingsScreen(
                     }
                 }
             }
+        }
 
-            // ── SmoothBottomSheet for Add Branch ──
-            SmoothBottomSheet(
-                state = addSheetState,
-                onStateChange = { newState ->
-                    addSheetState = newState
-                    if (newState == SheetValue.Hidden) {
-                        branchViewModel.resetCreateState()
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-                peekHeight = 200.dp,
-                topInset = 48.dp,
-                maxBlurRadius = 14.dp,
-                maxScrimAlpha = 0.35f,
-                sheetBackgroundColor = whiteBg,
-                collapsedCornerRadius = 24.dp,
-                dragCloseEnabled = true,
-                scrollableContent = true,
-                onDismissRequest = {
-                    addSheetState = SheetValue.Hidden
+        // ── SmoothBottomSheet for Add Branch ──
+        // peekHeight defines the initial half-open height; user can drag up to expand to full screen.
+        SmoothBottomSheet(
+            state = addSheetState,
+            onStateChange = { newState ->
+                addSheetState = newState
+                if (newState == SheetValue.Hidden) {
                     branchViewModel.resetCreateState()
                 }
-            ) {
-                AddBranchSheetContent(
-                    staffList = staffList,
-                    isLoading = isCreating,
-                    onDismiss = {
-                        addSheetState = SheetValue.Hidden
-                        branchViewModel.resetCreateState()
-                    },
-                    onCreate = { request ->
-                        if (isBranchLimitReached) {
-                            showPlanLimitDialog = true
-                            return@AddBranchSheetContent
-                        }
-                        branchViewModel.createBranch(request)
-                    }
-                )
-            }
-
-
-
-            // ── Plan Limit Dialog ──
-            if (showPlanLimitDialog) {
-                PlanLimitDialog(
-                    title = "Plan Limit Reached",
-                    message = "Branch limit exceeded ($currentBranchesCount/${planLimits?.branchLimit ?: 0}). Upgrade your plan to add more branches.",
-                    onDismiss = { showPlanLimitDialog = false },
-                    onUpgrade = { showPlanLimitDialog = false }
-                )
-            }
-        }
-    }
-    // ── SmoothBottomSheet for Edit Branch ──
-    editingBranch?.let { branch ->
-        SmoothBottomSheet(
-            state = editSheetState,
-            onStateChange = { newState ->
-                editSheetState = newState
-                if (newState == SheetValue.Hidden) {
-                    editingBranch = null
-                    branchViewModel.resetUpdateState()
-                }
             },
-            modifier = Modifier.fillMaxSize(),
-            peekHeight = 200.dp,
-            topInset = 48.dp,
+            peekHeight = 380.dp,
+            topInset = 60.dp,
             maxBlurRadius = 14.dp,
             maxScrimAlpha = 0.35f,
             sheetBackgroundColor = whiteBg,
@@ -414,37 +351,97 @@ fun BranchSettingsScreen(
             dragCloseEnabled = true,
             scrollableContent = true,
             onDismissRequest = {
-                editSheetState = SheetValue.Hidden
-                editingBranch = null
-                branchViewModel.resetUpdateState()
+                addSheetState = SheetValue.Hidden
+                branchViewModel.resetCreateState()
+            },
+            onBlurScrimChange = { blur, _ ->
+                addSheetBlur = blur
             }
         ) {
-            EditBranchSheetContent(
-                branch = branch,
+            AddBranchSheetContent(
                 staffList = staffList,
-                isLoading = isUpdating,
+                isLoading = isCreating,
                 onDismiss = {
+                    addSheetState = SheetValue.Hidden
+                    branchViewModel.resetCreateState()
+                },
+                onCreate = { request ->
+                    if (isBranchLimitReached) {
+                        showPlanLimitDialog = true
+                        return@AddBranchSheetContent
+                    }
+                    branchViewModel.createBranch(request)
+                }
+            )
+        }
+
+        // ── SmoothBottomSheet for Edit Branch ──
+        // Moved inside FabScaffold's body (was outside the Scaffold entirely before),
+        // so it shares the same layout context and blur wiring as the Add sheet.
+        editingBranch?.let { branch ->
+            SmoothBottomSheet(
+                state = editSheetState,
+                onStateChange = { newState ->
+                    editSheetState = newState
+                    if (newState == SheetValue.Hidden) {
+                        editingBranch = null
+                        branchViewModel.resetUpdateState()
+                    }
+                },
+                peekHeight = 380.dp,
+                topInset = 60.dp,
+                maxBlurRadius = 14.dp,
+                maxScrimAlpha = 0.35f,
+                sheetBackgroundColor = whiteBg,
+                collapsedCornerRadius = 24.dp,
+                dragCloseEnabled = true,
+                scrollableContent = true,
+                onDismissRequest = {
                     editSheetState = SheetValue.Hidden
                     editingBranch = null
                     branchViewModel.resetUpdateState()
                 },
-                onUpdate = { request ->
-                    branchViewModel.updateBranch(
-                        branchId = branch.id,
-                        request = UpdateBranchRequest(
-                            name = request.name,
-                            address = UpdateBranchAddress(
-                                street = request.street,
-                                city = request.city,
-                                postalCode = request.postalCode
-                            ),
-                            contactEmail = request.contactEmail,
-                            contactMobile = request.contactMobile,
-                            status = branch.status,
-                            branchHead = request.branchHead
-                        )
-                    )
+                onBlurScrimChange = { blur, _ ->
+                    editSheetBlur = blur
                 }
+            ) {
+                EditBranchSheetContent(
+                    branch = branch,
+                    staffList = staffList,
+                    isLoading = isUpdating,
+                    onDismiss = {
+                        editSheetState = SheetValue.Hidden
+                        editingBranch = null
+                        branchViewModel.resetUpdateState()
+                    },
+                    onUpdate = { request ->
+                        branchViewModel.updateBranch(
+                            branchId = branch.id,
+                            request = UpdateBranchRequest(
+                                name = request.name,
+                                address = UpdateBranchAddress(
+                                    street = request.street,
+                                    city = request.city,
+                                    postalCode = request.postalCode
+                                ),
+                                contactEmail = request.contactEmail,
+                                contactMobile = request.contactMobile,
+                                status = branch.status,
+                                branchHead = request.branchHead
+                            )
+                        )
+                    }
+                )
+            }
+        }
+
+        // ── Plan Limit Dialog ──
+        if (showPlanLimitDialog) {
+            PlanLimitDialog(
+                title = "Plan Limit Reached",
+                message = "Branch limit exceeded ($currentBranchesCount/${planLimits?.branchLimit ?: 0}). Upgrade your plan to add more branches.",
+                onDismiss = { showPlanLimitDialog = false },
+                onUpgrade = { showPlanLimitDialog = false }
             )
         }
     }

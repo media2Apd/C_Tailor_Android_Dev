@@ -878,58 +878,97 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
     val tokens = LocalAppTokens.current
     val scrollState = rememberScrollState()
 
-    val colOrderId = 90.dp
-    val colDate = 110.dp
-    val colGarment = 140.dp
-    val colAmount = 90.dp
-    val colStatus = 90.dp
-    val totalWidth = colOrderId + colDate + colGarment + colAmount + colStatus
+    // These numbers now act as relative weights, not fixed dp widths.
+    // Compose distributes the available row width proportionally between them.
+    val weightOrderId = 0.9f
+    val weightDate = 1.1f
+    val weightGarment = 1.6f
+    val weightAmount = 0.9f
+    val weightStatus = 1.1f
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(scrollState)
-    ) {
-        Row(
+    // Minimum width per column so text never gets squished on very narrow screens
+    val minOrderId = 80.dp
+    val minDate = 95.dp
+    val minGarment = 110.dp
+    val minAmount = 75.dp
+    val minStatus = 85.dp
+    val minContentWidth = minOrderId + minDate + minGarment + minAmount + minStatus
+
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        // Use full available width when it's big enough, otherwise fall back
+        // to the minimum content width and let the row scroll horizontally.
+        val tableWidth = maxOf(minContentWidth, this.maxWidth)
+        val needsScroll = this.maxWidth < minContentWidth
+
+        Column(
             modifier = Modifier
-                .width(totalWidth)
-                .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp))
-                .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 14.dp)
+                .fillMaxWidth()
+                .then(if (needsScroll) Modifier.horizontalScroll(scrollState) else Modifier)
         ) {
-            Text("Order ID", fontSize = tokens.bodyMedium, color = Color(0xFF374151), modifier = Modifier.width(colOrderId))
-            Text("Date", fontSize = tokens.bodyMedium, color = Color(0xFF374151), modifier = Modifier.width(colDate))
-            Text("Garment", fontSize = tokens.bodyMedium, color = Color(0xFF374151), modifier = Modifier.width(colGarment))
-            Text("Amount", fontSize = tokens.bodyMedium, color = Color(0xFF374151), modifier = Modifier.width(colAmount))
-            Text("Status", fontSize = tokens.bodyMedium, color = Color(0xFF374151), modifier = Modifier.width(colStatus))
-        }
-
-        orders.forEachIndexed { index, row ->
+            // Header row
             Row(
                 modifier = Modifier
-                    .width(totalWidth)
-                    .padding(vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .width(tableWidth)
+                    .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp))
+                    .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 14.dp)
             ) {
-                Text(row.orderId, fontSize = tokens.bodyMedium, color = Color(0xFF111827), modifier = Modifier.width(colOrderId))
-                Text(row.date, fontSize = tokens.bodySmall, color = Color(0xFF111827), modifier = Modifier.width(colDate))
-                Text(
-                    row.garment, fontSize = tokens.bodyMedium, color = Color(0xFF111827),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.width(colGarment)
-                )
-                Text(row.amount, fontSize = tokens.bodyMedium, color = Color(0xFF111827), modifier = Modifier.width(colAmount))
-                Box(modifier = Modifier.width(colStatus)) {
+                Text("Order ID", fontSize = tokens.bodyMedium, color = Color(0xFF374151),
+                    modifier = Modifier.weight(weightOrderId).widthIn(min = minOrderId))
+                Text("Date", fontSize = tokens.bodyMedium, color = Color(0xFF374151),
+                    modifier = Modifier.weight(weightDate).widthIn(min = minDate))
+                Text("Garment", fontSize = tokens.bodyMedium, color = Color(0xFF374151),
+                    modifier = Modifier.weight(weightGarment).widthIn(min = minGarment))
+                Text("Amount", fontSize = tokens.bodyMedium, color = Color(0xFF374151),
+                    modifier = Modifier.weight(weightAmount).widthIn(min = minAmount))
+                Text("Status", fontSize = tokens.bodyMedium, color = Color(0xFF374151),
+                    modifier = Modifier.weight(weightStatus).widthIn(min = minStatus))
+            }
+
+            // Data rows - same weights as header, so columns always line up
+            orders.forEachIndexed { index, row ->
+                Row(
+                    modifier = Modifier
+                        .width(tableWidth)
+                        .padding(vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(row.orderId, fontSize = tokens.bodyMedium, color = Color(0xFF111827),
+                        modifier = Modifier.weight(weightOrderId).widthIn(min = minOrderId))
+                    Text(row.date, fontSize = tokens.bodySmall, color = Color(0xFF111827),
+                        modifier = Modifier.weight(weightDate).widthIn(min = minDate))
+                    Text(
+                        row.garment, fontSize = tokens.bodyMedium, color = Color(0xFF111827),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(weightGarment).widthIn(min = minGarment)
+                    )
+                    Text(row.amount, fontSize = tokens.bodyMedium, color = Color(0xFF111827),
+                        modifier = Modifier.weight(weightAmount).widthIn(min = minAmount))
+
+                    // Status pill - fixed max width inside its weighted slot, single line, no wrap
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFFEE2E2), RoundedCornerShape(50))
-                            .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 5.dp)
+                            .weight(weightStatus)
+                            .widthIn(min = minStatus)
                     ) {
-                        Text(row.status, fontSize = tokens.caption, color = Color(0xFFDC2626), fontWeight = FontWeight.Medium)
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFFFEE2E2), RoundedCornerShape(50))
+                                .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 5.dp)
+                        ) {
+                            Text(
+                                row.status,
+                                fontSize = tokens.caption,
+                                color = Color(0xFFDC2626),
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
-            }
-            if (index != orders.lastIndex) {
-                HorizontalDivider(color = Color(0xFFF0F0F0), modifier = Modifier.width(totalWidth))
+                if (index != orders.lastIndex) {
+                    HorizontalDivider(color = Color(0xFFF0F0F0), modifier = Modifier.width(tableWidth))
+                }
             }
         }
     }

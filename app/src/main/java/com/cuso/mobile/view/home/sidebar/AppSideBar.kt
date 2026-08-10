@@ -175,7 +175,7 @@ object SidebarConfig {
                 categories = listOf("Service Request", "Alteration Management", "Return", "Damaged Goods", "Customer Feedback")
             ),
             MenuItem(R.drawable.hr, "HR", isPanel = true,
-                categories = listOf("Employees")
+                categories = listOf("Employees","Attendance")
             ),
             MenuItem(R.drawable.it, "IT", isPanel = true,
                 categories = listOf("Integrations")
@@ -196,7 +196,7 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.reports, "Reports",
                 isPanel = true,
-                categories = listOf("Sales Reports", "Finance Reports")
+                categories = listOf("Sales","Marketing","Finance","Inventory","Human Resource","Logistics","IT","Legal")
             )
         )
     }

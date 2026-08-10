@@ -29,7 +29,9 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.*
 
 /**
- * An adaptive Accordion section with smooth expansion and icon rotation animations.
+ * Updated Accordion section:
+ * 1. Trailing content (badges) appears next to the Title.
+ * 2. Dropdown arrow stays at the far right.
  */
 @Composable
 fun AccordionSection(
@@ -39,13 +41,12 @@ fun AccordionSection(
     subtitle: String? = null,
     expanded: Boolean,
     onHeaderClick: () -> Unit,
-    iconTint: Color = Primary,
-    trailing: @Composable (() -> Unit)? = null,
+    iconTint: Color = Color(0xFF5A57D6),
+    trailing: @Composable (() -> Unit)? = null, // Used for the badge next to title
     content: @Composable ColumnScope.() -> Unit
 ) {
     val tokens = LocalAppTokens.current
 
-    // Animate the chevron rotation (0 to 180 degrees)
     val arrowRotationByAnim by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
         animationSpec = tween(durationMillis = 300),
@@ -53,7 +54,6 @@ fun AccordionSection(
     )
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Header Row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -62,60 +62,51 @@ fun AccordionSection(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
                 ) { onHeaderClick() }
-                // Modern vertical padding with adaptive horizontal padding
                 .padding(horizontal = tokens.screenPadding, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Icon Logic
-                if (icon != null) {
-                    Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(12.dp))
-                } else if (iconPainter != null) {
-                    Icon(iconPainter, null, tint = iconTint, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(12.dp))
-                }
+            // Left Icon
+            if (icon != null) {
+                Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+            } else if (iconPainter != null) {
+                Icon(iconPainter, null, tint = iconTint, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+            }
 
-                // Title and Subtitle
-                Column {
-                    Text(
-                        text = title,
-                        fontSize = tokens.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TitleColor
-                    )
-                    if (!subtitle.isNullOrBlank()) {
-                        Text(
-                            text = subtitle,
-                            fontSize = tokens.caption,
-                            color = TextSecondary
-                        )
-                    }
+            // Title Column
+            Column {
+                Text(
+                    text = title,
+                    fontSize = tokens.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF111827)
+                )
+                if (!subtitle.isNullOrBlank()) {
+                    Text(text = subtitle, fontSize = tokens.caption, color = TextSecondary)
                 }
             }
 
-            // Trailing / Arrow Logic
-            Box(contentAlignment = Alignment.Center) {
-                if (trailing != null) {
-                    trailing()
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = if (expanded) "Collapse" else "Expand",
-                        tint = TextSecondary,
-                        modifier = Modifier
-                            .size(24.dp)
-                            .rotate(arrowRotationByAnim) // Smooth rotation
-                    )
-                }
+            // --- Badge / Value next to Header ---
+            if (trailing != null) {
+                Spacer(Modifier.width(12.dp))
+                trailing()
             }
+
+            // Spacer to push the arrow to the far right
+            Spacer(Modifier.weight(1f))
+
+            // Dropdown Arrow Logic
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = if (expanded) "Collapse" else "Expand",
+                tint = TextSecondary,
+                modifier = Modifier
+                    .size(24.dp)
+                    .rotate(arrowRotationByAnim)
+            )
         }
 
-        // Expanded Content with smooth vertical slide + fade
         AnimatedVisibility(
             visible = expanded,
             enter = fadeIn(animationSpec = tween(300)) + expandVertically(animationSpec = tween(300)),
@@ -124,7 +115,6 @@ fun AccordionSection(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // Align internal content padding with the header
                     .padding(horizontal = tokens.screenPadding)
                     .padding(bottom = 16.dp)
             ) {

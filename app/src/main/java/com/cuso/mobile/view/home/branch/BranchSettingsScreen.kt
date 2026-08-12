@@ -10,16 +10,13 @@
 )
 package com.cuso.mobile.view.home.branch
 
-
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,7 +37,8 @@ import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.model.UpdateBranchAddress
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.ui.theme.BluePrimary
-import com.cuso.mobile.ui.theme.TitleColor
+import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -68,11 +66,6 @@ import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.blurScrim
 import kotlinx.coroutines.launch
 
-// ─────────────────────────────────────────────────────────────
-// BranchSettingsScreen - Updated with SmoothBottomSheet for both Add and Edit
-// ─────────────────────────────────────────────────────────────
-
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun BranchSettingsScreen(
     navController: NavController,
@@ -94,24 +87,20 @@ fun BranchSettingsScreen(
     var editSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var showPlanLimitDialog by remember { mutableStateOf(false) }
 
+    // Separate blur states per sheet for independent control
+    var addSheetBlur by remember { mutableStateOf(0.dp) }
+    var addSheetScrim by remember { mutableFloatStateOf(0f) }
+    var editSheetBlur by remember { mutableStateOf(0.dp) }
+    var editSheetScrim by remember { mutableFloatStateOf(0f) }
+
+    val isAnySheetOpen = addSheetState != SheetValue.Hidden || editSheetState != SheetValue.Hidden
+
     var searchQuery by remember { mutableStateOf("") }
     var currentPage by remember { mutableIntStateOf(1) }
     val itemsPerPage = 10
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-
-    // Blur states - same pattern as DesignationScreen, driven by SmoothBottomSheet's own callback
-    var addSheetBlur by remember { mutableStateOf(0.dp) }
-    var editSheetBlur by remember { mutableStateOf(0.dp) }
-
-    // True whenever either sheet is not hidden, used to decide if content should blur
-    val isAnySheetOpen = addSheetState != SheetValue.Hidden || editSheetState != SheetValue.Hidden
-    val currentBlur = when {
-        addSheetState != SheetValue.Hidden -> addSheetBlur
-        editSheetState != SheetValue.Hidden -> editSheetBlur
-        else -> 0.dp
-    }
 
     LaunchedEffect(Unit) {
         branchViewModel.loadBranches()
@@ -130,6 +119,10 @@ fun BranchSettingsScreen(
             )
         }
     }
+
+    val allBranches = (uiState as? BranchUiState.Success)?.branches ?: emptyList()
+    val currentBranchesCount = allBranches.size
+    val isBranchLimitReached = planLimits?.let { currentBranchesCount >= it.branchLimit } ?: false
 
     LaunchedEffect(createState) {
         when (val state = createState) {
@@ -171,10 +164,6 @@ fun BranchSettingsScreen(
     val isUpdating = updateState is UpdateBranchUiState.Loading
     val isCreating = createState is CreateBranchUiState.Loading
 
-    val allBranches = (uiState as? BranchUiState.Success)?.branches ?: emptyList()
-    val currentBranchesCount = allBranches.size
-    val isBranchLimitReached = planLimits?.let { currentBranchesCount >= it.branchLimit } ?: false
-
     val filteredBranches = allBranches.filter { b ->
         searchQuery.isBlank() ||
                 (b.name?.contains(searchQuery, ignoreCase = true) == true) ||
@@ -183,67 +172,55 @@ fun BranchSettingsScreen(
     val totalPages = maxOf(1, if (filteredBranches.isNotEmpty()) (filteredBranches.size + itemsPerPage - 1) / itemsPerPage else 1)
     val pagedBranches = filteredBranches.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
 
-    // Removed Scaffold's topBar slot for TitleBar - it lived in a separate layout
-    // region from the sheet's scrim, which let the scrim bleed into it.
-    // TitleBar is now placed directly inside FabScaffold's body, outside the blurred Box,
-    // exactly like DesignationScreen. This guarantees it never blurs or dims.
-    FabScaffold(
-        modifier = Modifier.fillMaxSize(),
-        fab = FabConfig(
-            label = "Add Branch",
-            icon = Icons.Default.Add,
-            onClick = {
-                if (isBranchLimitReached) {
-                    showPlanLimitDialog = true
-                } else {
-                    addSheetState = SheetValue.Expanded
-                }
-            },
-            endPadding = 16.dp,
-            bottomPadding = 16.dp,
-            draggable = true
-        ),
-        snackbarHostState = snackbarHostState
-    ) {
-        Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+    // Using Scaffold topBar slot ensures TitleBar is on top of BottomSheets and Scrims
+    Scaffold(
+        topBar = {
+            TitleBar("Branch Management", onClose = onBack)
+        },
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
-            // ── HEADER - Always solid, never blurred or dimmed ──
-            Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
-                TitleBar("Branches", onClose = onBack)
-            }
-
-            // ── MAIN CONTENT - blur applied only here while a sheet is open ──
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blurScrim(if (isAnySheetOpen) currentBlur else 0.dp)
+            FabScaffold(
+                fab = FabConfig(
+                    label = "Add Branch",
+                    icon = Icons.Default.Add,
+                    onClick = {
+                        if (isBranchLimitReached) {
+                            showPlanLimitDialog = true
+                        } else {
+                            addSheetState = SheetValue.Expanded
+                        }
+                    }
+                ),
+                fabVisible = !isAnySheetOpen,
+                snackbarHostState = snackbarHostState
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    ScreenBreadcrumb(
-                        segments = listOf("Settings", "Branches"),
-                        onClick = { /* TODO: hook to modules panel */ }
-                    )
+                // Blur is applied only to this Column, not the TitleBar
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .background(Color.Transparent)
+                        .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        ScreenBreadcrumb(segments = listOf("Settings", "Branch Management"), onClick = {})
 
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    ) {
                         SearchFilterBar(
                             query = searchQuery,
                             onQueryChange = { searchQuery = it },
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                             placeholder = "Search Branches...",
-                            onFilterClick = { /* TODO: open filter drawer */ },
-                            modifier = Modifier
-                                .padding(vertical = 12.dp)
+                            accentColor = BluePrimary
                         )
                     }
+                    HorizontalDivider(color = Color(0xFFF0F0F0))
 
                     Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                        when (val state = uiState) {
-                            is BranchUiState.Loading -> {
-                                ListSkeleton()
-                            }
+                        when (uiState) {
+                            is BranchUiState.Loading -> ListSkeleton()
                             is BranchUiState.Error -> {
                                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -251,11 +228,7 @@ fun BranchSettingsScreen(
                                         Spacer(Modifier.height(8.dp))
                                         Text("Something went wrong, Please try again later", color = Color.Red)
                                         Spacer(Modifier.height(12.dp))
-                                        Button(
-                                            onClick = { branchViewModel.refresh() },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
+                                        Button(onClick = { branchViewModel.refresh() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(8.dp)) {
                                             Text("Retry", color = whiteBg)
                                         }
                                     }
@@ -267,53 +240,27 @@ fun BranchSettingsScreen(
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Icon(Icons.Default.Business, null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
                                             Spacer(Modifier.height(8.dp))
-                                            Text(
-                                                if (searchQuery.isNotBlank()) "No matching branches found" else "No branches found",
-                                                color = Color.Gray,
-                                                fontSize = 15.sp
-                                            )
+                                            Text(if (searchQuery.isNotBlank()) "No matching branches found" else "No branches found", color = Color.Gray, fontSize = 15.sp)
                                         }
                                     }
                                 } else {
-                                    LazyColumn(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(bottom = 80.dp)
-                                    ) {
+                                    LazyColumn(modifier = Modifier.fillMaxSize()) {
                                         items(pagedBranches) { branch ->
                                             val (badgeText, badgeColor) = statusColorsOf(branch.status)
                                             DataCard(
                                                 item = branch,
+                                                title = branch.branchId ?: "-",
+                                                titleColor = title_color,
+                                                subtitle = "Employees: not found \u00B7 Active Orders: not found",
                                                 topBadgeText = badgeText,
                                                 topBadgeTextColor = badgeColor,
                                                 topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-                                                topBadgeInline = false,
-                                                title = (branch.name ?: "Unnamed") + if (branch.isMainBranch) " ⭐" else "",
-                                                titleFontWeight = FontWeight.Bold,
-                                                titleColor = Color(0xFF111827),
-                                                subtitle = branch.branchId ?: "-",
-                                                dateText = branch.branchId ?: "-",
-                                                showDateIcon = false,
+                                                topBadgeInline = true,
                                                 footerFields = listOf(
-                                                    DataCardField(
-                                                        icon = Icons.Default.LocationOn,
-                                                        text = locationOf(branch),
-                                                        iconTint = Color(0xFF9CA3AF),
-                                                        textColor = Color(0xFF374151),
-                                                        label = "Location",
-                                                        asRow = true,
-                                                        labelColor = Color(0xFF9CA3AF)
-                                                    ),
-                                                    DataCardField(
-                                                        icon = Icons.Default.Person,
-                                                        text = branchHeadNameOf(branch),
-                                                        iconTint = Color(0xFF9CA3AF),
-                                                        textColor = Color(0xFF374151),
-                                                        label = "Managers",
-                                                        asRow = true,
-                                                        labelColor = Color(0xFF9CA3AF)
-                                                    )
+                                                    DataCardField(text = branch.name ?: "Unnamed", label = "Branch Name", asRow = true),
+                                                    DataCardField(text = locationOf(branch), label = "Location", asRow = true),
+                                                    DataCardField(text = branchHeadNameOf(branch), label = "Managers", asRow = true)
                                                 ),
-                                                footerAsRows = true,
                                                 actions = listOf(
                                                     MenuAction("Edit", Icons.Default.Edit) {
                                                         editingBranch = branch
@@ -322,7 +269,6 @@ fun BranchSettingsScreen(
                                                 )
                                             )
                                         }
-                                        item { Spacer(Modifier.height(8.dp)) }
                                     }
                                 }
                             }
@@ -330,22 +276,26 @@ fun BranchSettingsScreen(
                     }
                 }
             }
+
+            if (showPlanLimitDialog) {
+                PlanLimitDialog(
+                    title = "Plan Limit Reached",
+                    message = "Branch limit exceeded ($currentBranchesCount/${planLimits?.branchLimit ?: 0}). Upgrade your plan to add more branches.",
+                    onDismiss = { showPlanLimitDialog = false },
+                    onUpgrade = { /* navigate to upgrade */ }
+                )
+            }
         }
 
-        // ── SmoothBottomSheet for Add Branch ──
-        // peekHeight defines the initial half-open height; user can drag up to expand to full screen.
+        // Add Branch BottomSheet - topInset 60.dp matches TitleBar height
         SmoothBottomSheet(
             state = addSheetState,
             onStateChange = { newState ->
                 addSheetState = newState
-                if (newState == SheetValue.Hidden) {
-                    branchViewModel.resetCreateState()
-                }
+                if (newState == SheetValue.Hidden) branchViewModel.resetCreateState()
             },
             peekHeight = 380.dp,
-            topInset = 60.dp,
-            maxBlurRadius = 14.dp,
-            maxScrimAlpha = 0.35f,
+            topInset = 66.dp,
             sheetBackgroundColor = whiteBg,
             collapsedCornerRadius = 24.dp,
             dragCloseEnabled = true,
@@ -354,9 +304,7 @@ fun BranchSettingsScreen(
                 addSheetState = SheetValue.Hidden
                 branchViewModel.resetCreateState()
             },
-            onBlurScrimChange = { blur, _ ->
-                addSheetBlur = blur
-            }
+            onBlurScrimChange = { r, s -> addSheetBlur = r; addSheetScrim = s }
         ) {
             AddBranchSheetContent(
                 staffList = staffList,
@@ -375,9 +323,7 @@ fun BranchSettingsScreen(
             )
         }
 
-        // ── SmoothBottomSheet for Edit Branch ──
-        // Moved inside FabScaffold's body (was outside the Scaffold entirely before),
-        // so it shares the same layout context and blur wiring as the Add sheet.
+        // Edit Branch BottomSheet
         editingBranch?.let { branch ->
             SmoothBottomSheet(
                 state = editSheetState,
@@ -389,9 +335,7 @@ fun BranchSettingsScreen(
                     }
                 },
                 peekHeight = 380.dp,
-                topInset = 60.dp,
-                maxBlurRadius = 14.dp,
-                maxScrimAlpha = 0.35f,
+                topInset = 66.dp,
                 sheetBackgroundColor = whiteBg,
                 collapsedCornerRadius = 24.dp,
                 dragCloseEnabled = true,
@@ -401,9 +345,7 @@ fun BranchSettingsScreen(
                     editingBranch = null
                     branchViewModel.resetUpdateState()
                 },
-                onBlurScrimChange = { blur, _ ->
-                    editSheetBlur = blur
-                }
+                onBlurScrimChange = { r, s -> editSheetBlur = r; editSheetScrim = s }
             ) {
                 EditBranchSheetContent(
                     branch = branch,
@@ -434,21 +376,11 @@ fun BranchSettingsScreen(
                 )
             }
         }
-
-        // ── Plan Limit Dialog ──
-        if (showPlanLimitDialog) {
-            PlanLimitDialog(
-                title = "Plan Limit Reached",
-                message = "Branch limit exceeded ($currentBranchesCount/${planLimits?.branchLimit ?: 0}). Upgrade your plan to add more branches.",
-                onDismiss = { showPlanLimitDialog = false },
-                onUpgrade = { showPlanLimitDialog = false }
-            )
-        }
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// AddBranchSheetContent
+// Content Components & Helpers
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -476,201 +408,86 @@ fun AddBranchSheetContent(
     val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: "Select an option"
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                "Add New Branch",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
-            )
-            Text(
-                "Create a new branch in your organization",
-                fontSize = 13.sp,
-                color = Color(0xFF6B7280)
-            )
+            Text("Add New Branch", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            Text("Create a new branch in your organization", fontSize = 13.sp, color = Color(0xFF6B7280))
         }
-
-        Spacer(modifier = Modifier.height(4.dp))
 
         Column {
             FormLabel("Branch Name", isRequired = true)
-            FormTextField(
-                value = branchName,
-                onValueChange = { branchName = it; nameError = false },
-                placeholder = "Enter branch name",
-                isError = nameError,
-                errorMessage = "Branch name is required"
-            )
+            FormTextField(value = branchName, onValueChange = { branchName = it; nameError = false }, placeholder = "Enter branch name", isError = nameError, errorMessage = "Branch name is required")
         }
 
         Column {
             FormLabel("Street Address")
-            FormTextField(
-                value = street,
-                onValueChange = { street = it },
-                placeholder = "Enter street address"
-            )
+            FormTextField(value = street, onValueChange = { street = it }, placeholder = "Enter street address")
         }
 
-        Column {
-            FormLabel("City")
-            FormTextField(
-                value = city,
-                onValueChange = { city = it },
-                placeholder = "Enter city"
-            )
-        }
-
-        Column {
-            FormLabel("Postal Code")
-            FormTextField(
-                value = postalCode,
-                onValueChange = { postalCode = it },
-                placeholder = "Enter postal code",
-                keyboardType = KeyboardType.Number
-            )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.weight(1f)) {
+                FormLabel("City")
+                FormTextField(value = city, onValueChange = { city = it }, placeholder = "City")
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                FormLabel("Postal Code")
+                FormTextField(value = postalCode, onValueChange = { postalCode = it }, placeholder = "Postal Code", keyboardType = KeyboardType.Number)
+            }
         }
 
         Column {
             FormLabel("Contact Email")
-            FormTextField(
-                value = contactEmail,
-                onValueChange = { contactEmail = it },
-                placeholder = "Enter contact email",
-                keyboardType = KeyboardType.Email
-            )
+            FormTextField(value = contactEmail, onValueChange = { contactEmail = it }, placeholder = "Enter contact email", keyboardType = KeyboardType.Email)
         }
 
         Column {
             FormLabel("Contact Mobile")
-            FormTextField(
-                value = contactMobile,
-                onValueChange = { contactMobile = it },
-                placeholder = "Enter contact mobile",
-                keyboardType = KeyboardType.Phone
-            )
+            FormTextField(value = contactMobile, onValueChange = { contactMobile = it }, placeholder = "Enter contact mobile", keyboardType = KeyboardType.Phone)
         }
 
         FormDropdown(
             label = "Branch Head",
             value = selectedStaffLabel,
             expanded = staffExpanded,
-            onExpandChange = { expanded ->
-                if (staffList.isNotEmpty() || !expanded) staffExpanded = expanded
-            },
+            onExpandChange = { expanded -> if (staffList.isNotEmpty() || !expanded) staffExpanded = expanded },
             options = staffDisplayList,
-            onOptionSelected = { label ->
-                selectedStaff = staffIdMap[label] ?: ""
-                staffError = false
-            },
+            onOptionSelected = { label -> selectedStaff = staffIdMap[label] ?: ""; staffError = false },
             isRequired = true,
             isError = staffError,
             errorMessage = "Please select a branch head"
         )
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            MiniSwitch(
-                checked = isMainBranch,
-                onCheckedChange = { isMainBranch = it }
-            )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MiniSwitch(checked = isMainBranch, onCheckedChange = { isMainBranch = it })
             Column {
-                Text(
-                    "Set as Main Branch",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF374151)
-                )
-                Text(
-                    "The main branch will be the primary location",
-                    fontSize = 12.sp,
-                    color = Color(0xFF9CA3AF)
-                )
+                Text("Set as Main Branch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+                Text("The main branch will be the primary location", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedButton(
-                onClick = onDismiss,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF374151)
-                ),
-                border = BorderStroke(1.dp, Color(0xFFD1D5DB))
-            ) {
-                Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, Color(0xFFD1D5DB))) {
+                Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
             }
-
             Button(
                 onClick = {
-                    var hasError = false
-                    if (branchName.isBlank()) {
-                        nameError = true
-                        hasError = true
-                    }
-                    if (selectedStaff.isEmpty()) {
-                        staffError = true
-                        hasError = true
-                    }
-                    if (hasError) return@Button
-
-                    onCreate(
-                        CreateBranchRequest(
-                            name = branchName,
-                            address = CreateBranchAddress(
-                                street = street,
-                                city = city,
-                                postalCode = postalCode
-                            ),
-                            branchHead = selectedStaff,
-                            contactEmail = contactEmail,
-                            contactMobile = contactMobile,
-                            isMainBranch = isMainBranch
-                        )
-                    )
+                    if (branchName.isBlank()) { nameError = true; return@Button }
+                    if (selectedStaff.isEmpty()) { staffError = true; return@Button }
+                    onCreate(CreateBranchRequest(branchName, CreateBranchAddress(street, city, postalCode), selectedStaff, contactEmail, contactMobile, isMainBranch))
                 },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BluePrimary,
-                    disabledContainerColor = BluePrimary.copy(alpha = 0.6f)
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
                 enabled = !isLoading
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = whiteBg,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Create Branch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
-                }
+                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = whiteBg, strokeWidth = 2.dp)
+                else Text("Create Branch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
             }
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// EditBranchSheetContent
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 fun EditBranchSheetContent(
@@ -695,169 +512,67 @@ fun EditBranchSheetContent(
     val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: "Select an option"
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                "Edit Branch",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
-            )
-            Text(
-                "Update branch information",
-                fontSize = 13.sp,
-                color = Color(0xFF6B7280)
-            )
+            Text("Edit Branch", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            Text("Update branch information", fontSize = 13.sp, color = Color(0xFF6B7280))
         }
-
-        Spacer(modifier = Modifier.height(4.dp))
 
         Column {
             FormLabel("Branch Name", isRequired = true)
-            FormTextField(
-                value = branchName,
-                onValueChange = { branchName = it },
-                placeholder = "Enter branch name"
-            )
+            FormTextField(value = branchName, onValueChange = { branchName = it }, placeholder = "Enter branch name")
         }
 
         Column {
             FormLabel("Street Address")
-            FormTextField(
-                value = street,
-                onValueChange = { street = it },
-                placeholder = "Enter street address"
-            )
+            FormTextField(value = street, onValueChange = { street = it }, placeholder = "Enter street address")
         }
 
-        Column {
-            FormLabel("City")
-            FormTextField(
-                value = city,
-                onValueChange = { city = it },
-                placeholder = "Enter city"
-            )
-        }
-
-        Column {
-            FormLabel("State")
-            FormTextField(
-                value = state,
-                onValueChange = { state = it },
-                placeholder = "Enter state"
-            )
-        }
-
-        Column {
-            FormLabel("Postal Code")
-            FormTextField(
-                value = postalCode,
-                onValueChange = { postalCode = it },
-                placeholder = "Enter postal code",
-                keyboardType = KeyboardType.Number
-            )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.weight(1f)) {
+                FormLabel("City")
+                FormTextField(value = city, onValueChange = { city = it }, placeholder = "City")
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                FormLabel("Postal Code")
+                FormTextField(value = postalCode, onValueChange = { postalCode = it }, placeholder = "Postal Code", keyboardType = KeyboardType.Number)
+            }
         }
 
         Column {
             FormLabel("Contact Email")
-            FormTextField(
-                value = contactEmail,
-                onValueChange = { contactEmail = it },
-                placeholder = "Enter contact email",
-                keyboardType = KeyboardType.Email
-            )
-        }
-
-        Column {
-            FormLabel("Contact Mobile")
-            FormTextField(
-                value = contactMobile,
-                onValueChange = { contactMobile = it },
-                placeholder = "Enter contact mobile",
-                keyboardType = KeyboardType.Phone
-            )
+            FormTextField(value = contactEmail, onValueChange = { contactEmail = it }, placeholder = "Enter contact email", keyboardType = KeyboardType.Email)
         }
 
         FormDropdown(
             label = "Branch Head",
             value = selectedStaffLabel,
             expanded = staffExpanded,
-            onExpandChange = { expanded ->
-                if (staffList.isNotEmpty() || !expanded) staffExpanded = expanded
-            },
+            onExpandChange = { expanded -> if (staffList.isNotEmpty() || !expanded) staffExpanded = expanded },
             options = staffDisplayList,
-            onOptionSelected = { label ->
-                selectedStaff = staffIdMap[label] ?: ""
-            },
+            onOptionSelected = { label -> selectedStaff = staffIdMap[label] ?: "" },
             isRequired = true
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedButton(
-                onClick = onDismiss,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF374151)
-                ),
-                border = BorderStroke(1.dp, Color(0xFFD1D5DB))
-            ) {
-                Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, Color(0xFFD1D5DB))) {
+                Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
             }
-
             Button(
-                onClick = {
-                    onUpdate(
-                        EditBranchRequest(
-                            name = branchName,
-                            street = street,
-                            city = city,
-                            state = state,
-                            postalCode = postalCode,
-                            contactEmail = contactEmail,
-                            contactMobile = contactMobile,
-                            branchHead = selectedStaff
-                        )
-                    )
-                },
+                onClick = { onUpdate(EditBranchRequest(branchName, street, city, state, postalCode, contactEmail, contactMobile, selectedStaff)) },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BluePrimary,
-                    disabledContainerColor = BluePrimary.copy(alpha = 0.6f)
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
                 enabled = !isLoading
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = whiteBg,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Update Branch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
-                }
+                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = whiteBg, strokeWidth = 2.dp)
+                else Text("Update Branch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
             }
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// Helper Functions
-// ─────────────────────────────────────────────────────────────
 
 private fun locationOf(branch: BranchItem): String =
     listOf(branch.address.city ?: "", branch.address.state ?: "", branch.address.street ?: "")
@@ -872,21 +587,5 @@ private fun statusColorsOf(status: String): Pair<String, Color> = when (status.l
     else -> "Unknown" to Color(0xFF9CA3AF)
 }
 
-data class EditBranchRequest(
-    val name: String,
-    val street: String,
-    val city: String,
-    val state: String,
-    val postalCode: String,
-    val contactEmail: String,
-    val contactMobile: String,
-    val branchHead: String
-)
-
-data class PlanLimits(
-    val branchLimit: Int,
-    val departmentLimit: Int,
-    val employeeLimit: Int,
-    val orderLimit: Int,
-    val categoryLimit: Int
-)
+data class EditBranchRequest(val name: String, val street: String, val city: String, val state: String, val postalCode: String, val contactEmail: String, val contactMobile: String, val branchHead: String)
+data class PlanLimits(val branchLimit: Int, val departmentLimit: Int, val employeeLimit: Int, val orderLimit: Int, val categoryLimit: Int)

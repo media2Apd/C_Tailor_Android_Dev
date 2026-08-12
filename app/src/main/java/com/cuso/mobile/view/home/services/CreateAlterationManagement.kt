@@ -633,7 +633,7 @@ fun CreateAlterationManagementScreen(
                 state = updateStatusSheetState,
                 onStateChange = { updateStatusSheetState = it },
                 peekHeight = 480.dp,
-                topInset = 60.dp,
+                topInset = 66.dp,
                 onDismissRequest = { updateStatusSheetState = SheetValue.Hidden },
                 onBlurScrimChange = { blur, _ ->
                     updateStatusSheetBlur = blur
@@ -756,7 +756,7 @@ fun CreateAlterationManagementScreen(
                 state = assignTailorSheetState,
                 onStateChange = { assignTailorSheetState = it },
                 peekHeight = 600.dp,
-                topInset = 60.dp,   //   NEW — same fix
+                topInset = 66.dp,   //   NEW — same fix
                 onDismissRequest = { assignTailorSheetState = SheetValue.Hidden },
                 onBlurScrimChange = { blur, _ ->
                     assignTailorSheetBlur = blur

@@ -1,3 +1,5 @@
+//REFERENCES
+
 @file:Suppress(
     "UNUSED_PARAMETER",
     "unused",
@@ -132,7 +134,7 @@ private fun DynamicIslandBase(
                 // messages the icon sits next to the FIRST line of text
                 // instead of being vertically centered against the whole
                 // (now taller) text block.
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier.size(CIRCLE_SIZE),
@@ -175,8 +177,7 @@ private fun DynamicIslandBase(
                         // within its own 40.dp box.
                         modifier = Modifier.padding(
                             end = tokens.screenPadding,
-                            top = (CIRCLE_SIZE - tokens.bodySmall.value.dp) / 2,
-                            bottom = tokens.screenPadding / 4
+
                         )
                     )
                 }

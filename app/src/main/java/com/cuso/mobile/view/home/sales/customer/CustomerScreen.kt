@@ -172,11 +172,8 @@ fun CustomerScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-
-                        TitleBar("Customers", onClose = onClose)
-
+                    TitleBar("Customers", onClose = onClose)
                 }
-
 
                     Column(
                         modifier = Modifier

@@ -88,7 +88,7 @@ fun AllItemGroupScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TitleBar("Create customer", onClose = onDismiss)
+                TitleBar("Item Group", onClose = onDismiss)
 
             }
 
@@ -108,7 +108,7 @@ fun AllItemGroupScreen(
                 )
             }
 
-            HorizontalDivider(color = BorderColor)
+            HorizontalDivider(color = Color(0xFFF0F0F0))
 
             // ── Item Group list (reusing shared DataCard) ──
             LazyColumn(

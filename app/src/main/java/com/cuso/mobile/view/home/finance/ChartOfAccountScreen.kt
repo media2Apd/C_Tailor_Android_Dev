@@ -215,6 +215,7 @@ package com.cuso.mobile.view.home.finance
                         onFilterClick = { /* TODO: open filter drawer */ }
                     )
                 }
+                HorizontalDivider(color = Color(0xFFF0F0F0))
 
                 // ── Content ──
                 when {

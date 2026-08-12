@@ -40,6 +40,7 @@ import com.cuso.mobile.view.home.LeadPrimary
 import com.cuso.mobile.view.home.LeadmutedText
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.viewmodel.GarmentPricingDetailUiState
 import com.cuso.mobile.viewmodel.PricingQuotationViewModel
@@ -295,9 +296,8 @@ fun AddGarmentPricingScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
-                LeadFormTopBar(
+                TitleBar(
                     title = if (isEditMode) "Edit Pricing" else "Add New Garment Pricing",
-                    badgeText = "",
                     onClose = onClose
                 )
                 HorizontalDivider(color = Color(0xFFF0F0F0))

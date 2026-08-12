@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
  */
 data class AppDesignTokens(
     val screenPadding: Dp,   // Outer margin of the screen
+    val extraPadding: Dp,   // Outer margin of the screen
     val gridColumns: Int,    // Number of columns for dashboard cards
     val isTablet: Boolean,   // Used to switch between BottomBar and NavigationRail
     val cardHeight: Dp,      // Standard height for stat cards
@@ -58,6 +59,7 @@ fun getAdaptiveTokens(widthSize: WindowWidthSizeClass): AppDesignTokens {
     return when (widthSize) {
         // COMPACT: Most standard smartphones (Moto G42, curved displays, etc.)
         WindowWidthSizeClass.Compact -> AppDesignTokens(
+            extraPadding = 10.dp,
             screenPadding = 16.dp,
             gridColumns = 2,
             isTablet = false,
@@ -80,6 +82,8 @@ fun getAdaptiveTokens(widthSize: WindowWidthSizeClass): AppDesignTokens {
 
         // MEDIUM: Foldable phones (Galaxy Fold) and small tablets (iPad Mini)
         WindowWidthSizeClass.Medium -> AppDesignTokens(
+            extraPadding = 18.dp,
+
             screenPadding = 24.dp,
             gridColumns = 3,
             isTablet = true,
@@ -102,6 +106,8 @@ fun getAdaptiveTokens(widthSize: WindowWidthSizeClass): AppDesignTokens {
 
         // EXPANDED: Large tablets (iPad Pro) and Desktop/Web views
         WindowWidthSizeClass.Expanded -> AppDesignTokens(
+            extraPadding = 24.dp,
+
             screenPadding = 32.dp,
             gridColumns = 4,
             isTablet = true,
@@ -124,6 +130,8 @@ fun getAdaptiveTokens(widthSize: WindowWidthSizeClass): AppDesignTokens {
 
         // Default fallback (uses Compact-like values)
         else -> AppDesignTokens(
+            extraPadding = 10.dp,
+
             screenPadding = 16.dp,
             gridColumns = 2,
             isTablet = false,

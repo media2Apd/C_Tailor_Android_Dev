@@ -96,6 +96,7 @@ import java.io.File
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.primary_light
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
@@ -783,7 +784,7 @@ fun CreateOrderScreen(
                                                     shape = RoundedCornerShape(8.dp),
                                                     border = BorderStroke(1.dp, Color(0xFF3B3BF9)),
                                                     colors = ButtonDefaults.outlinedButtonColors(
-                                                        containerColor = Color(0xFFEEF2FF)
+                                                        containerColor = primary_light
                                                     ),
                                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                                 ) {
@@ -811,7 +812,7 @@ fun CreateOrderScreen(
                                                     shape = RoundedCornerShape(8.dp),
                                                     border = BorderStroke(1.dp, Color(0xFF3B3BF9)),
                                                     colors = ButtonDefaults.outlinedButtonColors(
-                                                        containerColor = Color(0xFFEEF2FF)
+                                                        containerColor = primary_light
                                                     ),
                                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                                 ) {
@@ -1071,7 +1072,7 @@ fun CreateOrderScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(36.dp)
-                                                .background(Color(0xFFEEF2FF), CircleShape),
+                                                .background(primary_light, CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
@@ -1452,7 +1453,7 @@ fun CreateOrderScreen(
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isRecording) Color(0xFFEF4444) else Color(0xFFEEF2FF)
+                                    containerColor = if (isRecording) Color(0xFFEF4444) else primary_light
                                 ),
                                 shape = RoundedCornerShape(20.dp),
                                 elevation = ButtonDefaults.buttonElevation(0.dp)
@@ -1642,7 +1643,7 @@ fun CreateOrderScreen(
                 state = addCategorySheetState,
                 onStateChange = { addCategorySheetState = it },
                 peekHeight = 480.dp,
-                topInset = 60.dp,   //    — matches your "Create Order" topBar height, so Expanded stops right below it
+                topInset = 66.dp,   //    — matches your "Create Order" topBar height, so Expanded stops right below it
                 onDismissRequest = { addCategorySheetState = SheetValue.Hidden },
                 onBlurScrimChange = { r, s -> addCategoryBlur = r; addCategoryScrim = s }
             ) {

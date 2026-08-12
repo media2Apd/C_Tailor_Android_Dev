@@ -13,24 +13,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.DrawableRes
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.whiteBg
 
 // ─────────────────────────────────────────────────────────────
-// Reusable Settings Tabs Component - Add this to a separate file or at the top
+// Reusable Settings Tabs Component
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Data class for tab items
+ * Data class for tab items.
+ * icon -> use this if you have a Material ImageVector
+ * iconPainter -> use this if you have a drawable resource (vector drawable xml etc.)
+ * Both are optional; pass whichever one you have. If both are null, no icon is shown.
  */
 data class TabItem(
     val label: String,
-    val icon: ImageVector,
+    val icon: ImageVector? = null,
+    @DrawableRes val iconPainter: Int? = null,
     val badge: String? = null
 )
 
@@ -63,6 +69,8 @@ fun SettingsTabs(
     ) {
         tabs.forEachIndexed { index, tab ->
             val isSelected = selectedIndex == index
+            val tint = if (isSelected) selectedIconColor else unselectedIconColor
+
             Row(
                 modifier = Modifier
                     .weight(1f)
@@ -75,13 +83,29 @@ fun SettingsTabs(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Icon(
-                    imageVector = tab.icon,
-                    contentDescription = tab.label,
-                    tint = if (isSelected) selectedIconColor else unselectedIconColor,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(6.dp))
+                // Show whichever one is available - icon (ImageVector) takes priority,
+                // otherwise fall back to iconPainter (drawable resource id).
+                when {
+                    tab.icon != null -> {
+                        Icon(
+                            imageVector = tab.icon,
+                            contentDescription = tab.label,
+                            tint = tint,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    tab.iconPainter != null -> {
+                        Icon(
+                            painter = painterResource(id = tab.iconPainter),
+                            contentDescription = tab.label,
+                            tint = tint,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                }
+
                 Text(
                     text = tab.label,
                     fontSize = 14.sp,

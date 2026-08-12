@@ -46,6 +46,7 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.ErrorMapper
 import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.home.FormDropdown
@@ -58,10 +59,10 @@ import com.cuso.mobile.view.organization.OrganizationDropdown
 import com.cuso.mobile.viewmodel.CustomerDetailUiState
 import com.cuso.mobile.viewmodel.CustomerUpdateState
 import com.cuso.mobile.viewmodel.CustomerViewModel
-import kotlinx.coroutines.launch
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.primary_light
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.TitleBar
@@ -108,10 +109,10 @@ fun CustomerDetailScreen(
     var currentStep by remember { mutableIntStateOf(0) }
     var isEditMode by remember(startInEditMode) { mutableStateOf(startInEditMode) }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
-
+    // NOTE: SnackbarHostState / rememberCoroutineScope removed — replaced by
+    // DynamicIslandError (existing) and DynamicIslandSuccess (new) below.
     var apiErrorMessage by remember { mutableStateOf<String?>(null) }
+    var apiSuccessMessage by remember { mutableStateOf<String?>(null) }
     var errorField by remember { mutableStateOf<String?>(null) }
     var errorSection by remember { mutableStateOf<String?>(null) }
     var email by remember { mutableStateOf("") }
@@ -158,7 +159,8 @@ fun CustomerDetailScreen(
     LaunchedEffect(updateState) {
         when (val state = updateState) {
             is CustomerUpdateState.Success -> {
-                coroutineScope.launch { snackbarHostState.showSnackbar("Customer updated successfully") }
+                // Replaced: coroutineScope.launch { snackbarHostState.showSnackbar("Customer updated successfully") }
+                apiSuccessMessage = "Customer updated successfully"
                 isEditMode = false
                 errorField = null
                 errorSection = null
@@ -178,7 +180,6 @@ fun CustomerDetailScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = Color.Transparent
     ) { padding ->
         Box(
@@ -189,6 +190,14 @@ fun CustomerDetailScreen(
             DynamicIslandError(
                 message = apiErrorMessage,
                 onDismiss = { apiErrorMessage = null },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .zIndex(10f)
+            )
+
+            DynamicIslandSuccess(
+                message = apiSuccessMessage,
+                onDismiss = { apiSuccessMessage = null },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .zIndex(10f)
@@ -1057,7 +1066,7 @@ private fun PreferencesStep() {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFEEF2FF), RoundedCornerShape(12.dp))
+                .background(primary_light, RoundedCornerShape(12.dp))
                 .padding(horizontal = tokens.screenPadding * 0.85f, vertical = 14.dp)
         ) {
             Column {
@@ -1096,7 +1105,7 @@ private fun NotesTagsStep(isEditMode: Boolean) {
         Spacer(Modifier.height(10.dp))
         NoteCard(
             text = "Prefers delivery on weekends only.",
-            bgColor = Color(0xFFEEF2FF),
+            bgColor = primary_light,
             borderColor = Color(0xFFC7D2FE),
             textColor = Color(0xFF1F2937)
         )
@@ -1219,7 +1228,7 @@ private fun StatBox(
     Column(
         modifier = modifier
             .background(
-                if (highlight) Color(0xFFEEF2FF) else Color(0xFFFAFAFB),
+                if (highlight) primary_light else Color(0xFFFAFAFB),
                 RoundedCornerShape(16.dp)
             )
             .then(

@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,6 +47,9 @@ import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.ProfileUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.blackTitle
 
 private val InvPrimary = Color(0xFF3B3BF9)
 private val InvTextDark = Color(0xFF111827)
@@ -95,7 +99,7 @@ fun FinanceInvoiceScreen(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("All Customers", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = InvTextDark)
+            Text("All Invoices", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = InvTextDark)
             Spacer(Modifier.weight(1f))
             Icon(
                 Icons.Default.Close,
@@ -107,7 +111,6 @@ fun FinanceInvoiceScreen(
 
         // ── Breadcrumb ──
         ScreenBreadcrumb(listOf("Finance","Sales Invoice"), onClick = {onBreadCrumbClick()})
-        HorizontalDivider(color = Color(0xFFEEEEEE))
 
         SearchFilterBar(
             query = searchQuery,
@@ -119,6 +122,8 @@ fun FinanceInvoiceScreen(
             textSecondaryColor = TextSecondary,
             onFilterClick = { /* TODO: open filter drawer */ }
         )
+        HorizontalDivider(color = Color(0xFFF0F0F0))
+
 
         // ── Body ──
         Box(modifier = Modifier.fillMaxSize()) {
@@ -172,10 +177,10 @@ private fun InvoiceDataCard(invoice: InvoiceItem, onClick: () -> Unit) {
     DataCard(
         item = invoice,
         image = DataCardImage(
-            vector = Icons.Default.Person,
+            painter = painterResource( R.drawable.person),
             size = 30.dp,
-            backgroundColor = BorderGray,
-            tint = InvmutedText
+            backgroundColor = Color.Transparent,
+            tint = blackTitle
         ),
         title = invoice.invoiceNumber,
         subtitle = "${invoice.displayCustomerName} • Customer",
@@ -505,11 +510,11 @@ fun InvoiceDetailScreen(
                             },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, InvPrimary)
+                            border = BorderStroke(1.dp, Primary)
                         ) {
-                            Icon(Icons.Default.Share, null, tint = InvPrimary, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Share, null, tint = Primary, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Share PDF", color = InvPrimary, fontSize = 14.sp)
+                            Text("Share PDF", color = Primary, fontSize = 14.sp)
                         }
                         Button(
                             onClick = {
@@ -528,7 +533,7 @@ fun InvoiceDetailScreen(
                             },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = InvPrimary)
+                            colors = ButtonDefaults.buttonColors(containerColor = Primary)
                         ) {
                             if (isDownloading) {
                                 CircularProgressIndicator(

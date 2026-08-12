@@ -119,6 +119,8 @@ fun OrderManagementScreen(
                     onFilterClick = { /* TODO: open filter drawer */ }
                 )
             }
+            HorizontalDivider(color = Color(0xFFF0F0F0))
+
 
             // ── Content ──
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {

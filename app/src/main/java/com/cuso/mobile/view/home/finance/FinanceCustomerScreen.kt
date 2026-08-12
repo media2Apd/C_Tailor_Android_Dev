@@ -69,9 +69,7 @@ fun FinanceCustomerScreen(
     onClose: () -> Unit,
     onCustomerClick: (String) -> Unit,
     onCustomerEdit: (String) -> Unit = onCustomerClick,
-    onBreadCrumbClick: () -> Unit ={}
-
-
+    onBreadCrumbClick: () -> Unit = {}
 ) {
     val viewModel: FinanceViewModel = hiltViewModel()
 
@@ -82,8 +80,6 @@ fun FinanceCustomerScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("All") }
 
-
-
     LaunchedEffect(Unit) {
         viewModel.fetchCustomerForFinance()
     }
@@ -92,7 +88,8 @@ fun FinanceCustomerScreen(
 
     val filteredCustomers = allCustomers.filter { customer ->
         val matchesSearch = searchQuery.isBlank() ||
-                customer.name.contains(searchQuery, ignoreCase = true) || customer.mobile.contains(searchQuery, ignoreCase = true)
+                customer.name.contains(searchQuery, ignoreCase = true) ||
+                customer.mobile.contains(searchQuery, ignoreCase = true)
 
         val matchesFilter = when (selectedFilter) {
             "Active" -> customer.status.equals("Active", ignoreCase = true)
@@ -108,11 +105,43 @@ fun FinanceCustomerScreen(
             .fillMaxSize()
             .background(Color.Transparent)
     ) {
+        // --- PERSISTENT HEADER SECTION ---
+        // This part stays visible even during loading
+        Column(modifier = Modifier.fillMaxWidth()) {
+            TitleBar("All Customers", onClose = onClose)
 
+            ScreenBreadcrumb(
+                segments = listOf("Finance", "Customer"),
+                onClick = { onBreadCrumbClick() }
+            )
 
-        Box(modifier = Modifier.fillMaxSize()) {
+            SearchFilterBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                modifier = Modifier.padding(
+                    horizontal = 20.dp,
+                    vertical = 12.dp
+                ),
+                placeholder = "Search Customers...",
+                accentColor = BluePrimary,
+                borderColor = BorderGray,
+                textSecondaryColor = TextSecondary,
+                onFilterClick = { /* Handle Filter Click */ }
+            )
+
+            HorizontalDivider(color = Color(0xFFF0F0F0))
+        }
+
+        // --- DYNAMIC CONTENT SECTION ---
+        // Only this part changes based on the state (Loading, Error, List)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
             when {
                 isLoading -> {
+                    // Skeleton appears below the SearchBar
                     ListSkeleton()
                 }
 
@@ -121,7 +150,9 @@ fun FinanceCustomerScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(error ?: "Something went wrong", color = CustRed, fontSize = 13.sp)
                             Spacer(Modifier.height(12.dp))
-                            Button(onClick = { viewModel.fetchCustomerForFinance() }) { Text("Retry") }
+                            Button(onClick = { viewModel.fetchCustomerForFinance() }) {
+                                Text("Retry")
+                            }
                         }
                     }
                 }
@@ -137,8 +168,7 @@ fun FinanceCustomerScreen(
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                if (searchQuery.isNotBlank() || selectedFilter != "All")
-                                    "No matching customers found"
+                                if (searchQuery.isNotBlank()) "No matching customers found"
                                 else "No customers yet",
                                 fontSize = 14.sp,
                                 color = CustmutedText
@@ -148,58 +178,16 @@ fun FinanceCustomerScreen(
                 }
 
                 else -> {
-                    var searchQuery by remember { mutableStateOf("") }
-
-                    Column(modifier = Modifier.fillMaxSize()) {
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            TitleBar("All Customers", onClose = onClose)
-
-                        }
-
-                            // ── Breadcrumb + SearchFilterBar — F8F9FF background block ──
-                            Column(
-                                Modifier
-                                    .fillMaxWidth()
-                            ) {
-                                ScreenBreadcrumb(
-                                    segments = listOf("Finance", "Customer"),
-                                    onClick = {onBreadCrumbClick()}
-                                )
-
-                                SearchFilterBar(
-                                    query = searchQuery,
-                                    onQueryChange = { searchQuery = it },
-                                    modifier = Modifier.padding(
-                                        horizontal = 20.dp,
-                                        vertical = 12.dp
-                                    ),
-                                    placeholder = "Search Customers...",
-                                    accentColor = BluePrimary,
-                                    borderColor = BorderGray,
-                                    textSecondaryColor = TextSecondary,
-                                    onFilterClick = { }
-                                )
-                            }
-
-
-                        // ── Scrollable list ──
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .weight(1f),
-                            contentPadding = PaddingValues(bottom = 16.dp)
-                        ) {
-                            items(filteredCustomers, key = { it._id }) { customer ->
-                                CustomerCardItem(
-                                    customer = customer,
-                                    onClick = { onCustomerClick(customer._id) },
-                                    onEdit = { onCustomerEdit(customer._id) }
-                                )
-                            }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 16.dp)
+                    ) {
+                        items(filteredCustomers, key = { it._id }) { customer ->
+                            CustomerCardItem(
+                                customer = customer,
+                                onClick = { onCustomerClick(customer._id) },
+                                onEdit = { onCustomerEdit(customer._id) }
+                            )
                         }
                     }
                 }

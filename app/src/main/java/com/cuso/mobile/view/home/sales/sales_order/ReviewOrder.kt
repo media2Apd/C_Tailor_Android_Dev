@@ -1377,7 +1377,6 @@ private fun ReceivePaymentDialog(
         ) {
             Column(
                 modifier = Modifier
-                    .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
                 Row(

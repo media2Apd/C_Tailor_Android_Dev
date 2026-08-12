@@ -52,6 +52,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.unit.Dp
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.primary_light
 import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Filter Section Data ──
@@ -518,7 +519,7 @@ private fun ChipRowBody(section: FilterSection, onOptionToggle: (String) -> Unit
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (option.isSelected) Color(0xFFEEF2FF) else whiteBg)
+                        .background(if (option.isSelected) primary_light else whiteBg)
                         .border(
                             width = if (option.isSelected) 1.5.dp else 1.dp,
                             color = if (option.isSelected) Primary else Color(0xFFE5E7EB),
@@ -654,7 +655,7 @@ private fun PriorityDotsBody(section: FilterSection, onOptionToggle: (String) ->
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(if (option.isSelected) Color(0xFFEEF2FF) else whiteBg)
+                    .background(if (option.isSelected) primary_light else whiteBg)
                     .border(
                         width = if (option.isSelected) 1.5.dp else 1.dp,
                         color = if (option.isSelected) Color(0xFF6366F1) else Color(0xFFE5E7EB),

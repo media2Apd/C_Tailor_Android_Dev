@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cuso.mobile.adaptive_screen.LocalAppTokens // Global design system tokens
+import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.lightGray
 import com.cuso.mobile.ui.theme.whiteBg
@@ -96,6 +97,44 @@ data class DataCardField(
 )
 
 // --- Components ---
+
+/**
+ * A pill-style status badge with a leading colored dot and semibold text.
+ * Matches the "• Active" style badge (light pastel bg, dot + text in the same accent color).
+ */
+@Composable
+fun StatusBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+    bgColor: Color = Color(0xFFDCFCE7),
+    textColor: Color = Color(0xFF10B981),
+    dotColor: Color = textColor, // dot always follows the text color unless explicitly overridden
+    cornerRadius: Dp = 20.dp,
+    dotSize: Dp = 7.dp
+) {
+    val tokens = LocalAppTokens.current
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(cornerRadius))
+            .background(bgColor)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(dotSize)
+                .clip(CircleShape)
+                .background(dotColor)
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = text,
+            fontSize = tokens.label,
+            fontWeight = FontWeight.SemiBold,
+            color = textColor
+        )
+    }
+}
 
 /**
  * An adaptive overflow menu (vertical/horizontal dots).
@@ -180,13 +219,15 @@ fun <T> DataCard(
     dateText: String? = null,
     dateIcon: ImageVector = Icons.Default.CalendarMonth,
     topBadgeText: String? = null,
-    topBadgeTextColor: Color = whiteBg,
-    topBadgeBgColor: Color = Color(0xFF3B3BF9),
+    topBadgeTextColor: Color = Color(0xFF10B981),
+    topBadgeBgColor: Color = Color(0xFFDCFCE7),
+    topBadgeDotColor: Color = topBadgeTextColor, // dot follows whatever text color is passed
     topBadgeCornerRadius: Dp = 20.dp,
     topBadgeInline: Boolean = false,
     bottomBadgeText: String? = null,
-    bottomBadgeTextColor: Color = whiteBg,
-    bottomBadgeBgColor: Color = Color(0xFF3B3BF9),
+    bottomBadgeTextColor: Color = Color(0xFF10B981),
+    bottomBadgeBgColor: Color = Color(0xFFDCFCE7),
+    bottomBadgeDotColor: Color = bottomBadgeTextColor, // dot follows whatever text color is passed
     bottomBadgeCornerRadius: Dp = 20.dp,
     eyebrowText: String? = null,
     eyebrowColor: Color = Color(0xFF6B7280),
@@ -258,14 +299,13 @@ fun <T> DataCard(
                     }
 
                     if (showTopBadgeInTopRow) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(topBadgeCornerRadius))
-                                .background(topBadgeBgColor)
-                                .padding(horizontal = 12.dp, vertical = 4.dp)
-                        ) {
-                            Text(topBadgeText!!, fontSize = tokens.label, color = topBadgeTextColor, fontWeight = FontWeight.Medium)
-                        }
+                        StatusBadge(
+                            text = topBadgeText!!,
+                            dotColor = topBadgeDotColor,
+                            bgColor = topBadgeBgColor,
+                            textColor = topBadgeTextColor,
+                            cornerRadius = topBadgeCornerRadius
+                        )
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -296,8 +336,7 @@ fun <T> DataCard(
                         if (formattedTitle != null) {
                             Text(
                                 text = formattedTitle,
-                                fontSize = tokens.h2, // Adaptive heading
-                                fontWeight = titleFontWeight,
+                                fontSize = tokens.bodyMedium, // Adaptive heading
                                 color = titleColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -341,9 +380,13 @@ fun <T> DataCard(
 
                 // Inline badge (optional)
                 if (topBadgeText != null && topBadgeInline) {
-                    Box(modifier = Modifier.clip(RoundedCornerShape(topBadgeCornerRadius)).background(topBadgeBgColor).padding(horizontal = 12.dp, vertical = 4.dp)) {
-                        Text(topBadgeText, fontSize = tokens.label, fontWeight = FontWeight.Medium, color = topBadgeTextColor)
-                    }
+                    StatusBadge(
+                        text = topBadgeText,
+                        dotColor = topBadgeDotColor,
+                        bgColor = topBadgeBgColor,
+                        textColor = topBadgeTextColor,
+                        cornerRadius = topBadgeCornerRadius
+                    )
                     Spacer(Modifier.width(8.dp))
                 }
 
@@ -362,26 +405,55 @@ fun <T> DataCard(
             }
 
             // --- Footer: Metrics & Pricing ---
+            // --- Footer: Label/Value Rows ---
             if (footerFields.isNotEmpty() || trailingText != null) {
                 Spacer(Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        footerFields.forEach { field ->
-                            Text(text = field.text, fontSize = tokens.bodySmall, color = field.textColor, fontWeight = FontWeight.Medium)
+
+                val rowFields = footerFields.filter { it.asRow }
+                val plainFields = footerFields.filter { !it.asRow }
+
+                if (rowFields.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        rowFields.forEach { field ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (field.label != null) {
+                                    Text(
+                                        text = field.label,
+                                        fontSize = tokens.bodySmall,
+                                        color = field.labelColor
+                                    )
+                                }
+                                Text(
+                                    text = field.text,
+                                    fontSize = tokens.bodySmall,
+                                    color = field.textColor,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
+                }
 
-                    if (trailingText != null) {
-                        Text(
-                            text = trailingText,
-                            fontSize = tokens.bodyLarge, // Adaptive highlight font
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
-                        )
+                if (plainFields.isNotEmpty() || trailingText != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = if (rowFields.isNotEmpty()) 10.dp else 0.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            plainFields.forEach { field ->
+                                Text(text = field.text, fontSize = tokens.bodySmall, color = field.textColor, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                        if (trailingText != null) {
+                            Text(text = trailingText, fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        }
                     }
                 }
             }
@@ -389,9 +461,13 @@ fun <T> DataCard(
             // --- Bottom Section: Custom badges or content ---
             if (bottomBadgeText != null) {
                 Spacer(Modifier.height(10.dp))
-                Box(modifier = Modifier.clip(RoundedCornerShape(bottomBadgeCornerRadius)).background(bottomBadgeBgColor).padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    Text(bottomBadgeText, fontSize = tokens.label, fontWeight = FontWeight.Medium, color = bottomBadgeTextColor)
-                }
+                StatusBadge(
+                    text = bottomBadgeText,
+                    dotColor = bottomBadgeDotColor,
+                    bgColor = bottomBadgeBgColor,
+                    textColor = bottomBadgeTextColor,
+                    cornerRadius = bottomBadgeCornerRadius
+                )
             }
 
             if (content != null) {
@@ -400,7 +476,7 @@ fun <T> DataCard(
             }
         }
     }
-    HorizontalDivider(color = lightGray, thickness = 1.dp)
+    HorizontalDivider(color = BorderGray, thickness = 1.dp)
 }
 
 data class DataCardStat(

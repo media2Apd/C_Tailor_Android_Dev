@@ -147,7 +147,6 @@ fun ManualJournalEntryScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
                 ) {
                     ScreenBreadcrumb(listOf("Finance","Journal Entry"), onClick = {})
                 }
@@ -163,6 +162,8 @@ fun ManualJournalEntryScreen(
                     onFilterClick = { /* TODO: open filter drawer */ }
                 )
             }
+            HorizontalDivider(color = Color(0xFFF0F0F0))
+
 
             // ── Content ──
             // FabScaffold is now called ONCE, always, regardless of state.

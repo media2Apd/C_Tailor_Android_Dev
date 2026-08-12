@@ -10,35 +10,39 @@ package com.cuso.mobile.view.home.department
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.DepartmentItem
 import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.PlanLimits
 import com.cuso.mobile.view.composable.DataCard
-import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.DataCardStat
+import com.cuso.mobile.view.composable.DataCardStatsRow
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.FormDropdown
@@ -61,9 +65,12 @@ import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.TitleBar
 import kotlinx.coroutines.launch
+import com.cuso.mobile.view.composable.blurScrim
 
 // ─────────────────────────────────────────────────────────────
 // DepartmentSettingsScreen - Updated with SmoothBottomSheet
+// Design values now pulled from LocalAppTokens for consistency
+// across screen sizes (compact / medium / expanded).
 // ─────────────────────────────────────────────────────────────
 
 @Suppress("UNUSED_PARAMETER")
@@ -73,6 +80,9 @@ fun DepartmentSettingsScreen(
     onMenuClick: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
+    // Adaptive design tokens, provided higher up in the composition tree
+    val tokens = LocalAppTokens.current
+
     val departmentViewModel: DepartmentViewModel = hiltViewModel()
     val salesViewModel: SalesViewModel = hiltViewModel()
     val profileViewModel: ProfileViewModel = hiltViewModel()
@@ -81,6 +91,14 @@ fun DepartmentSettingsScreen(
     var editingDepartment by remember { mutableStateOf<DepartmentItem?>(null) }
     var editSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var showPlanLimitDialog by remember { mutableStateOf(false) }
+
+    // Separate blur/scrim state per sheet, same pattern as CreateOrderScreen
+    var addSheetBlur by remember { mutableStateOf(0.dp) }
+    var addSheetScrim by remember { mutableFloatStateOf(0f) }
+    var editSheetBlur by remember { mutableStateOf(0.dp) }
+    var editSheetScrim by remember { mutableFloatStateOf(0f) }
+
+    val isAnySheetOpen = addSheetState != SheetValue.Hidden || editSheetState != SheetValue.Hidden
 
     var searchQuery by remember { mutableStateOf("") }
     var currentPage by remember { mutableIntStateOf(1) }
@@ -163,118 +181,165 @@ fun DepartmentSettingsScreen(
     val totalPages = maxOf(1, if (filteredDepartments.isNotEmpty()) (filteredDepartments.size + itemsPerPage - 1) / itemsPerPage else 1)
     val pagedDepartments = filteredDepartments.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        FabScaffold(
-            fab = FabConfig(
-                label = "Add Department",
-                icon = Icons.Default.Add,
-                onClick = {
-                    if (planLimits != null && isDepartmentLimitReached) {
-                        showPlanLimitDialog = true
-                    } else {
-                        addSheetState = SheetValue.Expanded
-                    }
-                }
-            ),
-            snackbarHostState = snackbarHostState
-        ) {
-            Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+    // Scaffold with topBar slot — topBar always paints above body content
+    Scaffold(
+        topBar = {
+            TitleBar("Department", onClose = onBack)
+        },
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
-                Column(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    TitleBar("Department", onClose = onBack)
-                }
-
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    ScreenBreadcrumb(segments = listOf("Settings", "Department"), onClick = {})
-
-                    SearchFilterBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                        placeholder = "Search Departments...",
-                        accentColor = BluePrimary,
-                        borderColor = BorderGray,
-                        textSecondaryColor = TextSecondary,
-                        onFilterClick = { /* TODO: open filter drawer */ }
-                    )
-                }
-
-                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    when (val state = uiState) {
-                        is DepartmentUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            ListSkeleton()
+            FabScaffold(
+                fab = FabConfig(
+                    label = "Add Department",
+                    icon = Icons.Default.Add,
+                    onClick = {
+                        if (planLimits != null && isDepartmentLimitReached) {
+                            showPlanLimitDialog = true
+                        } else {
+                            addSheetState = SheetValue.Expanded
                         }
-                        is DepartmentUiState.Error -> {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
-                                    Spacer(Modifier.height(8.dp))
-                                    Text("Something went wrong, Please try again later", color = Color.Red)
-                                    Spacer(Modifier.height(12.dp))
-                                    Button(onClick = { departmentViewModel.refresh() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(8.dp)) {
-                                        Text("Retry", color = whiteBg)
+                    }
+                ),
+                fabVisible = !isAnySheetOpen,
+                snackbarHostState = snackbarHostState
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .background(Color.Transparent)
+                        .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))   // Blurs only this body content
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        ScreenBreadcrumb(segments = listOf("Settings", "Department"), onClick = {})
+
+                        SearchFilterBar(
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
+                            placeholder = "Search Departments...",
+                            accentColor = BluePrimary,
+                            borderColor = BorderGray,
+                            textSecondaryColor = TextSecondary,
+                            onFilterClick = { /* TODO: open filter drawer */ }
+                        )
+                    }
+                    HorizontalDivider(color = Color(0xFFF0F0F0))
+
+
+                    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                        when (val state = uiState) {
+                            is DepartmentUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                ListSkeleton()
+                            }
+                            is DepartmentUiState.Error -> {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(tokens.iconSize * 2.5f))
+                                        Spacer(Modifier.height(tokens.extraPadding / 2))
+                                        Text("Something went wrong, Please try again later", color = Color.Red, fontSize = tokens.bodyMedium)
+                                        Spacer(Modifier.height(tokens.extraPadding))
+                                        Button(onClick = { departmentViewModel.refresh() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(8.dp)) {
+                                            Text("Retry", color = whiteBg, fontSize = tokens.bodyMedium)
+                                        }
                                     }
                                 }
                             }
-                        }
-                        is DepartmentUiState.Success -> {
-                            if (filteredDepartments.isEmpty()) {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(Icons.Default.Groups, null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
-                                        Spacer(Modifier.height(8.dp))
-                                        Text(if (searchQuery.isNotBlank()) "No matching departments found" else "No departments found", color = Color.Gray, fontSize = 15.sp)
-                                    }
-                                }
-                            } else {
-                                Column(modifier = Modifier.fillMaxSize()) {
-                                    LazyColumn(
-                                        modifier = Modifier.fillMaxWidth().weight(1f),
-                                    ) {
-                                        items(pagedDepartments) { department ->
-                                            val (badgeText, badgeColor) = if (department.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
-                                            DataCard(
-                                                item = department,
-                                                topBadgeText = badgeText,
-                                                topBadgeTextColor = badgeColor,
-                                                topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-                                                title = department.name,
-                                                subtitle = department.description ?: "-",
-                                                footerFields = listOf(
-                                                    DataCardField(icon = Icons.Default.Person, text = headNameFor(department, staffList)),
-                                                    DataCardField(icon = Icons.Default.People, text = "${department.totalEmployees} Employees")
-                                                ),
-                                                actions = listOf(
-                                                    MenuAction("Edit", Icons.Default.Edit) {
-                                                        editingDepartment = department
-                                                        editSheetState = SheetValue.Expanded
-                                                    },
-                                                    MenuAction("View Teams", Icons.Default.Visibility) { /* TODO: navigate to detail */ }
-                                                )
-                                            )
+                            is DepartmentUiState.Success -> {
+                                if (filteredDepartments.isEmpty()) {
+                                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Icon(Icons.Default.Groups, null, tint = Color.LightGray, modifier = Modifier.size(tokens.iconSize * 2.5f))
+                                            Spacer(Modifier.height(tokens.extraPadding / 2))
+                                            Text(if (searchQuery.isNotBlank()) "No matching departments found" else "No departments found", color = Color.Gray, fontSize = tokens.bodyMedium)
                                         }
                                     }
-                                    Box(modifier = Modifier.fillMaxWidth().background(whiteBg, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))) {
-                                        Column {
-                                            HorizontalDivider(color = Color(0xFFF0F0F0))
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Text(
-                                                    "Showing ${if (filteredDepartments.isEmpty()) 0 else (currentPage - 1) * itemsPerPage + 1} - ${minOf(currentPage * itemsPerPage, filteredDepartments.size)} of ${filteredDepartments.size}",
-                                                    fontSize = 13.sp, color = Color(0xFF6B7280)
-                                                )
-                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                    IconButton(onClick = { if (currentPage > 1) currentPage-- }, enabled = currentPage > 1, modifier = Modifier.size(28.dp)) {
-                                                        Icon(Icons.Default.ChevronLeft, "Previous", tint = if (currentPage > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
+                                } else {
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        LazyColumn(
+                                            modifier = Modifier.fillMaxWidth().weight(1f),
+                                        ) {
+                                            items(pagedDepartments) { department ->
+                                                val (badgeText, badgeColor) = if (department.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
+                                                DataCard(
+                                                    item = department,
+                                                    titleFontWeight = FontWeight.SemiBold,
+                                                    titleColor = title_color,
+                                                    smalltitle = "${department.name}  .  Department",
+                                                    topBadgeText = badgeText,
+                                                    topBadgeTextColor = badgeColor,
+                                                    topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
+                                                    topBadgeInline = true,
+                                                    actions = listOf(
+                                                        MenuAction("Edit", Icons.Default.Edit) {
+                                                            editingDepartment = department
+                                                            editSheetState = SheetValue.Expanded
+                                                        },
+                                                        MenuAction("View Teams", Icons.Default.Visibility) { /* TODO: navigate to detail */ }
+                                                    ),
+                                                    content = {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(tokens.iconSize + 6.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(Color(0xFFF3E8FF)),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Text(
+                                                                    text = headNameFor(department, staffList).firstOrNull()?.uppercase() ?: "?",
+                                                                    fontSize = tokens.caption,
+                                                                    fontWeight = FontWeight.SemiBold,
+                                                                    color = Color(0xFF7C3AED)
+                                                                )
+                                                            }
+                                                            Spacer(Modifier.width(tokens.extraPadding / 2))
+                                                            Text(
+                                                                text = headNameFor(department, staffList),
+                                                                fontSize = tokens.bodySmall,
+                                                                color = Color(0xFF111827)
+                                                            )
+                                                        }
+
+                                                        Spacer(Modifier.height(tokens.extraPadding))
+
+                                                        DataCardStatsRow(
+                                                            stats = listOf(
+                                                                DataCardStat(
+                                                                    label = "Employees",
+                                                                    value = "${department.totalEmployees}"
+                                                                ),
+                                                                DataCardStat(label = "Teams", value = "null"),
+                                                                DataCardStat(label = "Code", value = "null")
+                                                            )
+                                                        )
                                                     }
-                                                    Text("$currentPage - $totalPages", fontSize = 13.sp, color = Color(0xFF374151))
-                                                    IconButton(onClick = { if (currentPage < totalPages) currentPage++ }, enabled = currentPage < totalPages, modifier = Modifier.size(28.dp)) {
-                                                        Icon(Icons.Default.ChevronRight, "Next", tint = if (currentPage < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
+                                                )
+                                            }
+                                        }
+                                        Box(modifier = Modifier.fillMaxWidth().background(whiteBg, RoundedCornerShape(topStart = tokens.cardCornerRadius, topEnd = tokens.cardCornerRadius))) {
+                                            Column {
+                                                HorizontalDivider(color = Color(0xFFF0F0F0))
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Text(
+                                                        "Showing ${if (filteredDepartments.isEmpty()) 0 else (currentPage - 1) * itemsPerPage + 1} - ${minOf(currentPage * itemsPerPage, filteredDepartments.size)} of ${filteredDepartments.size}",
+                                                        fontSize = tokens.bodySmall, color = Color(0xFF6B7280)
+                                                    )
+                                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding / 2)) {
+                                                        IconButton(onClick = { if (currentPage > 1) currentPage-- }, enabled = currentPage > 1, modifier = Modifier.size(tokens.iconSize + 10.dp)) {
+                                                            Icon(Icons.Default.ChevronLeft, "Previous", tint = if (currentPage > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
+                                                        }
+                                                        Text("$currentPage - $totalPages", fontSize = tokens.bodySmall, color = Color(0xFF374151))
+                                                        IconButton(onClick = { if (currentPage < totalPages) currentPage++ }, enabled = currentPage < totalPages, modifier = Modifier.size(tokens.iconSize + 10.dp)) {
+                                                            Icon(Icons.Default.ChevronRight, "Next", tint = if (currentPage < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
+                                                        }
                                                     }
                                                 }
                                             }
@@ -286,9 +351,20 @@ fun DepartmentSettingsScreen(
                     }
                 }
             }
+
+            // Plan Limit Dialog — kept inside this Box, same as before
+            if (showPlanLimitDialog) {
+                PlanLimitDialog(
+                    title = "Plan Limit Reached",
+                    message = "Department limit exceeded ($currentDepartments/${planLimits?.departmentLimit ?: 0}). Upgrade your plan to add more departments.",
+                    onDismiss = { showPlanLimitDialog = false },
+                    onUpgrade = { /* navigate to upgrade screen */ }
+                )
+            }
         }
 
-        // ── SmoothBottomSheet for Add Department ──
+        // SmoothBottomSheet for Add Department — sibling of the Box above,
+        // still inside Scaffold's content lambda; topBar is outside this lambda entirely
         SmoothBottomSheet(
             state = addSheetState,
             onStateChange = { newState ->
@@ -297,19 +373,17 @@ fun DepartmentSettingsScreen(
                     departmentViewModel.resetCreateState()
                 }
             },
-            modifier = Modifier.fillMaxSize(),
             peekHeight = 200.dp,
-            topInset = 48.dp,
-            maxBlurRadius = 14.dp,
-            maxScrimAlpha = 0.35f,
+            topInset = 66.dp,   // Matches TitleBar height, same as CreateOrderScreen's topInset
             sheetBackgroundColor = whiteBg,
-            collapsedCornerRadius = 24.dp,
+            collapsedCornerRadius = tokens.cardCornerRadius,
             dragCloseEnabled = true,
             scrollableContent = true,
             onDismissRequest = {
                 addSheetState = SheetValue.Hidden
                 departmentViewModel.resetCreateState()
-            }
+            },
+            onBlurScrimChange = { r, s -> addSheetBlur = r; addSheetScrim = s }
         ) {
             AddDepartmentSheetContent(
                 staffList = staffList,
@@ -333,7 +407,7 @@ fun DepartmentSettingsScreen(
             )
         }
 
-        // ── SmoothBottomSheet for Edit Department ──
+        // SmoothBottomSheet for Edit Department
         editingDepartment?.let { department ->
             SmoothBottomSheet(
                 state = editSheetState,
@@ -344,20 +418,18 @@ fun DepartmentSettingsScreen(
                         departmentViewModel.resetUpdateState()
                     }
                 },
-                modifier = Modifier.fillMaxSize(),
                 peekHeight = 200.dp,
-                topInset = 48.dp,
-                maxBlurRadius = 14.dp,
-                maxScrimAlpha = 0.35f,
-                sheetBackgroundColor = whiteBg,
-                collapsedCornerRadius = 24.dp,
+                topInset = 66.dp,
+                sheetBackgroundColor = Primary_background,
+                collapsedCornerRadius = tokens.cardCornerRadius,
                 dragCloseEnabled = true,
                 scrollableContent = true,
                 onDismissRequest = {
                     editSheetState = SheetValue.Hidden
                     editingDepartment = null
                     departmentViewModel.resetUpdateState()
-                }
+                },
+                onBlurScrimChange = { r, s -> editSheetBlur = r; editSheetScrim = s }
             ) {
                 EditDepartmentSheetContent(
                     department = department,
@@ -380,16 +452,6 @@ fun DepartmentSettingsScreen(
                 )
             }
         }
-
-        // ── Plan Limit Dialog ──
-        if (showPlanLimitDialog) {
-            PlanLimitDialog(
-                title = "Plan Limit Reached",
-                message = "Department limit exceeded ($currentDepartments/${planLimits?.departmentLimit ?: 0}). Upgrade your plan to add more departments.",
-                onDismiss = { showPlanLimitDialog = false },
-                onUpgrade = { /* navigate to upgrade screen */ }
-            )
-        }
     }
 }
 
@@ -404,6 +466,8 @@ fun AddDepartmentSheetContent(
     onDismiss: () -> Unit,
     onCreate: (DepartmentRequest) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     var departmentName by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var selectedStaff by remember { mutableStateOf("") }
@@ -419,25 +483,25 @@ fun AddDepartmentSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = tokens.screenPadding)
+            .padding(bottom = tokens.screenPadding),
+        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 "Add New Department",
-                fontSize = 18.sp,
+                fontSize = tokens.h2,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF111827)
             )
             Text(
                 "Create a new department in your organization",
-                fontSize = 13.sp,
+                fontSize = tokens.bodySmall,
                 color = Color(0xFF6B7280)
             )
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
 
         Column {
             FormLabel("Department Name", isRequired = true)
@@ -476,23 +540,23 @@ fun AddDepartmentSheetContent(
             errorMessage = "Please select a department head"
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedButton(
                 onClick = onDismiss,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).height(tokens.buttonHeight),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = Color(0xFF374151)
                 ),
                 border = BorderStroke(1.dp, Color(0xFFD1D5DB))
             ) {
-                Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text("Cancel", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium)
             }
 
             Button(
@@ -516,7 +580,7 @@ fun AddDepartmentSheetContent(
                         )
                     )
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).height(tokens.buttonHeight),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = BluePrimary,
@@ -531,12 +595,12 @@ fun AddDepartmentSheetContent(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Create ", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
+                    Text("Create ", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = whiteBg)
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
     }
 }
 
@@ -552,6 +616,8 @@ fun EditDepartmentSheetContent(
     onDismiss: () -> Unit,
     onUpdate: (name: String, description: String?, departmentHead: String?, status: Boolean?) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     var departmentName by remember { mutableStateOf(department.name) }
     var description by remember { mutableStateOf(department.description ?: "") }
     var selectedStaff by remember { mutableStateOf(department.departmentHeadId ?: "") }
@@ -565,25 +631,25 @@ fun EditDepartmentSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = tokens.screenPadding)
+            .padding(bottom = tokens.screenPadding),
+        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 "Edit Department",
-                fontSize = 18.sp,
+                fontSize = tokens.h2,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF111827)
             )
             Text(
                 "Update department information",
-                fontSize = 13.sp,
+                fontSize = tokens.bodySmall,
                 color = Color(0xFF6B7280)
             )
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
 
         Column {
             FormLabel("Department Name", isRequired = true)
@@ -619,7 +685,7 @@ fun EditDepartmentSheetContent(
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
         ) {
             MiniSwitch(
                 checked = status,
@@ -628,35 +694,35 @@ fun EditDepartmentSheetContent(
             Column {
                 Text(
                     if (status) "Active" else "Inactive",
-                    fontSize = 14.sp,
+                    fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFF374151)
                 )
                 Text(
                     if (status) "Department is active" else "Department is inactive",
-                    fontSize = 12.sp,
+                    fontSize = tokens.label,
                     color = Color(0xFF9CA3AF)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedButton(
                 onClick = onDismiss,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).height(tokens.buttonHeight),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = Color(0xFF374151)
                 ),
                 border = BorderStroke(1.dp, Color(0xFFD1D5DB))
             ) {
-                Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text("Cancel", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium)
             }
 
             Button(
@@ -668,7 +734,7 @@ fun EditDepartmentSheetContent(
                         status
                     )
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).height(tokens.buttonHeight),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = BluePrimary,
@@ -677,18 +743,14 @@ fun EditDepartmentSheetContent(
                 enabled = !isLoading
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = whiteBg,
-                        strokeWidth = 2.dp
-                    )
+                    CirculerProgressIndicatorSmall()
                 } else {
-                    Text("Update ", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
+                    Text("Update ", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = whiteBg)
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
     }
 }
 

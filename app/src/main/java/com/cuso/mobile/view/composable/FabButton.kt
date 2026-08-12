@@ -1,5 +1,11 @@
 package com.cuso.mobile.view.composable
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +54,7 @@ data class FabConfig(
 fun FabScaffold(
     modifier: Modifier = Modifier,
     fab: FabConfig?,
+    fabVisible: Boolean = true, // NEW: controls animated show/hide of the FAB, e.g. while a bottom sheet is open
     snackbarHostState: SnackbarHostState? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -91,51 +98,60 @@ fun FabScaffold(
                     .padding(end = fab.endPadding, bottom = fab.bottomPadding)
             }
 
-            Button(
-                onClick = fab.onClick,
-                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                modifier = fabModifier
-                    .onGloballyPositioned { fabSize = it.size }
-                    .let { m ->
-                        if (fab.draggable) {
-                            m.pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragStart = {
-                                        //  first drag — seed dragOffset from current visual
-                                        // position (bottom-end) so it doesn't jump
-                                        if (dragOffset == null) {
-                                            dragOffset = Offset(
-                                                x = (containerSize.width - fabSize.width - fab.endPadding.value.dp.value).let {
-                                                    containerSize.width.toFloat() - fabSize.width - with(
-                                                        this
-                                                    ) { fab.endPadding.toPx() }
-                                                },
-                                                y = containerSize.height.toFloat() - fabSize.height - with(
-                                                    this
-                                                ) { fab.bottomPadding.toPx() }
-                                            )
-                                        }
-                                    },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        val current = dragOffset ?: Offset.Zero
-                                        val newX = (current.x + dragAmount.x)
-                                            .coerceIn(0f, (containerSize.width - fabSize.width).toFloat().coerceAtLeast(0f))
-                                        val newY = (current.y + dragAmount.y)
-                                            .coerceIn(0f, (containerSize.height - fabSize.height).toFloat().coerceAtLeast(0f))
-                                        dragOffset = Offset(newX, newY)
-                                    }
-                                )
-                            }
-                        } else m
-                    }
+            // NEW: AnimatedVisibility (fade + scale) lets callers hide the FAB smoothly,
+            // e.g. by passing fabVisible = !isSheetOpen
+            AnimatedVisibility(
+                visible = fabVisible,
+                modifier = fabModifier,
+                enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.8f),
+                exit = fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 0.8f)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(fab.label, color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    Spacer(Modifier.width(6.dp))
-                    Icon(fab.icon, contentDescription = null, tint = whiteBg, modifier = Modifier.size(18.dp))
+                Button(
+                    onClick = fab.onClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                    modifier = Modifier
+                        .onGloballyPositioned { fabSize = it.size }
+                        .let { m ->
+                            if (fab.draggable) {
+                                m.pointerInput(Unit) {
+                                    detectDragGestures(
+                                        onDragStart = {
+                                            //  first drag — seed dragOffset from current visual
+                                            // position (bottom-end) so it doesn't jump
+                                            if (dragOffset == null) {
+                                                dragOffset = Offset(
+                                                    x = (containerSize.width - fabSize.width - fab.endPadding.value.dp.value).let {
+                                                        containerSize.width.toFloat() - fabSize.width - with(
+                                                            this
+                                                        ) { fab.endPadding.toPx() }
+                                                    },
+                                                    y = containerSize.height.toFloat() - fabSize.height - with(
+                                                        this
+                                                    ) { fab.bottomPadding.toPx() }
+                                                )
+                                            }
+                                        },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            val current = dragOffset ?: Offset.Zero
+                                            val newX = (current.x + dragAmount.x)
+                                                .coerceIn(0f, (containerSize.width - fabSize.width).toFloat().coerceAtLeast(0f))
+                                            val newY = (current.y + dragAmount.y)
+                                                .coerceIn(0f, (containerSize.height - fabSize.height).toFloat().coerceAtLeast(0f))
+                                            dragOffset = Offset(newX, newY)
+                                        }
+                                    )
+                                }
+                            } else m
+                        }
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(fab.label, color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Spacer(Modifier.width(6.dp))
+                        Icon(fab.icon, contentDescription = null, tint = whiteBg, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
         }

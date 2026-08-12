@@ -45,6 +45,7 @@ import com.cuso.mobile.model.sales.QuotationItemInput
 import com.cuso.mobile.model.sales.QuotationOptionInput
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.primary_light
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
@@ -70,7 +71,7 @@ private val BorderGray = Color(0xFFE5E7EB)
 private val TextGray = Color(0xFF6B7280)
 private val MutedGray = Color(0xFF9CA3AF)
 private val TitleDark = Color(0xFF111827)
-private val TintBg = Color(0xFFEEF2FF)
+private val TintBg = primary_light
 private val TipBg = Color(0xFFEFF6FF)
 private val TipBlue = Color(0xFF2563EB)
 
@@ -582,7 +583,7 @@ private fun CustomerLeadToggle(selected: String, onSelect: (String) -> Unit) {
                     .weight(1f)
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(6.dp))
-                    .background(if (isSelected) Color(0xFFEEF2FF) else Color.Transparent)
+                    .background(if (isSelected) primary_light else Color.Transparent)
                     .clickable { onSelect(label) }
                     .padding(vertical = 0.dp),
                 contentAlignment = Alignment.Center

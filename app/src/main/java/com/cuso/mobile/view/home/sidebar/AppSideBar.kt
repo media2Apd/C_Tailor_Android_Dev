@@ -123,7 +123,7 @@ object SidebarConfig {
                 isPanel = true,
                 categories = listOf(
                     "Lead Management", "Customer", "Measurements",
-                    "Sales & Orders", "Order Management", "Pricing & Quotes"
+                    "Sales & Orders", "Order Management", "Pricing & Quotes", "Payment & Billing"
                 ),
                 subItems = mapOf(
                     "Pricing & Quotes"         to listOf("Pricing Overview","Quotation")

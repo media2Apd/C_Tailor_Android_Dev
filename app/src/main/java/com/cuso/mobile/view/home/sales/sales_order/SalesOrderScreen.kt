@@ -1,3 +1,5 @@
+//REFERENCE
+
 @file:Suppress(
     "UNUSED_VALUE",
     "SpellCheckingInspection",
@@ -164,6 +166,7 @@ fun SalesOrderScreen(
                         onFilterClick = { /* open filter drawer */ }
                     )
                 }
+                HorizontalDivider(color = Color(0xFFF0F0F0))
 
                 // ── Content ──
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {

@@ -17,6 +17,7 @@
 package com.cuso.mobile.view.home
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -99,6 +100,7 @@ import com.cuso.mobile.viewmodel.CustomerViewModel
 import com.cuso.mobile.viewmodel.DashboardUiState
 import com.cuso.mobile.viewmodel.DashboardViewModel
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -160,9 +162,9 @@ import com.cuso.mobile.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
 // Add these imports for the Lead screens
 import com.cuso.mobile.view.home.sales.lead.LeadScreenContent
-import com.cuso.mobile.view.home.sales.lead.CreateLeadScreen
-import com.cuso.mobile.view.home.sales.lead.ViewLeadScreen
-import com.cuso.mobile.view.home.sales.lead.EditLeadScreen
+import com.cuso.mobile.view.home.sales.lead.LeadScreenContent
+import com.cuso.mobile.view.home.sales.lead.LeadFormScreen
+import com.cuso.mobile.view.home.sales.lead.LeadFormMode
 import com.cuso.mobile.view.home.sales.ordermanagement.OrderDetailScreen
 import com.cuso.mobile.view.home.sales.sales_order.OrderOverviewScreen
 import com.cuso.mobile.view.home.services.AlterationManagementScreen
@@ -188,12 +190,19 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.ui.draw.scale
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.adaptive_screen.getAdaptiveTokens
+import com.cuso.mobile.view.home.branch.RoleSettingsScreen
+import com.cuso.mobile.view.home.finance.AllPaymentListScreen
+import com.cuso.mobile.view.home.finance.PurchaseInvoiceItem
+import com.cuso.mobile.view.home.finance.PurchaseInvoiceScreen
 import com.cuso.mobile.view.home.hr.AttendanceDetailScreen
 import com.cuso.mobile.view.home.hr.AttendanceScreen
+import com.cuso.mobile.view.home.opening_balance.OpeningBalancesScreen
 import com.cuso.mobile.view.home.reports.DeadStockReportScreen
 import com.cuso.mobile.view.home.reports.FinanceReportPage
 import com.cuso.mobile.view.home.reports.InventoryReportPage
@@ -202,11 +211,16 @@ import com.cuso.mobile.view.home.reports.ProfitAndLossReportScreen
 import com.cuso.mobile.view.home.reports.PurchaseReportScreen
 import com.cuso.mobile.view.home.reports.StockSummaryScreen
 import com.cuso.mobile.view.home.reports.WarehouseReportScreen
+import com.cuso.mobile.view.home.sales.payment_listing.PaymentInformationScreen
+import com.cuso.mobile.view.home.sales.payment_listing.PaymentListingScreen
+import com.cuso.mobile.view.home.warehouse.WarehouseSettingsScreen
+import java.time.LocalTime
 
 // ── Design tokens (Primary color used everywhere for icons / accents) ──
 val LeadPrimary = Color(0xFF3B3BF9)
 val LeadPrimarySoft = Color(0xFFEEEEFE)
 val LeadmutedText = Color(0xFF9CA3AF)
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Suppress("UnusedMaterial3ScaffoldPaddingParameter","UNUSED_PARAMETER")
 @Composable
 fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSizeClass) {
@@ -243,6 +257,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val activity = context as ComponentActivity
 
     //   NEW — Finance > Trial Balance > Ledger flow
     var selectedLedgerAccountId by remember { mutableStateOf<String?>(null) }
@@ -257,8 +272,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedManagementOrderId by remember { mutableStateOf<String?>(null) }
 
     //   NEW — Finance > Accounts Receivable > Sales Invoices flow
+//   NEW — Finance > Accounts Receivable > Sales Invoices flow
     var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
 
+    //   NEW — Finance > Accounts Payable > Purchase Invoices flow (static data)
+    var selectedPurchaseInvoice by remember { mutableStateOf<PurchaseInvoiceItem?>(null) }
     //   NEW — Inventory > Item Detail flow
     var selectedInventoryItemId by remember { mutableStateOf<String?>(null) }
 
@@ -373,6 +391,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             currentScreen == "home_branch_management" ||
             currentScreen == "home_department_teams" ||
             currentScreen == "home_designation"
+//            currentScreen == "home_role_management"||
+//            currentScreen == "home_warehouse_management"||
+//            currentScreen == "home_opening_balance"
+
 
     val showSalesPanel = isSalesSettingsMode
 
@@ -406,6 +428,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             }
             currentScreen == "finance_invoice_detail" -> {
                 selectedInvoiceId = null
+                goBack()
+            }
+            currentScreen == "finance_payments_mode" -> {
                 goBack()
             }
             currentScreen == "finance_ledger" -> {
@@ -582,6 +607,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                     navigateTo("finance_journal_screen")
                                     isDrawerOpen = false
                                 }
+                                "finance_payments_mode" ->{
+                                    isSalesSettingsMode = false
+                                    navigateTo("finance_payments_mode")
+                                    isDrawerOpen = false
+                                }
 
                                 "finance_chart_of_accounts" -> {
                                     isSalesSettingsMode = false
@@ -592,6 +622,12 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 "finance_sales_invoices", "finance_accounts_receivable" -> {
                                     isSalesSettingsMode = false
                                     navigateTo("finance_sales_invoices")
+                                    isDrawerOpen = false
+                                }
+
+                                "finance_purchase_invoices", "finance_accounts_payable" -> {
+                                    isSalesSettingsMode = false
+                                    navigateTo("finance_purchase_invoices")
                                     isDrawerOpen = false
                                 }
 
@@ -844,19 +880,25 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 }
                             )
 
-                            "create_lead" -> CreateLeadScreen(
+                            "create_lead" -> LeadFormScreen(
+                                mode = LeadFormMode.CREATE,
                                 onBack = { goBack() }
                             )
 
-                            "view_lead" -> ViewLeadScreen(
+                            "view_lead" -> LeadFormScreen(
+                                mode = LeadFormMode.VIEW,
                                 onBack = { goBack() },
-                                onEditLead = { navigateTo("edit_lead") }
+                                onEditRequested = { navigateTo("edit_lead") }
                             )
 
-                            "edit_lead" -> EditLeadScreen(
-                                onBack = { goBack() }
+                            "edit_lead" -> LeadFormScreen(
+                                mode = LeadFormMode.EDIT,
+                                onBack = { goBack() },
+                                onConvertToOrder = { orderReviewData ->
+                                    pendingOrderReviewData = orderReviewData
+                                    navigateTo("create_order")
+                                }
                             )
-
                             "sales_sales_orders" -> SalesOrderScreen(
                                 navController = navController,
                                 onMenuClick = { isDrawerOpen = true },
@@ -901,7 +943,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                     OrderOverviewScreen(
                                         orderId = id,
                                         onClose = {
-                                            selectedOrderId = null
                                             goBack()
                                         },
                                         onEditOrder = { reviewData ->
@@ -1009,6 +1050,15 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                         }
                                     )
                                 } ?: run { goBack() }
+                            }
+
+                            "finance_payments_mode" -> {
+                                    AllPaymentListScreen(
+                                        onClose = { goBack() },
+                                        onPaymentClick = { paymentId ->
+                                            // navigate to payment detail if needed
+                                        }
+                                    )
                             }
 
                             "inventory_items" -> InventoryScreen(
@@ -1295,6 +1345,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 token = token
                             )
 
+
                             "inventory_item_groups" -> AllItemGroupScreen(
                                 onDismiss = { goBack() },
                                 onAddItemGroup = { navigateTo("inventory_create_item_group") },
@@ -1335,6 +1386,19 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                     modulesPanelInitialExpanded = "Sales"
                                     showModulesPanel = true
                                 }
+                            )
+                            "sales_payment_and_billing" -> PaymentListingScreen(
+                                navController = navController,
+                                widthSizeClass = calculateWindowSizeClass(activity).widthSizeClass,
+                                onBack = { isSalesSettingsMode = false; goBack() },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Sales"
+                                    showModulesPanel = true
+                                },
+                                onPaymentClick = { navigateTo("payment_detail") }
+                            )
+                            "payment_detail" -> PaymentInformationScreen(
+                                onClose = { goBack() }
                             )
 
                             "garment_pricing_list" -> com.cuso.mobile.view.home.sales.pricing.GarmentPricingListScreen(
@@ -1429,6 +1493,29 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                     showModulesPanel = true
                                 }
                             )
+                            "finance_purchase_invoices" -> PurchaseInvoiceScreen(
+                                onClose = { goBack() },
+                                onInvoiceClick = { invoice ->
+                                    selectedPurchaseInvoice = invoice
+                                    navigateTo("finance_purchase_invoice_detail")
+                                },
+                                onBreadCrumbClick = {
+                                    modulesPanelInitialExpanded = "Finance"
+                                    showModulesPanel = true
+                                }
+                            )
+
+                            "finance_purchase_invoice_detail" -> {
+                                selectedPurchaseInvoice?.let { invoice ->
+                                    com.cuso.mobile.view.home.finance.PurchaseInvoiceDetailScreen(
+                                        invoiceId = invoice.id,
+                                        onClose = {
+                                            goBack()
+                                        }
+                                    )
+                                } ?: run { goBack() }
+                            }
+
 
                             "finance_invoice_detail" -> {
                                 selectedInvoiceId?.let { id ->
@@ -1464,12 +1551,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                         customerId = customer.id,
                                         startInEditMode = currentScreen == "edit_customer",
                                         onClose = {
-                                            selectedCustomer = null
                                             goBack()
                                         },
                                         onUpdateSuccess = {
                                             customerViewModel.refresh()
-                                            selectedCustomer = null
                                             goBack()
                                         },
                                         onRequestEdit = { navigateTo("edit_customer") }
@@ -1509,6 +1594,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 onBranchManagement = { navigateTo("home_branch_management") },
                                 onDepartment = { navigateTo("home_department_teams") },
                                 onDesignation = { navigateTo("home_designation") },
+                                onHelpSupport = { navigateTo("home_opening_balance") }, // NEW: Help & Support -> Role Management
                                 onLogout = {
                                     settingsViewModel.logout {
                                         authViewModel.logout {
@@ -1526,6 +1612,20 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                     modulesPanelInitialExpanded = "Reports"
                                     showModulesPanel = true
                                 }
+                            )
+                            "home_role_management" -> RoleSettingsScreen(
+                                navController = navController,
+                                onMenuClick = { isDrawerOpen = true },
+                                onBack = { goBack() }
+                            )
+                            "home_opening_balance" -> OpeningBalancesScreen(
+                                navController = navController,
+                                onBack = { goBack() }
+                            )
+                            "home_warehouse_management" -> WarehouseSettingsScreen(
+                                navController = navController,
+                                onMenuClick = { isDrawerOpen = true },
+                                onBack = { goBack() }
                             )
 
                             "reports_inventory" -> InventoryReportPage(
@@ -1620,14 +1720,19 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                     // Sales
                     "sales_lead", "sales_customers", "sales_measurements", "sales_sales_orders",
                     "sales_orders", "sales_pricing_overview", "sales_pricing_quotation",
+                    "sales_payment_and_billing",
 
                     // Finance
-                    "finance_sales_invoices", "finance_customers", "finance_payments_received",
-                    "finance_suppliers", "finance_expenses", "finance_chart_of_accounts",
+                    "finance_sales_invoices", "finance_purchase_invoices", "finance_customers",
+                    "finance_payments_received",
+                    "finance_suppliers",
+                    "finance_expenses", "finance_chart_of_accounts",
                     "finance_journal_screen", "finance_trial_balance",
+                    "finance_payments_mode",
 
                     // Inventory
-                    "inventory_items", "inventory_item_groups", "inventory_low_stock_alerts",
+                    "inventory_items",
+                    "inventory_item_groups", "inventory_low_stock_alerts",
 
                     // Logistics
                     "logistics_delivery", "logistics_order_tracking",
@@ -2129,7 +2234,10 @@ fun BottomNavItem(
                 indication = null, // Removed default ripple to keep the focus on the animation
                 interactionSource = remember { MutableInteractionSource() }
             ) { onClick() }
-            .padding(horizontal = tokens.screenPadding * 0.5f, vertical = tokens.screenPadding * 0.25f)
+            .padding(
+                horizontal = tokens.screenPadding * 0.5f,
+                vertical = tokens.screenPadding * 0.25f
+            )
             .scale(animatedScale), // Apply the animated scale
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -2214,6 +2322,7 @@ private fun mapOperationsToCustomers(ops: List<OperationItem>): List<RecentCusto
 // ─────────────────────────────────────────────────────────────
 // HomeScreenContent — fetches real dashboard data + fixed design
 // ─────────────────────────────────────────────────────────────
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeScreenContent(
     navController: NavHostController,
@@ -2229,6 +2338,7 @@ fun HomeScreenContent(
         HomeScreenContentBody(navController = navController, onNavigate = onNavigate, designTokens = designTokens )
     }
 }
+@RequiresApi(Build.VERSION_CODES.O)
 @Suppress("UNUSED_PARAMETER")
 
 @Composable
@@ -2336,6 +2446,7 @@ private fun HomeScreenContentBody(
 }
 
 // ── Greeting card — solid purple banner ──
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun GreetingCard(
     userName: String,
@@ -2343,6 +2454,16 @@ private fun GreetingCard(
     onNavigate: (String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
+
+    val greeting = remember {
+        val hour = LocalTime.now().hour
+        when (hour) {
+            in 5..11 -> "Good Morning"
+            in 12..16 -> "Good Afternoon"
+            else -> "Good Evening"
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -2372,7 +2493,7 @@ private fun GreetingCard(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                "Good Morning, $userName",
+                "$greeting, $userName",
                 color = whiteBg,
                 fontSize = tokens.h1,
                 fontWeight = FontWeight.Bold
@@ -2419,7 +2540,7 @@ private fun DashboardStatCard(stat: DashboardStat, tokens: AppDesignTokens, modi
     Column(
         modifier = modifier
             .background(Color(0xFFf8f9ff), RoundedCornerShape(tokens.cardCornerRadius * 1.6f))
-            .border(1.dp,Color(0xFFe8eaf4),RoundedCornerShape(tokens.cardCornerRadius * 1.6f))
+            .border(1.dp, Color(0xFFe8eaf4), RoundedCornerShape(tokens.cardCornerRadius * 1.6f))
             .padding(tokens.cardPadding * 0.7f)
     ) {
         Row(Modifier.fillMaxWidth(),
@@ -2579,7 +2700,7 @@ private fun RecentActivitySection(
             icon = painterResource(R.drawable.ic_handshake),
             iconBg = Color(0xFFE4E7FF),
             iconTint = Color(0xFF4F46E5),
-            title = "Sarah Chen closed the \nGlobal Logistics deal.",
+            title = "Sarah Chen closed the Global Logistics deal.",
             timeAgo = "2 hours ago",
             amount = "+$4,200"
         ),
@@ -2620,7 +2741,7 @@ private fun RecentActivitySection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(modelBg, RoundedCornerShape(tokens.cardCornerRadius))
-                        .border(1.dp,modelBorder, RoundedCornerShape(tokens.cardCornerRadius))
+                        .border(1.dp, modelBorder, RoundedCornerShape(tokens.cardCornerRadius))
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
@@ -2645,8 +2766,8 @@ private fun RecentActivitySection(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             activity.title,
-                            fontSize = tokens.bodyLarge,
-                            fontWeight = FontWeight.Medium,
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF111827),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
@@ -2657,7 +2778,7 @@ private fun RecentActivitySection(
                     }
                     if (activity.amount != null) {
                         Spacer(Modifier.width(tokens.screenPadding * 0.5f))
-                        Text(activity.amount, fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
+                        Text(activity.amount, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF16A34A))
                     }
                 }
             }
@@ -2680,7 +2801,7 @@ private fun RecentCustomersSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(modelBg, RoundedCornerShape(tokens.cardCornerRadius))
-                .border(1.dp, modelBorder,RoundedCornerShape(tokens.cardCornerRadius))
+                .border(1.dp, modelBorder, RoundedCornerShape(tokens.cardCornerRadius))
         ) {
             customers.forEachIndexed { index, customer ->
                 Row(
@@ -2690,7 +2811,10 @@ private fun RecentCustomersSection(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
                         ) { onNavigate("sales_customers") }
-                        .padding(horizontal = tokens.cardPadding * 0.7f, vertical = tokens.cardPadding * 0.6f),
+                        .padding(
+                            horizontal = tokens.cardPadding * 0.7f,
+                            vertical = tokens.cardPadding * 0.6f
+                        ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
@@ -2893,7 +3017,10 @@ fun TimePickerField(
             .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
             .border(1.dp, PrimaryBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
             .clickable { showPicker = true }
-            .padding(horizontal = tokens.cardPadding * 0.6f, vertical = tokens.screenPadding * 0.375f),
+            .padding(
+                horizontal = tokens.cardPadding * 0.6f,
+                vertical = tokens.screenPadding * 0.375f
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -3067,13 +3194,18 @@ fun CustomTimePicker(
             Text("Hour", fontSize = tokens.caption, color = LeadmutedText, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(tokens.screenPadding * 0.25f))
 
-            Box(modifier = Modifier.fillMaxWidth().height(wheelHeight)) {
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .height(wheelHeight)) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(itemHeight)
                         .align(Alignment.Center)
-                        .background(LeadPrimarySoft, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                        .background(
+                            LeadPrimarySoft,
+                            RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                        )
                 )
 
                 LazyColumn(
@@ -3116,13 +3248,18 @@ fun CustomTimePicker(
             Text("Minute", fontSize = tokens.caption, color = LeadmutedText, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(tokens.screenPadding * 0.25f))
 
-            Box(modifier = Modifier.fillMaxWidth().height(wheelHeight)) {
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .height(wheelHeight)) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(itemHeight)
                         .align(Alignment.Center)
-                        .background(LeadPrimarySoft, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                        .background(
+                            LeadPrimarySoft,
+                            RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                        )
                 )
 
                 LazyColumn(
@@ -3157,14 +3294,19 @@ fun CustomTimePicker(
         }
 
         Column(
-            modifier = Modifier.weight(0.8f).padding(start = tokens.screenPadding * 0.5f),
+            modifier = Modifier
+                .weight(0.8f)
+                .padding(start = tokens.screenPadding * 0.5f),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("AM/PM", fontSize = tokens.caption, color = LeadmutedText, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(tokens.screenPadding * 0.25f))
 
             Column(
-                modifier = Modifier.fillMaxWidth().height(wheelHeight).padding(vertical = tokens.screenPadding * 1.25f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(wheelHeight)
+                    .padding(vertical = tokens.screenPadding * 1.25f),
                 verticalArrangement = Arrangement.Center
             ) {
                 Box(
@@ -3365,7 +3507,10 @@ fun FormDropdown(
                                 onOptionSelected(option)
                                 onExpandChange(false)
                             }
-                            .padding(horizontal = tokens.cardPadding * 0.6f, vertical = tokens.screenPadding * 0.5f)
+                            .padding(
+                                horizontal = tokens.cardPadding * 0.6f,
+                                vertical = tokens.screenPadding * 0.5f
+                            )
                     )
                 }
             }

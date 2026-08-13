@@ -130,7 +130,7 @@ import com.cuso.mobile.view.home.finance.FinanceCustomerScreen
 import com.cuso.mobile.view.home.finance.FinanceInvoiceScreen
 import com.cuso.mobile.view.home.finance.LedgerScreen
 import com.cuso.mobile.view.home.finance.ManualJournalEntryScreen
-import com.cuso.mobile.view.home.finance.PaymentDetailScreen
+import com.cuso.mobile.view.home.finance.PaymentDetailScreenAR
 import com.cuso.mobile.view.home.finance.SupplierDetailScreen
 import com.cuso.mobile.view.home.finance.SupplierRow
 import com.cuso.mobile.view.home.finance.TrialBalanceScreen
@@ -160,8 +160,6 @@ import com.cuso.mobile.view.home.sales.sales_order.toOrderReviewData
 import com.cuso.mobile.viewmodel.CustomerDeleteState
 import com.cuso.mobile.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
-// Add these imports for the Lead screens
-import com.cuso.mobile.view.home.sales.lead.LeadScreenContent
 import com.cuso.mobile.view.home.sales.lead.LeadScreenContent
 import com.cuso.mobile.view.home.sales.lead.LeadFormScreen
 import com.cuso.mobile.view.home.sales.lead.LeadFormMode
@@ -198,6 +196,7 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.adaptive_screen.getAdaptiveTokens
 import com.cuso.mobile.view.home.branch.RoleSettingsScreen
 import com.cuso.mobile.view.home.finance.AllPaymentListScreen
+import com.cuso.mobile.view.home.finance.PaymentDetailScreenAP
 import com.cuso.mobile.view.home.finance.PurchaseInvoiceItem
 import com.cuso.mobile.view.home.finance.PurchaseInvoiceScreen
 import com.cuso.mobile.view.home.hr.AttendanceDetailScreen
@@ -213,6 +212,7 @@ import com.cuso.mobile.view.home.reports.StockSummaryScreen
 import com.cuso.mobile.view.home.reports.WarehouseReportScreen
 import com.cuso.mobile.view.home.sales.payment_listing.PaymentInformationScreen
 import com.cuso.mobile.view.home.sales.payment_listing.PaymentListingScreen
+import com.cuso.mobile.view.home.sidebar.QuickAccessPanel
 import com.cuso.mobile.view.home.warehouse.WarehouseSettingsScreen
 import java.time.LocalTime
 
@@ -270,6 +270,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     val coroutineScope = rememberCoroutineScope()
 
     var selectedManagementOrderId by remember { mutableStateOf<String?>(null) }
+    // ── NEW — Finance > Accounts Payable > Payment Mode detail flow ──
+    var selectedPaymentModeId by remember { mutableStateOf<String?>(null) }
 
     //   NEW — Finance > Accounts Receivable > Sales Invoices flow
 //   NEW — Finance > Accounts Receivable > Sales Invoices flow
@@ -292,6 +294,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
     var showModulesPanel by remember { mutableStateOf(false) }
     var modulesPanelInitialExpanded by remember { mutableStateOf<String?>(null) }
+
+//   NEW — Quick Access bottom sheet (+ button)
+    var showQuickAccessPanel by remember { mutableStateOf(false) }
+    var quickAccessBlur by remember { mutableStateOf(0.dp) }
+
     //dynamicisland state
     var comingSoonMessage by remember { mutableStateOf<String?>(null) }
 
@@ -402,6 +409,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     BackHandler(enabled = isDrawerOpen || showModulesPanel || screenStack.size > 1) {
         when {
             // Priority 1: close overlays first
+            showQuickAccessPanel -> showQuickAccessPanel = false
             showModulesPanel -> showModulesPanel = false
             isDrawerOpen -> isDrawerOpen = false
 
@@ -479,6 +487,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 goBack()
             }
             currentScreen == "payment_detail_screen" -> {
+                goBack()
+            }
+            currentScreen == "payment_mode_detail" -> {
+                selectedPaymentModeId = null
                 goBack()
             }
             currentScreen == "create_order" -> {
@@ -706,6 +718,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         onModulesClick = {
                             modulesPanelInitialExpanded = menuForScreen(currentScreen)
                             showModulesPanel = true
+                        },
+                        onAddClick = {
+                            showQuickAccessPanel = true
                         },
                         onLogout = {
                             navController.navigate("login") {
@@ -1053,12 +1068,13 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             }
 
                             "finance_payments_mode" -> {
-                                    AllPaymentListScreen(
-                                        onClose = { goBack() },
-                                        onPaymentClick = { paymentId ->
-                                            // navigate to payment detail if needed
-                                        }
-                                    )
+                                AllPaymentListScreen(
+                                    onClose = { goBack() },
+                                    onPaymentClick = { paymentId ->
+                                        selectedPaymentModeId = paymentId
+                                        navigateTo("payment_mode_detail")
+                                    }
+                                )
                             }
 
                             "inventory_items" -> InventoryScreen(
@@ -1478,8 +1494,14 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 }
                             )
 
-                            "payment_detail_screen" -> PaymentDetailScreen(
+                            "payment_detail_screen" -> PaymentDetailScreenAR(
                                 onClose = { goBack() }
+                            )
+                            "payment_mode_detail" -> PaymentDetailScreenAP(
+                                onClose = {
+                                    selectedPaymentModeId = null
+                                    goBack()
+                                }
                             )
 
                             "finance_sales_invoices" -> FinanceInvoiceScreen(
@@ -1594,7 +1616,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 onBranchManagement = { navigateTo("home_branch_management") },
                                 onDepartment = { navigateTo("home_department_teams") },
                                 onDesignation = { navigateTo("home_designation") },
-                                onHelpSupport = { navigateTo("home_opening_balance") }, // NEW: Help & Support -> Role Management
+                                onHelpSupport = { navigateTo("") },
                                 onLogout = {
                                     settingsViewModel.logout {
                                         authViewModel.logout {
@@ -1761,6 +1783,33 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 }
             }
         )
+
+        QuickAccessPanel(
+            isOpen = showQuickAccessPanel,
+            onClose = { showQuickAccessPanel = false },
+            onItemClick = { route ->
+                when (route) {
+                    "create_order" -> {
+                        isSalesSettingsMode = false
+                        pendingOrderReviewData = null
+                        navigateTo("create_order")
+                    }
+                    "create_customer" -> {
+                        isSalesSettingsMode = false
+                        navigateTo("sales_customers")
+                        navigateTo("create_customer")
+                    }
+                    "quick_add" -> {
+                    }
+                    else -> {
+                        isSalesSettingsMode = false
+                        navigateTo(route)
+                    }
+                }
+            },
+            onBlurScrimChange = { radius, _ -> quickAccessBlur = radius }
+        )
+
         DynamicIslandSuccess(
             modifier = Modifier.align(Alignment.TopCenter),
             message = comingSoonMessage,
@@ -1983,6 +2032,7 @@ fun BottomBar(
     onSettingsClick: () -> Unit = {},
     onMenuItemClick: (String) -> Unit = {},
     onModulesClick: () -> Unit = {},
+    onAddClick: () -> Unit = {},              //   NEW
     onLogout: () -> Unit = {},
     showHomePanel: Boolean = false,
     showSalesPanel: Boolean = false,
@@ -2172,7 +2222,7 @@ fun BottomBar(
                 }
             }
 
-            // Floating center "+" button
+            // Floating center "+" button — opens Quick Access sheet
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -2182,7 +2232,7 @@ fun BottomBar(
                     .clip(CircleShape)
                     .background(Color(0xFF6C4FF6))
                     .clickable {
-                        onMenuItemClick("create_order")
+                        onAddClick()
                     },
                 contentAlignment = Alignment.Center
             ) {

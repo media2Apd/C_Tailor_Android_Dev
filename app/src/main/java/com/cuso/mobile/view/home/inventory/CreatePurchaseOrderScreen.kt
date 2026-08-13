@@ -122,8 +122,7 @@ fun PurchaseOrderHeaderCard(
                 Text("$utilizationPercent% CAPACITY", fontSize = tokens.caption, color = Color(0xFFE53935))
             }
             Spacer(Modifier.height(6.dp))
-            StockUtilizationGauge(percentage = utilizationPercent)
-        }
+            StockUtilizationGauge(percentage = utilizationPercent / 100f)        }
     }
 }
 

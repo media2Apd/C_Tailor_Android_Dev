@@ -68,6 +68,8 @@ import androidx.compose.ui.unit.Dp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.quickaccessBg
+import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.SheetValue
@@ -897,6 +899,139 @@ fun ModulesPanel(
         initialExpandedCategory = initialExpandedCategory,
         initialActiveSubItem = initialActiveSubItem
     )
+}
+
+// ─────────────────────────────────────────────────────────────
+//  QUICK ACCESS PANEL  (NEW)
+// ─────────────────────────────────────────────────────────────
+
+private data class QuickAccessItem(
+    val label: String,
+    val icon: Int,
+    val route: String
+)
+
+private val quickAccessIconBg = Color(0xFFEDE9FE)
+private val quickAccessIconTint = Color(0xFF4338CA)
+
+@Composable
+fun QuickAccessPanel(
+    isOpen: Boolean,
+    onClose: () -> Unit,
+    onItemClick: (String) -> Unit,
+    onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> }
+) {
+    var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
+
+    LaunchedEffect(isOpen) {
+        sheetState = if (isOpen) SheetValue.Collapsed else SheetValue.Hidden
+    }
+
+    val items = remember {
+        listOf(
+            QuickAccessItem("Create O...", R.drawable.ic_document, "create_order"),
+            QuickAccessItem("Add Cust...", R.drawable.ic_user, "create_customer"),
+            QuickAccessItem("Receive P...", R.drawable.ic_close_circle, "finance_payments_received"),
+            QuickAccessItem("Adjust St...",R.drawable.ic_ticket, "inventory_items"),
+            QuickAccessItem("Delivery", R.drawable.ic_delivery, "logistics_delivery"),
+            QuickAccessItem("Employe...", R.drawable.ic_users, "hr_all_employees"),
+            QuickAccessItem("Inventory", R.drawable.ic_clip_pad, "inventory_items"),
+            QuickAccessItem("View Rep...", R.drawable.ic_report, "reports_sales"),
+            QuickAccessItem("Add", R.drawable.ic_add, "quick_add")
+        )
+    }
+
+
+    SmoothBottomSheet(
+        state = sheetState,
+        onStateChange = { sheetState = it },
+        collapsedFraction = HALF_FRACTION,
+        expandedFraction = FULL_FRACTION,
+        dragCloseEnabled = false,
+        scrollableContent = false,
+        sheetBackgroundColor = whiteBg,
+        onDismissRequest = onClose,
+        onBlurScrimChange = onBlurScrimChange
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(whiteBg)
+        ) {
+
+            Text(
+                "QUICK ACCESS",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.6.sp,
+                color = title_color,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp, bottom = 22.dp)
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                items.chunked(3).forEach { row ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 20.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        row.forEach { item ->
+                            QuickAccessGridItem(item) {
+                                onClose()
+                                onItemClick(item.route)
+                            }
+                        }
+                        repeat(3 - row.size) { Spacer(Modifier.width(64.dp)) }
+                    }
+                }
+                Spacer(Modifier.height(40.dp))
+            }
+        }
+    }
+}
+@Composable
+private fun QuickAccessGridItem(item: QuickAccessItem, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(72.dp)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(quickaccessBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter=painterResource(item.icon),
+                contentDescription = item.label,
+                tint = quickAccessIconTint,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            item.label,
+            fontSize = 11.sp,
+            color = Color(0xFF374151),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+    }
 }
 
 /**

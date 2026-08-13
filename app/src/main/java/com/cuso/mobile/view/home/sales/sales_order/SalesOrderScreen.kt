@@ -233,13 +233,12 @@ fun SalesOrderScreen(
                                                 topBadgeBgColor = statusTextColor.copy(alpha = 0.14f),
                                                 topBadgeInline = true,
                                                 title = order.customerId?.name ?: "Unknown",
-                                                subtitle = order.orderNumber,
+                                                subtitle = "Order ID : ${order.orderNumber}",
                                                 footerAsRows = true,
                                                 footerFields = listOf(
-                                                    DataCardField(label = "Items", text = garmentNames),
-                                                    DataCardField(label = "Price", text = order.totalAmount?.let { "₹$it" } ?: "—"),
-                                                    DataCardField(label = "Date Of Delivery", text = order.deliveryDate.toDisplayDate()),
-                                                    DataCardField(label = "Priority", text = "—")
+                                                    DataCardField(label = "Items", text = formatGarmentsSummary(garmentNames), asRow = true),                                                    DataCardField(label = "Price", text = order.totalAmount?.let { "₹$it" } ?: "—", asRow = true),
+                                                    DataCardField(label = "Date Of Delivery", text = order.deliveryDate.toDisplayDate(), asRow = true),
+                                                    DataCardField(label = "Priority", text = "—", asRow = true)
                                                 ),
                                                 actions = listOf(
                                                     MenuAction("View", Icons.Default.Visibility) { onViewOrder(order.id) },
@@ -269,6 +268,15 @@ fun SalesOrderScreen(
                 onDismiss = { errorMessage = null }
             )
         }
+    }
+}
+private fun formatGarmentsSummary(garments: String): String {
+    if (garments.isBlank()) return "—"
+    val names = garments.split(",").map { it.trim().substringBefore("(").trim() }
+    return when {
+        names.isEmpty() -> "—"
+        names.size == 1 -> names[0]                              // 1 item → "Pant"
+        else -> "${names[0]}, ${names.size - 1} more"             // N items → "Pant, 2 more"
     }
 }
 

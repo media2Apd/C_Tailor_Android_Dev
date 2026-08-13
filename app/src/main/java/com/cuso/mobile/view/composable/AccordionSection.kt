@@ -30,8 +30,15 @@ import com.cuso.mobile.ui.theme.*
 
 /**
  * Updated Accordion section:
- * 1. Trailing content (badges) appears next to the Title.
- * 2. Dropdown arrow stays at the far right.
+ * 1. Trailing content (badges) appears next to the Title by default.
+ * 2. Dropdown arrow stays at the far right by default.
+ * 3. NEW: showArrow flag lets a caller hide the dropdown arrow entirely.
+ *    When showArrow = false AND a trailing composable is provided, the
+ *    trailing content (e.g. a MiniSwitch) is moved to the far right —
+ *    the exact spot the arrow used to occupy — instead of sitting next
+ *    to the title. This lets specific sections (like Appointment &
+ *    Follow-Up) show a switch where the arrow was, while every other
+ *    accordion panel keeps showing its normal dropdown arrow untouched.
  */
 @Composable
 fun AccordionSection(
@@ -42,7 +49,8 @@ fun AccordionSection(
     expanded: Boolean,
     onHeaderClick: () -> Unit,
     iconTint: Color = Color(0xFF5A57D6),
-    trailing: @Composable (() -> Unit)? = null, // Used for the badge next to title
+    trailing: @Composable (() -> Unit)? = null, // Used for the badge/switch next to title OR at far right
+    showArrow: Boolean = true, // NEW: set false to hide the dropdown arrow for this section
     content: @Composable ColumnScope.() -> Unit
 ) {
     val tokens = LocalAppTokens.current
@@ -52,6 +60,10 @@ fun AccordionSection(
         animationSpec = tween(durationMillis = 300),
         label = "chevron_rotation"
     )
+
+    // NEW: When the arrow is hidden, the trailing content (e.g. MiniSwitch)
+    // takes over the far-right position instead of sitting beside the title.
+    val trailingReplacesArrow = trailing != null && !showArrow
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -88,23 +100,33 @@ fun AccordionSection(
             }
 
             // --- Badge / Value next to Header ---
-            if (trailing != null) {
+            // NEW: Only shown here when the trailing content is NOT taking
+            // over the arrow's spot. If trailingReplacesArrow is true, we
+            // skip rendering it here and render it at the far right instead.
+            if (trailing != null && !trailingReplacesArrow) {
                 Spacer(Modifier.width(12.dp))
                 trailing()
             }
 
-            // Spacer to push the arrow to the far right
+            // Spacer to push the arrow (or the replacing trailing content) to the far right
             Spacer(Modifier.weight(1f))
 
-            // Dropdown Arrow Logic
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowDown,
-                contentDescription = if (expanded) "Collapse" else "Expand",
-                tint = TextSecondary,
-                modifier = Modifier
-                    .size(24.dp)
-                    .rotate(arrowRotationByAnim)
-            )
+            // NEW: Far-right slot logic
+            // - If arrow is hidden and trailing exists -> show trailing (e.g. MiniSwitch) here.
+            // - Else if arrow should be shown -> show the dropdown arrow as before.
+            // - Else (arrow hidden and no trailing) -> show nothing.
+            if (trailingReplacesArrow) {
+                trailing.invoke()
+            } else if (showArrow) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = TextSecondary,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .rotate(arrowRotationByAnim)
+                )
+            }
         }
 
         AnimatedVisibility(

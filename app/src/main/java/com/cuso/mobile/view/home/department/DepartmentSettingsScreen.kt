@@ -4,7 +4,7 @@
     "GrazieInspection",
     "unused_variable",
     "unused_parameter",
-    "ASSIGNED_VALUE_IS_NEVER_READ"
+    "ASSIGNED_VALUE_IS_NEVER_READ", "VariableNeverRead"
 )
 package com.cuso.mobile.view.home.department
 
@@ -43,6 +43,8 @@ import com.cuso.mobile.view.composable.PlanLimits
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardStat
 import com.cuso.mobile.view.composable.DataCardStatsRow
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.FormDropdown
@@ -64,7 +66,6 @@ import com.cuso.mobile.viewmodel.SalesViewModel
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.TitleBar
-import kotlinx.coroutines.launch
 import com.cuso.mobile.view.composable.blurScrim
 
 // ─────────────────────────────────────────────────────────────
@@ -113,6 +114,10 @@ fun DepartmentSettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+    //   NEW — Dynamic Island messages (replaces snackbar for success/error)
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(Unit) {
         departmentViewModel.loadDepartments()
         salesViewModel.fetchStaff()
@@ -141,7 +146,7 @@ fun DepartmentSettingsScreen(
                 addSheetState = SheetValue.Hidden
                 departmentViewModel.resetCreateState()
                 departmentViewModel.loadDepartments()
-                coroutineScope.launch { snackbarHostState.showSnackbar("Department created successfully") }
+                successMessage = "Department created successfully"
             }
             is DesignationCreateState.Error -> {
                 departmentViewModel.resetCreateState()
@@ -150,7 +155,7 @@ fun DepartmentSettingsScreen(
                     addSheetState = SheetValue.Hidden
                     showPlanLimitDialog = true
                 } else {
-                    coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
+                    errorMessage = state.message
                 }
             }
             else -> Unit
@@ -164,11 +169,11 @@ fun DepartmentSettingsScreen(
                 editingDepartment = null
                 departmentViewModel.resetUpdateState()
                 departmentViewModel.loadDepartments()
-                coroutineScope.launch { snackbarHostState.showSnackbar("Department updated successfully") }
+                successMessage = "Department updated successfully"
             }
             is DepartmentUpdateUiState.Error -> {
                 departmentViewModel.resetUpdateState()
-                coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
+                errorMessage = state.message
             }
             else -> Unit
         }
@@ -353,6 +358,7 @@ fun DepartmentSettingsScreen(
             }
 
             // Plan Limit Dialog — kept inside this Box, same as before
+            // Plan Limit Dialog — kept inside this Box, same as before
             if (showPlanLimitDialog) {
                 PlanLimitDialog(
                     title = "Plan Limit Reached",
@@ -361,6 +367,18 @@ fun DepartmentSettingsScreen(
                     onUpgrade = { /* navigate to upgrade screen */ }
                 )
             }
+
+            //   NEW — Dynamic Island success/error banners
+            DynamicIslandSuccess(
+                modifier = Modifier.align(Alignment.TopCenter),
+                message = successMessage,
+                onDismiss = { successMessage = null }
+            )
+            DynamicIslandError(
+                modifier = Modifier.align(Alignment.TopCenter),
+                message = errorMessage,
+                onDismiss = { errorMessage = null }
+            )
         }
 
         // SmoothBottomSheet for Add Department — sibling of the Box above,

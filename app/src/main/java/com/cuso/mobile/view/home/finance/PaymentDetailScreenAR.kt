@@ -37,21 +37,10 @@ import com.cuso.mobile.view.composable.TitleBar
 // ── Colors used only inside this screen ──
 private val LabelGray = Color(0xFF9CA3AF)
 private val ValueDark = Color(0xFF111827)
+private val AmountGreen = Color(0xFF16A34A)
 
 // ── Static data models ──
-data class PaymentHistoryEntry(
-    val date: String,
-    val referenceId: String,
-    val mode: String,
-    val amount: String
-)
 
-data class OrderLineItem(
-    val name: String,
-    val qty: Int,
-    val rate: String,
-    val total: String
-)
 
 // ── Static dummy data (mirrors the screenshot) ──
 private val dummyOrderItems = listOf(
@@ -65,7 +54,7 @@ private val dummyPaymentHistory = listOf(
 )
 
 @Composable
-fun PaymentDetailScreenAR(
+fun PaymentDetailScreenAP(
     onClose: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current

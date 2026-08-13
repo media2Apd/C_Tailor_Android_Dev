@@ -19,29 +19,28 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.sales.QuotationItemDto
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.ActionDropdownMenu
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.DataCard
-import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
@@ -201,30 +200,58 @@ fun QuotationScreen(
                     else -> {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             items(items, key = { it.id }) { item ->
+                                val menuActions = listOf(
+                                    MenuAction("View", Icons.Default.Visibility, onClick = { onView(item.id) }),
+                                    MenuAction("Edit", Icons.Default.Edit, onClick = { onEdit(item.id) }),
+                                    MenuAction(
+                                        "Delete",
+                                        Icons.Default.Delete,
+                                        tint = Color(0xFFDC2626),
+                                        textColor = Color(0xFFDC2626),
+                                        onClick = { quotationToDelete = item }
+                                    )
+                                )
+
                                 DataCard(
                                     item = item,
                                     topBadgeText = item.status,
                                     topBadgeTextColor = if (item.isActive) Color(0xFF0AB83E) else Color(0xFFF44336),
                                     topBadgeBgColor = if (item.isActive) Color(0xFFDBFCE7) else Color(0xFFFEE2E2),
                                     topBadgeCornerRadius = 20.dp,
-                                    topBadgeInline = false,
+                                    topBadgeInline = true,
                                     title = item.title,
-                                    footerFields = listOf(
-                                        DataCardField(text = item.price, textColor = Color(0xFF111827)),
-                                        DataCardField(text = item.applicableGarmentLabel, textColor = Color(0xFF9CA3AF)),
-                                        DataCardField(text = item.applicableGarmentValue, textColor = Color(0xFF111827))
-                                    ),
-                                    actions = listOf(
-                                        MenuAction("View", Icons.Default.Visibility, onClick = { onView(item.id) }),
-                                        MenuAction("Edit", Icons.Default.Edit, onClick = { onEdit(item.id) }),
-                                        MenuAction(
-                                            "Delete",
-                                            Icons.Default.Delete,
-                                            tint = Color(0xFFDC2626),
-                                            textColor = Color(0xFFDC2626),
-                                            onClick = { quotationToDelete = item }
-                                        )
-                                    ),
+                                    content = {
+                                        val tokens = LocalAppTokens.current
+                                        Column {
+                                            // Row 1: price + 3-dot menu together
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = item.price,
+                                                    fontSize = tokens.bodySmall,
+                                                    color = Color(0xFF111827)
+                                                )
+                                                ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = menuActions)
+                                            }
+                                            Spacer(Modifier.height(8.dp))
+                                            // Row 2: garment label
+                                            Text(
+                                                text = item.applicableGarmentLabel,
+                                                fontSize = tokens.bodySmall,
+                                                color = Color(0xFF9CA3AF)
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                            // Row 3: garment value
+                                            Text(
+                                                text = item.applicableGarmentValue,
+                                                fontSize = tokens.bodySmall,
+                                                color = Color(0xFF111827)
+                                            )
+                                        }
+                                    },
                                     onClick = { onView(item.id) }
                                 )
                             }

@@ -1,9 +1,12 @@
 @file:Suppress(
-    "UNUSED_VALUE",
-    "unused_variable",
-    "SpellCheckingInspection",
+    "UNUSED_PARAMETER",
+    "unused",
+    "UNCHECKED_CAST",
+    "DEPRECATION",
+    "AssignedValueIsNeverRead",
     "GrazieInspection",
-    "AssignedValueIsNeverRead"
+    "SpellCheckingInspection",
+    "unusedvariable", "VariableNeverRead"
 )
 package com.cuso.mobile.view.home.sales.ordermanagement
 
@@ -25,11 +28,13 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.sales.OrderManagementItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
@@ -39,6 +44,7 @@ import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.StatusBadge
 import com.cuso.mobile.view.home.sales.sales_order.orderStatusColors
 import com.cuso.mobile.view.home.sales.sales_order.paymentStatusColors
 import com.cuso.mobile.viewmodel.OrderManagementUiState
@@ -197,36 +203,65 @@ private fun OrderManagementCard(
 
     DataCard(
         item = order,
+        showDateIcon = false,
         dateText = "Order ID: ${order.orderNumber}",
         topBadgeText = order.orderStatus.replaceFirstChar { it.uppercase() },
         topBadgeTextColor = orderTextColor,
         topBadgeBgColor = orderBgColor,
         topBadgeInline = false,
+        showActionsInHeader = true,
         title = order.customerName?.takeIf { it.isNotBlank() } ?: "Unknown",
         subtitle = "+91 ${order.mobile?.takeLast(10) ?: "—"}",
         footerFields = listOf(
-            DataCardField(text = order.garments.ifBlank { "—" }),
-            DataCardField( text = "Delivery: ${formatIsoDate(order.deliveryDate)}"),
-            DataCardField(
-                asRow = true,
-                label = order.paymentStatus.replaceFirstChar { it.uppercase() },
-                labelColor = paymentTextColor,
-                labelBackgroundColor = paymentBgColor,
-                text = "Total: ₹${formatIndianNumber((order.totalAmount ?: 0.0).toInt())}\n₹${formatIndianNumber(order.balanceAmount.toInt())} Due",
-                textColor = blackTitle
-            )
+            DataCardField(text = order.garments, textColor = mutedText),
+            DataCardField(text = "Delivery: ${formatIsoDate(order.deliveryDate)}", textColor = mutedText )
         ),
+        content = {
+            val tokens = LocalAppTokens.current
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                StatusBadge(
+                    text = order.paymentStatus.replaceFirstChar { it.uppercase() },
+                    bgColor = paymentBgColor,
+                    textColor = paymentTextColor
+                )
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "Total: ₹${formatIndianNumber((order.totalAmount ?: 0.0).toInt())}",
+                        fontSize = tokens.bodySmall,
+                        color = mutedText
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = "₹${formatIndianNumber(order.balanceAmount.toInt())}",
+                            fontSize = tokens.bodyLarge,
+                            color = blackTitle
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "Due",
+                            fontSize = tokens.bodySmall,
+                            color = mutedText
+                        )
+                    }
+                }
+            }
+        },
         actions = listOf(
             MenuAction("View", Icons.Default.Visibility) { onView() },
-            MenuAction("Edit", Icons.Default.Edit) { onEdit() }
+//            MenuAction("Edit", Icons.Default.Edit) { onEdit() }
         )
     )
 }
 
 // ── ISO date "2026-07-02T00:00:00.000Z" -> "02 Jul 2026" ──
 
-private fun formatIsoDate(iso: String): String {
-    if (iso.isBlank()) return "—"
+private fun formatIsoDate(iso: String?): String {
+    if (iso.isNullOrBlank()) return "—"
     return try {
         val datePart = iso.take(10)
         val parts = datePart.split("-")

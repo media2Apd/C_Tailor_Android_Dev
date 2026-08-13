@@ -1,3 +1,13 @@
+@file:Suppress(
+    "UNUSED_PARAMETER",
+    "unused",
+    "UNCHECKED_CAST",
+    "DEPRECATION",
+    "AssignedValueIsNeverRead",
+    "GrazieInspection",
+    "SpellCheckingInspection",
+    "unusedvariable", "VariableNeverRead"
+)
 package com.cuso.mobile.view.composable
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -5,7 +15,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.CircleShape
@@ -32,14 +41,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cuso.mobile.adaptive_screen.LocalAppTokens // Global design system tokens
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.lightGray
+import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.whiteBg
 
 // --- String Utilities ---
@@ -93,7 +100,9 @@ data class DataCardField(
     val valueBadgeTextColor: Color = Color(0xFFE53935),
     val valueBadgeCornerRadius: Dp = 20.dp,
     val iconBackgroundColor: Color? = null,
-    val iconCircleSize: Dp = 24.dp
+    val iconCircleSize: Dp = 24.dp,
+    // NEW: lets a row's value text render bold (e.g. "Factory" / "12 m" in the low-stock card)
+    val valueFontWeight: FontWeight = FontWeight.Normal
 )
 
 // --- Components ---
@@ -117,7 +126,7 @@ fun StatusBadge(
         modifier = modifier
             .clip(RoundedCornerShape(cornerRadius))
             .background(bgColor)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -247,7 +256,12 @@ fun <T> DataCard(
     onChevronClick: (() -> Unit)? = null,
     trailingText: String? = null,
     content: (@Composable () -> Unit)? = null,
-    showDateIcon: Boolean = true
+    showDateIcon: Boolean = true,
+    showActionsInHeader: Boolean = false,
+    // NEW: lets a caller hide the automatic bottom divider (e.g. when this
+    // DataCard is nested inside its own rounded/elevated Card, where the
+    // divider would otherwise cut across the rounded corners).
+    showDivider: Boolean = true
 ) {
     // Access global design tokens for responsive UI
     val tokens = LocalAppTokens.current
@@ -271,7 +285,7 @@ fun <T> DataCard(
         ) {
             // --- Header: Metadata & Status Badges ---
             val showTopBadgeInTopRow = topBadgeText != null && !topBadgeInline
-            if (dateText != null || showTopBadgeInTopRow) {
+            if (dateText != null || showTopBadgeInTopRow || (showActionsInHeader && actions.isNotEmpty())) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -298,14 +312,20 @@ fun <T> DataCard(
                         Spacer(Modifier.width(1.dp))
                     }
 
-                    if (showTopBadgeInTopRow) {
-                        StatusBadge(
-                            text = topBadgeText!!,
-                            dotColor = topBadgeDotColor,
-                            bgColor = topBadgeBgColor,
-                            textColor = topBadgeTextColor,
-                            cornerRadius = topBadgeCornerRadius
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (showTopBadgeInTopRow) {
+                            StatusBadge(
+                                text = topBadgeText,
+                                dotColor = topBadgeDotColor,
+                                bgColor = topBadgeBgColor,
+                                textColor = topBadgeTextColor,
+                                cornerRadius = topBadgeCornerRadius
+                            )
+                        }
+                        if (showActionsInHeader && actions.isNotEmpty()) {
+                            Spacer(Modifier.width(8.dp))
+                            ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = actions)
+                        }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -399,13 +419,12 @@ fun <T> DataCard(
                 }
 
                 // Action Menu
-                if (actions.isNotEmpty()) {
+                if (actions.isNotEmpty() && !showActionsInHeader) {
                     ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = actions)
                 }
             }
 
             // --- Footer: Metrics & Pricing ---
-            // --- Footer: Label/Value Rows ---
             if (footerFields.isNotEmpty() || trailingText != null) {
                 Spacer(Modifier.height(10.dp))
 
@@ -424,14 +443,16 @@ fun <T> DataCard(
                                     Text(
                                         text = field.label,
                                         fontSize = tokens.bodySmall,
-                                        color = field.labelColor
+                                        color = mutedText
                                     )
                                 }
                                 Text(
                                     text = field.text,
                                     fontSize = tokens.bodySmall,
-                                    color = field.textColor,
-                                    fontWeight = FontWeight.Medium
+                                    color = titleColor,
+                                    // NEW: uses field.valueFontWeight so callers can bold
+                                    // the value (e.g. "Factory" / "12 m") when needed.
+                                    fontWeight = field.valueFontWeight
                                 )
                             }
                         }
@@ -476,7 +497,11 @@ fun <T> DataCard(
             }
         }
     }
-    HorizontalDivider(color = BorderGray, thickness = 1.dp)
+    // NEW: divider now optional — pass showDivider = false when nesting
+    // this DataCard inside a rounded/elevated Card of your own.
+    if (showDivider) {
+        HorizontalDivider(color = BorderGray, thickness = 1.dp)
+    }
 }
 
 data class DataCardStat(

@@ -21,8 +21,8 @@ data class OrderManagementItem(
     val paymentStatus: String = "",
     val totalPaid: Double = 0.0,
     val balanceAmount: Double = 0.0,
-    val orderDate: String = "",
-    val deliveryDate: String = ""
+    val orderDate: String?,
+    val deliveryDate: String?
 )
 
 

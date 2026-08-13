@@ -102,84 +102,101 @@ private fun DynamicIslandBase(
     }
 
     if (isPresent) {
+        // FIX: This outer Box now ALWAYS fills the entire screen and anchors
+        // its child to TopCenter itself, regardless of where the caller
+        // placed this composable in their layout tree (Column, LazyColumn,
+        // Scaffold content, nested Box, etc.).
+        // Previously, positioning depended on the modifier/parent passed in
+        // at each call site, so some screens showed the pill correctly at
+        // the top while others showed it slightly lower because it was
+        // being laid out inside a non-full-screen parent container.
+        // By self-anchoring here, every call site now gets a consistent,
+        // guaranteed top position without needing to fix each screen
+        // individually.
         Box(
-            modifier = modifier
-                .statusBarsPadding()
-                .padding(top = 3.dp)
-                // FIX: Cap how wide the pill can grow on tablets/large screens
-                // so long messages wrap into readable lines instead of
-                // stretching into one giant edge-to-edge bar.
-                .widthIn(max = 380.dp)
-                // FIX: Side padding so the pill never touches screen edges
-                // on narrow phones.
-                .padding(horizontal = tokens.screenPadding)
-                .fillMaxWidth()
-                .graphicsLayer {
-                    translationY = dropY.value * 20.dp.toPx()
-                    alpha = 1f - (-dropY.value)
-                },
+            modifier = Modifier
+                .fillMaxSize(),
             contentAlignment = Alignment.TopCenter
         ) {
-            Row(
-                modifier = Modifier
-                    // FIX: Removed the fixed .height(CIRCLE_SIZE). The Row now
-                    // wraps its own content height, so when the message spans
-                    // 2-3 lines, the whole pill grows taller instead of the
-                    // text getting clipped inside a fixed 40.dp bar.
-                    // A minimum height keeps the pill looking correct for
-                    // short, single-line messages.
-                    .defaultMinSize(minHeight = CIRCLE_SIZE)
-                    .background(pillBgColor, RoundedCornerShape(CIRCLE_SIZE / 2)),
-                // FIX: Top-aligned instead of center-aligned, so on multi-line
-                // messages the icon sits next to the FIRST line of text
-                // instead of being vertically centered against the whole
-                // (now taller) text block.
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = modifier
+                    .statusBarsPadding()
+                    .padding(top = 3.dp)
+                    // Cap how wide the pill can grow on tablets/large screens
+                    // so long messages wrap into readable lines instead of
+                    // stretching into one giant edge-to-edge bar.
+                    .widthIn(max = 380.dp)
+                    // Side padding so the pill never touches screen edges
+                    // on narrow phones.
+                    .padding(horizontal = tokens.screenPadding)
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationY = dropY.value * 20.dp.toPx()
+                        alpha = 1f - (-dropY.value)
+                    },
+                contentAlignment = Alignment.TopCenter
             ) {
-                Box(
-                    modifier = Modifier.size(CIRCLE_SIZE),
-                    contentAlignment = Alignment.Center
+                Row(
+                    modifier = Modifier
+                        // Removed the fixed .height(CIRCLE_SIZE). The Row now
+                        // wraps its own content height, so when the message
+                        // spans 2-3 lines, the whole pill grows taller
+                        // instead of the text getting clipped inside a
+                        // fixed 40.dp bar.
+                        // A minimum height keeps the pill looking correct
+                        // for short, single-line messages.
+                        .defaultMinSize(minHeight = CIRCLE_SIZE)
+                        .background(pillBgColor, RoundedCornerShape(CIRCLE_SIZE / 2)),
+                    // Center-aligned vertically so the icon stays aligned
+                    // with the text block regardless of number of lines.
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(ICON_SIZE)
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = showText,
-                    enter = fadeIn(tween(200, delayMillis = 100)) +
-                            expandHorizontally(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                ),
-                                expandFrom = Alignment.Start
-                            ),
-                    exit = shrinkHorizontally(
-                        animationSpec = tween(220, easing = FastOutSlowInEasing),
-                        shrinkTowards = Alignment.Start
-                    ) + fadeOut(tween(120))
-                ) {
-                    Text(
-                        text = message ?: "",
-                        color = pillTextColor,
-                        fontSize = tokens.bodySmall,
-                        // FIX: Increased from 2 to 3 lines so longer error
-                        // messages (like validation errors) have enough
-                        // room to fully display without truncating.
-                        maxLines = 3,
-                        // FIX: Vertical padding added so text isn't flush
-                        // against the top/bottom edges of the now-taller
-                        // pill, matching the icon's vertical centering
-                        // within its own 40.dp box.
-                        modifier = Modifier.padding(
-                            end = tokens.screenPadding,
-
+                    Box(
+                        modifier = Modifier.size(CIRCLE_SIZE),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = iconTint,
+                            modifier = Modifier.size(ICON_SIZE)
                         )
-                    )
+                    }
+
+                    AnimatedVisibility(
+                        visible = showText,
+                        enter = fadeIn(tween(200, delayMillis = 100)) +
+                                expandHorizontally(
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMedium
+                                    ),
+                                    expandFrom = Alignment.Start
+                                ),
+                        exit = shrinkHorizontally(
+                            animationSpec = tween(220, easing = FastOutSlowInEasing),
+                            shrinkTowards = Alignment.Start
+                        ) + fadeOut(tween(120))
+                    ) {
+                        Text(
+                            text = message ?: "",
+                            color = pillTextColor,
+                            fontSize = tokens.bodySmall,
+                            // Increased from 2 to 3 lines so longer error
+                            // messages (like validation errors) have enough
+                            // room to fully display without truncating.
+                            maxLines = 3,
+                            // Vertical padding so text isn't flush against
+                            // the top/bottom edges of the now-taller pill,
+                            // matching the icon's vertical centering within
+                            // its own 40.dp box.
+                            modifier = Modifier.padding(
+                                end = tokens.screenPadding,
+                                top = 8.dp,
+                                bottom = 8.dp
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -188,7 +205,7 @@ private fun DynamicIslandBase(
 
 @Composable
 fun DynamicIslandError(
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
     message: String?,
     onDismiss: () -> Unit,
     durationMillis: Long = 3000
@@ -198,7 +215,7 @@ fun DynamicIslandError(
 
 @Composable
 fun DynamicIslandSuccess(
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
     message: String?,
     onDismiss: () -> Unit,
     durationMillis: Long = 3000

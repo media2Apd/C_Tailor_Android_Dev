@@ -45,6 +45,8 @@ import com.cuso.mobile.model.sales.QuotationItemInput
 import com.cuso.mobile.model.sales.QuotationOptionInput
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.darkgreenBg
+import com.cuso.mobile.ui.theme.light_blue
 import com.cuso.mobile.ui.theme.primary_light
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.title_font
@@ -53,6 +55,7 @@ import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.view.composable.toTitleCase
 import com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator
 import com.cuso.mobile.viewmodel.CustomerViewModel
 import com.cuso.mobile.viewmodel.GarmentPricingUiState
@@ -331,7 +334,7 @@ fun CreateQuotationScreen(
     fun goToNextStep() {
         when (currentStep) {
             1 -> if (selectedCustomerId != null) currentStep++
-            2 -> if (selectedGarments.isNotEmpty()) currentStep++   
+            2 -> if (selectedGarments.isNotEmpty()) currentStep++
             3 -> onSave()
         }
     }
@@ -398,30 +401,30 @@ fun CreateQuotationScreen(
 
                 2 -> Step2GarmentDetails(
                     garmentOptions = garmentOptions,
-                    selectedGarments = selectedGarments,                           
-                    onToggleGarment = { garmentId ->                                
+                    selectedGarments = selectedGarments,
+                    onToggleGarment = { garmentId ->
                         selectedGarments = if (selectedGarments.any { it.garmentId == garmentId }) {
                             selectedGarments.filter { it.garmentId != garmentId }
                         } else {
                             selectedGarments + GarmentSelectionState(garmentId = garmentId)
                         }
                     },
-                    onSelectFabric = { garmentId, fabric ->                         
+                    onSelectFabric = { garmentId, fabric ->
                         updateGarment(garmentId) { it.copy(fabric = fabric) }
                     },
-                    onSelectDesign = { garmentId, design ->                         
+                    onSelectDesign = { garmentId, design ->
                         updateGarment(garmentId) { it.copy(design = design) }
                     },
-                    onToggleAddon = { garmentId, addon ->                            
+                    onToggleAddon = { garmentId, addon ->
                         updateGarment(garmentId) { sel ->
                             sel.copy(addons = if (sel.addons.contains(addon)) sel.addons - addon else sel.addons + addon)
                         }
                     },
-                    onQuantityChange = { garmentId, qty ->                           
+                    onQuantityChange = { garmentId, qty ->
                         updateGarment(garmentId) { it.copy(quantity = qty) }
                     },
                     isLoading = garmentPricingState is GarmentPricingUiState.Loading,
-                    garmentBreakdowns = garmentBreakdowns,                           
+                    garmentBreakdowns = garmentBreakdowns,
                     subtotal = subtotal,
                     tax = tax,
                     total = total
@@ -601,30 +604,53 @@ private fun CustomerLeadToggle(selected: String, onSelect: (String) -> Unit) {
 
 @Composable
 private fun CustomerSelectionCard(customer: CustomerOption, selected: Boolean, onSelect: () -> Unit) {
+    val formattedName = remember(customer.name) { customer.name.toTitleCase() }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 5.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .border(
-                width = if (selected) 1.5.dp else 1.dp,
-                color = if (selected) Purple else BorderGray,
-                shape = RoundedCornerShape(10.dp)
+                width = 1.dp ,
+                color = if (selected) Primary else BorderGray,
+                shape = RoundedCornerShape(12.dp)
             )
-            .background(if (selected) TintBg else whiteBg)
+            .background( whiteBg)
             .clickable { onSelect() }
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(
-            selected = selected,
-            onClick = onSelect,
-            colors = RadioButtonDefaults.colors(selectedColor = Purple, disabledSelectedColor = BorderGray)
-        )
-        Spacer(Modifier.width(4.dp))
+        CustomRadioDot(selected = selected)
+        Spacer(Modifier.width(10.dp))
         Column {
-            Text(customer.name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleDark)
+            Text(formattedName, fontSize = 14.sp, color = TitleDark)
             Text(customer.phone, fontSize = 12.sp, color = MutedGray)
+        }
+    }
+}
+
+@Composable
+private fun CustomRadioDot(selected: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(18.dp)
+            .clip(CircleShape)
+            .background(if (selected) Primary else Color.Transparent)
+            .border(
+                width = 1.dp,
+                color = if (selected) Primary else BorderGray,
+                shape = CircleShape
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(whiteBg)
+            )
         }
     }
 }
@@ -842,8 +868,8 @@ private fun OptionSelectionGrid(
 private fun GarmentOptionGrid(
     title: String,
     options: List<GarmentOption>,
-    selectedIds: Set<String>,     //    — was selectedId: String?
-    onToggle: (String) -> Unit,   //    — was onSelect
+    selectedIds: Set<String>,
+    onToggle: (String) -> Unit,
     showPrice: Boolean = true
 ) {
     if (options.isEmpty()) return
@@ -853,40 +879,49 @@ private fun GarmentOptionGrid(
         Spacer(Modifier.height(8.dp))
 
         options.chunked(2).forEach { rowItems ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 rowItems.forEach { option ->
-                    val selected = option.id in selectedIds    
+                    val selected = option.id in selectedIds
                     Column(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(10.dp))
                             .border(
                                 width = if (selected) 1.5.dp else 1.dp,
-                                color = if (selected) Purple else BorderGray,
+                                color = if (selected) Primary else BorderGray,
                                 shape = RoundedCornerShape(10.dp)
                             )
-                            .background(if (selected) TintBg else whiteBg)
-                            .clickable { onToggle(option.id) }    
-                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                            .background(if (selected) light_blue else whiteBg)
+                            .clickable { onToggle(option.id) }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (selected) {
-                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Purple, modifier = Modifier.size(14.dp))
-                                Spacer(Modifier.width(4.dp))
-                            }
-                            Text(
-                                option.name,
-                                fontSize = 13.sp,
-                                fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                                color = TitleDark
-                            )
-                        }
+                        Text(
+                            option.name,
+                            fontSize = 13.sp,
+                            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                            color = TitleDark,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         if (showPrice && option.price > 0) {
-                            Text(formatPrice(option.price), fontSize = 12.sp, color = TextGray)
+                            Text(
+                                formatPrice(option.price),
+                                fontSize = 12.sp,
+                                color = TextGray,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
-                if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
+                // ── only ONE item in the last row → fill the missing slot with an INVISIBLE placeholder, not a plain Spacer ──
+                if (rowItems.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
             Spacer(Modifier.height(8.dp))
         }
@@ -1416,7 +1451,10 @@ private fun QuickActionButton(label: String, icon: ImageVector, modifier: Modifi
 @Composable
 private fun QuotationStepper(currentStep: Int) {
     val steps = listOf("Customer Selection", "Garment Details", "Pricing Summary")
+
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp)) {
+
+        // ── Row 1: circles + connectors ──
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -1424,25 +1462,57 @@ private fun QuotationStepper(currentStep: Int) {
             steps.forEachIndexed { index, _ ->
                 val stepNum = index + 1
                 StepCircle(stepNum = stepNum, currentStep = currentStep)
+
                 if (index != steps.lastIndex) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(2.dp)
-                            .background(if (stepNum < currentStep) Green else BorderGray)
-                    )
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Spacer(Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(2.dp)
+                                .background(if (stepNum < currentStep) Green else BorderGray)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
                 }
             }
         }
+
         Spacer(Modifier.height(6.dp))
-        Text(
-            steps[currentStep - 1],
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-            fontSize = 13.sp,
-            color = Purple,
-            fontWeight = FontWeight.Medium
-        )
+
+        // ── Row 2: labels, positioned via fixed-size Box under each circle ──
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            steps.forEachIndexed { index, label ->
+                val stepNum = index + 1
+
+                Box(
+                    modifier = Modifier.size(width = 30.dp, height = 34.dp),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    if (stepNum == currentStep) {
+                        Text(
+                            text = label,
+                            fontSize = 10.sp,
+                            color = Primary,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            softWrap = true,
+                            modifier = Modifier.wrapContentWidth(unbounded = true)
+                        )
+                    }
+                }
+
+                if (index != steps.lastIndex) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
     }
 }
 
@@ -1456,8 +1526,8 @@ private fun StepCircle(stepNum: Int, currentStep: Int) {
             .clip(CircleShape)
             .background(
                 when {
-                    isDone -> Green
-                    isCurrent -> Purple
+                    isDone -> darkgreenBg
+                    isCurrent -> Primary
                     else -> whiteBg
                 }
             )

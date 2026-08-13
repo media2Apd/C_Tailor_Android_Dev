@@ -4,6 +4,8 @@ package com.cuso.mobile.ui.theme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 
+val quickaccessBg = Color(0xFFDCE9FF)
+
 //login sign up text colors
 val TextLog=Color(0xFF374151)
 
@@ -55,7 +57,7 @@ val yellowBg=Color(0xFFFFFBEB)
 
 val TextPrimary = Color(0xFF111827)
 val TextSecondary = Color(0xFF9A9AA8)
-val BorderGray = Color(0xFFD5D4D4)
+val BorderGray = Color(0xFFebeaf1)
 val BluePrimary = Color(0xFF3A2FCB)
 val PanelBg = Color(0xFFF7F7FA)
 

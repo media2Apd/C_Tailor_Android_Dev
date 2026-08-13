@@ -6,7 +6,7 @@
     "AssignedValueIsNeverRead",
     "GrazieInspection",
     "SpellCheckingInspection",
-    "unusedvariable"
+    "unusedvariable", "VariableNeverRead"
 )
 package com.cuso.mobile.view.home.branch
 
@@ -37,11 +37,12 @@ import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.model.UpdateBranchAddress
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.ui.theme.BluePrimary
-import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.home.FormDropdown
@@ -64,7 +65,6 @@ import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.blurScrim
-import kotlinx.coroutines.launch
 
 @Composable
 fun BranchSettingsScreen(
@@ -102,6 +102,9 @@ fun BranchSettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(Unit) {
         branchViewModel.loadBranches()
         salesViewModel.fetchStaff()
@@ -130,14 +133,14 @@ fun BranchSettingsScreen(
                 addSheetState = SheetValue.Hidden
                 branchViewModel.resetCreateState()
                 branchViewModel.loadBranches()
-                coroutineScope.launch { snackbarHostState.showSnackbar("Branch created successfully") }
+                successMessage = "Branch created successfully"
             }
             is CreateBranchUiState.Error -> {
                 branchViewModel.resetCreateState()
                 if (state.message.contains("limit", true) || state.message.contains("exceed", true)) {
                     showPlanLimitDialog = true
                 } else {
-                    coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
+                    errorMessage = state.message
                 }
             }
             else -> Unit
@@ -151,11 +154,11 @@ fun BranchSettingsScreen(
                 editingBranch = null
                 branchViewModel.loadBranches()
                 branchViewModel.resetUpdateState()
-                coroutineScope.launch { snackbarHostState.showSnackbar("Branch updated successfully") }
+                successMessage = "Branch updated successfully"
             }
             is UpdateBranchUiState.Error -> {
                 branchViewModel.resetUpdateState()
-                coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
+                errorMessage = state.message
             }
             else -> Unit
         }
@@ -285,6 +288,18 @@ fun BranchSettingsScreen(
                     onUpgrade = { /* navigate to upgrade */ }
                 )
             }
+
+            //   NEW — Dynamic Island success/error banners
+            DynamicIslandSuccess(
+                modifier = Modifier.align(Alignment.TopCenter),
+                message = successMessage,
+                onDismiss = { successMessage = null }
+            )
+            DynamicIslandError(
+                modifier = Modifier.align(Alignment.TopCenter),
+                message = errorMessage,
+                onDismiss = { errorMessage = null }
+            )
         }
 
         // Add Branch BottomSheet - topInset 60.dp matches TitleBar height

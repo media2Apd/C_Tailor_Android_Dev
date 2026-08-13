@@ -456,7 +456,6 @@ fun LeadFormScreen(
     val isCreate = mode == LeadFormMode.CREATE
     val isView = mode == LeadFormMode.VIEW
     val isEdit = mode == LeadFormMode.EDIT
-    val isReadOnly = isView
 
     // ---- Source lead (null for CREATE, populated for VIEW/EDIT) ----
     val selectedLead by salesViewModel.selectedLead.collectAsStateWithLifecycle()
@@ -608,7 +607,7 @@ fun LeadFormScreen(
     // Prefill garment chips from the lead once categories are loaded (VIEW + EDIT).
     LaunchedEffect(l?.garments, garmentCategories) {
         if (!isCreate && garmentCategories.isNotEmpty() && !l?.garments.isNullOrBlank()) {
-            val ids = l!!.garments.split(",").filter { it.isNotBlank() }
+            val ids = l.garments.split(",").filter { it.isNotBlank() }
             val names = ids.mapNotNull { id -> garmentCategories.find { it.id == id }?.categoryId?.categoryName }
             if (names.isNotEmpty()) selectedGarmentCategories = names
         }
@@ -814,7 +813,7 @@ fun LeadFormScreen(
                                     expandedSection = if (expandedSection == "lead_info") "" else "lead_info"
                                 }
                             ) {
-                                if (isReadOnly) {
+                                if (isView) {
                                     ViewFieldValue("Lead Source", leadSource.ifEmpty { "—" })
                                     ViewFieldValue("Enquiry Date", enquiryDate.ifEmpty { "—" })
                                     ViewFieldValue("Lead Owner", leadOwnerLabel.ifEmpty { "—" })
@@ -872,7 +871,7 @@ fun LeadFormScreen(
                                     expandedSection = if (expandedSection == "customer") "" else "customer"
                                 }
                             ) {
-                                if (isReadOnly) {
+                                if (isView) {
                                     SettingsTabs(
                                         tabs = customerTypeTabs,
                                         selectedIndex = if (customerType.equals("Corporate", ignoreCase = true)) 1 else 0,
@@ -970,7 +969,7 @@ fun LeadFormScreen(
                                     expandedSection = if (expandedSection == "location") "" else "location"
                                 }
                             ) {
-                                if (isReadOnly) {
+                                if (isView) {
                                     ViewFieldValue("Address", address.ifEmpty { "—" })
                                     ViewFieldValue("Area / Zone", areaZone.ifEmpty { "—" })
                                     ViewFieldValue("City", city.ifEmpty { "—" })
@@ -1006,7 +1005,7 @@ fun LeadFormScreen(
                                     expandedSection = if (expandedSection == "enquiry") "" else "enquiry"
                                 }
                             ) {
-                                if (isReadOnly) {
+                                if (isView) {
                                     ViewFieldValue("Enquiry Type", enquiryType.ifEmpty { "—" })
                                     ViewFieldValue("Estimated Quantity", estimatedQuantity.ifEmpty { "—" })
 
@@ -1173,25 +1172,26 @@ fun LeadFormScreen(
                                 iconPainter = painterResource(R.drawable.calendar),
                                 iconTint = Primary,
                                 title = "Appointment & Follow-Up",
-                                expanded = if (isReadOnly) expandedSection == "appointment" else (expandedSection == "appointment" && appointmentRequired),
+                                expanded = if (isView) expandedSection == "appointment" else (expandedSection == "appointment" && appointmentRequired),
                                 onHeaderClick = {
                                     expandedSection = if (expandedSection == "appointment") "" else "appointment"
                                 },
+                                showArrow = false,
                                 trailing = {
                                     MiniSwitch(
                                         checked = appointmentRequired,
                                         onCheckedChange = {
-                                            if (!isReadOnly) {
+                                            if (!isView) {
                                                 appointmentRequired = it
                                                 if (it) expandedSection = "appointment"
                                             }
                                         },
-                                        enabled = !isReadOnly
+                                        enabled = !isView
                                     )
                                 }
                             ) {
                                 if (appointmentRequired) {
-                                    if (isReadOnly) {
+                                    if (isView) {
                                         ViewFieldValue("Appointment Date", appointmentDate.ifEmpty { "—" })
                                         ViewFieldValue("Appointment Time", appointmentTime.ifEmpty { "--:--" })
                                         ViewFieldValue("Assigned Staff", assignedStaffLabel.ifEmpty { "—" })
@@ -1245,7 +1245,7 @@ fun LeadFormScreen(
                                     expandedSection = if (expandedSection == "notes") "" else "notes"
                                 }
                             ) {
-                                if (isReadOnly) {
+                                if (isView) {
                                     ViewFieldValue("Internal Notes", internalNotes.ifEmpty { "—" })
                                     ViewFieldValue("Customer Notes", customerNotes.ifEmpty { "—" })
                                 } else {

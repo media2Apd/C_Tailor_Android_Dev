@@ -50,7 +50,6 @@ import java.util.Locale
 import java.util.TimeZone
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.TitleBar
 
@@ -261,16 +260,27 @@ fun CustomerScreen(
                                                 topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
                                                 topBadgeInline = true,
                                                 title = customer.name,
-                                                subtitle = customer.dateOfBirth
-                                                    ?.takeIf { it.isNotBlank() }
-                                                    ?.let { "Date of Birth  ${it.toDisplayDate()}" }
-                                                    ?: "Date of Birth  —",
+                                                subtitle = "Order ID : not found"
+                                                    .takeIf { it.isNotBlank() }
+                                                    ?: "Order ID : not found",
                                                 footerAsRows = true,
                                                 footerFields = listOf(
-                                                    DataCardField(label = "Email", text = customer.email?.ifBlank { "—" } ?: "—"),
-                                                    DataCardField(label = "Mobile", text = customer.mobile?.ifBlank { "—" } ?: "—"),
-                                                    DataCardField(label = "Gender", text = customer.gender?.ifBlank { "—" } ?: "—"),
-                                                    DataCardField(label = "Location", text = customer.location.ifBlank { "—" })
+                                                    DataCardField(
+                                                        label = "Email",
+                                                        text = customer.email?.ifBlank { "—" } ?: "—",
+                                                        asRow = true),
+                                                    DataCardField(
+                                                        label = "Mobile",
+                                                        text = customer.mobile?.ifBlank { "—" } ?: "—",
+                                                        asRow = true),
+                                                    DataCardField(
+                                                        label = "Gender",
+                                                        text = customer.gender?.ifBlank { "—" } ?: "—",
+                                                        asRow = true),
+                                                    DataCardField(
+                                                        label = "Location",
+                                                        text = customer.location.ifBlank { "—" },
+                                                        asRow = true)
                                                 ),
                                                 actions = listOf(
                                                     MenuAction("View", Icons.Default.Visibility) { onView(customer) },

@@ -7,6 +7,7 @@
 package com.cuso.mobile.view.home.sales.pricing
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -28,9 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.mutedText
@@ -45,18 +47,22 @@ import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 
 private val Primary = Color(0xFF3B3BF9)
 private val PrimaryLight = Color(0xFFEEF0FF)
-  private val TextDark = Color(0xFF111827)
+private val TextDark = Color(0xFF111827)
 private val CardBorder = Color(0xFFF0F0F0)
 private val StripBg = Color(0xFFF9FAFB)
+private val StatCardBorder = Color(0xFFEDEDF2)
+private val StatLabelColor = Color(0xFF9CA3AF)
+private val StatValueColor = Color(0xFF1C1C1E)
+private val StatTrendGreen = Color(0xFF16A34A)
 
 @Composable
 fun PricingScreen(
     onClose: () -> Unit,
     onAddNewPricing: () -> Unit = {},
     onCardClick: (String) -> Unit = {},
-    onBreadCrumbClick: () -> Unit ={}
-
+    onBreadCrumbClick: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
     val viewModel: PricingQuotationViewModel = hiltViewModel()
     val listState by viewModel.garmentPricingListState.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
@@ -70,7 +76,7 @@ fun PricingScreen(
             label = "Add New Pricing",
             icon = Icons.Default.Add,
             onClick = onAddNewPricing,
-            bottomPadding = 24.dp
+            bottomPadding = tokens.screenPadding * 1.5f
         ),
         modifier = Modifier.fillMaxSize()
     ) {
@@ -81,25 +87,19 @@ fun PricingScreen(
         ) {
             // Header
             Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 TitleBar("Pricing", onClose = onClose)
-
             }
             HorizontalDivider(color = CardBorder)
-            Column(
-                Modifier.fillMaxWidth()
-            ) {
-
+            Column(Modifier.fillMaxWidth()) {
                 // Breadcrumb
                 ScreenBreadcrumb(
                     segments = listOf("Sales", "Pricing "),
-                    onClick = {onBreadCrumbClick()}
+                    onClick = { onBreadCrumbClick() }
                 )
-
             }
             HorizontalDivider(color = CardBorder)
 
@@ -110,40 +110,50 @@ fun PricingScreen(
                 is GarmentPricingListUiState.Error -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(40.dp))
-                            Spacer(Modifier.height(8.dp))
-                            Text(state.message, color = Color.Red, fontSize = 13.sp)
-                            Spacer(Modifier.height(12.dp))
+                            Icon(
+                                Icons.Default.Warning,
+                                null,
+                                tint = Color.Red,
+                                modifier = Modifier.size(tokens.iconSize * 2f)
+                            )
+                            Spacer(Modifier.height(tokens.extraPadding * 0.5f))
+                            Text(state.message, color = Color.Red, fontSize = tokens.bodySmall)
+                            Spacer(Modifier.height(tokens.extraPadding * 0.75f))
                             Button(onClick = { viewModel.fetchGarmentPricingList() }) { Text("Retry") }
                         }
                     }
                 }
                 is GarmentPricingListUiState.Success -> {
-                    val uniqueItems = state.items.distinctBy { it.id }   //   NEW — dedupe by id
+                    val uniqueItems = state.items.distinctBy { it.id }
 
                     if (uniqueItems.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No pricing records yet", color = mutedText, fontSize = 14.sp)
+                            Text("No pricing records yet", color = mutedText, fontSize = tokens.bodyMedium)
                         }
                     } else {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .verticalScroll(rememberScrollState())
-                                .padding(16.dp)
                         ) {
                             PricingDashboard(items = uniqueItems)
+                            Column(
+                                Modifier.fillMaxWidth()
+                                    .padding(tokens.screenPadding)
 
-                            Spacer(Modifier.height(20.dp))
+                            ) {
 
-                            uniqueItems.forEach { item ->
-                                GarmentPricingCard(
-                                    item = item,
-                                    onClick = { onCardClick(item.id) }
-                                )
-                                Spacer(Modifier.height(12.dp))
+                                Spacer(Modifier.height(tokens.screenPadding * 1.25f))
+
+                                uniqueItems.forEach { item ->
+                                    GarmentPricingCard(
+                                        item = item,
+                                        onClick = { onCardClick(item.id) }
+                                    )
+                                    Spacer(Modifier.height(tokens.extraPadding * 0.75f))
+                                }
+                                Spacer(Modifier.height(tokens.screenPadding * 5.6f)) // space for FAB
                             }
-                            Spacer(Modifier.height(90.dp)) // space for FAB
                         }
                     }
                 }
@@ -151,38 +161,55 @@ fun PricingScreen(
         }
     }
 }
+
 // ── Dashboard — quick stats derived from the loaded list ──
 @Composable
 private fun PricingDashboard(items: List<GarmentPricingListItemDto>) {
+    val tokens = LocalAppTokens.current
     val totalItems = items.size
     val avgTotalPrice = if (items.isNotEmpty()) items.sumOf { it.totalPrice } / items.size else 0.0
     val avgBasePrice = if (items.isNotEmpty()) items.sumOf { it.basePrice } / items.size else 0.0
     val highestPriced = items.maxOfOrNull { it.totalPrice } ?: 0.0
 
-    Column(Modifier.fillMaxSize()
-        .background(whiteBg)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(whiteBg)
+            .padding(tokens.screenPadding)
+
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.65f)
+        ) {
             DashboardStatCard(
                 label = "Active Quotations",
                 value = totalItems.toString(),
+                trend = "+12% from last month",
                 modifier = Modifier.weight(1f)
             )
             DashboardStatCard(
                 label = "Avg. Quote Value",
                 value = "₹${avgBasePrice.toInt()}",
+                trend = "+8% from last month",
                 modifier = Modifier.weight(1f)
             )
         }
-        Spacer(Modifier.height(12.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Spacer(Modifier.height(tokens.extraPadding * 0.65f))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.65f)
+        ) {
             DashboardStatCard(
                 label = "Approval Rate",
-                value = "₹${avgTotalPrice.toInt()}",
+                value = "78%",
+                trend = "+5% from last month",
                 modifier = Modifier.weight(1f)
             )
             DashboardStatCard(
                 label = "This Month",
                 value = "₹${highestPriced.toInt()}",
+                trend = "+15% from last month",
                 modifier = Modifier.weight(1f)
             )
         }
@@ -190,21 +217,46 @@ private fun PricingDashboard(items: List<GarmentPricingListItemDto>) {
 }
 
 @Composable
-private fun DashboardStatCard(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = whiteBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+private fun DashboardStatCard(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String,
+    trend: String? = null
+) {
+    val tokens = LocalAppTokens.current
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, StatCardBorder, RoundedCornerShape(tokens.cardCornerRadius))
+            .background(Color.White, RoundedCornerShape(tokens.cardCornerRadius))
+            .padding(tokens.cardPadding * 0.7f)
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(label, fontSize = 11.sp, color = mutedText)
-                Text(value, fontSize = 14.sp, color = TextDark)
-                Text(value, fontSize = 10.sp, color = TextDark)
+        Text(
+            text = label,
+            fontSize = tokens.bodySmall,
+            color = StatLabelColor
+        )
+        Spacer(Modifier.height(tokens.extraPadding * 0.4f))
+        Text(
+            text = value,
+            fontSize = tokens.bodyMedium,
+            color = StatValueColor
+        )
+        if (trend != null) {
+            Spacer(Modifier.height(tokens.extraPadding * 0.4f))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.ArrowUpward,
+                    contentDescription = null,
+                    tint = StatTrendGreen,
+                    modifier = Modifier.size(tokens.iconSize * 0.6f)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = trend,
+                    fontSize = tokens.label,
+                    color = StatTrendGreen
+                )
             }
         }
     }
@@ -213,6 +265,7 @@ private fun DashboardStatCard(label: String, value: String, modifier: Modifier =
 // ── Garment Pricing Card — shows Base Price + Total Price ──
 @Composable
 private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> Unit) {
+    val tokens = LocalAppTokens.current
     var clicked by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier
@@ -221,7 +274,7 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                 clicked = true
                 onClick()
             },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
         colors = CardDefaults.cardColors(containerColor = whiteBg),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -229,13 +282,13 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp),
+                    .padding(tokens.cardPadding * 0.5f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         item.itemName.ifBlank { "-" },
-                        fontSize = 14.sp,
+                        fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = TextDark
                     )
@@ -245,17 +298,16 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                     ) {
                         Text(
                             "Garment Pricing",
-                            fontSize = 12.sp,
+                            fontSize = tokens.bodySmall,
                             color = blackTitle
                         )
-
                     }
                 }
                 Icon(
                     Icons.Default.ChevronRight,
                     contentDescription = null,
                     tint = mutedText,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(tokens.iconSize)
                 )
             }
 
@@ -264,7 +316,7 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(StripBg)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .padding(horizontal = tokens.cardPadding * 0.5f, vertical = tokens.extraPadding * 0.5f),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
@@ -273,13 +325,13 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                 ) {
                     Text(
                         "Base Range ₹",
-                        fontSize = 12.sp,
+                        fontSize = tokens.bodySmall,
                         color = blackTitle
                     )
                     Spacer(Modifier.weight(1f))
                     Text(
                         "${item.basePrice.toInt()}-${item.totalPrice.toInt()}",
-                        fontSize = 12.sp,
+                        fontSize = tokens.bodySmall,
                         color = blackTitle
                     )
                 }

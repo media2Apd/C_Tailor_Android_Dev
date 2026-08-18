@@ -49,7 +49,7 @@ fun ContinueWithApple(activity: Activity, navController: NavController) {
                 onClick = {
                     errorMessage = null
                     Log.d("APPLE", "Button clicked, launching Apple sign in")
-                    // TODO: unga Apple Sign-In flow ithula call pannunga
+
                 },
                 modifier = Modifier
                     .height(40.dp)

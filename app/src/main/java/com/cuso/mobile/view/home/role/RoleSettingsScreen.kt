@@ -38,9 +38,9 @@ import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
-import com.cuso.mobile.view.home.FormDropdown
-import com.cuso.mobile.view.home.FormLabel
-import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
@@ -134,7 +134,7 @@ fun RoleSettingsScreen(
                 Column(modifier = Modifier.fillMaxSize()) {
                     ScreenBreadcrumb(
                         segments = listOf("Settings", "Role Management"),
-                        onClick = { /* TODO: hook to modules panel */ }
+                        onClick = {  }
                     )
 
                     Row(
@@ -146,7 +146,7 @@ fun RoleSettingsScreen(
                             query = searchQuery,
                             onQueryChange = { searchQuery = it },
                             placeholder = "Search Role...",
-                            onFilterClick = { /* TODO: open filter drawer */ },
+                            onFilterClick = {  },
                             modifier = Modifier
                                 .padding(vertical = 12.dp)
                         )

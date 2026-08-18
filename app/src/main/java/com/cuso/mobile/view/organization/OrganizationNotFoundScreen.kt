@@ -243,7 +243,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                     .height(40.dp)
                     .clip(RoundedCornerShape(5.dp))
                     .border(1.dp, Color(0xFFDBEAFE), RoundedCornerShape(5.dp))
-                    .clickable { /* TODO: send setup link */ }
+                    .clickable { }
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
@@ -329,7 +329,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                         color = Primary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        modifier = Modifier.clickable { /* TODO: contact support */ }
+                        modifier = Modifier.clickable {  }
                     )
                 }
             }

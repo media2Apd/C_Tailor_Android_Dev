@@ -22,7 +22,7 @@ import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.home.FormDropdown
+import com.cuso.mobile.view.composable.FormDropdown
 
 private val PurplePrimary = Color(0xFF5A4FE0)
 private val PurpleLight = Color(0xFFF3F1FE)

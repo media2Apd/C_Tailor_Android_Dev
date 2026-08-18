@@ -5,20 +5,23 @@ import android.print.PrintManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.itextpdf.kernel.colors.ColorConstants
+import com.itextpdf.kernel.font.PdfFontFactory
 import com.itextpdf.kernel.geom.PageSize
 import com.itextpdf.kernel.pdf.PdfDocument
 import com.itextpdf.kernel.pdf.PdfWriter
 import com.itextpdf.layout.Document
-import com.itextpdf.layout.element.Cell
-import com.itextpdf.layout.element.LineSeparator
 import com.itextpdf.layout.element.Paragraph
 import com.itextpdf.layout.element.Table
+import com.itextpdf.layout.element.Cell
 import com.itextpdf.layout.properties.TextAlignment
 import com.itextpdf.layout.properties.UnitValue
+import com.itextpdf.kernel.font.PdfFont
+import com.itextpdf.io.font.constants.StandardFonts
+import com.itextpdf.layout.borders.Border
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
 import java.util.*
-import com.itextpdf.kernel.pdf.canvas.draw.SolidLine
 
 class OrderReceiptPdfGenerator(private val context: Context) {
 
@@ -31,7 +34,7 @@ class OrderReceiptPdfGenerator(private val context: Context) {
         val paidAmount: Double,
         val balanceAmount: Double,
         val deliveryDate: String?,
-        val thankYouMessage: String = "Thank you for choosing us!",
+        val thankYouMessage: String = "Thank you!",
         val poweredBy: String = "Powered by Cuso Tailor"
     )
 
@@ -42,169 +45,119 @@ class OrderReceiptPdfGenerator(private val context: Context) {
         val additionalCharge: Double = 0.0
     )
 
+    /**
+     * Generates a PDF receipt with a monospaced "Thermal Receipt" look
+     */
     fun generateReceiptPdf(data: OrderReceiptData, fileName: String = "order_receipt_${data.orderNumber}.pdf"): File? {
         return try {
             val file = File(context.getExternalFilesDir(null), fileName)
-            val fileOutputStream = FileOutputStream(file)
-
-            val writer = PdfWriter(fileOutputStream)
+            val writer = PdfWriter(FileOutputStream(file))
             val pdf = PdfDocument(writer)
-            val document = Document(pdf, PageSize.A4)
-            document.setMargins(50f, 50f, 50f, 50f)
 
-            // Title
-            document.add(Paragraph("ORDER SUMMARY")
-                .setFontSize(24f)
-                .simulateBold()
-                .setTextAlignment(TextAlignment.CENTER)
-                .setFontColor(ColorConstants.BLACK))
+            // Set Page Size to a smaller width to simulate a thermal receipt
+            val document = Document(pdf, PageSize.A6)
+            document.setMargins(20f, 20f, 20f, 20f)
 
-            document.add(Paragraph(" ").setFontSize(6f))
+            // Load Courier (Monospaced font)
+            val font: PdfFont = PdfFontFactory.createFont(StandardFonts.COURIER)
+            val fontBold: PdfFont = PdfFontFactory.createFont(StandardFonts.COURIER_BOLD)
 
-            // Separator
-            document.add(
-                LineSeparator(SolidLine())
-            )
-            // Order Details
-            document.add(Paragraph("Order: ${data.orderNumber}")
-                .setFontSize(14f)
-                .setFontColor(ColorConstants.BLACK))
-            document.add(Paragraph("Cust: ${data.customerName}")
-                .setFontSize(14f)
-                .setFontColor(ColorConstants.BLACK))
+            document.setFont(font)
 
-            document.add(Paragraph(" ").setFontSize(6f))
+            // Header Section
+            document.add(Paragraph("Cuso Tailor")
+                .setFont(fontBold).setFontSize(18f).setTextAlignment(TextAlignment.CENTER))
+            document.add(Paragraph("Payment Receipt")
+                .setFont(fontBold).setFontSize(12f).setTextAlignment(TextAlignment.CENTER))
 
-            // Items Table
-            val itemTable = Table(UnitValue.createPercentArray(floatArrayOf(15f, 40f, 20f, 25f)))
-            itemTable.setWidth(UnitValue.createPercentValue(100f))
+            document.add(Paragraph("-----------------------------").setTextAlignment(TextAlignment.CENTER))
 
-            // Table Headers
-            val headerCell = Cell().add(Paragraph("Qty").simulateBold().setTextAlignment(TextAlignment.CENTER))
-            itemTable.addCell(headerCell)
+            // Date and Order Info Table
+            val infoTable = Table(UnitValue.createPercentArray(floatArrayOf(40f, 60f))).useAllAvailableWidth()
+            infoTable.setBorder(Border.NO_BORDER)
 
-            val headerCell2 = Cell().add(Paragraph("Item").simulateBold().setTextAlignment(TextAlignment.LEFT))
-            itemTable.addCell(headerCell2)
+            val currentDate = SimpleDateFormat("dd/M/yyyy", Locale.getDefault()).format(Date())
 
-            val headerCell3 = Cell().add(Paragraph("Price").simulateBold().setTextAlignment(TextAlignment.RIGHT))
-            itemTable.addCell(headerCell3)
+            addReceiptRow(infoTable, "Date:", currentDate, font)
+            addReceiptRow(infoTable, "Order:", data.orderNumber, fontBold)
+            addReceiptRow(infoTable, "Cust:", data.customerName, font)
+            document.add(infoTable)
 
-            val headerCell4 = Cell().add(Paragraph("Total").simulateBold().setTextAlignment(TextAlignment.RIGHT))
-            itemTable.addCell(headerCell4)
+            document.add(Paragraph("-----------------------------").setTextAlignment(TextAlignment.CENTER))
 
-            // Table Rows
+            // Items Section
+            document.add(Paragraph("ITEMS:").setFont(fontBold))
+
+            val itemTable = Table(UnitValue.createPercentArray(floatArrayOf(70f, 30f))).useAllAvailableWidth()
+            itemTable.setBorder(Border.NO_BORDER)
+
             data.items.forEach { item ->
-                val itemTotal = (item.quantity * item.price) + item.additionalCharge
+                // Main Item Row: Qty x Name
+                addReceiptRow(itemTable, "${item.quantity} x ${item.name}", "₹${item.price.toInt()}", font)
 
-                val qtyCell = Cell().add(Paragraph(item.quantity.toString()).setTextAlignment(TextAlignment.CENTER))
-                itemTable.addCell(qtyCell)
-
-                val nameCell = Cell().add(Paragraph(item.name).setTextAlignment(TextAlignment.LEFT))
-                itemTable.addCell(nameCell)
-
-                val priceCell = Cell().add(Paragraph(String.format(Locale.US, "₹%.2f", item.price))
-                    .setTextAlignment(TextAlignment.RIGHT))
-                itemTable.addCell(priceCell)
-
-                val totalCell = Cell().add(Paragraph(String.format(Locale.US, "₹%.2f", itemTotal))
-                    .setTextAlignment(TextAlignment.RIGHT))
-                itemTable.addCell(totalCell)
-
-                // Add additional charge as sub-item if exists
+                // Additional Charges Sub-Row
                 if (item.additionalCharge > 0) {
-                    val emptyCell = Cell().add(Paragraph("").setTextAlignment(TextAlignment.CENTER))
-                    itemTable.addCell(emptyCell)
-
-                    val addLabel = Cell().add(Paragraph("  (Add1: )").setFontSize(10f)
-                        .setTextAlignment(TextAlignment.LEFT))
-                    itemTable.addCell(addLabel)
-
-                    val addPrice = Cell().add(Paragraph(String.format(Locale.US, "₹%.2f", item.additionalCharge))
-                        .setFontSize(10f)
-                        .setTextAlignment(TextAlignment.RIGHT))
-                    itemTable.addCell(addPrice)
-
-                    val addTotal = Cell().add(Paragraph("").setTextAlignment(TextAlignment.RIGHT))
-                    itemTable.addCell(addTotal)
+                    addReceiptRow(itemTable, "  + Addl Charges", "₹${item.additionalCharge.toInt()}", font, 10f, ColorConstants.GRAY)
                 }
             }
-
             document.add(itemTable)
 
-            document.add(Paragraph(" ").setFontSize(6f))
+            document.add(Paragraph("-----------------------------").setTextAlignment(TextAlignment.CENTER))
 
-            // Separator
-            document.add(
-                LineSeparator(SolidLine())
-            )
-            // Charges Summary
-            if (data.otherCharges > 0) {
-                document.add(Paragraph(String.format(Locale.US, "Other Charges: ₹%.2f", data.otherCharges))
-                    .setFontSize(14f)
-                    .setFontColor(ColorConstants.BLACK))
-            }
+            // Charges and Payments
+            val summaryTable = Table(UnitValue.createPercentArray(floatArrayOf(70f, 30f))).useAllAvailableWidth()
+            addReceiptRow(summaryTable, "Extra Charges:", "₹${data.otherCharges.toInt()}", font)
+            addReceiptRow(summaryTable, "Discount:", "- ₹${0}", font) // Placeholder for discount if needed
+            addReceiptRow(summaryTable, "PAID NOW:", "₹${data.paidAmount.toInt()}", fontBold)
+            document.add(summaryTable)
 
-            document.add(Paragraph(String.format(Locale.US, "Total: ₹%.2f", data.totalAmount))
-                .setFontSize(16f)
-                .simulateBold()
-                .setFontColor(ColorConstants.BLACK))
+            document.add(Paragraph("-----------------------------").setTextAlignment(TextAlignment.CENTER))
 
-            document.add(Paragraph(String.format(Locale.US, "Paid: ₹%.2f", data.paidAmount))
-                .setFontSize(14f)
-                .setFontColor(ColorConstants.BLACK))
+            // Final Bill and Balance
+            val finalTable = Table(UnitValue.createPercentArray(floatArrayOf(70f, 30f))).useAllAvailableWidth()
+            addReceiptRow(finalTable, "Total Bill:", "₹${data.totalAmount.toInt()}", font)
+            addReceiptRow(finalTable, "Balance:", "₹${data.balanceAmount.toInt()}", font)
+            document.add(finalTable)
 
-            document.add(Paragraph(" ").setFontSize(6f))
-
-            // Separator
-            document.add(
-                LineSeparator(SolidLine())
-            )
-            // Balance
-            document.add(Paragraph(String.format(Locale.US, "BALANCE: ₹%.2f", data.balanceAmount))
-                .setFontSize(18f)
-                .simulateBold()
-                .setFontColor(ColorConstants.RED))
-
-            document.add(Paragraph(" ").setFontSize(6f))
+            document.add(Paragraph("-----------------------------").setTextAlignment(TextAlignment.CENTER))
 
             // Footer
             document.add(Paragraph(data.thankYouMessage)
-                .setFontSize(12f)
-                .setTextAlignment(TextAlignment.CENTER)
-                .setFontColor(ColorConstants.BLACK))
-
-            data.deliveryDate?.let {
-                document.add(Paragraph("Delivery: $it")
-                    .setFontSize(12f)
-                    .setTextAlignment(TextAlignment.CENTER)
-                    .setFontColor(ColorConstants.BLACK))
-            }
-
+                .setFont(fontBold).setTextAlignment(TextAlignment.CENTER).setMarginTop(10f))
             document.add(Paragraph(data.poweredBy)
-                .setFontSize(10f)
-                .setTextAlignment(TextAlignment.CENTER)
-                .setFontColor(ColorConstants.GRAY))
+                .setFontSize(8f).setTextAlignment(TextAlignment.CENTER))
 
             document.close()
             file
-
         } catch (e: Exception) {
             e.printStackTrace()
             null
         }
     }
 
-    // ── HTML Receipt for WebView Printing ──
+    private fun addReceiptRow(table: Table, label: String, value: String, font: PdfFont, size: Float = 11f, color: com.itextpdf.kernel.colors.Color = ColorConstants.BLACK) {
+        table.addCell(Cell().add(Paragraph(label).setFont(font).setFontSize(size).setFontColor(color)).setBorder(Border.NO_BORDER))
+        table.addCell(Cell().add(Paragraph(value).setFont(font).setFontSize(size).setFontColor(color)).setTextAlignment(TextAlignment.RIGHT).setBorder(Border.NO_BORDER))
+    }
+
+    /**
+     * Builds HTML that matches the "Thermal Printer" visual style shown in the image
+     */
     fun buildReceiptHtml(data: OrderReceiptData): String {
+        val currentDate = SimpleDateFormat("dd/M/yyyy", Locale.getDefault()).format(Date())
+
         val itemsHtml = data.items.joinToString("") { item ->
-            val total = (item.quantity * item.price) + item.additionalCharge
             """
-            <tr>
-                <td style="text-align: center;">${item.quantity}</td>
-                <td>${item.name}</td>
-                <td style="text-align: right;">₹${String.format(Locale.US, "%.2f", item.price)}</td>
-                <td style="text-align: right;">₹${String.format(Locale.US, "%.2f", total)}</td>
-            </tr>
+            <div class="row">
+                <span>${item.quantity} x ${item.name}</span>
+                <span>₹${item.price.toInt()}</span>
+            </div>
+            ${if (item.additionalCharge > 0) """
+            <div class="row sub-item">
+                <span>&nbsp;&nbsp;+ Addl Charges</span>
+                <span>₹${item.additionalCharge.toInt()}</span>
+            </div>
+            """ else ""}
             """.trimIndent()
         }
 
@@ -213,85 +166,69 @@ class OrderReceiptPdfGenerator(private val context: Context) {
         <html>
         <head>
             <style>
-                body { font-family: 'Courier New', monospace; padding: 20px; }
-                .header { text-align: center; font-size: 24px; font-weight: bold; }
-                .divider { border-top: 1px solid #000; margin: 10px 0; }
-                .order-details { font-size: 14px; }
-                .order-details div { margin: 4px 0; }
-                table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-                th { text-align: left; border-bottom: 1px solid #000; padding: 8px; }
-                td { padding: 8px; }
-                .total { font-size: 16px; font-weight: bold; }
-                .balance { font-size: 18px; font-weight: bold; color: #EF4444; }
-                .footer { text-align: center; font-size: 12px; margin-top: 20px; }
-                .powered { text-align: center; font-size: 10px; color: #9CA3AF; }
+                body { 
+                    font-family: 'Courier New', Courier, monospace; 
+                    width: 300px; padding: 10px; color: #000;
+                }
+                .center { text-align: center; }
+                .bold { font-weight: bold; }
+                .larger { font-size: 20px; }
+                .divider { border-top: 1px dashed #000; margin: 8px 0; }
+                .row { display: flex; justify-content: space-between; margin: 4px 0; font-size: 14px; }
+                .sub-item { font-size: 12px; color: #666; }
+                .footer-space { margin-top: 20px; }
                 @media print {
-                    body { padding: 10px; }
+                    body { width: 100%; padding: 0; }
                 }
             </style>
         </head>
         <body>
-            <div class="header">ORDER SUMMARY</div>
-            <div class="divider"></div>
-            
-            <div class="order-details">
-                <div>Order: ${data.orderNumber}</div>
-                <div>Cust: ${data.customerName}</div>
-            </div>
+            <div class="center bold larger">Cuso Tailor</div>
+            <div class="center bold">Payment Receipt</div>
             
             <div class="divider"></div>
             
-            <table>
-                <thead>
-                    <tr>
-                        <th style="text-align: center;">Qty</th>
-                        <th>Item</th>
-                        <th style="text-align: right;">Price</th>
-                        <th style="text-align: right;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    $itemsHtml
-                </tbody>
-            </table>
+            <div class="row"><span>Date:</span><span>$currentDate</span></div>
+            <div class="row bold"><span>Order:</span><span>${data.orderNumber}</span></div>
+            <div class="row"><span>Cust:</span><span>${data.customerName}</span></div>
             
             <div class="divider"></div>
             
-            ${if (data.otherCharges > 0) """
-                <div>Other Charges: ₹${String.format(Locale.US, "%.2f", data.otherCharges)}</div>
-            """ else ""}
-            
-            <div class="total">Total: ₹${String.format(Locale.US, "%.2f", data.totalAmount)}</div>
-            <div>Paid: ₹${String.format(Locale.US, "%.2f", data.paidAmount)}</div>
+            <div class="bold" style="margin-bottom: 5px;">ITEMS:</div>
+            $itemsHtml
             
             <div class="divider"></div>
             
-            <div class="balance">BALANCE: ₹${String.format(Locale.US, "%.2f", data.balanceAmount)}</div>
+            <div class="row"><span>Extra Charges:</span><span>₹${data.otherCharges.toInt()}</span></div>
+            <div class="row"><span>Discount:</span><span>- ₹0</span></div>
+            <div class="row bold"><span>PAID NOW:</span><span>₹${data.paidAmount.toInt()}</span></div>
             
-            <div class="footer">${data.thankYouMessage}</div>
-            ${data.deliveryDate?.let { "<div class='footer'>Delivery: $it</div>" } ?: ""}
-            <div class="powered">${data.poweredBy}</div>
+            <div class="divider"></div>
+            
+            <div class="row"><span>Total Bill:</span><span>₹${data.totalAmount.toInt()}</span></div>
+            <div class="row"><span>Balance:</span><span>₹${data.balanceAmount.toInt()}</span></div>
+            
+            <div class="divider"></div>
+            
+            <div class="center bold footer-space" style="font-size: 16px;">${data.thankYouMessage}</div>
+            <div class="center" style="font-size: 10px;">${data.poweredBy}</div>
         </body>
         </html>
         """.trimIndent()
     }
 
-    // ── Print via WebView (Recommended - No PDF library needed) ──
+    /**
+     * Executes the Print command using WebView
+     */
     fun printReceiptViaWebView(data: OrderReceiptData) {
         val webView = WebView(context)
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 val printManager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
-                val printAdapter = webView.createPrintDocumentAdapter("OrderReceipt_${data.orderNumber}")
-                printManager.print("Order Receipt", printAdapter, null)
+                val printAdapter = webView.createPrintDocumentAdapter("Receipt_${data.orderNumber}")
+                printManager.print("Receipt", printAdapter, null)
             }
         }
-        webView.loadDataWithBaseURL(
-            null,
-            buildReceiptHtml(data),
-            "text/html",
-            "UTF-8",
-            null
-        )
+        webView.loadDataWithBaseURL(null, buildReceiptHtml(data), "text/html", "UTF-8", null)
     }
 }

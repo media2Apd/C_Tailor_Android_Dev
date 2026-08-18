@@ -80,7 +80,7 @@ import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.composable.ValidationField
-import com.cuso.mobile.view.home.FormDropdown
+import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.home.sales.customer.LabeledField
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
@@ -103,7 +103,7 @@ import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.utils.safeDate
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.customFieldOutlinedColors
-import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.BackFabButton
 import com.cuso.mobile.view.composable.PlanLimitDialog
 import com.cuso.mobile.view.composable.SegmentedSelector
@@ -114,6 +114,9 @@ import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.TrailingFabButton
+// Adaptive design tokens - shared padding, corner radius, typography, and component scale
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
+
 // ─────────────────────────────────────────────────────────────
 // Data Models
 // ─────────────────────────────────────────────────────────────
@@ -131,7 +134,7 @@ data class MeasurementField(
     val unit: String = "inch"
 )
 
-//    — maps field key -> accordion section key (same idea as leadSectionFieldMap in CreateLeadScreen)
+// Maps field key -> accordion section key (same idea as leadSectionFieldMap in CreateLeadScreen)
 private val orderSectionFieldMap = mapOf(
     "customer" to listOf("mobile", "fullName", "gender", "dressFor", "source"),
     "garment" to listOf("garments"),
@@ -141,7 +144,7 @@ private val orderSectionFieldMap = mapOf(
 // ─────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────
-//    — returns list of missing field labels for a garment, empty list = complete
+// Returns list of missing field labels for a garment, empty list = complete
 private fun missingGarmentFields(g: SelectedGarment): List<String> {
     return buildList {
         if (g.fabricType.isBlank()) add("Fabric Type")
@@ -161,10 +164,13 @@ fun CreateOrderScreen(
     salesViewModel: SalesViewModel = hiltViewModel(),
     branchViewModel: BranchViewModel = hiltViewModel()
 ) {
+    // Adaptive design tokens for this screen (padding, corner radius, typography, component scale)
+    val tokens = LocalAppTokens.current
+
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
-    //   Check if we're in edit mode
+    // Check if we're in edit mode
     val isEditMode = initialData?.orderId != null
 
     var phone by rememberSaveable {
@@ -223,16 +229,15 @@ fun CreateOrderScreen(
     var showImagePickerOptions by rememberSaveable { mutableStateOf(false) }
     var capturedImageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
-    //   Plan gating for media upload
+    // Plan gating for media upload
     var showPlanLimitDialog by rememberSaveable { mutableStateOf(false) }
 
-    // TODO: replace this with the real plan coming from your org/session state
     // e.g. organizationViewModel.organization.plan?.name
     val currentPlanName = "starter" // "starter" | "light" | "pro" | "premium" etc.
     val isMediaUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
             currentPlanName.equals("light", ignoreCase = true)
 
-    //   NEW — Form validation state (mirrors CreateLeadScreen's pattern)
+    // Form validation state (mirrors CreateLeadScreen's pattern)
     var errorField by remember { mutableStateOf<String?>(null) }
     var validationError by remember { mutableStateOf<String?>(null) }
     var garmentsError by remember { mutableStateOf(false) }
@@ -314,11 +319,11 @@ fun CreateOrderScreen(
         AlertDialog(
             onDismissRequest = { showImagePickerOptions = false },
             containerColor = Color.Transparent,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(tokens.cardCornerRadius),
             title = {
                 Text(
                     "Add Design Reference",
-                    fontSize = 18.sp,
+                    fontSize = tokens.h2,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
                 )
@@ -326,30 +331,30 @@ fun CreateOrderScreen(
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                            .background(Color(0xFFF3F4F6), RoundedCornerShape(tokens.cardCornerRadius))
                             .clickable {
                                 showImagePickerOptions = false
                                 galleryLauncher.launch("image/*")
                             }
-                            .padding(12.dp),
+                            .padding(tokens.extraPadding),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                     ) {
                         Icon(
                             Icons.Default.PhotoLibrary,
                             null,
                             tint = Color(0xFF3B3BF9),
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(tokens.iconSize)
                         )
                         Column {
                             Text(
                                 "Browse",
-                                fontSize = 14.sp,
+                                fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF111827)
                             )
@@ -359,31 +364,32 @@ fun CreateOrderScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                            .background(Color(0xFFF3F4F6), RoundedCornerShape(tokens.cardCornerRadius))
                             .clickable {
                                 showImagePickerOptions = false
                                 captureDesignImage()
                             }
-                            .padding(12.dp),
+                            .padding(tokens.extraPadding),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                     ) {
                         Icon(
                             Icons.Default.CameraAlt,
                             null,
                             tint = Color(0xFF3B3BF9),
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(tokens.iconSize)
                         )
                         Column {
                             Text(
                                 "Take Photo",
-                                fontSize = 14.sp,
+                                fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF111827)
                             )
                             Text(
                                 "Capture with camera",
-                                fontSize = 12.sp,
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium,
                                 color = Color(0xFF6B7280)
                             )
                         }
@@ -393,31 +399,32 @@ fun CreateOrderScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFFFEE2E2), RoundedCornerShape(8.dp))
+                                .background(Color(0xFFFEE2E2), RoundedCornerShape(tokens.cardCornerRadius))
                                 .clickable {
                                     showImagePickerOptions = false
                                     selectedDesignImages = emptyList()
                                 }
-                                .padding(12.dp),
+                                .padding(tokens.extraPadding),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                         ) {
                             Icon(
                                 Icons.Default.Delete,
                                 null,
                                 tint = Color(0xFFEF4444),
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(tokens.iconSize)
                             )
                             Column {
                                 Text(
                                     "Remove All Photos",
-                                    fontSize = 14.sp,
+                                    fontSize = tokens.bodyMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = Color(0xFFEF4444)
                                 )
                                 Text(
                                     "Remove all selected images",
-                                    fontSize = 12.sp,
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.Medium,
                                     color = Color(0xFFFCA5A5)
                                 )
                             }
@@ -430,7 +437,7 @@ fun CreateOrderScreen(
                     onClick = { showImagePickerOptions = false },
                     colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF6B7280))
                 ) {
-                    Text("Cancel")
+                    Text("Cancel", fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = null
@@ -580,7 +587,7 @@ fun CreateOrderScreen(
         garmentsError = false
     }
 
-    //   NEW — Validation function, same pattern as CreateLeadScreen.submitLead()
+    // Validation function, same pattern as CreateLeadScreen.submitLead()
     fun validateOrderForm(): Boolean {
         val fields = listOf(
             ValidationField("mobile", phone, "Mobile Number is required"),
@@ -602,7 +609,7 @@ fun CreateOrderScreen(
             return false
         }
 
-        //   Garments need their own check — at least one garment,
+        // Garments need their own check — at least one garment,
         // with fabric type, color/tone, pattern, model & measurements filled
         val incompleteGarment = selectedGarments.firstOrNull { missingGarmentFields(it).isNotEmpty() }
         if (selectedGarments.isEmpty() || incompleteGarment != null) {
@@ -626,9 +633,9 @@ fun CreateOrderScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(whiteBg)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
             ) {
                 Text(
                     if (isEditMode) "Edit Order" else "Create Order",
@@ -641,7 +648,7 @@ fun CreateOrderScreen(
                     Icons.Default.Close,
                     contentDescription = "close",
                     modifier = Modifier
-                        .size(22.dp)
+                        .size(tokens.iconSize)
                         .clickable {
                             salesViewModel.clearAllSelectedGarments()
                             salesViewModel.clearCustomerSearch()
@@ -660,7 +667,7 @@ fun CreateOrderScreen(
                     .padding(padding)
                     .blurScrim(addCategoryBlur)
                     .verticalScroll(scrollState)
-                    .padding(bottom = 16.dp)
+                    .padding(bottom = tokens.screenPadding)
             ) {
 
                 // ══════════════════════════════════════════════
@@ -677,7 +684,7 @@ fun CreateOrderScreen(
                         contentAlignment = Alignment.CenterEnd
                     ) {
                         FormLabel("Phone ")
-                        //  Assumes PhoneInputField supports isError/errorMessage — share the file if not.
+                        // Assumes PhoneInputField supports isError/errorMessage — share the file if not.
                         PhoneInputField(
                             phoneValue = phone,
                             onPhoneChange = { newPhone ->
@@ -708,10 +715,10 @@ fun CreateOrderScreen(
                             exit = shrinkVertically()
                         ) {
                             customerSearchResult?.customer?.let { customer ->
-                                Spacer(Modifier.height(8.dp))
+                                Spacer(Modifier.height(tokens.extraPadding))
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(10.dp),
+                                    shape = RoundedCornerShape(tokens.cardCornerRadius),
                                     colors = CardDefaults.cardColors(containerColor = whiteBg),
                                     elevation = CardDefaults.cardElevation(3.dp)
                                 ) {
@@ -720,7 +727,7 @@ fun CreateOrderScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .background(Color(0xFFF0FDF4))
-                                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                                .padding(horizontal = tokens.extraPadding, vertical = tokens.extraPadding),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
@@ -732,11 +739,11 @@ fun CreateOrderScreen(
                                                     Icons.Default.CheckCircle,
                                                     null,
                                                     tint = Color(0xFF16A34A),
-                                                    modifier = Modifier.size(16.dp)
+                                                    modifier = Modifier.size(tokens.iconSize)
                                                 )
                                                 Text(
                                                     "FOUND CUSTOMER",
-                                                    fontSize = 11.sp,
+                                                    fontSize = tokens.caption,
                                                     fontWeight = FontWeight.Bold,
                                                     color = Color(0xFF16A34A),
                                                     letterSpacing = 0.5.sp
@@ -747,7 +754,7 @@ fun CreateOrderScreen(
                                                 null,
                                                 tint = Color(0xFF6B7280),
                                                 modifier = Modifier
-                                                    .size(16.dp)
+                                                    .size(tokens.iconSize)
                                                     .clickable { salesViewModel.clearCustomerSearch() }
                                             )
                                         }
@@ -755,21 +762,22 @@ fun CreateOrderScreen(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                                                .padding(horizontal = tokens.extraPadding, vertical = tokens.extraPadding),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Column {
                                                 Text(
                                                     customer.name,
-                                                    fontSize = 15.sp,
+                                                    fontSize = tokens.bodyMedium,
                                                     fontWeight = FontWeight.Bold,
                                                     color = Color(0xFF111827)
                                                 )
                                                 val orderCount = customerSearchResult?.orders?.size ?: 0
                                                 Text(
                                                     "Found $orderCount previous order${if (orderCount != 1) "s" else ""}",
-                                                    fontSize = 12.sp,
+                                                    fontSize = tokens.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
                                                     color = Color(0xFF6B7280)
                                                 )
                                             }
@@ -781,12 +789,12 @@ fun CreateOrderScreen(
                                                         address = customer.address?.addressLine ?: ""
                                                         showImportDialog = true
                                                     },
-                                                    shape = RoundedCornerShape(8.dp),
+                                                    shape = RoundedCornerShape(tokens.cardCornerRadius),
                                                     border = BorderStroke(1.dp, Color(0xFF3B3BF9)),
                                                     colors = ButtonDefaults.outlinedButtonColors(
                                                         containerColor = primary_light
                                                     ),
-                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                                    contentPadding = PaddingValues(horizontal = tokens.extraPadding, vertical = 6.dp)
                                                 ) {
                                                     Icon(
                                                         Icons.Default.Download,
@@ -797,7 +805,7 @@ fun CreateOrderScreen(
                                                     Spacer(Modifier.width(4.dp))
                                                     Text(
                                                         "Import Data",
-                                                        fontSize = 13.sp,
+                                                        fontSize = tokens.bodySmall,
                                                         color = Color(0xFF3B3BF9),
                                                         fontWeight = FontWeight.SemiBold
                                                     )
@@ -809,16 +817,16 @@ fun CreateOrderScreen(
                                                         address = customer.address?.addressLine ?: ""
                                                         salesViewModel.clearCustomerSearch()
                                                     },
-                                                    shape = RoundedCornerShape(8.dp),
+                                                    shape = RoundedCornerShape(tokens.cardCornerRadius),
                                                     border = BorderStroke(1.dp, Color(0xFF3B3BF9)),
                                                     colors = ButtonDefaults.outlinedButtonColors(
                                                         containerColor = primary_light
                                                     ),
-                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                                    contentPadding = PaddingValues(horizontal = tokens.extraPadding, vertical = 6.dp)
                                                 ) {
                                                     Text(
                                                         "Use Details",
-                                                        fontSize = 13.sp,
+                                                        fontSize = tokens.bodySmall,
                                                         color = Color(0xFF3B3BF9),
                                                         fontWeight = FontWeight.SemiBold
                                                     )
@@ -849,7 +857,8 @@ fun CreateOrderScreen(
                     if (errorField == "fullName") {
                         Text(
                             "Full Name is required",
-                            fontSize = 12.sp,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
                             color = Color(0xFFEF4444),
                             modifier = Modifier.padding(top = 4.dp)
                         )
@@ -866,7 +875,8 @@ fun CreateOrderScreen(
                             Text(
                                 "Enter full billing/shipping address...",
                                 color = Color(0xFF9CA3AF),
-                                fontSize = 13.sp
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Medium
                             )
                         },
                         colors = OutlinedTextFieldDefaults.colors(
@@ -875,8 +885,8 @@ fun CreateOrderScreen(
                             unfocusedContainerColor = whiteBg,
                             focusedContainerColor = whiteBg
                         ),
-                        shape = RoundedCornerShape(8.dp),
-                        textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF111827)),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius),
+                        textStyle = TextStyle(fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Color(0xFF111827)),
                         enabled = !isEditMode
                     )
 
@@ -926,8 +936,8 @@ fun CreateOrderScreen(
                         onExpandChange = { sourceExpanded = it },
                         options = listOf("Walk-in", "Phone", "WhatsApp", "Referral", "Online"),
                         onOptionSelected = {
-                                source = it
-                                if (errorField == "source") errorField = null
+                            source = it
+                            if (errorField == "source") errorField = null
                         },
                         isRequired = true,
                         isError = errorField == "source",
@@ -949,7 +959,7 @@ fun CreateOrderScreen(
                     ) {
                         Text(
                             "QUICK ADD CATEGORY",
-                            fontSize = 11.sp,
+                            fontSize = tokens.caption,
                             color = Color(0xFF9CA3AF),
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.5.sp
@@ -957,8 +967,9 @@ fun CreateOrderScreen(
                         Spacer(Modifier.weight(1f))
                         Text(
                             "+ Add Category",
-                            fontSize = 11.sp,
+                            fontSize = tokens.caption,
                             color = Primary,
+                            fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.5.sp,
                             modifier = Modifier.clickable(
                                 indication = null,
@@ -966,7 +977,7 @@ fun CreateOrderScreen(
                             ) { addCategorySheetState = SheetValue.Collapsed }
                         )
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(tokens.extraPadding))
 
                     when {
                         isLoadingCategories -> {
@@ -983,20 +994,21 @@ fun CreateOrderScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(70.dp)
-                                    .background(whiteBg, RoundedCornerShape(8.dp))
-                                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp)),
+                                    .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     "No garment categories configured. Add them in Settings.",
-                                    fontSize = 12.sp,
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.Medium,
                                     color = Color(0xFF9CA3AF)
                                 )
                             }
                         }
 
                         else -> {
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
                                 items(quickCategories) { (name, categoryId) ->
                                     CategoryPillButton(
                                         name = name,
@@ -1011,24 +1023,25 @@ fun CreateOrderScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding))
 
                     Text(
                         "SELECTED GARMENTS",
-                        fontSize = 11.sp,
+                        fontSize = tokens.caption,
                         color = Color(0xFF9CA3AF),
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 0.5.sp
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(tokens.extraPadding))
 
-                    //   — inline error text for garments (no wrapper box, matches Lead-screen style)
+                    // Inline error text for garments (no wrapper box, matches Lead-screen style)
                     if (garmentsError) {
                         Text(
                             "Add at least one garment — with fabric type, color/tone, pattern, model, and Chest & Sleeve Length filled",
-                            fontSize = 12.sp,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
                             color = Color(0xFFEF4444),
-                            modifier = Modifier.padding(bottom = 8.dp)
+                            modifier = Modifier.padding(bottom = tokens.extraPadding)
                         )
                     }
 
@@ -1037,36 +1050,37 @@ fun CreateOrderScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(80.dp)
-                                .background(whiteBg, RoundedCornerShape(8.dp))
+                                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
                                 .border(
                                     1.dp,
                                     if (garmentsError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
-                                    RoundedCornerShape(8.dp)
+                                    RoundedCornerShape(tokens.cardCornerRadius)
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 "No garments added yet.",
-                                fontSize = 14.sp,
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Medium,
                                 color = Color(0xFF9CA3AF)
                             )
                         }
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
                             selectedGarments.forEach { garment ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(whiteBg, RoundedCornerShape(8.dp))
-                                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                                        .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
                                         .clickable { editGarmentDialog(garment) }
-                                        .padding(12.dp),
+                                        .padding(tokens.extraPadding),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding),
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Box(
@@ -1079,18 +1093,18 @@ fun CreateOrderScreen(
                                                 Icons.Default.Checkroom,
                                                 null,
                                                 tint = Color(0xFF3B3BF9),
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(tokens.iconSize)
                                             )
                                         }
                                         Column {
                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                                 Text(
                                                     garment.categoryName,
-                                                    fontSize = 14.sp,
+                                                    fontSize = tokens.bodyMedium,
                                                     fontWeight = FontWeight.Bold,
                                                     color = Color(0xFF111827)
                                                 )
-                                                //   NEW — visible warning badge if this specific garment is incomplete
+                                                // Visible warning badge if this specific garment is incomplete
                                                 val missing = missingGarmentFields(garment)
                                                 if (missing.isNotEmpty()) {
                                                     Box(
@@ -1098,7 +1112,7 @@ fun CreateOrderScreen(
                                                             .background(Color(0xFFFEE2E2), RoundedCornerShape(4.dp))
                                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                                     ) {
-                                                        Text("Incomplete", fontSize = 10.sp, color = Color(0xFFDC2626), fontWeight = FontWeight.SemiBold)
+                                                        Text("Incomplete", fontSize = tokens.label, color = Color(0xFFDC2626), fontWeight = FontWeight.SemiBold)
                                                     }
                                                 }
                                             }
@@ -1109,15 +1123,17 @@ fun CreateOrderScreen(
                                             if (garment.pattern.isNotBlank() && garment.pattern != "Solid") subtitleParts.add(garment.pattern)
                                             Text(
                                                 subtitleParts.joinToString(" | "),
-                                                fontSize = 12.sp,
+                                                fontSize = tokens.bodySmall,
+                                                fontWeight = FontWeight.Medium,
                                                 color = Color(0xFF6B7280)
                                             )
-                                            //    — tells exactly what's missing, right under the card
+                                            // Tells exactly what's missing, right under the card
                                             val missing = missingGarmentFields(garment)
                                             if (missing.isNotEmpty()) {
                                                 Text(
                                                     "Missing: ${missing.joinToString(", ")}",
-                                                    fontSize = 11.sp,
+                                                    fontSize = tokens.caption,
+                                                    fontWeight = FontWeight.Medium,
                                                     color = Color(0xFFDC2626)
                                                 )
                                             }
@@ -1135,7 +1151,7 @@ fun CreateOrderScreen(
                                                 Icons.Default.Edit,
                                                 null,
                                                 tint = Color(0xFF3B3BF9),
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(tokens.iconSize)
                                             )
                                         }
                                         IconButton(
@@ -1146,14 +1162,14 @@ fun CreateOrderScreen(
                                                 Icons.Default.Delete,
                                                 null,
                                                 tint = Color(0xFFEF4444),
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(tokens.iconSize)
                                             )
                                         }
                                         Icon(
                                             Icons.Default.ChevronRight,
                                             null,
                                             tint = Color(0xFF9CA3AF),
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(tokens.iconSize)
                                         )
                                     }
                                 }
@@ -1171,7 +1187,7 @@ fun CreateOrderScreen(
                     onToggle = { expandedSection = if (expandedSection == "delivery") "" else "delivery" }
                 ) {
                     FormLabel("Order Date", isRequired = true)
-                    //  Assumes DatePickerField supports isError/errorMessage — share the file if not.
+                    // Assumes DatePickerField supports isError/errorMessage — share the file if not.
                     DatePickerField(
                         value = orderDate,
                         onDateSelected = {
@@ -1183,7 +1199,8 @@ fun CreateOrderScreen(
                     if (errorField == "orderDate") {
                         Text(
                             "Order Date is required",
-                            fontSize = 12.sp,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
                             color = Color(0xFFEF4444),
                             modifier = Modifier.padding(top = 4.dp)
                         )
@@ -1202,7 +1219,8 @@ fun CreateOrderScreen(
                     if (errorField == "trialDate") {
                         Text(
                             "Trial Date is required",
-                            fontSize = 12.sp,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
                             color = Color(0xFFEF4444),
                             modifier = Modifier.padding(top = 4.dp)
                         )
@@ -1221,7 +1239,8 @@ fun CreateOrderScreen(
                     if (errorField == "deliveryDate") {
                         Text(
                             "Target Delivery Date is required",
-                            fontSize = 12.sp,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
                             color = Color(0xFFEF4444),
                             modifier = Modifier.padding(top = 4.dp)
                         )
@@ -1260,7 +1279,7 @@ fun CreateOrderScreen(
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                     ) {
                         OutlinedButton(
                             onClick = {
@@ -1271,13 +1290,13 @@ fun CreateOrderScreen(
                                 }
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(tokens.cardCornerRadius),
                             border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
                             colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
                         ) {
-                            Icon(Icons.Default.FileUpload, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.FileUpload, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(tokens.iconSize))
                             Spacer(Modifier.width(6.dp))
-                            Text("Browse Files", fontSize = 13.sp, color = Color(0xFF374151))
+                            Text("Browse Files", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
                         }
 
                         OutlinedButton(
@@ -1291,43 +1310,43 @@ fun CreateOrderScreen(
                                 }
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(tokens.cardCornerRadius),
                             border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
                             colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
                         ) {
                             Image(
                                 painter = painterResource(R.drawable.camera),
                                 null,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(tokens.iconSize)
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text("Camera", fontSize = 13.sp, color = Color(0xFF374151))
+                            Text("Camera", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
                         }
                     }
 
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(tokens.extraPadding))
 
                     if (selectedDesignImages.isNotEmpty()) {
                         Text(
                             "SELECTED IMAGES (${selectedDesignImages.size})",
-                            fontSize = 11.sp,
+                            fontSize = tokens.caption,
                             color = Color(0xFF9CA3AF),
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.5.sp
                         )
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(tokens.extraPadding))
 
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             items(selectedDesignImages) { uri ->
                                 Box(
                                     modifier = Modifier
                                         .size(80.dp)
-                                        .clip(RoundedCornerShape(8.dp))
+                                        .clip(RoundedCornerShape(tokens.cardCornerRadius))
                                         .background(Color(0xFFF3F4F6))
-                                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
                                 ) {
                                     Image(
                                         painter = rememberAsyncImagePainter(uri),
@@ -1349,7 +1368,7 @@ fun CreateOrderScreen(
                                             Icons.Default.Close,
                                             contentDescription = "close",
                                             modifier = Modifier
-                                                .size(22.dp)
+                                                .size(tokens.iconSize)
                                                 .clickable {
                                                     salesViewModel.clearAllSelectedGarments()
                                                     salesViewModel.clearCustomerSearch()
@@ -1365,13 +1384,13 @@ fun CreateOrderScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(90.dp)
-                                .background(whiteBg, RoundedCornerShape(8.dp))
-                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp)),
+                                .height(150.dp)
+                                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius)),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(
-                                Modifier.padding(10.dp),
+                                Modifier.padding(tokens.extraPadding),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Icon(
@@ -1383,12 +1402,14 @@ fun CreateOrderScreen(
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     "No images added",
-                                    fontSize = 13.sp,
+                                    fontSize = tokens.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
                                     color = Color(0xFF9CA3AF)
                                 )
                                 Text(
                                     "Tap Browse or Camera to add design references",
-                                    fontSize = 11.sp,
+                                    fontSize = tokens.caption,
+                                    fontWeight = FontWeight.Medium,
                                     color = Color(0xFFBDBDBD)
                                 )
                             }
@@ -1413,7 +1434,8 @@ fun CreateOrderScreen(
                             Text(
                                 "Special requirements, cutting instructions...",
                                 color = Color(0xFF9CA3AF),
-                                fontSize = 13.sp
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Medium
                             )
                         },
                         colors = OutlinedTextFieldDefaults.colors(
@@ -1422,11 +1444,11 @@ fun CreateOrderScreen(
                             unfocusedContainerColor = whiteBg,
                             focusedContainerColor = whiteBg
                         ),
-                        shape = RoundedCornerShape(8.dp),
-                        textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF111827))
+                        shape = RoundedCornerShape(tokens.cardCornerRadius),
+                        textStyle = TextStyle(fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding))
 
                     // ── Voice Instructions ──
                     FormLabel("Voice Instructions")
@@ -1434,9 +1456,9 @@ fun CreateOrderScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(whiteBg, RoundedCornerShape(8.dp))
-                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                            .padding(24.dp),
+                            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
+                            .padding(tokens.cardPadding),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1462,35 +1484,35 @@ fun CreateOrderScreen(
                                     if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
                                     null,
                                     tint = if (isRecording) whiteBg else Color(0xFF3B3BF9),
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(tokens.iconSize)
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
                                     if (isRecording) "Stop Recording" else "Start Recording",
                                     color = if (isRecording) whiteBg else Color(0xFF3B3BF9),
-                                    fontSize = 14.sp,
+                                    fontSize = tokens.bodyMedium,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
                             if (recordedVoiceNoteUri != null && !isRecording) {
-                                Spacer(Modifier.height(8.dp))
+                                Spacer(Modifier.height(tokens.extraPadding))
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color(0xFFF0FDF4), RoundedCornerShape(8.dp))
-                                        .padding(10.dp),
+                                        .background(Color(0xFFF0FDF4), RoundedCornerShape(tokens.cardCornerRadius))
+                                        .padding(tokens.extraPadding),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         "Voice note recorded ✓",
-                                        fontSize = 13.sp,
+                                        fontSize = tokens.bodySmall,
                                         color = Color(0xFF16A34A),
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
                                         "Remove",
-                                        fontSize = 13.sp,
+                                        fontSize = tokens.bodySmall,
                                         color = Color(0xFFEF4444),
                                         fontWeight = FontWeight.SemiBold,
                                         modifier = Modifier.clickable { recordedVoiceNoteUri = null }
@@ -1521,13 +1543,13 @@ fun CreateOrderScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(whiteBg)
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
                                     if (editingGarmentId != null) "Edit Garment" else "Add Garment",
-                                    fontSize = 18.sp,
+                                    fontSize = tokens.h2,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF111827)
                                 )
@@ -1536,7 +1558,7 @@ fun CreateOrderScreen(
                                     contentDescription = "close",
                                     tint = Color(0xFF111827),
                                     modifier = Modifier
-                                        .size(22.dp)
+                                        .size(tokens.iconSize)
                                         .clickable { showGarmentDialog = false }
                                 )
                             }
@@ -1588,7 +1610,6 @@ fun CreateOrderScreen(
                     onDismiss = { showPlanLimitDialog = false },
                     onUpgrade = {
                         showPlanLimitDialog = false
-                        // TODO: navigate to your subscription/upgrade screen
                     }
                 )
             }
@@ -1611,6 +1632,7 @@ fun CreateOrderScreen(
                     onClick = {
                         if (validateOrderForm()) {
                             val data = OrderReviewData(
+                                leadId = initialData?.leadId,
                                 orderId = initialData?.orderId,
                                 customerId = selectedCustomer?.id ?: initialData?.customerId ?: "",
                                 branchId = selectedBranchId,
@@ -1639,26 +1661,26 @@ fun CreateOrderScreen(
 
         }
 
-            SmoothBottomSheet(
-                state = addCategorySheetState,
-                onStateChange = { addCategorySheetState = it },
-                peekHeight = 480.dp,
-                topInset = 66.dp,   //    — matches your "Create Order" topBar height, so Expanded stops right below it
-                onDismissRequest = { addCategorySheetState = SheetValue.Hidden },
-                onBlurScrimChange = { r, s -> addCategoryBlur = r; addCategoryScrim = s }
-            ) {
-                InlineGarmentPanel(
-                    garment = tempGarment,
-                    categories = quickCategories,
-                    isEditing = editingGarmentId != null,
-                    onGarmentChange = { tempGarment = it },
-                    onSave = {
-                        saveGarment()
-                        addCategorySheetState = SheetValue.Hidden
-                    },
-                    onCancel = { addCategorySheetState = SheetValue.Hidden }
-                )
-            }
+        SmoothBottomSheet(
+            state = addCategorySheetState,
+            onStateChange = { addCategorySheetState = it },
+            peekHeight = 480.dp,
+            topInset = 66.dp,   // Matches "Create Order" topBar height, so Expanded stops right below it
+            onDismissRequest = { addCategorySheetState = SheetValue.Hidden },
+            onBlurScrimChange = { r, s -> addCategoryBlur = r; addCategoryScrim = s }
+        ) {
+            InlineGarmentPanel(
+                garment = tempGarment,
+                categories = quickCategories,
+                isEditing = editingGarmentId != null,
+                onGarmentChange = { tempGarment = it },
+                onSave = {
+                    saveGarment()
+                    addCategorySheetState = SheetValue.Hidden
+                },
+                onCancel = { addCategorySheetState = SheetValue.Hidden }
+            )
+        }
 
     }
     Box(
@@ -1679,9 +1701,10 @@ fun QuickAddCategoryRow(
     selectedCategoryId: String?,
     onCategoryClick: (String, String) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
     ) {
         categories.forEach { (name, categoryId) ->
             val isSelected = categoryId == selectedCategoryId
@@ -1700,35 +1723,36 @@ fun CategoryPillButton(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     val borderColor = if (isSelected) Primary else Color(0xFFE5E7EB)
     val contentColor = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF9CA3AF)
 
     Row(
         modifier = Modifier
-            .background(whiteBg, RoundedCornerShape(12.dp))
+            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
             .border(
                 width = if (isSelected) 1.5.dp else 1.dp,
                 color = borderColor,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(tokens.cardCornerRadius)
             )
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             ) { onClick() }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
     ) {
         Icon(
             imageVector = Icons.Default.Checkroom, // swap per-category icon if you have specific ones for Pant/Shirt
             contentDescription = name,
             tint = contentColor,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(tokens.iconSize)
         )
         Text(
             text = name,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
+            fontSize = tokens.bodySmall,
+            fontWeight = FontWeight.SemiBold,
             color = contentColor
         )
     }
@@ -1743,6 +1767,7 @@ fun CustomerOutlinedField(
     isError: Boolean = false,
     errorMessage: String? = null
 ) {
+    val tokens = LocalAppTokens.current
     val interactionSource = remember { MutableInteractionSource() }
     val colors = customFieldOutlinedColors()
 
@@ -1750,11 +1775,12 @@ fun CustomerOutlinedField(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = modifier.fillMaxWidth().height(40.dp),
+            modifier = modifier.fillMaxWidth().height(tokens.fieldHeight),
             enabled = enabled,
             singleLine = true,
             textStyle = LocalTextStyle.current.copy(
-                fontSize = 14.sp,
+                fontSize = tokens.bodyMedium,
+                fontWeight = FontWeight.Medium,
                 color = if (enabled) Color(0xFF111827) else Color(0xFF9CA3AF)
             ),
             cursorBrush = SolidColor(Color(0xFF3B3BF9)),
@@ -1768,8 +1794,8 @@ fun CustomerOutlinedField(
                     visualTransformation = VisualTransformation.None,
                     interactionSource = interactionSource,
                     isError = isError,
-                    placeholder = { Text(placeholder, fontSize = 14.sp) },
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    placeholder = { Text(placeholder, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium) },
+                    contentPadding = PaddingValues(horizontal = tokens.extraPadding, vertical = 0.dp),
                     colors = colors,
                     container = {
                         OutlinedTextFieldDefaults.Container(
@@ -1777,7 +1803,7 @@ fun CustomerOutlinedField(
                             isError = isError,
                             interactionSource = interactionSource,
                             colors = colors,
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(tokens.cardCornerRadius)
                         )
                     }
                 )
@@ -1786,7 +1812,8 @@ fun CustomerOutlinedField(
         if (isError && !errorMessage.isNullOrBlank()) {
             Text(
                 text = errorMessage,
-                fontSize = 11.sp,
+                fontSize = tokens.caption,
+                fontWeight = FontWeight.Medium,
                 color = Color(0xFFEF4444),
                 modifier = Modifier.padding(top = 4.dp, start = 4.dp)
             )
@@ -1805,6 +1832,7 @@ fun PreviousMeasurementsDialog(
     onImport: (List<CustomerGarment>) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     val expandedOrders = remember { mutableStateOf(setOf<String>()) }
     val selectedGarments = remember { mutableStateOf(mapOf<String, Set<String>>()) }
     val totalSelected = selectedGarments.value.values.sumOf { it.size }
@@ -1814,14 +1842,14 @@ fun PreviousMeasurementsDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(horizontal = 16.dp),
-            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(horizontal = tokens.screenPadding),
+            shape = RoundedCornerShape(tokens.cardCornerRadius),
             colors = CardDefaults.cardColors(containerColor = whiteBg),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.fillMaxWidth().padding(tokens.cardPadding),
+                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1829,8 +1857,8 @@ fun PreviousMeasurementsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("Previous Measurements", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                        Text("Select garments to copy", fontSize = 13.sp, color = Color(0xFF6B7280))
+                        Text("Previous Measurements", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text("Select garments to copy", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF6B7280))
                     }
                     IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Close, null, tint = Color(0xFF9CA3AF))
@@ -1841,7 +1869,7 @@ fun PreviousMeasurementsDialog(
 
                 Column(
                     modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(max = 400.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                 ) {
                     orders.forEach { order ->
                         val isExpanded = expandedOrders.value.contains(order.id)
@@ -1849,7 +1877,7 @@ fun PreviousMeasurementsDialog(
 
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(tokens.cardCornerRadius),
                             colors = CardDefaults.cardColors(containerColor = whiteBg),
                             elevation = CardDefaults.cardElevation(0.dp),
                             border = BorderStroke(1.dp, Color(0xFFE5E7EB))
@@ -1863,18 +1891,18 @@ fun PreviousMeasurementsDialog(
                                                 if (isExpanded) expandedOrders.value - order.id
                                                 else expandedOrders.value + order.id
                                         }
-                                        .padding(14.dp),
+                                        .padding(tokens.extraPadding),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                                         ) {
                                             Text(
                                                 "Order #${order.orderNumber}",
-                                                fontSize = 14.sp,
+                                                fontSize = tokens.bodyMedium,
                                                 fontWeight = FontWeight.Bold,
                                                 color = Color(0xFF111827)
                                             )
@@ -1894,7 +1922,7 @@ fun PreviousMeasurementsDialog(
                                             ) {
                                                 Text(
                                                     order.status,
-                                                    fontSize = 11.sp,
+                                                    fontSize = tokens.caption,
                                                     color = when (order.status.lowercase()) {
                                                         "confirmed" -> Color(0xFF16A34A)
                                                         "completed" -> Color(0xFF16A34A)
@@ -1908,7 +1936,8 @@ fun PreviousMeasurementsDialog(
                                         }
                                         Text(
                                             "${order.orderDate.safeDate()} • ${order.garments.size} Garment${if (order.garments.size != 1) "s" else ""}",
-                                            fontSize = 12.sp,
+                                            fontSize = tokens.bodySmall,
+                                            fontWeight = FontWeight.Medium,
                                             color = Color(0xFF6B7280)
                                         )
                                     }
@@ -1916,7 +1945,7 @@ fun PreviousMeasurementsDialog(
                                         if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                         null,
                                         tint = Color(0xFF6B7280),
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(tokens.iconSize)
                                     )
                                 }
 
@@ -1929,8 +1958,8 @@ fun PreviousMeasurementsDialog(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .background(whiteBg)
-                                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            .padding(horizontal = tokens.extraPadding, vertical = tokens.extraPadding),
+                                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                                     ) {
                                         order.garments.forEach { garment ->
                                             val isSelected = orderSelectedGarments.contains(garment.id)
@@ -1946,7 +1975,7 @@ fun PreviousMeasurementsDialog(
                                                     }
                                                     .padding(vertical = 6.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                                             ) {
                                                 Box(
                                                     modifier = Modifier
@@ -1975,7 +2004,7 @@ fun PreviousMeasurementsDialog(
                                                 Column(modifier = Modifier.weight(1f)) {
                                                     Text(
                                                         garment.categoryName,
-                                                        fontSize = 14.sp,
+                                                        fontSize = tokens.bodyMedium,
                                                         fontWeight = FontWeight.SemiBold,
                                                         color = Color(0xFF111827)
                                                     )
@@ -1985,15 +2014,15 @@ fun PreviousMeasurementsDialog(
                                                         ?.joinToString(", ") { it.key }
                                                         ?: ""
                                                     if (measurementText.isNotBlank()) {
-                                                        Text("$measurementText...", fontSize = 12.sp, color = Color(0xFF6B7280))
+                                                        Text("$measurementText...", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF6B7280))
                                                     }
                                                 }
 
                                                 Text(
                                                     if (isSelected) "Selected" else "Select",
-                                                    fontSize = 13.sp,
+                                                    fontSize = tokens.bodyMedium,
                                                     color = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF9CA3AF),
-                                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                                                 )
                                             }
                                         }
@@ -2008,15 +2037,15 @@ fun PreviousMeasurementsDialog(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f).height(tokens.buttonHeight),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius),
                         border = BorderStroke(1.dp, Color(0xFFE5E7EB))
                     ) {
-                        Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.Medium)
+                        Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.SemiBold)
                     }
                     Button(
                         onClick = {
@@ -2026,15 +2055,15 @@ fun PreviousMeasurementsDialog(
                             }
                             onImport(garmentsToImport)
                         },
-                        modifier = Modifier.weight(2f).height(48.dp),
+                        modifier = Modifier.weight(2f).height(tokens.buttonHeight),
                         enabled = totalSelected > 0,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF3B3BF9),
                             disabledContainerColor = Color(0xFFBDBDBD)
                         ),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(tokens.cardCornerRadius)
                     ) {
-                        Icon(Icons.Default.Download, null, tint = whiteBg, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Download, null, tint = whiteBg, modifier = Modifier.size(tokens.iconSize))
                         Spacer(Modifier.width(6.dp))
                         Text("Import ", color = whiteBg, fontWeight = FontWeight.SemiBold)
                     }
@@ -2058,6 +2087,7 @@ private fun InlineGarmentPanel(
     onSave: () -> Unit,
     onCancel: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     val priorityOptions = listOf("Low", "Medium", "High", "Urgent")
     val fabricSourceOptions = listOf("In-House", "Client")
     val fabricTypeOptions = listOf("Cotton", "Polyester", "Silk", "Wool", "Linen", "Denim", "Satin", "Velvet", "Jersey", "Chiffon")
@@ -2085,20 +2115,20 @@ private fun InlineGarmentPanel(
     var subSection by remember { mutableStateOf("basic") }
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).background(Color.Transparent),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding).background(Color.Transparent),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 if (isEditing) "EDIT GARMENT" else "ADD NEW GARMENT",
-                fontSize = 16.sp,
+                fontSize = tokens.bodyLarge,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF111827),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(tokens.screenPadding))
 
             // ── Basic Information ──
             GarmentSubSection(
@@ -2120,7 +2150,7 @@ private fun InlineGarmentPanel(
                     )
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding))
 
                 LabeledField("Quantity *") {
                     CustomerOutlinedField(
@@ -2134,7 +2164,7 @@ private fun InlineGarmentPanel(
                         enabled = true
                     )
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding))
 
                 FormDropdown(
                     label = "Priority",
@@ -2146,19 +2176,19 @@ private fun InlineGarmentPanel(
                     isRequired = true
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding))
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
-                        .padding(12.dp),
+                        .background(Color(0xFFF9FAFB), RoundedCornerShape(tokens.cardCornerRadius))
+                        .padding(tokens.extraPadding),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text("Trial Required", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-                        Text("Schedule fitting?", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                        Text("Trial Required", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+                        Text("Schedule fitting?", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF9CA3AF))
                     }
                     MiniSwitch(
                         checked = garment.trialRequired,
@@ -2181,7 +2211,7 @@ private fun InlineGarmentPanel(
                     onSelect = { selected -> onGarmentChange(garment.copy(fabricSource = selected)) },
                     label = { it }
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding))
 
                 FormTextField(
                     value = garment.fabricType,
@@ -2194,7 +2224,7 @@ private fun InlineGarmentPanel(
                     errorMessage = null // pass your actual error message if applicable
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding))
 
                 FormLabel("Color / Tone")
                 ColorPickerField(
@@ -2202,7 +2232,7 @@ private fun InlineGarmentPanel(
                     onColorSelected = { onGarmentChange(garment.copy(colorTone = it)) }
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.screenPadding))
 
                 FormDropdown(
                     label = "Pattern",
@@ -2245,7 +2275,7 @@ private fun InlineGarmentPanel(
                 )
 
                 if (selectedModels.isNotEmpty()) {
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(tokens.screenPadding))
                     MeasurementsSection(
                         measurements = measurements,
                         onMeasurementsChange = { updated ->
@@ -2262,12 +2292,12 @@ private fun InlineGarmentPanel(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(tokens.cardPadding))
 
             // ── Action Buttons ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
             ) {
                 BackFabButton(
                     onClick = onCancel,
@@ -2298,13 +2328,14 @@ private fun GarmentSubSection(
     onToggle: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     val chevronRotation by androidx.compose.animation.core.animateFloatAsState(
         if (expanded) 180f else 0f, label = "sub_chevron"
     )
 
     Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent)) {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable { onToggle() }.padding(vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().clickable { onToggle() }.padding(vertical = tokens.extraPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -2314,17 +2345,17 @@ private fun GarmentSubSection(
                         painter = iconPainter,
                         contentDescription = null,
                         tint = iconTint,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(tokens.iconSize)
                     )
                     icon != null -> Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = iconTint,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(tokens.iconSize)
                     )
                 }
-                Spacer(Modifier.width(10.dp))
-                Text(label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = iconTint)
+                Spacer(Modifier.width(tokens.extraPadding))
+                Text(label, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = iconTint)
             }
             Icon(
                 Icons.Default.KeyboardArrowDown,
@@ -2339,7 +2370,7 @@ private fun GarmentSubSection(
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
-            Column(modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)) {
+            Column(modifier = Modifier.padding(top = 4.dp, bottom = tokens.extraPadding)) {
                 content()
             }
         }
@@ -2355,12 +2386,13 @@ fun SegmentedToggle(
     selected: String,
     onSelect: (String) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+            .height(tokens.buttonHeight)
+            .clip(RoundedCornerShape(tokens.cardCornerRadius))
+            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
             .background(whiteBg)
             .padding(4.dp)
     ) {
@@ -2370,15 +2402,15 @@ fun SegmentedToggle(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius))
                     .background(if (isSelected) Color(0xFF3B3BF9) else Color.Transparent)
                     .clickable { onSelect(option) },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     option,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
+                    fontSize = tokens.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
                     color = if (isSelected) whiteBg else Color(0xFF374151)
                 )
             }
@@ -2393,7 +2425,8 @@ fun ModelGridSelector(
     selectedModels: List<String>,
     onModelToggle: (String) -> Unit
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    val tokens = LocalAppTokens.current
+    Row(horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
         models.forEach { model ->
             val isSelected = selectedModels.contains(model.name)
             CategoryPillButton(
@@ -2411,7 +2444,8 @@ fun MeasurementsSection(
     measurements: List<MeasurementField>,
     onMeasurementsChange: (List<MeasurementField>) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val tokens = LocalAppTokens.current
+    Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
         measurements.forEachIndexed { index, field ->
             MeasurementInputField(
                 label = "${field.label} (Number)",
@@ -2451,7 +2485,7 @@ fun MeasurementsSection(
         measurements.filter { it.id.startsWith("custom_") }.forEach { field ->
             val index = measurements.indexOfFirst { it.id == field.id }
             if (index >= 0) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(tokens.extraPadding))
                 CustomFieldRow(
                     labelValue = field.label,
                     onLabelChange = { newLabel ->
@@ -2486,27 +2520,28 @@ fun MeasurementInputField(
     onUnitChange: (String) -> Unit,
     unitOptions: List<String> = listOf("inch", "cm")
 ) {
+    val tokens = LocalAppTokens.current
     var unitExpanded by remember { mutableStateOf(false) }
 
     Column {
-        Text(label, fontSize = 12.sp, color = Color(0xFF9CA3AF))
+        Text(label, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF9CA3AF))
         Spacer(Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF111827)),
+                textStyle = TextStyle(fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Color(0xFF111827)),
                 modifier = Modifier
                     .weight(1f)
-                    .height(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                    .height(tokens.fieldHeight)
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius))
+                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
                     .background(whiteBg)
-                    .padding(horizontal = 10.dp),
+                    .padding(horizontal = tokens.extraPadding),
                 decorationBox = { inner ->
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
                         if (value.isEmpty()) {
-                            Text("0.0", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                            Text("0.0", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Color(0xFF9CA3AF))
                         }
                         inner()
                     }
@@ -2517,16 +2552,16 @@ fun MeasurementInputField(
                 Row(
                     modifier = Modifier
                         .width(72.dp)
-                        .height(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                        .height(tokens.fieldHeight)
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius))
+                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
                         .background(whiteBg)
                         .clickable { unitExpanded = true }
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = tokens.extraPadding),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(unit, fontSize = 13.sp, color = Color(0xFF374151))
+                    Text(unit, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
                     Icon(
                         Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
@@ -2537,7 +2572,7 @@ fun MeasurementInputField(
                 DropdownMenu(expanded = unitExpanded, onDismissRequest = { unitExpanded = false }) {
                     unitOptions.forEach {
                         DropdownMenuItem(
-                            text = { Text(it, fontSize = 13.sp) },
+                            text = { Text(it, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium) },
                             onClick = { onUnitChange(it); unitExpanded = false }
                         )
                     }
@@ -2550,10 +2585,11 @@ fun MeasurementInputField(
 // ── "+ Add Custom Field" link ──
 @Composable
 fun AddCustomFieldLink(onClick: () -> Unit) {
+    val tokens = LocalAppTokens.current
     Text(
         "+ Add Custom Field",
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Medium,
+        fontSize = tokens.bodySmall,
+        fontWeight = FontWeight.SemiBold,
         color = Color(0xFF3B3BF9),
         modifier = Modifier.clickable { onClick() }
     )
@@ -2568,28 +2604,29 @@ fun CustomFieldRow(
     onFieldValueChange: (String) -> Unit,
     onRemove: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     Row(
         verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("Label", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+            Text("Label", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF9CA3AF))
             Spacer(Modifier.height(6.dp))
             BasicTextField(
                 value = labelValue,
                 onValueChange = onLabelChange,
-                textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF111827)),
+                textStyle = TextStyle(fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Color(0xFF111827)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                    .height(tokens.fieldHeight)
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius))
+                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
                     .background(whiteBg)
-                    .padding(horizontal = 10.dp),
+                    .padding(horizontal = tokens.extraPadding),
                 decorationBox = { inner ->
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
-                        if (labelValue.isEmpty()) Text("Label Name", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                        if (labelValue.isEmpty()) Text("Label Name", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Color(0xFF9CA3AF))
                         inner()
                     }
                 }
@@ -2597,29 +2634,29 @@ fun CustomFieldRow(
         }
 
         Column(modifier = Modifier.weight(1f)) {
-            Text("Value", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+            Text("Value", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF9CA3AF))
             Spacer(Modifier.height(6.dp))
             BasicTextField(
                 value = fieldValue,
                 onValueChange = onFieldValueChange,
-                textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF111827)),
+                textStyle = TextStyle(fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Color(0xFF111827)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                    .height(tokens.fieldHeight)
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius))
+                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
                     .background(whiteBg)
-                    .padding(horizontal = 10.dp),
+                    .padding(horizontal = tokens.extraPadding),
                 decorationBox = { inner ->
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
-                        if (fieldValue.isEmpty()) Text("Value", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                        if (fieldValue.isEmpty()) Text("Value", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Color(0xFF9CA3AF))
                         inner()
                     }
                 }
             )
         }
 
-        IconButton(onClick = onRemove, modifier = Modifier.padding(top = 20.dp)) {
+        IconButton(onClick = onRemove, modifier = Modifier.padding(top = tokens.screenPadding)) {
             Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color(0xFF9CA3AF))
         }
     }
@@ -2642,23 +2679,24 @@ private fun SectionCard(
     action: @Composable (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     val chevronRotation by androidx.compose.animation.core.animateFloatAsState(
         if (expanded) 180f else 0f, label = "section_chevron"
     )
     Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent)) {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable { onToggle() }.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.fillMaxWidth().clickable { onToggle() }.padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(title, fontSize = 15.sp, fontWeight = FontWeight.Normal, color = Color(0xFF111827))
+            Text(title, fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 action?.invoke()
                 Icon(
                     Icons.Default.KeyboardArrowDown,
                     contentDescription = if (expanded) "Collapse" else "Expand",
                     tint = Color(0xFF6B7280),
-                    modifier = Modifier.size(20.dp).rotate(chevronRotation)
+                    modifier = Modifier.size(tokens.iconSize).rotate(chevronRotation)
                 )
             }
         }
@@ -2667,7 +2705,7 @@ private fun SectionCard(
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding).padding(bottom = tokens.screenPadding)) {
                 content()
             }
         }
@@ -2677,16 +2715,17 @@ private fun SectionCard(
 
 @Composable
 private fun FormLabel(text: String, isRequired: Boolean = false) {
+    val tokens = LocalAppTokens.current
     Row {
         Text(
             text,
-            fontSize = 13.sp,
+            fontSize = tokens.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = Color(0xFF6B7280),
             modifier = Modifier.padding(bottom = 6.dp)
         )
         if (isRequired) {
-            Text(" *", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFFEF4444))
+            Text(" *", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Color(0xFFEF4444))
         }
     }
 }
@@ -2700,25 +2739,27 @@ fun ColorPickerField(
     onColorSelected: (String) -> Unit,
     placeholder: String = "Color name"
 ) {
+    val tokens = LocalAppTokens.current
     var showDialog by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
-            .background(whiteBg, RoundedCornerShape(8.dp))
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+            .height(tokens.fieldHeight)
+            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
             .clickable { showDialog = true }
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = tokens.extraPadding),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
     ) {
         Icon(
             Icons.Filled.Colorize, contentDescription = "Color picker", tint = PrimaryBorder
         )
         Text(
             text = value.ifBlank { placeholder },
-            fontSize = 13.sp,
+            fontSize = tokens.bodyMedium,
+            fontWeight = FontWeight.Medium,
             color = if (value.isBlank()) Color(0xFF9CA3AF) else Color(0xFF111827)
         )
     }
@@ -2741,6 +2782,7 @@ private fun ColorPickerDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     val controller = rememberColorPickerController()
     var selectedHex by remember { mutableStateOf(initialHex.ifBlank { "#3B82F6" }) }
 
@@ -2749,19 +2791,19 @@ private fun ColorPickerDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(horizontal = 20.dp),
-            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(horizontal = tokens.screenPadding),
+            shape = RoundedCornerShape(tokens.cardCornerRadius),
             colors = CardDefaults.cardColors(containerColor = whiteBg),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxWidth().padding(tokens.cardPadding),
+                verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
             ) {
-                Text("Choose Color", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                Text("Choose Color", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
 
                 HsvColorPicker(
-                    modifier = Modifier.fillMaxWidth().height(260.dp).padding(10.dp),
+                    modifier = Modifier.fillMaxWidth().height(260.dp).padding(tokens.extraPadding),
                     controller = controller,
                     initialColor = parseHexColorOrNull(selectedHex) ?: Color(0xFF3B82F6),
                     onColorChanged = { envelope ->
@@ -2781,31 +2823,31 @@ private fun ColorPickerDialog(
                     controller = controller
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .background(parseHexColorOrNull(selectedHex) ?: Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
-                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
+                            .background(parseHexColorOrNull(selectedHex) ?: Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
+                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
                     )
-                    Text(selectedHex.uppercase(), fontSize = 14.sp, color = Color(0xFF111827))
+                    Text(selectedHex.uppercase(), fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
                 }
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(tokens.cardCornerRadius)
                     ) {
-                        Text("Cancel", color = Color(0xFF374151))
+                        Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.SemiBold)
                     }
                     Button(
                         onClick = { onConfirm(selectedHex.uppercase()) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(tokens.cardCornerRadius)
                     ) {
-                        Text("Select", color = whiteBg)
+                        Text("Select", color = whiteBg, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

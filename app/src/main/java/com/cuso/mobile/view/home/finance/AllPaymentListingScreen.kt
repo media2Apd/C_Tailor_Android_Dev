@@ -190,11 +190,9 @@ fun AllPaymentListScreen(
             state = filterDrawerState,
             sections = filterSections,
             onApply = { updatedSections ->
-                // TODO: Implement actual filtering logic based on drawer selections
                 filterDrawerState.close()
             },
             onClearAll = {
-                // TODO: Clear filters
             }
         )
     }

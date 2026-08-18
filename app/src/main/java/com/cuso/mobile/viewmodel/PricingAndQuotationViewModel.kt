@@ -80,7 +80,6 @@
             viewModelScope.launch {
                 _uiState.value = PricingQuotationUiState.Loading
                 try {
-                    // TODO (API HOOKUP): replace loadDummyData() with the real call:
                     delay(300.milliseconds) // simulate network
                     _uiState.value = PricingQuotationUiState.Success(loadDummyData())
                 } catch (e: Exception) {

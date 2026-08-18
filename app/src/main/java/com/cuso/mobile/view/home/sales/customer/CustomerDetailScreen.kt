@@ -9,14 +9,12 @@
 )
 package com.cuso.mobile.view.home.sales.customer
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -30,7 +28,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
@@ -49,7 +46,7 @@ import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.ErrorMapper
 import com.cuso.mobile.view.composable.PhoneInputField
-import com.cuso.mobile.view.home.FormDropdown
+import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.composable.dashedBorder
@@ -62,13 +59,14 @@ import com.cuso.mobile.viewmodel.CustomerViewModel
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.light_blue
 import com.cuso.mobile.ui.theme.primary_light
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.customOutlinedButtonColors
-import com.cuso.mobile.view.home.FormLabel
-import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextField
 
 private val stepLabels = listOf(
     "Personal \nInformation",
@@ -240,7 +238,7 @@ fun CustomerDetailScreen(
                         .fillMaxWidth()
                         .background(Color.Transparent)
                         .verticalScroll(rememberScrollState())
-                        .padding(tokens.screenPadding)
+                        .padding(vertical = tokens.screenPadding)
                         .padding(bottom = 90.dp)
                 ) {
                     when (currentStep) {
@@ -506,22 +504,32 @@ private fun PersonalInformationStep(
                 Modifier.fillMaxSize()
                     .background(Color.Transparent)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFEFF6FF), RoundedCornerShape(12.dp))
-                        .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = tokens.screenPadding * 0.6f)
                 ) {
-                    Icon(Icons.Default.Info, null, tint = Color(0xFF3B82F6), modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        if (isEditMode) "Edit mode — update the details below."
-                        else "Viewing customer details. Tap Edit to make changes.",
-                        fontSize = tokens.bodySmall,
-                        color = Color(0xFF1E40AF),
-                        modifier = Modifier.weight(1f)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(light_blue, RoundedCornerShape(12.dp))
+                            .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Info,
+                            null,
+                            tint = Color(0xFF3B82F6),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (isEditMode) "Edit mode — update the details below."
+                            else "Viewing customer details. Tap Edit to make changes.",
+                            fontSize = tokens.bodySmall,
+                            color = Color(0xFF1E40AF),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(16.dp))

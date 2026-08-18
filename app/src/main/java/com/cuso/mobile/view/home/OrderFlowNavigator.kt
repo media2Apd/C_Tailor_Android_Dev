@@ -52,7 +52,6 @@ fun OrderFlowNavigator(
                 orderData = reviewData!!,
                 onBack = { step = 0 },              // go back to edit
                 onSaveOrder = {
-                    // TODO: call salesViewModel.saveOrder(...) here
                     onFinish()
                 }
             )

@@ -28,11 +28,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -50,18 +47,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.viewmodel.HomeViewModel
 import com.cuso.mobile.viewmodel.Authenticate
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Density
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
@@ -104,6 +97,13 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.modelBg
+import com.cuso.mobile.ui.theme.modelBorder
+import com.cuso.mobile.ui.theme.statLogoBg
+import com.cuso.mobile.ui.theme.whiteBg
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.Painter
@@ -112,14 +112,6 @@ import androidx.compose.ui.unit.Dp
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.cuso.mobile.view.home.inventory.InventoryViewOne
-import com.cuso.mobile.ui.theme.PrimaryBorder
-import com.cuso.mobile.ui.theme.Primary_background
-import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.modelBg
-import com.cuso.mobile.ui.theme.modelBorder
-import com.cuso.mobile.ui.theme.statLogoBg
-import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.home.finance.AllPaymentScreen
@@ -250,6 +242,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var isDrawerOpen by remember { mutableStateOf(false) }
     var sidebarBlur by remember { mutableStateOf(0.dp) }
     var pendingOrderReviewData by remember { mutableStateOf<OrderReviewData?>(null) }
+    var orderFlowOrigin by remember { mutableStateOf<String?>(null) }
     val customerViewModel: CustomerViewModel = hiltViewModel()
 
     val customerUiState by customerViewModel.uiState.collectAsStateWithLifecycle()
@@ -911,6 +904,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 onBack = { goBack() },
                                 onConvertToOrder = { orderReviewData ->
                                     pendingOrderReviewData = orderReviewData
+                                    orderFlowOrigin = "lead"
                                     navigateTo("create_order")
                                 }
                             )
@@ -1602,9 +1596,19 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                         orderData = data,
                                         onBack = { goBack() },
                                         onSaveOrder = {
-                                            pendingOrderReviewData = null
-                                            goBack()
-                                            goBack()
+                                            if (orderFlowOrigin == "lead") {
+                                                orderFlowOrigin = null
+                                                screenStack.removeAll {
+                                                    it in setOf(
+                                                        "sales_lead", "create_lead", "view_lead", "edit_lead",
+                                                        "create_order", "create_order_review"
+                                                    )
+                                                }
+                                                navigateTo("sales_sales_orders")
+                                            } else {
+                                                // normal flow (SalesOrderScreen -> create_order -> review) — same as before
+                                                goBack()
+                                            }
                                         }
                                     )
                                 } ?: run { goBack() }
@@ -1742,15 +1746,17 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                     // Sales
                     "sales_lead", "sales_customers", "sales_measurements", "sales_sales_orders",
                     "sales_orders", "sales_pricing_overview", "sales_pricing_quotation",
-                    "sales_payment_and_billing",
+//                    "sales_payment_and_billing",
 
                     // Finance
-                    "finance_sales_invoices", "finance_purchase_invoices", "finance_customers",
-                    "finance_payments_received",
-                    "finance_suppliers",
+                    "finance_sales_invoices",
+//                    "finance_purchase_invoices",
+                    "finance_customers",
+//                    "finance_payments_received",
+//                    "finance_suppliers",
                     "finance_expenses", "finance_chart_of_accounts",
                     "finance_journal_screen", "finance_trial_balance",
-                    "finance_payments_mode",
+//                    "finance_payments_mode",
 
                     // Inventory
                     "inventory_items",
@@ -3015,558 +3021,14 @@ fun formatIndianNumber(number: Number): String {
     return "$grouped,$last3"
 }
 
-@SuppressLint("DefaultLocale")
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TimePickerField(
-    value: String,
-    onTimeSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val tokens = LocalAppTokens.current
-    var showPicker by remember { mutableStateOf(false) }
-
-    var selectedHour by remember(value) {
-        mutableIntStateOf(
-            if (value.isNotEmpty()) {
-                try {
-                    val hourStr = value.substringBefore(":").trim()
-                    val hour = hourStr.toInt()
-                    if (value.contains("PM", ignoreCase = true) && hour != 12) hour + 12
-                    else if (value.contains("AM", ignoreCase = true) && hour == 12) 0
-                    else hour
-                } catch (_: Exception) { 10 }
-            } else 10
-        )
-    }
-
-    var selectedMinute by remember(value) {
-        mutableIntStateOf(
-            if (value.isNotEmpty()) {
-                try {
-                    val parts = value.split(":")
-                    if (parts.size >= 2) {
-                        parts[1].take(2).toInt()
-                    } else 0
-                } catch (_: Exception) { 53 }
-            } else 53
-        )
-    }
-
-    var isAm by remember(value) {
-        mutableStateOf(
-            if (value.isNotEmpty()) {
-                !value.contains("PM", ignoreCase = true)
-            } else true
-        )
-    }
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-            .border(1.dp, PrimaryBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-            .clickable { showPicker = true }
-            .padding(
-                horizontal = tokens.cardPadding * 0.6f,
-                vertical = tokens.screenPadding * 0.375f
-            ),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = value.ifEmpty { "Select Time" },
-            fontSize = tokens.bodyMedium,
-            color = if (value.isEmpty()) Color(0xFF9CA3AF) else Color(0xFF374151)
-        )
-        Icon(
-            Icons.Default.Schedule,
-            contentDescription = null,
-            tint = Color.Gray,
-            modifier = Modifier.size(tokens.iconSize)
-        )
-    }
-
-    if (showPicker) {
-        AlertDialog(
-            onDismissRequest = { showPicker = false },
-            containerColor = whiteBg,
-            shape = RoundedCornerShape(tokens.cardCornerRadius),
-            title = {
-                Text(
-                    "Appointment Time",
-                    fontSize = tokens.h2,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
-                )
-            },
-            text = {
-                CustomTimePicker(
-                    hour = selectedHour,
-                    minute = selectedMinute,
-                    isAm = isAm,
-                    onHourChange = { selectedHour = it },
-                    onMinuteChange = { selectedMinute = it },
-                    onAmPmChange = { isAm = it }
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val displayHour = when {
-                            selectedHour == 0 -> 12
-                            selectedHour > 12 -> selectedHour - 12
-                            else -> selectedHour
-                        }
-                        val amPm = if (isAm) "AM" else "PM"
-                        val formattedTime = String.format("%02d:%02d %s", displayHour, selectedMinute, amPm)
-                        onTimeSelected(formattedTime)
-                        showPicker = false
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = LeadPrimary
-                    )
-                ) {
-                    Text("OK", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showPicker = false },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = Color(0xFF6B7280)
-                    )
-                ) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-}
-
-@SuppressLint("DefaultLocale")
-@Composable
-fun CustomTimePicker(
-    hour: Int,
-    minute: Int,
-    isAm: Boolean,
-    onHourChange: (Int) -> Unit,
-    onMinuteChange: (Int) -> Unit,
-    onAmPmChange: (Boolean) -> Unit
-) {
-    val tokens = LocalAppTokens.current
-    val itemHeight = tokens.fieldHeight
-    val wheelHeight = itemHeight * 4.5f
-    val rowHeight = itemHeight * 6.3f
-
-    val hourOptions = (1..12).toList()
-    val minuteOptions = (0..59).map { String.format("%02d", it) }
-
-    val hourRepeatCount = 1000
-    val minuteRepeatCount = 1000
-    val totalHourItems = hourOptions.size * hourRepeatCount
-    val totalMinuteItems = minuteOptions.size * minuteRepeatCount
-
-    val displayHour = when {
-        hour == 0 -> 12
-        hour > 12 -> hour - 12
-        else -> hour
-    }
-    val displayMinute = String.format("%02d", minute)
-
-    val initialHourIndex = remember {
-        (hourRepeatCount / 2) * hourOptions.size + hourOptions.indexOf(displayHour).coerceAtLeast(0)
-    }
-    val initialMinuteIndex = remember {
-        (minuteRepeatCount / 2) * minuteOptions.size + minuteOptions.indexOf(displayMinute).coerceAtLeast(0)
-    }
-
-    val hourScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialHourIndex)
-    val minuteScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialMinuteIndex)
-
-    val hourCenterIndex by remember {
-        derivedStateOf {
-            val layoutInfo = hourScrollState.layoutInfo
-            val center = layoutInfo.viewportEndOffset / 2
-            val visibleItems = layoutInfo.visibleItemsInfo
-            val closest = visibleItems.minByOrNull {
-                val itemCenter = (it.offset + it.size / 2)
-                kotlin.math.abs(itemCenter - center)
-            }
-            closest?.index ?: 0
-        }
-    }
-
-    val minuteCenterIndex by remember {
-        derivedStateOf {
-            val layoutInfo = minuteScrollState.layoutInfo
-            val center = layoutInfo.viewportEndOffset / 2
-            val visibleItems = layoutInfo.visibleItemsInfo
-            val closest = visibleItems.minByOrNull {
-                val itemCenter = (it.offset + it.size / 2)
-                kotlin.math.abs(itemCenter - center)
-            }
-            closest?.index ?: 0
-        }
-    }
-
-    LaunchedEffect(hourCenterIndex) {
-        if (hourCenterIndex in 0 until totalHourItems) {
-            val newHour = hourOptions[hourCenterIndex % hourOptions.size]
-            val hour24 = when {
-                newHour == 12 && isAm -> 0
-                newHour == 12 && !isAm -> 12
-                !isAm -> newHour + 12
-                else -> newHour
-            }
-            onHourChange(hour24)
-        }
-    }
-
-    LaunchedEffect(minuteCenterIndex) {
-        if (minuteCenterIndex in 0 until totalMinuteItems) {
-            onMinuteChange(minuteOptions[minuteCenterIndex % minuteOptions.size].toInt())
-        }
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(rowHeight)
-            .padding(vertical = tokens.screenPadding * 0.5f),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("Hour", fontSize = tokens.caption, color = LeadmutedText, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(tokens.screenPadding * 0.25f))
-
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .height(wheelHeight)) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(itemHeight)
-                        .align(Alignment.Center)
-                        .background(
-                            LeadPrimarySoft,
-                            RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                        )
-                )
-
-                LazyColumn(
-                    state = hourScrollState,
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                        lazyListState = hourScrollState
-                    )
-                ) {
-                    items(totalHourItems) { i ->
-                        val h = hourOptions[i % hourOptions.size]
-                        val isSelected = i == hourCenterIndex
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(itemHeight)
-                                .padding(horizontal = tokens.screenPadding * 0.5f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = String.format("%02d", h),
-                                fontSize = if (isSelected) tokens.h1 else tokens.bodyLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) LeadPrimary else Color(0xFF6B7280)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Text(":", fontSize = tokens.h1, fontWeight = FontWeight.Bold, color = Color(0xFF111827), modifier = Modifier.padding(horizontal = tokens.screenPadding * 0.25f))
-
-        Column(
-            modifier = Modifier.weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("Minute", fontSize = tokens.caption, color = LeadmutedText, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(tokens.screenPadding * 0.25f))
-
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .height(wheelHeight)) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(itemHeight)
-                        .align(Alignment.Center)
-                        .background(
-                            LeadPrimarySoft,
-                            RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                        )
-                )
-
-                LazyColumn(
-                    state = minuteScrollState,
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                        lazyListState = minuteScrollState
-                    )
-                ) {
-                    items(totalMinuteItems) { i ->
-                        val m = minuteOptions[i % minuteOptions.size]
-                        val isSelected = i == minuteCenterIndex
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(itemHeight)
-                                .padding(horizontal = tokens.screenPadding * 0.5f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = m,
-                                fontSize = if (isSelected) tokens.h1 else tokens.bodyLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) LeadPrimary else Color(0xFF6B7280)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .weight(0.8f)
-                .padding(start = tokens.screenPadding * 0.5f),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("AM/PM", fontSize = tokens.caption, color = LeadmutedText, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(tokens.screenPadding * 0.25f))
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(wheelHeight)
-                    .padding(vertical = tokens.screenPadding * 1.25f),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(itemHeight)
-                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                        .background(if (isAm) LeadPrimary else Color.Transparent)
-                        .clickable { onAmPmChange(true) }
-                        .padding(tokens.screenPadding * 0.5f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("AM", fontSize = tokens.bodyMedium, fontWeight = if (isAm) FontWeight.Bold else FontWeight.Normal, color = if (isAm) whiteBg else Color(0xFF6B7280))
-                }
-
-                Spacer(Modifier.height(tokens.screenPadding * 0.5f))
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(itemHeight)
-                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                        .background(if (!isAm) LeadPrimary else Color.Transparent)
-                        .clickable { onAmPmChange(false) }
-                        .padding(tokens.screenPadding * 0.5f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("PM", fontSize = tokens.bodyMedium, fontWeight = if (!isAm) FontWeight.Bold else FontWeight.Normal, color = if (!isAm) whiteBg else Color(0xFF6B7280))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun FormLabel(text: String?, isRequired: Boolean = false) {
-    val tokens = LocalAppTokens.current
-    Row {
-        Text(
-            text ?: "",
-            fontSize = tokens.bodySmall,
-            fontWeight = FontWeight.Medium,
-            color = Color.Gray
-        )
-        if (isRequired) {
-            Text(
-                text = " *",
-                fontSize = tokens.bodySmall,
-                fontWeight = FontWeight.Medium,
-                color = Color.Red
-            )
-        }
-    }
-    Spacer(Modifier.height(tokens.screenPadding * 0.375f))
-}
-
-@Suppress("UNUSED_PARAMETER")
-@Composable
-fun FormTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    placeholder: String = "",
-    isError: Boolean = false,
-    errorMessage: String? = null,
-    enabled: Boolean = true,
-    // ── NEW: needed for PAN (uppercase) / Aadhaar (spaced grouping) ──
-    keyboardCapitalization: androidx.compose.ui.text.input.KeyboardCapitalization =
-        androidx.compose.ui.text.input.KeyboardCapitalization.None,
-    visualTransformation: androidx.compose.ui.text.input.VisualTransformation =
-        androidx.compose.ui.text.input.VisualTransformation.None
-) {
-    val tokens = LocalAppTokens.current
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(tokens.fieldHeight)
-            .background(
-                if (enabled) whiteBg else Color(0xFFF3F4F6),
-                RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-            )
-            .border(
-                1.dp,
-                if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
-                RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-            )
-            .padding(horizontal = tokens.cardPadding * 0.6f),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        if (value.isEmpty() && placeholder.isNotEmpty()) {
-            Text(placeholder, fontSize = tokens.bodyMedium, color = Color(0xFF9CA3AF))
-        }
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = keyboardType,
-                capitalization = keyboardCapitalization
-            ),
-            visualTransformation = visualTransformation,
-            textStyle = TextStyle(
-                fontSize = tokens.bodyMedium,
-                color = if (enabled) Color(0xFF374151) else Color(0xFF6B7280)
-            )
-        )
-    }
-    if (isError && !errorMessage.isNullOrBlank()) {
-        Text(
-            errorMessage,
-            fontSize = tokens.label,
-            color = Color(0xFFEF4444),
-            modifier = Modifier.padding(top = tokens.screenPadding * 0.25f, start = tokens.screenPadding * 0.25f)
-        )
-    }
-}
 
 
-@Suppress("UNUSED_PARAMETER")
-@Composable
-fun FormDropdown(
-    label: String? = null,
-    value: String,
-    expanded: Boolean,
-    onExpandChange: (Boolean) -> Unit,
-    options: List<String>,
-    onOptionSelected: (String) -> Unit,
-    isRequired: Boolean = false,
-    enabled: Boolean = true,
-    isError: Boolean = false,
-    errorMessage: String? = null
-) {
-    val tokens = LocalAppTokens.current
-    if (!label.isNullOrEmpty()) {
-        FormLabel(label, isRequired)
-    } else {
-        Spacer(Modifier.height(tokens.screenPadding * 0.375f))
-    }
 
-    val density = LocalDensity.current
-    var triggerWidthPx by remember { mutableIntStateOf(0) }
 
-    Box {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .onGloballyPositioned { coordinates -> triggerWidthPx = coordinates.size.width }
-                .height(tokens.fieldHeight)
-                .background(
-                    if (enabled) whiteBg else Color(0xFFF3F4F6),
-                    RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                )
-                .border(
-                    1.dp,
-                    if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
-                    RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                )
-                .clickable(enabled = enabled) { onExpandChange(true) }
-                .padding(horizontal = tokens.cardPadding * 0.6f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                value,
-                fontSize = tokens.bodySmall,
-                color = when {
-                    !enabled -> Color(0xFF9CA3AF)
-                    value == "Select an option" -> Color(0xFF9CA3AF)
-                    else -> Color(0xFF374151)
-                }
-            )
-            Icon(
-                Icons.Default.KeyboardArrowDown,
-                contentDescription = null,
-                tint = if (enabled) Color.Gray else Color(0xFFD1D5DB)
-            )
-        }
-        if (enabled) {
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { onExpandChange(false) },
-                containerColor = whiteBg,
-                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
-                modifier = Modifier
-                    .width(with(density) { triggerWidthPx.toDp() })
-                    .heightIn(max = tokens.fieldHeight * 4.5f)
-            ) {
-                options.forEach { option ->
-                    Text(
-                        text = option,
-                        fontSize = tokens.bodyMedium,
-                        color = Color(0xFF374151),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onOptionSelected(option)
-                                onExpandChange(false)
-                            }
-                            .padding(
-                                horizontal = tokens.cardPadding * 0.6f,
-                                vertical = tokens.screenPadding * 0.5f
-                            )
-                    )
-                }
-            }
-        }
-    }
-}
+
+
+
+
 
 fun normalizeRoute(rawKey: String): String {
     return when (rawKey) {

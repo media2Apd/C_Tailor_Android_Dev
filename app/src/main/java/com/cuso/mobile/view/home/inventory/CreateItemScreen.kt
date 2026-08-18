@@ -53,9 +53,9 @@ import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.viewmodel.CreateItemUiState
 import com.cuso.mobile.viewmodel.InventoryViewModel
 import com.cuso.mobile.viewmodel.ItemSection
-import com.cuso.mobile.view.home.FormLabel
-import com.cuso.mobile.view.home.FormTextField
-import com.cuso.mobile.view.home.FormDropdown
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextField
+import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch

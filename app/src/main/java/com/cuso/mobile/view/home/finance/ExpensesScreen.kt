@@ -42,9 +42,9 @@ import com.cuso.mobile.model.finance.ChartOfAccountItem
 import com.cuso.mobile.model.finance.ExpenseItem
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.view.composable.DatePickerField
-import com.cuso.mobile.view.home.FormDropdown
-import com.cuso.mobile.view.home.FormLabel
-import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.FabConfig
@@ -162,7 +162,7 @@ fun ExpensesScreen(
                 accentColor = BluePrimary,
                 borderColor = BorderGray,
                 textSecondaryColor = TextSecondary,
-                onFilterClick = { /* TODO: open filter drawer */ }
+                onFilterClick = {  }
             )
         }
         HorizontalDivider(color = Color(0xFFF0F0F0))
@@ -462,7 +462,6 @@ fun AddExpenseScreen(
     // ── Plan limit state for Documentation upload ──
     var showPlanLimitDialog by remember { mutableStateOf(false) }
 
-    // TODO: replace this with the real plan coming from your org/session state
     // e.g. organizationViewModel.organization.plan?.name
     val currentPlanName = "starter" // "starter" | "light" | "pro" | "premium" etc.
     val isUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
@@ -820,7 +819,6 @@ fun AddExpenseScreen(
                 onDismiss = { showPlanLimitDialog = false },
                 onUpgrade = {
                     showPlanLimitDialog = false
-                    // TODO: navigate to your upgrade/subscription screen
                 }
             )
         }

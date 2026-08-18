@@ -5,9 +5,12 @@
 )
 package com.cuso.mobile.view.composable
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -27,9 +30,13 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.*
+import com.cuso.mobile.view.home.LeadPrimary
 import java.util.*
 
-private data class DatePickerPalette(
+// Holds all the colors used across the date picker UI.
+// Built dynamically from MaterialTheme.colorScheme so it automatically
+// adapts to light mode / dark mode without any manual switching logic.
+ data class DatePickerPalette(
     val surface: Color,
     val text: Color,
     val subtext: Color,
@@ -40,6 +47,23 @@ private data class DatePickerPalette(
     val fieldBorder: Color
 )
 
+// Builds a theme-aware palette. Called from composables so it re-evaluates
+// automatically whenever the app switches between light and dark theme.
+@Composable
+private fun rememberDatePickerPalette(): DatePickerPalette {
+    val colorScheme = MaterialTheme.colorScheme
+    return DatePickerPalette(
+        surface = colorScheme.surface,
+        text = colorScheme.onSurface,
+        subtext = colorScheme.onSurfaceVariant,
+        accent = colorScheme.primary,
+        divider = colorScheme.outlineVariant,
+        accentText = colorScheme.onPrimary,
+        fieldBackground = colorScheme.surfaceVariant,
+        fieldBorder = colorScheme.outline
+    )
+}
+
 @Composable
 fun DatePickerField(
     value: String,
@@ -49,6 +73,10 @@ fun DatePickerField(
 ) {
     val tokens = LocalAppTokens.current
     var showPicker by remember { mutableStateOf(false) }
+
+    // Palette now comes from MaterialTheme, so it automatically switches
+    // colors when the app theme (light/dark) changes.
+    val palette = rememberDatePickerPalette()
 
     Box(
         modifier = Modifier
@@ -61,25 +89,17 @@ fun DatePickerField(
     ) {
         FormDateField(
             value = value,
+            palette = palette,
             onClick = { if (enabled) showPicker = true }
         )
 
         if (!enabled) {
+            // Invisible overlay that blocks clicks when the field is disabled
             Box(modifier = Modifier.matchParentSize().clickable(enabled = false) {})
         }
     }
 
     if (showPicker && enabled) {
-        val palette = DatePickerPalette(
-            surface = whiteBg,
-            text = TextPrimary,
-            subtext = TextSecondary,
-            accent = Primary,
-            divider = BorderGray,
-            accentText = whiteBg,
-            fieldBackground = Primary_background,
-            fieldBorder = BorderGray
-        )
         CustomDatePickerDialog(
             palette = palette,
             initialDate = value,
@@ -134,14 +154,14 @@ private fun CustomDatePickerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        if (isManualEntry) "Manual Entry" else " ",
+                        if (isManualEntry) "Manual Entry" else "Select Date",
                         color = palette.text,
                         fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.Medium
                     )
                     IconButton(onClick = {
                         isManualEntry = !isManualEntry
-                        manualError = null // switch aagum pothu error clear pannu
+                        manualError = null // Clear any error when switching modes
                     }) {
                         Icon(
                             imageVector = if (isManualEntry) Icons.Default.CalendarMonth else Icons.Default.Edit,
@@ -162,24 +182,26 @@ private fun CustomDatePickerDialog(
                                 val filtered = input.filter { it.isDigit() }
                                 if (filtered.length <= 8) {
                                     manualDigits = filtered
-                                    manualError = null // type panna panna error clear pannu
+                                    manualError = null // Clear error while typing
                                 }
                             },
                             placeholder = { Text("DD-MM-YYYY", color = palette.subtext) },
                             singleLine = true,
-                            isError = manualError != null, // validation failed-na border RED aagum
+                            isError = manualError != null, // Border turns red when validation fails
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             visualTransformation = DateTransformation(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = palette.accent,
                                 unfocusedBorderColor = palette.fieldBorder,
                                 errorBorderColor = redtext,
-                                focusedTextColor = palette.text
+                                focusedTextColor = palette.text,
+                                unfocusedTextColor = palette.text,
+                                cursorColor = palette.accent
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        // Error message text keela kaattu
+                        // Show error message below the field, or the format hint if no error
                         if (manualError != null) {
                             Text(
                                 text = manualError!!,
@@ -250,7 +272,7 @@ private fun CustomDatePickerDialog(
 }
 
 /**
- * Strict Validation: Thappana date type panna return NULL
+ * Strict validation: returns null if the entered date is invalid.
  */
 private fun validateAndParseDate(digits: String): Triple<Int, Int, Int>? {
     if (digits.length != 8) return null
@@ -259,16 +281,16 @@ private fun validateAndParseDate(digits: String): Triple<Int, Int, Int>? {
         val m = digits.substring(2, 4).toInt()
         val y = digits.substring(4, 8).toInt()
 
-        // logic: strict check
+        // Strict check: disallow rollover dates (e.g. 32 Jan -> Feb 1)
         val cal = Calendar.getInstance()
-        cal.setLenient(false) // Ithu thaan main! 31-02-2024 type panna error throw pannum
+        cal.isLenient = false
         cal.set(Calendar.YEAR, y)
         cal.set(Calendar.MONTH, m - 1)
         cal.set(Calendar.DAY_OF_MONTH, d)
 
-        cal.time // Ithu exception throw panna date invalid
+        cal.time // Triggers an exception if the date is invalid
 
-        if (y < 1900 || y > 2100) return null // Reasonable year range
+        if (y !in 1900..2100) return null // Reasonable year range
 
         Triple(d, m, y)
     } catch (e: Exception) {
@@ -277,7 +299,7 @@ private fun validateAndParseDate(digits: String): Triple<Int, Int, Int>? {
 }
 
 /**
- * Visual Transformation logic
+ * Visual transformation that inserts dashes as the user types digits (DD-MM-YYYY).
  */
 class DateTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
@@ -307,8 +329,17 @@ class DateTransformation : VisualTransformation {
     }
 }
 
+// The clickable field shown on the form (before the picker dialog opens).
+// Now takes the theme-aware palette instead of hardcoded hex colors,
+// so it automatically matches light/dark mode.
+// The clickable field shown on the form (before the picker dialog opens).
+// Uses static hardcoded colors (not theme-aware) as before.
 @Composable
-fun FormDateField(value: String, onClick: () -> Unit) {
+fun FormDateField(
+    value: String,
+    onClick: () -> Unit,
+    palette: DatePickerPalette = rememberDatePickerPalette()
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -379,6 +410,7 @@ private fun DatePickerCalendarGrid(
     val firstDay = calendar.get(Calendar.DAY_OF_WEEK) - 1
     val maxDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
 
+    // Build the full grid: leading blanks for offset, then all days of the month
     val days = buildList {
         repeat(firstDay) { add(null) }
         for (i in 1..maxDays) add(i)
@@ -403,6 +435,435 @@ private fun DatePickerCalendarGrid(
                 }
             }
             if (week.size < 7) repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
+        }
+    }
+}
+
+//TIME PICKER FIELD
+
+// Holds all colors used by the time picker UI.
+// Built from MaterialTheme.colorScheme so it automatically switches
+// between light mode and dark mode without any manual toggle logic.
+data class TimePickerPalette(
+    val surface: Color,          // Dialog/background surface color
+    val text: Color,             // Primary text color
+    val subtext: Color,          // Secondary/muted text color
+    val accent: Color,           // Primary accent color (selected state, buttons)
+    val accentSoft: Color,       // Soft/light version of accent (highlight band behind selected wheel item)
+    val onAccent: Color,         // Text/icon color on top of the accent color
+    val fieldBackground: Color,  // Background of the clickable field / dialog
+    val fieldBorder: Color       // Border color of the clickable field
+)
+
+// Builds a theme-aware palette. Re-evaluates automatically when the
+// app theme (light/dark) changes since it reads from MaterialTheme.
+@Composable
+private fun rememberTimePickerPalette(): TimePickerPalette {
+    val colorScheme = MaterialTheme.colorScheme
+    return TimePickerPalette(
+        surface = colorScheme.surface,
+        text = colorScheme.onSurface,
+        subtext = colorScheme.onSurfaceVariant,
+        accent = colorScheme.primary,
+        accentSoft = colorScheme.primaryContainer,
+        onAccent = colorScheme.onPrimary,
+        fieldBackground = colorScheme.surface,
+        fieldBorder = colorScheme.outline
+    )
+}
+
+@SuppressLint("DefaultLocale")
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TimePickerField(
+    value: String,
+    onTimeSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tokens = LocalAppTokens.current
+    var showPicker by remember { mutableStateOf(false) }
+
+    // Palette still built for the dialog/wheel picker below (dark/light aware)
+    val palette = rememberTimePickerPalette()
+
+    var selectedHour by remember(value) {
+        mutableIntStateOf(
+            if (value.isNotEmpty()) {
+                try {
+                    val hourStr = value.substringBefore(":").trim()
+                    val hour = hourStr.toInt()
+                    if (value.contains("PM", ignoreCase = true) && hour != 12) hour + 12
+                    else if (value.contains("AM", ignoreCase = true) && hour == 12) 0
+                    else hour
+                } catch (_: Exception) { 10 }
+            } else 10
+        )
+    }
+
+    var selectedMinute by remember(value) {
+        mutableIntStateOf(
+            if (value.isNotEmpty()) {
+                try {
+                    val parts = value.split(":")
+                    if (parts.size >= 2) {
+                        parts[1].take(2).toInt()
+                    } else 0
+                } catch (_: Exception) { 53 }
+            } else 53
+        )
+    }
+
+    var isAm by remember(value) {
+        mutableStateOf(
+            if (value.isNotEmpty()) {
+                !value.contains("PM", ignoreCase = true)
+            } else true
+        )
+    }
+
+    // This field row is back to static hardcoded colors (not theme-aware)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+            .border(1.dp, PrimaryBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+            .clickable { showPicker = true }
+            .padding(
+                horizontal = tokens.cardPadding * 0.6f,
+                vertical = tokens.screenPadding * 0.375f
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = value.ifEmpty { "Select Time" },
+            fontSize = tokens.bodyMedium,
+            color = if (value.isEmpty()) Color(0xFF9CA3AF) else Color(0xFF374151)
+        )
+        Icon(
+            Icons.Default.Schedule,
+            contentDescription = null,
+            tint = Color.Gray,
+            modifier = Modifier.size(tokens.iconSize)
+        )
+    }
+
+    if (showPicker) {
+        AlertDialog(
+            onDismissRequest = { showPicker = false },
+            containerColor = whiteBg,
+            shape = RoundedCornerShape(tokens.cardCornerRadius),
+            title = {
+                Text(
+                    "Appointment Time",
+                    fontSize = tokens.h2,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+            },
+            text = {
+                CustomTimePicker(
+                    palette = palette,
+                    hour = selectedHour,
+                    minute = selectedMinute,
+                    isAm = isAm,
+                    onHourChange = { selectedHour = it },
+                    onMinuteChange = { selectedMinute = it },
+                    onAmPmChange = { isAm = it }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val displayHour = when {
+                            selectedHour == 0 -> 12
+                            selectedHour > 12 -> selectedHour - 12
+                            else -> selectedHour
+                        }
+                        val amPm = if (isAm) "AM" else "PM"
+                        val formattedTime = String.format("%02d:%02d %s", displayHour, selectedMinute, amPm)
+                        onTimeSelected(formattedTime)
+                        showPicker = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = LeadPrimary
+                    )
+                ) {
+                    Text("OK", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showPicker = false },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = Color(0xFF6B7280)
+                    )
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@SuppressLint("DefaultLocale")
+@Composable
+fun CustomTimePicker(
+    palette: TimePickerPalette,
+    hour: Int,
+    minute: Int,
+    isAm: Boolean,
+    onHourChange: (Int) -> Unit,
+    onMinuteChange: (Int) -> Unit,
+    onAmPmChange: (Boolean) -> Unit
+) {
+    val tokens = LocalAppTokens.current
+    val itemHeight = tokens.fieldHeight
+    val wheelHeight = itemHeight * 4.5f
+    val rowHeight = itemHeight * 6.3f
+
+    val hourOptions = (1..12).toList()
+    val minuteOptions = (0..59).map { String.format("%02d", it) }
+
+    val hourRepeatCount = 1000
+    val minuteRepeatCount = 1000
+    val totalHourItems = hourOptions.size * hourRepeatCount
+    val totalMinuteItems = minuteOptions.size * minuteRepeatCount
+
+    val displayHour = when {
+        hour == 0 -> 12
+        hour > 12 -> hour - 12
+        else -> hour
+    }
+    val displayMinute = String.format("%02d", minute)
+
+    val initialHourIndex = remember {
+        (hourRepeatCount / 2) * hourOptions.size + hourOptions.indexOf(displayHour).coerceAtLeast(0)
+    }
+    val initialMinuteIndex = remember {
+        (minuteRepeatCount / 2) * minuteOptions.size + minuteOptions.indexOf(displayMinute).coerceAtLeast(0)
+    }
+
+    val hourScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialHourIndex)
+    val minuteScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialMinuteIndex)
+
+    val hourCenterIndex by remember {
+        derivedStateOf {
+            val layoutInfo = hourScrollState.layoutInfo
+            val center = layoutInfo.viewportEndOffset / 2
+            val visibleItems = layoutInfo.visibleItemsInfo
+            val closest = visibleItems.minByOrNull {
+                val itemCenter = (it.offset + it.size / 2)
+                kotlin.math.abs(itemCenter - center)
+            }
+            closest?.index ?: 0
+        }
+    }
+
+    val minuteCenterIndex by remember {
+        derivedStateOf {
+            val layoutInfo = minuteScrollState.layoutInfo
+            val center = layoutInfo.viewportEndOffset / 2
+            val visibleItems = layoutInfo.visibleItemsInfo
+            val closest = visibleItems.minByOrNull {
+                val itemCenter = (it.offset + it.size / 2)
+                kotlin.math.abs(itemCenter - center)
+            }
+            closest?.index ?: 0
+        }
+    }
+
+    LaunchedEffect(hourCenterIndex) {
+        if (hourCenterIndex in 0 until totalHourItems) {
+            val newHour = hourOptions[hourCenterIndex % hourOptions.size]
+            val hour24 = when {
+                newHour == 12 && isAm -> 0
+                newHour == 12 && !isAm -> 12
+                !isAm -> newHour + 12
+                else -> newHour
+            }
+            onHourChange(hour24)
+        }
+    }
+
+    LaunchedEffect(minuteCenterIndex) {
+        if (minuteCenterIndex in 0 until totalMinuteItems) {
+            onMinuteChange(minuteOptions[minuteCenterIndex % minuteOptions.size].toInt())
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(rowHeight)
+            .padding(vertical = tokens.screenPadding * 0.5f),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // --- Hour wheel ---
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Hour", fontSize = tokens.caption, color = palette.subtext, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(tokens.screenPadding * 0.25f))
+
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .height(wheelHeight)) {
+                // Highlight band behind the centered/selected item
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight)
+                        .align(Alignment.Center)
+                        .background(
+                            palette.accentSoft,
+                            RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                        )
+                )
+
+                LazyColumn(
+                    state = hourScrollState,
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
+                        lazyListState = hourScrollState
+                    )
+                ) {
+                    items(totalHourItems) { i ->
+                        val h = hourOptions[i % hourOptions.size]
+                        val isSelected = i == hourCenterIndex
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(itemHeight)
+                                .padding(horizontal = tokens.screenPadding * 0.5f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = String.format("%02d", h),
+                                fontSize = if (isSelected) tokens.h1 else tokens.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) palette.accent else palette.subtext
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Text(":", fontSize = tokens.h1, fontWeight = FontWeight.Bold, color = palette.text, modifier = Modifier.padding(horizontal = tokens.screenPadding * 0.25f))
+
+        // --- Minute wheel ---
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Minute", fontSize = tokens.caption, color = palette.subtext, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(tokens.screenPadding * 0.25f))
+
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .height(wheelHeight)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight)
+                        .align(Alignment.Center)
+                        .background(
+                            palette.accentSoft,
+                            RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                        )
+                )
+
+                LazyColumn(
+                    state = minuteScrollState,
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
+                        lazyListState = minuteScrollState
+                    )
+                ) {
+                    items(totalMinuteItems) { i ->
+                        val m = minuteOptions[i % minuteOptions.size]
+                        val isSelected = i == minuteCenterIndex
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(itemHeight)
+                                .padding(horizontal = tokens.screenPadding * 0.5f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = m,
+                                fontSize = if (isSelected) tokens.h1 else tokens.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) palette.accent else palette.subtext
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- AM/PM toggle ---
+        Column(
+            modifier = Modifier
+                .weight(0.8f)
+                .padding(start = tokens.screenPadding * 0.5f),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("AM/PM", fontSize = tokens.caption, color = palette.subtext, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(tokens.screenPadding * 0.25f))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(wheelHeight)
+                    .padding(vertical = tokens.screenPadding * 1.25f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight)
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                        .background(if (isAm) palette.accent else Color.Transparent)
+                        .clickable { onAmPmChange(true) }
+                        .padding(tokens.screenPadding * 0.5f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "AM",
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = if (isAm) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isAm) palette.onAccent else palette.subtext
+                    )
+                }
+
+                Spacer(Modifier.height(tokens.screenPadding * 0.5f))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight)
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                        .background(if (!isAm) palette.accent else Color.Transparent)
+                        .clickable { onAmPmChange(false) }
+                        .padding(tokens.screenPadding * 0.5f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "PM",
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = if (!isAm) FontWeight.Bold else FontWeight.Normal,
+                        color = if (!isAm) palette.onAccent else palette.subtext
+                    )
+                }
+            }
         }
     }
 }

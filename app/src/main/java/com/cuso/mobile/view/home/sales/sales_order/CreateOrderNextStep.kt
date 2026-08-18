@@ -58,6 +58,7 @@ import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.viewmodel.SalesViewModel
 
@@ -74,6 +75,7 @@ private val TextSecond = Color(0xFF6B7280)
 
 // ─── Data holder ──────────────────────────────────────────────────────────────
 data class OrderReviewData(
+    val leadId: String? = null,
     val orderId: String? = null,           
     val customerId: String,
     val branchId: String? = null,
@@ -172,6 +174,7 @@ fun CreateOrderNextStep(
 
     //   Build the request once, reused by the "Save Order" bottom bar button
     fun buildAndSaveOrder() {
+        android.util.Log.d("ORDER_DEBUG", "orderData.leadId = ${orderData.leadId}")
         val garmentRequests = orderData.garments.map { g ->
             val price = unitPrices[g.id]?.toDoubleOrNull() ?: 0.0
 
@@ -221,6 +224,7 @@ fun CreateOrderNextStep(
         }
 
         val request = CreateOrderRequest(
+            leadId = orderData.leadId,
             customer = CustomerRequest(
                 name = orderData.fullName,
                 mobile = "${orderData.countryCode.removePrefix("+")}${orderData.phone}",
@@ -282,32 +286,12 @@ fun CreateOrderNextStep(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(SectionBg)
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
-                    Text(
-                        "Create Order",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
-                    )
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = blackTitle,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) { onBack()
-                            salesViewModel.clearAllSelectedGarments()}
-                    )
+                    TitleBar("Create Order", onClose = onBack)
                 }
                 HorizontalDivider(color = BorderColor)
             }
         },
-        //  
         containerColor = Color.Transparent
 
     ) { padding ->

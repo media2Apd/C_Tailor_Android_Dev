@@ -227,10 +227,12 @@ class SalesRepository @Inject constructor(
 
             fun String.asTextBody(): RequestBody =
                 this.toRequestBody("text/plain".toMediaTypeOrNull())
+            val leadIdBody = request.leadId?.asTextBody()
 
             val response = api.createOrder(
                 token = accessToken,
                 csrfToken = csrfToken,
+                leadId = leadIdBody,
                 customer = gson.toJson(request.customer).asTextBody(),
                 branch = request.branch.asTextBody(),
                 wearerType = request.wearerType?.asTextBody(),

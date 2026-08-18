@@ -47,9 +47,9 @@ import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DatePickerField
-import com.cuso.mobile.view.home.FormDropdown
-import com.cuso.mobile.view.home.FormLabel
-import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.BackFabButton
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.PlanLimitDialog
@@ -186,7 +186,6 @@ fun JournalEntryFormScreen(
 //   NEW — Plan gating for document upload
     var showPlanLimitDialog by remember { mutableStateOf(false) }
 
-// TODO: replace this with the real plan coming from your org/session state
 // e.g. organizationViewModel.organization.plan?.name
     val currentPlanName = "starter" // "starter" | "light" | "pro" | "premium" etc.
     val isUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
@@ -227,8 +226,6 @@ fun JournalEntryFormScreen(
     LaunchedEffect(Unit) {
         branchViewModel.loadBranches()
         financeViewModel.fetchChartOfAccounts()
-        // TODO — call financeViewModel.fetchNextJournalNo() when that API exists
-        // TODO — call financeViewModel.fetchActiveFinancialYear() when that API exists
     }
 
     LaunchedEffect(branches) {
@@ -734,7 +731,6 @@ fun JournalEntryFormScreen(
             onDismiss = { showPlanLimitDialog = false },
             onUpgrade = {
                 showPlanLimitDialog = false
-                // TODO: navigate to your subscription/upgrade screen
             }
         )
     }

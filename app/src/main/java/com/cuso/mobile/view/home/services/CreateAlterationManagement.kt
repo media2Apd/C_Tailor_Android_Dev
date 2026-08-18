@@ -374,7 +374,7 @@ fun CreateAlterationManagementScreen(
                         }
                     }
                     OutlinedButton(
-                        onClick = { /* TODO: change trial date */ },
+                        onClick = { },
                         shape = adaptiveCorner,
                         border = BorderStroke(1.dp, Accent),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
@@ -476,7 +476,7 @@ fun CreateAlterationManagementScreen(
                 Spacer(Modifier.height(smallGap))
 
                 OutlinedButton(
-                    onClick = { /* TODO: navigate to tailor profile */ },
+                    onClick = {  },
                     modifier = Modifier.fillMaxWidth(),
                     shape = adaptiveCorner,
                     border = BorderStroke(1.dp, Accent),

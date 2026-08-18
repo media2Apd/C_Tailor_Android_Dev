@@ -13,7 +13,7 @@ data class ViewOneLeadData(
     val customerType: String,
     val person: PersonData?,
     val enquiryType: String,
-    val garmentCategory: List<String>?,
+    val garmentCategory: List<GarmentCategory>?,
     val estimatedQuantity: Int?,
     val source: String,
     val leadOwner: AssignedStaffData? = null,   //    — same shape as assignedStaff ({ _id })
@@ -33,7 +33,8 @@ data class ViewOneLeadData(
     val createdAt: String,
     val updatedAt: String,
     val updatedBy: String?,
-    val __v: Int
+    val __v: Int,
+    val contact: ContactData? = null
 )
 
 data class StatusData(
@@ -50,12 +51,12 @@ data class PersonData(
     val dob: String
 )
 
-//data class ContactData(
-//    val address: String,
-//    val area: String,
-//    val city: String,
-//    val preferredContactMethod: String
-//)
+data class ContactData(
+    val address: String,
+    val area: String,
+    val city: String,
+    val preferredContactMethod: String
+)
 
 data class BudgetRangeData(
     val min: Int,

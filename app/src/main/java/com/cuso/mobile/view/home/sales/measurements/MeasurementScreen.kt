@@ -32,7 +32,12 @@ import androidx.navigation.NavController
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.greenBg
+import com.cuso.mobile.ui.theme.greentext
+import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.ui.theme.yellowBg
+import com.cuso.mobile.ui.theme.yellowtext
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.DataCard
@@ -111,7 +116,7 @@ fun MeasurementsScreen(
                     accentColor = BluePrimary,
                     borderColor = BorderGray,
                     textSecondaryColor = TextSecondary,
-                    onFilterClick = { /* TODO: open filter drawer */ }
+                    onFilterClick = {  }
                 )
             }
 
@@ -250,28 +255,37 @@ fun MeasurementsScreen(
                             ) {
                                 Column(modifier = Modifier.fillMaxWidth()) {
                                     pagedList.forEach { item ->
-                                        val (badgeText, badgeColor) = if (item.type == "Corporate")
-                                            "Corporate" to Color(0xFFD97706)
-                                        else
-                                            "Individual" to Color(0xFF3B3BF9)
+                                        // item.pending is a String, so parse it to Double first (strip commas if any)
+                                        val pendingAmount = item.pending.replace(",", "").toDoubleOrNull() ?: 0.0
+
+                                        val isPaid = pendingAmount <= 0.0
+
+                                        // Build badge text and colors dynamically based on the pending amount
+                                        val badgeText = if (isPaid) {
+                                            "₹${formatAmount(pendingAmount)} Paid"
+                                        } else {
+                                            "₹${formatAmount(pendingAmount)} Pending"
+                                        }
+
+                                        val badgeTextColor = if (isPaid) greentext else yellowtext
+                                        val badgeBgColor = if (isPaid) greenBg else yellowBg
 
                                         DataCard(
                                             item = item,
                                             eyebrowText = "Order ID : Order id not found",
-                                            topBadgeText = item.pending,
-                                            topBadgeTextColor = badgeColor,
-                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
+                                            topBadgeText = badgeText,
+                                            topBadgeTextColor = badgeTextColor,
+                                            topBadgeBgColor = badgeBgColor,
+                                            topBadgeShowDot = false,
+                                            showActionsInHeader = true,
                                             title = item.customerName,
                                             footerFields = listOf(
-                                                DataCardField(text = item.contact),
-                                                DataCardField(text = item.garments),
-                                                DataCardField(text = "Updated • ${item.lastUpdated}"),
-
+                                                DataCardField(text = item.contact, textColor = mutedText),
+                                                DataCardField(text = item.garments, textColor = mutedText),
+                                                DataCardField(text = "Updated • ${item.lastUpdated}", textColor = mutedText),
                                             ),
                                             actions = listOf(
                                                 MenuAction("View", Icons.Default.Visibility) {},
-                                                MenuAction("Edit", Icons.Default.Edit) {},
-                                                MenuAction("Delete", Icons.Default.Delete, tint = Color(0xFFF44336), textColor = Color(0xFFF44336)) {}
                                             )
                                         )
                                     }
@@ -283,4 +297,9 @@ fun MeasurementsScreen(
             }
         }
     }
+}
+
+// Formats a number with comma separators, no decimal places (e.g. 2801.0 -> "2,801")
+fun formatAmount(amount: Double): String {
+    return "%,.0f".format(amount)
 }

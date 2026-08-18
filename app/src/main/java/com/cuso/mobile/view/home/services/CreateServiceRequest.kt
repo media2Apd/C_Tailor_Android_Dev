@@ -48,9 +48,9 @@ import com.cuso.mobile.view.composable.DashedUploadBox
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.SelectableChipRow
 import com.cuso.mobile.view.composable.rememberFilePickerLauncher
-import com.cuso.mobile.view.home.FormDropdown
-import com.cuso.mobile.view.home.FormLabel
-import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.home.inventory.FormTextArea
 import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TrailingFabAction

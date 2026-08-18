@@ -53,19 +53,27 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.cuso.mobile.adaptive_screen.AppDesignTokens
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationSettings
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.BackFabButton
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.CountryAndStatePicker
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
+import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.SettingsTabs
+import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TabItem
+import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.organization.OrgLabel
 import com.cuso.mobile.view.organization.OrgOptions
 import com.cuso.mobile.view.organization.OrgOptions.companySizes
@@ -77,7 +85,9 @@ import kotlin.math.roundToInt
 import java.io.File
 
 // ─────────────────────────────────────────────────────────────
-// Design tokens
+// Design tokens (static colors only — sizes now come from
+// LocalAppTokens.current so the screen adapts across
+// phone / foldable / tablet / expanded widths)
 // ─────────────────────────────────────────────────────────────
 private object OrgTheme {
     val PrimaryLight = Color(0xFFEEF0FF)
@@ -90,6 +100,32 @@ private object OrgTheme {
     val InputBg = whiteBg
 }
 
+// Max readable width for form content on large screens (tablet / expanded).
+// Keeps long forms from stretching edge-to-edge like a phone sheet.
+private val ADAPTIVE_CONTENT_MAX_WIDTH = 640.dp
+
+// ─────────────────────────────────────────────────────────────
+// Reusable wrapper: centers content and caps its width on
+// tablet/expanded layouts, stays full-bleed on phones.
+// ─────────────────────────────────────────────────────────────
+@Composable
+private fun AdaptiveWidthContainer(
+    tokens: AppDesignTokens,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .then(
+                    if (tokens.isTablet) Modifier.widthIn(max = ADAPTIVE_CONTENT_MAX_WIDTH) else Modifier
+                ),
+            content = content
+        )
+    }
+}
+
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun SettingsScreen(
@@ -98,6 +134,7 @@ fun SettingsScreen(
     onBack: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    val tokens = LocalAppTokens.current
 
     // ── Define tabs with icons ──
     val tabs = listOf(
@@ -137,22 +174,27 @@ fun SettingsScreen(
             }
         }
 
-        // ── Reusable Tabs ──
-        SettingsTabs(
-            tabs = tabs,
-            selectedIndex = selectedTab,
-            onTabSelected = { selectedTab = it },
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            containerColor = whiteBg,
-            selectedBackgroundColor = Color(0xFFEEF0FF),
-            selectedTextColor = Primary,
-            unselectedTextColor = TextSecondary,
-            selectedIconColor = Primary,
-            unselectedIconColor = TextSecondary,
-            borderColor = Color(0xFFE5E7EB),
-            cornerRadius = 12.dp,
-            selectedCornerRadius = 10.dp
-        )
+        // ── Reusable Tabs (centered + width-capped on tablet) ──
+        AdaptiveWidthContainer(tokens = tokens) {
+            SettingsTabs(
+                tabs = tabs,
+                selectedIndex = selectedTab,
+                onTabSelected = { selectedTab = it },
+                modifier = Modifier.padding(
+                    horizontal = tokens.screenPadding,
+                    vertical = tokens.extraPadding
+                ),
+                containerColor = whiteBg,
+                selectedBackgroundColor = Color(0xFFEEF0FF),
+                selectedTextColor = Primary,
+                unselectedTextColor = TextSecondary,
+                selectedIconColor = Primary,
+                unselectedIconColor = TextSecondary,
+                borderColor = Color(0xFFE5E7EB),
+                cornerRadius = 12.dp,
+                selectedCornerRadius = 10.dp
+            )
+        }
 
         when (selectedTab) {
             0 -> ProfileTab(
@@ -198,18 +240,19 @@ private fun SectionHeader(
     isEditing: Boolean,
     onEditClick: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(whiteBg)
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = tokens.screenPadding, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = OrgTheme.TextPrimary)
+            Text(title, fontSize = tokens.h2, fontWeight = FontWeight.SemiBold, color = OrgTheme.TextPrimary)
             Spacer(Modifier.height(2.dp))
-            Text(subtitle, fontSize = 13.sp, color = TextSecondary)
+            Text(subtitle, fontSize = tokens.bodySmall, color = TextSecondary)
         }
         if (!isEditing) {
             Row(
@@ -220,10 +263,10 @@ private fun SectionHeader(
                     Icons.Default.Edit,
                     contentDescription = "Edit",
                     tint = Primary,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(tokens.iconSize * 0.8f)
                 )
                 Spacer(Modifier.width(4.dp))
-                Text("Edit", color = Primary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text("Edit", color = Primary, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -234,9 +277,10 @@ private fun SectionHeader(
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun OrgInfoRow(label: String, value: String) {
+    val tokens = LocalAppTokens.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = OrgTheme.mutedText)
-        Text(text = value.ifEmpty { "-" }, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = OrgTheme.TextPrimary)
+        Text(text = label, fontSize = tokens.label, fontWeight = FontWeight.Medium, color = OrgTheme.mutedText)
+        Text(text = value.ifEmpty { "-" }, fontSize = tokens.bodyLarge, fontWeight = FontWeight.Medium, color = OrgTheme.TextPrimary)
     }
 }
 
@@ -267,11 +311,14 @@ fun EditableOrgInfoRow(
 // ─────────────────────────────────────────────────────────────
 @Composable
 private fun LogoDisplayView(pictureUrl: String?) {
+    val tokens = LocalAppTokens.current
+    val logoSize = if (tokens.isTablet) 120.dp else 96.dp
+
     Box(
         modifier = Modifier
-            .size(96.dp)
-            .border(1.5.dp, OrgTheme.Border, RoundedCornerShape(10.dp))
-            .clip(RoundedCornerShape(10.dp)),
+            .size(logoSize)
+            .border(1.5.dp, OrgTheme.Border, RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
+            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.65f)),
         contentAlignment = Alignment.Center
     ) {
         if (!pictureUrl.isNullOrBlank()) {
@@ -283,9 +330,9 @@ private fun LogoDisplayView(pictureUrl: String?) {
             )
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.Business, contentDescription = null, tint = OrgTheme.mutedText, modifier = Modifier.size(32.dp))
+                Icon(Icons.Default.Business, contentDescription = null, tint = OrgTheme.mutedText, modifier = Modifier.size(tokens.iconSize * 1.6f))
                 Spacer(Modifier.height(4.dp))
-                Text("No Logo", color = OrgTheme.mutedText, fontSize = 12.sp)
+                Text("No Logo", color = OrgTheme.mutedText, fontSize = tokens.label)
             }
         }
     }
@@ -300,12 +347,15 @@ private fun LogoDisplayEdit(
     selectedImageUri: Uri?,
     onClick: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+    val logoSize = if (tokens.isTablet) 88.dp else 72.dp
+
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
-                .size(72.dp)
-                .border(1.5.dp, Primary.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                .clip(RoundedCornerShape(10.dp))
+                .size(logoSize)
+                .border(1.5.dp, Primary.copy(alpha = 0.5f), RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
+                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
@@ -332,21 +382,21 @@ private fun LogoDisplayEdit(
                             Icons.Default.CameraAlt,
                             contentDescription = null,
                             tint = Primary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(tokens.iconSize)
                         )
                         Spacer(Modifier.height(2.dp))
-                        Text("Upload Logo", color = Primary, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                        Text("Upload Logo", color = Primary, fontSize = tokens.label, fontWeight = FontWeight.Medium)
                     }
                 }
             }
         }
         Spacer(Modifier.width(12.dp))
         Column {
-            Text("Organization Logo", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = OrgTheme.TextPrimary)
+            Text("Organization Logo", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = OrgTheme.TextPrimary)
             Spacer(Modifier.height(2.dp))
             Text(
                 "Recommended size: 200*200px, PNG or JPG",
-                fontSize = 12.sp,
+                fontSize = tokens.label,
                 color = OrgTheme.TextSecondary
             )
         }
@@ -354,44 +404,55 @@ private fun LogoDisplayEdit(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Fixed bottom footer
+//  bottom footer
 // ─────────────────────────────────────────────────────────────
+
 @Composable
 private fun EditFooter(
     isSaving: Boolean,
     onCancel: () -> Unit,
     onSave: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
+    // Using Row instead of Box to avoid the internal fillMaxSize() inside StepNavigationFab
+    // from taking up the whole screen and hiding the content.
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(whiteBg)
-            .border(width = 1.dp, color = OrgTheme.Divider)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = tokens.screenPadding, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        OutlinedButton(
-            onClick = onCancel,
-            enabled = !isSaving,
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = OrgTheme.TextSecondary),
-            modifier = Modifier.weight(1f).height(46.dp)
-        ) {
-            Text("Cancel", fontSize = 15.sp)
-        }
-        Button(
-            onClick = onSave,
-            enabled = !isSaving,
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Primary),
-            modifier = Modifier.weight(2f).height(46.dp)
-        ) {
-            if (isSaving) {
-                CirculerProgressIndicatorSmall()
-            } else {
-                Text("Save Changes", color = whiteBg, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-            }
-        }
+        // Left Button (Cancel)
+        StepNavigationFab(
+            modifier = Modifier.weight(1f),
+            showBack = true,
+            onBack = onCancel,
+            trailingAction = null, // Hide the right button
+            backLabel = "Cancel",
+            backEnabled = !isSaving,
+            showBackArrow = true,  // Show the left arrow as per image
+            showTrailingArrow = false
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Right Button (Save Changes)
+        StepNavigationFab(
+            modifier = Modifier.weight(1.5f), // Slightly wider than the left button
+            showBack = false, // Hide the left button
+            onBack = {},
+            trailingAction = TrailingFabAction.Next(
+                label = "Save Changes",
+                enabled = !isSaving,
+                onClick = onSave
+            ),
+            backLabel = "",
+            backEnabled = false,
+            showBackArrow = false,
+            showTrailingArrow = true // Show the right arrow as per image
+        )
     }
 }
 
@@ -422,6 +483,7 @@ fun ProfileTab(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val tokens = LocalAppTokens.current
 
     var isEditing by remember { mutableStateOf(false) }
     val uiState by viewModel.uiState.collectAsState()
@@ -499,151 +561,160 @@ fun ProfileTab(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(Primary_background),
-                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(whiteBg)
-                                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                            ) {
-                                SectionHeader(
-                                    title = "Organization Information",
-                                    subtitle = "Core details about your organization",
-                                    isEditing = isEditing,
-                                    onEditClick = { isEditing = true }
-                                )
+                            AdaptiveWidthContainer(tokens = tokens) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(whiteBg)
+                                        .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
+                                ) {
+                                    SectionHeader(
+                                        title = "Organization Information",
+                                        subtitle = "Core details about your organization",
+                                        isEditing = isEditing,
+                                        onEditClick = { isEditing = true }
+                                    )
+                                }
                             }
                             Spacer(Modifier.height(10.dp))
 
-                            Column(
-                                Modifier.fillMaxWidth()
-                                    .padding(horizontal = 12.dp)
-                                    .background(Primary_background)
-                            ) {
-                                if (isEditing) {
-                                    LogoDisplayEdit(
-                                        pictureUrl = org.organizationPicture,
-                                        selectedImageUri = selectedImageUri,
-                                        onClick = {
-                                            imagePickerLauncher.launch(
-                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                            )
+                            AdaptiveWidthContainer(tokens = tokens) {
+                                Column(
+                                    Modifier.fillMaxWidth()
+                                        .padding(horizontal = tokens.extraPadding)
+                                        .background(Primary_background)
+                                ) {
+                                    if (isEditing) {
+                                        LogoDisplayEdit(
+                                            pictureUrl = org.organizationPicture,
+                                            selectedImageUri = selectedImageUri,
+                                            onClick = {
+                                                imagePickerLauncher.launch(
+                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                                )
+                                            }
+                                        )
+                                        Spacer(Modifier.height(20.dp))
+
+                                        EditableOrgInfoRow("Organization Name", orgName) {
+                                            orgName = it
                                         }
-                                    )
-                                    Spacer(Modifier.height(20.dp))
+                                        Spacer(Modifier.height(16.dp))
 
-                                    EditableOrgInfoRow("Organization Name", orgName) {
-                                        orgName = it
-                                    }
-                                    Spacer(Modifier.height(16.dp))
+                                        // ── Organization Type - Using FormDropdown with OrgOptions.orgTypes ──
+                                        OrgLabel("Organization Type")
+                                        var orgTypeExpanded by remember { mutableStateOf(false) }
+                                        FormDropdown(
+                                            value = orgType,
+                                            expanded = orgTypeExpanded,
+                                            onExpandChange = { orgTypeExpanded = it },
+                                            options = OrgOptions.orgTypes,
+                                            onOptionSelected = { orgType = it },
+                                            isRequired = true
+                                        )
+                                        Spacer(Modifier.height(16.dp))
 
-                                    // ── Organization Type - Using FormDropdown with OrgOptions.orgTypes ──
-                                    OrgLabel("Organization Type")
-                                    var orgTypeExpanded by remember { mutableStateOf(false) }
-                                    FormDropdown(
-                                        value = orgType,
-                                        expanded = orgTypeExpanded,
-                                        onExpandChange = { orgTypeExpanded = it },
-                                        options = OrgOptions.orgTypes,
-                                        onOptionSelected = { orgType = it },
-                                        isRequired = true
-                                    )
-                                    Spacer(Modifier.height(16.dp))
+                                        // ── Business Type - Using FormDropdown with OrgOptions.businessTypes ──
+                                        OrgLabel("Business Type")
+                                        var businessTypeExpanded by remember { mutableStateOf(false) }
+                                        FormDropdown(
+                                            value = businessType,
+                                            expanded = businessTypeExpanded,
+                                            onExpandChange = { businessTypeExpanded = it },
+                                            options = OrgOptions.businessTypes,
+                                            onOptionSelected = { businessType = it },
+                                            isRequired = true
+                                        )
 
-                                    // ── Business Type - Using FormDropdown with OrgOptions.businessTypes ──
-                                    OrgLabel("Business Type")
-                                    var businessTypeExpanded by remember { mutableStateOf(false) }
-                                    FormDropdown(
-                                        value = businessType,
-                                        expanded = businessTypeExpanded,
-                                        onExpandChange = { businessTypeExpanded = it },
-                                        options = OrgOptions.businessTypes,
-                                        onOptionSelected = { businessType = it },
-                                        isRequired = true
-                                    )
+                                        Spacer(Modifier.height(24.dp))
+                                    } else {
+                                        LogoDisplayView(org.organizationPicture)
+                                        Spacer(Modifier.height(20.dp))
 
-                                    Spacer(Modifier.height(24.dp))
-                                } else {
-                                    LogoDisplayView(org.organizationPicture)
-                                    Spacer(Modifier.height(20.dp))
+                                        val rows = listOf(
+                                            "Organization Name" to org.name,
+                                            "Organization Type" to org.orgType,
+                                            "Business Type" to org.businessType,
+                                            "Business ID" to org.businessId,
+                                            "Email" to org.email,
+                                            "Mobile" to org.mobile,
+                                            "Plan " to (org.plan?.name ?: "plan not found"),
+                                            "Status" to org.status
+                                        )
+                                        rows.forEachIndexed { index, (label, value) ->
+                                            OrgInfoRow(label, value)
+                                            Spacer(Modifier.height(14.dp))
+                                            if (index != rows.lastIndex) {
+                                                HorizontalDivider(color = OrgTheme.Divider)
 
-                                    val rows = listOf(
-                                        "Organization Name" to org.name,
-                                        "Organization Type" to org.orgType,
-                                        "Business Type" to org.businessType,
-                                        "Business ID" to org.businessId,
-                                        "Email" to org.email,
-                                        "Mobile" to org.mobile,
-                                        "Plan " to (org.plan?.name ?: "plan not found"),
-                                        "Status" to org.status
-                                    )
-                                    rows.forEachIndexed { index, (label, value) ->
-                                        OrgInfoRow(label, value)
-                                        Spacer(Modifier.height(14.dp))
-                                        if (index != rows.lastIndex) {
-                                            HorizontalDivider(color = OrgTheme.Divider)
-
+                                            }
                                         }
-                                    }
 
+
+                                    }
 
                                 }
-
                             }
                         }
                         item {
-                            Column(
-                                Modifier.fillMaxWidth()
-                            ) {
-                                if (stats != null) {
-                                    Spacer(Modifier.height(8.dp))
-                                    HorizontalDivider(color = OrgTheme.Divider)
+                            AdaptiveWidthContainer(tokens = tokens) {
+                                Column(
+                                    Modifier.fillMaxWidth()
+                                ) {
+                                    if (stats != null) {
+                                        Spacer(Modifier.height(8.dp))
+                                        HorizontalDivider(color = OrgTheme.Divider)
 
-                                    val plan = state.data.organization.plan
-                                    Row(
-                                        Modifier.fillMaxWidth()
-                                            .background(whiteBg)
-                                            .padding(horizontal = 20.dp, vertical = 10.dp)
-                                    ) {
-                                        Text(
-                                            "Subscription Usage",
-                                            fontSize = 17.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = OrgTheme.TextPrimary
-                                        )
-                                    }
-                                    Spacer(Modifier.height(16.dp))
+                                        val plan = state.data.organization.plan
+                                        Row(
+                                            Modifier.fillMaxWidth()
+                                                .background(whiteBg)
+                                                .padding(horizontal = tokens.screenPadding + 4.dp, vertical = 10.dp)
+                                        ) {
+                                            Text(
+                                                "Subscription Usage",
+                                                fontSize = tokens.h2,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = OrgTheme.TextPrimary
+                                            )
+                                        }
+                                        Spacer(Modifier.height(16.dp))
 
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        SubscriptionRing(
-                                            modifier = Modifier.weight(1f),
-                                            label = "Orders",
-                                            used = 0,
-                                            limit = plan?.orderLimit ?: 100
-                                        )
-                                        SubscriptionRing(
-                                            modifier = Modifier.weight(1f),
-                                            label = "Employees",
-                                            used = org.activeMembers,
-                                            limit = plan?.employeeLimit
-                                                ?: org.totalMembers.coerceAtLeast(1)
-                                        )
-                                        SubscriptionRing(
-                                            modifier = Modifier.weight(1f),
-                                            label = "Branches",
-                                            used = stats.totalBranches,
-                                            limit = plan?.branchLimit
-                                                ?: stats.totalBranches.coerceAtLeast(1)
-                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = tokens.extraPadding),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            SubscriptionRing(
+                                                modifier = Modifier.weight(1f),
+                                                label = "Orders",
+                                                used = 0,
+                                                limit = plan?.orderLimit ?: 100
+                                            )
+                                            SubscriptionRing(
+                                                modifier = Modifier.weight(1f),
+                                                label = "Employees",
+                                                used = org.activeMembers,
+                                                limit = plan?.employeeLimit
+                                                    ?: org.totalMembers.coerceAtLeast(1)
+                                            )
+                                            SubscriptionRing(
+                                                modifier = Modifier.weight(1f),
+                                                label = "Branches",
+                                                used = stats.totalBranches,
+                                                limit = plan?.branchLimit
+                                                    ?: stats.totalBranches.coerceAtLeast(1)
+                                            )
+                                        }
+                                        Spacer(Modifier.height(35.dp))
+                                    } else {
+                                        Spacer(Modifier.height(8.dp))
                                     }
-                                    Spacer(Modifier.height(35.dp))
-                                } else {
-                                    Spacer(Modifier.height(8.dp))
                                 }
                             }
                         }
@@ -690,6 +761,7 @@ fun LocalizationTab(
     val uiState by viewModel.uiState.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+    val tokens = LocalAppTokens.current
 
     var country by remember { mutableStateOf("") }
     var state by remember { mutableStateOf("") }
@@ -757,155 +829,162 @@ fun LocalizationTab(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Primary_background)
+                    .background(Primary_background),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(whiteBg)
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        SectionHeader(
-                            title = "Localization Settings",
-                            subtitle = "Regional preferences for your organization",
-                            isEditing = isEditing,
-                            onEditClick = { isEditing = true }
-                        )
+                    AdaptiveWidthContainer(tokens = tokens) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(whiteBg)
+                                .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
+                        ) {
+                            SectionHeader(
+                                title = "Localization Settings",
+                                subtitle = "Regional preferences for your organization",
+                                isEditing = isEditing,
+                                onEditClick = { isEditing = true }
+                            )
+                        }
                     }
                     Spacer(Modifier.height(18.dp))
 
-                    Column(
-                        Modifier.fillMaxWidth()
-                            .padding(horizontal = 12.dp)
-                            .background(Primary_background)
-                    ) {
-                        when {
-                            isLoading -> {
-                                Box(
-                                    Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CirculerProgressIndicatorSmall()
+                    AdaptiveWidthContainer(tokens = tokens) {
+                        Column(
+                            Modifier.fillMaxWidth()
+                                .padding(horizontal = tokens.extraPadding)
+                                .background(Primary_background)
+                        ) {
+                            when {
+                                isLoading -> {
+                                    Box(
+                                        Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CirculerProgressIndicatorSmall()
+                                    }
                                 }
-                            }
 
-                            errorMessage != null -> {
-                                Text(
-                                    errorMessage,
-                                    color = Color.Red,
-                                    modifier = Modifier.padding(vertical = 16.dp)
-                                )
-                            }
-
-                            settings != null -> {
-                                if (isEditing) {
-                                    CountryAndStatePicker(
-                                        selectedCountry = country,
-                                        selectedState = state,
-                                        onCountryChange = { country = it },
-                                        onStateChange = { state = it }
+                                errorMessage != null -> {
+                                    Text(
+                                        errorMessage,
+                                        color = Color.Red,
+                                        fontSize = tokens.bodyMedium,
+                                        modifier = Modifier.padding(vertical = 16.dp)
                                     )
-                                    Spacer(Modifier.height(16.dp))
+                                }
 
-                                    EditableOrgInfoRow("City", city) { city = it }
-                                    Spacer(Modifier.height(16.dp))
+                                settings != null -> {
+                                    if (isEditing) {
+                                        CountryAndStatePicker(
+                                            selectedCountry = country,
+                                            selectedState = state,
+                                            onCountryChange = { country = it },
+                                            onStateChange = { state = it }
+                                        )
+                                        Spacer(Modifier.height(16.dp))
 
-                                    EditableOrgInfoRow("Postal Code", postalCode) {
-                                        postalCode = it
-                                    }
-                                    Spacer(Modifier.height(16.dp))
+                                        EditableOrgInfoRow("City", city) { city = it }
+                                        Spacer(Modifier.height(16.dp))
 
-                                    EditableOrgInfoRow(
-                                        "Address",
-                                        address,
-                                        isMultiline = true
-                                    ) { address = it }
-                                    Spacer(Modifier.height(16.dp))
-
-                                    // ── Timezone - Using FormDropdown with OrgOptions.timezones ──
-                                    OrgLabel("Timezone")
-                                    var timezoneExpanded by remember { mutableStateOf(false) }
-                                    FormDropdown(
-                                        value = timezone,
-                                        expanded = timezoneExpanded,
-                                        onExpandChange = { timezoneExpanded = it },
-                                        options = OrgOptions.timezones,
-                                        onOptionSelected = { timezone = it }
-                                    )
-                                    Spacer(Modifier.height(16.dp))
-
-                                    // ── Currency - Using FormDropdown with OrgOptions.currencies ──
-                                    OrgLabel("Default Currency")
-                                    var currencyExpanded by remember { mutableStateOf(false) }
-                                    FormDropdown(
-                                        value = currency,
-                                        expanded = currencyExpanded,
-                                        onExpandChange = { currencyExpanded = it },
-                                        options = OrgOptions.currencies,
-                                        onOptionSelected = { currency = it }
-                                    )
-                                    Spacer(Modifier.height(16.dp))
-
-                                    // ── Language - Using FormDropdown with OrgOptions.languages ──
-                                    OrgLabel("Language")
-                                    var languageExpanded by remember { mutableStateOf(false) }
-                                    FormDropdown(
-                                        value = language,
-                                        expanded = languageExpanded,
-                                        onExpandChange = { languageExpanded = it },
-                                        options = OrgOptions.languages,
-                                        onOptionSelected = { language = it }
-                                    )
-                                    Spacer(Modifier.height(16.dp))
-
-                                    EditableOrgInfoRow("Portal Name", portalName) {
-                                        portalName = it
-                                    }
-                                    Spacer(Modifier.height(16.dp))
-
-                                    // ── Company Size - Using FormDropdown with OrgOptions.companySizes ──
-                                    OrgLabel("Company Size")
-                                    var companySizeExpanded by remember { mutableStateOf(false) }
-                                    FormDropdown(
-                                        value = companySize,
-                                        expanded = companySizeExpanded,
-                                        onExpandChange = { companySizeExpanded = it },
-                                        options = companySizes,
-                                        onOptionSelected = { companySize = it }
-                                    )
-                                    Spacer(Modifier.height(24.dp))
-                                } else {
-                                    val rows = listOf(
-                                        "Country" to settings.country,
-                                        "State" to settings.state,
-                                        "City" to settings.city,
-                                        "Postal Code" to settings.pincode,
-                                        "Address" to settings.address,
-                                        "Timezone" to settings.timezone,
-                                        "Default Currency" to settings.currency,
-                                        "Language" to settings.language,
-                                        "Portal Name" to settings.portalName,
-                                        "Company Size" to settings.companySize
-                                    )
-                                    rows.forEachIndexed { index, (label, value) ->
-                                        OrgInfoRow(label, value)
-                                        Spacer(Modifier.height(14.dp))
-                                        if (index != rows.lastIndex) {
-                                            HorizontalDivider(color = OrgTheme.Divider)
-                                            Spacer(Modifier.height(14.dp))
+                                        EditableOrgInfoRow("Postal Code", postalCode) {
+                                            postalCode = it
                                         }
-                                    }
-                                    Spacer(Modifier.height(8.dp))
-                                }
-                            }
+                                        Spacer(Modifier.height(16.dp))
 
-                            else -> {
-                                Text(
-                                    "No data available",
-                                    color = Color.Gray,
-                                    modifier = Modifier.padding(vertical = 16.dp)
-                                )
+                                        EditableOrgInfoRow(
+                                            "Address",
+                                            address,
+                                            isMultiline = true
+                                        ) { address = it }
+                                        Spacer(Modifier.height(16.dp))
+
+                                        // ── Timezone - Using FormDropdown with OrgOptions.timezones ──
+                                        OrgLabel("Timezone")
+                                        var timezoneExpanded by remember { mutableStateOf(false) }
+                                        FormDropdown(
+                                            value = timezone,
+                                            expanded = timezoneExpanded,
+                                            onExpandChange = { timezoneExpanded = it },
+                                            options = OrgOptions.timezones,
+                                            onOptionSelected = { timezone = it }
+                                        )
+                                        Spacer(Modifier.height(16.dp))
+
+                                        // ── Currency - Using FormDropdown with OrgOptions.currencies ──
+                                        OrgLabel("Default Currency")
+                                        var currencyExpanded by remember { mutableStateOf(false) }
+                                        FormDropdown(
+                                            value = currency,
+                                            expanded = currencyExpanded,
+                                            onExpandChange = { currencyExpanded = it },
+                                            options = OrgOptions.currencies,
+                                            onOptionSelected = { currency = it }
+                                        )
+                                        Spacer(Modifier.height(16.dp))
+
+                                        // ── Language - Using FormDropdown with OrgOptions.languages ──
+                                        OrgLabel("Language")
+                                        var languageExpanded by remember { mutableStateOf(false) }
+                                        FormDropdown(
+                                            value = language,
+                                            expanded = languageExpanded,
+                                            onExpandChange = { languageExpanded = it },
+                                            options = OrgOptions.languages,
+                                            onOptionSelected = { language = it }
+                                        )
+                                        Spacer(Modifier.height(16.dp))
+
+                                        EditableOrgInfoRow("Portal Name", portalName) {
+                                            portalName = it
+                                        }
+                                        Spacer(Modifier.height(16.dp))
+
+                                        // ── Company Size - Using FormDropdown with OrgOptions.companySizes ──
+                                        OrgLabel("Company Size")
+                                        var companySizeExpanded by remember { mutableStateOf(false) }
+                                        FormDropdown(
+                                            value = companySize,
+                                            expanded = companySizeExpanded,
+                                            onExpandChange = { companySizeExpanded = it },
+                                            options = companySizes,
+                                            onOptionSelected = { companySize = it }
+                                        )
+                                        Spacer(Modifier.height(24.dp))
+                                    } else {
+                                        val rows = listOf(
+                                            "Country" to settings.country,
+                                            "State" to settings.state,
+                                            "City" to settings.city,
+                                            "Postal Code" to settings.pincode,
+                                            "Address" to settings.address,
+                                            "Timezone" to settings.timezone,
+                                            "Default Currency" to settings.currency,
+                                            "Language" to settings.language,
+                                            "Portal Name" to settings.portalName,
+                                            "Company Size" to settings.companySize
+                                        )
+                                        rows.forEachIndexed { index, (label, value) ->
+                                            OrgInfoRow(label, value)
+                                            Spacer(Modifier.height(14.dp))
+                                            if (index != rows.lastIndex) {
+                                                HorizontalDivider(color = OrgTheme.Divider)
+                                                Spacer(Modifier.height(14.dp))
+                                            }
+                                        }
+                                        Spacer(Modifier.height(8.dp))
+                                    }
+                                }
+
+                                else -> {
+                                    Text(
+                                        "No data available",
+                                        color = Color.Gray,
+                                        fontSize = tokens.bodyMedium,
+                                        modifier = Modifier.padding(vertical = 16.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -952,6 +1031,9 @@ fun SubscriptionRing(
     used: Int,
     limit: Int
 ) {
+    val tokens = LocalAppTokens.current
+    val ringDiameter = if (tokens.isTablet) 110.dp else 90.dp
+
     val pct = if (limit > 0) (used.toFloat() / limit) else 0f
     val remaining = (limit - used).coerceAtLeast(0)
     val ringColor = when {
@@ -967,7 +1049,7 @@ fun SubscriptionRing(
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(90.dp)
+            modifier = Modifier.size(ringDiameter)
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val stroke = 10.dp.toPx()
@@ -997,13 +1079,13 @@ fun SubscriptionRing(
             }
             Text(
                 text = "${(pct * 100).roundToInt()}%",
-                fontSize = 15.sp,
+                fontSize = tokens.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 color = OrgTheme.TextPrimary
             )
         }
-        Text(text = label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrgTheme.TextPrimary)
-        Text(text = "$used / $limit", fontSize = 12.sp, color = OrgTheme.TextSecondary)
-        Text(text = "$remaining remaining", fontSize = 12.sp, color = OrgTheme.mutedText)
+        Text(text = label, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = OrgTheme.TextPrimary)
+        Text(text = "$used / $limit", fontSize = tokens.caption, color = OrgTheme.TextSecondary)
+        Text(text = "$remaining remaining", fontSize = tokens.caption, color = OrgTheme.mutedText)
     }
 }

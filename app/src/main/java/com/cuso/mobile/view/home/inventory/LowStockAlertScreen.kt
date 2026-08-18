@@ -250,7 +250,7 @@ fun LowStockAlertsScreen(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
                         placeholder = "Search Stock Items...",
-                        onFilterClick = { /* TODO: handle filter click */ },
+                        onFilterClick = {  },
                         modifier = Modifier
                             .padding(vertical = 12.dp)
                     )

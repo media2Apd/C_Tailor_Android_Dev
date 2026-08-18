@@ -43,8 +43,8 @@ import com.cuso.mobile.view.composable.DataCardStat
 import com.cuso.mobile.view.composable.DataCardStatsRow
 import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
-import com.cuso.mobile.view.home.FormLabel
-import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.SheetValue

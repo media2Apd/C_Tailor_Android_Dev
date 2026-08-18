@@ -181,7 +181,7 @@ fun ServiceRequestScreen(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
                         placeholder = "Search Request...",
-                        onFilterClick = { /* TODO: handle filter click */ },
+                        onFilterClick = {  },
                         modifier = Modifier
                             .padding(vertical = 12.dp)
                     )

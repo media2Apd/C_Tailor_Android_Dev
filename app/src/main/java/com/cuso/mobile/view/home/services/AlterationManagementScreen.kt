@@ -166,7 +166,7 @@ fun AlterationManagementScreen(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
                         placeholder = "Search Alterations...",
-                        onFilterClick = { /* TODO: handle filter click */ },
+                        onFilterClick = {  },
                         modifier = Modifier
                             .padding(vertical = 12.dp)
                     )

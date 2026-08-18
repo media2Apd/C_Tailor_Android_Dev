@@ -11,6 +11,7 @@ package com.cuso.mobile.view.home.sales.sales_order
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.view.RoundedCorner
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -40,12 +41,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,8 +55,8 @@ import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DatePickerField
-import com.cuso.mobile.view.home.FormDropdown
-import com.cuso.mobile.view.home.FormLabel
+import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.home.pdfgenerator.OrderReceiptPdfGenerator
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
@@ -72,10 +72,17 @@ import com.cuso.mobile.viewmodel.SalesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.light_blue
+import com.cuso.mobile.ui.theme.light_blue_border
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.BackFabButton
+import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.view.composable.TrailingFabButton
+import com.cuso.mobile.view.home.inventory.FormTextArea
 
 // ─────────────────────────────────────────────────────────────────────────
 // THEME COLORS
@@ -129,6 +136,7 @@ data class GarmentAssignment(
     val cuttingTailor: StaffDto? = null,
     val stitchingTailor: StaffDto? = null,
     val qualityInspector: StaffDto? = null,
+    val trial: StaffDto? = null,
     val priority: String = "Low",
     val startDate: String? = null,
     val completionDate: String? = null,
@@ -169,6 +177,17 @@ fun OrderOverviewScreen(
     onEditOrder: (OrderReviewData) -> Unit = {},
     onCreateNew: () -> Unit = {}
 ) {
+    // Blur & Scrim States — Payment sheet (new, lifted to root, same pattern as assign sheet)
+    var paymentSheetBlur by remember { mutableStateOf(0.dp) }
+    var paymentSheetScrim by remember { mutableFloatStateOf(0f) }
+    var paymentSheetState by remember { mutableStateOf(SheetValue.Hidden) }
+    val isPaymentSheetOpen = paymentSheetState != SheetValue.Hidden
+
+    fun closePaymentSheet() {
+        paymentSheetState = SheetValue.Hidden
+        paymentSheetBlur = 0.dp
+        paymentSheetScrim = 0f
+    }
     val viewModel: OrderOverviewViewModel = hiltViewModel(key = "order_overview_view_$orderId")
     val salesViewModel: SalesViewModel = hiltViewModel()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
@@ -193,10 +212,29 @@ fun OrderOverviewScreen(
         }
     }
 
+// New: same pattern for payment success/error, moved from PaymentTab to root
+    val receivePaymentState by viewModel.receivePaymentState.collectAsStateWithLifecycle()
+    LaunchedEffect(receivePaymentState) {
+        when (val rs = receivePaymentState) {
+            is ReceivePaymentState.Success -> {
+                Toast.makeText(context, "Payment recorded successfully", Toast.LENGTH_SHORT).show()
+                closePaymentSheet()
+                viewModel.fetchSalesOverview(orderId)
+                viewModel.resetReceivePaymentState()
+            }
+            is ReceivePaymentState.Error -> {
+                Toast.makeText(context, "Payment failed: ${rs.message}", Toast.LENGTH_LONG).show()
+                viewModel.resetReceivePaymentState()
+            }
+            else -> Unit
+        }
+    }
+
     var selectedTab by remember { mutableStateOf("Overview") }
     val tabs = listOf("Overview", "Garments", "Assignments", "Payment")
 
     // Blur & Scrim States
+    // Blur & Scrim States — Assign sheet (existing)
     var assignSheetBlur by remember { mutableStateOf(0.dp) }
     var assignSheetScrim by remember { mutableFloatStateOf(0f) }
 
@@ -211,6 +249,17 @@ fun OrderOverviewScreen(
         selectedGarmentForSheet = null
     }
 
+
+
+// Combined blur/scrim so header + content blur when EITHER sheet is open
+    val combinedSheetBlur = maxOf(assignSheetBlur, paymentSheetBlur)
+    val combinedSheetScrim = maxOf(assignSheetScrim, paymentSheetScrim)
+    val isAnySheetOpen = isAssignSheetOpen || isPaymentSheetOpen
+
+// Payment data needed at root level so ReceivePaymentSheet can render as a sibling
+// of the tab content (same pattern as AssignTailorsSheet using selectedGarmentForSheet)
+    val paymentInfoForSheet = currentOrderData?.let { remember(it) { extractPayment(it) } }
+
     Scaffold(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -224,13 +273,7 @@ fun OrderOverviewScreen(
                 .padding(padding)
         ) {
             Column(modifier = Modifier.fillMaxSize()
-                .blurScrim(radius =assignSheetBlur )) {
-
-                // ── UNIFIED HEADER — NEVER blurred/tinted/covered ──
-                // Ensure these imports are added at the top:
-// import androidx.compose.animation.animateColorAsState
-// import androidx.compose.animation.core.animateFloatAsState
-// import androidx.compose.ui.draw.scale
+                .blurScrim(radius =combinedSheetBlur )) {
 
                 Column(modifier = Modifier.background(whiteBg)) {
                     // Get the index of the selected tab for horizontal indicator animation
@@ -312,9 +355,9 @@ fun OrderOverviewScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .blurScrim(assignSheetBlur)
+                            .blurScrim(combinedSheetBlur)
                             .graphicsLayer {
-                                alpha = 1f - (assignSheetScrim * 0.2f)
+                                alpha = 1f - (combinedSheetScrim * 0.2f)
                             }
                     ) {
                         when (val s = state) {
@@ -356,7 +399,9 @@ fun OrderOverviewScreen(
                                         payment = payment,
                                         context = context,
                                         orderData = s.data,
-                                        viewModel = viewModel
+                                        viewModel = viewModel,
+                                        sheetState = paymentSheetState,
+                                        onOpenSheet = { paymentSheetState = SheetValue.Collapsed }
                                     )
                                 }
                             }
@@ -365,7 +410,7 @@ fun OrderOverviewScreen(
 
                     // ── FABs (moved inside content Box too, same behavior) ──
                     androidx.compose.animation.AnimatedVisibility(
-                        visible = !isAssignSheetOpen,
+                        visible = !isAnySheetOpen,
                         enter = fadeIn(),
                         exit = fadeOut()
                     ) {
@@ -396,9 +441,23 @@ fun OrderOverviewScreen(
                 sheetState = assignSheetState,
                 onStateChange = { assignSheetState = it },
                 onBlurScrimChange = { r, sc -> assignSheetBlur = r; assignSheetScrim = sc },
-                topInset = 0.dp,   // ✅ 0 here = "top of content Box" = right below header now
+                topInset = 66.dp,   // ✅ 0 here = "top of content Box" = right below header now
                 onDismiss = { closeAssignSheet() }
             )
+
+            // New: ReceivePaymentSheet rendered at root, same level as AssignTailorsSheet
+            if (paymentInfoForSheet != null && currentOrderData != null) {
+                ReceivePaymentSheet(
+                    orderId = currentOrderData.order._id,
+                    balanceDue = paymentInfoForSheet.remainingAmount,
+                    viewModel = viewModel,
+                    isSaving = receivePaymentState is ReceivePaymentState.Loading,
+                    sheetState = paymentSheetState,
+                    onStateChange = { paymentSheetState = it },
+                    onBlurChange = { paymentSheetBlur = it },
+                    onDismiss = { closePaymentSheet() }
+                )
+            }
         }
     }
 }
@@ -427,6 +486,9 @@ private fun extractGarments(data: OrderOverviewData): List<GarmentDetail> {
         val qualityInspector = stageGroup?.stages
             ?.firstOrNull { it.stageName == "qc" }
             ?.assignedTo?.firstOrNull()
+        val trial = stageGroup?.stages
+            ?.firstOrNull { it.stageName == "trial" }
+            ?.assignedTo?.firstOrNull()
 
         val additionalChargesTotal = item.additionalCharges.sumOf { it.amount }
 
@@ -450,6 +512,7 @@ private fun extractGarments(data: OrderOverviewData): List<GarmentDetail> {
                 cuttingTailor = cuttingTailor,
                 stitchingTailor = stitchingTailor,
                 qualityInspector = qualityInspector,
+                trial = trial,
                 priority = item.priority,
                 isAssigned = anyAssigned
             )
@@ -853,6 +916,14 @@ private fun AssignmentCard(
                 staff = garment.assignment?.qualityInspector,
                 isAssigned = garment.assignment?.qualityInspector != null
             )
+            if (garment.trialRequired) {
+
+                AssignmentRow(
+                    label = "Trial",
+                    staff = garment.assignment?.trial,
+                    isAssigned = garment.assignment?.trial != null
+                )
+            }
 
             Spacer(Modifier.height(12.dp))
 
@@ -939,7 +1010,7 @@ private fun AssignTailorsSheet(
     sheetState: SheetValue,
     onStateChange: (SheetValue) -> Unit,
     onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> },
-    topInset: Dp = 0.dp,
+    topInset: Dp = 66.dp,
     onDismiss: () -> Unit
 ) {
     if (garment == null) return
@@ -952,6 +1023,8 @@ private fun AssignTailorsSheet(
     var selectedCutting by remember(garment.id) { mutableStateOf(garment.assignment?.cuttingTailor) }
     var selectedStitching by remember(garment.id) { mutableStateOf(garment.assignment?.stitchingTailor) }
     var selectedQC by remember(garment.id) { mutableStateOf(garment.assignment?.qualityInspector) }
+    var selectedTrial by remember(garment.id) { mutableStateOf(garment.assignment?.trial) }
+
     var priority by remember(garment.id) { mutableStateOf(garment.assignment?.priority?.ifBlank { "Low" } ?: "Low") }
     var completionDate by remember(garment.id) {
         mutableStateOf(
@@ -963,6 +1036,7 @@ private fun AssignTailorsSheet(
     var cuttingExpanded by remember { mutableStateOf(false) }
     var stitchingExpanded by remember { mutableStateOf(false) }
     var qcExpanded by remember { mutableStateOf(false) }
+    var trialExpanded by remember { mutableStateOf(false) }
     var priorityExpanded by remember { mutableStateOf(false) }
 
     val isAssigning = assignState is AssignWorkersState.Loading
@@ -1081,6 +1155,24 @@ private fun AssignTailorsSheet(
                     onOptionSelected = { name -> staffNameToStaff[name]?.let { selectedQC = it } }
                 )
 
+                if (garment.trialRequired) {
+                    Spacer(Modifier.height(12.dp))
+
+                    FormDropdown(
+                        label = "Trial",
+                        value = selectedTrial?.let { "${it.firstName} ${it.lastName}" }
+                            ?: "Select an option",
+                        expanded = trialExpanded,
+                        onExpandChange = { trialExpanded = it },
+                        options = staffNames,
+                        onOptionSelected = { name ->
+                            staffNameToStaff[name]?.let {
+                                selectedTrial = it
+                            }
+                        }
+                    )
+                }
+
                 Spacer(Modifier.height(12.dp))
 
                 Row(
@@ -1166,6 +1258,8 @@ private fun PaymentTab(
     context: Context,
     orderData: OrderOverviewData,
     viewModel: OrderOverviewViewModel,
+    sheetState: SheetValue,
+    onOpenSheet: () -> Unit,
     onConvertToInvoice: () -> Unit = {}
 ) {
     val (statusBg, statusText) = when (payment.status) {
@@ -1193,25 +1287,6 @@ private fun PaymentTab(
             balanceAmount = orderData.order.balanceAmount,
             deliveryDate = orderData.order.deliveryDate
         )
-    }
-
-    var showReceivePaymentSheet by remember { mutableStateOf(false) }
-    val receivePaymentState by viewModel.receivePaymentState.collectAsStateWithLifecycle()
-
-    LaunchedEffect(receivePaymentState) {
-        when (val rs = receivePaymentState) {
-            is ReceivePaymentState.Success -> {
-                Toast.makeText(context, "Payment recorded successfully", Toast.LENGTH_SHORT).show()
-                showReceivePaymentSheet = false
-                viewModel.fetchSalesOverview(orderData.order._id)
-                viewModel.resetReceivePaymentState()
-            }
-            is ReceivePaymentState.Error -> {
-                Toast.makeText(context, "Payment failed: ${rs.message}", Toast.LENGTH_LONG).show()
-                viewModel.resetReceivePaymentState()
-            }
-            else -> Unit
-        }
     }
 
     Column(
@@ -1256,7 +1331,7 @@ private fun PaymentTab(
         if (payment.remainingAmount > 0.0) {
             Spacer(Modifier.height(16.dp))
             Button(
-                onClick = { showReceivePaymentSheet = true },
+                onClick = onOpenSheet,   // was: paymentSheetState = SheetValue.Collapsed
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = TabActive)
@@ -1325,30 +1400,24 @@ private fun PaymentTab(
         InfoRow("Balance Pending", "₹${formatOverviewNumber(payment.balancePending)}", valueColor = BalanceRed)
         Spacer(Modifier.height(24.dp))
     }
-
-    if (showReceivePaymentSheet) {
-        ReceivePaymentDialog(
-            orderId = orderData.order._id,
-            balanceDue = payment.remainingAmount,
-            viewModel = viewModel,
-            isSaving = receivePaymentState is ReceivePaymentState.Loading,
-            onDismiss = { showReceivePaymentSheet = false }
-        )
-    }
 }
-
 // ─────────────────────────────────────────────────────────────────────────
 // RECEIVE PAYMENT DIALOG
 // ─────────────────────────────────────────────────────────────────────────
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
-private fun ReceivePaymentDialog(
+private fun ReceivePaymentSheet(
     orderId: String,
     balanceDue: Double,
     viewModel: OrderOverviewViewModel,
     isSaving: Boolean,
+    sheetState: SheetValue,
+    onStateChange: (SheetValue) -> Unit,
+    onBlurChange: (Dp) -> Unit,
+    topInset: Dp = 66.dp,
     onDismiss: () -> Unit
 ) {
+    // Local states for payment input fields
     var isFullAmount by remember { mutableStateOf(true) }
     var amountText by remember { mutableStateOf(formatAmountPlain(balanceDue)) }
     var selectedMethod by remember { mutableStateOf("Cash") }
@@ -1358,63 +1427,72 @@ private fun ReceivePaymentDialog(
     var paymentDate by remember {
         mutableStateOf(SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date()))
     }
-    var shouldPrintAfterSave by remember { mutableStateOf(false) }
 
     val methodOptions = listOf("Cash", "Card", "UPI", "Bank Transfer")
 
+    // Sync amount if Full Amount is selected
     LaunchedEffect(isFullAmount) {
         if (isFullAmount) amountText = formatAmountPlain(balanceDue)
     }
 
-    Dialog(
+    // Reset sheet fields when hidden
+    LaunchedEffect(sheetState) {
+        if (sheetState == SheetValue.Hidden) {
+            isFullAmount = true
+            selectedMethod = "Cash"
+            referenceNo = ""
+            notes = ""
+            paymentDate = SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date())
+        }
+    }
+
+    SmoothBottomSheet(
+        state = sheetState,
+        onStateChange = onStateChange,
+        collapsedFraction = 0.9f,
+        topInset = topInset,
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        onBlurScrimChange = { r, _ -> onBlurChange(r) }
     ) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(),
             color = whiteBg,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CurrencyRupee, contentDescription = null, tint = TabActive, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Receive Payment", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    }
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = mutedText,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onDismiss() }
+                // Header Label
+                Box(modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                    Text(
+                        "RECEIVE PAYMENT",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
                     )
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(20.dp))
 
+                // Balance Summary Card
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFEFF3FF), RoundedCornerShape(10.dp))
+                        .background(light_blue, RoundedCornerShape(10.dp))
+                        .border(1.dp,light_blue_border, RoundedCornerShape(10.dp))
                         .padding(14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Balance Due", fontSize = 13.sp, color = mutedTextDark)
-                    Text("₹${formatOverviewNumber(balanceDue)}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = BalanceRed)
+                    Text("Balance Due", fontSize = 13.sp, color = TextPrimary)
+                    Text("₹${formatOverviewNumber(balanceDue)}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = BalanceRed)
                 }
 
                 Spacer(Modifier.height(16.dp))
 
+                // Payment Type Selection
                 FormLabel("Payment Type")
                 Spacer(Modifier.height(6.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1434,32 +1512,21 @@ private fun ReceivePaymentDialog(
 
                 Spacer(Modifier.height(16.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                // Amount and Method row
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(Modifier.weight(1f)) {
                         FormLabel("Amount (₹)")
                         Spacer(Modifier.height(6.dp))
-                        OutlinedTextField(
+                        FormTextField(
                             value = amountText,
                             onValueChange = { if (!isFullAmount) amountText = it },
-                            readOnly = isFullAmount,
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = Color(0xFFE5E7EB),
-                                focusedBorderColor = TabActive,
-                                disabledBorderColor = Color(0xFFE5E7EB),
-                                disabledTextColor = mutedTextDark,
-                                disabledContainerColor = SectionBg
-                            )
+                            keyboardType = KeyboardType.Number,
+                            placeholder = "0.00",
+                            enabled = !isFullAmount
                         )
                     }
                     Column(Modifier.weight(1f)) {
                         FormLabel("Payment Method")
-                        Spacer(Modifier.height(6.dp))
                         FormDropdown(
                             label = "",
                             value = selectedMethod,
@@ -1473,24 +1540,15 @@ private fun ReceivePaymentDialog(
 
                 Spacer(Modifier.height(16.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                // Reference and Date row
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(Modifier.weight(1f)) {
                         FormLabel("Reference No. (Opt)")
                         Spacer(Modifier.height(6.dp))
-                        OutlinedTextField(
+                        FormTextField(
                             value = referenceNo,
                             onValueChange = { referenceNo = it },
-                            placeholder = { Text("TXN123...", color = mutedText, fontSize = 13.sp) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = Color(0xFFE5E7EB),
-                                focusedBorderColor = TabActive
-                            )
+                            placeholder = "TXN123..."
                         )
                     }
                     Column(Modifier.weight(1f)) {
@@ -1507,78 +1565,78 @@ private fun ReceivePaymentDialog(
 
                 FormLabel("Notes")
                 Spacer(Modifier.height(6.dp))
-                OutlinedTextField(
+                FormTextArea(
                     value = notes,
                     onValueChange = { notes = it },
-                    placeholder = { Text("Optional notes...", color = mutedText, fontSize = 13.sp) },
-                    modifier = Modifier.fillMaxWidth().height(80.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = Color(0xFFE5E7EB),
-                        focusedBorderColor = TabActive
-                    )
+                    placeholder = "Optional Notes...",
+                    minLines = 3,
+                    maxLines = 4
                 )
 
-                Spacer(Modifier.height(20.dp))
-                HorizontalDivider(color = BorderLight)
+                // Push buttons to the bottom
+                Spacer(Modifier.weight(1f))
                 Spacer(Modifier.height(16.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = onDismiss, enabled = !isSaving) {
-                        Text("Cancel", color = TextPrimary, fontWeight = FontWeight.Medium)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    OutlinedButton(
-                        onClick = {
-                            shouldPrintAfterSave = false
-                            submitPayment(
-                                viewModel = viewModel,
-                                orderId = orderId,
-                                amountText = amountText,
-                                method = selectedMethod,
-                                referenceNo = referenceNo,
-                                notes = notes,
-                                paymentDate = paymentDate,
-                                paymentType = if (isFullAmount) "full" else "partial"
-                            )
-                        },
-                        enabled = !isSaving,
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, TabActive)
+
+                /**
+                 * BUTTON SECTION: Arranged to match the requested image
+                 */
+                Column(modifier = Modifier.fillMaxWidth()) {
+
+                    // First Row: Cancel (Left) and Save Only (Right)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("Save ", color = TabActive, fontWeight = FontWeight.SemiBold)
+                        // Reusing BackFabButton for 'Cancel' as per image (light border)
+                        BackFabButton(
+                            label = "Cancel",
+                            onClick = onDismiss,
+                            enabled = !isSaving,
+                            showArrow = false,
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        )
+
+                        // 'Save Only' Outlined Button with Blue/Primary border to match image
+                        OutlinedButton(
+                            onClick = {
+                                submitPayment(viewModel, orderId, amountText, selectedMethod, referenceNo, notes, paymentDate)
+                            },
+                            enabled = !isSaving,
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, TabActive),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TabActive)
+                        ) {
+                            if (isSaving) {
+                                CirculerProgressIndicatorSmall()
+                            } else {
+                                Text("Save Only", fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
                     }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    // Second Row: Save & Print (Full Width Solid Primary)
                     Button(
                         onClick = {
-                            shouldPrintAfterSave = true
-                            submitPayment(
-                                viewModel = viewModel,
-                                orderId = orderId,
-                                amountText = amountText,
-                                method = selectedMethod,
-                                referenceNo = referenceNo,
-                                notes = notes,
-                                paymentDate = paymentDate,
-                                paymentType = if (isFullAmount) "full" else "partial"
-                            )
+                            submitPayment(viewModel, orderId, amountText, selectedMethod, referenceNo, notes, paymentDate)
                         },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
                         enabled = !isSaving,
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = TabActive)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary)
                     ) {
                         if (isSaving) {
                             CirculerProgressIndicatorSmall()
                         } else {
-                            Icon(Icons.Default.Print, contentDescription = null, tint = whiteBg, modifier = Modifier.size(15.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Print", color = whiteBg, fontWeight = FontWeight.SemiBold)
+                            Text("Save & Print", color = whiteBg, fontSize = 15.sp)
                         }
                     }
                 }
+
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
@@ -1599,29 +1657,12 @@ private fun PaymentTypeOption(
                 color = if (selected) TabActive else Color(0xFFE5E7EB),
                 shape = RoundedCornerShape(10.dp)
             )
-            .background(whiteBg)
+            .background(if (selected) light_blue else whiteBg)
             .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onClick() }
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(18.dp)
-                .clip(CircleShape)
-                .border(1.5.dp, if (selected) TabActive else Color(0xFFD1D5DB), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            if (selected) {
-                Box(
-                    modifier = Modifier
-                        .size(9.dp)
-                        .clip(CircleShape)
-                        .background(TabActive)
-                )
-            }
-        }
-        Spacer(Modifier.width(8.dp))
-        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        Text(label, fontSize = 13.sp, color = if (selected) Primary else TextPrimary)
     }
 }
 

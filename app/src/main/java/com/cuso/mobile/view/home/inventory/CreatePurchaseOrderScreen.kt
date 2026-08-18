@@ -49,9 +49,9 @@ import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
 
 // ── Reused from HomeScreen.kt (com.cuso.mobile.view.home) ──
-import com.cuso.mobile.view.home.FormDropdown
-import com.cuso.mobile.view.home.FormLabel
-import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextField
 
 // ── Reused date picker (same one HR uses) ──
 import com.cuso.mobile.view.composable.DatePickerField

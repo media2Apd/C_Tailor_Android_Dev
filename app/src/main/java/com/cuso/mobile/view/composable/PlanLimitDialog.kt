@@ -15,10 +15,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 
@@ -37,6 +40,9 @@ data class PlanLimits(
 // ─────────────────────────────────────────────────────────────
 // PlanLimitDialog — single shared dialog for ALL modules.
 // Just pass the title/message you want, works for any screen.
+// Width is adaptive: full-bleed (minus padding) on phones,
+// capped at a comfortable max width on tablets/expanded screens
+// so it doesn't stretch edge-to-edge like a phone sheet.
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun PlanLimitDialog(
@@ -46,10 +52,16 @@ fun PlanLimitDialog(
     onUpgrade: () -> Unit
 ) {
     var isVisible by remember { mutableStateOf(false) }
+    val tokens = LocalAppTokens.current
 
     LaunchedEffect(Unit) {
         isVisible = true
     }
+
+    // Industry-standard alert/limit dialog widths:
+    // phones -> fill available width (with side padding)
+    // tablets/desktop-web -> cap around 420-480dp, centered
+    val dialogMaxWidth = if (tokens.isTablet) 440.dp else Dp.Unspecified
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -78,7 +90,10 @@ fun PlanLimitDialog(
             ) {
                 Card(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxWidth(if (tokens.isTablet) 0.9f else 1f)
+                        .let { m ->
+                            if (dialogMaxWidth != Dp.Unspecified) m.widthIn(max = dialogMaxWidth) else m
+                        }
                         .padding(horizontal = 16.dp, vertical = 40.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .clickable { /* prevent click through */ },
@@ -129,7 +144,7 @@ fun PlanLimitDialog(
                             Button(
                                 onClick = onUpgrade,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF3B3BF9),
+                                    containerColor = Primary,
                                     contentColor = whiteBg
                                 ),
                                 shape = RoundedCornerShape(8.dp),

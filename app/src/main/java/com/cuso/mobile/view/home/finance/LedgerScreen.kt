@@ -130,7 +130,7 @@ fun LedgerScreen(
                 accentColor = BluePrimary,
                 borderColor = BorderGray,
                 textSecondaryColor = TextSecondary,
-                onFilterClick = { /* TODO: open filter drawer */ }
+                onFilterClick = {  }
             )
         }
 

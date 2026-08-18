@@ -62,8 +62,8 @@ private fun DynamicIslandBase(
 ) {
     val tokens = LocalAppTokens.current
     val isDarkTheme = isSystemInDarkTheme()
-    val pillBgColor = if (isDarkTheme) PillBgDark else PillBgLight
-    val pillTextColor = if (isDarkTheme) PillTextDark else PillTextLight
+    val pillBgColor = if (isDarkTheme)  PillBgLight else PillBgDark
+    val pillTextColor = if (isDarkTheme) PillTextLight else PillTextDark
 
     val dropY = remember { Animatable(-1f) }
     var isPresent by remember { mutableStateOf(false) }

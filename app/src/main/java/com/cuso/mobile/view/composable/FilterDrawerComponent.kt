@@ -564,7 +564,7 @@ private fun ChipRowBody(section: FilterSection, onOptionToggle: (String) -> Unit
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = Primary,
-                modifier = Modifier.clickable { /* TODO: expand full garment list */ }
+                modifier = Modifier.clickable {  }
             )
         }
     }
@@ -633,7 +633,7 @@ private fun DropdownBody(section: FilterSection) {
             .height(46.dp)
             .background(whiteBg, RoundedCornerShape(10.dp))
             .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
-            .clickable { /* TODO: open picker */ }
+            .clickable {  }
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween

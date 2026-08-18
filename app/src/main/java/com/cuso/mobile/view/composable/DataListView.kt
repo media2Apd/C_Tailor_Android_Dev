@@ -119,7 +119,8 @@ fun StatusBadge(
     textColor: Color = Color(0xFF10B981),
     dotColor: Color = textColor, // dot always follows the text color unless explicitly overridden
     cornerRadius: Dp = 20.dp,
-    dotSize: Dp = 7.dp
+    dotSize: Dp = 7.dp,
+    showDot: Boolean = true
 ) {
     val tokens = LocalAppTokens.current
     Row(
@@ -129,13 +130,15 @@ fun StatusBadge(
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(dotSize)
-                .clip(CircleShape)
-                .background(dotColor)
-        )
-        Spacer(Modifier.width(6.dp))
+        if(showDot) {
+            Box(
+                modifier = Modifier
+                    .size(dotSize)
+                    .clip(CircleShape)
+                    .background(dotColor)
+            )
+            Spacer(Modifier.width(6.dp))
+        }
         Text(
             text = text,
             fontSize = tokens.label,
@@ -230,6 +233,7 @@ fun <T> DataCard(
     topBadgeText: String? = null,
     topBadgeTextColor: Color = Color(0xFF10B981),
     topBadgeBgColor: Color = Color(0xFFDCFCE7),
+    topBadgeShowDot: Boolean = true,
     topBadgeDotColor: Color = topBadgeTextColor, // dot follows whatever text color is passed
     topBadgeCornerRadius: Dp = 20.dp,
     topBadgeInline: Boolean = false,
@@ -319,7 +323,8 @@ fun <T> DataCard(
                                 dotColor = topBadgeDotColor,
                                 bgColor = topBadgeBgColor,
                                 textColor = topBadgeTextColor,
-                                cornerRadius = topBadgeCornerRadius
+                                cornerRadius = topBadgeCornerRadius,
+                                showDot = topBadgeShowDot
                             )
                         }
                         if (showActionsInHeader && actions.isNotEmpty()) {
@@ -405,7 +410,8 @@ fun <T> DataCard(
                         dotColor = topBadgeDotColor,
                         bgColor = topBadgeBgColor,
                         textColor = topBadgeTextColor,
-                        cornerRadius = topBadgeCornerRadius
+                        cornerRadius = topBadgeCornerRadius,
+                        showDot = topBadgeShowDot
                     )
                     Spacer(Modifier.width(8.dp))
                 }

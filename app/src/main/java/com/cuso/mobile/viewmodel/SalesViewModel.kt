@@ -29,6 +29,7 @@ import com.cuso.mobile.model.AddOrgGarmentResponse
 import com.cuso.mobile.model.OrgGarmentCategory
 import com.cuso.mobile.model.RemoveOrgGarmentResponse
 import com.cuso.mobile.model.sales.ConvertToOrderData
+import com.cuso.mobile.model.sales.GarmentCategory
 import com.cuso.mobile.model.sales.OrderItem
 import com.cuso.mobile.model.sales.StatusData
 import javax.inject.Inject
@@ -351,7 +352,8 @@ class SalesViewModel @Inject constructor(
     }
 
     private fun convertToLeadEntity(data: ViewOneLeadData): LeadEntity {
-        fun extractGarmentIds(garments: List<String>?) = garments?.joinToString(",") ?: ""
+        fun extractGarmentIds(garments: List<GarmentCategory>?) =
+            garments?.mapNotNull { it._id }?.joinToString(",") ?: ""
         fun extractStatusName(status: StatusData) = status.name
 
         return LeadEntity(
@@ -364,8 +366,10 @@ class SalesViewModel @Inject constructor(
             email = data.person?.email ?: "",
             gender = data.person?.gender ?: "",
             dob = data.person?.dob ?: "",
-            address = "", area = "", city = "",
-            preferredContactMethod = "",
+            address = data.contact?.address ?: "",
+            area = data.contact?.area ?: "",
+            city = data.contact?.city ?: "",
+            preferredContactMethod = data.contact?.preferredContactMethod ?: "",
             enquiryType = data.enquiryType,
             estimatedQuantity = data.estimatedQuantity ?: 0,
             budgetMin = data.budgetRange?.min ?: 0,

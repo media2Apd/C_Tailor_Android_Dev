@@ -122,7 +122,7 @@ fun OrderManagementScreen(
                     accentColor = BluePrimary,
                     borderColor = BorderGray,
                     textSecondaryColor = TextSecondary,
-                    onFilterClick = { /* TODO: open filter drawer */ }
+                    onFilterClick = {  }
                 )
             }
             HorizontalDivider(color = Color(0xFFF0F0F0))

@@ -65,14 +65,12 @@ fun CreateLeadFormResponse.toEntity(request: CreateLeadFormRequest): LeadEntity 
     }
 
     // Get garment ID from response or fallback to request
-    val garmentId = d.garmentCategory?.firstOrNull()?.let { extractGarmentId(it) }
+    val garmentId = d.garmentCategory?.firstOrNull()?._id
         ?: request.garments.firstOrNull()
         ?: ""
 
     // Get status name from response or fallback to request
-    val statusName = if (request.statusName.isNotEmpty()) {
-        request.statusName
-    } else {
+    val statusName = request.statusName.ifEmpty {
         extractStatusName(d.status)
     }
 

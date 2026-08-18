@@ -7,6 +7,7 @@ import com.google.gson.annotations.SerializedName
 // In CreateLeadFormRequest.kt - Add occasion field
 
 data class CreateLeadFormRequest(
+    val leadId: String? = null,
     val customerType: String,
     val enquiryType: String,
     val estimatedQuantity: Int,
@@ -25,7 +26,24 @@ data class CreateLeadFormRequest(
     val notes: List<LeadNote>,
     val occasion: String = ""
 )
+// Add these data classes (e.g. in the same file as CreateLeadFormResponse, or a new GarmentCategory.kt)
 
+
+
+data class CategoryId(
+    val _id: String? = null,
+    val categoryName: String? = null,
+    val models: List<GarmentModel>? = null
+)
+
+data class GarmentCategory(
+    val _id: String? = null,
+    val organizationId: String? = null,
+    val categoryId: CategoryId? = null,
+    val isActive: Boolean? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null
+)
 data class BudgetRange(
     val min: Int,
     val max: Int
@@ -71,6 +89,6 @@ data class LeadData(
     val customerType: String?,
     val status: Any?, // Can be String or StatusObject
     val createdAt: String?,
-    val garmentCategory: List<Any>? = null, // Can be String or Object
+    val garmentCategory: List<GarmentCategory>?,
     val occasion: String? = null  //   ADD THIS
 )

@@ -47,9 +47,9 @@ import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
-import com.cuso.mobile.view.home.FormDropdown
-import com.cuso.mobile.view.home.FormLabel
-import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
@@ -229,7 +229,7 @@ fun DepartmentSettingsScreen(
                             accentColor = BluePrimary,
                             borderColor = BorderGray,
                             textSecondaryColor = TextSecondary,
-                            onFilterClick = { /* TODO: open filter drawer */ }
+                            onFilterClick = { }
                         )
                     }
                     HorizontalDivider(color = Color(0xFFF0F0F0))
@@ -283,7 +283,7 @@ fun DepartmentSettingsScreen(
                                                             editingDepartment = department
                                                             editSheetState = SheetValue.Expanded
                                                         },
-                                                        MenuAction("View Teams", Icons.Default.Visibility) { /* TODO: navigate to detail */ }
+                                                        MenuAction("View Teams", Icons.Default.Visibility) { }
                                                     ),
                                                     content = {
                                                         Row(verticalAlignment = Alignment.CenterVertically) {

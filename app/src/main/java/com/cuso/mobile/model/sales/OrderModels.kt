@@ -53,17 +53,17 @@ data class CustomerApiResponse(
 
 data class GarmentApiResponse(
     @SerializedName("category")
-    val category: String,
+    val category: String? = null,
     @SerializedName("categoryName")
-    val categoryName: String,
+    val categoryName: String? = null,
     @SerializedName("models")
-    val models: List<String>,
+    val models: List<String?>? = null,   // elements can be null, e.g. [null]
     @SerializedName("quantity")
-    val quantity: Int,
+    val quantity: Int = 0,
     @SerializedName("price")
-    val price: Double?,
+    val price: Double? = null,
     @SerializedName("total")
-    val total: Double?
+    val total: Double? = null
 )
 
 // ─────────────────────────────────────────────────────────────
@@ -119,7 +119,7 @@ data class Customer(
 )
 
 data class Garment(
-    val category: String,
+    val category: String?,
     val categoryName: String,
     val models: List<String>,
     val quantity: Int,
@@ -207,16 +207,14 @@ fun CustomerApiResponse.toCustomer() = Customer(
     mobile = mobile,
     email  = email
 )
-
 fun GarmentApiResponse.toGarment() = Garment(
     category     = category,
-    categoryName = categoryName,
-    models       = models,
+    categoryName = categoryName ?: "",
+    models       = models.orEmpty().filterNotNull(),
     quantity     = quantity,
     price        = price,
     total        = total
 )
-
 // ISO-8601 date string  →  epoch millis (null if blank / unparseable)
 private fun String.toEpochMillis(): Long? {
     if (isBlank()) return null
@@ -238,6 +236,7 @@ private fun String.toEpochMillis(): Long? {
 
 
 data class CreateOrderRequest(
+    val leadId: String? = null,
     @SerializedName("customer")
     val customer: CustomerRequest,              //   object, not customerId string
     @SerializedName("branch")

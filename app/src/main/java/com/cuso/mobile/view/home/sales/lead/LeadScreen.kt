@@ -120,13 +120,12 @@ import com.cuso.mobile.view.composable.PhoneInputField
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.ValidationField
-import com.cuso.mobile.view.home.FormDropdown
-import com.cuso.mobile.view.home.FormLabel
-import com.cuso.mobile.view.home.FormTextField
+import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.home.LeadPrimary
 import com.cuso.mobile.view.home.LeadPrimarySoft
 import com.cuso.mobile.view.home.LeadmutedText
-import com.cuso.mobile.view.home.TimePickerField
 import com.cuso.mobile.view.home.buildFilterSections
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.formatLeadDate
@@ -141,6 +140,7 @@ import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TimePickerField
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.composable.rememberFilterDrawerState
 import com.cuso.mobile.view.home.toIsoDate
@@ -385,6 +385,7 @@ private fun validateLeadFields(
 //   already knows how to prefill itself from.
 // ─────────────────────────────────────────────────────────────
 private fun buildOrderReviewDataFromLead(
+    leadId: String,
     fullName: String,
     phone: String,
     gender: String,
@@ -416,6 +417,7 @@ private fun buildOrderReviewDataFromLead(
     }
 
     return OrderReviewData(
+        leadId = leadId,
         orderId = null,
         customerId = "",
         branchId = "",
@@ -624,14 +626,34 @@ fun LeadFormScreen(
     }
 
     fun buildRequest(): CreateLeadFormRequest {
+        /**
+         * Helper function to safely convert date strings to ISO format.
+         * If the [toIsoDate] utility returns an empty string (which can happen if the
+         * input is already in ISO format or the format is unrecognized), it returns
+         * the original [dateStr] to prevent sending empty values to the API.
+         */
+        fun safeIsoDate(dateStr: String): String {
+            return if (dateStr.isNotBlank()) {
+                val converted = dateStr.toIsoDate()
+                // If conversion results in an empty string, fallback to the original value
+                converted.ifBlank { dateStr }
+            } else {
+                ""
+            }
+        }
+
         return CreateLeadFormRequest(
             customerType = customerType.lowercase(),
             enquiryType = enquiryType,
             estimatedQuantity = estimatedQuantity.toIntOrNull() ?: 0,
             budgetRange = BudgetRange(min = budgetRange.toInt(), max = 250000),
+            // Map selected category display names back to their respective database IDs
             garments = selectedGarmentCategories.mapNotNull { garmentIdMap[it] },
-            enquiryDate = enquiryDate.toIsoDate(),
-            requiredDate = requiredDate.toIsoDate(),
+
+            // Safely convert primary lead dates
+            enquiryDate = safeIsoDate(enquiryDate),
+            requiredDate = safeIsoDate(requiredDate),
+
             source = leadSource,
             leadOwner = leadOwner,
             person = LeadPerson(
@@ -639,7 +661,8 @@ fun LeadFormScreen(
                 phone = phone,
                 email = email,
                 gender = gender,
-                dob = dob.toIsoDate()
+                // Safely convert date of birth
+                dob = safeIsoDate(dob)
             ),
             contact = LeadContact(
                 address = address,
@@ -649,23 +672,26 @@ fun LeadFormScreen(
             ),
             appointment = LeadAppointment(
                 isRequired = appointmentRequired,
-                date = if (appointmentRequired) appointmentDate.toIsoDate() else null,
+                // Safely convert appointment related dates if required
+                date = if (appointmentRequired) safeIsoDate(appointmentDate) else null,
                 time = if (appointmentRequired) appointmentTime.takeIf { it.isNotBlank() } else null,
                 assignedStaff = assignedStaff.takeIf { it.isNotBlank() },
                 priority = if (appointmentRequired) priority.takeIf { it.isNotBlank() } else null,
-                followUpDate = if (appointmentRequired) followUpDate.toIsoDate() else null
+                followUpDate = if (appointmentRequired) safeIsoDate(followUpDate) else null
             ),
             status = statusIdMap[leadStatus] ?: "",
             statusName = leadStatus,
             notes = buildList {
                 if (internalNotes.isNotBlank()) add(LeadNote(internalNotes, "internal"))
                 if (customerNotes.isNotBlank()) add(LeadNote(customerNotes, "customer"))
-                if (isEdit && internalNotes.isBlank() && customerNotes.isBlank()) add(LeadNote("-", "internal"))
+                // During edit mode, if both notes are blank, provide a default placeholder
+                if (isEdit && internalNotes.isBlank() && customerNotes.isBlank()) {
+                    add(LeadNote("-", "internal"))
+                }
             },
             occasion = if (isEdit) l?.occasion ?: occasion else occasion
         )
     }
-
     // ---- Mode-aware submit: CREATE -> createLead, EDIT -> updateLeadById ----
     fun submitLead() {
         val baseFields = buildList {
@@ -1369,6 +1395,7 @@ fun LeadFormScreen(
                 showConvertDialog = false
                 onConvertToOrder(
                     buildOrderReviewDataFromLead(
+                        leadId = l!!.id,
                         fullName = fullName,
                         phone = phone,
                         gender = gender,

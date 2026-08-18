@@ -226,7 +226,7 @@ class Authenticate @Inject constructor(
                     val orgResult = orgDeferred.await()
                     val layoutResult = layoutDeferred.await()
 
-                    meResult.getOrNull()?.let { /* TODO: save or use */ }
+                    meResult.getOrNull()?.let { }
 
                     orgResult.getOrNull()?.let { response ->
                         loginRepository.saveOrganizationData(response.data.organization.toOrganization())
@@ -234,7 +234,7 @@ class Authenticate @Inject constructor(
                         loadSettings()
                     }
 
-                    layoutResult.getOrNull()?.let { /* TODO: save or use */ }
+                    layoutResult.getOrNull()?.let {  }
 
                     loadTokens()
 

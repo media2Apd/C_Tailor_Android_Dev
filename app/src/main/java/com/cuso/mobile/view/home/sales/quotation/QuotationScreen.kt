@@ -38,6 +38,10 @@ import com.cuso.mobile.model.sales.QuotationItemDto
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.greenBg
+import com.cuso.mobile.ui.theme.greentext
+import com.cuso.mobile.ui.theme.redBg
+import com.cuso.mobile.ui.theme.redtext
 import com.cuso.mobile.view.composable.ActionDropdownMenu
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.DataCard
@@ -215,10 +219,11 @@ fun QuotationScreen(
                                 DataCard(
                                     item = item,
                                     topBadgeText = item.status,
-                                    topBadgeTextColor = if (item.isActive) Color(0xFF0AB83E) else Color(0xFFF44336),
-                                    topBadgeBgColor = if (item.isActive) Color(0xFFDBFCE7) else Color(0xFFFEE2E2),
+                                    topBadgeTextColor = if (item.isActive) greentext else redtext,
+                                    topBadgeBgColor = if (item.isActive) greenBg else redBg,
                                     topBadgeCornerRadius = 20.dp,
                                     topBadgeInline = true,
+                                    topBadgeShowDot = false,
                                     title = item.title,
                                     content = {
                                         val tokens = LocalAppTokens.current

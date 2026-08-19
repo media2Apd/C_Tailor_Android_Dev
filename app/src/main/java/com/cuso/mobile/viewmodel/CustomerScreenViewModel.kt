@@ -27,7 +27,7 @@ class CustomerViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<CustomerUiState>(CustomerUiState.Loading)
     val uiState: StateFlow<CustomerUiState> = _uiState.asStateFlow()
 
-    //    
+    //
     private var currentPage = 1
     private var currentLimit = 10
     private var currentSearch: String? = null
@@ -55,8 +55,8 @@ class CustomerViewModel @Inject constructor(
     ) {
         currentPage = page
         currentLimit = limit
-        _currentPageFlow.value = page      
-        _pageSizeFlow.value = limit        
+        _currentPageFlow.value = page
+        _pageSizeFlow.value = limit
 
         viewModelScope.launch {
             _uiState.update { CustomerUiState.Loading }
@@ -149,13 +149,13 @@ class CustomerViewModel @Inject constructor(
                             type = data.type,
                             name = data.name,
                             mobile = data.mobile,
-                            email = data.email ?: "",               
-                            gender = data.gender ?: "",             
-                            dob = data.dob ?: "",                   
+                            email = data.email ?: "",
+                            gender = data.gender ?: "",
+                            dob = data.dob ?: "",
                             status = data.status,
                             addressLine = data.address?.addressLine ?: "",
                             city = data.address?.city ?: "",
-                            area = data.address?.area ?: "",        
+                            area = data.address?.area ?: "",
                             pincode = data.address?.pincode ?: ""
                         )
                     }
@@ -202,14 +202,14 @@ class CustomerViewModel @Inject constructor(
             type = form.type,
             name = form.name,
             mobile = form.mobile,
-            email = form.email.takeIf { it.isNotBlank() },       
-            gender = form.gender.takeIf { it.isNotBlank() },      
-            dob = form.dob.takeIf { it.isNotBlank() },            
+            email = form.email.takeIf { it.isNotBlank() },
+            gender = form.gender.takeIf { it.isNotBlank() },
+            dob = form.dob.takeIf { it.isNotBlank() },
             status = form.status,
             address = CustomerViewAddress(
                 addressLine = form.addressLine,
                 city = form.city,
-                area = form.area,                                  
+                area = form.area,
                 pincode = form.pincode
             ),
             preferences = original.preferences,                   //    — re-send untouched preferences
@@ -250,8 +250,8 @@ class CustomerViewModel @Inject constructor(
             val result = repository.deleteCustomer(id)
 
             result.fold(
-                onSuccess = {
-                    _deleteState.update { CustomerDeleteState.Success }
+                onSuccess = { message ->
+                    _deleteState.update { CustomerDeleteState.Success(message = message) }
                     refresh()   // reload the list so the deleted row disappears
                 },
                 onFailure = { error ->
@@ -313,19 +313,19 @@ data class CustomerFormState(
     val type: String = "individual",
     val name: String = "",
     val mobile: String = "",
-    val email: String = "",        
-    val gender: String = "",       
-    val dob: String = "",          
+    val email: String = "",
+    val gender: String = "",
+    val dob: String = "",
     val status: String = "Active",
     val addressLine: String = "",
     val city: String = "",
-    val area: String = "",         
+    val area: String = "",
     val pincode: String = ""
 )
 
 sealed class CustomerDeleteState {
     data object Idle : CustomerDeleteState()
     data object Loading : CustomerDeleteState()
-    data object Success : CustomerDeleteState()
+    data class Success(val message: String? = null) : CustomerDeleteState()
     data class Error(val message: String) : CustomerDeleteState()
 }

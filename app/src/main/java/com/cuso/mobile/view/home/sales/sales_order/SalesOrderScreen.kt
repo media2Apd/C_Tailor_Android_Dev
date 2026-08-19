@@ -109,7 +109,7 @@ fun SalesOrderScreen(
         when (val s = actionState) {
             is OrderActionState.Success -> {
                 // Dynamic Island Success Message
-                successMessage = if (s.message.isNotBlank()) s.message else "Order created successfully"
+                successMessage = s.message.ifBlank { "Order created successfully" }
                 viewModel.resetActionState()
             }
             is OrderActionState.Error -> {

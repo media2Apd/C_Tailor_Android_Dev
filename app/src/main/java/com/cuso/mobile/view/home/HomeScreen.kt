@@ -212,6 +212,7 @@ import java.time.LocalTime
 val LeadPrimary = Color(0xFF3B3BF9)
 val LeadPrimarySoft = Color(0xFFEEEEFE)
 val LeadmutedText = Color(0xFF9CA3AF)
+@SuppressLint("UnrememberedGetBackStackEntry")
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Suppress("UnusedMaterial3ScaffoldPaddingParameter","UNUSED_PARAMETER")
 @Composable
@@ -324,6 +325,23 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     fun resetToHome() {
         screenStack.clear()
         screenStack.add("home")
+    }
+    // Reads an order id handed off from a separate NavHost route (e.g. "create-order")
+    // via the "home" back stack entry's SavedStateHandle, then navigates internally
+    // to the Order Overview screen for that order.
+    val homeBackStackEntry = remember { navController.getBackStackEntry("home") }
+    val pendingOrderIdFlow = homeBackStackEntry.savedStateHandle
+        .getStateFlow<String?>("pendingOrderId", null)
+    val pendingOrderId by pendingOrderIdFlow.collectAsStateWithLifecycle()
+
+    LaunchedEffect(pendingOrderId) {
+        val id = pendingOrderId
+        if (id != null) {
+            selectedOrderId = id
+            navigateTo("order_overview")
+            // Clear it so re-composition / re-entry doesn't re-trigger navigation
+            homeBackStackEntry.savedStateHandle["pendingOrderId"] = null
+        }
     }
 
     LaunchedEffect(editOrderId) {
@@ -1595,20 +1613,38 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                     CreateOrderNextStep(
                                         orderData = data,
                                         onBack = { goBack() },
-                                        onSaveOrder = {
-                                            if (orderFlowOrigin == "lead") {
-                                                orderFlowOrigin = null
-                                                screenStack.removeAll {
-                                                    it in setOf(
-                                                        "sales_lead", "create_lead", "view_lead", "edit_lead",
-                                                        "create_order", "create_order_review"
-                                                    )
-                                                }
-                                                navigateTo("sales_sales_orders")
-                                            } else {
-                                                // normal flow (SalesOrderScreen -> create_order -> review) — same as before
-                                                goBack()
+                                        // CHANGED: onSaveOrder now receives the saved order id as well,
+                                        // so we can navigate directly to the Order Overview screen
+                                        // for that specific order after a successful save/update.
+                                        onSaveOrder = { _, savedOrderId ->
+                                            // NOTE: do NOT null pendingOrderReviewData / orderFlowOrigin here.
+                                            // Doing so immediately recomposes THIS "create_order_review" branch
+                                            // (it is still animating out via AnimatedContent) and its
+                                            // `?: run { goBack() }` fallback fires as a race against the
+                                            // navigateTo() call below — that extra goBack() was what sent
+                                            // the user back to "home" instead of landing on order_overview.
+                                            // pendingOrderReviewData is safely reset the next time a fresh
+                                            // order flow starts (see onCreateOrder handlers below).
+
+                                            // Remove ALL intermediate screens — including the sales orders list,
+                                            // so Back from Order Overview doesn't re-trigger it or land there
+                                            // unless that's the desired behavior.
+                                            screenStack.removeAll {
+                                                it in setOf(
+                                                    "sales_lead", "create_lead", "view_lead", "edit_lead",
+                                                    "create_order", "create_order_review",
+                                                    "sales_sales_orders"
+                                                )
                                             }
+                                            Log.d("ORDER_DEBUG", "stack after removeAll = $screenStack")
+
+                                            if (savedOrderId != null) {
+                                                selectedOrderId = savedOrderId
+                                                navigateTo("order_overview")
+                                            } else {
+                                                navigateTo("sales_sales_orders")
+                                            }
+                                            Log.d("ORDER_DEBUG", "stack after navigateTo = $screenStack")
                                         }
                                     )
                                 } ?: run { goBack() }
@@ -1620,7 +1656,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 onBranchManagement = { navigateTo("home_branch_management") },
                                 onDepartment = { navigateTo("home_department_teams") },
                                 onDesignation = { navigateTo("home_designation") },
-                                onHelpSupport = { navigateTo("") },
+//                                onHelpSupport = { navigateTo() },
                                 onLogout = {
                                     settingsViewModel.logout {
                                         authViewModel.logout {
@@ -1760,22 +1796,22 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
                     // Inventory
                     "inventory_items",
-                    "inventory_item_groups", "inventory_low_stock_alerts",
+//                    "inventory_item_groups", "inventory_low_stock_alerts",
 
                     // Logistics
-                    "logistics_delivery", "logistics_order_tracking",
+//                    "logistics_delivery", "logistics_order_tracking",
 
                     // Services
-                    "services_customer_feedback", "services_alteration_management", "services_service_request",
+//                    "services_customer_feedback", "services_alteration_management", "services_service_request",
 
                     // HR
                     "hr_all_employees",
-                    "hr_attendance",
+//                    "hr_attendance",
 
                     // Reports
-                    "reports_sales",
-                    "reports_inventory",
-                    "reports_finance"
+//                    "reports_sales",
+//                    "reports_inventory",
+//                    "reports_finance"
 
                 )
 
@@ -1817,7 +1853,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         )
 
         DynamicIslandSuccess(
-            modifier = Modifier.align(Alignment.TopCenter),
+            modifier = Modifier.align(Alignment.TopCenter)
+                .padding(top = 50.dp),
             message = comingSoonMessage,
             onDismiss = { comingSoonMessage = null }
         )

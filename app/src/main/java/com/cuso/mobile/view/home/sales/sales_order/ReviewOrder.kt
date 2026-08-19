@@ -11,8 +11,6 @@ package com.cuso.mobile.view.home.sales.sales_order
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.view.RoundedCorner
-import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -55,6 +53,8 @@ import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DatePickerField
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.home.pdfgenerator.OrderReceiptPdfGenerator
@@ -81,7 +81,6 @@ import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.BackFabButton
 import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.composable.TrailingFabButton
 import com.cuso.mobile.view.home.inventory.FormTextArea
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -177,7 +176,7 @@ fun OrderOverviewScreen(
     onEditOrder: (OrderReviewData) -> Unit = {},
     onCreateNew: () -> Unit = {}
 ) {
-    // Blur & Scrim States — Payment sheet (new, lifted to root, same pattern as assign sheet)
+    // Blur & Scrim States — Payment sheet (lifted to root, same pattern as assign sheet)
     var paymentSheetBlur by remember { mutableStateOf(0.dp) }
     var paymentSheetScrim by remember { mutableFloatStateOf(0f) }
     var paymentSheetState by remember { mutableStateOf(SheetValue.Hidden) }
@@ -196,6 +195,12 @@ fun OrderOverviewScreen(
     val assignState by viewModel.assignWorkersState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
+    // Root-level notification state — drives the DynamicIsland banners for
+    // every success/error event on this screen (assign workers, payments,
+    // validation errors, PDF actions, etc).
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(orderId) {
         viewModel.fetchSalesOverview(orderId)
         salesViewModel.fetchStaff()
@@ -203,27 +208,27 @@ fun OrderOverviewScreen(
 
     LaunchedEffect(assignState) {
         if (assignState is AssignWorkersState.Success) {
-            Toast.makeText(context, "Workers assigned successfully!", Toast.LENGTH_SHORT).show()
+            successMessage = "Workers assigned successfully!"
             viewModel.fetchSalesOverview(orderId)
             viewModel.resetAssignWorkersState()
         } else if (assignState is AssignWorkersState.Error) {
-            Toast.makeText(context, "Assignment failed: ${(assignState as AssignWorkersState.Error).message}", Toast.LENGTH_LONG).show()
+            errorMessage = "Assignment failed: ${(assignState as AssignWorkersState.Error).message}"
             viewModel.resetAssignWorkersState()
         }
     }
 
-// New: same pattern for payment success/error, moved from PaymentTab to root
+    // Payment success/error, same pattern as assignState above
     val receivePaymentState by viewModel.receivePaymentState.collectAsStateWithLifecycle()
     LaunchedEffect(receivePaymentState) {
         when (val rs = receivePaymentState) {
             is ReceivePaymentState.Success -> {
-                Toast.makeText(context, "Payment recorded successfully", Toast.LENGTH_SHORT).show()
+                successMessage = "Payment recorded successfully"
                 closePaymentSheet()
                 viewModel.fetchSalesOverview(orderId)
                 viewModel.resetReceivePaymentState()
             }
             is ReceivePaymentState.Error -> {
-                Toast.makeText(context, "Payment failed: ${rs.message}", Toast.LENGTH_LONG).show()
+                errorMessage = "Payment failed: ${rs.message}"
                 viewModel.resetReceivePaymentState()
             }
             else -> Unit
@@ -233,7 +238,6 @@ fun OrderOverviewScreen(
     var selectedTab by remember { mutableStateOf("Overview") }
     val tabs = listOf("Overview", "Garments", "Assignments", "Payment")
 
-    // Blur & Scrim States
     // Blur & Scrim States — Assign sheet (existing)
     var assignSheetBlur by remember { mutableStateOf(0.dp) }
     var assignSheetScrim by remember { mutableFloatStateOf(0f) }
@@ -249,216 +253,235 @@ fun OrderOverviewScreen(
         selectedGarmentForSheet = null
     }
 
-
-
-// Combined blur/scrim so header + content blur when EITHER sheet is open
+    // Combined blur/scrim so header + content blur when EITHER sheet is open
     val combinedSheetBlur = maxOf(assignSheetBlur, paymentSheetBlur)
     val combinedSheetScrim = maxOf(assignSheetScrim, paymentSheetScrim)
     val isAnySheetOpen = isAssignSheetOpen || isPaymentSheetOpen
 
-// Payment data needed at root level so ReceivePaymentSheet can render as a sibling
-// of the tab content (same pattern as AssignTailorsSheet using selectedGarmentForSheet)
+    // Payment data needed at root level so ReceivePaymentSheet can render as a sibling
+    // of the tab content (same pattern as AssignTailorsSheet using selectedGarmentForSheet)
     val paymentInfoForSheet = currentOrderData?.let { remember(it) { extractPayment(it) } }
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TitleBar("Order Details",onClose=onClose)
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            Column(modifier = Modifier.fillMaxSize()
-                .blurScrim(radius =combinedSheetBlur )) {
+    // Outer wrapper Box: keeps the notification banners above the Scaffold's
+    // topBar (higher z-order) at the same TopCenter position, so they are
+    // never clipped under the header.
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                TitleBar("Order Details", onClose = onClose)
+            }
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()
+                    .blurScrim(radius = combinedSheetBlur)) {
 
-                Column(modifier = Modifier.background(whiteBg)) {
-                    // Get the index of the selected tab for horizontal indicator animation
-                    val selectedIndex = tabs.indexOf(selectedTab)
+                    Column(modifier = Modifier.background(whiteBg)) {
+                        // Get the index of the selected tab for horizontal indicator animation
+                        val selectedIndex = tabs.indexOf(selectedTab)
 
-                    // Animate the horizontal position of the indicator dash
-                    val indicatorOffset by animateFloatAsState(
-                        targetValue = selectedIndex.toFloat(),
-                        label = "TabIndicatorOffset"
-                    )
-
-                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                        // Calculate the dynamic width of each tab based on screen size
-                        val tabWidth = maxWidth / tabs.size
-
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            tabs.forEach { tab ->
-                                val isSelected = tab == selectedTab
-
-                                // Smooth transition for text color
-                                val animatedTextColor by animateColorAsState(
-                                    targetValue = if (isSelected) TabActive else mutedText,
-                                    label = "TabTextColor"
-                                )
-
-                                // Smooth transition for scale (makes the active tab larger)
-                                val animatedScale by animateFloatAsState(
-                                    targetValue = if (isSelected) 1.15f else 1.0f,
-                                    label = "TabTextScale"
-                                )
-
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable(
-                                            indication = null,
-                                            interactionSource = remember { MutableInteractionSource() }
-                                        ) { selectedTab = tab }
-                                        .padding(vertical = 12.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = tab,
-                                        fontSize = 13.sp,
-                                        // FontWeight stays bold for active tab
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = animatedTextColor,
-                                        modifier = Modifier
-                                            .scale(animatedScale) // Apply the animated size increase
-                                            .padding(bottom = 4.dp)
-                                    )
-                                    // Spacer to ensure consistent height between states
-                                    Spacer(Modifier.height(4.dp))
-                                }
-                            }
-                        }
-
-                        // Single animated sliding indicator dash
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .width(tabWidth * 0.5f) // Set width to 50% of the tab area
-                                .height(3.dp)
-                                // Slide the dash horizontally based on the animated index
-                                .offset(x = (tabWidth * indicatorOffset) + (tabWidth * 0.25f))
-                                .background(
-                                    color = TabActive,
-                                    shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
-                                )
+                        // Animate the horizontal position of the indicator dash
+                        val indicatorOffset by animateFloatAsState(
+                            targetValue = selectedIndex.toFloat(),
+                            label = "TabIndicatorOffset"
                         )
-                    }
-                    HorizontalDivider(color = BorderLight)
-                }
 
-                // ── CONTENT AREA — blur + bottom sheet CONFINED here only ──
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                            // Calculate the dynamic width of each tab based on screen size
+                            val tabWidth = maxWidth / tabs.size
 
-                    // Tab content — this alone gets blurred
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .blurScrim(combinedSheetBlur)
-                            .graphicsLayer {
-                                alpha = 1f - (combinedSheetScrim * 0.2f)
-                            }
-                    ) {
-                        when (val s = state) {
-                            is OrderOverviewState.Loading, OrderOverviewState.Idle -> {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    CirculerProgressIndicatorReuse()
-                                }
-                            }
-                            is OrderOverviewState.Error -> {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("Failed to load order", color = Color.Red, fontWeight = FontWeight.Bold)
-                                        Text(s.message, color = Color.Gray, fontSize = 13.sp)
-                                        Spacer(Modifier.height(12.dp))
-                                        Button(onClick = { viewModel.fetchSalesOverview(orderId) }) {
-                                            Text("Retry")
-                                        }
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                tabs.forEach { tab ->
+                                    val isSelected = tab == selectedTab
+
+                                    // Smooth transition for text color
+                                    val animatedTextColor by animateColorAsState(
+                                        targetValue = if (isSelected) TabActive else mutedText,
+                                        label = "TabTextColor"
+                                    )
+
+                                    // Smooth transition for scale (makes the active tab larger)
+                                    val animatedScale by animateFloatAsState(
+                                        targetValue = if (isSelected) 1.15f else 1.0f,
+                                        label = "TabTextScale"
+                                    )
+
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable(
+                                                indication = null,
+                                                interactionSource = remember { MutableInteractionSource() }
+                                            ) { selectedTab = tab }
+                                            .padding(vertical = 12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = tab,
+                                            fontSize = 13.sp,
+                                            // FontWeight stays bold for active tab
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = animatedTextColor,
+                                            modifier = Modifier
+                                                .scale(animatedScale) // Apply the animated size increase
+                                                .padding(bottom = 4.dp)
+                                        )
+                                        // Spacer to ensure consistent height between states
+                                        Spacer(Modifier.height(4.dp))
                                     }
                                 }
                             }
-                            is OrderOverviewState.Success -> {
-                                val garments: List<GarmentDetail> = remember(s.data) { extractGarments(s.data) }
-                                val payment: PaymentInfo = remember(s.data) { extractPayment(s.data) }
 
-                                when (selectedTab) {
-                                    "Overview" -> OverviewTab(s.data)
-                                    "Garments" -> GarmentsTab(
-                                        garments = garments,
-                                        onGoToAssignments = { selectedTab = "Assignments" }
+                            // Single animated sliding indicator dash
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .width(tabWidth * 0.5f) // Set width to 50% of the tab area
+                                    .height(3.dp)
+                                    // Slide the dash horizontally based on the animated index
+                                    .offset(x = (tabWidth * indicatorOffset) + (tabWidth * 0.25f))
+                                    .background(
+                                        color = TabActive,
+                                        shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
                                     )
-                                    "Assignments" -> AssignmentsTab(
-                                        garments = garments,
-                                        onAssignClick = { garment ->
-                                            selectedGarmentForSheet = garment
-                                            assignSheetState = SheetValue.Collapsed
+                            )
+                        }
+                        HorizontalDivider(color = BorderLight)
+                    }
+
+                    // ── CONTENT AREA — blur + bottom sheet CONFINED here only ──
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+
+                        // Tab content — this alone gets blurred
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .blurScrim(combinedSheetBlur)
+                                .graphicsLayer {
+                                    alpha = 1f - (combinedSheetScrim * 0.2f)
+                                }
+                        ) {
+                            when (val s = state) {
+                                is OrderOverviewState.Loading, OrderOverviewState.Idle -> {
+                                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        CirculerProgressIndicatorReuse()
+                                    }
+                                }
+                                is OrderOverviewState.Error -> {
+                                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("Failed to load order", color = Color.Red, fontWeight = FontWeight.Bold)
+                                            Text(s.message, color = Color.Gray, fontSize = 13.sp)
+                                            Spacer(Modifier.height(12.dp))
+                                            Button(onClick = { viewModel.fetchSalesOverview(orderId) }) {
+                                                Text("Retry")
+                                            }
                                         }
-                                    )
-                                    "Payment" -> PaymentTab(
-                                        payment = payment,
-                                        context = context,
-                                        orderData = s.data,
-                                        viewModel = viewModel,
-                                        sheetState = paymentSheetState,
-                                        onOpenSheet = { paymentSheetState = SheetValue.Collapsed }
-                                    )
+                                    }
+                                }
+                                is OrderOverviewState.Success -> {
+                                    val garments: List<GarmentDetail> = remember(s.data) { extractGarments(s.data) }
+                                    val payment: PaymentInfo = remember(s.data) { extractPayment(s.data) }
+
+                                    when (selectedTab) {
+                                        "Overview" -> OverviewTab(s.data)
+                                        "Garments" -> GarmentsTab(
+                                            garments = garments,
+                                            onGoToAssignments = { selectedTab = "Assignments" }
+                                        )
+                                        "Assignments" -> AssignmentsTab(
+                                            garments = garments,
+                                            onAssignClick = { garment ->
+                                                selectedGarmentForSheet = garment
+                                                assignSheetState = SheetValue.Collapsed
+                                            }
+                                        )
+                                        "Payment" -> PaymentTab(
+                                            payment = payment,
+                                            context = context,
+                                            orderData = s.data,
+                                            viewModel = viewModel,
+                                            sheetState = paymentSheetState,
+                                            onOpenSheet = { paymentSheetState = SheetValue.Collapsed },
+                                            onShowSuccess = { msg -> successMessage = msg },
+                                            onShowError = { msg -> errorMessage = msg }
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // ── FABs (moved inside content Box too, same behavior) ──
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = !isAnySheetOpen,
-                        enter = fadeIn(),
-                        exit = fadeOut()
-                    ) {
-                        StepNavigationFab(
-                            showBack = true,
-                            onBack = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
-                            backEnabled = currentOrderData != null,
-                            backLabel = "Edit Order",
-                            backWidthFraction = 0.45f,
-                            trailingWidthFraction = 0.45f,
-                            trailingAction = TrailingFabAction.Next(
-                                label = "Create New",
-                                onClick = onCreateNew
+                        // ── FABs (moved inside content Box too, same behavior) ──
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = !isAnySheetOpen,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            StepNavigationFab(
+                                showBack = true,
+                                onBack = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
+                                backEnabled = currentOrderData != null,
+                                backLabel = "Edit Order",
+                                backWidthFraction = 0.45f,
+                                trailingWidthFraction = 0.45f,
+                                trailingAction = TrailingFabAction.Next(
+                                    label = "Create New",
+                                    onClick = onCreateNew
+                                )
                             )
-                        )
+                        }
+
+                        // ── THE HALF-PAGE BOTTOM SHEET — confined to content Box only ──
                     }
+                }
+                AssignTailorsSheet(
+                    garment = selectedGarmentForSheet,
+                    staffList = staffList,
+                    orderId = orderId,
+                    viewModel = viewModel,
+                    assignState = assignState,
+                    sheetState = assignSheetState,
+                    onStateChange = { assignSheetState = it },
+                    onBlurScrimChange = { r, sc -> assignSheetBlur = r; assignSheetScrim = sc },
+                    topInset = 66.dp,   // 0 here = "top of content Box" = right below header
+                    onDismiss = { closeAssignSheet() },
+                    onError = { msg -> errorMessage = msg }
+                )
 
-                    // ── THE HALF-PAGE BOTTOM SHEET — now confined to content Box only ──
-
+                // ReceivePaymentSheet rendered at root, same level as AssignTailorsSheet
+                if (paymentInfoForSheet != null) {
+                    ReceivePaymentSheet(
+                        orderId = currentOrderData.order._id,
+                        balanceDue = paymentInfoForSheet.remainingAmount,
+                        viewModel = viewModel,
+                        isSaving = receivePaymentState is ReceivePaymentState.Loading,
+                        sheetState = paymentSheetState,
+                        onStateChange = { paymentSheetState = it },
+                        onBlurChange = { paymentSheetBlur = it },
+                        onDismiss = { closePaymentSheet() }
+                    )
                 }
             }
-            AssignTailorsSheet(
-                garment = selectedGarmentForSheet,
-                staffList = staffList,
-                orderId = orderId,
-                viewModel = viewModel,
-                assignState = assignState,
-                sheetState = assignSheetState,
-                onStateChange = { assignSheetState = it },
-                onBlurScrimChange = { r, sc -> assignSheetBlur = r; assignSheetScrim = sc },
-                topInset = 66.dp,   // ✅ 0 here = "top of content Box" = right below header now
-                onDismiss = { closeAssignSheet() }
-            )
-
-            // New: ReceivePaymentSheet rendered at root, same level as AssignTailorsSheet
-            if (paymentInfoForSheet != null && currentOrderData != null) {
-                ReceivePaymentSheet(
-                    orderId = currentOrderData.order._id,
-                    balanceDue = paymentInfoForSheet.remainingAmount,
-                    viewModel = viewModel,
-                    isSaving = receivePaymentState is ReceivePaymentState.Loading,
-                    sheetState = paymentSheetState,
-                    onStateChange = { paymentSheetState = it },
-                    onBlurChange = { paymentSheetBlur = it },
-                    onDismiss = { closePaymentSheet() }
-                )
-            }
         }
+
+        // Notification banners live in the outer Box, on top of the entire
+        // Scaffold (including topBar), so they are never clipped.
+        DynamicIslandSuccess(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = errorMessage,
+            onDismiss = { errorMessage = null }
+        )
     }
 }
 
@@ -1011,7 +1034,8 @@ private fun AssignTailorsSheet(
     onStateChange: (SheetValue) -> Unit,
     onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> },
     topInset: Dp = 66.dp,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onError: (String) -> Unit = {}
 ) {
     if (garment == null) return
 
@@ -1040,12 +1064,11 @@ private fun AssignTailorsSheet(
     var priorityExpanded by remember { mutableStateOf(false) }
 
     val isAssigning = assignState is AssignWorkersState.Loading
-    val context = LocalContext.current
 
     SmoothBottomSheet(
         state = sheetState,
         onStateChange = onStateChange,
-        collapsedFraction = 0.75f,   // ✅ container height-ன் 75% — screen size எதுவா இருந்தாலும் safe
+        collapsedFraction = 0.75f,   // 75% of the container height — safe across screen sizes
         topInset = topInset,
         onDismissRequest = onDismiss,
         onBlurScrimChange = onBlurScrimChange
@@ -1227,7 +1250,7 @@ private fun AssignTailorsSheet(
                                 )
                                 onDismiss()
                             } else {
-                                Toast.makeText(context, "Please select all three workers", Toast.LENGTH_SHORT).show()
+                                onError("Please select all three workers")
                             }
                         },
                         modifier = Modifier.weight(1f).height(48.dp),
@@ -1260,7 +1283,9 @@ private fun PaymentTab(
     viewModel: OrderOverviewViewModel,
     sheetState: SheetValue,
     onOpenSheet: () -> Unit,
-    onConvertToInvoice: () -> Unit = {}
+    onConvertToInvoice: () -> Unit = {},
+    onShowSuccess: (String) -> Unit = {},
+    onShowError: (String) -> Unit = {}
 ) {
     val (statusBg, statusText) = when (payment.status) {
         "PAID" -> StatusGreenBg to StatusGreenText
@@ -1331,7 +1356,7 @@ private fun PaymentTab(
         if (payment.remainingAmount > 0.0) {
             Spacer(Modifier.height(16.dp))
             Button(
-                onClick = onOpenSheet,   // was: paymentSheetState = SheetValue.Collapsed
+                onClick = onOpenSheet,
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = TabActive)
@@ -1380,7 +1405,7 @@ private fun PaymentTab(
             onClick = {
                 val pdf = pdfGenerator.generateReceiptPdf(receiptData)
                 if (pdf != null) {
-                    Toast.makeText(context, "PDF Saved:\n${pdf.absolutePath}", Toast.LENGTH_LONG).show()
+                    onShowSuccess("PDF saved: ${pdf.absolutePath}")
                     val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", pdf)
                     val intent = Intent(Intent.ACTION_VIEW).apply {
                         setDataAndType(uri, "application/pdf")
@@ -1388,7 +1413,7 @@ private fun PaymentTab(
                     }
                     context.startActivity(intent)
                 } else {
-                    Toast.makeText(context, "Failed to create PDF", Toast.LENGTH_SHORT).show()
+                    onShowError("Failed to create PDF")
                 }
             }
         )
@@ -1402,7 +1427,7 @@ private fun PaymentTab(
     }
 }
 // ─────────────────────────────────────────────────────────────────────────
-// RECEIVE PAYMENT DIALOG
+// RECEIVE PAYMENT SHEET
 // ─────────────────────────────────────────────────────────────────────────
 
 @Composable

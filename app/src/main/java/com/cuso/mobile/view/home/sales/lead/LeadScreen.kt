@@ -35,10 +35,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
@@ -72,6 +71,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -147,6 +147,8 @@ import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 import com.cuso.mobile.viewmodel.SaleState
 import com.cuso.mobile.viewmodel.SalesViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.collections.get
 import kotlin.text.ifEmpty
 
@@ -567,6 +569,7 @@ fun LeadFormScreen(
 
     var errorField by remember { mutableStateOf<String?>(null) }
     var validationError by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
     var showConvertDialog by remember { mutableStateOf(false) }
 
     val isConvertedStatus = remember(leadStatus) {
@@ -776,6 +779,13 @@ fun LeadFormScreen(
         if (!isEdit) return@LaunchedEffect
         when (val state = updateState) {
             is SaleState.Success<*> -> {
+                // Show success notification on the current screen
+                successMessage = "Lead updated successfully"
+
+                // Give the user time to see the message before navigating away
+                delay(1500)
+
+                // Reset VM state before navigating
                 salesViewModel.resetUpdateState()
                 onBack()
             }
@@ -1385,6 +1395,17 @@ fun LeadFormScreen(
             message = validationError,
             onDismiss = { validationError = null }
         )
+        DynamicIslandSuccess(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = validationError,
+            onDismiss = { validationError = null }
+        )
     }
 
     if (isEdit && showConvertDialog) {
@@ -1593,6 +1614,25 @@ fun LeadScreenContent(
         matchesSearch && matchesStatus && matchesSource && matchesGarments && matchesPriority && matchesAmount && matchesSalesPerson
     }
 
+    val listState = rememberLazyListState()
+    val isLoadingMore by salesViewModel.isLoadingMore.collectAsStateWithLifecycle()
+    val canLoadMore by salesViewModel.canLoadMore.collectAsStateWithLifecycle()
+
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val info = listState.layoutInfo
+            val total = info.totalItemsCount
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && lastVisible >= total - 3
+        }
+            .distinctUntilChanged()
+            .collect { nearEnd ->
+                if (nearEnd && canLoadMore && !isLoadingMore) {
+                    salesViewModel.loadMoreLeads()
+                }
+            }
+    }
+
     fun resolveStatusBadge(lead: LeadTableItem): Pair<String, Color> {
         val statusName = when (lead.status) {
             is String -> lead.status
@@ -1732,41 +1772,44 @@ fun LeadScreenContent(
                         }
                         else -> {
                             Column(modifier = Modifier.fillMaxSize()) {
-                                Column(
-                                    modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.weight(1f).fillMaxWidth()
                                 ) {
-                                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                                        filteredLeads.forEach { lead ->
-                                            val (badgeText, badgeColor) = resolveStatusBadge(lead)
-                                            DataCard(
-                                                item = lead,
-                                                dateText = "Order ID: order id not found",
-                                                showDateIcon = false,
-                                                topBadgeText = badgeText,
-                                                topBadgeTextColor = badgeColor,
-                                                topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-                                                title = lead.person.name.ifEmpty { "—" },
-                                                subtitle = "${formatLeadDate(lead.requiredDate?.ifEmpty { "—" })} • ${getGarmentName(lead)} • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
-                                                footerFields = listOf(
-                                                    DataCardField(
-                                                        icon = Icons.Default.AttachMoney,
-                                                        iconTint = Color(0xFF6366F1),
-                                                        iconBackgroundColor = primary_light,
-                                                        iconCircleSize = 24.dp,
-                                                        text = "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}",
-                                                        textColor = Color(0xFF374151)
-                                                    )
-                                                ),
-                                                actions = listOf(
-                                                    MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClicked(lead) },
-                                                    MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClicked(lead) },
-                                                    MenuAction(
-                                                        "Delete", Icons.Default.Delete,
-                                                        tint = Color(0xFFF44336), textColor = Color(0xFFF44336),
-                                                        enabled = !isDeleting
-                                                    ) { leadToDelete = lead }
+                                    items(filteredLeads, key = { it.id }) { lead ->
+                                        val (badgeText, badgeColor) = resolveStatusBadge(lead)
+                                        DataCard(
+                                            item = lead,
+                                            dateText = "Order ID: order id not found",
+                                            showDateIcon = false,
+                                            topBadgeText = badgeText,
+                                            topBadgeTextColor = badgeColor,
+                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
+                                            title = lead.person.name.ifEmpty { "—" },
+                                            subtitle = "${formatLeadDate(lead.requiredDate?.ifEmpty { "—" })} • ${getGarmentName(lead)} • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
+                                            footerFields = listOf(
+                                                DataCardField(
+                                                    icon = Icons.Default.AttachMoney,
+                                                    iconTint = Color(0xFF6366F1),
+                                                    iconBackgroundColor = primary_light,
+                                                    iconCircleSize = 24.dp,
+                                                    text = "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}",
+                                                    textColor = Color(0xFF374151)
                                                 )
+                                            ),
+                                            actions = listOf(
+                                                MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClicked(lead) },
+                                                MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClicked(lead) },
+                                                MenuAction("Delete", Icons.Default.Delete, tint = Color(0xFFF44336), textColor = Color(0xFFF44336), enabled = !isDeleting) { leadToDelete = lead }
                                             )
+                                        )
+                                    }
+
+                                    if (isLoadingMore) {
+                                        item {
+                                            Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                                CirculerProgressIndicatorSmall()
+                                            }
                                         }
                                     }
                                 }

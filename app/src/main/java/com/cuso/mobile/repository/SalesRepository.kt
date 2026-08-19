@@ -516,12 +516,13 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    suspend fun updateBranch(id: String, request: UpdateBranchRequest): Result<BranchItem> {
+    suspend fun updateBranch(id: String, request: UpdateBranchRequest): Result<Pair<BranchItem, String?>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = api.updateBranch(accessToken, csrfToken, id, request)
             if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!.data)
+                val body = response.body()!!
+                Result.success(body.data to null)   // message field not available in response model yet
             } else {
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to update branch: ${response.code()}")
@@ -999,12 +1000,12 @@ class SalesRepository @Inject constructor(
             Result.failure(e)
         }
     }
-    suspend fun deleteCustomer(id: String): Result<Boolean> {
+    suspend fun deleteCustomer(id: String): Result<String?> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = api.deleteCustomer(accessToken, csrfToken, id)
             if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(true)
+                Result.success(response.body()?.message)
             } else {
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to delete customer: ${response.code()}")

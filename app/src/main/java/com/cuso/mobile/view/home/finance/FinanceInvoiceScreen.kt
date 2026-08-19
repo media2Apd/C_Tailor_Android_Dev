@@ -1,7 +1,5 @@
-
 package com.cuso.mobile.view.home.finance
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,6 +30,8 @@ import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.formatIndianNumber
@@ -309,6 +309,11 @@ fun InvoiceDetailScreen(
 
     var isDownloading by remember { mutableStateOf(false) }
 
+    // Root-level notification state — replaces Toast for share/download
+    // success & failure, shown via DynamicIslandSuccess/Error below.
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(invoiceId) {
         viewModel.fetchInvoiceDetail(invoiceId)
     }
@@ -384,172 +389,188 @@ fun InvoiceDetailScreen(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-    ) {
-        // ── Top bar ──
-        Row(
+    // Outer wrapper Box: keeps the notification banners above everything
+    // else on this screen (including the top bar), at TopCenter position,
+    // so they are never clipped.
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .background(Color.Transparent)
         ) {
-            TitleBar("All Invoices", onClose = onClose)
+            // ── Top bar ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TitleBar("All Invoices", onClose = onClose)
 
-        }
-        HorizontalDivider(color = Color(0xFFEEEEEE))
-
-        when {
-            isLoading -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = InvPrimary)
-                }
             }
-            error != null -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Warning, null, tint = InvRed, modifier = Modifier.size(48.dp))
-                        Spacer(Modifier.height(8.dp))
-                        Text(error ?: "Failed to load invoice", color = InvRed, fontSize = 14.sp)
-                        Spacer(Modifier.height(12.dp))
-                        Button(onClick = { viewModel.fetchInvoiceDetail(invoiceId) }) {
-                            Text("Retry")
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = onClose) {
-                            Text("Go Back")
+            HorizontalDivider(color = Color(0xFFEEEEEE))
+
+            when {
+                isLoading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = InvPrimary)
+                    }
+                }
+                error != null -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Warning, null, tint = InvRed, modifier = Modifier.size(48.dp))
+                            Spacer(Modifier.height(8.dp))
+                            Text(error ?: "Failed to load invoice", color = InvRed, fontSize = 14.sp)
+                            Spacer(Modifier.height(12.dp))
+                            Button(onClick = { viewModel.fetchInvoiceDetail(invoiceId) }) {
+                                Text("Retry")
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            TextButton(onClick = onClose) {
+                                Text("Go Back")
+                            }
                         }
                     }
                 }
-            }
-            invoiceDetail != null -> {
-                val invoice = invoiceDetail!!
-                val pdfData = remember(invoice, logoBase64) { invoice.toPdfData() }
+                invoiceDetail != null -> {
+                    val invoice = invoiceDetail!!
+                    val pdfData = remember(invoice, logoBase64) { invoice.toPdfData() }
 
-                Column(modifier = Modifier.fillMaxSize()) {
-                    InvoiceHeaderCard(invoice = invoice)
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        InvoiceHeaderCard(invoice = invoice)
 
-                    // ── WebView renders the SAME html used for PDF export ──
-                    // (identical pattern to CreateQuotationScreen's preview AndroidView)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .padding(horizontal = 8.dp)
-                            .background(whiteBg)
-                    ) {
-                        AndroidView(
-                            factory = { ctx ->
-                                android.webkit.WebView(ctx).apply {
-                                    settings.loadWithOverviewMode = true
-                                    settings.useWideViewPort = true
-                                    settings.setSupportZoom(true)
-                                    settings.builtInZoomControls = true
-                                    settings.displayZoomControls = false
-                                    webViewClient = android.webkit.WebViewClient()
-                                    loadDataWithBaseURL(
+                        // ── WebView renders the SAME html used for PDF export ──
+                        // (identical pattern to CreateQuotationScreen's preview AndroidView)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .padding(horizontal = 8.dp)
+                                .background(whiteBg)
+                        ) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    android.webkit.WebView(ctx).apply {
+                                        settings.loadWithOverviewMode = true
+                                        settings.useWideViewPort = true
+                                        settings.setSupportZoom(true)
+                                        settings.builtInZoomControls = true
+                                        settings.displayZoomControls = false
+                                        webViewClient = android.webkit.WebViewClient()
+                                        loadDataWithBaseURL(
+                                            null,
+                                            pdfGenerator.buildInvoiceHtml(pdfData),
+                                            "text/html",
+                                            "UTF-8",
+                                            null
+                                        )
+                                    }
+                                },
+                                update = { webView ->
+                                    webView.loadDataWithBaseURL(
                                         null,
                                         pdfGenerator.buildInvoiceHtml(pdfData),
                                         "text/html",
                                         "UTF-8",
                                         null
                                     )
-                                }
-                            },
-                            update = { webView ->
-                                webView.loadDataWithBaseURL(
-                                    null,
-                                    pdfGenerator.buildInvoiceHtml(pdfData),
-                                    "text/html",
-                                    "UTF-8",
-                                    null
-                                )
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    // ── Bottom action buttons ──
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                pdfGenerator.generatePdfFromHtml(
-                                    data = pdfData,
-                                    saveToDownloads = false
-                                ) { saved ->
-                                    if (saved != null && saved.exists()) {
-                                        val shareUri = if (saved.file != null) {
-                                            androidx.core.content.FileProvider.getUriForFile(
-                                                context,
-                                                "${context.packageName}.fileprovider",
-                                                saved.file
-                                            )
-                                        } else {
-                                            saved.uri
-                                        }
-                                        shareUri?.let { uri ->
-                                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                                type = "application/pdf"
-                                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                            }
-                                            context.startActivity(
-                                                android.content.Intent.createChooser(shareIntent, "Share Invoice PDF")
-                                            )
-                                        }
-                                    } else {
-                                        Toast.makeText(context, "Failed to generate invoice PDF", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, Primary)
-                        ) {
-                            Icon(Icons.Default.Share, null, tint = Primary, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Share PDF", color = Primary, fontSize = 14.sp)
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
-                        Button(
-                            onClick = {
-                                if (!isDownloading) {
-                                    isDownloading = true
-                                    pdfGenerator.downloadInvoicePdf(pdfData) { saved ->
-                                        isDownloading = false
-                                        val msg = if (saved != null && saved.exists()) {
-                                            "Invoice downloaded to Downloads folder"
-                                        } else {
-                                            "Failed to download invoice"
-                                        }
-                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Primary)
+
+                        // ── Bottom action buttons ──
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            if (isDownloading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = whiteBg
-                                )
-                            } else {
-                                Icon(Icons.Default.Download, null, tint = whiteBg, modifier = Modifier.size(18.dp))
+                            OutlinedButton(
+                                onClick = {
+                                    pdfGenerator.generatePdfFromHtml(
+                                        data = pdfData,
+                                        saveToDownloads = false
+                                    ) { saved ->
+                                        if (saved != null && saved.exists()) {
+                                            val shareUri = if (saved.file != null) {
+                                                androidx.core.content.FileProvider.getUriForFile(
+                                                    context,
+                                                    "${context.packageName}.fileprovider",
+                                                    saved.file
+                                                )
+                                            } else {
+                                                saved.uri
+                                            }
+                                            shareUri?.let { uri ->
+                                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                    type = "application/pdf"
+                                                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                }
+                                                context.startActivity(
+                                                    android.content.Intent.createChooser(shareIntent, "Share Invoice PDF")
+                                                )
+                                            }
+                                        } else {
+                                            errorMessage = "Failed to generate invoice PDF"
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Primary)
+                            ) {
+                                Icon(Icons.Default.Share, null, tint = Primary, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Download ", color = whiteBg, fontSize = 14.sp)
+                                Text("Share PDF", color = Primary, fontSize = 14.sp)
+                            }
+                            Button(
+                                onClick = {
+                                    if (!isDownloading) {
+                                        isDownloading = true
+                                        pdfGenerator.downloadInvoicePdf(pdfData) { saved ->
+                                            isDownloading = false
+                                            if (saved != null && saved.exists()) {
+                                                successMessage = "Invoice downloaded to Downloads folder"
+                                            } else {
+                                                errorMessage = "Failed to download invoice"
+                                            }
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                            ) {
+                                if (isDownloading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = whiteBg
+                                    )
+                                } else {
+                                    Icon(Icons.Default.Download, null, tint = whiteBg, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Download ", color = whiteBg, fontSize = 14.sp)
+                                }
                             }
                         }
                     }
                 }
             }
         }
+
+        DynamicIslandSuccess(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = errorMessage,
+            onDismiss = { errorMessage = null }
+        )
     }
 }

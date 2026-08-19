@@ -37,8 +37,11 @@ import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.model.UpdateBranchAddress
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.disabled
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.DynamicIslandError
@@ -130,10 +133,13 @@ fun BranchSettingsScreen(
     LaunchedEffect(createState) {
         when (val state = createState) {
             is CreateBranchUiState.Success -> {
+                addSheetBlur = 0.dp        // ← reset BEFORE the sheet disappears
+                addSheetScrim = 0f
                 addSheetState = SheetValue.Hidden
                 branchViewModel.resetCreateState()
                 branchViewModel.loadBranches()
-                successMessage = "Branch created successfully"
+                successMessage = state.message?.takeIf { it.isNotBlank() }
+                    ?: "Branch created successfully"
             }
             is CreateBranchUiState.Error -> {
                 branchViewModel.resetCreateState()
@@ -150,11 +156,14 @@ fun BranchSettingsScreen(
     LaunchedEffect(updateState) {
         when (val state = updateState) {
             is UpdateBranchUiState.Success -> {
+                editSheetBlur = 0.dp       // ← reset BEFORE editingBranch = null destroys the sheet
+                editSheetScrim = 0f
                 editSheetState = SheetValue.Hidden
                 editingBranch = null
                 branchViewModel.loadBranches()
                 branchViewModel.resetUpdateState()
-                successMessage = "Branch updated successfully"
+                successMessage = state.message?.takeIf { it.isNotBlank() }
+                    ?: "Branch updated successfully"
             }
             is UpdateBranchUiState.Error -> {
                 branchViewModel.resetUpdateState()
@@ -175,222 +184,314 @@ fun BranchSettingsScreen(
     val totalPages = maxOf(1, if (filteredBranches.isNotEmpty()) (filteredBranches.size + itemsPerPage - 1) / itemsPerPage else 1)
     val pagedBranches = filteredBranches.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
 
-    // Using Scaffold topBar slot ensures TitleBar is on top of BottomSheets and Scrims
-    Scaffold(
-        topBar = {
-            TitleBar("Branch Management", onClose = onBack)
-        },
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+    Box(Modifier.fillMaxSize()) {
+        // Using Scaffold topBar slot ensures TitleBar is on top of BottomSheets and Scrims
+        Scaffold(
+            topBar = {
+                TitleBar("Branch Management", onClose = onBack)
+            },
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        ) { padding ->
 
-            FabScaffold(
-                fab = FabConfig(
-                    label = "Add Branch",
-                    icon = Icons.Default.Add,
-                    onClick = {
-                        if (isBranchLimitReached) {
-                            showPlanLimitDialog = true
-                        } else {
-                            addSheetState = SheetValue.Expanded
-                        }
-                    }
-                ),
-                fabVisible = !isAnySheetOpen,
-                snackbarHostState = snackbarHostState
-            ) {
-                // Blur is applied only to this Column, not the TitleBar
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .background(Color.Transparent)
-                        .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        ScreenBreadcrumb(segments = listOf("Settings", "Branch Management"), onClick = {})
+            //   OUTER wrapper Box — holds list content, both bottom sheets, and
+            //   the islands. Order inside this Box controls draw/z-order in Compose:
+            //   whatever is declared LAST is drawn on TOP.
+            Box(modifier = Modifier.fillMaxSize()) {
 
-                        SearchFilterBar(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                            placeholder = "Search Branches...",
-                            accentColor = BluePrimary
-                        )
-                    }
-                    HorizontalDivider(color = Color(0xFFF0F0F0))
+                // ── Layer 1: main list content + plan limit dialog ──────────
+                Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
-                    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                        when (uiState) {
-                            is BranchUiState.Loading -> ListSkeleton()
-                            is BranchUiState.Error -> {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
-                                        Spacer(Modifier.height(8.dp))
-                                        Text("Something went wrong, Please try again later", color = Color.Red)
-                                        Spacer(Modifier.height(12.dp))
-                                        Button(onClick = { branchViewModel.refresh() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(8.dp)) {
-                                            Text("Retry", color = whiteBg)
-                                        }
-                                    }
-                                }
-                            }
-                            is BranchUiState.Success -> {
-                                if (filteredBranches.isEmpty()) {
-                                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Icon(Icons.Default.Business, null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
-                                            Spacer(Modifier.height(8.dp))
-                                            Text(if (searchQuery.isNotBlank()) "No matching branches found" else "No branches found", color = Color.Gray, fontSize = 15.sp)
-                                        }
-                                    }
+                    FabScaffold(
+                        fab = FabConfig(
+                            label = "Add Branch",
+                            icon = Icons.Default.Add,
+                            onClick = {
+                                if (isBranchLimitReached) {
+                                    showPlanLimitDialog = true
                                 } else {
-                                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                        items(pagedBranches) { branch ->
-                                            val (badgeText, badgeColor) = statusColorsOf(branch.status)
-                                            DataCard(
-                                                item = branch,
-                                                title = branch.branchId ?: "-",
-                                                titleColor = title_color,
-                                                subtitle = "Employees: not found \u00B7 Active Orders: not found",
-                                                topBadgeText = badgeText,
-                                                topBadgeTextColor = badgeColor,
-                                                topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-                                                topBadgeInline = true,
-                                                footerFields = listOf(
-                                                    DataCardField(text = branch.name ?: "Unnamed", label = "Branch Name", asRow = true),
-                                                    DataCardField(text = locationOf(branch), label = "Location", asRow = true),
-                                                    DataCardField(text = branchHeadNameOf(branch), label = "Managers", asRow = true)
-                                                ),
-                                                actions = listOf(
-                                                    MenuAction("Edit", Icons.Default.Edit) {
-                                                        editingBranch = branch
-                                                        editSheetState = SheetValue.Expanded
-                                                    }
+                                    addSheetState = SheetValue.Expanded
+                                }
+                            }
+                        ),
+                        fabVisible = !isAnySheetOpen,
+                        snackbarHostState = snackbarHostState
+                    ) {
+                        // Blur is applied only to this Column, not the TitleBar
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(padding)
+                                .background(Color.Transparent)
+                                .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                ScreenBreadcrumb(
+                                    segments = listOf("Settings", "Branch Management"),
+                                    onClick = {})
+
+                                SearchFilterBar(
+                                    query = searchQuery,
+                                    onQueryChange = { searchQuery = it },
+                                    modifier = Modifier.padding(
+                                        horizontal = 20.dp,
+                                        vertical = 12.dp
+                                    ),
+                                    placeholder = "Search Branches...",
+                                    accentColor = BluePrimary
+                                )
+                            }
+                            HorizontalDivider(color = Color(0xFFF0F0F0))
+
+                            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                                when (uiState) {
+                                    is BranchUiState.Loading -> ListSkeleton()
+                                    is BranchUiState.Error -> {
+                                        Box(
+                                            Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Icon(
+                                                    Icons.Default.Warning,
+                                                    null,
+                                                    tint = Color.Red,
+                                                    modifier = Modifier.size(48.dp)
                                                 )
-                                            )
+                                                Spacer(Modifier.height(8.dp))
+                                                Text(
+                                                    "Something went wrong, Please try again later",
+                                                    color = Color.Red
+                                                )
+                                                Spacer(Modifier.height(12.dp))
+                                                Button(
+                                                    onClick = { branchViewModel.refresh() },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = Color(0xFF3B3BF9)
+                                                    ),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                ) {
+                                                    Text("Retry", color = whiteBg)
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    is BranchUiState.Success -> {
+                                        if (filteredBranches.isEmpty()) {
+                                            Box(
+                                                Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Icon(
+                                                        Icons.Default.Business,
+                                                        null,
+                                                        tint = Color.LightGray,
+                                                        modifier = Modifier.size(48.dp)
+                                                    )
+                                                    Spacer(Modifier.height(8.dp))
+                                                    Text(
+                                                        if (searchQuery.isNotBlank()) "No matching branches found" else "No branches found",
+                                                        color = Color.Gray,
+                                                        fontSize = 15.sp
+                                                    )
+                                                }
+                                            }
+                                        } else {
+                                            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                                items(pagedBranches) { branch ->
+                                                    val (badgeText, badgeColor) = statusColorsOf(
+                                                        branch.status
+                                                    )
+                                                    DataCard(
+                                                        item = branch,
+                                                        title = branch.branchId ?: "-",
+                                                        titleColor = title_color,
+                                                        subtitle = "Employees: not found · Active Orders: not found",
+                                                        topBadgeText = badgeText,
+                                                        topBadgeTextColor = badgeColor,
+                                                        topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
+                                                        topBadgeInline = true,
+                                                        footerFields = listOf(
+                                                            DataCardField(
+                                                                text = branch.name ?: "Unnamed",
+                                                                label = "Branch Name",
+                                                                asRow = true
+                                                            ),
+                                                            DataCardField(
+                                                                text = locationOf(branch).let { loc ->
+                                                                    if (loc.length > 30) loc.take(30) + "…" else loc
+                                                                },
+                                                                label = "Location",
+                                                                asRow = true
+                                                            ),
+                                                            DataCardField(
+                                                                text = branchHeadNameOf(branch),
+                                                                label = "Managers",
+                                                                asRow = true
+                                                            )
+                                                        ),
+                                                        actions = listOf(
+                                                            MenuAction("Edit", Icons.Default.Edit) {
+                                                                editingBranch = branch
+                                                                editSheetState = SheetValue.Expanded
+                                                            }
+                                                        )
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
-            }
 
-            if (showPlanLimitDialog) {
-                PlanLimitDialog(
-                    title = "Plan Limit Reached",
-                    message = "Branch limit exceeded ($currentBranchesCount/${planLimits?.branchLimit ?: 0}). Upgrade your plan to add more branches.",
-                    onDismiss = { showPlanLimitDialog = false },
-                    onUpgrade = { /* navigate to upgrade */ }
-                )
-            }
-
-            //   NEW — Dynamic Island success/error banners
-            DynamicIslandSuccess(
-                modifier = Modifier.align(Alignment.TopCenter),
-                message = successMessage,
-                onDismiss = { successMessage = null }
-            )
-            DynamicIslandError(
-                modifier = Modifier.align(Alignment.TopCenter),
-                message = errorMessage,
-                onDismiss = { errorMessage = null }
-            )
-        }
-
-        // Add Branch BottomSheet - topInset 60.dp matches TitleBar height
-        SmoothBottomSheet(
-            state = addSheetState,
-            onStateChange = { newState ->
-                addSheetState = newState
-                if (newState == SheetValue.Hidden) branchViewModel.resetCreateState()
-            },
-            peekHeight = 380.dp,
-            topInset = 66.dp,
-            sheetBackgroundColor = whiteBg,
-            collapsedCornerRadius = 24.dp,
-            dragCloseEnabled = true,
-            scrollableContent = true,
-            onDismissRequest = {
-                addSheetState = SheetValue.Hidden
-                branchViewModel.resetCreateState()
-            },
-            onBlurScrimChange = { r, s -> addSheetBlur = r; addSheetScrim = s }
-        ) {
-            AddBranchSheetContent(
-                staffList = staffList,
-                isLoading = isCreating,
-                onDismiss = {
-                    addSheetState = SheetValue.Hidden
-                    branchViewModel.resetCreateState()
-                },
-                onCreate = { request ->
-                    if (isBranchLimitReached) {
-                        showPlanLimitDialog = true
-                        return@AddBranchSheetContent
-                    }
-                    branchViewModel.createBranch(request)
-                }
-            )
-        }
-
-        // Edit Branch BottomSheet
-        editingBranch?.let { branch ->
-            SmoothBottomSheet(
-                state = editSheetState,
-                onStateChange = { newState ->
-                    editSheetState = newState
-                    if (newState == SheetValue.Hidden) {
-                        editingBranch = null
-                        branchViewModel.resetUpdateState()
-                    }
-                },
-                peekHeight = 380.dp,
-                topInset = 66.dp,
-                sheetBackgroundColor = whiteBg,
-                collapsedCornerRadius = 24.dp,
-                dragCloseEnabled = true,
-                scrollableContent = true,
-                onDismissRequest = {
-                    editSheetState = SheetValue.Hidden
-                    editingBranch = null
-                    branchViewModel.resetUpdateState()
-                },
-                onBlurScrimChange = { r, s -> editSheetBlur = r; editSheetScrim = s }
-            ) {
-                EditBranchSheetContent(
-                    branch = branch,
-                    staffList = staffList,
-                    isLoading = isUpdating,
-                    onDismiss = {
-                        editSheetState = SheetValue.Hidden
-                        editingBranch = null
-                        branchViewModel.resetUpdateState()
-                    },
-                    onUpdate = { request ->
-                        branchViewModel.updateBranch(
-                            branchId = branch.id,
-                            request = UpdateBranchRequest(
-                                name = request.name,
-                                address = UpdateBranchAddress(
-                                    street = request.street,
-                                    city = request.city,
-                                    postalCode = request.postalCode
-                                ),
-                                contactEmail = request.contactEmail,
-                                contactMobile = request.contactMobile,
-                                status = branch.status,
-                                branchHead = request.branchHead
-                            )
+                    if (showPlanLimitDialog) {
+                        PlanLimitDialog(
+                            title = "Plan Limit Reached",
+                            message = "Branch limit exceeded ($currentBranchesCount/${planLimits?.branchLimit ?: 0}). Upgrade your plan to add more branches.",
+                            onDismiss = { showPlanLimitDialog = false },
+                            onUpgrade = { /* navigate to upgrade */ }
                         )
                     }
-                )
+                }
+
+                // ── Layer 2: Add Branch BottomSheet ─────────────────────────
+                SmoothBottomSheet(
+                    state = addSheetState,
+                    onStateChange = { newState ->
+                        addSheetState = newState
+                        if (newState == SheetValue.Hidden) {
+                            addSheetBlur = 0.dp
+                            addSheetScrim = 0f
+                            branchViewModel.resetCreateState()
+                        }
+                    },
+                    peekHeight = 380.dp,
+                    topInset = 66.dp,
+                    sheetBackgroundColor = whiteBg,
+                    collapsedCornerRadius = 24.dp,
+                    dragCloseEnabled = true,
+                    scrollableContent = true,
+                    onDismissRequest = {
+                        addSheetBlur = 0.dp
+                        addSheetScrim = 0f
+                        addSheetState = SheetValue.Hidden
+                        branchViewModel.resetCreateState()
+                    },
+                    onBlurScrimChange = { r, s ->
+                        // Ignore stale/late callbacks that fire after we've already
+                        // force-reset to 0 on close — prevents the blur getting stuck.
+                        if (addSheetState != SheetValue.Hidden) {
+                            addSheetBlur = r
+                            addSheetScrim = s
+                        }
+                    }
+                ) {
+                    AddBranchSheetContent(
+                        staffList = staffList,
+                        isLoading = isCreating,
+                        onDismiss = {
+                            addSheetBlur = 0.dp
+                            addSheetScrim = 0f
+                            addSheetState = SheetValue.Hidden
+                            branchViewModel.resetCreateState()
+                        },
+                        onCreate = { request ->
+                            if (isBranchLimitReached) {
+                                showPlanLimitDialog = true
+                                return@AddBranchSheetContent
+                            }
+                            branchViewModel.createBranch(request)
+                        }
+                    )
+                }
+
+                // ── Layer 3: Edit Branch BottomSheet ────────────────────────
+                editingBranch?.let { branch ->
+                    SmoothBottomSheet(
+                        state = editSheetState,
+                        onStateChange = { newState ->
+                            editSheetState = newState
+                            if (newState == SheetValue.Hidden) {
+                                editSheetBlur = 0.dp
+                                editSheetScrim = 0f
+                                editingBranch = null
+                                branchViewModel.resetUpdateState()
+                            }
+                        },
+                        peekHeight = 380.dp,
+                        topInset = 66.dp,
+                        sheetBackgroundColor = whiteBg,
+                        collapsedCornerRadius = 24.dp,
+                        dragCloseEnabled = true,
+                        scrollableContent = true,
+                        onDismissRequest = {
+                            editSheetBlur = 0.dp
+                            editSheetScrim = 0f
+                            editSheetState = SheetValue.Hidden
+                            editingBranch = null
+                            branchViewModel.resetUpdateState()
+                        },
+                        onBlurScrimChange = { r, s ->
+                            // Ignore stale/late callbacks that fire after we've already
+                            // force-reset to 0 on close — prevents the blur getting stuck.
+                            if (editSheetState != SheetValue.Hidden) {
+                                editSheetBlur = r
+                                editSheetScrim = s
+                            }
+                        }
+                    ) {
+                        EditBranchSheetContent(
+                            branch = branch,
+                            staffList = staffList,
+                            isLoading = isUpdating,
+                            onDismiss = {
+                                editSheetBlur = 0.dp
+                                editSheetScrim = 0f
+                                editSheetState = SheetValue.Hidden
+                                editingBranch = null
+                                branchViewModel.resetUpdateState()
+                            },
+                            onUpdate = { request ->
+                                branchViewModel.updateBranch(
+                                    branchId = branch.id,
+                                    request = UpdateBranchRequest(
+                                        name = request.name,
+                                        address = UpdateBranchAddress(
+                                            street = request.street,
+                                            city = request.city,
+                                            postalCode = request.postalCode
+                                        ),
+                                        contactEmail = request.contactEmail,
+                                        contactMobile = request.contactMobile,
+                                        status = branch.status,
+                                        branchHead = request.branchHead
+                                    )
+                                )
+                            }
+                        )
+                    }
+                }
             }
         }
+
+        // ── Layer 4 (TOPMOST): Dynamic Island success/error banners ─
+        //   Declared LAST so they always draw above the list, both
+        //   bottom sheets, and their blur scrims — never cropped or
+        //   hidden behind a closing sheet's blur.
+        DynamicIslandSuccess(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
+        DynamicIslandError(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = errorMessage,
+            onDismiss = { errorMessage = null }
+        )
     }
 }
 
@@ -494,10 +595,14 @@ fun AddBranchSheetContent(
                 },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Primary,
+                    disabledContainerColor = disabled
+                ),
                 enabled = !isLoading
             ) {
-                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = whiteBg, strokeWidth = 2.dp)
+                if (isLoading)
+                    CirculerProgressIndicatorSmall()
                 else Text("Create Branch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
             }
         }
@@ -582,7 +687,8 @@ fun EditBranchSheetContent(
                 colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
                 enabled = !isLoading
             ) {
-                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = whiteBg, strokeWidth = 2.dp)
+                if (isLoading)
+                    CirculerProgressIndicatorSmall()
                 else Text("Update Branch", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
             }
         }

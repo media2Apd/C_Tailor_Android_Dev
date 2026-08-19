@@ -32,10 +32,10 @@ import com.cuso.mobile.model.sales.BulkRuleDto
 import com.cuso.mobile.model.sales.PriceAdjustmentDto
 import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
-import com.cuso.mobile.view.home.sales.lead.LeadFormTopBar
 import com.cuso.mobile.view.home.LeadPrimary
 import com.cuso.mobile.view.home.LeadmutedText
 import com.cuso.mobile.view.composable.ListSkeleton
@@ -45,6 +45,7 @@ import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.viewmodel.GarmentPricingDetailUiState
 import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
+import kotlinx.coroutines.delay
 
 // ── Simple row models for the dynamic lists ──
 private data class PriceAdjustmentRow(val id: Int, val name: String, val price: String)
@@ -69,7 +70,6 @@ fun AddGarmentPricingScreen(
     val detailState by pricingViewModel.garmentPricingDetailState.collectAsStateWithLifecycle()
 
     val garmentOptions = garmentCategories.map { it.categoryId.categoryName }
-    // ── Show error snackbar state ──
 
 
 // ── Field-level validation errors ──     ADD THESE TWO LINES
@@ -119,6 +119,9 @@ fun AddGarmentPricingScreen(
     var showError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
 
+    // ── Show success snackbar state ──
+    var showSuccess by remember { mutableStateOf(false) }
+    var successMessage by remember { mutableStateOf("") }
     // ── Track whether we've already prefilled fields from detail response ──
     var prefilled by remember { mutableStateOf(false) }
     var isLoadingDetail by remember { mutableStateOf(isEditMode) }
@@ -168,7 +171,7 @@ fun AddGarmentPricingScreen(
                     isLoadingDetail = false
                 }
                 is GarmentPricingDetailUiState.Error -> {
-                    errorMessage = ds.message
+                    errorMessage = extractApiErrorMessage(ds.message)
                     showError = true
                     isLoadingDetail = false
                 }
@@ -268,11 +271,15 @@ fun AddGarmentPricingScreen(
     LaunchedEffect(saveState) {
         when {
             saveState.isSuccess && saveState.response != null -> {
+                successMessage = if (isEditMode) "Pricing updated successfully" else "Pricing saved successfully"
+                showSuccess = true
+                delay(1500)
                 onSave()
                 pricingViewModel.resetSaveState()
+                showSuccess = false
             }
             saveState.errorMessage != null -> {
-                errorMessage = saveState.errorMessage!!
+                errorMessage = extractApiErrorMessage(saveState.errorMessage!!)
                 showError = true
                 pricingViewModel.resetSaveState()
             }
@@ -535,6 +542,13 @@ fun AddGarmentPricingScreen(
             )
         )
 
+        // ── Dynamic Island success toast ──
+        DynamicIslandSuccess(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = if (showSuccess) successMessage else null,
+            onDismiss = { showSuccess = false }
+        )
+
         // ── Dynamic Island error toast ──
         DynamicIslandError(
             modifier = Modifier.align(Alignment.TopCenter),
@@ -545,6 +559,18 @@ fun AddGarmentPricingScreen(
 
 
 
+}
+
+// ── Extracts just the "message" field from a raw JSON error body.
+// Falls back to the original string if it isn't JSON (e.g. plain text
+// or network errors like "Unable to resolve host").
+private fun extractApiErrorMessage(raw: String): String {
+    return try {
+        val regex = Regex("\"message\"\\s*:\\s*\"(.*?)\"")
+        regex.find(raw)?.groupValues?.get(1) ?: raw
+    } catch (_: Exception) {
+        raw
+    }
 }
 
 // ── PriceAdjustmentField with null-safety ──

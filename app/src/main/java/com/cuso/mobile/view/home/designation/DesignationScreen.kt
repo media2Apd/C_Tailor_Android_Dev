@@ -5,7 +5,8 @@
     "DEPRECATION",
     "AssignedValueIsNeverRead",
     "GrazieInspection",
-    "unusedvariable"
+    "unusedVariable",
+    "VariableNeverRead"
 )
 package com.cuso.mobile.view.home.designation
 
@@ -23,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -35,13 +35,15 @@ import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.disabled
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCardStat
 import com.cuso.mobile.view.composable.DataCardStatsRow
 import com.cuso.mobile.view.composable.DeleteModel
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
@@ -58,7 +60,12 @@ import com.cuso.mobile.viewmodel.DesignationDeleteState
 import com.cuso.mobile.viewmodel.DesignationUiState
 import com.cuso.mobile.viewmodel.DesignationUpdateState
 import com.cuso.mobile.viewmodel.DesignationViewModel
-import kotlinx.coroutines.launch
+
+// ─────────────────────────────────────────────────────────────
+// DesignationScreen - Updated:
+//  - Snackbar removed, replaced with DynamicIsland success/error banners
+//  - blur/scrim reset pattern matched to Branch/Department screens
+// ─────────────────────────────────────────────────────────────
 
 @Composable
 fun DesignationScreen(
@@ -82,9 +89,6 @@ fun DesignationScreen(
     var currentPage by remember { mutableIntStateOf(1) }
     val itemsPerPage = 10
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
-
     // Independent blur states for sheets
     var addSheetBlur by remember { mutableStateOf(0.dp) }
     var addSheetScrim by remember { mutableFloatStateOf(0f) }
@@ -93,20 +97,26 @@ fun DesignationScreen(
 
     val isAnySheetOpen = addSheetState != SheetValue.Hidden || editSheetState != SheetValue.Hidden
 
+    //   Dynamic Island messages (replaces snackbar for success/error)
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(Unit) { viewModel.loadDesignations() }
 
     // Logic for handling Create states
     LaunchedEffect(createState) {
         when (val state = createState) {
             is DesignationCreateState.Success -> {
+                addSheetBlur = 0.dp        // ← reset BEFORE the sheet disappears
+                addSheetScrim = 0f
                 addSheetState = SheetValue.Hidden
                 viewModel.resetCreateState()
                 viewModel.loadDesignations()
-                coroutineScope.launch { snackbarHostState.showSnackbar("Designation created successfully") }
+                successMessage = "Designation created successfully"
             }
             is DesignationCreateState.Error -> {
                 viewModel.resetCreateState()
-                coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
+                errorMessage = state.message
             }
             else -> Unit
         }
@@ -116,15 +126,17 @@ fun DesignationScreen(
     LaunchedEffect(updateState) {
         when (val state = updateState) {
             is DesignationUpdateState.Success -> {
+                editSheetBlur = 0.dp       // ← reset BEFORE editingDesignation = null destroys the sheet
+                editSheetScrim = 0f
                 editSheetState = SheetValue.Hidden
                 editingDesignation = null
                 viewModel.resetUpdateState()
                 viewModel.loadDesignations()
-                coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
+                successMessage = state.message
             }
             is DesignationUpdateState.Error -> {
                 viewModel.resetUpdateState()
-                coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
+                errorMessage = state.message
             }
             else -> Unit
         }
@@ -137,11 +149,11 @@ fun DesignationScreen(
                 showDeleteDialog = null
                 viewModel.resetDeleteState()
                 viewModel.loadDesignations()
-                coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
+                successMessage = state.message
             }
             is DesignationDeleteState.Error -> {
                 viewModel.resetDeleteState()
-                coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
+                errorMessage = state.message
             }
             else -> Unit
         }
@@ -154,183 +166,242 @@ fun DesignationScreen(
     val totalPages = maxOf(1, if (filteredDesignations.isNotEmpty()) (filteredDesignations.size + itemsPerPage - 1) / itemsPerPage else 1)
     val pagedDesignations = filteredDesignations.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
 
-    Scaffold(
-        topBar = {
-            // Header is fixed here and remains visible above sheet scrims
-            TitleBar("Designation", onClose = onBack)
-        },
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
-            FabScaffold(
-                fab = FabConfig(
-                    label = "Add Designation",
-                    icon = Icons.Default.Add,
-                    onClick = { addSheetState = SheetValue.Expanded }
-                ),
-                fabVisible = !isAnySheetOpen,
-                snackbarHostState = snackbarHostState
-            ) {
-                // Content area that will blur when a sheet is open
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .background(Color.Transparent)
-                        .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        ScreenBreadcrumb(segments = listOf("Settings", "Designation"), onClick = {})
-                        SearchFilterBar(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 1.2f),
-                            placeholder = "Search Designations...",
-                            accentColor = BluePrimary,
-                            borderColor = BorderGray,
-                            textSecondaryColor = TextSecondary
-                        )
-                    }
-                    HorizontalDivider(color = Color(0xFFF0F0F0))
+    // ── OUTER Box — holds Scaffold + topmost Dynamic Island banners ────
+    Box(Modifier.fillMaxSize()) {
 
-                    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                        when (uiState) {
-                            is DesignationUiState.Loading -> ListSkeleton()
-                            is DesignationUiState.Error -> {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(
-                                            Icons.Default.Warning,
-                                            null,
-                                            tint = Color.Red,
-                                            modifier = Modifier.size(tokens.iconSize * 2.6f)
-                                        )
-                                        Spacer(Modifier.height(tokens.extraPadding * 0.8f))
-                                        Text("Something went wrong", fontSize = tokens.bodyMedium, color = Color.Red)
-                                        Button(
-                                            onClick = { viewModel.loadDesignations() },
-                                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                                        ) {
-                                            Text("Retry", fontSize = tokens.bodyMedium)
-                                        }
-                                    }
-                                }
+        Scaffold(
+            topBar = {
+                // Header is fixed here and remains visible above sheet scrims
+                TitleBar("Designation", onClose = onBack)
+            },
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        ) { padding ->
+
+            //   OUTER wrapper Box — holds list content + both bottom sheets.
+            //   Order inside this Box controls draw/z-order in Compose:
+            //   whatever is declared LAST is drawn on TOP.
+            Box(modifier = Modifier.fillMaxSize()) {
+
+                // ── Layer 1: main list content ──────────────────────────
+                Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+                    FabScaffold(
+                        fab = FabConfig(
+                            label = "Add Designation",
+                            icon = Icons.Default.Add,
+                            onClick = { addSheetState = SheetValue.Expanded }
+                        ),
+                        fabVisible = !isAnySheetOpen
+                    ) {
+                        // Content area that will blur when a sheet is open
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(padding)
+                                .background(Color.Transparent)
+                                .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                ScreenBreadcrumb(segments = listOf("Settings", "Designation"), onClick = {})
+                                SearchFilterBar(
+                                    query = searchQuery,
+                                    onQueryChange = { searchQuery = it },
+                                    modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 1.2f),
+                                    placeholder = "Search Designations...",
+                                    accentColor = BluePrimary,
+                                    borderColor = BorderGray,
+                                    textSecondaryColor = TextSecondary
+                                )
                             }
-                            is DesignationUiState.Success -> {
-                                if (filteredDesignations.isEmpty()) {
-                                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Text("No designations found", fontSize = tokens.bodyMedium, color = Color.Gray)
-                                    }
-                                } else {
-                                    Column(modifier = Modifier.fillMaxSize()) {
-                                        LazyColumn(modifier = Modifier.weight(1f)) {
-                                            items(pagedDesignations) { item ->
-                                                val (badgeText, badgeColor) = if (item.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
-                                                DataCard(
-                                                    item = item,
-                                                    titleColor = title_color,
-                                                    smalltitle = "${item.name}  .  Designation",
-                                                    topBadgeText = badgeText,
-                                                    topBadgeTextColor = badgeColor,
-                                                    topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-                                                    topBadgeInline = true,
-                                                    actions = listOf(
-                                                        MenuAction("Edit", Icons.Default.Edit) {
-                                                            editingDesignation = item
-                                                            editSheetState = SheetValue.Expanded
-                                                        },
-                                                        MenuAction("Delete", Icons.Default.Delete, tint = Color.Red, textColor = Color.Red) {
-                                                            showDeleteDialog = item
-                                                        }
-                                                    ),
-                                                    content = {
-                                                        DataCardStatsRow(
-                                                            stats = listOf(
-                                                                DataCardStat(label = "Department", value = "null"),
-                                                                DataCardStat(label = "Employees", value = "null"),
-                                                                DataCardStat(label = "Code", value = item.code ?: "-")
-                                                            )
-                                                        )
-                                                    }
+                            HorizontalDivider(color = Color(0xFFF0F0F0))
+
+                            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                                when (uiState) {
+                                    is DesignationUiState.Loading -> ListSkeleton()
+                                    is DesignationUiState.Error -> {
+                                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Icon(
+                                                    Icons.Default.Warning,
+                                                    null,
+                                                    tint = Color.Red,
+                                                    modifier = Modifier.size(tokens.iconSize * 2.6f)
                                                 )
+                                                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+                                                Text("Something went wrong", fontSize = tokens.bodyMedium, color = Color.Red)
+                                                Button(
+                                                    onClick = { viewModel.loadDesignations() },
+                                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                                                ) {
+                                                    Text("Retry", fontSize = tokens.bodyMedium)
+                                                }
                                             }
                                         }
+                                    }
+                                    is DesignationUiState.Success -> {
+                                        if (filteredDesignations.isEmpty()) {
+                                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                Text("No designations found", fontSize = tokens.bodyMedium, color = Color.Gray)
+                                            }
+                                        } else {
+                                            Column(modifier = Modifier.fillMaxSize()) {
+                                                LazyColumn(modifier = Modifier.weight(1f)) {
+                                                    items(pagedDesignations) { item ->
+                                                        val (badgeText, badgeColor) = if (item.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
+                                                        DataCard(
+                                                            item = item,
+                                                            titleColor = title_color,
+                                                            smalltitle = "${item.name}  .  Designation",
+                                                            topBadgeText = badgeText,
+                                                            topBadgeTextColor = badgeColor,
+                                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
+                                                            topBadgeInline = true,
+                                                            actions = listOf(
+                                                                MenuAction("Edit", Icons.Default.Edit) {
+                                                                    editingDesignation = item
+                                                                    editSheetState = SheetValue.Expanded
+                                                                },
+                                                                MenuAction("Delete", Icons.Default.Delete, tint = Color.Red, textColor = Color.Red) {
+                                                                    showDeleteDialog = item
+                                                                }
+                                                            ),
+                                                            content = {
+                                                                DataCardStatsRow(
+                                                                    stats = listOf(
+                                                                        DataCardStat(label = "Department", value = "null"),
+                                                                        DataCardStat(label = "Employees", value = "null"),
+                                                                        DataCardStat(label = "Code", value = item.code)
+                                                                    )
+                                                                )
+                                                            }
+                                                        )
+                                                    }
+                                                }
 
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+
+                // ── Layer 2: Add Designation BottomSheet ─────────────────
+                SmoothBottomSheet(
+                    state = addSheetState,
+                    onStateChange = { newState ->
+                        addSheetState = newState
+                        if (newState == SheetValue.Hidden) {
+                            addSheetBlur = 0.dp
+                            addSheetScrim = 0f
+                            viewModel.resetCreateState()
+                        }
+                    },
+                    peekHeight = tokens.cardHeight * 3.8f,
+                    topInset = 66.dp, // Ensures sheet stops below TitleBar
+                    onDismissRequest = {
+                        addSheetBlur = 0.dp
+                        addSheetScrim = 0f
+                        addSheetState = SheetValue.Hidden
+                        viewModel.resetCreateState()
+                    },
+                    onBlurScrimChange = { r, s ->
+                        // Ignore stale/late callbacks that fire after we've already
+                        // force-reset to 0 on close — prevents the blur getting stuck.
+                        if (addSheetState != SheetValue.Hidden) {
+                            addSheetBlur = r
+                            addSheetScrim = s
+                        }
+                    },
+                    sheetBackgroundColor = whiteBg,
+                    maxBlurRadius = 14.dp
+                ) {
+                    AddDesignationSheetContent(
+                        isLoading = createState is DesignationCreateState.Loading,
+                        onDismiss = {
+                            addSheetBlur = 0.dp
+                            addSheetScrim = 0f
+                            addSheetState = SheetValue.Hidden
+                        },
+                        onCreate = { name, code, desc -> viewModel.createDesignation(name, code, desc) }
+                    )
+                }
+
+                // ── Layer 3: Edit Designation BottomSheet ─────────────────
+                editingDesignation?.let { designation ->
+                    SmoothBottomSheet(
+                        state = editSheetState,
+                        onStateChange = { newState ->
+                            editSheetState = newState
+                            if (newState == SheetValue.Hidden) {
+                                editSheetBlur = 0.dp
+                                editSheetScrim = 0f
+                                editingDesignation = null
+                                viewModel.resetUpdateState()
+                            }
+                        },
+                        peekHeight = tokens.cardHeight * 3.8f,
+                        topInset = 66.dp,
+                        onDismissRequest = {
+                            editSheetBlur = 0.dp
+                            editSheetScrim = 0f
+                            editSheetState = SheetValue.Hidden
+                            editingDesignation = null
+                            viewModel.resetUpdateState()
+                        },
+                        onBlurScrimChange = { r, s ->
+                            // Ignore stale/late callbacks that fire after we've already
+                            // force-reset to 0 on close — prevents the blur getting stuck.
+                            if (editSheetState != SheetValue.Hidden) {
+                                editSheetBlur = r
+                                editSheetScrim = s
+                            }
+                        },
+                        sheetBackgroundColor = whiteBg,
+                        maxBlurRadius = 14.dp
+                    ) {
+                        EditDesignationSheetContent(
+                            designation = designation,
+                            isLoading = updateState is DesignationUpdateState.Loading,
+                            onDismiss = {
+                                editSheetBlur = 0.dp
+                                editSheetScrim = 0f
+                                editSheetState = SheetValue.Hidden
+                            },
+                            onUpdate = { name, code, desc ->
+                                viewModel.updateDesignation(designation.id, name, code, desc)
+                            }
+                        )
+                    }
+                }
+
+                // Delete Confirmation Dialog
+                showDeleteDialog?.let { designation ->
+                    DeleteModel(
+                        title = "Delete Designation",
+                        message = "Are you sure you want to delete '${designation.name}'?",
+                        onDismiss = { showDeleteDialog = null },
+                        onDelete = { viewModel.deleteDesignation(designation.id) }
+                    )
+                }
             }
         }
 
-        // Add Designation BottomSheet
-        SmoothBottomSheet(
-            state = addSheetState,
-            onStateChange = {
-                addSheetState = it
-                if (it == SheetValue.Hidden) viewModel.resetCreateState()
-            },
-            peekHeight = tokens.cardHeight * 3.8f,
-            topInset = 66.dp, // Ensures sheet stops below TitleBar
-            onDismissRequest = {
-                addSheetState = SheetValue.Hidden
-                viewModel.resetCreateState()
-            },
-            onBlurScrimChange = { r, s -> addSheetBlur = r; addSheetScrim = s },
-            sheetBackgroundColor = whiteBg,
-            maxBlurRadius = 14.dp
-        ) {
-            AddDesignationSheetContent(
-                isLoading = createState is DesignationCreateState.Loading,
-                onDismiss = { addSheetState = SheetValue.Hidden },
-                onCreate = { name, code, desc -> viewModel.createDesignation(name, code, desc) }
-            )
-        }
-
-        // Edit Designation BottomSheet
-        editingDesignation?.let { designation ->
-            SmoothBottomSheet(
-                state = editSheetState,
-                onStateChange = {
-                    editSheetState = it
-                    if (it == SheetValue.Hidden) {
-                        editingDesignation = null
-                        viewModel.resetUpdateState()
-                    }
-                },
-                peekHeight = tokens.cardHeight * 3.8f,
-                topInset = 66.dp,
-                onDismissRequest = {
-                    editSheetState = SheetValue.Hidden
-                    editingDesignation = null
-                },
-                onBlurScrimChange = { r, s -> editSheetBlur = r; editSheetScrim = s },
-                sheetBackgroundColor = whiteBg,
-                maxBlurRadius = 14.dp
-            ) {
-                EditDesignationSheetContent(
-                    designation = designation,
-                    isLoading = updateState is DesignationUpdateState.Loading,
-                    onDismiss = { editSheetState = SheetValue.Hidden },
-                    onUpdate = { name, code, desc ->
-                        viewModel.updateDesignation(designation.id, name, code, desc)
-                    }
-                )
-            }
-        }
-
-        // Delete Confirmation Dialog
-        showDeleteDialog?.let { designation ->
-            DeleteModel(
-                title = "Delete Designation",
-                message = "Are you sure you want to delete '${designation.name}'?",
-                onDismiss = { showDeleteDialog = null },
-                onDelete = { viewModel.deleteDesignation(designation.id) }
-            )
-        }
+        // ── Layer 4 (TOPMOST): Dynamic Island success/error banners ─
+        //   Declared LAST so they always draw above the list, both
+        //   bottom sheets, and their blur scrims — never cropped or
+        //   hidden behind a closing sheet's blur.
+        DynamicIslandSuccess(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
+        DynamicIslandError(
+            modifier = Modifier.align(Alignment.TopCenter),
+            message = errorMessage,
+            onDismiss = { errorMessage = null }
+        )
     }
 }
 
@@ -436,10 +507,13 @@ fun AddDesignationSheetContent(
                 },
                 modifier = Modifier.weight(1f).height(tokens.buttonHeight),
                 shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Primary,
+                    disabledContainerColor = disabled
+                ),
                 enabled = !isLoading
             ) {
-                if (isLoading) CirculerProgressIndicatorReuse() else Text("Create", fontSize = tokens.bodyMedium, color = Color.White)
+                if (isLoading) CirculerProgressIndicatorSmall() else Text("Create", fontSize = tokens.bodyMedium, color = Color.White)
             }
         }
     }
@@ -456,7 +530,7 @@ fun EditDesignationSheetContent(
 
     var name by remember { mutableStateOf(designation.name) }
     var code by remember { mutableStateOf(designation.code) }
-    var description by remember { mutableStateOf(designation.description ?: "") }
+    var description by remember { mutableStateOf(designation.description) }
 
     Column(
         modifier = Modifier

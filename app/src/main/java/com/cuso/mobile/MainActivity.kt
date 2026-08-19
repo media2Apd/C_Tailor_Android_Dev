@@ -205,7 +205,15 @@ fun AppNav(
 
         composable("create-order") {
             OrderFlowNavigator(
-                onFinish = { navController.popBackStack() }
+                onFinish = { savedOrderId ->
+                    if (savedOrderId != null) {
+                        // Pass the saved order id to the "home" screen's back stack entry
+                        // so HomeScreen can pick it up and navigate to Order Overview.
+                        navController.getBackStackEntry("home")
+                            .savedStateHandle["pendingOrderId"] = savedOrderId
+                    }
+                    navController.popBackStack()
+                }
             )
         }
 

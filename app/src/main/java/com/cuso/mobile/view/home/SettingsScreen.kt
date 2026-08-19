@@ -47,7 +47,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,7 +60,6 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.BackFabButton
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.CountryAndStatePicker
 import com.cuso.mobile.view.composable.DynamicIslandError
@@ -156,10 +154,14 @@ fun SettingsScreen(
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // NOTE: root container background changed from an opaque Primary_background
+    // to Color.Transparent. This matches the CustomerDetailScreen pattern so the
+    // bottom StepNavigationFab (Cancel / Save Changes) renders with a transparent
+    // background instead of sitting on top of an opaque page color.
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Primary_background)
+            .background(Color.Transparent)
     ) {
         // ── Header ──
         Column(
@@ -250,7 +252,7 @@ private fun SectionHeader(
         verticalAlignment = Alignment.Top
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = tokens.h2, fontWeight = FontWeight.SemiBold, color = OrgTheme.TextPrimary)
+            Text(title, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = OrgTheme.TextPrimary)
             Spacer(Modifier.height(2.dp))
             Text(subtitle, fontSize = tokens.bodySmall, color = TextSecondary)
         }
@@ -280,7 +282,7 @@ fun OrgInfoRow(label: String, value: String) {
     val tokens = LocalAppTokens.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(text = label, fontSize = tokens.label, fontWeight = FontWeight.Medium, color = OrgTheme.mutedText)
-        Text(text = value.ifEmpty { "-" }, fontSize = tokens.bodyLarge, fontWeight = FontWeight.Medium, color = OrgTheme.TextPrimary)
+        Text(text = value.ifEmpty { "-" }, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = OrgTheme.TextPrimary)
     }
 }
 
@@ -404,11 +406,18 @@ private fun LogoDisplayEdit(
 }
 
 // ─────────────────────────────────────────────────────────────
-//  bottom footer
+// Bottom footer (Cancel / Save Changes)
+//
+// UPDATED: now accepts an external `modifier` so callers can place it
+// as a floating overlay (e.g. Modifier.align(Alignment.BottomCenter)
+// inside a Box) instead of it being a regular in-flow item inside a
+// Column. This is the same pattern used by StepNavigationFab on the
+// CustomerDetailScreen, and it is what keeps the background transparent
+// instead of appearing on top of an opaque page background.
 // ─────────────────────────────────────────────────────────────
-
 @Composable
 private fun EditFooter(
+    modifier: Modifier = Modifier,
     isSaving: Boolean,
     onCancel: () -> Unit,
     onSave: () -> Unit
@@ -418,40 +427,25 @@ private fun EditFooter(
     // Using Row instead of Box to avoid the internal fillMaxSize() inside StepNavigationFab
     // from taking up the whole screen and hiding the content.
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
+            .background(Color.Transparent)
             .padding(horizontal = tokens.screenPadding, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left Button (Cancel)
         StepNavigationFab(
-            modifier = Modifier.weight(1f),
             showBack = true,
             onBack = onCancel,
-            trailingAction = null, // Hide the right button
-            backLabel = "Cancel",
-            backEnabled = !isSaving,
-            showBackArrow = true,  // Show the left arrow as per image
-            showTrailingArrow = false
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Right Button (Save Changes)
-        StepNavigationFab(
-            modifier = Modifier.weight(1.5f), // Slightly wider than the left button
-            showBack = false, // Hide the left button
-            onBack = {},
             trailingAction = TrailingFabAction.Next(
                 label = "Save Changes",
                 enabled = !isSaving,
                 onClick = onSave
             ),
-            backLabel = "",
-            backEnabled = false,
+            backLabel = "Cancel",
+            backEnabled = !isSaving,
             showBackArrow = false,
-            showTrailingArrow = true // Show the right arrow as per image
+            showTrailingArrow = false
         )
     }
 }
@@ -555,174 +549,183 @@ fun ProfileTab(
             val org = state.data.organization
             val stats = state.data.stats
 
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(modifier = Modifier.weight(1f)) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Primary_background),
-                        verticalArrangement = Arrangement.spacedBy(0.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        item {
-                            AdaptiveWidthContainer(tokens = tokens) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(whiteBg)
-                                        .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
-                                ) {
-                                    SectionHeader(
-                                        title = "Organization Information",
-                                        subtitle = "Core details about your organization",
-                                        isEditing = isEditing,
-                                        onEditClick = { isEditing = true }
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.height(10.dp))
-
-                            AdaptiveWidthContainer(tokens = tokens) {
-                                Column(
-                                    Modifier.fillMaxWidth()
-                                        .padding(horizontal = tokens.extraPadding)
-                                        .background(Primary_background)
-                                ) {
-                                    if (isEditing) {
-                                        LogoDisplayEdit(
-                                            pictureUrl = org.organizationPicture,
-                                            selectedImageUri = selectedImageUri,
-                                            onClick = {
-                                                imagePickerLauncher.launch(
-                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                                )
-                                            }
-                                        )
-                                        Spacer(Modifier.height(20.dp))
-
-                                        EditableOrgInfoRow("Organization Name", orgName) {
-                                            orgName = it
-                                        }
-                                        Spacer(Modifier.height(16.dp))
-
-                                        // ── Organization Type - Using FormDropdown with OrgOptions.orgTypes ──
-                                        OrgLabel("Organization Type")
-                                        var orgTypeExpanded by remember { mutableStateOf(false) }
-                                        FormDropdown(
-                                            value = orgType,
-                                            expanded = orgTypeExpanded,
-                                            onExpandChange = { orgTypeExpanded = it },
-                                            options = OrgOptions.orgTypes,
-                                            onOptionSelected = { orgType = it },
-                                            isRequired = true
-                                        )
-                                        Spacer(Modifier.height(16.dp))
-
-                                        // ── Business Type - Using FormDropdown with OrgOptions.businessTypes ──
-                                        OrgLabel("Business Type")
-                                        var businessTypeExpanded by remember { mutableStateOf(false) }
-                                        FormDropdown(
-                                            value = businessType,
-                                            expanded = businessTypeExpanded,
-                                            onExpandChange = { businessTypeExpanded = it },
-                                            options = OrgOptions.businessTypes,
-                                            onOptionSelected = { businessType = it },
-                                            isRequired = true
-                                        )
-
-                                        Spacer(Modifier.height(24.dp))
-                                    } else {
-                                        LogoDisplayView(org.organizationPicture)
-                                        Spacer(Modifier.height(20.dp))
-
-                                        val rows = listOf(
-                                            "Organization Name" to org.name,
-                                            "Organization Type" to org.orgType,
-                                            "Business Type" to org.businessType,
-                                            "Business ID" to org.businessId,
-                                            "Email" to org.email,
-                                            "Mobile" to org.mobile,
-                                            "Plan " to (org.plan?.name ?: "plan not found"),
-                                            "Status" to org.status
-                                        )
-                                        rows.forEachIndexed { index, (label, value) ->
-                                            OrgInfoRow(label, value)
-                                            Spacer(Modifier.height(14.dp))
-                                            if (index != rows.lastIndex) {
-                                                HorizontalDivider(color = OrgTheme.Divider)
-
-                                            }
-                                        }
-
-
-                                    }
-
-                                }
+            // UPDATED: outer wrapper changed from Column { Box(weight) ; EditFooter } to a
+            // single Box. This lets EditFooter be placed as a floating, bottom-aligned
+            // overlay on top of the LazyColumn (same as StepNavigationFab in
+            // CustomerDetailScreen) instead of being pushed into the normal layout flow
+            // on top of an opaque background.
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Primary_background),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    // Reserve space at the bottom so the last item is not hidden behind
+                    // the floating footer when it is visible.
+                    contentPadding = if (isEditing) PaddingValues(bottom = 96.dp) else PaddingValues(0.dp)
+                ) {
+                    item {
+                        AdaptiveWidthContainer(tokens = tokens) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(whiteBg)
+                                    .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
+                            ) {
+                                SectionHeader(
+                                    title = "Organization Information",
+                                    subtitle = "Core details about your organization",
+                                    isEditing = isEditing,
+                                    onEditClick = { isEditing = true }
+                                )
                             }
                         }
-                        item {
-                            AdaptiveWidthContainer(tokens = tokens) {
-                                Column(
-                                    Modifier.fillMaxWidth()
-                                ) {
-                                    if (stats != null) {
-                                        Spacer(Modifier.height(8.dp))
-                                        HorizontalDivider(color = OrgTheme.Divider)
+                        Spacer(Modifier.height(10.dp))
 
-                                        val plan = state.data.organization.plan
-                                        Row(
-                                            Modifier.fillMaxWidth()
-                                                .background(whiteBg)
-                                                .padding(horizontal = tokens.screenPadding + 4.dp, vertical = 10.dp)
-                                        ) {
-                                            Text(
-                                                "Subscription Usage",
-                                                fontSize = tokens.h2,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = OrgTheme.TextPrimary
+                        AdaptiveWidthContainer(tokens = tokens) {
+                            Column(
+                                Modifier.fillMaxWidth()
+                                    .padding(horizontal = tokens.extraPadding)
+                                    .background(Primary_background)
+                            ) {
+                                if (isEditing) {
+                                    LogoDisplayEdit(
+                                        pictureUrl = org.organizationPicture,
+                                        selectedImageUri = selectedImageUri,
+                                        onClick = {
+                                            imagePickerLauncher.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                             )
                                         }
-                                        Spacer(Modifier.height(16.dp))
+                                    )
+                                    Spacer(Modifier.height(20.dp))
 
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = tokens.extraPadding),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            SubscriptionRing(
-                                                modifier = Modifier.weight(1f),
-                                                label = "Orders",
-                                                used = 0,
-                                                limit = plan?.orderLimit ?: 100
-                                            )
-                                            SubscriptionRing(
-                                                modifier = Modifier.weight(1f),
-                                                label = "Employees",
-                                                used = org.activeMembers,
-                                                limit = plan?.employeeLimit
-                                                    ?: org.totalMembers.coerceAtLeast(1)
-                                            )
-                                            SubscriptionRing(
-                                                modifier = Modifier.weight(1f),
-                                                label = "Branches",
-                                                used = stats.totalBranches,
-                                                limit = plan?.branchLimit
-                                                    ?: stats.totalBranches.coerceAtLeast(1)
-                                            )
-                                        }
-                                        Spacer(Modifier.height(35.dp))
-                                    } else {
-                                        Spacer(Modifier.height(8.dp))
+                                    EditableOrgInfoRow("Organization Name", orgName) {
+                                        orgName = it
                                     }
+                                    Spacer(Modifier.height(16.dp))
+
+                                    // ── Organization Type - Using FormDropdown with OrgOptions.orgTypes ──
+                                    OrgLabel("Organization Type")
+                                    var orgTypeExpanded by remember { mutableStateOf(false) }
+                                    FormDropdown(
+                                        value = orgType,
+                                        expanded = orgTypeExpanded,
+                                        onExpandChange = { orgTypeExpanded = it },
+                                        options = OrgOptions.orgTypes,
+                                        onOptionSelected = { orgType = it },
+                                        isRequired = true
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+
+                                    // ── Business Type - Using FormDropdown with OrgOptions.businessTypes ──
+                                    OrgLabel("Business Type")
+                                    var businessTypeExpanded by remember { mutableStateOf(false) }
+                                    FormDropdown(
+                                        value = businessType,
+                                        expanded = businessTypeExpanded,
+                                        onExpandChange = { businessTypeExpanded = it },
+                                        options = OrgOptions.businessTypes,
+                                        onOptionSelected = { businessType = it },
+                                        isRequired = true
+                                    )
+
+                                    Spacer(Modifier.height(24.dp))
+                                } else {
+                                    LogoDisplayView(org.organizationPicture)
+                                    Spacer(Modifier.height(20.dp))
+
+                                    val rows = listOf(
+                                        "Organization Name" to org.name,
+                                        "Organization Type" to org.orgType,
+                                        "Business Type" to org.businessType,
+                                        "Business ID" to org.businessId,
+                                        "Email" to org.email,
+                                        "Mobile" to org.mobile,
+                                        "Plan " to (org.plan?.name ?: "plan not found"),
+                                        "Status" to org.status
+                                    )
+                                    rows.forEachIndexed { index, (label, value) ->
+                                        OrgInfoRow(label, value)
+                                        Spacer(Modifier.height(14.dp))
+                                        if (index != rows.lastIndex) {
+                                            HorizontalDivider(color = OrgTheme.Divider)
+
+                                        }
+                                    }
+
+
+                                }
+
+                            }
+                        }
+                    }
+                    item {
+                        AdaptiveWidthContainer(tokens = tokens) {
+                            Column(
+                                Modifier.fillMaxWidth()
+                            ) {
+                                if (stats != null) {
+                                    Spacer(Modifier.height(8.dp))
+                                    HorizontalDivider(color = OrgTheme.Divider)
+
+                                    val plan = state.data.organization.plan
+                                    Row(
+                                        Modifier.fillMaxWidth()
+                                            .background(whiteBg)
+                                            .padding(horizontal = tokens.screenPadding + 4.dp, vertical = 10.dp)
+                                    ) {
+                                        Text(
+                                            "Subscription Usage",
+                                            fontSize = tokens.h2,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = OrgTheme.TextPrimary
+                                        )
+                                    }
+                                    Spacer(Modifier.height(16.dp))
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = tokens.extraPadding),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        SubscriptionRing(
+                                            modifier = Modifier.weight(1f),
+                                            label = "Orders",
+                                            used = 0,
+                                            limit = plan?.orderLimit ?: 100
+                                        )
+                                        SubscriptionRing(
+                                            modifier = Modifier.weight(1f),
+                                            label = "Employees",
+                                            used = org.activeMembers,
+                                            limit = plan?.employeeLimit
+                                                ?: org.totalMembers.coerceAtLeast(1)
+                                        )
+                                        SubscriptionRing(
+                                            modifier = Modifier.weight(1f),
+                                            label = "Branches",
+                                            used = stats.totalBranches,
+                                            limit = plan?.branchLimit
+                                                ?: stats.totalBranches.coerceAtLeast(1)
+                                        )
+                                    }
+                                    Spacer(Modifier.height(35.dp))
+                                } else {
+                                    Spacer(Modifier.height(8.dp))
                                 }
                             }
                         }
                     }
                 }
 
+                // Floating footer overlay — transparent background, bottom-aligned,
+                // matches StepNavigationFab placement in CustomerDetailScreen.
                 if (isEditing) {
                     EditFooter(
+                        modifier = Modifier.align(Alignment.BottomCenter),
                         isSaving = isSaving,
                         onCancel = {
                             isEditing = false
@@ -824,167 +827,171 @@ fun LocalizationTab(
     val settings = org?.settings
     val errorMessage = (uiState as? ProfileUiState.Error)?.message
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = Modifier.weight(1f)) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Primary_background),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                item {
-                    AdaptiveWidthContainer(tokens = tokens) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(whiteBg)
-                                .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
-                        ) {
-                            SectionHeader(
-                                title = "Localization Settings",
-                                subtitle = "Regional preferences for your organization",
-                                isEditing = isEditing,
-                                onEditClick = { isEditing = true }
-                            )
-                        }
+    // UPDATED: outer wrapper changed from Column { Box(weight) ; EditFooter } to a
+    // single Box so EditFooter can float as a bottom-aligned, transparent overlay
+    // instead of sitting in the normal layout flow on top of an opaque background.
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Primary_background),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            // Reserve space at the bottom so the last item is not hidden behind
+            // the floating footer when it is visible.
+            contentPadding = if (isEditing) PaddingValues(bottom = 96.dp) else PaddingValues(0.dp)
+        ) {
+            item {
+                AdaptiveWidthContainer(tokens = tokens) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(whiteBg)
+                            .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
+                    ) {
+                        SectionHeader(
+                            title = "Localization Settings",
+                            subtitle = "Regional preferences for your organization",
+                            isEditing = isEditing,
+                            onEditClick = { isEditing = true }
+                        )
                     }
-                    Spacer(Modifier.height(18.dp))
+                }
+                Spacer(Modifier.height(18.dp))
 
-                    AdaptiveWidthContainer(tokens = tokens) {
-                        Column(
-                            Modifier.fillMaxWidth()
-                                .padding(horizontal = tokens.extraPadding)
-                                .background(Primary_background)
-                        ) {
-                            when {
-                                isLoading -> {
-                                    Box(
-                                        Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CirculerProgressIndicatorSmall()
-                                    }
+                AdaptiveWidthContainer(tokens = tokens) {
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .padding(horizontal = tokens.extraPadding)
+                            .background(Primary_background)
+                    ) {
+                        when {
+                            isLoading -> {
+                                Box(
+                                    Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CirculerProgressIndicatorSmall()
                                 }
+                            }
 
-                                errorMessage != null -> {
-                                    Text(
-                                        errorMessage,
-                                        color = Color.Red,
-                                        fontSize = tokens.bodyMedium,
-                                        modifier = Modifier.padding(vertical = 16.dp)
+                            errorMessage != null -> {
+                                Text(
+                                    errorMessage,
+                                    color = Color.Red,
+                                    fontSize = tokens.bodyMedium,
+                                    modifier = Modifier.padding(vertical = 16.dp)
+                                )
+                            }
+
+                            settings != null -> {
+                                if (isEditing) {
+                                    CountryAndStatePicker(
+                                        selectedCountry = country,
+                                        selectedState = state,
+                                        onCountryChange = { country = it },
+                                        onStateChange = { state = it }
                                     )
-                                }
+                                    Spacer(Modifier.height(16.dp))
 
-                                settings != null -> {
-                                    if (isEditing) {
-                                        CountryAndStatePicker(
-                                            selectedCountry = country,
-                                            selectedState = state,
-                                            onCountryChange = { country = it },
-                                            onStateChange = { state = it }
-                                        )
-                                        Spacer(Modifier.height(16.dp))
+                                    EditableOrgInfoRow("City", city) { city = it }
+                                    Spacer(Modifier.height(16.dp))
 
-                                        EditableOrgInfoRow("City", city) { city = it }
-                                        Spacer(Modifier.height(16.dp))
+                                    EditableOrgInfoRow("Postal Code", postalCode) {
+                                        postalCode = it
+                                    }
+                                    Spacer(Modifier.height(16.dp))
 
-                                        EditableOrgInfoRow("Postal Code", postalCode) {
-                                            postalCode = it
-                                        }
-                                        Spacer(Modifier.height(16.dp))
+                                    EditableOrgInfoRow(
+                                        "Address",
+                                        address,
+                                        isMultiline = true
+                                    ) { address = it }
+                                    Spacer(Modifier.height(16.dp))
 
-                                        EditableOrgInfoRow(
-                                            "Address",
-                                            address,
-                                            isMultiline = true
-                                        ) { address = it }
-                                        Spacer(Modifier.height(16.dp))
+                                    // ── Timezone - Using FormDropdown with OrgOptions.timezones ──
+                                    OrgLabel("Timezone")
+                                    var timezoneExpanded by remember { mutableStateOf(false) }
+                                    FormDropdown(
+                                        value = timezone,
+                                        expanded = timezoneExpanded,
+                                        onExpandChange = { timezoneExpanded = it },
+                                        options = OrgOptions.timezones,
+                                        onOptionSelected = { timezone = it }
+                                    )
+                                    Spacer(Modifier.height(16.dp))
 
-                                        // ── Timezone - Using FormDropdown with OrgOptions.timezones ──
-                                        OrgLabel("Timezone")
-                                        var timezoneExpanded by remember { mutableStateOf(false) }
-                                        FormDropdown(
-                                            value = timezone,
-                                            expanded = timezoneExpanded,
-                                            onExpandChange = { timezoneExpanded = it },
-                                            options = OrgOptions.timezones,
-                                            onOptionSelected = { timezone = it }
-                                        )
-                                        Spacer(Modifier.height(16.dp))
+                                    // ── Currency - Using FormDropdown with OrgOptions.currencies ──
+                                    OrgLabel("Default Currency")
+                                    var currencyExpanded by remember { mutableStateOf(false) }
+                                    FormDropdown(
+                                        value = currency,
+                                        expanded = currencyExpanded,
+                                        onExpandChange = { currencyExpanded = it },
+                                        options = OrgOptions.currencies,
+                                        onOptionSelected = { currency = it }
+                                    )
+                                    Spacer(Modifier.height(16.dp))
 
-                                        // ── Currency - Using FormDropdown with OrgOptions.currencies ──
-                                        OrgLabel("Default Currency")
-                                        var currencyExpanded by remember { mutableStateOf(false) }
-                                        FormDropdown(
-                                            value = currency,
-                                            expanded = currencyExpanded,
-                                            onExpandChange = { currencyExpanded = it },
-                                            options = OrgOptions.currencies,
-                                            onOptionSelected = { currency = it }
-                                        )
-                                        Spacer(Modifier.height(16.dp))
+                                    // ── Language - Using FormDropdown with OrgOptions.languages ──
+                                    OrgLabel("Language")
+                                    var languageExpanded by remember { mutableStateOf(false) }
+                                    FormDropdown(
+                                        value = language,
+                                        expanded = languageExpanded,
+                                        onExpandChange = { languageExpanded = it },
+                                        options = OrgOptions.languages,
+                                        onOptionSelected = { language = it }
+                                    )
+                                    Spacer(Modifier.height(16.dp))
 
-                                        // ── Language - Using FormDropdown with OrgOptions.languages ──
-                                        OrgLabel("Language")
-                                        var languageExpanded by remember { mutableStateOf(false) }
-                                        FormDropdown(
-                                            value = language,
-                                            expanded = languageExpanded,
-                                            onExpandChange = { languageExpanded = it },
-                                            options = OrgOptions.languages,
-                                            onOptionSelected = { language = it }
-                                        )
-                                        Spacer(Modifier.height(16.dp))
+                                    EditableOrgInfoRow("Portal Name", portalName) {
+                                        portalName = it
+                                    }
+                                    Spacer(Modifier.height(16.dp))
 
-                                        EditableOrgInfoRow("Portal Name", portalName) {
-                                            portalName = it
-                                        }
-                                        Spacer(Modifier.height(16.dp))
-
-                                        // ── Company Size - Using FormDropdown with OrgOptions.companySizes ──
-                                        OrgLabel("Company Size")
-                                        var companySizeExpanded by remember { mutableStateOf(false) }
-                                        FormDropdown(
-                                            value = companySize,
-                                            expanded = companySizeExpanded,
-                                            onExpandChange = { companySizeExpanded = it },
-                                            options = companySizes,
-                                            onOptionSelected = { companySize = it }
-                                        )
-                                        Spacer(Modifier.height(24.dp))
-                                    } else {
-                                        val rows = listOf(
-                                            "Country" to settings.country,
-                                            "State" to settings.state,
-                                            "City" to settings.city,
-                                            "Postal Code" to settings.pincode,
-                                            "Address" to settings.address,
-                                            "Timezone" to settings.timezone,
-                                            "Default Currency" to settings.currency,
-                                            "Language" to settings.language,
-                                            "Portal Name" to settings.portalName,
-                                            "Company Size" to settings.companySize
-                                        )
-                                        rows.forEachIndexed { index, (label, value) ->
-                                            OrgInfoRow(label, value)
+                                    // ── Company Size - Using FormDropdown with OrgOptions.companySizes ──
+                                    OrgLabel("Company Size")
+                                    var companySizeExpanded by remember { mutableStateOf(false) }
+                                    FormDropdown(
+                                        value = companySize,
+                                        expanded = companySizeExpanded,
+                                        onExpandChange = { companySizeExpanded = it },
+                                        options = companySizes,
+                                        onOptionSelected = { companySize = it }
+                                    )
+                                    Spacer(Modifier.height(24.dp))
+                                } else {
+                                    val rows = listOf(
+                                        "Country" to settings.country,
+                                        "State" to settings.state,
+                                        "City" to settings.city,
+                                        "Postal Code" to settings.pincode,
+                                        "Address" to settings.address,
+                                        "Timezone" to settings.timezone,
+                                        "Default Currency" to settings.currency,
+                                        "Language" to settings.language,
+                                        "Portal Name" to settings.portalName,
+                                        "Company Size" to settings.companySize
+                                    )
+                                    rows.forEachIndexed { index, (label, value) ->
+                                        OrgInfoRow(label, value)
+                                        Spacer(Modifier.height(14.dp))
+                                        if (index != rows.lastIndex) {
+                                            HorizontalDivider(color = OrgTheme.Divider)
                                             Spacer(Modifier.height(14.dp))
-                                            if (index != rows.lastIndex) {
-                                                HorizontalDivider(color = OrgTheme.Divider)
-                                                Spacer(Modifier.height(14.dp))
-                                            }
                                         }
-                                        Spacer(Modifier.height(8.dp))
                                     }
+                                    Spacer(Modifier.height(8.dp))
                                 }
+                            }
 
-                                else -> {
-                                    Text(
-                                        "No data available",
-                                        color = Color.Gray,
-                                        fontSize = tokens.bodyMedium,
-                                        modifier = Modifier.padding(vertical = 16.dp)
-                                    )
-                                }
+                            else -> {
+                                Text(
+                                    "No data available",
+                                    color = Color.Gray,
+                                    fontSize = tokens.bodyMedium,
+                                    modifier = Modifier.padding(vertical = 16.dp)
+                                )
                             }
                         }
                     }
@@ -992,8 +999,11 @@ fun LocalizationTab(
             }
         }
 
+        // Floating footer overlay — transparent background, bottom-aligned,
+        // matches StepNavigationFab placement in CustomerDetailScreen.
         if (isEditing) {
             EditFooter(
+                modifier = Modifier.align(Alignment.BottomCenter),
                 isSaving = isSaving,
                 onCancel = {
                     isEditing = false

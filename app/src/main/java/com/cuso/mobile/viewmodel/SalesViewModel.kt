@@ -178,6 +178,14 @@ class SalesViewModel @Inject constructor(
     private val _convertOrderState = MutableStateFlow<ConvertOrderState>(ConvertOrderState.Idle)
     val convertOrderState: StateFlow<ConvertOrderState> = _convertOrderState.asStateFlow()
 
+    // ── Infinite scroll state ─────────────────────────────
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    private val _canLoadMore = MutableStateFlow(true)
+    val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
+
+
     fun searchCustomerByMobile(mobile: String, countryCode: String) {
         searchJob?.cancel()
         if (mobile.length < 4) {
@@ -302,23 +310,44 @@ class SalesViewModel @Inject constructor(
         fetchTableLeads()
     }
 
-    fun fetchTableLeads() {
+
+    fun fetchTableLeads(reset: Boolean = true) {
+        if (_isLoadingTableLeads.value || _isLoadingMore.value) return   // duplicate call guard
+
         viewModelScope.launch {
-            _isLoadingTableLeads.value = true
+            if (reset) {
+                _currentPage.value = 1
+                _canLoadMore.value = true
+                _isLoadingTableLeads.value = true
+            } else {
+                if (!_canLoadMore.value) return@launch
+                _isLoadingMore.value = true
+            }
             _tableError.value = null
+
             try {
                 repository.fetchTableData(page = _currentPage.value, limit = _pageSize.value)
                     .onSuccess {
-                        _tableLeads.value = it.leads
+                        _tableLeads.value = if (reset) it.leads else _tableLeads.value + it.leads
                         _totalLeads.value = it.total
+
+                        val loadedCount = _tableLeads.value.size
+                        _canLoadMore.value = loadedCount < it.total && it.leads.isNotEmpty()
+
+                        if (_canLoadMore.value) _currentPage.value += 1
                     }
                     .onFailure { _tableError.value = it.message }
             } catch (e: Exception) {
                 _tableError.value = e.message
             } finally {
                 _isLoadingTableLeads.value = false
+                _isLoadingMore.value = false
             }
         }
+    }
+
+    fun loadMoreLeads() {
+        fetchTableLeads(reset = false)
     }
 
     // ── Lead Details ──────────────────────────────────────────────

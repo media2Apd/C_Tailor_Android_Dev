@@ -44,6 +44,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.inventory.ItemType
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.close_color
 import com.cuso.mobile.ui.theme.title_color
@@ -587,7 +588,7 @@ private fun SegmentedOption(text: String, selected: Boolean, onClick: () -> Unit
     val tokens = LocalAppTokens.current
     Box(
         modifier = modifier
-            .background(if (selected) AccentColor else Color.Transparent, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+            .background(if (selected) Primary else Color.Transparent, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
             .clickable { onClick() }
             .padding(vertical = 5.dp),
         contentAlignment = Alignment.Center

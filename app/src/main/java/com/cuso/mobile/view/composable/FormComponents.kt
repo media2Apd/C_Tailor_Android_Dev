@@ -162,7 +162,7 @@ fun FormTextField(
         contentAlignment = Alignment.CenterStart
     ) {
         if (value.isEmpty() && placeholder.isNotEmpty()) {
-            Text(placeholder, fontSize = tokens.bodyMedium, color = Color(0xFF9CA3AF))
+            Text(placeholder, fontSize = tokens.bodySmall, color = Color(0xFF9CA3AF))
         }
         BasicTextField(
             value = value,

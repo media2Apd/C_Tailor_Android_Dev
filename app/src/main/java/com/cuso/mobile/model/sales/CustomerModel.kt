@@ -133,7 +133,8 @@ data class UpdateCustomerResponse(
 )
 
 data class DeleteCustomerResponse(
-    val success: Boolean
+    val success: Boolean,
+    val message: String? = null
 )
 
 // ─────────────────────────────────────────────────────────────

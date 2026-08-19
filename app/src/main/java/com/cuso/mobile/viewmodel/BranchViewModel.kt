@@ -21,20 +21,18 @@ sealed class BranchUiState {
     data class Error(val message: String) : BranchUiState()
 }
 
-// ── Update state (updateBranch) ──
-sealed class UpdateBranchUiState {
-    object Idle : UpdateBranchUiState()
-    object Loading : UpdateBranchUiState()
-    object Success : UpdateBranchUiState()
-    data class Error(val message: String) : UpdateBranchUiState()
-}
-
-// ── Create state (createBranch) ──
 sealed class CreateBranchUiState {
     object Idle : CreateBranchUiState()
     object Loading : CreateBranchUiState()
-    object Success : CreateBranchUiState()
+    data class Success(val branch: BranchItem? = null, val message: String? = null) : CreateBranchUiState()
     data class Error(val message: String) : CreateBranchUiState()
+}
+
+sealed class UpdateBranchUiState {
+    object Idle : UpdateBranchUiState()
+    object Loading : UpdateBranchUiState()
+    data class Success(val branch: BranchItem? = null, val message: String? = null) : UpdateBranchUiState()
+    data class Error(val message: String) : UpdateBranchUiState()
 }
 
 @HiltViewModel
@@ -99,9 +97,8 @@ class BranchViewModel @Inject constructor(
         viewModelScope.launch {
             _updateState.value = UpdateBranchUiState.Loading
             salesRepository.updateBranch(branchId, request).fold(
-                onSuccess = { updated ->
-                    _updateState.value = UpdateBranchUiState.Success
-                    // patch the updated branch into the current list so UI reflects it immediately
+                onSuccess = { (updated, message) ->
+                    _updateState.value = UpdateBranchUiState.Success(branch = updated, message = message)
                     val current = _uiState.value
                     if (current is BranchUiState.Success) {
                         val newList = current.branches.map {
@@ -128,14 +125,15 @@ class BranchViewModel @Inject constructor(
             salesRepository.createBranch(request).fold(
                 onSuccess = { response ->
                     if (response.success && response.data != null) {
-                        _createState.value = CreateBranchUiState.Success
-                        // Add the new branch to the list
+                        _createState.value = CreateBranchUiState.Success(
+                            branch = response.data,
+                            message = response.message
+                        )
                         val current = _uiState.value
                         if (current is BranchUiState.Success) {
                             val newList = current.branches + response.data
                             _uiState.value = BranchUiState.Success(newList)
                         } else {
-                            // If list wasn't loaded, reload it
                             refresh()
                         }
                     } else {

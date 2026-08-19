@@ -61,7 +61,7 @@ fun PlanLimitDialog(
     // Industry-standard alert/limit dialog widths:
     // phones -> fill available width (with side padding)
     // tablets/desktop-web -> cap around 420-480dp, centered
-    val dialogMaxWidth = if (tokens.isTablet) 440.dp else Dp.Unspecified
+    val dialogMaxWidth = if (tokens.isTablet) 200.dp else Dp.Unspecified
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -90,7 +90,7 @@ fun PlanLimitDialog(
             ) {
                 Card(
                     modifier = Modifier
-                        .fillMaxWidth(if (tokens.isTablet) 0.9f else 1f)
+                        .fillMaxWidth(if (tokens.isTablet) 0.45f else 1f)
                         .let { m ->
                             if (dialogMaxWidth != Dp.Unspecified) m.widthIn(max = dialogMaxWidth) else m
                         }

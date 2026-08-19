@@ -491,7 +491,7 @@ private fun SendQuotationSection(
                 onClick = onEmail,
                 modifier = Modifier.weight(1f).height(44.dp),
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Purple)
+                colors = ButtonDefaults.buttonColors(containerColor = Primary)
             ) {
                 Icon(
                     Icons.Default.Share,
@@ -1098,7 +1098,7 @@ private fun Step3PricingSummary(
         }
     }
 
-    //    — builds ONE QuotationItemInput per garment in garmentBreakdowns
+    // Builds ONE QuotationItemInput per garment in garmentBreakdowns
     fun buildSaveDraftRequest(): CreateQuotationRequest? {
         val custId = customerId ?: return null
         if (garmentBreakdowns.isEmpty()) return null
@@ -1146,7 +1146,7 @@ private fun Step3PricingSummary(
         )
     }
 
-    //    — pdf items built from ALL garments, not a single fallback item
+    // PDF items built from ALL garments, not a single fallback item
     val pdfData = remember(
         customerName, garmentBreakdowns, subtotal, total, logoBase64
     ) {
@@ -1183,6 +1183,40 @@ private fun Step3PricingSummary(
             Toast.makeText(context, "Please select a customer and garment first", Toast.LENGTH_SHORT).show()
         } else if (!isSavingDraft) {
             quotationViewModel?.saveDraft(request)
+        }
+    }
+
+    // Shared "share the generated PDF" action — same underlying behavior that
+    // used to live inside the Email icon button in the preview header /
+    // SendQuotationSection. Both WhatsApp and Email buttons reuse this exact
+    // action (generate PDF -> share via system chooser), only the intent
+    // package differs for WhatsApp so it opens WhatsApp directly when installed.
+    val shareQuotationPdf: (targetPackage: String?) -> Unit = { targetPackage ->
+        pdfGenerator.downloadQuotationPdf(pdfData) { saved ->
+            val uri = saved?.uri
+            if (uri != null) {
+                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "application/pdf"
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    putExtra(android.content.Intent.EXTRA_SUBJECT, "Quotation $quotationNumber")
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    if (targetPackage != null) setPackage(targetPackage)
+                }
+                try {
+                    context.startActivity(intent)
+                } catch (_: android.content.ActivityNotFoundException) {
+                    // Target app not installed — fall back to the generic chooser
+                    val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "application/pdf"
+                        putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                        putExtra(android.content.Intent.EXTRA_SUBJECT, "Quotation $quotationNumber")
+                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(android.content.Intent.createChooser(fallbackIntent, "Send via"))
+                }
+            } else {
+                Toast.makeText(context, "Failed to prepare PDF", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -1250,14 +1284,23 @@ private fun Step3PricingSummary(
             }
 
             TipBanner("Tip: You can apply discounts in the next step.")
-            Spacer(Modifier.height(90.dp))   //    — extra bottom padding so FAB doesn't overlap last item
-        }
 
-        QuickActionsRow(                      //   MOVED outside the scroll column — stays pinned below
-            onDiscount = {},
-            onEdit = onEdit,
-            onSaveDraft = saveDraftAction
-        )
+            // Send Quotation section — WhatsApp / Email, same layout & position as the reference image
+            SendQuotationSection(
+                onWhatsApp = { shareQuotationPdf("com.whatsapp") },
+                onEmail = { shareQuotationPdf(null) }
+            )
+
+            // Quick Actions section — Discount / Edit / Save as Draft, same layout as the reference image
+            QuickActionsRow(
+                onDiscount = {},
+                onEdit = onEdit,
+                onSaveDraft = saveDraftAction,
+                isSavingDraft = isSavingDraft
+            )
+
+            Spacer(Modifier.height(24.dp))
+        }
     } else {
         Column(
             modifier = Modifier
@@ -1274,8 +1317,7 @@ private fun Step3PricingSummary(
             ) {
                 Text(
                     text = "Preview",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp,
                     color = TitleDark
                 )
 
@@ -1371,31 +1413,167 @@ private fun Step3PricingSummary(
                 )
             }
 
+            // Send Quotation section — WhatsApp / Email, same layout & position as the reference image
+            SendQuotationSection(
+                onWhatsApp = { shareQuotationPdf("com.whatsapp") },
+                onEmail = { shareQuotationPdf(null) }
+            )
+
+            // Quick Actions section — Discount / Edit / Save as Draft, same layout as the reference image
             QuickActionsRow(
                 onDiscount = {},
                 onEdit = onEdit,
-                onSaveDraft = saveDraftAction
+                onSaveDraft = saveDraftAction,
+                isSavingDraft = isSavingDraft
             )
 
-            SendQuotationSection(
-                onEmail = {
-                    pdfGenerator.downloadQuotationPdf(pdfData) { saved ->
-                        val uri = saved?.uri
-                        if (uri != null) {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                type = "application/pdf"
-                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                                putExtra(android.content.Intent.EXTRA_SUBJECT, "Quotation $quotationNumber")
-                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            context.startActivity(android.content.Intent.createChooser(intent, "Send via Email"))
-                        } else {
-                            Toast.makeText(context, "Failed to prepare PDF", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// Send Quotation section
+// Layout matches the reference image:
+//   "Send Quotation" title
+//   Row: [WhatsApp - green, filled] [Email - purple, filled]
+// Both buttons share equal width (weight 1f) and sit side by side.
+// ─────────────────────────────────────────────────────────────
+@Composable
+private fun SendQuotationSection(
+    onWhatsApp: () -> Unit,
+    onEmail: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        Text(
+            "Send Quotation",
+            fontSize = 18.sp,
+            color = TitleDark
+        )
+        Spacer(Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // WhatsApp button — green filled button with chat icon
+            Button(
+                onClick = onWhatsApp,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(46.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Primary,
+                    contentColor = whiteBg
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+            ) {
+                Icon(
+                    Icons.Default.Share,
+                    contentDescription = "Share",
+                    modifier = Modifier.size(18.dp),
+                    tint = whiteBg
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Share", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
+            }
+
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Quick Actions section
+//   "Quick Actions" title
+//   Row: [Discount - outlined] [Edit - outlined]
+//   Below: [Save as Draft - outlined, full width]
+// ─────────────────────────────────────────────────────────────
+@Composable
+private fun QuickActionsRow(
+    onDiscount: () -> Unit,
+    onEdit: () -> Unit,
+    onSaveDraft: () -> Unit,
+    isSavingDraft: Boolean = false
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        Text(
+            "Quick Actions",
+            fontSize = 18.sp,
+            color = TitleDark
+        )
+        Spacer(Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            QuickActionCard(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.Percent,
+                label = "Discount",
+                onClick = onDiscount
+            )
+            QuickActionCard(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.Edit,
+                label = "Edit",
+                onClick = onEdit
             )
         }
+
+        Spacer(Modifier.height(10.dp))
+
+        QuickActionCard(
+            modifier = Modifier.fillMaxWidth(),
+            icon = Icons.Default.Description,
+            label = if (isSavingDraft) "Saving..." else "Save as Draft",
+            onClick = onSaveDraft,
+            enabled = !isSavingDraft
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Single Quick Action card — outlined, white background, icon + label
+// Reused by Discount, Edit, and Save as Draft in QuickActionsRow.
+// ─────────────────────────────────────────────────────────────
+@Composable
+private fun QuickActionCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(46.dp),
+        shape = RoundedCornerShape(10.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = whiteBg,
+            contentColor = TitleDark
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray)
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            modifier = Modifier.size(16.dp),
+            tint = TitleDark
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleDark)
     }
 }
 

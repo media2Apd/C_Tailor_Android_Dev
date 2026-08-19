@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import javax.inject.Inject
 @Suppress("UNUSED_PARAMETER")
 /**
@@ -46,6 +47,27 @@ sealed class CreateAccountState {
 class FinanceViewModel @Inject constructor(
     private val financeRepository: FinanceRepository
 ) : ViewModel() {
+
+    /**
+     * Every failure path below ultimately gets its message from Throwable.message,
+     * which — depending on how the repository/network layer surfaces HTTP errors —
+     * can be the RAW response body string, e.g.
+     *   {"success":false,"message":"E11000 duplicate key error collection: ..."}
+     * instead of a clean message. This helper extracts ONLY the "message" field
+     * from that JSON when present; if the body isn't JSON, or parsing fails, or
+     * the field is blank, it falls back to the given hardcoded [fallback] string.
+     */
+    private fun extractErrorMessage(throwable: Throwable?, fallback: String): String {
+        val raw = throwable?.message?.trim()
+        if (raw.isNullOrBlank()) return fallback
+        return try {
+            JSONObject(raw).optString("message").takeIf { it.isNotBlank() } ?: fallback
+        } catch (e: Exception) {
+            // Not JSON — e.g. a plain exception message like "Unable to resolve host".
+            // Only use it as-is if it doesn't look like a stray JSON fragment.
+            raw.takeIf { !it.startsWith("{") } ?: fallback
+        }
+    }
 
     // ── Chart of Accounts: create ──
     private val _createAccountState = MutableStateFlow<CreateAccountState>(CreateAccountState.Idle)
@@ -223,7 +245,7 @@ class FinanceViewModel @Inject constructor(
                 },
                 onFailure = { e ->
                     _createJournalState.value = CreateJournalState.Error(
-                        e.message ?: "Failed to post journal entry"
+                        extractErrorMessage(e, "Failed to post journal entry")
                     )
                 }
             )
@@ -266,7 +288,7 @@ class FinanceViewModel @Inject constructor(
                 },
                 onFailure = { e ->
                     _updateJournalState.value = UpdateJournalState.Error(
-                        e.message ?: "Failed to update journal entry"
+                        extractErrorMessage(e, "Failed to update journal entry")
                     )
                 }
             )
@@ -289,7 +311,8 @@ class FinanceViewModel @Inject constructor(
                     _financeCustomerDetail.value = result.getOrNull()?.data
                 }
                 result.isFailure -> {
-                    _financeCustomerDetailError.value = result.exceptionOrNull()?.message ?: "Failed to fetch customer detail"
+                    _financeCustomerDetailError.value =
+                        extractErrorMessage(result.exceptionOrNull(), "Failed to fetch customer detail")
                 }
             }
             _isLoadingFinanceCustomerDetail.value = false
@@ -312,7 +335,8 @@ class FinanceViewModel @Inject constructor(
                     _financeCustomerList.value = result.getOrNull()
                 }
                 result.isFailure -> {
-                    _financeCustomerError.value = result.exceptionOrNull()?.message ?: "Failed to fetch customers"
+                    _financeCustomerError.value =
+                        extractErrorMessage(result.exceptionOrNull(), "Failed to fetch customers")
                 }
             }
             _isLoadingFinanceCustomers.value = false
@@ -340,7 +364,8 @@ class FinanceViewModel @Inject constructor(
                     _invoicePagination.value = body?.data?.pagination
                 }
                 result.isFailure -> {
-                    _invoiceError.value = result.exceptionOrNull()?.message ?: "Failed to fetch invoices"
+                    _invoiceError.value =
+                        extractErrorMessage(result.exceptionOrNull(), "Failed to fetch invoices")
                 }
             }
             _isLoadingInvoices.value = false
@@ -362,7 +387,8 @@ class FinanceViewModel @Inject constructor(
                     _invoiceDetail.value = result.getOrNull()
                 }
                 result.isFailure -> {
-                    _invoiceDetailError.value = result.exceptionOrNull()?.message ?: "Failed to fetch invoice details"
+                    _invoiceDetailError.value =
+                        extractErrorMessage(result.exceptionOrNull(), "Failed to fetch invoice details")
                 }
             }
             _isLoadingInvoiceDetail.value = false
@@ -377,7 +403,9 @@ class FinanceViewModel @Inject constructor(
             val result = financeRepository.getChartOfAccounts()
             result.fold(
                 onSuccess = { _chartOfAccounts.value = it },
-                onFailure = { _chartOfAccountsError.value = it.message ?: "Failed to fetch chart of accounts" }
+                onFailure = { e ->
+                    _chartOfAccountsError.value = extractErrorMessage(e, "Failed to fetch chart of accounts")
+                }
             )
             _isLoadingChartOfAccounts.value = false
         }
@@ -399,7 +427,9 @@ class FinanceViewModel @Inject constructor(
                     _expenseList.value = response.data
                     _expensePagination.value = response.pagination
                 },
-                onFailure = { _expenseError.value = it.message ?: "Failed to fetch expenses" }
+                onFailure = { e ->
+                    _expenseError.value = extractErrorMessage(e, "Failed to fetch expenses")
+                }
             )
             _isLoadingExpenses.value = false
         }
@@ -413,7 +443,9 @@ class FinanceViewModel @Inject constructor(
             val result = financeRepository.getExpenseViewOne(id)
             result.fold(
                 onSuccess = { _expenseDetail.value = it },
-                onFailure = { _expenseError.value = it.message ?: "Failed to fetch expense detail" }
+                onFailure = { e ->
+                    _expenseError.value = extractErrorMessage(e, "Failed to fetch expense detail")
+                }
             )
             _isLoadingExpenseDetail.value = false
         }
@@ -447,7 +479,7 @@ class FinanceViewModel @Inject constructor(
                 },
                 onFailure = { e ->
                     _createExpenseState.value = CreateExpenseState.Error(
-                        e.message ?: "Failed to create expense"
+                        extractErrorMessage(e, "Failed to create expense")
                     )
                 }
             )
@@ -479,7 +511,7 @@ class FinanceViewModel @Inject constructor(
                 },
                 onFailure = { e ->
                     _createAccountState.value = CreateAccountState.Error(
-                        e.message ?: "Failed to create account"
+                        extractErrorMessage(e, "Failed to create account")
                     )
                 }
             )
@@ -513,7 +545,7 @@ class FinanceViewModel @Inject constructor(
                 },
                 onFailure = { e ->
                     _updateAccountState.value = UpdateAccountState.Error(
-                        e.message ?: "Failed to update account"
+                        extractErrorMessage(e, "Failed to update account")
                     )
                 }
             )
@@ -535,7 +567,7 @@ class FinanceViewModel @Inject constructor(
                 },
                 onFailure = { e ->
                     _deleteAccountState.value = DeleteAccountState.Error(
-                        e.message ?: "Failed to delete account"
+                        extractErrorMessage(e, "Failed to delete account")
                     )
                 }
             )
@@ -550,7 +582,9 @@ class FinanceViewModel @Inject constructor(
             val result = financeRepository.getTrialBalance()
             result.fold(
                 onSuccess = { _trialBalanceList.value = it },
-                onFailure = { _trialBalanceError.value = it.message ?: "Failed to fetch trial balance" }
+                onFailure = { e ->
+                    _trialBalanceError.value = extractErrorMessage(e, "Failed to fetch trial balance")
+                }
             )
             _isLoadingTrialBalance.value = false
         }
@@ -572,7 +606,9 @@ class FinanceViewModel @Inject constructor(
                     _journalEntries.value = response.data
                     _journalEntryPagination.value = response.pagination
                 },
-                onFailure = { _journalEntriesError.value = it.message ?: "Failed to fetch journal entries" }
+                onFailure = { e ->
+                    _journalEntriesError.value = extractErrorMessage(e, "Failed to fetch journal entries")
+                }
             )
             _isLoadingJournalEntries.value = false
         }
@@ -586,7 +622,9 @@ class FinanceViewModel @Inject constructor(
             val result = financeRepository.getLedger(accountId)
             result.fold(
                 onSuccess = { _ledgerList.value = it },
-                onFailure = { _ledgerError.value = it.message ?: "Failed to fetch ledger" }
+                onFailure = { e ->
+                    _ledgerError.value = extractErrorMessage(e, "Failed to fetch ledger")
+                }
             )
             _isLoadingLedger.value = false
         }
@@ -602,7 +640,9 @@ class FinanceViewModel @Inject constructor(
                     fetchJournalEntries()   // refresh list after delete
                 },
                 onFailure = { e ->
-                    _deleteJournalState.value = DeleteJournalState.Error(e.message ?: "Failed to delete journal entry")
+                    _deleteJournalState.value = DeleteJournalState.Error(
+                        extractErrorMessage(e, "Failed to delete journal entry")
+                    )
                 }
             )
         }
@@ -617,7 +657,9 @@ class FinanceViewModel @Inject constructor(
             val result = financeRepository.getJournalEntryViewOne(id)
             result.fold(
                 onSuccess = { _journalEntryDetail.value = it },
-                onFailure = { _journalDetailError.value = it.message ?: "Failed to fetch journal entry" }
+                onFailure = { e ->
+                    _journalDetailError.value = extractErrorMessage(e, "Failed to fetch journal entry")
+                }
             )
             _isLoadingJournalDetail.value = false
         }

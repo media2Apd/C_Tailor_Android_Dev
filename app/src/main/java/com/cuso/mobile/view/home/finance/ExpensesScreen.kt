@@ -33,7 +33,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -80,6 +79,8 @@ import com.cuso.mobile.view.composable.ValidationField
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.PlanLimitDialog
 import com.cuso.mobile.view.composable.SearchFilterBar
+// ── Adaptive design tokens ──
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 
 private val ExpensePrimary = Color(0xFF3B3BF9)
 private val ExpenseBg = Color(0xFFF5F5F5)
@@ -95,6 +96,9 @@ fun ExpensesScreen(
     onBreadCrumbClick: () -> Unit ={}
 
 ) {
+    //   NEW — adaptive tokens
+    val tokens = LocalAppTokens.current
+
     val financeViewModel: FinanceViewModel = hiltViewModel()
 
     var showAddExpense by remember { mutableStateOf(false) }
@@ -157,7 +161,7 @@ fun ExpensesScreen(
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
                 placeholder = "Search Expenses...",
                 accentColor = BluePrimary,
                 borderColor = BorderGray,
@@ -184,12 +188,12 @@ fun ExpensesScreen(
             expenseError != null -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
+                        Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(tokens.iconSize * 2.4f))
                         Spacer(Modifier.height(8.dp))
-                        Text("Something went wrong, Please try again later", color = Color.Red)
+                        Text("Something went wrong, Please try again later", color = Color.Red, fontSize = tokens.bodyMedium)
                         Spacer(Modifier.height(12.dp))
-                        Button(onClick = { financeViewModel.fetchExpenses() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(8.dp)) {
-                            Text("Retry", color = whiteBg)
+                        Button(onClick = { financeViewModel.fetchExpenses() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(tokens.cardCornerRadius / 2)) {
+                            Text("Retry", color = whiteBg, fontSize = tokens.bodyMedium)
                         }
                     }
                 }
@@ -207,18 +211,18 @@ fun ExpensesScreen(
                     Box(
                         modifier = Modifier
                             .size(72.dp)
-                            .clip(RoundedCornerShape(18.dp))
+                            .clip(RoundedCornerShape(tokens.cardCornerRadius))
                             .background(Color(0xFFE7E5FE)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Description, contentDescription = null, tint = Color(0xFF9B96F5), modifier = Modifier.size(30.dp))
+                        Icon(Icons.Default.Description, contentDescription = null, tint = Color(0xFF9B96F5), modifier = Modifier.size(tokens.iconSize * 1.6f))
                     }
                     Spacer(Modifier.height(16.dp))
-                    Text("No Expenses Found", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                    Text("No Expenses Found", fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "Start by creating your first expense record",
-                        fontSize = 13.sp,
+                        fontSize = tokens.bodySmall,
                         color = Color(0xFF9CA3AF),
                         textAlign = TextAlign.Center
                     )
@@ -226,17 +230,17 @@ fun ExpensesScreen(
                     Button(
                         onClick = { showAddExpense = true },
                         colors = ButtonDefaults.buttonColors(containerColor = ExpensePrimary),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius / 1.5f),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = whiteBg, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, tint = whiteBg, modifier = Modifier.size(tokens.iconSize))
                         Spacer(Modifier.width(6.dp))
-                        Text("Add Expenses", color = whiteBg, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Add Expenses", color = whiteBg, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium)
                     }
                 }
             }
 
-            //  
+            //
             else -> {
                 FabScaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -294,6 +298,9 @@ fun ExpenseDetailScreen(
     expense: ExpenseItem,
     onClose: () -> Unit
 ) {
+    //   NEW — adaptive tokens
+    val tokens = LocalAppTokens.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -302,17 +309,17 @@ fun ExpenseDetailScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Expense Details", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+            Text("Expense Details", fontSize = tokens.h1, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Close",
                 tint = Color(0xFF111827),
                 modifier = Modifier
-                    .size(22.dp)
+                    .size(tokens.iconSize)
                     .clickable { onClose() }
             )
         }
@@ -322,7 +329,7 @@ fun ExpenseDetailScreen(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding)
         ) {
             ExpenseDetailField("Expense Number", expense.expenseNumber)
             ExpenseDetailField("Expense Date", formatExpenseDate(expense.expenseDate))
@@ -338,7 +345,7 @@ fun ExpenseDetailScreen(
                     .background(statusBg, RoundedCornerShape(20.dp))
                     .padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
-                Text(expense.status, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = statusFg)
+                Text(expense.status, fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = statusFg)
             }
             Spacer(Modifier.height(20.dp))
         }
@@ -347,16 +354,17 @@ fun ExpenseDetailScreen(
 
 @Composable
 private fun ExpenseDetailField(label: String, value: String) {
+    val tokens = LocalAppTokens.current
     FormLabel(label)
     Spacer(Modifier.height(4.dp))
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ExpenseBg, RoundedCornerShape(8.dp))
-            .border(1.dp, ExpenseBorder, RoundedCornerShape(8.dp))
+            .background(ExpenseBg, RoundedCornerShape(tokens.cardCornerRadius / 2))
+            .border(1.dp, ExpenseBorder, RoundedCornerShape(tokens.cardCornerRadius / 2))
             .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
-        Text(value, fontSize = 14.sp, color = Color(0xFF374151))
+        Text(value, fontSize = tokens.bodyMedium, color = Color(0xFF374151))
     }
     Spacer(Modifier.height(14.dp))
 }
@@ -398,7 +406,10 @@ fun AddExpenseScreen(
     onClose: () -> Unit,
     onSaved: () -> Unit
 ) {
-    //  
+    //   NEW — adaptive tokens
+    val tokens = LocalAppTokens.current
+
+    //
     val chartOfAccounts by financeViewModel.chartOfAccounts.collectAsStateWithLifecycle()
     val isLoadingAccounts by financeViewModel.isLoadingChartOfAccounts.collectAsStateWithLifecycle()
     val createExpenseState by financeViewModel.createExpenseState.collectAsStateWithLifecycle()
@@ -416,7 +427,7 @@ fun AddExpenseScreen(
         mutableStateOf(SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()).format(Date()))
     }
 
-    //  
+    //
     var selectedCategory by remember { mutableStateOf<ChartOfAccountItem?>(null) }
     var categoryExpanded by remember { mutableStateOf(false) }
 
@@ -448,7 +459,7 @@ fun AddExpenseScreen(
     var referenceNumber by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
 
-    //  
+    //
     val isSaving = createExpenseState is CreateExpenseState.Loading
     val isSavingAccount = createAccountState is com.cuso.mobile.viewmodel.CreateAccountState.Loading
 
@@ -515,245 +526,245 @@ fun AddExpenseScreen(
         ) {
             // ── Header ──
             Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 TitleBar("Add Expense", onClose = onClose)
 
             }
-        HorizontalDivider(color = Color(0xFFF0F0F0))
+            HorizontalDivider(color = Color(0xFFF0F0F0))
 
 
 
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            Text("Expense Details", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-            Spacer(Modifier.height(14.dp))
-
-            FormLabel("Expense Date", isRequired = true)
-            ErrorFieldWrapper(
-                isError = errorField == "expenseDate",
-                errorMessage = if (errorField == "expenseDate") "Expense date is required" else null
-            ) {
-                DatePickerField(
-                    value = expenseDate,
-                    onDateSelected = {
-                        expenseDate = it
-                        errorField = null
-                    }
-                )
-            }
-            Spacer(Modifier.height(14.dp))
-
-
-            //  
-// ── Category — real Chart of Accounts (Expense accounts) + Add New ──
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-
-                Box(modifier = Modifier.weight(1f)) {
-                    FormLabel("Expense Account")
-
-                    FormDropdown(
-                        label = "Expense Account",
-                        value = selectedCategory?.accountName ?: if (isLoadingAccounts) "Loading..." else "Select An Option",
-                        expanded = categoryExpanded,
-                        onExpandChange = { categoryExpanded = it },
-                        options = categoryAccounts.map { it.accountName },
-                        onOptionSelected = { name ->
-                            selectedCategory = categoryAccounts.find { it.accountName == name }
-                            errorField = null
-                        },
-                        enabled = !isLoadingAccounts,
-                        isRequired = true,
-                        isError = errorField == "expenseAccount",
-                        errorMessage = if (errorField == "expenseAccount") "Expense account is required" else null
-                    )
-                }
-                Box(
-                    Modifier
-                        .background(Primary, RoundedCornerShape(5.dp))
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "Add Expense Account",
-                        tint = whiteBg,
-                        modifier = Modifier
-                            .padding(5.dp)
-                            .size(28.dp)
-                            .clickable { showAddAccountDialog = true }
-                    )
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-
-            FormDropdown(
-                label = "Branch",
-                value = selectedBranch?.name ?: if (isLoadingBranches) "Loading..." else "Select An Option",
-                expanded = branchExpanded,
-                onExpandChange = { branchExpanded = it },
-                options = branchList.map { it.name.orEmpty() },
-                onOptionSelected = { name ->
-                    selectedBranch = branchList.find { it.name == name }
-                    errorField = null
-                },
-                enabled = !isLoadingBranches,
-                isRequired = true,
-                isError = errorField == "branch",
-                errorMessage = if (errorField == "branch") "Branch is required" else null
-            )
-            Spacer(Modifier.height(14.dp))
-
-            // ── Amount + Payment Mode ──
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(modifier = Modifier.weight(1f)) {
-                    FormLabel("Amount", isRequired = true)
-                    FormTextField(
-                        value = amount,
-                        onValueChange = { input ->
-                            //   allow only digits + a single decimal point (e.g. "1250.50")
-                            val filtered = input
-                                .filterIndexed { index, c ->
-                                    c.isDigit() || (c == '.' && input.indexOf('.') == index)
-                                }
-                            amount = filtered
-                            errorField = null
-                        },
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
-                        placeholder = "Enter Amount",
-                        isError = errorField == "amount",
-                        errorMessage = if (errorField == "amount") "Amount is required" else null
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    FormDropdown(
-                        label = "Payment Mode",
-                        value = selectedPaymentAccount?.accountName ?: if (isLoadingAccounts) "Loading..." else "Select An Option",
-                        expanded = paymentModeExpanded,
-                        onExpandChange = { paymentModeExpanded = it },
-                        options = paymentAccounts.map { it.accountName },
-                        onOptionSelected = { name ->
-                            selectedPaymentAccount = paymentAccounts.find { it.accountName == name }
-                            errorField = null
-                        },
-                        enabled = !isLoadingAccounts,
-                        isRequired = true,
-                        isError = errorField == "paymentMode",
-                        errorMessage = if (errorField == "paymentMode") "Payment mode is required" else null
-                    )
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-
-            FormLabel("Reference Number")
-            FormTextField(
-                value = referenceNumber,
-                onValueChange = { referenceNumber = it },
-                placeholder = "Enter reference number"
-            )
-            Spacer(Modifier.height(14.dp))
-
-            FormLabel("Notes")
-            Box(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(90.dp)
-                    .background(whiteBg, RoundedCornerShape(8.dp))
-                    .border(1.dp, ExpenseBorder, RoundedCornerShape(8.dp))
-                    .padding(12.dp)
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding)
             ) {
-                BasicTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                    decorationBox = { inner ->
-                        if (notes.isEmpty()) Text("Add Notes", fontSize = 14.sp, color = Color(0xFF9CA3AF))
-                        inner()
-                    }
-                )
-            }
-            Spacer(Modifier.height(20.dp))
+                Text("Expense Details", fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                Spacer(Modifier.height(14.dp))
 
-            Text("Documentation & Receipts", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-            Spacer(Modifier.height(10.dp))
-
-            if (selectedDocumentName != null) {
-                // ── Uploaded file shown with remove button ──
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFF7F7FE), RoundedCornerShape(10.dp))
-                        .border(1.dp, Color(0xFFD6D3FB), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                FormLabel("Expense Date", isRequired = true)
+                ErrorFieldWrapper(
+                    isError = errorField == "expenseDate",
+                    errorMessage = if (errorField == "expenseDate") "Expense date is required" else null
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                    DatePickerField(
+                        value = expenseDate,
+                        onDateSelected = {
+                            expenseDate = it
+                            errorField = null
+                        }
+                    )
+                }
+                Spacer(Modifier.height(14.dp))
+
+
+                //
+// ── Category — real Chart of Accounts (Expense accounts) + Add New ──
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+
+                    Box(modifier = Modifier.weight(1f)) {
+                        FormLabel("Expense Account")
+
+                        FormDropdown(
+                            label = "Expense Account",
+                            value = selectedCategory?.accountName ?: if (isLoadingAccounts) "Loading..." else "Select An Option",
+                            expanded = categoryExpanded,
+                            onExpandChange = { categoryExpanded = it },
+                            options = categoryAccounts.map { it.accountName },
+                            onOptionSelected = { name ->
+                                selectedCategory = categoryAccounts.find { it.accountName == name }
+                                errorField = null
+                            },
+                            enabled = !isLoadingAccounts,
+                            isRequired = true,
+                            isError = errorField == "expenseAccount",
+                            errorMessage = if (errorField == "expenseAccount") "Expense account is required" else null
+                        )
+                    }
+                    Box(
+                        Modifier
+                            .background(Primary, RoundedCornerShape(5.dp))
                     ) {
                         Icon(
-                            Icons.AutoMirrored.Filled.InsertDriveFile,
-                            contentDescription = null,
-                            tint = ExpensePrimary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            selectedDocumentName ?: "",
-                            fontSize = 13.sp,
-                            color = Color(0xFF374151),
-                            maxLines = 1
+                            Icons.Default.Add,
+                            contentDescription = "Add Expense Account",
+                            tint = whiteBg,
+                            modifier = Modifier
+                                .padding(5.dp)
+                                .size(tokens.iconSize)
+                                .clickable { showAddAccountDialog = true }
                         )
                     }
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Remove",
-                        tint = Color(0xFF9CA3AF),
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable {
-                                selectedDocumentUri = null
-                                selectedDocumentName = null
-                            }
-                    )
                 }
-            } else {
-                // ── Empty upload box ──
-                Column(
+                Spacer(Modifier.height(14.dp))
+
+                FormDropdown(
+                    label = "Branch",
+                    value = selectedBranch?.name ?: if (isLoadingBranches) "Loading..." else "Select An Option",
+                    expanded = branchExpanded,
+                    onExpandChange = { branchExpanded = it },
+                    options = branchList.map { it.name.orEmpty() },
+                    onOptionSelected = { name ->
+                        selectedBranch = branchList.find { it.name == name }
+                        errorField = null
+                    },
+                    enabled = !isLoadingBranches,
+                    isRequired = true,
+                    isError = errorField == "branch",
+                    errorMessage = if (errorField == "branch") "Branch is required" else null
+                )
+                Spacer(Modifier.height(14.dp))
+
+                // ── Amount + Payment Mode ──
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        FormLabel("Amount", isRequired = true)
+                        FormTextField(
+                            value = amount,
+                            onValueChange = { input ->
+                                //   allow only digits + a single decimal point (e.g. "1250.50")
+                                val filtered = input
+                                    .filterIndexed { index, c ->
+                                        c.isDigit() || (c == '.' && input.indexOf('.') == index)
+                                    }
+                                amount = filtered
+                                errorField = null
+                            },
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                            placeholder = "Enter Amount",
+                            isError = errorField == "amount",
+                            errorMessage = if (errorField == "amount") "Amount is required" else null
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        FormDropdown(
+                            label = "Payment Mode",
+                            value = selectedPaymentAccount?.accountName ?: if (isLoadingAccounts) "Loading..." else "Select An Option",
+                            expanded = paymentModeExpanded,
+                            onExpandChange = { paymentModeExpanded = it },
+                            options = paymentAccounts.map { it.accountName },
+                            onOptionSelected = { name ->
+                                selectedPaymentAccount = paymentAccounts.find { it.accountName == name }
+                                errorField = null
+                            },
+                            enabled = !isLoadingAccounts,
+                            isRequired = true,
+                            isError = errorField == "paymentMode",
+                            errorMessage = if (errorField == "paymentMode") "Payment mode is required" else null
+                        )
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+
+                FormLabel("Reference Number")
+                FormTextField(
+                    value = referenceNumber,
+                    onValueChange = { referenceNumber = it },
+                    placeholder = "Enter reference number"
+                )
+                Spacer(Modifier.height(14.dp))
+
+                FormLabel("Notes")
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(110.dp)
-                        .background(Color(0xFFF7F7FE), RoundedCornerShape(10.dp))
-                        .border(1.dp, Color(0xFFD6D3FB), RoundedCornerShape(10.dp))
-                        .clickable {
-                            if (isUploadRestricted) {
-                                showPlanLimitDialog = true
-                            } else {
-                                filePickerLauncher.launch("*/*")
-                            }
-                        },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                        .height(90.dp)
+                        .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius / 2))
+                        .border(1.dp, ExpenseBorder, RoundedCornerShape(tokens.cardCornerRadius / 2))
+                        .padding(12.dp)
                 ) {
-                    Icon(Icons.Default.CloudUpload, contentDescription = null, tint = ExpensePrimary, modifier = Modifier.size(26.dp))
-                    Spacer(Modifier.height(6.dp))
-                    Text("Drag and drop files here", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                    BasicTextField(
+                        value = notes,
+                        onValueChange = { notes = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = TextStyle(fontSize = tokens.bodyMedium, color = Color(0xFF374151)),
+                        decorationBox = { inner ->
+                            if (notes.isEmpty()) Text("Add Notes", fontSize = tokens.bodyMedium, color = Color(0xFF9CA3AF))
+                            inner()
+                        }
+                    )
                 }
-            }
-            Spacer(Modifier.height(80.dp))
-        }
+                Spacer(Modifier.height(20.dp))
 
-        // ── Cancel / Save footer ──
+                Text("Documentation & Receipts", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                Spacer(Modifier.height(10.dp))
+
+                if (selectedDocumentName != null) {
+                    // ── Uploaded file shown with remove button ──
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF7F7FE), RoundedCornerShape(tokens.cardCornerRadius / 1.8f))
+                            .border(1.dp, Color(0xFFD6D3FB), RoundedCornerShape(tokens.cardCornerRadius / 1.8f))
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.InsertDriveFile,
+                                contentDescription = null,
+                                tint = ExpensePrimary,
+                                modifier = Modifier.size(tokens.iconSize)
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                selectedDocumentName ?: "",
+                                fontSize = tokens.bodySmall,
+                                color = Color(0xFF374151),
+                                maxLines = 1
+                            )
+                        }
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Remove",
+                            tint = Color(0xFF9CA3AF),
+                            modifier = Modifier
+                                .size(tokens.iconSize)
+                                .clickable {
+                                    selectedDocumentUri = null
+                                    selectedDocumentName = null
+                                }
+                        )
+                    }
+                } else {
+                    // ── Empty upload box ──
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                            .background(Color(0xFFF7F7FE), RoundedCornerShape(tokens.cardCornerRadius / 1.8f))
+                            .border(1.dp, Color(0xFFD6D3FB), RoundedCornerShape(tokens.cardCornerRadius / 1.8f))
+                            .clickable {
+                                if (isUploadRestricted) {
+                                    showPlanLimitDialog = true
+                                } else {
+                                    filePickerLauncher.launch("*/*")
+                                }
+                            },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = null, tint = ExpensePrimary, modifier = Modifier.size(tokens.iconSize * 1.4f))
+                        Spacer(Modifier.height(6.dp))
+                        Text("Drag and drop files here", fontSize = tokens.caption, color = Color(0xFF9CA3AF))
+                    }
+                }
+                Spacer(Modifier.height(80.dp))
+            }
+
+            // ── Cancel / Save footer ──
         }   // ← closes the inner Column (header + scrollable form)
 
         // ── Cancel / Save footer (StepNavigationFab) ──
@@ -828,12 +839,12 @@ fun AddExpenseScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(whiteBg, RoundedCornerShape(14.dp))
+                        .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
                         .padding(20.dp)
                 ) {
                     Text(
                         "Add Expense Account",
-                        fontSize = 16.sp,
+                        fontSize = tokens.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF111827)
                     )
@@ -848,7 +859,7 @@ fun AddExpenseScreen(
                     Spacer(Modifier.height(20.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        //  
+                        //
                         OutlinedButton(
                             onClick = {
                                 showAddAccountDialog = false
@@ -856,11 +867,11 @@ fun AddExpenseScreen(
                             },
                             enabled = !isSavingAccount,
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(tokens.cardCornerRadius / 1.8f)
                         ) {
-                            Text("Cancel", color = Color(0xFF374151))
+                            Text("Cancel", color = Color(0xFF374151), fontSize = tokens.bodyMedium)
                         }
-                        //  
+                        //
                         Button(
                             onClick = {
                                 if (newAccountName.isNotBlank()) {
@@ -873,12 +884,12 @@ fun AddExpenseScreen(
                             enabled = !isSavingAccount,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = ExpensePrimary),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(tokens.cardCornerRadius / 1.8f)
                         ) {
                             if (isSavingAccount) {
                                 CircularProgressIndicator(color = whiteBg, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                             } else {
-                                Text("Save", color = whiteBg)
+                                Text("Save", color = whiteBg, fontSize = tokens.bodyMedium)
                             }
                         }
                     }

@@ -114,6 +114,7 @@ fun CustomerScreen(
 
     var showCreateSuccess by remember { mutableStateOf(false) }
     var showDeleteSuccess by remember { mutableStateOf(false) }
+    var deleteSuccessMessage by remember { mutableStateOf("Customer Deleted Successfully") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(customerState) {
@@ -125,6 +126,8 @@ fun CustomerScreen(
     LaunchedEffect(deleteState) {
         when (val state = deleteState) {
             is CustomerDeleteState.Success -> {
+                deleteSuccessMessage = state.message?.takeIf { it.isNotBlank() }
+                    ?: "Customer Deleted Successfully"
                 showDeleteSuccess = true
                 customerViewModel.resetDeleteState()
             }
@@ -311,7 +314,7 @@ fun CustomerScreen(
 
             if (showDeleteSuccess) {
                 DynamicIslandSuccess(
-                    message = "Customer Deleted Successfully",
+                    message = deleteSuccessMessage,
                     onDismiss = { showDeleteSuccess = false },
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
@@ -336,7 +339,6 @@ fun CustomerScreen(
             },
             onDelete = {
                 onDelete(customer)
-                showDeleteSuccess = true
                 customerPendingDelete = null
             }
         )

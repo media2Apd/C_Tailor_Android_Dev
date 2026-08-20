@@ -5,13 +5,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.mutedText
 
-private val CrumbInactive = Color(0xFF9A9AA8)
-private val CrumbActive = Color(0xFF3A2FCB)
+private val CrumbInactive = mutedText
+private val CrumbActive = Primary
 
 /**
  * Dynamic breadcrumb — pass ordered segments, e.g. listOf("Finance", "Trial Balance").
@@ -24,22 +25,23 @@ fun ScreenBreadcrumb(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .padding(horizontal = tokens.screenPadding, vertical = 12.dp)
     ) {
         segments.forEachIndexed { index, label ->
             val isLast = index == segments.lastIndex
             Text(
                 text = label,
                 color = if (isLast) CrumbActive else CrumbInactive,
-                fontSize = 13.sp,
+                fontSize = tokens.caption,
                 fontWeight = if (isLast) FontWeight.Medium else FontWeight.Normal
             )
             if (!isLast) {
-                Text("  >  ", color = CrumbInactive, fontSize = 13.sp)
+                Text("  >  ", color = CrumbInactive, fontSize = tokens.caption)
             }
         }
     }

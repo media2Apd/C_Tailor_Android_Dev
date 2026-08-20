@@ -206,7 +206,6 @@ fun DesignationScreen(
                                 SearchFilterBar(
                                     query = searchQuery,
                                     onQueryChange = { searchQuery = it },
-                                    modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 1.2f),
                                     placeholder = "Search Designations...",
                                     accentColor = BluePrimary,
                                     borderColor = BorderGray,

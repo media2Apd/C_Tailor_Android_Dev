@@ -115,7 +115,6 @@ fun FinanceInvoiceScreen(
         SearchFilterBar(
             query = searchQuery,
             onQueryChange = { searchQuery = it },
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             placeholder = "Search Invoices...",
             accentColor = BluePrimary,
             borderColor = BorderGray,
@@ -486,10 +485,12 @@ fun InvoiceDetailScreen(
                                 .padding(16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
+                            val shareFileName = "share_inv_${invoice.invoiceNumber}_${System.currentTimeMillis()}.pdf"
                             OutlinedButton(
                                 onClick = {
                                     pdfGenerator.generatePdfFromHtml(
                                         data = pdfData,
+                                        fileName = shareFileName,
                                         saveToDownloads = false
                                     ) { saved ->
                                         if (saved != null && saved.exists()) {

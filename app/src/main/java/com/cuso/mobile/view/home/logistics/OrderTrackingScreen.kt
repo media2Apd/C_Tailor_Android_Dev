@@ -79,10 +79,7 @@ fun OrderTrackingScreen(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
                 placeholder = "Search Order...",
-                onFilterClick = { /* open filter drawer */ },
-                modifier = Modifier
-                    .background(Color(0xFFF9FAFB))
-                    .padding(horizontal = 20.dp, vertical = 10.dp)
+                onFilterClick = { /* open filter drawer */ }
             )
 
             HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)

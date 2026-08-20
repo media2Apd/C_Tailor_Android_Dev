@@ -15,7 +15,6 @@ import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.*
 import com.cuso.mobile.repository.AuthRepository
 import com.cuso.mobile.repository.LoginRepository
-import com.cuso.mobile.utils.isValidPhoneNumber
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -407,21 +406,21 @@ class Authenticate @Inject constructor(
         }
     }
 
-    fun registerVerifyOtp(email: String, otp: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            Log.d("OTP_API", "Calling API with $email $otp")
-
-            val result = repository.registerVerifyOtp(email, otp)
-
-            _isLoading.value = false
-            _registerOtpVerifyResult.value = result
-
-            result.onFailure { error ->
-                Log.e("OTP_API", "OTP verification failed", error)
-            }
-        }
-    }
+//    fun registerVerifyOtp(email: String, otp: String) {
+//        viewModelScope.launch {
+//            _isLoading.value = true
+//            Log.d("OTP_API", "Calling API with $email $otp")
+//
+//            val result = repository.registerVerifyOtp(email, otp)
+//
+//            _isLoading.value = false
+//            _registerOtpVerifyResult.value = result
+//
+//            result.onFailure { error ->
+//                Log.e("OTP_API", "OTP verification failed", error)
+//            }
+//        }
+//    }
 
     // ─────────────────────────────────────────────────────────────
     // Forgot Password Functions
@@ -503,87 +502,87 @@ class Authenticate @Inject constructor(
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Sign Up
-    // ─────────────────────────────────────────────────────────────
-
-    fun signUp(
-        firstName: String,
-        lastName: String,
-        email: String,
-        mobile: String,
-        countryIso: String,
-        country: String,
-        state: String,
-        organizationName: String,
-        password: String,
-        termsAccepted: Boolean
-    ) {
-        when {
-            firstName.isBlank() -> {
-                _accountState.value = UiState.Error("First name is required")
-                return
-            }
-            lastName.isBlank() -> {
-                _accountState.value = UiState.Error("Last name is required")
-                return
-            }
-            !email.contains("@") -> {
-                _accountState.value = UiState.Error("Enter a valid email")
-                return
-            }
-            !isValidPhoneNumber(mobile, countryIso) -> {
-                _accountState.value = UiState.Error("Enter a valid phone number for selected country")
-                return
-            }
-            country.isBlank() -> {
-                _accountState.value = UiState.Error("Country is required")
-                return
-            }
-            state.isBlank() -> {
-                _accountState.value = UiState.Error("State is required")
-                return
-            }
-            organizationName.isBlank() -> {
-                _accountState.value = UiState.Error("Organization name is required")
-                return
-            }
-            password.length < 6 -> {
-                _accountState.value = UiState.Error("Password must be 6+ characters")
-                return
-            }
-            !termsAccepted -> {
-                _accountState.value = UiState.Error("Please accept terms and conditions")
-                return
-            }
-        }
-
-        _accountState.value = UiState.Loading
-
-        viewModelScope.launch {
-            val result = repository.createAccount(
-                SignupRequest(
-                    country = country,
-                    email = email,
-                    firstName = firstName,
-                    lastName = lastName,
-                    mobile = mobile,
-                    organizationName = organizationName,
-                    password = password,
-                    state = state,
-                    termsAccepted = termsAccepted
-                )
-            )
-
-            _accountState.value = if (result.isSuccess) {
-                UiState.RegisterSuccess
-            } else {
-                UiState.Error(
-                    result.exceptionOrNull()?.message ?: "Something went wrong"
-                )
-            }
-        }
-    }
+//    // ─────────────────────────────────────────────────────────────
+//    // Sign Up
+//    // ─────────────────────────────────────────────────────────────
+//
+//    fun signUp(
+//        firstName: String,
+//        lastName: String,
+//        email: String,
+//        mobile: String,
+//        countryIso: String,
+//        country: String,
+//        state: String,
+//        organizationName: String,
+//        password: String,
+//        termsAccepted: Boolean
+//    ) {
+//        when {
+//            firstName.isBlank() -> {
+//                _accountState.value = UiState.Error("First name is required")
+//                return
+//            }
+//            lastName.isBlank() -> {
+//                _accountState.value = UiState.Error("Last name is required")
+//                return
+//            }
+//            !email.contains("@") -> {
+//                _accountState.value = UiState.Error("Enter a valid email")
+//                return
+//            }
+//            !isValidPhoneNumber(mobile, countryIso) -> {
+//                _accountState.value = UiState.Error("Enter a valid phone number for selected country")
+//                return
+//            }
+//            country.isBlank() -> {
+//                _accountState.value = UiState.Error("Country is required")
+//                return
+//            }
+//            state.isBlank() -> {
+//                _accountState.value = UiState.Error("State is required")
+//                return
+//            }
+//            organizationName.isBlank() -> {
+//                _accountState.value = UiState.Error("Organization name is required")
+//                return
+//            }
+//            password.length < 6 -> {
+//                _accountState.value = UiState.Error("Password must be 6+ characters")
+//                return
+//            }
+//            !termsAccepted -> {
+//                _accountState.value = UiState.Error("Please accept terms and conditions")
+//                return
+//            }
+//        }
+//
+//        _accountState.value = UiState.Loading
+//
+//        viewModelScope.launch {
+//            val result = repository.createAccount(
+//                SignupRequest(
+//                    country = country,
+//                    email = email,
+//                    firstName = firstName,
+//                    lastName = lastName,
+//                    mobile = mobile,
+//                    organizationName = organizationName,
+//                    password = password,
+//                    state = state,
+//                    termsAccepted = termsAccepted
+//                )
+//            )
+//
+//            _accountState.value = if (result.isSuccess) {
+//                UiState.RegisterSuccess
+//            } else {
+//                UiState.Error(
+//                    result.exceptionOrNull()?.message ?: "Something went wrong"
+//                )
+//            }
+//        }
+//    }
 
     // ─────────────────────────────────────────────────────────────
     // Email Verification

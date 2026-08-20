@@ -108,8 +108,7 @@ fun TrialBalanceScreen(
                 accentColor = BluePrimary,
                 borderColor = BorderGray,
                 textSecondaryColor = TextSecondary,
-                onFilterClick = { /* open your filter drawer here */ },
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                onFilterClick = { /* open your filter drawer here */ }
             )
         }
 

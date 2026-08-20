@@ -13,7 +13,7 @@ data class CreateLeadFormRequest(
     val estimatedQuantity: Int,
     val budgetRange: BudgetRange,
     @SerializedName("garmentCategory")   //   backend expects "garmentCategory", not "garments"
-    val garments: List<String>,
+    val garments: List<Any>?,
     val enquiryDate: String,
     val requiredDate: String,
     val source: String,
@@ -89,6 +89,6 @@ data class LeadData(
     val customerType: String?,
     val status: Any?, // Can be String or StatusObject
     val createdAt: String?,
-    val garmentCategory: List<GarmentCategory>?,
+    val garmentCategory: List<Any>?,
     val occasion: String? = null  //   ADD THIS
 )

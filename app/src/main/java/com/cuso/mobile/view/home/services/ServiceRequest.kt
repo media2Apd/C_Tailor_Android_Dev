@@ -181,9 +181,7 @@ fun ServiceRequestScreen(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
                         placeholder = "Search Request...",
-                        onFilterClick = {  },
-                        modifier = Modifier
-                            .padding(vertical = 12.dp)
+                        onFilterClick = {  }
                     )
                 }
                 LazyColumn {

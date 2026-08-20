@@ -15,7 +15,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +30,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
@@ -58,13 +61,19 @@ import com.cuso.mobile.viewmodel.CustomerUpdateState
 import com.cuso.mobile.viewmodel.CustomerViewModel
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.light_blue
+import com.cuso.mobile.ui.theme.greenBg
+import com.cuso.mobile.ui.theme.greentext
+import com.cuso.mobile.ui.theme.lightGray
+import com.cuso.mobile.ui.theme.light_blue_border
+import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.primary_light
+import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.ui.theme.yellowBg
 import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.composable.customOutlinedButtonColors
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
 
@@ -511,7 +520,7 @@ private fun PersonalInformationStep(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(light_blue, RoundedCornerShape(12.dp))
+                            .background(light_blue_border, RoundedCornerShape(12.dp))
                             .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -811,14 +820,32 @@ private fun OrderPaymentStep() {
     var expandedSection by remember { mutableStateOf("") }
 
     Column {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OrderStatBox(modifier = Modifier.weight(1f), label = "Total Orders", value = "28")
-            OrderStatBox(modifier = Modifier.weight(1f), label = "First Order", value = "Mar 2022")
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OrderStatBox(modifier = Modifier.weight(1f), label = "Last orders", value = "Jan 2026")
-            OrderStatBox(modifier = Modifier.weight(1f), label = "Avg. order value", value = "15.6K", highlight = true)
+        Column(
+            Modifier.fillMaxWidth()
+                .padding(horizontal= tokens.screenPadding),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OrderStatBox(modifier = Modifier.weight(1f), label = "Total Orders", value = "28")
+                OrderStatBox(
+                    modifier = Modifier.weight(1f),
+                    label = "First Order",
+                    value = "Mar 2022"
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OrderStatBox(
+                    modifier = Modifier.weight(1f),
+                    label = "Last orders",
+                    value = "Jan 2026"
+                )
+                OrderStatBox(
+                    modifier = Modifier.weight(1f),
+                    label = "Avg. order value",
+                    value = "15.6K",
+                    highlight = true
+                )
+            }
         }
         Spacer(Modifier.height(16.dp))
 
@@ -831,13 +858,13 @@ private fun OrderPaymentStep() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFECFDF5), RoundedCornerShape(12.dp))
+                    .background(greenBg, RoundedCornerShape(12.dp))
                     .padding(horizontal = tokens.screenPadding * 0.85f, vertical = 14.dp)
             ) {
                 Column {
-                    Text("Total Spend", fontSize = tokens.bodySmall, color = Color(0xFF16A34A))
+                    Text("Total Spend", fontSize = tokens.bodySmall, color = greentext)
                     Spacer(Modifier.height(4.dp))
-                    Text("436,800", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
+                    Text("436,800", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = greentext)
                 }
             }
             Spacer(Modifier.height(10.dp))
@@ -1034,57 +1061,68 @@ private fun PreferencesStep() {
 
         Spacer(Modifier.height(16.dp))
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.height(IntrinsicSize.Min)
+        Column(
+            Modifier.fillMaxWidth()
+                .padding(horizontal = tokens.screenPadding)
         ) {
-            InfoPill(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                iconPainter = painterResource(R.drawable.ic_background_purple_star),
-                label = "VIP",
-                sub = "Loyalty Level",
-                labelColor = Color(0xFF9333EA),
-                subColor = Color(0xFF6B7280),
-                bgColor = Color(0xFFF5F0FF),
-                borderColor = Color(0xFFE9D5FF)
-            )
-            InfoPill(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                iconPainter = painterResource(R.drawable.ic_background_white_people),
-                label = "5",
-                sub = "Referrals",
-                labelColor = Color(0xFF111827),
-                subColor = Color(0xFF6B7280),
-                bgColor = Color(0xFFF9FAFB),
-                borderColor = Color(0xFFE5E7EB)
-            )
-            InfoPill(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                iconPainter = painterResource(R.drawable.ic_background_green_check),
-                label = "Upgrade Ready",
-                sub = "Next tier eligible",
-                labelColor = Color(0xFF16A34A),
-                subColor = Color(0xFF15803D),
-                bgColor = Color(0xFFDCFCE7),
-                borderColor = null
-            )
-        }
-        Spacer(Modifier.height(16.dp))
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(primary_light, RoundedCornerShape(12.dp))
-                .padding(horizontal = tokens.screenPadding * 0.85f, vertical = 14.dp)
-        ) {
-            Column {
-                Text("Special Privileges", fontWeight = FontWeight.Bold, color = Color(0xFF3B3BF9), fontSize = tokens.bodyMedium)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Priority booking, 10% discount on all suit orders, Free home delivery.",
-                    fontSize = tokens.caption,
-                    color = Color(0xFF4B5563)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.height(IntrinsicSize.Min)
+            ) {
+                InfoPill(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    iconPainter = painterResource(R.drawable.ic_background_purple_star),
+                    label = "VIP",
+                    sub = "Loyalty Level",
+                    labelColor = Color(0xFF9333EA),
+                    subColor = Color(0xFF6B7280),
+                    bgColor = Color(0xFFF5F0FF),
+                    borderColor = Color(0xFFE9D5FF)
                 )
+                InfoPill(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    iconPainter = painterResource(R.drawable.ic_background_white_people),
+                    label = "5",
+                    sub = "Referrals",
+                    labelColor = Color(0xFF111827),
+                    subColor = Color(0xFF6B7280),
+                    bgColor = Color(0xFFF9FAFB),
+                    borderColor = Color(0xFFE5E7EB)
+                )
+                InfoPill(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    iconPainter = painterResource(R.drawable.ic_background_green_check),
+                    label = "Upgrade Ready",
+                    sub = "Next tier eligible",
+                    labelColor = Color(0xFF16A34A),
+                    subColor = Color(0xFF15803D),
+                    bgColor = Color(0xFFDCFCE7),
+                    borderColor = null
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(primary_light, RoundedCornerShape(12.dp))
+                    .padding(horizontal = tokens.screenPadding * 0.85f, vertical = 14.dp)
+            ) {
+                Column {
+                    Text(
+                        "Special Privileges",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF3B3BF9),
+                        fontSize = tokens.bodyMedium
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Priority booking, 10% discount on all suit orders, Free home delivery.",
+                        fontSize = tokens.caption,
+                        color = Color(0xFF4B5563)
+                    )
+                }
             }
         }
     }
@@ -1095,14 +1133,19 @@ private fun PreferencesStep() {
 // ─────────────────────────────────────────────────────────────
 @Composable
 private fun NotesTagsStep(isEditMode: Boolean) {
-    Column {
+    val tokens = LocalAppTokens.current
+
+    Column(
+        Modifier.fillMaxWidth()
+            .padding(horizontal = tokens.screenPadding)
+    ) {
         SectionHeader("Internal Notes", "Staff-only notes (not visible to customer)")
         Spacer(Modifier.height(10.dp))
         NoteCard(
             text = "High Value Customer. Prefers evening appointments.",
-            bgColor = Color(0xFFFEFCE8),
-            borderColor = Color(0xFFFDE68A),
-            textColor = Color(0xFF1F2937)
+            bgColor = yellowBg,
+            borderColor = yellowBg,
+            textColor = title_color
         )
         Spacer(Modifier.height(10.dp))
         DashedAddButton(text = "Add Internal Notes", onClick = {}, enabled = isEditMode)
@@ -1275,18 +1318,18 @@ private fun OrderStatBox(
     Column(
         modifier = modifier
             .background(
-                if (highlight) Color(0xFFDCFCE7) else Color(0xFFF3F4F6),
+                if (highlight) greenBg else lightGray,
                 RoundedCornerShape(16.dp)
             )
             .padding(vertical = 16.dp, horizontal = tokens.screenPadding * 0.85f)
     ) {
-        Text(label, fontSize = tokens.bodySmall, color = Color(0xFF6B7280))
+        Text(label, fontSize = tokens.bodySmall, color = TextSecondary)
         Spacer(Modifier.height(6.dp))
         Text(
             value,
             fontSize = tokens.h2,
             fontWeight = FontWeight.Bold,
-            color = if (highlight) Color(0xFF16A34A) else Color(0xFF111827)
+            color = if (highlight) greentext else mutedText
         )
     }
 }
@@ -1388,22 +1431,40 @@ private fun OutlinedIconActionButton(
     enabled: Boolean = true
 ) {
     val tokens = LocalAppTokens.current
-    OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .dashedBorder(
-                color = Color.Gray,
+            .dashedBorder( // உங்கள் project-ல் ஏற்கனவே உள்ள modifier
+                color = if (enabled) Color(0xFF9CA3AF) else Color(0xFFD1D5DB),
                 strokeWidth = 1.dp,
                 cornerRadius = 12.dp
-            ),
-        shape = RoundedCornerShape(12.dp),
-        colors = customOutlinedButtonColors(),
-        border = null
+            )
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick
+            )
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(icon, null, modifier = Modifier.size(16.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(text, fontSize = tokens.bodyMedium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = if (enabled) Color(0xFF3B3BF9) else Color.Gray
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = text,
+                fontSize = tokens.bodyMedium,
+                color = if (enabled) Color(0xFF374151) else Color.Gray,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }

@@ -20,17 +20,17 @@ data class LeadEntity(
     val area: String,
     val city: String,
     val preferredContactMethod: String,
-    val enquiryType: String,
+    val enquiryType: String?,
     val estimatedQuantity: Int,
     val budgetMin: Int,
     val budgetMax: Int,
     val occasion: String,
     val garments: String,
-    val enquiryDate: String?= null,
-    val requiredDate: String?= null,
+    val enquiryDate: String? = null,
+    val requiredDate: String? = null,
     val source: String,
     val status: String,
-    val leadOwner: String = "",          //   NEW — default "" so existing LeadEntity(...) calls don't break
+    val leadOwner: String = "",
     val appointmentRequired: Boolean,
     val appointmentDate: String,
     val appointmentTime: String?,
@@ -42,20 +42,22 @@ data class LeadEntity(
     val createdAt: String
 )
 
-// Updated toEntity extension function
+//   Helper — works for both List<Any>? (garmentCategory / garments) items
+private fun extractGarmentIdFromAny(garment: Any?): String {
+    return when (garment) {
+        is String -> garment
+        is Map<*, *> -> {
+            (garment["_id"] as? String)
+                ?: ((garment["categoryId"] as? Map<*, *>)?.get("_id") as? String)
+                ?: ""
+        }
+        else -> ""
+    }
+}
+
 fun CreateLeadFormResponse.toEntity(request: CreateLeadFormRequest): LeadEntity {
     val d = this.data ?: throw IllegalStateException("Response data is null")
 
-    // Helper to extract garment ID from either String or Object
-    fun extractGarmentId(garment: Any?): String {
-        return when (garment) {
-            is String -> garment
-            is Map<*, *> -> (garment["_id"] as? String) ?: ""
-            else -> ""
-        }
-    }
-
-    // Helper to extract status name from either String or Object
     fun extractStatusName(status: Any?): String {
         return when (status) {
             is String -> status
@@ -64,17 +66,17 @@ fun CreateLeadFormResponse.toEntity(request: CreateLeadFormRequest): LeadEntity 
         }
     }
 
-    // Get garment ID from response or fallback to request
-    val garmentId = d.garmentCategory?.firstOrNull()?._id
-        ?: request.garments.firstOrNull()
+    //   response.data.garmentCategory is List<GarmentCategory>? (typed) — use _id directly
+    //   fallback to request.garments which is List<Any>? now
+    val garmentId = d.garmentCategory?.firstOrNull()?.let { extractGarmentIdFromAny(it) }
+        ?.takeIf { it.isNotBlank() }
+        ?: request.garments?.firstOrNull()?.let { extractGarmentIdFromAny(it) }
         ?: ""
 
-    // Get status name from response or fallback to request
     val statusName = request.statusName.ifEmpty {
         extractStatusName(d.status)
     }
 
-    // Get occasion from response or fallback to request
     val occasionValue = d.occasion?.takeIf { it.isNotEmpty() } ?: request.occasion
 
     return LeadEntity(
@@ -91,7 +93,7 @@ fun CreateLeadFormResponse.toEntity(request: CreateLeadFormRequest): LeadEntity 
         area = request.contact.area,
         city = request.contact.city,
         preferredContactMethod = request.contact.preferredContactMethod,
-        enquiryType = request.enquiryType,
+        enquiryType = request.enquiryType ?: "unknown",
         estimatedQuantity = request.estimatedQuantity,
         budgetMin = request.budgetRange.min,
         budgetMax = request.budgetRange.max,
@@ -100,7 +102,7 @@ fun CreateLeadFormResponse.toEntity(request: CreateLeadFormRequest): LeadEntity 
         enquiryDate = request.enquiryDate,
         requiredDate = request.requiredDate,
         source = request.source,
-        leadOwner = request.leadOwner,        //   NEW — assuming CreateLeadFormRequest gets a leadOwner field
+        leadOwner = request.leadOwner,
         appointmentRequired = request.appointment.isRequired,
         appointmentDate = request.appointment.date ?: "",
         appointmentTime = request.appointment.time,

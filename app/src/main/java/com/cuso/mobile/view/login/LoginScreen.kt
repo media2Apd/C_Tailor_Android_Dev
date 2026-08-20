@@ -138,6 +138,11 @@ fun LoginScreen(
                     )
                 }
             }
+            DynamicIslandSuccess(
+                modifier = Modifier.align(Alignment.TopCenter),
+                message = successMessage,
+                onDismiss = { successMessage = null }
+            )
         }
 
         LaunchedEffect(resetSuccessMessage) {
@@ -146,10 +151,6 @@ fun LoginScreen(
             }
         }
 
-        DynamicIslandSuccess(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
+
     }
 }

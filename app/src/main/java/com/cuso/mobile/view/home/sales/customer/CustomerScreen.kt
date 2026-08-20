@@ -52,6 +52,12 @@ import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.TitleBar
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 fun String?.toDisplayDate(): String {
     if (this.isNullOrBlank()) return "—"
@@ -90,8 +96,6 @@ fun CustomerScreen(
     customerState: CustomerUiState,
     onSearch: (String) -> Unit = {},
     onTypeFilterChange: (String) -> Unit = {},
-    onPageChange: (Int) -> Unit = {},
-    onItemsPerPageChange: (Int) -> Unit = {},
     onClose: () -> Unit = {},
     onCreateCustomer: () -> Unit = {},
     onView: (CustomerItem) -> Unit = {},
@@ -99,12 +103,17 @@ fun CustomerScreen(
     onDelete: (CustomerItem) -> Unit = {},
     onBreadCrumbClick: () -> Unit = {}
 ) {
+    val listState = rememberLazyListState()
+    val customerViewModel: CustomerViewModel = hiltViewModel()
+
+    val isLoadingMore by customerViewModel.isLoadingMore.collectAsStateWithLifecycle()
+    val canLoadMore by customerViewModel.canLoadMore.collectAsStateWithLifecycle()
+
     val snackbarHostState = remember { SnackbarHostState() }
 
     var searchQuery by remember { mutableStateOf("") }
     var customerPendingDelete by remember { mutableStateOf<CustomerItem?>(null) }
 
-    val customerViewModel: CustomerViewModel = hiltViewModel()
     val uiState by customerViewModel.uiState.collectAsStateWithLifecycle()
     val currentPage by customerViewModel.currentPageFlow.collectAsStateWithLifecycle()
     val pageSize by customerViewModel.pageSizeFlow.collectAsStateWithLifecycle()
@@ -116,6 +125,30 @@ fun CustomerScreen(
     var showDeleteSuccess by remember { mutableStateOf(false) }
     var deleteSuccessMessage by remember { mutableStateOf("Customer Deleted Successfully") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val info = listState.layoutInfo
+            val total = info.totalItemsCount
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && lastVisible >= total - 3
+        }
+            .distinctUntilChanged()
+            .collect { nearEnd ->
+                if (nearEnd && canLoadMore && !isLoadingMore) {
+                    customerViewModel.loadMoreCustomers() // ViewModel-ல் இந்த பங்க்ஷன் இருக்க வேண்டும்
+                }
+            }
+    }
+
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.isNotEmpty()) {
+            delay(500)
+            onSearch(searchQuery)
+        } else {
+            onSearch("")
+        }
+    }
 
     LaunchedEffect(customerState) {
         if (customerState is CustomerUiState.Error) {
@@ -186,7 +219,6 @@ fun CustomerScreen(
                         SearchFilterBar(
                             query = searchQuery,
                             onQueryChange = { searchQuery = it },
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                             placeholder = "Search Customers...",
                             accentColor = BluePrimary,
                             borderColor = BorderGray,
@@ -221,7 +253,6 @@ fun CustomerScreen(
                             }
                         }
                     }
-
                     customerState is CustomerUiState.Success -> {
                         if (customers.isEmpty()) {
                             Box(
@@ -235,73 +266,68 @@ fun CustomerScreen(
                                 }
                             }
                         } else {
-                            Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxWidth()
-                                        .verticalScroll(rememberScrollState())
+                            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(bottom = 90.dp)
                                 ) {
-                                    Column(modifier = Modifier.fillMaxWidth()) {
-                                        customers.forEach { customer ->
-                                            val (badgeText, badgeColor) = when (customer.type?.lowercase()) {
-                                                "business" -> "Business" to Color(0xFFD97706)
-                                                "regular" -> "Regular" to Color(0xFF16A34A)
-                                                else -> "Individual" to Color(0xFF3B3BF9)
-                                            }
+                                    items(customers, key = { it.id }) { customer ->
+                                        val (badgeText, badgeColor) = when (customer.type?.lowercase()) {
+                                            "business" -> "Business" to Color(0xFFD97706)
+                                            "regular" -> "Regular" to Color(0xFF16A34A)
+                                            else -> "Individual" to Color(0xFF3B3BF9)
+                                        }
 
-                                            DataCard(
-                                                item = customer,
-                                                image = DataCardImage(
-                                                    painter=painterResource(R.drawable.ic_person),
-                                                    size = 30.dp,
-                                                    tint = blackTitle,
-                                                    backgroundColor = Color.Transparent
-                                                ),
-                                                topBadgeText = badgeText,
-                                                topBadgeTextColor = badgeColor,
-                                                topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-                                                topBadgeInline = true,
-                                                title = customer.name,
-                                                subtitle = "Order ID : not found"
-                                                    .takeIf { it.isNotBlank() }
-                                                    ?: "Order ID : not found",
-                                                footerAsRows = true,
-                                                footerFields = listOf(
-                                                    DataCardField(
-                                                        label = "Email",
-                                                        text = customer.email?.ifBlank { "—" } ?: "—",
-                                                        asRow = true),
-                                                    DataCardField(
-                                                        label = "Mobile",
-                                                        text = customer.mobile?.ifBlank { "—" } ?: "—",
-                                                        asRow = true),
-                                                    DataCardField(
-                                                        label = "Gender",
-                                                        text = customer.gender?.ifBlank { "—" } ?: "—",
-                                                        asRow = true),
-                                                    DataCardField(
-                                                        label = "Location",
-                                                        text = customer.location.ifBlank { "—" },
-                                                        asRow = true)
-                                                ),
-                                                actions = listOf(
-                                                    MenuAction("View", Icons.Default.Visibility) { onView(customer) },
-                                                    MenuAction("Edit", Icons.Default.Edit) { onEdit(customer) },
-                                                    MenuAction("Delete", Icons.Default.Delete, tint = Color(0xFFF44336), textColor = Color(0xFFF44336)) {
-                                                        customerPendingDelete = customer
-                                                    }
-                                                )
+                                        DataCard(
+                                            item = customer,
+                                            image = DataCardImage(
+                                                painter = painterResource(R.drawable.ic_person),
+                                                size = 30.dp,
+                                                tint = blackTitle,
+                                                backgroundColor = Color.Transparent
+                                            ),
+                                            topBadgeText = badgeText,
+                                            topBadgeTextColor = badgeColor,
+                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
+                                            topBadgeInline = true,
+                                            title = customer.name,
+                                            subtitle = "Order ID : not found",
+                                            footerAsRows = true,
+                                            footerFields = listOf(
+                                                DataCardField(label = "Email", text = customer.email?.ifBlank { "—" } ?: "—", asRow = true),
+                                                DataCardField(label = "Mobile", text = customer.mobile?.ifBlank { "—" } ?: "—", asRow = true),
+                                                DataCardField(label = "Gender", text = customer.gender?.ifBlank { "—" } ?: "—", asRow = true),
+                                                DataCardField(label = "Location", text = customer.location.ifBlank { "—" }, asRow = true)
+                                            ),
+                                            actions = listOf(
+                                                MenuAction("View", Icons.Default.Visibility) { onView(customer) },
+                                                MenuAction("Edit", Icons.Default.Edit) { onEdit(customer) },
+                                                MenuAction("Delete", Icons.Default.Delete, tint = Color(0xFFF44336), textColor = Color(0xFFF44336)) {
+                                                    customerPendingDelete = customer
+                                                }
                                             )
+                                        )
+                                    }
+
+                                    if (isLoadingMore) {
+                                        item {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                CirculerProgressIndicatorSmall()
+                                            }
                                         }
                                     }
-                                }
-
-                            }
-                        }
-                    }
-                }
-            }
+                                } // LazyColumn  
+                            } // Box  
+                        } // else (Success)  
+                    } // Success branch  
+                } // when block
+            } // Column
 
             // ── Dynamic Island Notifications ──────────────────────────
             if (showCreateSuccess) {
@@ -327,16 +353,14 @@ fun CustomerScreen(
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
             }
-        }
-    }
+        } 
+    } 
 
     customerPendingDelete?.let { customer ->
         DeleteModel(
             title = "Delete Customer",
             message = "Are you sure you want to delete \"${customer.name}\"? This action cannot be undone.",
-            onDismiss = {
-                customerPendingDelete = null
-            },
+            onDismiss = { customerPendingDelete = null },
             onDelete = {
                 onDelete(customer)
                 customerPendingDelete = null

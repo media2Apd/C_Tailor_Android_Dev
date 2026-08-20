@@ -161,7 +161,6 @@ fun ExpensesScreen(
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
-                modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
                 placeholder = "Search Expenses...",
                 accentColor = BluePrimary,
                 borderColor = BorderGray,

@@ -64,6 +64,7 @@ import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TrailingFabAction
 // ── Adaptive design tokens ──
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.Primary
 
 
 private val GreenBg = Color(0xFFE3F7EA)
@@ -214,7 +215,6 @@ fun ChartOfAccountScreen(
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
-                    modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
                     placeholder = "Search account...",
                     accentColor = BluePrimary,
                     borderColor = BorderGray,
@@ -597,7 +597,9 @@ fun AddAccountScreen(
                             if (!it) selectedParent = null
                         },
                         enabled = subAccountEnabled,
-                        colors = CheckboxDefaults.colors(checkedColor = BluePrimary)
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Primary,
+                            checkmarkColor = whiteBg)
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(

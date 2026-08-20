@@ -118,10 +118,6 @@ fun PaymentListingScreen(
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
-                    modifier = Modifier.padding(
-                        horizontal = tokens.screenPadding,
-                        vertical = tokens.extraPadding
-                    ),
                     placeholder = "Search Payment...",
                     accentColor = BluePrimary,
                     borderColor = BorderGray,

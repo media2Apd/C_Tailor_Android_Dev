@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -67,6 +68,8 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.greenBg
 
 private val Purple = Color(0xFF3B3BF9)
 private val Green = Color(0xFF22C55E)
@@ -491,16 +494,16 @@ private fun SendQuotationSection(
                 onClick = onEmail,
                 modifier = Modifier.weight(1f).height(44.dp),
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                colors = ButtonDefaults.buttonColors(containerColor = darkgreenBg)
             ) {
                 Icon(
-                    Icons.Default.Share,
-                    contentDescription = "Share",
+                    painter = painterResource(R.drawable.ic_whatsapp),
+                    contentDescription = "Whatsapp",
                     modifier = Modifier.size(16.dp),
                     tint = whiteBg
                 )
                 Spacer(Modifier.width(6.dp))
-                Text("Share", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = whiteBg)
+                Text("Whatsapp", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = whiteBg)
             }
         }
     }
@@ -1462,8 +1465,32 @@ private fun SendQuotationSection(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // WhatsApp button — green filled button with chat icon
+
+
             Button(
                 onClick = onWhatsApp,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(46.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = darkgreenBg,
+                    contentColor = whiteBg
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_whatsapp),
+                    contentDescription = "Whatsapp",
+                    modifier = Modifier.size(18.dp),
+                    tint = whiteBg
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Whatsapp", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
+            }
+
+            Button(
+                onClick = onEmail,
                 modifier = Modifier
                     .weight(1f)
                     .height(46.dp),
@@ -1475,13 +1502,13 @@ private fun SendQuotationSection(
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
             ) {
                 Icon(
-                    Icons.Default.Share,
-                    contentDescription = "Share",
+                    painter = painterResource(R.drawable.ic_mail),
+                    contentDescription = "Email",
                     modifier = Modifier.size(18.dp),
                     tint = whiteBg
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Share", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
+                Text("Email", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
             }
 
         }

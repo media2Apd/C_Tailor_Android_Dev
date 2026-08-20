@@ -50,6 +50,7 @@ import androidx.compose.ui.zIndex
 import com.cuso.mobile.ui.theme.Primary
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.unit.Dp
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.primary_light
@@ -256,127 +257,145 @@ fun FilterDrawer(
             Spacer(Modifier.height(12.dp))
             HorizontalDivider(color = Color(0xFFF0F0F0))
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp)
-                            .background(whiteBg, RoundedCornerShape(10.dp))
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Filled.Search,
-                            contentDescription = null,
-                            tint = Color(0xFF9CA3AF),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            textStyle = TextStyle(
-                                fontSize = 14.sp,
-                                color = Color(0xFF374151)
-                            ),
-                            decorationBox = { inner ->
-                                if (searchQuery.isEmpty()) {
-                                    Text(
-                                        "Search filters...",
-                                        fontSize = 14.sp,
-                                        color = Color(0xFF9CA3AF)
-                                    )
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp)
+                                .background(whiteBg, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Filled.Search,
+                                contentDescription = null,
+                                tint = Color(0xFF9CA3AF),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                textStyle = TextStyle(
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF374151)
+                                ),
+                                decorationBox = { inner ->
+                                    if (searchQuery.isEmpty()) {
+                                        Text(
+                                            "Search filters...",
+                                            fontSize = 14.sp,
+                                            color = Color(0xFF9CA3AF)
+                                        )
+                                    }
+                                    inner()
                                 }
-                                inner()
+                            )
+                        }
+                    }
+
+                    content?.let {
+                        item { Column { it() } }
+                    }
+
+                    items(displayedSections.size) { index ->
+                        val section = displayedSections[index]
+                        val isExpanded = expandedMap[section.title] ?: true
+
+                        FilterSectionCard(
+                            section = section,
+                            isExpanded = isExpanded,
+                            onToggleExpand = { expandedMap[section.title] = !isExpanded },
+                            onOptionToggle = { optionId ->
+                                currentSections = currentSections.map { sec ->
+                                    if (sec.title == section.title) {
+                                        val updatedOptions = if (sec.isMultiSelect) {
+                                            sec.options.map { option ->
+                                                if (option.id == optionId) option.copy(
+                                                    isSelected = !option.isSelected
+                                                ) else option
+                                            }
+                                        } else {
+                                            sec.options.map { option ->
+                                                option.copy(
+                                                    isSelected = option.id == optionId
+                                                )
+                                            }
+                                        }
+                                        sec.copy(options = updatedOptions)
+                                    } else sec
+                                }
+                            },
+                            onMinAmountChange = { value ->
+                                currentSections = currentSections.map { sec ->
+                                    if (sec.title == section.title) sec.copy(minAmount = value) else sec
+                                }
+                            },
+                            onMaxAmountChange = { value ->
+                                currentSections = currentSections.map { sec ->
+                                    if (sec.title == section.title) sec.copy(maxAmount = value) else sec
+                                }
                             }
                         )
                     }
+
+                    item { Spacer(Modifier.height(80.dp)) }
                 }
-
-                content?.let {
-                    item { Column { it() } }
-                }
-
-                items(displayedSections.size) { index ->
-                    val section = displayedSections[index]
-                    val isExpanded = expandedMap[section.title] ?: true
-
-                    FilterSectionCard(
-                        section = section,
-                        isExpanded = isExpanded,
-                        onToggleExpand = { expandedMap[section.title] = !isExpanded },
-                        onOptionToggle = { optionId ->
-                            currentSections = currentSections.map { sec ->
-                                if (sec.title == section.title) {
-                                    val updatedOptions = if (sec.isMultiSelect) {
-                                        sec.options.map { option ->
-                                            if (option.id == optionId) option.copy(
-                                                isSelected = !option.isSelected
-                                            ) else option
-                                        }
-                                    } else {
-                                        sec.options.map { option ->
-                                            option.copy(
-                                                isSelected = option.id == optionId
-                                            )
-                                        }
-                                    }
-                                    sec.copy(options = updatedOptions)
-                                } else sec
-                            }
-                        },
-                        onMinAmountChange = { value ->
-                            currentSections = currentSections.map { sec ->
-                                if (sec.title == section.title) sec.copy(minAmount = value) else sec
-                            }
-                        },
-                        onMaxAmountChange = { value ->
-                            currentSections = currentSections.map { sec ->
-                                if (sec.title == section.title) sec.copy(maxAmount = value) else sec
-                            }
+                StepNavigationFab(
+                    showBack = true,
+                    backLabel = "Cancel",
+                    onBack = { state.close() },
+                    showBackArrow = false, // Optional: usually Cancel doesn't need an arrow
+                    trailingAction = TrailingFabAction.Update(
+                        label = "Apply ",
+                        onClick = {
+                            onApply(currentSections)
+                            state.close()
                         }
-                    )
-                }
-
-                item { Spacer(Modifier.height(80.dp)) }
+                    ),
+                    // Adjusting fractions to give them equal space
+                    backWidthFraction = 0.25f,
+                    trailingWidthFraction = 0.25f
+                )
             }
 
-            HorizontalDivider(color = Color(0xFFF0F0F0))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { state.close() },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text("Cancel", color = Color(0xFF374151))
-                }
-                Button(
-                    onClick = {
-                        onApply(currentSections)
-                        state.close()
-                    },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Icon(Icons.Default.Check, null)
-                }
-            }
+//            HorizontalDivider(color = Color(0xFFF0F0F0))
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .background(whiteBg)
+//                    .padding(horizontal = 16.dp, vertical = 12.dp),
+//                horizontalArrangement = Arrangement.spacedBy(10.dp)
+//            ) {
+//                OutlinedButton(
+//                    onClick = { state.close() },
+//                    modifier = Modifier.weight(1f),
+//                    shape = RoundedCornerShape(10.dp)
+//                ) {
+//                    Text("Cancel", color = Color(0xFF374151))
+//                }
+//                Button(
+//                    onClick = {
+//                        onApply(currentSections)
+//                        state.close()
+//                    },
+//                    modifier = Modifier.weight(1f),
+//                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+//                    shape = RoundedCornerShape(10.dp)
+//                ) {
+//                    Icon(Icons.Default.Check, null)
+//                }
+//            }
         }
     }
 }
@@ -726,7 +745,6 @@ private val DefaultTextSecondary = Color(0xFF9A9AA8)
 fun SearchFilterBar(
     query: String,
     onQueryChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
     placeholder: String = "Search...",
     showFilterIcon: Boolean = true,
     onFilterClick: (() -> Unit)? = null,
@@ -735,109 +753,116 @@ fun SearchFilterBar(
     textSecondaryColor: Color = DefaultTextSecondary,
     height: Dp = 44.dp
 ) {
+    val tokens = LocalAppTokens.current
     Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        Modifier.fillMaxWidth()
+            .padding(horizontal = tokens.screenPadding)
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .padding(bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
 
-        BasicTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            singleLine = true,
-            textStyle = TextStyle(
-                fontSize = 14.sp,
-                color = Color(0xFF111827)
-            ),
-            modifier = Modifier
-                .weight(1f)
-                .height(height),
-            decorationBox = { innerTextField ->
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                textStyle = TextStyle(
+                    fontSize = 14.sp,
+                    color = Color(0xFF111827)
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(height),
+                decorationBox = { innerTextField ->
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            whiteBg,
-                            RoundedCornerShape(12.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                whiteBg,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .border(
+                                1.dp,
+                                borderColor,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = textSecondaryColor,
+                            modifier = Modifier.size(20.dp)
                         )
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+
+                            if (query.isEmpty()) {
+                                Text(
+                                    text = placeholder,
+                                    fontSize = 14.sp,
+                                    color = textSecondaryColor
+                                )
+                            }
+
+                            innerTextField()
+                        }
+
+                        if (query.isNotEmpty()) {
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Clear",
+                                tint = textSecondaryColor,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clickable {
+                                        onQueryChange("")
+                                    }
+                            )
+                        }
+                    }
+                }
+            )
+            Spacer(Modifier.width(10.dp))
+
+            if (showFilterIcon) {
+
+                Box(
+                    modifier = Modifier
+                        .size(height)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(whiteBg)
                         .border(
                             1.dp,
                             borderColor,
                             RoundedCornerShape(12.dp)
                         )
-                        .padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .clickable(enabled = onFilterClick != null) {
+                            onFilterClick?.invoke()
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
 
                     Icon(
-                        Icons.Default.Search,
-                        contentDescription = null,
-                        tint = textSecondaryColor,
-                        modifier = Modifier.size(20.dp)
+                        Icons.Default.FilterList,
+                        contentDescription = "Filter",
+                        tint = Color(0xFF111827),
+                        modifier = Modifier.size(22.dp)
                     )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Box(
-                        modifier = Modifier.weight(1f),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-
-                        if (query.isEmpty()) {
-                            Text(
-                                text = placeholder,
-                                fontSize = 14.sp,
-                                color = textSecondaryColor
-                            )
-                        }
-
-                        innerTextField()
-                    }
-
-                    if (query.isNotEmpty()) {
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Clear",
-                            tint = textSecondaryColor,
-                            modifier = Modifier
-                                .size(18.dp)
-                                .clickable {
-                                    onQueryChange("")
-                                }
-                        )
-                    }
                 }
-            }
-        )
-
-        if (showFilterIcon) {
-
-            Box(
-                modifier = Modifier
-                    .size(height)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(whiteBg)
-                    .border(
-                        1.dp,
-                        borderColor,
-                        RoundedCornerShape(12.dp)
-                    )
-                    .clickable(enabled = onFilterClick != null) {
-                        onFilterClick?.invoke()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-
-                Icon(
-                    Icons.Default.FilterList,
-                    contentDescription = "Filter",
-                    tint = Color(0xFF111827),
-                    modifier = Modifier.size(22.dp)
-                )
             }
         }
     }

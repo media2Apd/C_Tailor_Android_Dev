@@ -56,9 +56,13 @@ import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationSettings
+import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.statLogoBg
+import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.CountryAndStatePicker
@@ -72,6 +76,7 @@ import com.cuso.mobile.view.composable.SettingsTabs
 import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TabItem
 import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.view.composable.dashedBorder
 import com.cuso.mobile.view.organization.OrgLabel
 import com.cuso.mobile.view.organization.OrgOptions
 import com.cuso.mobile.view.organization.OrgOptions.companySizes
@@ -247,7 +252,7 @@ private fun SectionHeader(
         modifier = Modifier
             .fillMaxWidth()
             .background(whiteBg)
-            .padding(horizontal = tokens.screenPadding, vertical = 4.dp),
+            .padding( vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
     ) {
@@ -281,8 +286,8 @@ private fun SectionHeader(
 fun OrgInfoRow(label: String, value: String) {
     val tokens = LocalAppTokens.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(text = label, fontSize = tokens.label, fontWeight = FontWeight.Medium, color = OrgTheme.mutedText)
-        Text(text = value.ifEmpty { "-" }, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = OrgTheme.TextPrimary)
+        Text(text = label, fontSize = tokens.bodyMedium, color = mutedText)
+        Text(text = value.ifEmpty { "-" }, fontSize = tokens.bodyMedium, color = title_color)
     }
 }
 
@@ -296,9 +301,11 @@ fun EditableOrgInfoRow(
     isMultiline: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    val tokens = LocalAppTokens.current
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         if (label.isNotEmpty()) {
-            FormLabel(label)
+            Text(text = label, fontSize = tokens.bodyMedium, color = mutedText)
+
         }
         FormTextField(
             value = value,
@@ -315,12 +322,19 @@ fun EditableOrgInfoRow(
 private fun LogoDisplayView(pictureUrl: String?) {
     val tokens = LocalAppTokens.current
     val logoSize = if (tokens.isTablet) 120.dp else 96.dp
+    val radius = tokens.cardCornerRadius * 0.65f
+
 
     Box(
         modifier = Modifier
             .size(logoSize)
-            .border(1.5.dp, OrgTheme.Border, RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
-            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.65f)),
+            .dashedBorder(
+                color = statLogoBg,
+                strokeWidth = 1.5.dp,
+                dashLength = 6.dp,
+                gapLength = 4.dp,
+                cornerRadius = radius
+            )            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.65f)),
         contentAlignment = Alignment.Center
     ) {
         if (!pictureUrl.isNullOrBlank()) {
@@ -350,13 +364,21 @@ private fun LogoDisplayEdit(
     onClick: () -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    val logoSize = if (tokens.isTablet) 88.dp else 72.dp
+    val logoSize = if (tokens.isTablet) 120.dp else 96.dp
+    val radius = tokens.cardCornerRadius * 0.65f
+
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
                 .size(logoSize)
-                .border(1.5.dp, Primary.copy(alpha = 0.5f), RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
+                .dashedBorder(
+                    color = statLogoBg,
+                    strokeWidth = 1.5.dp,
+                    dashLength = 6.dp,
+                    gapLength = 4.dp,
+                    cornerRadius = radius
+                )
                 .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
@@ -586,7 +608,7 @@ fun ProfileTab(
                         AdaptiveWidthContainer(tokens = tokens) {
                             Column(
                                 Modifier.fillMaxWidth()
-                                    .padding(horizontal = tokens.extraPadding)
+                                    .padding(horizontal = tokens.screenPadding)
                                     .background(Primary_background)
                             ) {
                                 if (isEditing) {
@@ -607,7 +629,7 @@ fun ProfileTab(
                                     Spacer(Modifier.height(16.dp))
 
                                     // ── Organization Type - Using FormDropdown with OrgOptions.orgTypes ──
-                                    OrgLabel("Organization Type")
+                                    OrgLabelLocal("Organization Type")
                                     var orgTypeExpanded by remember { mutableStateOf(false) }
                                     FormDropdown(
                                         value = orgType,
@@ -620,7 +642,7 @@ fun ProfileTab(
                                     Spacer(Modifier.height(16.dp))
 
                                     // ── Business Type - Using FormDropdown with OrgOptions.businessTypes ──
-                                    OrgLabel("Business Type")
+                                    OrgLabelLocal("Business Type")
                                     var businessTypeExpanded by remember { mutableStateOf(false) }
                                     FormDropdown(
                                         value = businessType,
@@ -749,7 +771,12 @@ fun ProfileTab(
         }
     }
 }
+@Composable
+fun OrgLabelLocal(text: String){
+    val tokens = LocalAppTokens.current
+    Text(text = text, fontSize = tokens.bodyMedium, color = mutedText)
 
+}
 // ─────────────────────────────────────────────────────────────
 // LocalizationTab
 // ─────────────────────────────────────────────────────────────
@@ -861,8 +888,8 @@ fun LocalizationTab(
                 AdaptiveWidthContainer(tokens = tokens) {
                     Column(
                         Modifier.fillMaxWidth()
-                            .padding(horizontal = tokens.extraPadding)
-                            .background(Primary_background)
+                            .padding(horizontal = tokens.screenPadding)
+                            .background(Color.Transparent)
                     ) {
                         when {
                             isLoading -> {
@@ -909,7 +936,7 @@ fun LocalizationTab(
                                     Spacer(Modifier.height(16.dp))
 
                                     // ── Timezone - Using FormDropdown with OrgOptions.timezones ──
-                                    OrgLabel("Timezone")
+                                    OrgLabelLocal("Timezone")
                                     var timezoneExpanded by remember { mutableStateOf(false) }
                                     FormDropdown(
                                         value = timezone,
@@ -921,7 +948,7 @@ fun LocalizationTab(
                                     Spacer(Modifier.height(16.dp))
 
                                     // ── Currency - Using FormDropdown with OrgOptions.currencies ──
-                                    OrgLabel("Default Currency")
+                                    OrgLabelLocal("Default Currency")
                                     var currencyExpanded by remember { mutableStateOf(false) }
                                     FormDropdown(
                                         value = currency,
@@ -933,7 +960,7 @@ fun LocalizationTab(
                                     Spacer(Modifier.height(16.dp))
 
                                     // ── Language - Using FormDropdown with OrgOptions.languages ──
-                                    OrgLabel("Language")
+                                    OrgLabelLocal("Language")
                                     var languageExpanded by remember { mutableStateOf(false) }
                                     FormDropdown(
                                         value = language,
@@ -950,7 +977,7 @@ fun LocalizationTab(
                                     Spacer(Modifier.height(16.dp))
 
                                     // ── Company Size - Using FormDropdown with OrgOptions.companySizes ──
-                                    OrgLabel("Company Size")
+                                    OrgLabelLocal("Company Size")
                                     var companySizeExpanded by remember { mutableStateOf(false) }
                                     FormDropdown(
                                         value = companySize,

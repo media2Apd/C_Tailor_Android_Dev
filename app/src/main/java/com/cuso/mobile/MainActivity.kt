@@ -15,6 +15,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -23,6 +25,8 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavType
@@ -87,13 +91,25 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(LocalAppTokens provides tokens) {
                     CusoTailorTheme {
                         NoRippleProvider {
-                            Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
-                                AppNav(
-                                    activity = this@MainActivity,
-                                    startLoggedIn = isLoggedIn == true,
-                                    widthSizeClass = windowSizeClass.widthSizeClass
-                                )
+                            val focusManager = LocalFocusManager.current
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(onTap = {
+                                            focusManager.clearFocus()
+                                        })
+                                    }
+                            ) {
 
+                                Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
+                                    AppNav(
+                                        activity = this@MainActivity,
+                                        startLoggedIn = isLoggedIn == true,
+                                        widthSizeClass = windowSizeClass.widthSizeClass
+                                    )
+
+                                }
                             }
                         }
                     }

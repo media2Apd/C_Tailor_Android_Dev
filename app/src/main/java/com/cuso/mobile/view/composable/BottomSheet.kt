@@ -103,7 +103,14 @@ fun SmoothBottomSheet(
 
         val offsetY = remember { Animatable(hiddenY) }
 
+        LaunchedEffect(hiddenY, collapsedY, expandedY) {
+            if (state == SheetValue.Hidden) {
+                offsetY.snapTo(hiddenY)
+            }
+        }
+
         var blurRadiusDp by remember { mutableFloatStateOf(0f) }
+
         var scrimAlpha by remember { mutableFloatStateOf(0f) }
 
         LaunchedEffect(offsetY.value) {

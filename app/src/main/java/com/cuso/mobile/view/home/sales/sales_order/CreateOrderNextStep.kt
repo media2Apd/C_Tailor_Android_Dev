@@ -114,7 +114,8 @@ private fun newChargeId(): String = "charge_${System.nanoTime()}"
 @Composable
 fun CreateOrderNextStep(
     orderData: OrderReviewData,
-    onBack: () -> Unit = {},
+    onBack: (OrderReviewData) -> Unit = {},
+    onClose: () -> Unit = {},
     onSaveOrder: (CreateOrderRequest, String?) -> Unit = { _, _ -> }
 ) {
     var capturedOrderId by remember { mutableStateOf<String?>(null) }
@@ -231,7 +232,7 @@ fun CreateOrderNextStep(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        TitleBar("Create Order", onClose = onBack)
+                        TitleBar("Create Order", onClose = onClose)
                     }
                     HorizontalDivider(color = BorderColor)
                 }
@@ -279,7 +280,16 @@ fun CreateOrderNextStep(
                                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                             Spacer(Modifier.weight(1f))
                                             Box(
-                                                modifier = Modifier.width(48.dp).clip(RoundedCornerShape(6.dp)).border(0.5.dp, BorderColor, RoundedCornerShape(6.dp)).background(PageBg).padding(vertical = 6.dp),
+                                                modifier = Modifier
+                                                    .width(48.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .border(
+                                                        0.5.dp,
+                                                        BorderColor,
+                                                        RoundedCornerShape(6.dp)
+                                                    )
+                                                    .background(PageBg)
+                                                    .padding(vertical = 6.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(garment.quantity.toString().padStart(2, '0'), fontSize = 13.sp, color = TextPrimary)
@@ -323,9 +333,16 @@ fun CreateOrderNextStep(
                                                         Spacer(Modifier.width(6.dp))
                                                         Icon(
                                                             Icons.Default.Close, contentDescription = "Remove", tint = LabelGray,
-                                                            modifier = Modifier.size(16.dp).clickable {
-                                                                itemCharges = itemCharges.toMutableMap().apply { this[garment.id] = (this[garment.id].orEmpty()).filter { it.id != charge.id } }
-                                                            }
+                                                            modifier = Modifier
+                                                                .size(16.dp)
+                                                                .clickable {
+                                                                    itemCharges =
+                                                                        itemCharges.toMutableMap()
+                                                                            .apply {
+                                                                                this[garment.id] =
+                                                                                    (this[garment.id].orEmpty()).filter { it.id != charge.id }
+                                                                            }
+                                                                }
                                                         )
                                                     }
                                                 }
@@ -370,7 +387,12 @@ fun CreateOrderNextStep(
                                                 Spacer(Modifier.width(6.dp))
                                                 Icon(
                                                     Icons.Default.Close, contentDescription = "Remove", tint = LabelGray,
-                                                    modifier = Modifier.size(16.dp).clickable { globalCharges = globalCharges.filter { it.id != charge.id } }
+                                                    modifier = Modifier
+                                                        .size(16.dp)
+                                                        .clickable {
+                                                            globalCharges =
+                                                                globalCharges.filter { it.id != charge.id }
+                                                        }
                                                 )
                                             }
                                         }
@@ -407,7 +429,11 @@ fun CreateOrderNextStep(
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Column(
-                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).border(1.dp, BorderColor, RoundedCornerShape(10.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
                                     verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -418,7 +444,15 @@ fun CreateOrderNextStep(
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Text("Discount", fontSize = 14.sp, color = TextSecond, modifier = Modifier.weight(1f))
                                         Row(
-                                            modifier = Modifier.clip(RoundedCornerShape(6.dp)).border(0.5.dp, BorderColor, RoundedCornerShape(6.dp)).background(whiteBg).padding(horizontal = 10.dp, vertical = 6.dp),
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .border(
+                                                    0.5.dp,
+                                                    BorderColor,
+                                                    RoundedCornerShape(6.dp)
+                                                )
+                                                .background(whiteBg)
+                                                .padding(horizontal = 10.dp, vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text("₹", fontSize = 13.sp, color = LabelGray)
@@ -437,7 +471,11 @@ fun CreateOrderNextStep(
                                 }
 
                                 Row(
-                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).border(1.dp, BorderColor, RoundedCornerShape(10.dp)).padding(horizontal = 14.dp, vertical = 14.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 14.dp, vertical = 14.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text("Grand Total", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
@@ -445,7 +483,11 @@ fun CreateOrderNextStep(
                                 }
 
                                 Column(
-                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).border(1.dp, BorderColor, RoundedCornerShape(10.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -477,7 +519,12 @@ fun CreateOrderNextStep(
                         ) {
                             Column {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(whiteBg).border(1.dp, Color.LightGray, RoundedCornerShape(10.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(whiteBg)
+                                        .border(1.dp, Color.LightGray, RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text("Trial Date", fontSize = 14.sp, color = TextSecond)
@@ -485,7 +532,11 @@ fun CreateOrderNextStep(
                                 }
                                 Spacer(Modifier.height(10.dp))
                                 Row(
-                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(AccentBlueBg).padding(horizontal = 14.dp, vertical = 12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(AccentBlueBg)
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text("Final Delivery", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AccentBlue)
@@ -499,7 +550,25 @@ fun CreateOrderNextStep(
 
                 StepNavigationFab(
                     showBack = true,
-                    onBack = onBack,
+                    onBack = {
+                        // Map the current entered prices back into the garments list
+                        val updatedGarments = orderData.garments.map { garment ->
+                            val enteredPrice = unitPrices[garment.id] ?: ""
+                            val priceValue = enteredPrice.toDoubleOrNull() ?: 0.0
+
+                            // Return a copy of the garment with the updated price
+                            garment.copy(price = priceValue)
+                        }
+
+                        // Create the updated data object
+                        val updatedData = orderData.copy(
+                            garments = updatedGarments,
+                            discount = discountText.toDoubleOrNull() ?: 0.0
+                        )
+
+                        // Pass the updated data back to the parent
+                        onBack(updatedData)
+                    },
                     backLabel = "Back to Edit",
                     backEnabled = actionState !is OrderActionState.Loading,
                     backWidthFraction = 0.42f,
@@ -603,7 +672,12 @@ private fun SectionHeader(@DrawableRes icon: Int, title: String, expanded: Boole
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onToggle() }.padding(horizontal = 5.dp, vertical = 15.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }) { onToggle() }
+                .padding(horizontal = 5.dp, vertical = 15.dp)
         ) {
             Image(painter = painterResource(icon), contentDescription = null, modifier = Modifier.size(30.dp))
             Spacer(Modifier.width(10.dp))

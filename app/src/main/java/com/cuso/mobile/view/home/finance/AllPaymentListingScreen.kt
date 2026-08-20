@@ -119,10 +119,7 @@ fun AllPaymentListScreen(
                     onQueryChange = { searchText = it },
                     placeholder = "Search payments...",
                     showFilterIcon = true,
-                    onFilterClick = { filterDrawerState.open() },
-                    modifier = Modifier
-                        .background(whiteBg)
-                        .padding(horizontal = tokens.screenPadding, vertical = 12.dp)
+                    onFilterClick = { filterDrawerState.open() }
                 )
 
                 // --- Payment List Container ---

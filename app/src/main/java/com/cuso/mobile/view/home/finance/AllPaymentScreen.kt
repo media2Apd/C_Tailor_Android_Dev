@@ -85,7 +85,6 @@ fun AllPaymentScreen(
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 placeholder = "Search Customers...",
                 accentColor = BluePrimary,
                 borderColor = BorderGray,

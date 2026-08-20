@@ -31,7 +31,15 @@ data class LeadTableItem(
     @SerializedName("createdAt") val createdAt: String,
     @SerializedName("updatedAt") val updatedAt: String
 )
+data class GarmentCategoryItem(
+    val id: String = "",
+    val categoryName: String = ""
+)
 
+data class StatusItem(
+    val id: String = "",
+    val name: String = ""
+)
 data class PersonTableItem(
     @SerializedName("name") val name: String,
     @SerializedName("phone") val phone: String,

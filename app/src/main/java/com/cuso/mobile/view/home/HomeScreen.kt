@@ -186,7 +186,7 @@ import androidx.compose.ui.draw.scale
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.adaptive_screen.getAdaptiveTokens
-import com.cuso.mobile.view.home.branch.RoleSettingsScreen
+import com.cuso.mobile.view.home.role.RoleSettingsScreen
 import com.cuso.mobile.view.home.finance.AllPaymentListScreen
 import com.cuso.mobile.view.home.finance.PaymentDetailScreenAP
 import com.cuso.mobile.view.home.finance.PurchaseInvoiceItem
@@ -212,7 +212,7 @@ import java.time.LocalTime
 val LeadPrimary = Color(0xFF3B3BF9)
 val LeadPrimarySoft = Color(0xFFEEEEFE)
 val LeadmutedText = Color(0xFF9CA3AF)
-@SuppressLint("UnrememberedGetBackStackEntry")
+@SuppressLint("UnrememberedGetBackStackEntry", "SuspiciousIndentation")
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Suppress("UnusedMaterial3ScaffoldPaddingParameter","UNUSED_PARAMETER")
 @Composable
@@ -409,9 +409,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             currentScreen == "home_branch_management" ||
             currentScreen == "home_department_teams" ||
             currentScreen == "home_designation"
-//            currentScreen == "home_role_management"||
-//            currentScreen == "home_warehouse_management"||
-//            currentScreen == "home_opening_balance"
+            currentScreen == "home_role_management"||
+            currentScreen == "home_warehouse_management"||
+            currentScreen == "home_opening_balance"
 
 
     val showSalesPanel = isSalesSettingsMode
@@ -1456,8 +1456,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 customerState = customerUiState,
                                 onSearch = customerViewModel::onSearch,
                                 onTypeFilterChange = customerViewModel::onTypeFilterChange,
-                                onPageChange = customerViewModel::onPageChange,
-                                onItemsPerPageChange = customerViewModel::onItemsPerPageChange,
 
                                 onClose = { goBack() },
                                 onCreateCustomer = { navigateTo("create_customer") },
@@ -1612,7 +1610,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 pendingOrderReviewData?.let { data ->
                                     CreateOrderNextStep(
                                         orderData = data,
-                                        onBack = { goBack() },
+                                        onBack = { updatedData ->
+                                            pendingOrderReviewData = updatedData
+                                            goBack()
+                                        },
+                                        onClose = { goBack() },
                                         // CHANGED: onSaveOrder now receives the saved order id as well,
                                         // so we can navigate directly to the Order Overview screen
                                         // for that specific order after a successful save/update.
@@ -1656,7 +1658,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 onBranchManagement = { navigateTo("home_branch_management") },
                                 onDepartment = { navigateTo("home_department_teams") },
                                 onDesignation = { navigateTo("home_designation") },
-//                                onHelpSupport = { navigateTo() },
+                                onHelpSupport = { navigateTo("home_warehouse_management") },
                                 onLogout = {
                                     settingsViewModel.logout {
                                         authViewModel.logout {

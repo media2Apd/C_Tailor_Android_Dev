@@ -742,7 +742,7 @@ interface ApiService {
     ): Response<ChartOfAccountsResponse>
 
     // ── Expenses: list ──
-    @GET("/api/finance/expenses/view-all")   // ⚠️ confirm exact path
+    @GET("/api/finance/expenses/view-all")    
     suspend fun getExpenses(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -753,7 +753,7 @@ interface ApiService {
     ): Response<ExpenseListResponse>
 
     // ── Expenses: view one ──
-    @GET("api/finance/expenses/{id}")   // ⚠️ confirm exact path
+    @GET("api/finance/expenses/{id}")    
     suspend fun getExpenseViewOne(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -762,7 +762,7 @@ interface ApiService {
 
     // ── Expenses: create (multipart — supports file upload like createOrder) ──
     @Multipart
-    @POST("/api/finance/expenses/create")   // ⚠️ confirm exact path
+    @POST("/api/finance/expenses/create")    
     suspend fun createExpense(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -784,7 +784,7 @@ interface ApiService {
         @Body request: CreateChartOfAccountRequest
     ): Response<CreateChartOfAccountResponse>
 
-    @PUT("/api/finance/chart-of-accounts/update-one/{id}")   //  CONFIRM this exact path + method (PUT vs PATCH) with your backend
+    @PUT("/api/finance/chart-of-accounts/update-one/{id}")
     suspend fun updateChartOfAccount(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -792,7 +792,7 @@ interface ApiService {
         @Body request: CreateChartOfAccountRequest   // same body shape as create
     ): Response<CreateChartOfAccountResponse>          // same response shape as create
 
-    @DELETE("/api/finance/chart-of-accounts/delete-one/{id}")   //️ confirm exact path with backend
+    @DELETE("/api/finance/chart-of-accounts/delete-one/{id}")   //️ confirm exact path 
     suspend fun deleteChartOfAccount(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -820,7 +820,7 @@ interface ApiService {
     @POST("/api/finance/journal-entry/create")
     suspend fun createJournalEntry(
         @Header("Authorization") token: String,
-        @Header("X-CSRF-Token") csrfToken: String,   // header name-ah existing finance endpoints la irukra pattern-oda match pannikonga
+        @Header("X-CSRF-Token") csrfToken: String,
         @Body request: CreateJournalEntryRequest
     ): Response<CreateJournalEntryResponse>
 
@@ -906,7 +906,7 @@ interface ApiService {
     ): Response<InventoryItemDetailResponse>
 
     // ── Inventory: View One (single item details) ──
-    @GET("/api/inventory/item/view-one/{id}")   // ASSUMPTION: confirm exact path with backend team
+    @GET("/api/inventory/item/view-one/{id}")    
     suspend fun getInventoryViewOne(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -914,14 +914,14 @@ interface ApiService {
     ): Response<InventoryViewOneResponse>
 
     // ── HR: Roles ──
-    @GET("/api/roles/view-all")   // ⚠️ confirm exact path with backend
+    @GET("/api/roles/view-all")     
     suspend fun getRoles(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<RoleListResponse>
 
     // ── HR: Members (Employees) ──
-    @GET("/api/members/view-all")   // ⚠️ confirm exact path with backend
+    @GET("/api/members/view-all")     
     suspend fun getMembers(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -932,7 +932,7 @@ interface ApiService {
     ): Response<MemberListResponse>
 
     // ── HR: Shifts ──
-    @GET("/api/shifts/view-all")   // ⚠️ confirm exact path with backend
+    @GET("/api/shifts/view-all")     
     suspend fun getShifts(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
@@ -954,7 +954,7 @@ interface ApiService {
         @Part file: MultipartBody.Part
     ): Response<UploadProfilePictureResponse>
 
-    @DELETE("/api/members/delete/profile-picture/{memberId}")   // ⚠️ confirm exact path with backend
+    @DELETE("/api/members/delete/profile-picture/{memberId}")   //  confirm exact path 
     suspend fun deleteProfilePicture(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -975,9 +975,9 @@ interface ApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") memberId: String
     ): Response<MemberDetailResponse>
-
+    
     // ── Convert Sales Order to Invoice ──
-// ⚠️ CONFIRM exact path with backend team — this is the assumed convention based on existing finance endpoints
+    // CONFIRM exact path  team — this is the assumed convention based on existing finance endpoints
     @POST("/api/sales-orders/convert-to-invoice/{orderId}")
     suspend fun convertToInvoice(
         @Header("Authorization") token: String,
@@ -992,5 +992,4 @@ interface ApiService {
         @Path("orderId") orderId: String,
         @Body request: ReceivePaymentRequest
     ): Response<ReceivePaymentResponse>
-
 }

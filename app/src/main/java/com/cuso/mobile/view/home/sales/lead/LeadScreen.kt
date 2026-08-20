@@ -143,6 +143,7 @@ import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TimePickerField
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.composable.rememberFilterDrawerState
+import com.cuso.mobile.view.home.inventory.FormTextArea
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 import com.cuso.mobile.viewmodel.SaleState
@@ -1130,7 +1131,7 @@ fun LeadFormScreen(
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                    CirculerProgressIndicatorReuse()
+                                                    CirculerProgressIndicatorSmall()
                                                     Text("Loading categories...", fontSize = tokens.bodyMedium, color = Color(0xFF6B7280))
                                                 }
                                             }
@@ -1286,32 +1287,15 @@ fun LeadFormScreen(
                                     ViewFieldValue("Customer Notes", customerNotes.ifEmpty { "—" })
                                 } else {
                                     FormLabel("Internal Notes")
-                                    OutlinedTextField(
+                                    FormTextArea(
                                         value = internalNotes,
-                                        onValueChange = { internalNotes = it },
-                                        modifier = Modifier.fillMaxWidth().height(100.dp),
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            unfocusedBorderColor = PrimaryBorder,
-                                            focusedBorderColor = LeadPrimary,
-                                            unfocusedContainerColor = whiteBg,
-                                            focusedContainerColor = whiteBg,
-                                            focusedTextColor = blackTitle
-                                        )
+                                        onValueChange = {internalNotes = it}
                                     )
                                     Spacer(Modifier.height(14.dp))
                                     FormLabel("Customer Notes")
-                                    OutlinedTextField(
+                                    FormTextArea(
                                         value = customerNotes,
-                                        onValueChange = { customerNotes = it },
-                                        modifier = Modifier.fillMaxWidth().height(100.dp),
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            unfocusedBorderColor = Color(0xFFE5E7EB),
-                                            focusedBorderColor = LeadPrimary,
-                                            unfocusedContainerColor = whiteBg,
-                                            focusedContainerColor = whiteBg
-                                        )
+                                        onValueChange = {customerNotes = it}
                                     )
                                 }
                             }
@@ -1596,6 +1580,7 @@ fun LeadScreenContent(
             ?.find { it.isSelected }
             ?.id
 
+
         val matchesPriority = selectedPriority == null || run {
             val priority = lead.appointment?.priority?.lowercase() ?: ""
             when (selectedPriority) {
@@ -1704,7 +1689,6 @@ fun LeadScreenContent(
                     SearchFilterBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
-                        modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding * 0.75f),
                         placeholder = "Search Leads...",
                         accentColor = BluePrimary,
                         borderColor = BorderGray,

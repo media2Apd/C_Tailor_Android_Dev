@@ -118,10 +118,6 @@ fun FinanceCustomerScreen(
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
-                modifier = Modifier.padding(
-                    horizontal = 20.dp,
-                    vertical = 12.dp
-                ),
                 placeholder = "Search Customers...",
                 accentColor = BluePrimary,
                 borderColor = BorderGray,

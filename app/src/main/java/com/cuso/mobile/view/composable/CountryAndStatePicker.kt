@@ -1,6 +1,8 @@
 package com.cuso.mobile.view.composable
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,11 +17,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.PrimaryBorder
@@ -107,45 +111,42 @@ fun SearchableDropdownContents(
     }
 
     Column {
-        // ── Trigger Field using Box ──
+        // ── Trigger Field — plain Box, exact 40dp height, no clipping ──
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(40.dp)                                    //   height 40dp
-                .clickable { if (enabled) expanded = !expanded }
-        ) {
-            OutlinedTextField(
-                value = "",
-                onValueChange = {},
-                readOnly = true,
-                enabled = false,
-                modifier = Modifier.fillMaxSize(),
-                shape = RoundedCornerShape(10.dp),
-                trailingIcon = {
-                    Icon(
-                        imageVector = if (expanded) Icons.Filled.KeyboardArrowUp
-                        else Icons.Filled.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = Color.LightGray
-                    )
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    disabledBorderColor = PrimaryBorder,      //   BorderColor value
-                    disabledContainerColor = whiteBg,          //   white background
-                    disabledTrailingIconColor = Color.LightGray
+                .height(40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .border(
+                    width = 1.dp,
+                    color = PrimaryBorder,
+                    shape = RoundedCornerShape(10.dp)
                 )
-            )
-
-            //   Text perfectly centered, no internal padding issues
-            Text(
-                text = selected.ifEmpty { placeholder },
-                color = if (selected.isEmpty()) Color.Gray else blackTitle,
-                fontSize = 14.sp,
-                maxLines = 1,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 14.dp, end = 48.dp)
-            )
+                .background(whiteBg, RoundedCornerShape(10.dp))
+                .clickable(enabled = enabled) { expanded = !expanded }
+                .padding(horizontal = 14.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = selected.ifEmpty { placeholder },
+                    color = if (selected.isEmpty()) Color.Gray else blackTitle,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = if (expanded) Icons.Filled.KeyboardArrowUp
+                    else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = Color.LightGray,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
 
         // ── Dropdown Card ──
@@ -167,7 +168,8 @@ fun SearchableDropdownContents(
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .height(48.dp)
+                            .padding(horizontal = 8.dp)
                             .focusRequester(focusRequester),
                         leadingIcon = {
                             Icon(

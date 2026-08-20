@@ -55,6 +55,8 @@ import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.R
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 
 // ─────────────────────────────────────────────────────────────
 // Local data model for this screen (no network / repository layer)
@@ -112,6 +114,9 @@ fun WarehouseSettingsScreen(
 ) {
     val tokens = LocalAppTokens.current
 
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     var warehouses by remember { mutableStateOf(sampleWarehouses()) }
     var editingWarehouse by remember { mutableStateOf<WarehouseItem?>(null) }
 
@@ -134,130 +139,91 @@ fun WarehouseSettingsScreen(
                 w.warehouseCode.contains(searchQuery, ignoreCase = true)
     }
 
-    // Using Scaffold topBar slot ensures TitleBar is on top of BottomSheets and Scrims
-    Scaffold(
-        topBar = {
-            TitleBar("Warehouse", onClose = onBack)
-        },
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+    Box(
+        Modifier.fillMaxSize()
+    ) {
+        // Using Scaffold topBar slot ensures TitleBar is on top of BottomSheets and Scrims
+        Scaffold(
+            topBar = {
+                TitleBar("Warehouse", onClose = onBack)
+            },
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        ) { padding ->
+            Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
-            FabScaffold(
-                fab = FabConfig(
-                    label = "Add Warehouse",
-                    icon = Icons.Default.Add,
-                    onClick = { addSheetState = SheetValue.Expanded }
-                ),
-                fabVisible = !isAnySheetOpen
-            ) {
-                // Blur is applied only to this Column, not the TitleBar
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .background(Color.Transparent)
-                        .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))
+                FabScaffold(
+                    fab = FabConfig(
+                        label = "Add Warehouse",
+                        icon = Icons.Default.Add,
+                        onClick = { addSheetState = SheetValue.Expanded }
+                    ),
+                    fabVisible = !isAnySheetOpen
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        ScreenBreadcrumb(segments = listOf("Settings", "Warehouse"), onClick = {})
+                    // Blur is applied only to this Column, not the TitleBar
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                            .background(Color.Transparent)
+                            .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            ScreenBreadcrumb(
+                                segments = listOf("Settings", "Warehouse"),
+                                onClick = {})
 
-                        SearchFilterBar(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = 12.dp),
-                            placeholder = "Search Warehouse...",
-                            accentColor = BluePrimary
-                        )
-                    }
-                    HorizontalDivider(color = Color(0xFFF0F0F0))
+                            SearchFilterBar(
+                                query = searchQuery,
+                                onQueryChange = { searchQuery = it },
+                                placeholder = "Search Warehouse...",
+                                accentColor = BluePrimary
+                            )
+                        }
+                        HorizontalDivider(color = Color(0xFFF0F0F0))
 
-                    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                        if (filteredWarehouses.isEmpty()) {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.Warehouse, null, tint = Color.LightGray, modifier = Modifier.size(tokens.iconSize * 2.5f))
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        if (searchQuery.isNotBlank()) "No matching warehouses found" else "No warehouses found",
-                                        color = Color.Gray,
-                                        fontSize = tokens.bodyMedium
-                                    )
+                        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                            if (filteredWarehouses.isEmpty()) {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            Icons.Default.Warehouse,
+                                            null,
+                                            tint = Color.LightGray,
+                                            modifier = Modifier.size(tokens.iconSize * 2.5f)
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(
+                                            if (searchQuery.isNotBlank()) "No matching warehouses found" else "No warehouses found",
+                                            color = Color.Gray,
+                                            fontSize = tokens.bodyMedium
+                                        )
+                                    }
                                 }
-                            }
-                        } else {
-                            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                items(filteredWarehouses) { warehouse ->
-                                    WarehouseCard(
-                                        warehouse = warehouse,
-                                        onEdit = {
-                                            editingWarehouse = warehouse
-                                            editSheetState = SheetValue.Expanded
-                                        }
-                                    )
+                            } else {
+                                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                    items(filteredWarehouses) { warehouse ->
+                                        WarehouseCard(
+                                            warehouse = warehouse,
+                                            onEdit = {
+                                                editingWarehouse = warehouse
+                                                editSheetState = SheetValue.Expanded
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Add Warehouse BottomSheet - topInset 60.dp matches TitleBar height
-        SmoothBottomSheet(
-            state = addSheetState,
-            onStateChange = { newState ->
-                addSheetState = newState
-                if (newState == SheetValue.Hidden) addSheetBlur = 0.dp
-            },
-            peekHeight = 420.dp,
-            topInset = 66.dp,
-            sheetBackgroundColor = whiteBg,
-            collapsedCornerRadius = 24.dp,
-            dragCloseEnabled = true,
-            scrollableContent = true,
-            onDismissRequest = {
-                addSheetState = SheetValue.Hidden
-                addSheetBlur = 0.dp
-            },
-            onBlurScrimChange = { r, _ -> addSheetBlur = r }
-        ) {
-            WarehouseFormSheetContent(
-                title = "Add warehouse",
-                submitLabel = "Add Warehouse",
-                initialData = WarehouseFormData(),
-                onDismiss = { addSheetState = SheetValue.Hidden },
-                onSubmit = { formData ->
-                    val nextSeq = (warehouses.maxOfOrNull { it.seqOrder } ?: 0) + 1
-                    warehouses = warehouses + WarehouseItem(
-                        id = nextSeq.toString(),
-                        name = formData.name,
-                        warehouseCode = formData.warehouseCode,
-                        locality = formData.city,
-                        seqOrder = nextSeq,
-                        sections = 0,
-                        racks = 0,
-                        bins = 0,
-                        floorArea = "—",
-                        tempZone = "—"
-                    )
-                    addSheetState = SheetValue.Hidden
-                    addSheetBlur = 0.dp
-                }
-            )
-        }
-
-        // Edit Warehouse BottomSheet
-        editingWarehouse?.let { warehouse ->
+            // Add Warehouse BottomSheet - topInset 60.dp matches TitleBar height
             SmoothBottomSheet(
-                state = editSheetState,
+                state = addSheetState,
                 onStateChange = { newState ->
-                    editSheetState = newState
-                    if (newState == SheetValue.Hidden) {
-                        editingWarehouse = null
-                        editSheetBlur = 0.dp
-                    }
+                    addSheetState = newState
+                    if (newState == SheetValue.Hidden) addSheetBlur = 0.dp
                 },
                 peekHeight = 420.dp,
                 topInset = 66.dp,
@@ -266,37 +232,101 @@ fun WarehouseSettingsScreen(
                 dragCloseEnabled = true,
                 scrollableContent = true,
                 onDismissRequest = {
-                    editSheetState = SheetValue.Hidden
-                    editingWarehouse = null
-                    editSheetBlur = 0.dp
+                    addSheetState = SheetValue.Hidden
+                    addSheetBlur = 0.dp
                 },
-                onBlurScrimChange = { r, _ -> editSheetBlur = r }
+                onBlurScrimChange = { r, _ -> addSheetBlur = r }
             ) {
                 WarehouseFormSheetContent(
-                    title = "Edit warehouse",
-                    submitLabel = "Update Warehouse",
-                    initialData = WarehouseFormData(
-                        name = warehouse.name,
-                        warehouseCode = warehouse.warehouseCode,
-                        city = warehouse.locality
-                    ),
-                    onDismiss = {
-                        editSheetState = SheetValue.Hidden
-                        editingWarehouse = null
-                    },
+                    title = "Add warehouse",
+                    submitLabel = "Add Warehouse",
+                    initialData = WarehouseFormData(),
+                    onDismiss = { addSheetState = SheetValue.Hidden },
                     onSubmit = { formData ->
-                        warehouses = warehouses.map {
-                            if (it.id == warehouse.id) {
-                                it.copy(name = formData.name, warehouseCode = formData.warehouseCode, locality = formData.city)
-                            } else it
+                        val nextSeq = (warehouses.maxOfOrNull { it.seqOrder } ?: 0) + 1
+                        warehouses = warehouses + WarehouseItem(
+                            id = nextSeq.toString(),
+                            name = formData.name,
+                            warehouseCode = formData.warehouseCode,
+                            locality = formData.city,
+                            seqOrder = nextSeq,
+                            sections = 0,
+                            racks = 0,
+                            bins = 0,
+                            floorArea = "—",
+                            tempZone = "—"
+                        )
+                        addSheetState = SheetValue.Hidden
+                        addSheetBlur = 0.dp
+                        successMessage = "Warehouse Created Successfully"
+                    },
+                )
+            }
+
+            // Edit Warehouse BottomSheet
+            editingWarehouse?.let { warehouse ->
+                SmoothBottomSheet(
+                    state = editSheetState,
+                    onStateChange = { newState ->
+                        editSheetState = newState
+                        if (newState == SheetValue.Hidden) {
+                            editingWarehouse = null
+                            editSheetBlur = 0.dp
                         }
+                    },
+                    peekHeight = 420.dp,
+                    topInset = 66.dp,
+                    sheetBackgroundColor = whiteBg,
+                    collapsedCornerRadius = 24.dp,
+                    dragCloseEnabled = true,
+                    scrollableContent = true,
+                    onDismissRequest = {
                         editSheetState = SheetValue.Hidden
                         editingWarehouse = null
                         editSheetBlur = 0.dp
-                    }
-                )
+                    },
+                    onBlurScrimChange = { r, _ -> editSheetBlur = r }
+                ) {
+                    WarehouseFormSheetContent(
+                        title = "Edit warehouse",
+                        submitLabel = "Update Warehouse",
+                        initialData = WarehouseFormData(
+                            name = warehouse.name,
+                            warehouseCode = warehouse.warehouseCode,
+                            city = warehouse.locality
+                        ),
+                        onDismiss = {
+                            editSheetState = SheetValue.Hidden
+                            editingWarehouse = null
+                        },
+                        onSubmit = { formData ->
+                            warehouses = warehouses.map {
+                                if (it.id == warehouse.id) {
+                                    it.copy(
+                                        name = formData.name,
+                                        warehouseCode = formData.warehouseCode,
+                                        locality = formData.city
+                                    )
+                                } else it
+                            }
+                            editSheetState = SheetValue.Hidden
+                            editingWarehouse = null
+                            editSheetBlur = 0.dp
+                            successMessage = "Warehouse updated successfully"
+                        }
+                    )
+                }
             }
         }
+        DynamicIslandSuccess(
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
+
+        DynamicIslandError(
+            message = errorMessage,
+            onDismiss = { errorMessage = null }
+        )
     }
 }
 

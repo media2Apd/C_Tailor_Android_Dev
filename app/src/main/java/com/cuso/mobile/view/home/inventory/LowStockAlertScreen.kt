@@ -250,9 +250,7 @@ fun LowStockAlertsScreen(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
                         placeholder = "Search Stock Items...",
-                        onFilterClick = {  },
-                        modifier = Modifier
-                            .padding(vertical = 12.dp)
+                        onFilterClick = {  }
                     )
                 }
                 LazyColumn {

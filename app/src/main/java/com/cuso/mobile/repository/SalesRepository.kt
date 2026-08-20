@@ -374,7 +374,16 @@ class SalesRepository @Inject constructor(
     suspend fun updateLead(id: String, request: CreateLeadFormRequest): Response<UpdateLeadResponse> {
         val (accessToken, csrfToken) = getAuthHeaders()
 
-        val validGarments = request.garments.filter { it.isNotBlank() }
+        //   request.garments is now List<Any>? — safely convert to List<String>
+        val validGarments: List<String> = request.garments
+            ?.mapNotNull { garment ->
+                when (garment) {
+                    is String -> garment.takeIf { it.isNotBlank() }
+                    is Map<*, *> -> (garment["_id"] as? String)?.takeIf { it.isNotBlank() }
+                    else -> null
+                }
+            }
+            ?: emptyList()
 
         val updateRequest = UpdateLeadRequest(
             customerType = request.customerType,
@@ -419,8 +428,7 @@ class SalesRepository @Inject constructor(
             id = id,
             request = updateRequest
         )
-    }
-    // ── Staff ─────────────────────────────────────────────────────
+    }    // ── Staff ─────────────────────────────────────────────────────
 
     suspend fun getStaff(): Result<List<StaffDto>> {
         return try {

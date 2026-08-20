@@ -41,7 +41,7 @@ data class AlterationItem(
 
 val dummyAlterationItems = List(4) {
     AlterationItem(
-        customerName = "Rahul Mehta",
+        customerName = "Rahul Mehna",
         orderId = "ALT-2201",
         garmentType = "Blazer",
         alterationType = "Sleeve Shortening",
@@ -166,9 +166,7 @@ fun AlterationManagementScreen(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
                         placeholder = "Search Alterations...",
-                        onFilterClick = {  },
-                        modifier = Modifier
-                            .padding(vertical = 12.dp)
+                        onFilterClick = {  }
                     )
                 }
                 LazyColumn {

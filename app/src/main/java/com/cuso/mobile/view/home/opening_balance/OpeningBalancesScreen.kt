@@ -166,7 +166,6 @@ fun OpeningBalancesScreen(
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
-                    modifier = Modifier.padding(horizontal = tokens.screenPadding),
                     placeholder = "Search Opening Balances...",
                     accentColor = BluePrimary
                 )

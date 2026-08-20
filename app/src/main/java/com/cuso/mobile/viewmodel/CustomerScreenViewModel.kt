@@ -26,12 +26,20 @@ class CustomerViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<CustomerUiState>(CustomerUiState.Loading)
     val uiState: StateFlow<CustomerUiState> = _uiState.asStateFlow()
+    // Infinite Scroll States
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    private val _canLoadMore = MutableStateFlow(true)
+    val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
+
 
     //
     private var currentPage = 1
     private var currentLimit = 10
     private var currentSearch: String? = null
     private var currentType: String? = null
+    private var totalPages = 1
 
     private val _currentPageFlow = MutableStateFlow(1)
     val currentPageFlow: StateFlow<Int> = _currentPageFlow.asStateFlow()
@@ -48,68 +56,80 @@ class CustomerViewModel @Inject constructor(
 
 
     fun loadCustomers(
-        page: Int = currentPage,
-        limit: Int = currentLimit,
+        isRefresh: Boolean = false,
         search: String? = currentSearch,
         type: String? = currentType
     ) {
-        currentPage = page
-        currentLimit = limit
-        _currentPageFlow.value = page
-        _pageSizeFlow.value = limit
+        if (isRefresh) {
+            currentPage = 1
+            _canLoadMore.value = true
+            _uiState.update { CustomerUiState.Loading }
+        } else {
+            if (_isLoadingMore.value || !_canLoadMore.value) return
+            _isLoadingMore.value = true
+        }
+
+        currentSearch = search
+        currentType = type
 
         viewModelScope.launch {
-            _uiState.update { CustomerUiState.Loading }
-
             val result = repository.getCustomers(
-                page = page,
-                limit = limit,
-                search = search,
-                type = type
+                page = currentPage,
+                limit = currentLimit,
+                search = currentSearch,
+                type = currentType
             )
 
             result.fold(
                 onSuccess = { response ->
+                    totalPages = response.totalPages
+
+                    val currentList = if (isRefresh) {
+                        emptyList()
+                    } else {
+                        (uiState.value as? CustomerUiState.Success)?.customers ?: emptyList()
+                    }
+
+                    val updatedList = currentList + response.data
+
                     _uiState.update {
                         CustomerUiState.Success(
-                            customers = response.data,
+                            customers = updatedList,
                             total = response.total,
                             totalPages = response.totalPages
                         )
                     }
+
+                    currentPage++
+                    _canLoadMore.value = currentPage <= totalPages
+                    _isLoadingMore.value = false
+                    _currentPageFlow.value = currentPage
                 },
                 onFailure = { error ->
-                    _uiState.update {
-                        CustomerUiState.Error(error.message ?: "Failed to load customers")
+                    if (isRefresh) {
+                        _uiState.update { CustomerUiState.Error(error.message ?: "Failed to load") }
                     }
+                    _isLoadingMore.value = false
                 }
             )
         }
     }
+    fun loadMoreCustomers() {
+        loadCustomers(isRefresh = false)
+    }
+
     fun onSearch(query: String) {
         currentSearch = query.takeIf { it.isNotBlank() }
-        currentPage = 1
-        loadCustomers(page = 1, search = currentSearch)
+        loadCustomers(isRefresh = true, search = currentSearch)
     }
 
     fun onTypeFilterChange(type: String) {
         currentType = type.takeIf { it != "all" }
-        currentPage = 1
-        loadCustomers(page = 1, type = currentType)
-    }
-
-    fun onPageChange(page: Int) {
-        loadCustomers(page = page)
-    }
-
-    fun onItemsPerPageChange(limit: Int) {
-        currentLimit = limit
-        currentPage = 1
-        loadCustomers(page = 1, limit = limit)
+        loadCustomers(isRefresh = true, type = currentType)
     }
 
     fun refresh() {
-        loadCustomers(page = 1)
+        loadCustomers(isRefresh = true)
     }
 
     // ─────────────────────────────────────────────

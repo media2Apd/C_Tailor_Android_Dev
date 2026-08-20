@@ -62,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -116,6 +117,9 @@ import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.TrailingFabButton
 // Adaptive design tokens - shared padding, corner radius, typography, and component scale
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.modelGray
+import com.cuso.mobile.view.composable.dashedBorder
 
 // ─────────────────────────────────────────────────────────────
 // Data Models
@@ -318,7 +322,7 @@ fun CreateOrderScreen(
     if (showImagePickerOptions) {
         AlertDialog(
             onDismissRequest = { showImagePickerOptions = false },
-            containerColor = Color.Transparent,
+            containerColor = Primary_background,
             shape = RoundedCornerShape(tokens.cardCornerRadius),
             title = {
                 Text(
@@ -1277,56 +1281,79 @@ fun CreateOrderScreen(
                     expanded = expandedSection == "design",
                     onToggle = { expandedSection = if (expandedSection == "design") "" else "design" }
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                    // Dash border container matching the image
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp)
+                            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                            .dashedBorder(
+                                color = PrimaryBorder, // Light gray/blue dashed border
+                                strokeWidth = 1.dp,
+                                shape = RoundedCornerShape(tokens.cardCornerRadius)
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        OutlinedButton(
-                            onClick = {
-                                if (isMediaUploadRestricted) {
-                                    showPlanLimitDialog = true
-                                } else {
-                                    showImagePickerOptions = true
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(tokens.cardCornerRadius),
-                            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            Icon(Icons.Default.FileUpload, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(tokens.iconSize))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Browse Files", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
-                        }
+                            // --- Browse Files Text Button ---
+                            Text(
+                                text = "Browse Files",
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = Primary,
+                                textDecoration = TextDecoration.Underline,
+                                modifier = Modifier
+                                    .clickable {
+                                        if (isMediaUploadRestricted) {
+                                            showPlanLimitDialog = true
 
-                        OutlinedButton(
-                            onClick = {
-                                if (isMediaUploadRestricted) {
-                                    showPlanLimitDialog = true
-                                } else if (cameraPermissionState.status.isGranted) {
-                                    captureDesignImage()
-                                } else {
-                                    cameraPermissionState.launchPermissionRequest()
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(tokens.cardCornerRadius),
-                            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
-                        ) {
-                            Image(
-                                painter = painterResource(R.drawable.camera),
-                                null,
-                                modifier = Modifier.size(tokens.iconSize)
+                                        } else {
+                                            showImagePickerOptions = true
+                                        }
+                                    }
+                                    .padding(8.dp)
                             )
-                            Spacer(Modifier.width(6.dp))
-                            Text("Camera", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+
+                            Spacer(modifier = Modifier.width(24.dp))
+
+                            // --- Camera Icon Button ---
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clickable {
+                                        if (isMediaUploadRestricted) {
+                                            showPlanLimitDialog = true
+                                        } else if (cameraPermissionState.status.isGranted) {
+                                            captureDesignImage()
+                                        } else {
+                                            cameraPermissionState.launchPermissionRequest()
+                                        }
+                                    }
+                                    .padding(8.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.camera),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = Color(0xFF6B7280) // Muted gray/blue
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "Camera",
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF6B7280)
+                                )
+                            }
                         }
                     }
 
-                    Spacer(Modifier.height(tokens.extraPadding))
-
+                    // Selected Images preview logic below the box
                     if (selectedDesignImages.isNotEmpty()) {
+                        Spacer(Modifier.height(tokens.extraPadding))
                         Text(
                             "SELECTED IMAGES (${selectedDesignImages.size})",
                             fontSize = tokens.caption,
@@ -1354,6 +1381,7 @@ fun CreateOrderScreen(
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop
                                     )
+                                    // Close/Delete icon logic remains same as your original code
                                     Box(
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
@@ -1367,51 +1395,11 @@ fun CreateOrderScreen(
                                         Icon(
                                             Icons.Default.Close,
                                             contentDescription = "close",
-                                            modifier = Modifier
-                                                .size(tokens.iconSize)
-                                                .clickable {
-                                                    salesViewModel.clearAllSelectedGarments()
-                                                    salesViewModel.clearCustomerSearch()
-                                                    onBack()
-                                                },
-                                            tint = Color(0xFF111827)
+                                            modifier = Modifier.size(14.dp),
+                                            tint = Color.White
                                         )
                                     }
                                 }
-                            }
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(150.dp)
-                                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
-                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                Modifier.padding(tokens.extraPadding),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(
-                                    Icons.Default.Image,
-                                    null,
-                                    tint = Color(0xFFD1D5DB),
-                                    modifier = Modifier.size(32.dp)
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "No images added",
-                                    fontSize = tokens.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF9CA3AF)
-                                )
-                                Text(
-                                    "Tap Browse or Camera to add design references",
-                                    fontSize = tokens.caption,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFFBDBDBD)
-                                )
                             }
                         }
                     }

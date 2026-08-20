@@ -246,7 +246,6 @@ fun DepartmentSettingsScreen(
                                 SearchFilterBar(
                                     query = searchQuery,
                                     onQueryChange = { searchQuery = it },
-                                    modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
                                     placeholder = "Search Departments...",
                                     accentColor = BluePrimary,
                                     borderColor = BorderGray,

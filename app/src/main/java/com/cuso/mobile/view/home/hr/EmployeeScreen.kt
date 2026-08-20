@@ -137,7 +137,6 @@ fun AllEmployeesScreen(
                 ScreenBreadcrumb(listOf("HR", "All Employees"), onClick = { onBreadCrumbClick() })
 
                 // ── Search + Filter ──
-                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
                     SearchFilterBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
@@ -148,8 +147,6 @@ fun AllEmployeesScreen(
                         onFilterClick = { filterDrawerState.open() }   //   opens FilterDrawer
                     )
 
-
-                }
             }
 
             HorizontalDivider(color = BorderColor)

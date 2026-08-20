@@ -8,7 +8,7 @@
     "SpellCheckingInspection",
     "unusedvariable"
 )
-package com.cuso.mobile.view.home.branch
+package com.cuso.mobile.view.home.role
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -34,6 +34,8 @@ import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.MenuAction
@@ -80,7 +82,9 @@ fun RoleSettingsScreen(
 
     var searchQuery by remember { mutableStateOf("") }
 
-    val snackbarHostState = remember { SnackbarHostState() }
+//    val snackbarHostState = remember { SnackbarHostState() }
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
     // Blur states driven by SmoothBottomSheet's own callback
@@ -99,183 +103,144 @@ fun RoleSettingsScreen(
                 r.title.contains(searchQuery, ignoreCase = true) ||
                 r.roleId.contains(searchQuery, ignoreCase = true)
     }
+    Box(
+        Modifier.fillMaxSize()
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
+                    TitleBar("Role Management", onClose = onBack)
+                }
+            },
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            containerColor = Color.Transparent
+            // NOTE: floatingActionButton slot removed - FabScaffold below now owns the "Add Role" FAB
+        ) { paddingValues ->
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
-                TitleBar("Role Management", onClose = onBack)
-            }
-        },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = Color.Transparent
-        // NOTE: floatingActionButton slot removed - FabScaffold below now owns the "Add Role" FAB
-    ) { paddingValues ->
-        FabScaffold(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            fab = FabConfig(
-                label = "Add Role",
-                icon = Icons.Default.Add,
-                onClick = { addSheetState = SheetValue.Expanded },
-                endPadding = 16.dp,
-                bottomPadding = 16.dp,
-                draggable = true
-            ),
-            fabVisible = !isAnySheetOpen, // NEW: FAB fades/scales out while add or edit sheet is open
-            snackbarHostState = snackbarHostState
-        ) {
-            Box(
+            FabScaffold(
                 modifier = Modifier
                     .fillMaxSize()
-                    .blurScrim(if (isAnySheetOpen) currentBlur else 0.dp)
+                    .padding(paddingValues),
+                fab = FabConfig(
+                    label = "Add Role",
+                    icon = Icons.Default.Add,
+                    onClick = { addSheetState = SheetValue.Expanded },
+                    endPadding = 16.dp,
+                    bottomPadding = 16.dp,
+                    draggable = true
+                ),
+                fabVisible = !isAnySheetOpen, // NEW: FAB fades/scales out while add or edit sheet is open
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    ScreenBreadcrumb(
-                        segments = listOf("Settings", "Role Management"),
-                        onClick = {  }
-                    )
-
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    ) {
-                        SearchFilterBar(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            placeholder = "Search Role...",
-                            onFilterClick = {  },
-                            modifier = Modifier
-                                .padding(vertical = 12.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .blurScrim(if (isAnySheetOpen) currentBlur else 0.dp)
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        ScreenBreadcrumb(
+                            segments = listOf("Settings", "Role Management"),
+                            onClick = { }
                         )
-                    }
-                    HorizontalDivider(color = Color(0xFFF0F0F0))
 
-                    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                        if (filteredRoles.isEmpty()) {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.Badge, null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        if (searchQuery.isNotBlank()) "No matching roles found" else "No roles found",
-                                        color = Color.Gray,
-                                        fontSize = 15.sp
-                                    )
-                                }
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 80.dp)
-                            ) {
-                                items(filteredRoles) { role ->
-                                    val (badgeText, badgeColor) = statusColorsOfRole(role.status)
-                                    DataCard(
-                                        item = role,
-                                        smalltitle = role.title,
-                                        titleColor = title_color,
-                                        subtitle = null,
-                                        topBadgeText = badgeText,
-                                        topBadgeTextColor = badgeColor,
-                                        topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-                                        topBadgeInline = true,
-                                        footerFields = listOf(
-                                            DataCardField(
-                                                text = role.reportingTo,
-                                                textColor = title_color,
-                                                label = "Reporting To",
-                                                asRow = true,
-                                                labelColor = mutedText
-                                            ),
-                                            DataCardField(
-                                                text = role.category,
-                                                textColor = title_color,
-                                                label = "Category",
-                                                asRow = true,
-                                                labelColor = mutedText
-                                            ),
-                                            DataCardField(
-                                                text = role.employeeCount.toString(),
-                                                textColor = title_color,
-                                                label = "Employees",
-                                                asRow = true,
-                                                labelColor = mutedText
-                                            ),
-                                            DataCardField(
-                                                text = role.roleId,
-                                                textColor = title_color,
-                                                label = "Role ID",
-                                                asRow = true,
-                                                labelColor = mutedText
-                                            )
-                                        ),
-                                        actions = listOf(
-                                            MenuAction("Edit", Icons.Default.Edit) {
-                                                editingRole = role
-                                                editSheetState = SheetValue.Expanded
-                                            }
-                                        )
-                                    )
-                                }
-                                item { Spacer(Modifier.height(8.dp)) }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── SmoothBottomSheet for Add Role ──
-            SmoothBottomSheet(
-                state = addSheetState,
-                onStateChange = { newState -> addSheetState = newState },
-                peekHeight = 380.dp,
-                topInset = 66.dp,
-                maxBlurRadius = 14.dp,
-                maxScrimAlpha = 0.35f,
-                sheetBackgroundColor = whiteBg,
-                collapsedCornerRadius = 24.dp,
-                dragCloseEnabled = true,
-                scrollableContent = true,
-                onDismissRequest = { addSheetState = SheetValue.Hidden },
-                onBlurScrimChange = { blur, _ ->
-                    addSheetBlur = blur
-                }
-            ) {
-                AddRoleSheetContent(
-                    reportingOptions = reportingOptions,
-                    onDismiss = { addSheetState = SheetValue.Hidden },
-                    onCreate = { request ->
-                        roleList.add(
-                            RoleItem(
-                                id = (roleList.size + 1).toString(),
-                                title = "Role Name",
-                                name = request.name,
-                                category = request.category,
-                                roleId = "Mt-0${roleList.size + 1}",
-                                status = request.status,
-                                reportingTo = request.reportingTo,
-                                employeeCount = 0
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            SearchFilterBar(
+                                query = searchQuery,
+                                onQueryChange = { searchQuery = it },
+                                placeholder = "Search Role...",
+                                onFilterClick = { }
                             )
-                        )
-                        addSheetState = SheetValue.Hidden
-                        coroutineScope.launch { snackbarHostState.showSnackbar("Role created successfully") }
-                    }
-                )
-            }
-
-            // ── SmoothBottomSheet for Edit Role ──
-            editingRole?.let { role ->
-                SmoothBottomSheet(
-                    state = editSheetState,
-                    onStateChange = { newState ->
-                        editSheetState = newState
-                        if (newState == SheetValue.Hidden) {
-                            editingRole = null
                         }
-                    },
+                        HorizontalDivider(color = Color(0xFFF0F0F0))
+
+                        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                            if (filteredRoles.isEmpty()) {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            Icons.Default.Badge,
+                                            null,
+                                            tint = Color.LightGray,
+                                            modifier = Modifier.size(48.dp)
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(
+                                            if (searchQuery.isNotBlank()) "No matching roles found" else "No roles found",
+                                            color = Color.Gray,
+                                            fontSize = 15.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(bottom = 80.dp)
+                                ) {
+                                    items(filteredRoles) { role ->
+                                        val (badgeText, badgeColor) = statusColorsOfRole(role.status)
+                                        DataCard(
+                                            item = role,
+                                            smalltitle = role.title,
+                                            titleColor = title_color,
+                                            subtitle = null,
+                                            topBadgeText = badgeText,
+                                            topBadgeTextColor = badgeColor,
+                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
+                                            topBadgeInline = true,
+                                            footerFields = listOf(
+                                                DataCardField(
+                                                    text = role.reportingTo,
+                                                    textColor = title_color,
+                                                    label = "Reporting To",
+                                                    asRow = true,
+                                                    labelColor = mutedText
+                                                ),
+                                                DataCardField(
+                                                    text = role.category,
+                                                    textColor = title_color,
+                                                    label = "Category",
+                                                    asRow = true,
+                                                    labelColor = mutedText
+                                                ),
+                                                DataCardField(
+                                                    text = role.employeeCount.toString(),
+                                                    textColor = title_color,
+                                                    label = "Employees",
+                                                    asRow = true,
+                                                    labelColor = mutedText
+                                                ),
+                                                DataCardField(
+                                                    text = role.roleId,
+                                                    textColor = title_color,
+                                                    label = "Role ID",
+                                                    asRow = true,
+                                                    labelColor = mutedText
+                                                )
+                                            ),
+                                            actions = listOf(
+                                                MenuAction("Edit", Icons.Default.Edit) {
+                                                    editingRole = role
+                                                    editSheetState = SheetValue.Expanded
+                                                }
+                                            )
+                                        )
+                                    }
+                                    item { Spacer(Modifier.height(8.dp)) }
+                                }
+                            }
+                        }
+                    }
+
+                }
+
+                // ── SmoothBottomSheet for Add Role ──
+                SmoothBottomSheet(
+                    state = addSheetState,
+                    onStateChange = { newState -> addSheetState = newState },
                     peekHeight = 380.dp,
                     topInset = 66.dp,
                     maxBlurRadius = 14.dp,
@@ -284,39 +249,94 @@ fun RoleSettingsScreen(
                     collapsedCornerRadius = 24.dp,
                     dragCloseEnabled = true,
                     scrollableContent = true,
-                    onDismissRequest = {
-                        editSheetState = SheetValue.Hidden
-                        editingRole = null
-                    },
+                    onDismissRequest = { addSheetState = SheetValue.Hidden },
                     onBlurScrimChange = { blur, _ ->
-                        editSheetBlur = blur
+                        addSheetBlur = blur
                     }
                 ) {
-                    EditRoleSheetContent(
-                        role = role,
+                    AddRoleSheetContent(
                         reportingOptions = reportingOptions,
-                        onDismiss = {
-                            editSheetState = SheetValue.Hidden
-                            editingRole = null
-                        },
-                        onUpdate = { request ->
-                            val index = roleList.indexOfFirst { it.id == role.id }
-                            if (index != -1) {
-                                roleList[index] = roleList[index].copy(
+                        onDismiss = { addSheetState = SheetValue.Hidden },
+                        onCreate = { request ->
+                            roleList.add(
+                                RoleItem(
+                                    id = (roleList.size + 1).toString(),
+                                    title = "Role Name",
                                     name = request.name,
                                     category = request.category,
+                                    roleId = "Mt-0${roleList.size + 1}",
                                     status = request.status,
-                                    reportingTo = request.reportingTo
+                                    reportingTo = request.reportingTo,
+                                    employeeCount = 0
                                 )
-                            }
-                            editSheetState = SheetValue.Hidden
-                            editingRole = null
-                            coroutineScope.launch { snackbarHostState.showSnackbar("Role updated successfully") }
+                            )
+                            addSheetState = SheetValue.Hidden
+                            successMessage = "Role Created Successfully"
                         }
                     )
                 }
+
+                // ── SmoothBottomSheet for Edit Role ──
+                editingRole?.let { role ->
+                    SmoothBottomSheet(
+                        state = editSheetState,
+                        onStateChange = { newState ->
+                            editSheetState = newState
+                            if (newState == SheetValue.Hidden) {
+                                editingRole = null
+                            }
+                        },
+                        peekHeight = 380.dp,
+                        topInset = 66.dp,
+                        maxBlurRadius = 14.dp,
+                        maxScrimAlpha = 0.35f,
+                        sheetBackgroundColor = whiteBg,
+                        collapsedCornerRadius = 24.dp,
+                        dragCloseEnabled = true,
+                        scrollableContent = true,
+                        onDismissRequest = {
+                            editSheetState = SheetValue.Hidden
+                            editingRole = null
+                        },
+                        onBlurScrimChange = { blur, _ ->
+                            editSheetBlur = blur
+                        }
+                    ) {
+                        EditRoleSheetContent(
+                            role = role,
+                            reportingOptions = reportingOptions,
+                            onDismiss = {
+                                editSheetState = SheetValue.Hidden
+                                editingRole = null
+                            },
+                            onUpdate = { request ->
+                                val index = roleList.indexOfFirst { it.id == role.id }
+                                if (index != -1) {
+                                    roleList[index] = roleList[index].copy(
+                                        name = request.name,
+                                        category = request.category,
+                                        status = request.status,
+                                        reportingTo = request.reportingTo
+                                    )
+                                }
+                                editSheetState = SheetValue.Hidden
+                                editingRole = null
+                                successMessage = "Role Updated Successfully"
+                            }
+                        )
+                    }
+                }
             }
         }
+        DynamicIslandSuccess(
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
+
+        DynamicIslandError(
+            message = errorMessage,
+            onDismiss = { errorMessage = null }
+        )
     }
 }
 

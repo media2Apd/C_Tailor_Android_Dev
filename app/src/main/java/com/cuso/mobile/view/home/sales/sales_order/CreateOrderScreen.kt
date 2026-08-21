@@ -272,8 +272,24 @@ fun CreateOrderScreen(
     var addCategoryScrim by remember { mutableFloatStateOf(0f) }
     var selectedQuickCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(initialData) {
-        initialData?.garments?.let { garments ->
-            garments.forEach { salesViewModel.addOrUpdateGarment(it) }
+        // 1. Always wipe stale garments from previous sessions first
+        salesViewModel.clearAllSelectedGarments()
+
+        // 2. If converting from a lead or editing, insert ONLY the new garments
+        initialData?.garments?.forEach { garment ->
+            salesViewModel.addOrUpdateGarment(garment)
+        }
+
+        // 3. Fetch fresh metadata & reload garments
+        branchViewModel.loadBranches()
+        salesViewModel.fetchOrgGarmentCategories()
+        salesViewModel.fetchActiveOrgGarments()
+        salesViewModel.loadSelectedGarments()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            salesViewModel.clearCustomerSearch()
         }
     }
 
@@ -538,6 +554,7 @@ fun CreateOrderScreen(
 
     fun openGarmentDialog(categoryName: String, category: String) {
         tempGarment = SelectedGarment(
+            id = "new_${System.currentTimeMillis()}", // Unique ID prevents state retention
             category = category,
             categoryName = categoryName,
             categoryId = category,
@@ -2089,7 +2106,7 @@ private fun InlineGarmentPanel(
     var fabricTypeExpanded by remember { mutableStateOf(false) }
     var patternExpanded by remember { mutableStateOf(false) }
 
-    var selectedModels by remember(garment.id) {
+    var selectedModels by remember(garment.id, garment.categoryId) {
         mutableStateOf(garment.models.toMutableList())
     }
     var measurements by remember(garment.id) {
@@ -2098,6 +2115,15 @@ private fun InlineGarmentPanel(
                 garment.measurements.map { m -> MeasurementField(id = m.id.ifBlank { m.label }, label = m.label, value = m.value, unit = m.unit) }
             else defaultMeasurementsFor(selectedModels)
         )
+    }
+
+    LaunchedEffect(garment.id, garment.categoryId) {
+        selectedModels = garment.models.toMutableList()
+        measurements = if (garment.measurements.isNotEmpty()) {
+            garment.measurements.map { m -> MeasurementField(id = m.id.ifBlank { m.label }, label = m.label, value = m.value, unit = m.unit) }
+        } else {
+            defaultMeasurementsFor(garment.models)
+        }
     }
 
     var subSection by remember { mutableStateOf("basic") }

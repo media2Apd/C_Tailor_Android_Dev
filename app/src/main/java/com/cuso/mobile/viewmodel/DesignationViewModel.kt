@@ -6,6 +6,7 @@ import com.cuso.mobile.model.DesignationCreateRequest
 import com.cuso.mobile.model.DesignationItem
 import com.cuso.mobile.model.DesignationUpdateRequest
 import com.cuso.mobile.repository.SalesRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,7 +57,7 @@ class DesignationViewModel @Inject constructor(
 
     // ── Load Designations ──
     fun loadDesignations() {
-        viewModelScope.launch {
+        launchBusy {
             _uiState.value = DesignationUiState.Loading
             repository.getDesignations()
                 .onSuccess { _uiState.value = DesignationUiState.Success(it) }
@@ -66,7 +67,7 @@ class DesignationViewModel @Inject constructor(
 
     // ── Create Designation ──
     fun createDesignation(name: String, code: String, description: String) {
-        viewModelScope.launch {
+        launchBusy {
             _createState.value = DesignationCreateState.Loading
             repository.createDesignation(DesignationCreateRequest(name, code, description))
                 .onSuccess {
@@ -81,7 +82,7 @@ class DesignationViewModel @Inject constructor(
 
     //     - Update Designation
     fun updateDesignation(id: String, name: String, code: String, description: String?) {
-        viewModelScope.launch {
+        launchBusy {
             _updateState.value = DesignationUpdateState.Loading
             val request = DesignationUpdateRequest(
                 name = name,
@@ -102,7 +103,7 @@ class DesignationViewModel @Inject constructor(
 
     //     - Delete Designation
     fun deleteDesignation(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _deleteState.value = DesignationDeleteState.Loading
             repository.deleteDesignation(id)
                 .onSuccess { response ->

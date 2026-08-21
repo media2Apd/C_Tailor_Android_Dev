@@ -76,6 +76,7 @@ import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
+import kotlinx.coroutines.delay
 
 private val stepLabels = listOf(
     "Personal \nInformation",
@@ -90,12 +91,6 @@ private val customerSectionFieldMap = mapOf(
     "details" to listOf("email", "mobile", "status", "language", "contact"),
     "location" to listOf("address", "areaZone", "city")
 )
-
-// ─────────────────────────────────────────────────────────────
-// International-standard spacing / radius scale
-// (4 / 8 / 12 / 16 / 24 / 32 — Material & iOS HIG aligned)
-// Card corner radius standardized to 12dp / 16dp / 20dp tiers.
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 fun CustomerDetailScreen(
@@ -116,13 +111,15 @@ fun CustomerDetailScreen(
     var currentStep by remember { mutableIntStateOf(0) }
     var isEditMode by remember(startInEditMode) { mutableStateOf(startInEditMode) }
 
-    // NOTE: SnackbarHostState / rememberCoroutineScope removed — replaced by
-    // DynamicIslandError (existing) and DynamicIslandSuccess (new) below.
     var apiErrorMessage by remember { mutableStateOf<String?>(null) }
     var apiSuccessMessage by remember { mutableStateOf<String?>(null) }
     var errorField by remember { mutableStateOf<String?>(null) }
     var errorSection by remember { mutableStateOf<String?>(null) }
     var email by remember { mutableStateOf("") }
+
+    // Disable all inputs and button actions while updating or while showing success notification
+    val isInteractionDisabled = updateState is CustomerUpdateState.Loading || apiSuccessMessage != null
+    val isFieldEditable = isEditMode && !isInteractionDisabled
 
     fun validateStep(step: Int): Boolean {
         if (!isEditMode) return true
@@ -166,13 +163,16 @@ fun CustomerDetailScreen(
     LaunchedEffect(updateState) {
         when (val state = updateState) {
             is CustomerUpdateState.Success -> {
-                // Replaced: coroutineScope.launch { snackbarHostState.showSnackbar("Customer updated successfully") }
                 apiSuccessMessage = "Customer updated successfully"
                 isEditMode = false
                 errorField = null
                 errorSection = null
-                onUpdateSuccess()
+
+                // 1.5 seconds delay before navigating away
+                delay(1500)
+
                 viewModel.resetUpdateState()
+                onUpdateSuccess()
             }
             is CustomerUpdateState.Error -> {
                 viewModel.resetUpdateState()
@@ -186,61 +186,45 @@ fun CustomerDetailScreen(
         }
     }
 
-    Scaffold(
-        containerColor = Color.Transparent
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding()
-        ) {
-            DynamicIslandError(
-                message = apiErrorMessage,
-                onDismiss = { apiErrorMessage = null },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .zIndex(10f)
-            )
-
-            DynamicIslandSuccess(
-                message = apiSuccessMessage,
-                onDismiss = { apiSuccessMessage = null },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .zIndex(10f)
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Transparent)
-            ) {
-
-                // ── Header ──
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TitleBar("Create customer", onClose = onClose)
+                    TitleBar("Create customer", onClose = { if (!isInteractionDisabled) onClose() })
                 }
+            }
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .background(Color.Transparent)
+            ) {
                 Column(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = tokens.screenPadding)
                 ) {
                     Spacer(Modifier.padding(top = 10.dp))
-                    // ── Stepper ──
                     OrderStatusStepper(
                         stepLabels = stepLabels,
                         currentStep = currentStep
                     )
                 }
 
-                HorizontalDivider(color = Color(0xFFF0F0F0), modifier = Modifier.padding(top = 10.dp))
+                HorizontalDivider(
+                    color = Color(0xFFF0F0F0),
+                    modifier = Modifier.padding(top = 10.dp)
+                )
 
-                // ── Body Content ──
+                // Body Content
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -252,24 +236,33 @@ fun CustomerDetailScreen(
                 ) {
                     when (currentStep) {
                         0 -> PersonalInformationStep(
-                            detailState, formState, viewModel, isEditMode,
+                            detailState = detailState,
+                            formState = formState,
+                            viewModel = viewModel,
+                            isEditMode = isFieldEditable,
                             errorField = errorField,
                             errorSection = errorSection,
                             email = email,
                             onEmailChange = { email = it }
                         )
-                        1 -> MeasurementsStep(isEditMode)
+                        1 -> MeasurementsStep(isEditMode = isFieldEditable)
                         2 -> OrderPaymentStep()
                         3 -> PreferencesStep()
-                        4 -> NotesTagsStep(isEditMode)
+                        4 -> NotesTagsStep(isEditMode = isFieldEditable)
                     }
                 }
             }
 
             StepNavigationFab(
-                showBack = currentStep > 0,
-                onBack = { currentStep-- },
+                showBack = currentStep > 0 && !isInteractionDisabled,
+                onBack = { if (!isInteractionDisabled) currentStep-- },
+                backEnabled = !isInteractionDisabled,
                 trailingAction = when {
+                    isInteractionDisabled -> TrailingFabAction.Update(
+                        onClick = {},
+                        isLoading = updateState is CustomerUpdateState.Loading,
+                        enabled = false
+                    )
                     currentStep < stepLabels.lastIndex -> TrailingFabAction.Next {
                         if (validateStep(currentStep)) {
                             currentStep++
@@ -286,11 +279,29 @@ fun CustomerDetailScreen(
                                 viewModel.updateCustomer(customerId)
                             }
                         },
-                        isLoading = updateState is CustomerUpdateState.Loading
+                        isLoading = false,
+                        enabled = true
                     )
                 }
             )
         }
+
+        // Dynamic Island Overlays
+        DynamicIslandSuccess(
+            message = apiSuccessMessage,
+            onDismiss = { apiSuccessMessage = null },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(10f)
+        )
+
+        DynamicIslandError(
+            message = apiErrorMessage,
+            onDismiss = { apiErrorMessage = null },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(10f)
+        )
     }
 }
 
@@ -341,8 +352,8 @@ fun OrderStatusStepper(
 
                     val circleColor by animateColorAsState(
                         targetValue = when {
-                            done -> Color(0xFF22C55E)     // Green completed
-                            active -> Color(0xFF3F37F3)   // Vibrant Blue active
+                            done -> Color(0xFF22C55E)
+                            active -> Color(0xFF3F37F3)
                             else -> whiteBg
                         },
                         animationSpec = tween(durationMillis = 300),
@@ -565,12 +576,12 @@ private fun PersonalInformationStep(
                     Spacer(Modifier.height(12.dp))
                     FormLabel("Full Name")
                     FormTextField(
-                        value= formState.name,
+                        value = formState.name,
                         onValueChange = viewModel::onNameChange,
                         placeholder = "Enter Your Name",
                         enabled = isEditMode,
                         isError = errorField == "name",
-                        errorMessage = if (errorField=="name") "Please Check the name " else null
+                        errorMessage = if (errorField == "name") "Please Check the name " else null
                     )
                     Spacer(Modifier.height(12.dp))
 
@@ -615,12 +626,12 @@ private fun PersonalInformationStep(
 
                     FormLabel("Email")
                     FormTextField(
-                        value= formState.email,
+                        value = formState.email,
                         onValueChange = viewModel::onEmailChange,
                         placeholder = "Enter Your email",
                         enabled = isEditMode,
                         isError = errorField == "email",
-                        errorMessage = if (errorField=="email") "Please Check the email " else null
+                        errorMessage = if (errorField == "email") "Please Check the email " else null
                     )
                     Spacer(Modifier.height(12.dp))
 
@@ -664,42 +675,40 @@ private fun PersonalInformationStep(
                     Spacer(Modifier.height(16.dp))
                     FormLabel("Address")
                     FormTextField(
-                        value= formState.addressLine,
+                        value = formState.addressLine,
                         onValueChange = viewModel::onAddressLineChange,
                         placeholder = "Enter Your address",
                         enabled = isEditMode,
                         isError = errorField == "address",
-                        errorMessage = if (errorField=="address") "Please Check the address " else null
+                        errorMessage = if (errorField == "address") "Please Check the address " else null
                     )
                     Spacer(Modifier.height(12.dp))
 
                     FormLabel("Area / Zone")
                     FormTextField(
-                        value= formState.area,
+                        value = formState.area,
                         onValueChange = viewModel::onAreaChange,
                         placeholder = "Enter Area/Zone",
                         enabled = isEditMode,
                         isError = errorField == "areaZone",
-                        errorMessage = if (errorField=="areaZone") "Please Check this field " else null
+                        errorMessage = if (errorField == "areaZone") "Please Check this field " else null
                     )
                     Spacer(Modifier.height(12.dp))
 
                     FormLabel("City")
                     FormTextField(
-                        value= formState.city,
+                        value = formState.city,
                         onValueChange = viewModel::onCityChange,
                         placeholder = "Enter Your City",
                         enabled = isEditMode,
                         isError = errorField == "city",
-                        errorMessage = if (errorField=="city") "Please Check the city " else null
+                        errorMessage = if (errorField == "city") "Please Check the city " else null
                     )
                 }
             }
         }
     }
 }
-
-
 
 // ─────────────────────────────────────────────────────────────
 // STEP 2 — Measurements Step
@@ -822,7 +831,7 @@ private fun OrderPaymentStep() {
     Column {
         Column(
             Modifier.fillMaxWidth()
-                .padding(horizontal= tokens.screenPadding),
+                .padding(horizontal = tokens.screenPadding),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OrderStatBox(modifier = Modifier.weight(1f), label = "Total Orders", value = "28")
@@ -922,15 +931,12 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
     val tokens = LocalAppTokens.current
     val scrollState = rememberScrollState()
 
-    // These numbers now act as relative weights, not fixed dp widths.
-    // Compose distributes the available row width proportionally between them.
     val weightOrderId = 0.9f
     val weightDate = 1.1f
     val weightGarment = 1.6f
     val weightAmount = 0.9f
     val weightStatus = 1.1f
 
-    // Minimum width per column so text never gets squished on very narrow screens
     val minOrderId = 80.dp
     val minDate = 95.dp
     val minGarment = 110.dp
@@ -939,8 +945,6 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
     val minContentWidth = minOrderId + minDate + minGarment + minAmount + minStatus
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        // Use full available width when it's big enough, otherwise fall back
-        // to the minimum content width and let the row scroll horizontally.
         val tableWidth = maxOf(minContentWidth, this.maxWidth)
         val needsScroll = this.maxWidth < minContentWidth
 
@@ -968,7 +972,7 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
                     modifier = Modifier.weight(weightStatus).widthIn(min = minStatus))
             }
 
-            // Data rows - same weights as header, so columns always line up
+            // Data rows
             orders.forEachIndexed { index, row ->
                 Row(
                     modifier = Modifier
@@ -988,7 +992,6 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
                     Text(row.amount, fontSize = tokens.bodyMedium, color = Color(0xFF111827),
                         modifier = Modifier.weight(weightAmount).widthIn(min = minAmount))
 
-                    // Status pill - fixed max width inside its weighted slot, single line, no wrap
                     Box(
                         modifier = Modifier
                             .weight(weightStatus)
@@ -1065,7 +1068,6 @@ private fun PreferencesStep() {
             Modifier.fillMaxWidth()
                 .padding(horizontal = tokens.screenPadding)
         ) {
-
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.height(IntrinsicSize.Min)
@@ -1436,7 +1438,7 @@ private fun OutlinedIconActionButton(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .dashedBorder( // உங்கள் project-ல் ஏற்கனவே உள்ள modifier
+            .dashedBorder(
                 color = if (enabled) Color(0xFF9CA3AF) else Color(0xFFD1D5DB),
                 strokeWidth = 1.dp,
                 cornerRadius = 12.dp

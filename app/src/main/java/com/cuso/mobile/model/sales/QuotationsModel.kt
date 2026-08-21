@@ -95,7 +95,7 @@ data class QuotationDeleteResponse(
 data class CreateQuotationRequest(
     val customerId: String,
     val leadId: String? = null,
-    val customerSnapshot: CustomerSnapshot,   // ➕ ADD THIS LINE
+    val customerSnapshot: CustomerSnapshot,   //  ADD THIS LINE
     val items: List<QuotationItemInput>,
     val subTotal: Double,
     val taxPercent: Double,
@@ -155,7 +155,7 @@ data class CustomerSnapshotAddress(
 
 data class CustomerSnapshot(
     val name: String,
-    val phone: String,              // ⚠️ "phone" — NOT "mobile"
+    val phone: String,              //  "phone" — NOT "mobile"
     val email: String = "",
     val address: CustomerSnapshotAddress = CustomerSnapshotAddress()
 )

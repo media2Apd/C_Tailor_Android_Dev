@@ -6,7 +6,9 @@ import com.cuso.mobile.model.sales.CreateQuotationRequest
 import com.cuso.mobile.model.sales.QuotationCreatedData
 import com.cuso.mobile.model.sales.QuotationItemDto
 import com.cuso.mobile.repository.SalesRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,37 +16,41 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed class QuotationUiState {
-    object Loading : QuotationUiState()
-    data class Success(val quotations: List<QuotationItemDto>) : QuotationUiState()
+    data object Loading : QuotationUiState()
+    data class Success(
+        val quotations: List<QuotationItemDto>,
+        val total: Int = 0,
+        val totalPages: Int = 1
+    ) : QuotationUiState()
     data class Error(val message: String) : QuotationUiState()
 }
 
 sealed class QuotationSaveUiState {
-    object Idle : QuotationSaveUiState()
-    object Loading : QuotationSaveUiState()
+    data object Idle : QuotationSaveUiState()
+    data object Loading : QuotationSaveUiState()
     data class Success(val quotation: QuotationCreatedData) : QuotationSaveUiState()
     data class Error(val message: String) : QuotationSaveUiState()
 }
 
 sealed class QuotationDeleteUiState {
-    object Idle : QuotationDeleteUiState()
-    object Loading : QuotationDeleteUiState()
-    object Success : QuotationDeleteUiState()
+    data object Idle : QuotationDeleteUiState()
+    data object Loading : QuotationDeleteUiState()
+    data object Success : QuotationDeleteUiState()
     data class Error(val message: String) : QuotationDeleteUiState()
 }
+
 sealed class QuotationDetailUiState {
-    object Idle : QuotationDetailUiState()
-    object Loading : QuotationDetailUiState()
+    data object Idle : QuotationDetailUiState()
+    data object Loading : QuotationDetailUiState()
     data class Success(val quotation: QuotationItemDto) : QuotationDetailUiState()
     data class Error(val message: String) : QuotationDetailUiState()
 }
 
-
 @HiltViewModel
 class QuotationViewModel @Inject constructor(
-    private val salesRepository: SalesRepository,
-//    private val organizationDao: com.cuso.mobile.database.dao.OrganizationDao
+    private val salesRepository: SalesRepository
 ) : ViewModel() {
+
     private val _uiState = MutableStateFlow<QuotationUiState>(QuotationUiState.Loading)
     val uiState: StateFlow<QuotationUiState> = _uiState.asStateFlow()
 
@@ -57,12 +63,24 @@ class QuotationViewModel @Inject constructor(
     private val _detailState = MutableStateFlow<QuotationDetailUiState>(QuotationDetailUiState.Idle)
     val detailState: StateFlow<QuotationDetailUiState> = _detailState.asStateFlow()
 
+    // Pagination states
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
 
+    private val _canLoadMore = MutableStateFlow(false)
+    val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
 
     private var currentPage = 1
+    private var totalPages = 1
     private var currentSearch: String? = null
+    private var currentStatus: String? = null
+    private val loadedQuotations = mutableListOf<QuotationItemDto>()
 
+    private var fetchJob: Job? = null
 
+    // ---------------------------------------------------------
+    // Fetch Quotations (Initial load / Refresh)
+    // ---------------------------------------------------------
 
     fun loadQuotations(
         page: Int = 1,
@@ -70,13 +88,30 @@ class QuotationViewModel @Inject constructor(
         search: String? = null,
         status: String? = null
     ) {
-        currentPage = page
-        currentSearch = search
-        viewModelScope.launch {
+        fetchJob?.cancel()
+        fetchJob = viewModelScope.launch {
             _uiState.value = QuotationUiState.Loading
+            currentPage = page
+            currentSearch = search
+            currentStatus = status
+            loadedQuotations.clear()
+
             salesRepository.getQuotations(page, limit, search, status)
                 .onSuccess { response ->
-                    _uiState.value = QuotationUiState.Success(response.data)
+                    loadedQuotations.addAll(response.data)
+
+                    // Read totalPages and total from response.pagination
+                    val totalCount = response.pagination?.total ?: loadedQuotations.size
+                    totalPages = response.pagination?.pages
+                        ?: if (limit > 0) ((totalCount + limit - 1) / limit).coerceAtLeast(1) else 1
+
+                    _canLoadMore.value = currentPage < totalPages
+
+                    _uiState.value = QuotationUiState.Success(
+                        quotations = loadedQuotations.toList(),
+                        total = totalCount,
+                        totalPages = totalPages
+                    )
                 }
                 .onFailure { e ->
                     _uiState.value = QuotationUiState.Error(e.message ?: "Failed to load quotations")
@@ -84,10 +119,50 @@ class QuotationViewModel @Inject constructor(
         }
     }
 
+    // ---------------------------------------------------------
+    // Fetch Next Page (Infinite Scroll)
+    // ---------------------------------------------------------
 
+    fun loadMoreQuotations(limit: Int = 10) {
+        if (_isLoadingMore.value || !_canLoadMore.value) return
+
+        viewModelScope.launch {
+            _isLoadingMore.value = true
+            val nextPage = currentPage + 1
+
+            salesRepository.getQuotations(nextPage, limit, currentSearch, currentStatus)
+                .onSuccess { response ->
+                    val newItems = response.data
+
+                    if (newItems.isNotEmpty()) {
+                        currentPage = nextPage
+                        loadedQuotations.addAll(newItems)
+
+                        val totalCount = response.pagination?.total ?: loadedQuotations.size
+                        totalPages = response.pagination?.pages
+                            ?: if (limit > 0) ((totalCount + limit - 1) / limit).coerceAtLeast(1) else 1
+
+                        _canLoadMore.value = currentPage < totalPages
+
+                        _uiState.value = QuotationUiState.Success(
+                            quotations = loadedQuotations.toList(),
+                            total = totalCount,
+                            totalPages = totalPages
+                        )
+                    } else {
+                        _canLoadMore.value = false
+                    }
+                }
+                .onFailure {
+                    _canLoadMore.value = false
+                }
+
+            _isLoadingMore.value = false
+        }
+    }
 
     fun saveDraft(request: CreateQuotationRequest) {
-        viewModelScope.launch {
+        launchBusy {
             _saveState.value = QuotationSaveUiState.Loading
             salesRepository.createQuotation(request)
                 .onSuccess { response ->
@@ -108,17 +183,16 @@ class QuotationViewModel @Inject constructor(
         _saveState.value = QuotationSaveUiState.Idle
     }
 
-    //   Call this from the search bar's onValueChange (debounce if needed)
     fun searchQuotations(query: String) {
         loadQuotations(page = 1, search = query.ifBlank { null })
     }
 
     fun refresh() {
-        loadQuotations(page = currentPage, search = currentSearch)
+        loadQuotations(page = 1, search = currentSearch)
     }
 
     fun deleteQuotation(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _deleteState.value = QuotationDeleteUiState.Loading
             salesRepository.deleteQuotation(id)
                 .onSuccess {
@@ -134,8 +208,9 @@ class QuotationViewModel @Inject constructor(
     fun resetDeleteState() {
         _deleteState.value = QuotationDeleteUiState.Idle
     }
+
     fun fetchQuotationById(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _detailState.value = QuotationDetailUiState.Loading
             salesRepository.getQuotationById(id)
                 .onSuccess { quotation ->
@@ -149,8 +224,8 @@ class QuotationViewModel @Inject constructor(
 }
 
 sealed class QuotationPdfUiState {
-    object Idle : QuotationPdfUiState()
-    object Loading : QuotationPdfUiState()
+    data object Idle : QuotationPdfUiState()
+    data object Loading : QuotationPdfUiState()
     data class Success(val saved: com.cuso.mobile.view.home.pdfgenerator.QuotationPdfGenerator.SavedPdf) : QuotationPdfUiState()
     data class Error(val message: String) : QuotationPdfUiState()
 }

@@ -63,6 +63,8 @@ import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.viewmodel.SalesViewModel
 import kotlinx.coroutines.delay
+import org.json.JSONArray
+import org.json.JSONObject
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 private val AccentBlue = Color(0xFF4F46E5)
@@ -186,7 +188,8 @@ fun CreateOrderNextStep(
             }
             is OrderActionState.Error -> {
                 val s = actionState as OrderActionState.Error
-                errorMessage = ErrorMapper.map(s.message)
+                val cleanMessage = parseErrorMessage(s.message)
+                errorMessage = ErrorMapper.map(cleanMessage)
                 salesOrderViewModel.resetActionState()
             }
             else -> Unit
@@ -443,30 +446,11 @@ fun CreateOrderNextStep(
 
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Text("Discount", fontSize = 14.sp, color = TextSecond, modifier = Modifier.weight(1f))
-                                        Row(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .border(
-                                                    0.5.dp,
-                                                    BorderColor,
-                                                    RoundedCornerShape(6.dp)
-                                                )
-                                                .background(whiteBg)
-                                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text("₹", fontSize = 13.sp, color = LabelGray)
-                                            Spacer(Modifier.width(4.dp))
-                                            BasicTextField(
-                                                value = discountText,
-                                                onValueChange = { if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d*$"))) discountText = it },
-                                                singleLine = true,
-                                                textStyle = TextStyle(fontSize = 13.sp, color = TextPrimary),
-                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                                modifier = Modifier.width(50.dp),
-                                                decorationBox = { if (discountText.isEmpty()) Text("0", fontSize = 13.sp, color = LabelGray); it() }
-                                            )
-                                        }
+                                        PriceInputBox(
+                                            value = discountText,
+                                            onValueChange = { discountText = it },
+                                            width = 90.dp // (தேவைக்கேற்ப 80.dp அல்லது 100.dp ஆக மாற்றிக்கொள்ளலாம்)
+                                        )
                                     }
                                 }
 
@@ -842,5 +826,57 @@ private fun SectionHeader(
         if (!expanded) {
             HorizontalDivider(color = BorderColor)
         }
+    }
+}
+
+fun parseErrorMessage(rawError: String?): String {
+    if (rawError.isNullOrBlank()) return "An unexpected error occurred"
+    val trimmed = rawError.trim()
+
+    // Plain text-ஆக இருந்தால் JSON parse பண்ண தேவையில்லை
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+        return trimmed
+    }
+
+    return try {
+        if (trimmed.startsWith("{")) {
+            val json = JSONObject(trimmed)
+            when {
+                json.has("message") -> {
+                    val msg = json.get("message")
+                    if (msg is JSONArray && msg.length() > 0) msg.getString(0)
+                    else msg.toString()
+                }
+                json.has("error") -> {
+                    val err = json.get("error")
+                    if (err is JSONObject && err.has("message")) err.getString("message")
+                    else err.toString()
+                }
+                json.has("detail") -> json.getString("detail")
+                json.has("msg") -> json.getString("msg")
+                json.has("errors") -> {
+                    val errors = json.get("errors")
+                    if (errors is JSONArray && errors.length() > 0) {
+                        val first = errors.get(0)
+                        if (first is JSONObject && first.has("msg")) first.getString("msg")
+                        else if (first is JSONObject && first.has("message")) first.getString("message")
+                        else first.toString()
+                    } else errors.toString()
+                }
+                else -> trimmed
+            }
+        } else if (trimmed.startsWith("[")) {
+            val array = JSONArray(trimmed)
+            if (array.length() > 0) {
+                val first = array.get(0)
+                if (first is JSONObject && first.has("message")) first.getString("message")
+                else if (first is JSONObject && first.has("msg")) first.getString("msg")
+                else first.toString()
+            } else trimmed
+        } else {
+            trimmed
+        }
+    } catch (_: Exception) {
+        trimmed
     }
 }

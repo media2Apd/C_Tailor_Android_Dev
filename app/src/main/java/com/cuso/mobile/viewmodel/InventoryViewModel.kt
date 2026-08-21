@@ -14,6 +14,7 @@ import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.InventoryItemviewone
 import com.cuso.mobile.model.inventory.InventoryPagination
 import com.cuso.mobile.repository.InventoryRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -77,7 +78,7 @@ class InventoryViewModel @Inject constructor(
         search: String? = null,
         status: String? = null
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingInventoryItems.value = true
             _inventoryError.value = null
 
@@ -120,7 +121,7 @@ class InventoryViewModel @Inject constructor(
     }
 
     fun fetchInventoryItemDetail(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingItemDetail.value = true
             _itemDetailError.value = null
 
@@ -150,7 +151,7 @@ class InventoryViewModel @Inject constructor(
     val recentItemsError: StateFlow<String?> = _recentItemsError.asStateFlow()
 
     fun fetchRecentInventoryItems(limit: Int = 10) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingRecentItems.value = true
             _recentItemsError.value = null
 
@@ -181,7 +182,7 @@ class InventoryViewModel @Inject constructor(
         reason: String,
         notes: String
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _isAdjustingStock.value = true
             _adjustStockError.value = null
             _adjustStockSuccess.value = false
@@ -268,7 +269,7 @@ class InventoryViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
+        launchBusy {
             _createItemUiState.value = CreateItemUiState.Loading
             val result = inventoryRepository.createInventoryItem(context, form)
             _createItemUiState.value = result.fold(
@@ -308,7 +309,7 @@ class InventoryViewModel @Inject constructor(
     }
 
     fun fetchInventoryViewOne(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingViewOne.value = true
             _viewOneError.value = null
 

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.sales.GarmentPricingItem
 import com.cuso.mobile.repository.SalesRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +30,7 @@ class GarmentPricingViewModel @Inject constructor(
     private var cachedItems: List<GarmentPricingItem> = emptyList()
 
     fun loadGarmentPricing() {
-        viewModelScope.launch {
+        launchBusy {
             _uiState.value = GarmentPricingUiState.Loading
             salesRepository.getGarmentPricing()
                 .onSuccess { items ->

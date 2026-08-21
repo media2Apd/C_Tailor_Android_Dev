@@ -58,26 +58,26 @@
 //    val selectedGarments: StateFlow<List<SelectedGarment>> = _selectedGarments.asStateFlow()
 //
 //    fun loadSelectedGarments() {
-//        viewModelScope.launch {
+//        launchBusy {
 //            selectedGarmentDao.getGarmentsForSession(currentSessionId)
 //                .collect { list -> _selectedGarments.value = list }
 //        }
 //    }
 //
 //    fun addOrUpdateGarment(garment: SelectedGarment) {
-//        viewModelScope.launch {
+//        launchBusy {
 //            selectedGarmentDao.insertGarment(garment.copy(orderSessionId = currentSessionId))
 //        }
 //    }
 //
 //    fun deleteSelectedGarment(garmentId: String) {
-//        viewModelScope.launch {
+//        launchBusy {
 //            selectedGarmentDao.deleteGarmentById(garmentId)
 //        }
 //    }
 //
 //    fun clearAllSelectedGarments() {
-//        viewModelScope.launch {
+//        launchBusy {
 //            selectedGarmentDao.clearSession(currentSessionId)
 //        }
 //    }

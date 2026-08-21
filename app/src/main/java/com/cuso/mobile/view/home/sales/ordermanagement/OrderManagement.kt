@@ -14,9 +14,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,25 +39,27 @@ import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
-import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.home.formatIndianNumber
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.StatusBadge
+import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.sales.sales_order.orderStatusColors
 import com.cuso.mobile.view.home.sales.sales_order.paymentStatusColors
 import com.cuso.mobile.viewmodel.OrderManagementUiState
 import com.cuso.mobile.viewmodel.OrderManagementViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 
-// ─────────────────────────────────────────────────────────────
-// Order Management — real API (OrderManagementViewModel), separate from SalesOrderScreen.kt
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
+// Order Management Screen (Infinite Scrolling)
+// -------------------------------------------------------------
 @Suppress("UNUSED_PARAMETER")
-
 @Composable
 fun OrderManagementScreen(
     navController: NavController,
@@ -62,21 +67,40 @@ fun OrderManagementScreen(
     onBack: () -> Unit = {},
     onViewOrder: (String) -> Unit = {},
     onEditOrder: (String) -> Unit = {},
-    onBreadCrumbClick: () -> Unit ={}
-
+    onBreadCrumbClick: () -> Unit = {}
 ) {
-    val viewModel: OrderManagementViewModel = hiltViewModel()   //   CHANGED
+    val viewModel: OrderManagementViewModel = hiltViewModel()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMore.collectAsStateWithLifecycle()
+
+    val listState = rememberLazyListState()
 
     var searchQuery by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf("all") }
-    var page by remember { mutableIntStateOf(1) }
     val itemsPerPage = 10
-    var showStatusDropdown by remember { mutableStateOf(false) }
 
-    LaunchedEffect(page, statusFilter, searchQuery) {
-        viewModel.fetchOrderManagement(   //   CHANGED
-            page = page,
+    // Infinite scroll trigger
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val info = listState.layoutInfo
+            val total = info.totalItemsCount
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && lastVisible >= total - 3
+        }
+            .distinctUntilChanged()
+            .collect { nearEnd ->
+                if (nearEnd && canLoadMore && !isLoadingMore) {
+                    viewModel.loadMoreOrderManagement(limit = itemsPerPage)
+                }
+            }
+    }
+
+    // Debounced search and filter listener
+    LaunchedEffect(searchQuery, statusFilter) {
+        delay(400)
+        viewModel.fetchOrderManagement(
+            page = 1,
             limit = itemsPerPage,
             search = searchQuery.takeIf { it.isNotBlank() },
             status = statusFilter.takeIf { it != "all" }
@@ -85,35 +109,18 @@ fun OrderManagementScreen(
 
     val isLoading = orderState is OrderManagementUiState.Loading
     val orders = (orderState as? OrderManagementUiState.Success)?.orders ?: emptyList()
-    val total = (orderState as? OrderManagementUiState.Success)?.total ?: 0
-    val totalPages = (orderState as? OrderManagementUiState.Success)?.totalPages ?: 1
-
-    val statusOptions = listOf(
-        "all" to "All Statuses",
-        "pending" to "Pending",
-        "confirmed" to "Confirmed",
-        "processing" to "Processing",
-        "completed" to "Completed",
-        "draft" to "Draft",
-        "cancelled" to "Cancelled"
-    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
-            // ── Header ──
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
+            // Header
+            Column(modifier = Modifier.fillMaxWidth()) {
                 TitleBar("Orders Management", onClose = onBack)
-
             }
 
-            // ── Breadcrumb + Search + Filter ──
-            Column(modifier = Modifier.fillMaxWidth())
-            {
-                ScreenBreadcrumb(segments = listOf("Sales", "Orders Management"), onClick = {onBreadCrumbClick()})
+            // Breadcrumb + Search + Filter
+            Column(modifier = Modifier.fillMaxWidth()) {
+                ScreenBreadcrumb(segments = listOf("Sales", "Orders Management"), onClick = { onBreadCrumbClick() })
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
@@ -121,44 +128,50 @@ fun OrderManagementScreen(
                     accentColor = BluePrimary,
                     borderColor = BorderGray,
                     textSecondaryColor = TextSecondary,
-                    onFilterClick = {  }
+                    onFilterClick = { }
                 )
             }
+
             HorizontalDivider(color = Color(0xFFF0F0F0))
 
-
-            // ── Content ──
+            // Content
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when {
                     isLoading -> {
                         ListSkeleton()
                     }
-                    orderState is OrderManagementUiState.Error -> {   //   CHANGED
+
+                    orderState is OrderManagementUiState.Error -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
                                 Spacer(Modifier.height(8.dp))
                                 Text(
                                     (orderState as OrderManagementUiState.Error).message,
-                                    color = Color.Red, textAlign = TextAlign.Center,
+                                    color = Color.Red,
+                                    textAlign = TextAlign.Center,
                                     modifier = Modifier.padding(horizontal = 32.dp)
                                 )
                                 Spacer(Modifier.height(12.dp))
                                 Button(
                                     onClick = {
                                         viewModel.fetchOrderManagement(
-                                            page = page, limit = itemsPerPage,
+                                            page = 1,
+                                            limit = itemsPerPage,
                                             search = searchQuery.takeIf { it.isNotBlank() },
                                             status = statusFilter.takeIf { it != "all" }
                                         )
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
                                     shape = RoundedCornerShape(8.dp)
-                                ) { Text("Retry", color = whiteBg) }
+                                ) {
+                                    Text("Retry", color = whiteBg)
+                                }
                             }
                         }
                     }
-                    orderState is OrderManagementUiState.Success -> {   //   CHANGED
+
+                    orderState is OrderManagementUiState.Success -> {
                         if (orders.isEmpty()) {
                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -169,28 +182,46 @@ fun OrderManagementScreen(
                             }
                         } else {
                             Column(modifier = Modifier.fillMaxSize()) {
-                                LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                                    items(orders) { order ->
-                                        OrderManagementCard(   //   CHANGED — extracted, uses flat OrderManagementItem
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxWidth().weight(1f)
+                                ) {
+                                    items(orders, key = { it.id }) { order ->
+                                        OrderManagementCard(
                                             order = order,
                                             onView = { onViewOrder(order.id) },
                                             onEdit = { onEditOrder(order.id) }
                                         )
                                     }
+
+                                    // Bottom loader when fetching next page
+                                    if (isLoadingMore) {
+                                        item {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                CirculerProgressIndicatorSmall()
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
+
                     else -> Unit
                 }
             }
         }
-
-
     }
 }
 
-// ── Individual order card — uses flat OrderManagementItem fields ──
+// -------------------------------------------------------------
+// Individual Order Card
+// -------------------------------------------------------------
 @Composable
 private fun OrderManagementCard(
     order: OrderManagementItem,
@@ -213,7 +244,7 @@ private fun OrderManagementCard(
         subtitle = "+91 ${order.mobile?.takeLast(10) ?: "—"}",
         footerFields = listOf(
             DataCardField(text = order.garments, textColor = mutedText),
-            DataCardField(text = "Delivery: ${formatIsoDate(order.deliveryDate)}", textColor = mutedText )
+            DataCardField(text = "Delivery: ${formatIsoDate(order.deliveryDate)}", textColor = mutedText)
         ),
         content = {
             val tokens = LocalAppTokens.current
@@ -251,14 +282,14 @@ private fun OrderManagementCard(
             }
         },
         actions = listOf(
-            MenuAction("View", Icons.Default.Visibility) { onView() },
-//            MenuAction("Edit", Icons.Default.Edit) { onEdit() }
+            MenuAction("View", Icons.Default.Visibility) { onView() }
         )
     )
 }
 
-// ── ISO date "2026-07-02T00:00:00.000Z" -> "02 Jul 2026" ──
-
+// -------------------------------------------------------------
+// Date Formatter Helper
+// -------------------------------------------------------------
 private fun formatIsoDate(iso: String?): String {
     if (iso.isNullOrBlank()) return "—"
     return try {
@@ -269,5 +300,7 @@ private fun formatIsoDate(iso: String?): String {
             val month = months.getOrNull(parts[1].toInt() - 1) ?: parts[1]
             "${parts[2]} $month ${parts[0]}"
         } else iso
-    } catch (_: Exception) { iso }
+    } catch (_: Exception) {
+        iso
+    }
 }

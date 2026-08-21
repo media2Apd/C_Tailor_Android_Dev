@@ -22,7 +22,7 @@ import com.cuso.mobile.model.finance.UpdateJournalEntryResponse
 import com.cuso.mobile.model.sales.CustomerDetailV2
 import com.cuso.mobile.model.sales.CustomerListResponseV2
 import com.cuso.mobile.model.sales.GetFinanceCustomerViewOneResponse
-import com.cuso.mobile.network.ApiService
+import com.cuso.mobile.network.finance.FinanceApiService
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
@@ -34,7 +34,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class FinanceRepository @Inject constructor(
-    private val api: ApiService,
+    private val financeApi: FinanceApiService,
     private val tokensDao: com.cuso.mobile.database.dao.TokensDao
 ) {
 
@@ -56,7 +56,7 @@ class FinanceRepository @Inject constructor(
     ): Result<CustomerListResponseV2> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getCustomerForFinance(
+            val response = financeApi.getCustomerForFinance(
                 token = accessToken,
                 csrfToken = csrfToken,
                 page = page,
@@ -76,26 +76,10 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    suspend fun getCustomerDetailV2(id: String): Result<CustomerDetailV2> {
-        return try {
-            val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getCustomerDetailV2(accessToken, csrfToken, id)
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!.data)
-            } else {
-                Result.failure(
-                    Exception(response.errorBody()?.string() ?: "Failed to fetch customer details: ${response.code()}")
-                )
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
     suspend fun getFinanceCustomerViewOne(id: String): Result<GetFinanceCustomerViewOneResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getFinanceCustomerViewOne(accessToken, csrfToken, id)
+            val response = financeApi.getFinanceCustomerViewOne(accessToken, csrfToken, id)
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!)
             } else {
@@ -116,7 +100,7 @@ class FinanceRepository @Inject constructor(
     ): Result<InvoiceListResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getInvoices(
+            val response = financeApi.getInvoices(
                 token = accessToken,
                 csrfToken = csrfToken,
                 page = page,
@@ -139,7 +123,7 @@ class FinanceRepository @Inject constructor(
     suspend fun getInvoiceViewOne(id: String): Result<InvoiceViewOneData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getInvoiceViewOne(
+            val response = financeApi.getInvoiceViewOne(
                 token = accessToken,
                 csrfToken = csrfToken,
                 id = id
@@ -160,7 +144,7 @@ class FinanceRepository @Inject constructor(
     suspend fun getChartOfAccounts(): Result<List<ChartOfAccountItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getChartOfAccounts(accessToken, csrfToken)
+            val response = financeApi.getChartOfAccounts(accessToken, csrfToken)
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!.data)
             } else {
@@ -182,7 +166,7 @@ class FinanceRepository @Inject constructor(
     ): Result<ExpenseListResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getExpenses(accessToken, csrfToken, page, limit, search, status)
+            val response = financeApi.getExpenses(accessToken, csrfToken, page, limit, search, status)
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!)
             } else {
@@ -199,7 +183,7 @@ class FinanceRepository @Inject constructor(
     suspend fun getExpenseViewOne(id: String): Result<ExpenseItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getExpenseViewOne(accessToken, csrfToken, id)
+            val response = financeApi.getExpenseViewOne(accessToken, csrfToken, id)
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!.data)
             } else {
@@ -230,7 +214,7 @@ class FinanceRepository @Inject constructor(
             fun String.asTextBody(): okhttp3.RequestBody =
                 this.toRequestBody("text/plain".toMediaTypeOrNull())
 
-            val response = api.createExpense(
+            val response = financeApi.createExpense(
                 token = accessToken,
                 csrfToken = csrfToken,
                 branch = branch.asTextBody(),
@@ -265,7 +249,7 @@ class FinanceRepository @Inject constructor(
     ): Result<CreateChartOfAccountResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.createChartOfAccount(
+            val response = financeApi.createChartOfAccount(
                 token = accessToken,
                 csrfToken = csrfToken,
                 request = CreateChartOfAccountRequest(
@@ -297,7 +281,7 @@ class FinanceRepository @Inject constructor(
     ): Result<CreateChartOfAccountResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.updateChartOfAccount(
+            val response = financeApi.updateChartOfAccount(
                 token = accessToken,
                 csrfToken = csrfToken,
                 id = id,
@@ -324,7 +308,7 @@ class FinanceRepository @Inject constructor(
     suspend fun deleteChartOfAccount(id: String): Result<CreateChartOfAccountResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.deleteChartOfAccount(
+            val response = financeApi.deleteChartOfAccount(
                 token = accessToken,
                 csrfToken = csrfToken,
                 id = id
@@ -345,7 +329,7 @@ class FinanceRepository @Inject constructor(
     suspend fun getTrialBalance(): Result<List<TrialBalanceItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getTrialBalance(accessToken, csrfToken)
+            val response = financeApi.getTrialBalance(accessToken, csrfToken)
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!.data)
             } else {
@@ -367,7 +351,7 @@ class FinanceRepository @Inject constructor(
     ): Result<JournalEntryListResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getJournalEntries(accessToken, csrfToken, page, limit, search, status)
+            val response = financeApi.getJournalEntries(accessToken, csrfToken, page, limit, search, status)
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!)
             } else {
@@ -390,7 +374,7 @@ class FinanceRepository @Inject constructor(
     ): Result<CreateJournalEntryResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.createJournalEntry(
+            val response = financeApi.createJournalEntry(
                 token = accessToken,
                 csrfToken = csrfToken,
                 request = CreateJournalEntryRequest(
@@ -427,7 +411,7 @@ class FinanceRepository @Inject constructor(
     ): Result<UpdateJournalEntryResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.updateJournalEntry(
+            val response = financeApi.updateJournalEntry(
                 token = accessToken,
                 csrfToken = csrfToken,
                 id = id,
@@ -456,7 +440,7 @@ class FinanceRepository @Inject constructor(
     suspend fun getLedger(accountId: String): Result<List<LedgerItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getLedger(accessToken, csrfToken, accountId)
+            val response = financeApi.getLedger(accessToken, csrfToken, accountId)
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!.data)
             } else {
@@ -472,7 +456,7 @@ class FinanceRepository @Inject constructor(
     suspend fun deleteJournalEntry(id: String): Result<String> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.deleteJournalEntry(
+            val response = financeApi.deleteJournalEntry(
                 token = accessToken,
                 csrfToken = csrfToken,
                 id = id
@@ -492,7 +476,7 @@ class FinanceRepository @Inject constructor(
     suspend fun getJournalEntryViewOne(id: String): Result<JournalEntryDetailData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getJournalEntryDetail(accessToken, csrfToken, id)
+            val response = financeApi.getJournalEntryDetail(accessToken, csrfToken, id)
             if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
                 Result.success(response.body()!!.data!!)
             } else {

@@ -30,6 +30,8 @@ import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 
 @Suppress("UNUSED_PARAMETER", "VariableNeverRead")
 @Composable
@@ -139,7 +141,8 @@ fun LoginScreen(
                 }
             }
             DynamicIslandSuccess(
-                modifier = Modifier.align(Alignment.TopCenter),
+                modifier = Modifier.align(Alignment.TopCenter)
+                    .padding(top = 100.dp),
                 message = successMessage,
                 onDismiss = { successMessage = null }
             )
@@ -150,7 +153,5 @@ fun LoginScreen(
                 successMessage = resetSuccessMessage
             }
         }
-
-
     }
 }

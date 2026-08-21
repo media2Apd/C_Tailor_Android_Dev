@@ -24,6 +24,8 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
@@ -39,6 +41,8 @@ import com.cuso.mobile.adaptive_screen.getAdaptiveTokens
 import com.cuso.mobile.repository.SessionManager
 import com.cuso.mobile.ui.theme.CusoTailorTheme
 import com.cuso.mobile.ui.theme.NoRippleProvider
+import com.cuso.mobile.utils.AppLoadingManager
+import com.cuso.mobile.utils.LocalIsAppBusy
 import com.cuso.mobile.view.forgot_password.ForgotUserPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
 import com.cuso.mobile.view.forgot_password.VerifyForgotPassword
@@ -58,6 +62,7 @@ import com.cuso.mobile.view.others.TermsConditions
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -86,9 +91,18 @@ class MainActivity : ComponentActivity() {
                 // 2. Generate the adaptive design tokens based on screen width
                 val tokens = getAdaptiveTokens(windowSizeClass.widthSizeClass)
 
+                // Global "is any API call in flight" flag. Read by every
+                // reusable input (AppTextField, AppDropdown, AppButton, etc.)
+                // via LocalIsAppBusy so fields auto-disable app-wide without
+                // each screen having to wire up its own loading state.
+                val isAppBusy by AppLoadingManager.busyState.collectAsState()
+
                 // 3. Provide the tokens to the entire UI tree using CompositionLocalProvider
                 // This prevents the IllegalStateException in child components like DynamicIsland
-                CompositionLocalProvider(LocalAppTokens provides tokens) {
+                CompositionLocalProvider(
+                    LocalAppTokens provides tokens,
+                    LocalIsAppBusy provides isAppBusy
+                ) {
                     CusoTailorTheme {
                         NoRippleProvider {
                             val focusManager = LocalFocusManager.current

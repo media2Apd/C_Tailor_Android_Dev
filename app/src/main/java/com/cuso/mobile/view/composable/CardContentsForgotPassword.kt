@@ -79,23 +79,16 @@ fun CardContentsForgotPassword(
 
         // Standardized Primary Button (40dp height, 5dp radius)
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-            Button(
+            AppButton(
+                text = "Send Reset Code",
                 onClick = {
                     focusManager.clearFocus()
                     if (email.isNotBlank()) authViewModel.forgotPasswordOtp(email)
                 },
                 enabled = email.isNotBlank() && forgotPasswordState !is UiState.Loading,
-                modifier = Modifier.fillMaxWidth().height(40.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = whiteBg),
-                shape = RoundedCornerShape(5.dp),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                if (forgotPasswordState is UiState.Loading) {
-                    CirculerProgressIndicatorSmall()
-                } else {
-                    Text("Send Reset Code", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
+                isLoading = forgotPasswordState is UiState.Loading,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         Spacer(Modifier.height(tokens.screenPadding))

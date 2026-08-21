@@ -1,5 +1,3 @@
-//REFERENCE
-
 @file:Suppress(
     "UNUSED_VALUE",
     "SpellCheckingInspection",
@@ -11,58 +9,66 @@ package com.cuso.mobile.view.home.sales.sales_order
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.cuso.mobile.view.composable.DataCard
-import com.cuso.mobile.view.composable.DataCardField
-import com.cuso.mobile.view.composable.MenuAction
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.ui.res.painterResource
+import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.greenBg
 import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.redBg
 import com.cuso.mobile.ui.theme.redtext
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.ui.theme.yellowBg
 import com.cuso.mobile.ui.theme.yellowtext
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.DataCardImage
-import com.cuso.mobile.view.composable.FabConfig
-import com.cuso.mobile.view.composable.FabScaffold
-import com.cuso.mobile.view.composable.ListSkeleton
-import com.cuso.mobile.view.composable.SearchFilterBar
-import com.cuso.mobile.viewmodel.OrderActionState
-import com.cuso.mobile.viewmodel.OrderUiState
-import com.cuso.mobile.viewmodel.SalesOrderViewModel
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.ErrorMapper
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.viewmodel.OrderActionState
+import com.cuso.mobile.viewmodel.OrderUiState
+import com.cuso.mobile.viewmodel.SalesOrderViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.cuso.mobile.R
-import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.TitleBar
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // Screen
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun SalesOrderScreen(
@@ -77,21 +83,41 @@ fun SalesOrderScreen(
     val viewModel: SalesOrderViewModel = hiltViewModel()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
     val actionState by viewModel.actionState.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMore.collectAsStateWithLifecycle()
+
     val snackbarHostState = remember { SnackbarHostState() }
+    val listState = rememberLazyListState()
 
     var searchQuery by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf("all") }
-    var page by remember { mutableIntStateOf(1) }
-    var itemsPerPage by remember { mutableIntStateOf(10) }
 
     // Dynamic Island State variables
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(page, itemsPerPage, statusFilter, searchQuery) {
+    // Infinite scroll trigger
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val info = listState.layoutInfo
+            val total = info.totalItemsCount
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && lastVisible >= total - 3
+        }
+            .distinctUntilChanged()
+            .collect { nearEnd ->
+                if (nearEnd && canLoadMore && !isLoadingMore) {
+                    viewModel.loadMoreOrders()
+                }
+            }
+    }
+
+    // Debounced Search and Filter Listener
+    LaunchedEffect(searchQuery, statusFilter) {
+        delay(400)
         viewModel.fetchOrders(
-            page = page,
-            limit = itemsPerPage,
+            page = 1,
+            limit = 10,
             search = searchQuery.takeIf { it.isNotBlank() },
             status = statusFilter.takeIf { it != "all" }
         )
@@ -108,12 +134,10 @@ fun SalesOrderScreen(
     LaunchedEffect(actionState) {
         when (val s = actionState) {
             is OrderActionState.Success -> {
-                // Dynamic Island Success Message
                 successMessage = s.message.ifBlank { "Order created successfully" }
                 viewModel.resetActionState()
             }
             is OrderActionState.Error -> {
-                // Dynamic Island Error Message
                 errorMessage = ErrorMapper.map(s.message)
                 viewModel.resetActionState()
             }
@@ -123,8 +147,6 @@ fun SalesOrderScreen(
 
     val isLoading = orderState is OrderUiState.Loading
     val orders = (orderState as? OrderUiState.Success)?.orders ?: emptyList()
-    val total = (orderState as? OrderUiState.Success)?.total ?: 0
-    val totalPages = (orderState as? OrderUiState.Success)?.totalPages ?: 1
 
     FabScaffold(
         fab = FabConfig(
@@ -140,20 +162,13 @@ fun SalesOrderScreen(
 
             Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
-                // ── FIXED TOP HEADER ──
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
+                // Fixed Top Header
+                Column(modifier = Modifier.fillMaxWidth()) {
                     TitleBar("Sales orders", onClose = onBack)
-
                 }
 
-                // ── Breadcrumb + Search + Status filter ──
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
+                // Breadcrumb + Search + Status filter
+                Column(modifier = Modifier.fillMaxWidth()) {
                     ScreenBreadcrumb(segments = listOf("Sales", "Sales Orders"), onClick = { onBreadCrumbClick() })
                     SearchFilterBar(
                         query = searchQuery,
@@ -167,7 +182,7 @@ fun SalesOrderScreen(
                 }
                 HorizontalDivider(color = Color(0xFFF0F0F0))
 
-                // ── Content ──
+                // Content
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when {
                         isLoading -> {
@@ -179,7 +194,7 @@ fun SalesOrderScreen(
                                     Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
                                     Spacer(Modifier.height(8.dp))
                                     Text(
-                                        (orderState as OrderUiState.Error).message,
+                                        text = (orderState as OrderUiState.Error).message,
                                         color = Color.Red,
                                         textAlign = TextAlign.Center,
                                         modifier = Modifier.padding(horizontal = 32.dp)
@@ -188,8 +203,8 @@ fun SalesOrderScreen(
                                     Button(
                                         onClick = {
                                             viewModel.fetchOrders(
-                                                page = page,
-                                                limit = itemsPerPage,
+                                                page = 1,
+                                                limit = 10,
                                                 search = searchQuery.takeIf { it.isNotBlank() },
                                                 status = statusFilter.takeIf { it != "all" }
                                             )
@@ -214,15 +229,16 @@ fun SalesOrderScreen(
                             } else {
                                 Column(modifier = Modifier.fillMaxSize()) {
                                     LazyColumn(
+                                        state = listState,
                                         modifier = Modifier.fillMaxWidth().weight(1f)
                                     ) {
-                                        items(orders) { order ->
+                                        items(orders, key = { it.id }) { order ->
                                             val (_, statusTextColor) = orderStatusColors(order.status)
                                             val garmentNames = order.garments.joinToString(", ") { it.categoryName }.ifEmpty { "—" }
                                             DataCard(
                                                 item = order,
                                                 image = DataCardImage(
-                                                    painter= painterResource(R.drawable.ic_person),
+                                                    painter = painterResource(R.drawable.ic_person),
                                                     size = 30.dp,
                                                     backgroundColor = Color.Transparent,
                                                     tint = blackTitle
@@ -235,7 +251,8 @@ fun SalesOrderScreen(
                                                 subtitle = "Order ID : ${order.orderNumber}",
                                                 footerAsRows = true,
                                                 footerFields = listOf(
-                                                    DataCardField(label = "Items", text = formatGarmentsSummary(garmentNames), asRow = true),                                                    DataCardField(label = "Price", text = order.totalAmount?.let { "₹$it" } ?: "—", asRow = true),
+                                                    DataCardField(label = "Items", text = formatGarmentsSummary(garmentNames), asRow = true),
+                                                    DataCardField(label = "Price", text = order.totalAmount?.let { "₹$it" } ?: "—", asRow = true),
                                                     DataCardField(label = "Date Of Delivery", text = order.deliveryDate.toDisplayDate(), asRow = true),
                                                     DataCardField(label = "Priority", text = "—", asRow = true)
                                                 ),
@@ -245,6 +262,19 @@ fun SalesOrderScreen(
                                                 )
                                             )
                                         }
+
+                                        if (isLoadingMore) {
+                                            item {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(16.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    CirculerProgressIndicatorSmall()
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -253,14 +283,13 @@ fun SalesOrderScreen(
                 }
             }
 
-            // ── Dynamic Island Success Notification ──
+            // Dynamic Island Notifications
             DynamicIslandSuccess(
                 modifier = Modifier.align(Alignment.TopCenter),
                 message = successMessage,
                 onDismiss = { successMessage = null }
             )
 
-            // ── Dynamic Island Error Notification ──
             DynamicIslandError(
                 modifier = Modifier.align(Alignment.TopCenter),
                 message = errorMessage,
@@ -269,19 +298,20 @@ fun SalesOrderScreen(
         }
     }
 }
+
 private fun formatGarmentsSummary(garments: String): String {
     if (garments.isBlank()) return "—"
     val names = garments.split(",").map { it.trim().substringBefore("(").trim() }
     return when {
         names.isEmpty() -> "—"
-        names.size == 1 -> names[0]                              // 1 item → "Pant"
-        else -> "${names[0]}, ${names.size - 1} more"             // N items → "Pant, 2 more"
+        names.size == 1 -> names[0]
+        else -> "${names[0]}, ${names.size - 1} more"
     }
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // Helpers
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 fun orderStatusColors(status: String?): Pair<Color, Color> = when (status?.lowercase()) {
     "confirmed"  -> greenBg to greentext
@@ -298,6 +328,7 @@ fun paymentStatusColors(status: String): Pair<Color, Color> = when (status.lower
     "unpaid"  -> redBg to redtext
     else      -> Color(0xFFF3F4F6) to Color(0xFF6B7280)
 }
+
 fun Long?.toDisplayDate(): String {
     if (this == null) return "—"
     return runCatching { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(this)) }.getOrDefault("—")

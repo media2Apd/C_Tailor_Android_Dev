@@ -74,6 +74,7 @@ import java.util.*
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.disabled
 import com.cuso.mobile.ui.theme.light_blue
 import com.cuso.mobile.ui.theme.light_blue_border
 import com.cuso.mobile.ui.theme.mutedText
@@ -415,6 +416,7 @@ fun OrderOverviewScreen(
                                 }
                             }
                         }
+
 
                         // ── FABs (moved inside content Box too, same behavior) ──
                         androidx.compose.animation.AnimatedVisibility(
@@ -1423,7 +1425,7 @@ private fun PaymentTab(
         InfoRow("Discount", "₹${formatOverviewNumber(payment.discount)}", valueColor = PaidGreen)
         InfoRow("Paid Total", "₹${formatOverviewNumber(payment.paidTotal)}")
         InfoRow("Balance Pending", "₹${formatOverviewNumber(payment.balancePending)}", valueColor = BalanceRed)
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(100.dp))
     }
 }
 // ─────────────────────────────────────────────────────────────────────────
@@ -1651,7 +1653,7 @@ private fun ReceivePaymentSheet(
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         enabled = !isSaving,
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary, disabledContainerColor = disabled)
                     ) {
                         if (isSaving) {
                             CirculerProgressIndicatorSmall()

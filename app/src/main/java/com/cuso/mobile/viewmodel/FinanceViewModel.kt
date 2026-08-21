@@ -24,6 +24,7 @@ import com.cuso.mobile.model.sales.CustomerListResponseV2
 import com.cuso.mobile.model.sales.FinanceCustomerViewOneData
 import com.cuso.mobile.model.sales.PaginationInfo
 import com.cuso.mobile.repository.FinanceRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -224,7 +225,7 @@ class FinanceViewModel @Inject constructor(
         status: String = "Posted",
         lines: List<com.cuso.mobile.model.finance.JournalEntryLineRequest>
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _createJournalState.value = CreateJournalState.Loading
 
             val result = financeRepository.createJournal(
@@ -266,7 +267,7 @@ class FinanceViewModel @Inject constructor(
         status: String = "Posted",
         lines: List<com.cuso.mobile.model.finance.JournalEntryLineRequest>
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _updateJournalState.value = UpdateJournalState.Loading
 
             val result = financeRepository.updateJournal(
@@ -300,7 +301,7 @@ class FinanceViewModel @Inject constructor(
     }
 
     fun getFinanceCustomerViewOne(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingFinanceCustomerDetail.value = true
             _financeCustomerDetailError.value = null
 
@@ -324,7 +325,7 @@ class FinanceViewModel @Inject constructor(
         limit: Int = 10,
         search: String? = null
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingFinanceCustomers.value = true
             _financeCustomerError.value = null
 
@@ -351,7 +352,7 @@ class FinanceViewModel @Inject constructor(
         search: String? = null,
         status: String? = null
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingInvoices.value = true
             _invoiceError.value = null
 
@@ -375,7 +376,7 @@ class FinanceViewModel @Inject constructor(
 
 
     fun fetchInvoiceDetail(invoiceId: String) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingInvoiceDetail.value = true
             _invoiceDetailError.value = null
             _invoiceDetail.value = null
@@ -396,7 +397,7 @@ class FinanceViewModel @Inject constructor(
     }
 
     fun fetchChartOfAccounts() {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingChartOfAccounts.value = true
             _chartOfAccountsError.value = null
 
@@ -417,7 +418,7 @@ class FinanceViewModel @Inject constructor(
         search: String? = null,
         status: String? = null
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingExpenses.value = true
             _expenseError.value = null
 
@@ -436,7 +437,7 @@ class FinanceViewModel @Inject constructor(
     }
 
     fun fetchExpenseDetail(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingExpenseDetail.value = true
             _expenseDetail.value = null
 
@@ -462,7 +463,7 @@ class FinanceViewModel @Inject constructor(
         status: String?,
         fileParts: List<okhttp3.MultipartBody.Part> = emptyList()
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _createExpenseState.value = CreateExpenseState.Loading
 
             val result = financeRepository.createExpense(
@@ -492,7 +493,7 @@ class FinanceViewModel @Inject constructor(
         description: String? = null,
         parentAccount: String? = null
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _createAccountState.value = CreateAccountState.Loading
 
             val result = financeRepository.createChartOfAccount(
@@ -525,7 +526,7 @@ class FinanceViewModel @Inject constructor(
         description: String? = null,
         parentAccount: String? = null
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _updateAccountState.value = UpdateAccountState.Loading
 
             val result = financeRepository.updateChartOfAccount(
@@ -553,7 +554,7 @@ class FinanceViewModel @Inject constructor(
     }
 
     fun deleteChartOfAccount(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _deleteAccountState.value = DeleteAccountState.Loading
 
             val result = financeRepository.deleteChartOfAccount(id)
@@ -575,7 +576,7 @@ class FinanceViewModel @Inject constructor(
     }
 
     fun fetchTrialBalance() {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingTrialBalance.value = true
             _trialBalanceError.value = null
 
@@ -596,7 +597,7 @@ class FinanceViewModel @Inject constructor(
         search: String? = null,
         status: String? = null
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingJournalEntries.value = true
             _journalEntriesError.value = null
 
@@ -615,7 +616,7 @@ class FinanceViewModel @Inject constructor(
     }
 
     fun fetchLedger(accountId: String) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingLedger.value = true
             _ledgerError.value = null
 
@@ -631,7 +632,7 @@ class FinanceViewModel @Inject constructor(
     }
 
     fun deleteJournalEntry(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _deleteJournalState.value = DeleteJournalState.Loading
             val result = financeRepository.deleteJournalEntry(id)
             result.fold(
@@ -649,7 +650,7 @@ class FinanceViewModel @Inject constructor(
     }
 
     fun fetchJournalEntryDetail(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingJournalDetail.value = true
             _journalDetailError.value = null
             _journalEntryDetail.value = null

@@ -10,7 +10,7 @@ import com.cuso.mobile.model.hr.RoleItem
 import com.cuso.mobile.model.hr.ShiftItem
 import com.cuso.mobile.model.hr.UpdateMemberRequest
 import com.cuso.mobile.model.hr.UploadProfilePictureResponse
-import com.cuso.mobile.network.ApiService
+import com.cuso.mobile.network.hr.HrApiService
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -22,7 +22,7 @@ import javax.inject.Singleton
 
 @Singleton
 class HrRepository @Inject constructor(
-    private val api: ApiService,
+    private val hrApi: HrApiService,
     private val tokensDao: com.cuso.mobile.database.dao.TokensDao
 ) {
 
@@ -36,7 +36,7 @@ class HrRepository @Inject constructor(
     suspend fun getRoles(): Result<List<RoleItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getRoles(accessToken, csrfToken)
+            val response = hrApi.getRoles(accessToken, csrfToken)
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!.data)
             } else {
@@ -58,7 +58,7 @@ class HrRepository @Inject constructor(
     ): Result<MemberListResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getMembers(
+            val response = hrApi.getMembers(
                 token = accessToken,
                 csrfToken = csrfToken,
                 page = page,
@@ -82,7 +82,7 @@ class HrRepository @Inject constructor(
     suspend fun getShifts(): Result<List<ShiftItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getShifts(accessToken, csrfToken)
+            val response = hrApi.getShifts(accessToken, csrfToken)
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!.data)
             } else {
@@ -141,7 +141,7 @@ class HrRepository @Inject constructor(
     suspend fun createMember(request: CreateMemberRequest): Result<CreatedMemberFullData> {
         return try {
             val (authHeader, csrfToken) = getAuthHeaders()
-            val response = api.createMember(authHeader, csrfToken, request)
+            val response = hrApi.createMember(authHeader, csrfToken, request)
             val body = response.body()
 
             if (response.isSuccessful && body?.success == true && body.data != null) {
@@ -157,7 +157,7 @@ class HrRepository @Inject constructor(
     suspend fun updateMember(memberId: String, request: UpdateMemberRequest): Result<CreatedMemberFullData> {
         return try {
             val (authHeader, csrfToken) = getAuthHeaders()
-            val response = api.updateMember(authHeader, csrfToken, memberId, request)
+            val response = hrApi.updateMember(authHeader, csrfToken, memberId, request)
             val body = response.body()
 
             if (response.isSuccessful && body?.success == true && body.data != null) {
@@ -173,7 +173,7 @@ class HrRepository @Inject constructor(
     suspend fun getMemberDetail(memberId: String): Result<MemberDetail> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getMemberViewOne(accessToken, csrfToken, memberId)
+            val response = hrApi.getMemberViewOne(accessToken, csrfToken, memberId)
             if (response.isSuccessful && response.body()?.success == true) {
                 response.body()?.member?.let { Result.success(it) }
                     ?: Result.failure(Exception("Empty member detail"))
@@ -198,7 +198,7 @@ class HrRepository @Inject constructor(
                 requestFile
             )
 
-            val response = api.uploadProfilePicture(
+            val response = hrApi.uploadProfilePicture(
                 token = authHeader,
                 csrfToken = csrfToken,
                 memberId = memberId,
@@ -219,7 +219,7 @@ class HrRepository @Inject constructor(
         return try {
             val (authHeader, csrfToken) = getAuthHeaders()
 
-            val response = api.deleteProfilePicture(
+            val response = hrApi.deleteProfilePicture(
                 token = authHeader,
                 csrfToken = csrfToken,
                 memberId = memberId

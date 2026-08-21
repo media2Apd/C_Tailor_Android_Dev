@@ -7,6 +7,7 @@ import com.cuso.mobile.model.sales.CustomerViewAddress
 import com.cuso.mobile.model.sales.CustomerViewData
 import com.cuso.mobile.model.sales.UpdateCustomerRequest
 import com.cuso.mobile.repository.SalesRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -72,7 +73,7 @@ class CustomerViewModel @Inject constructor(
         currentSearch = search
         currentType = type
 
-        viewModelScope.launch {
+        launchBusy {
             val result = repository.getCustomers(
                 page = currentPage,
                 limit = currentLimit,
@@ -155,7 +156,7 @@ class CustomerViewModel @Inject constructor(
      * (Personal Information step) with it. Other wizard steps stay static.
      */
     fun loadCustomerDetail(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _detailState.update { CustomerDetailUiState.Loading }
             _updateState.update { CustomerUpdateState.Idle }
 
@@ -243,7 +244,7 @@ class CustomerViewModel @Inject constructor(
             v = original.v
         )
 
-        viewModelScope.launch {
+        launchBusy {
             _updateState.update { CustomerUpdateState.Loading }
 
             val result = repository.updateCustomer(id, request)
@@ -264,7 +265,7 @@ class CustomerViewModel @Inject constructor(
     }
 
     fun deleteCustomer(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _deleteState.update { CustomerDeleteState.Loading }
 
             val result = repository.deleteCustomer(id)

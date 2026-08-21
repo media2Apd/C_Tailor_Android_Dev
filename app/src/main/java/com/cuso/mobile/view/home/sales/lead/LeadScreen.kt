@@ -56,8 +56,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -99,9 +97,7 @@ import com.cuso.mobile.model.sales.toLeadEntity
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.close_color
 import com.cuso.mobile.ui.theme.primary_light
 import com.cuso.mobile.ui.theme.title_color
@@ -364,6 +360,7 @@ private fun validateLeadFields(
     if (fullName.isBlank()) missing += "Full Name"
     if (phone.isBlank()) missing += "Mobile Number"
     if (email.isBlank()) missing += "Email"
+    if (preferredContact.isBlank()) missing += "Preferred Contact Method"
     if (enquiryType.isBlank()) missing += "Enquiry Type"
     if (estimatedQuantity.isBlank()) missing += "Estimated Quantity"
     if (garmentCategory.isBlank()) missing += "Garment Category"
@@ -476,6 +473,16 @@ fun LeadFormScreen(
     val salesStatuses by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
 
+    // 1. Initial Garments list
+    val initialGarmentNames = remember(l?.garments, garmentCategories) {
+        if (!l?.garments.isNullOrBlank() && garmentCategories.isNotEmpty()) {
+            val ids = l.garments.split(",").filter { it.isNotBlank() }
+            ids.mapNotNull { id -> garmentCategories.find { it.id == id }?.categoryId?.categoryName }
+        } else {
+            emptyList()
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (staffList.isEmpty()) salesViewModel.fetchStaff()
         if (garmentCategories.isEmpty()) salesViewModel.fetchGarmentCategories()
@@ -581,7 +588,7 @@ fun LeadFormScreen(
         mapOf(
             "lead_info" to listOf("leadSource", "enquiryDate", "leadOwner", "leadStatus"),
             "customer" to listOf("fullName", "phone", "email"),
-            "location" to emptyList(),
+            "location" to listOf("preferredContact"),
             "enquiry" to listOf("enquiryType", "estimatedQuantity", "garmentCategory", "requiredDate"),
             "appointment" to listOf("appointmentDate", "appointmentTime", "assignedStaff", "followUpDate", "priority")
         )
@@ -617,6 +624,16 @@ fun LeadFormScreen(
             val names = ids.mapNotNull { id -> garmentCategories.find { it.id == id }?.categoryId?.categoryName }
             if (names.isNotEmpty()) selectedGarmentCategories = names
         }
+    }
+    val isFormDirty = remember(
+        l, leadSource, enquiryDate, leadOwner, leadStatus, customerType,
+        fullName, email, gender, dob, address, areaZone, city, preferredContact,
+        enquiryType, estimatedQuantity, budgetRange, requiredDate, occasion,
+        appointmentRequired, appointmentDate, appointmentTime, assignedStaff,
+        followUpDate, priority, internalNotes, customerNotes, phone,
+        selectedGarmentCategories, initialGarmentNames
+    ) {
+        l != null
     }
 
     fun clearAllFields() {
@@ -706,6 +723,7 @@ fun LeadFormScreen(
             add(ValidationField("fullName", fullName, "Full Name is required"))
             add(ValidationField("phone", phone, "Mobile Number is required"))
             add(ValidationField("email", email, "Email is required"))
+            add(ValidationField("preferredContact", preferredContact, "Preferred Contact Method is required"))
             add(ValidationField("enquiryType", enquiryType, "Enquiry Type is required"))
             add(ValidationField("estimatedQuantity", estimatedQuantity, "Estimated Quantity is required"))
             add(ValidationField("garmentCategory", selectedGarmentCategories.joinToString(","), "Garment Category is required"))
@@ -932,7 +950,7 @@ fun LeadFormScreen(
                                     ViewFieldValue("Email", email.ifEmpty { "—" })
                                     if (customerType.equals("Individual", ignoreCase = true)) {
                                         ViewFieldValue("Gender", gender.ifEmpty { "—" })
-                                        ViewFieldValue("Date of Birth", dob.ifEmpty { "—" })
+                                        ViewFieldValue("Date of Birth", dob.ifEmpty { "" })
                                     }
                                 } else {
                                     SettingsTabs(
@@ -1027,7 +1045,9 @@ fun LeadFormScreen(
                                         preferredContactExpanded,
                                         { preferredContactExpanded = it },
                                         preferredContactOptions,
-                                        { preferredContact = it }
+                                        { preferredContact = it },
+                                        isRequired = true,
+
                                     )
                                 }
                             }
@@ -1236,7 +1256,13 @@ fun LeadFormScreen(
                                         ViewFieldValue("Priority", priority.ifEmpty { "—" })
                                     } else {
                                         FormLabel("Appointment Date")
-                                        DatePickerField(value = appointmentDate, onDateSelected = { appointmentDate = it })
+                                        DatePickerField(value = appointmentDate,
+                                            onDateSelected = {
+                                                appointmentDate = it
+                                                if (errorField == "appointmentDate") errorField = null
+                                            },
+                                            isError = errorField == "appointmentDate"
+                                        )
                                         Spacer(Modifier.height(14.dp))
                                         FormLabel("Appointment Time")
                                         TimePickerField(value = appointmentTime, onTimeSelected = { appointmentTime = it })

@@ -239,7 +239,10 @@ object ErrorMapper {
     fun map(rawMessage: String?): String {
         if (rawMessage.isNullOrBlank()) return "Something went wrong. Please try again."
         val key = errorMap.keys.firstOrNull { rawMessage.contains(it, ignoreCase = true) }
-        return key?.let { errorMap[it] } ?: "Something went wrong. Please try again."
+        // Key match aagalana, raw API message ah nera kaatanum
+        // (idhu already user-readable, "Invalid OTP. 2 attempt(s) remaining."
+        // maadhiri), generic fallback illama.
+        return key?.let { errorMap[it] } ?: rawMessage
     }
 
     fun fieldFor(rawMessage: String?): String? {

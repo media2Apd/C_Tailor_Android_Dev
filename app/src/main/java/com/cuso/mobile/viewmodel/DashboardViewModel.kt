@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.DashboardData
 import com.cuso.mobile.repository.DashboardRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 //import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +33,7 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun loadDashboard() {
-        viewModelScope.launch {
+        launchBusy {
             _uiState.value = DashboardUiState.Loading
 //            delay(300000)
 

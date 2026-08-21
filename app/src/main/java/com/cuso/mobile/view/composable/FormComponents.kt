@@ -21,6 +21,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.utils.AppLoadingManager
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -52,6 +54,13 @@ fun FormDropdown(
     errorMessage: String? = null
 ) {
     val tokens = LocalAppTokens.current
+
+    // Any API call in flight app-wide (create lead, create order, login,
+    // etc.) automatically disables this field too, without the caller
+    // having to pass enabled = false manually.
+    val isAppBusy by AppLoadingManager.busyState.collectAsState()
+    val effectiveEnabled = enabled && !isAppBusy
+
     if (!label.isNullOrEmpty()) {
         FormLabel(label, isRequired)
     } else {
@@ -68,7 +77,7 @@ fun FormDropdown(
                 .onGloballyPositioned { coordinates -> triggerWidthPx = coordinates.size.width }
                 .height(tokens.fieldHeight)
                 .background(
-                    if (enabled) whiteBg else Color(0xFFF3F4F6),
+                    if (effectiveEnabled) whiteBg else Color(0xFFF3F4F6),
                     RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
                 )
                 .border(
@@ -76,7 +85,7 @@ fun FormDropdown(
                     if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
                     RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
                 )
-                .clickable(enabled = enabled) { onExpandChange(true) }
+                .clickable(enabled = effectiveEnabled) { onExpandChange(true) }
                 .padding(horizontal = tokens.cardPadding * 0.6f),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -85,7 +94,7 @@ fun FormDropdown(
                 value,
                 fontSize = tokens.bodySmall,
                 color = when {
-                    !enabled -> Color(0xFF9CA3AF)
+                    !effectiveEnabled -> Color(0xFF9CA3AF)
                     value == "Select an option" -> Color(0xFF9CA3AF)
                     else -> Color(0xFF374151)
                 }
@@ -93,10 +102,10 @@ fun FormDropdown(
             Icon(
                 Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
-                tint = if (enabled) Color.Gray else Color(0xFFD1D5DB)
+                tint = if (effectiveEnabled) Color.Gray else Color(0xFFD1D5DB)
             )
         }
-        if (enabled) {
+        if (effectiveEnabled) {
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { onExpandChange(false) },
@@ -138,19 +147,22 @@ fun FormTextField(
     isError: Boolean = false,
     errorMessage: String? = null,
     enabled: Boolean = true,
-    // ── NEW: needed for PAN (uppercase) / Aadhaar (spaced grouping) ──
     keyboardCapitalization: androidx.compose.ui.text.input.KeyboardCapitalization =
         androidx.compose.ui.text.input.KeyboardCapitalization.None,
     visualTransformation: androidx.compose.ui.text.input.VisualTransformation =
         androidx.compose.ui.text.input.VisualTransformation.None
 ) {
     val tokens = LocalAppTokens.current
+
+    val isAppBusy by AppLoadingManager.busyState.collectAsState()
+    val effectiveEnabled = enabled && !isAppBusy
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(tokens.fieldHeight)
             .background(
-                if (enabled) whiteBg else Color(0xFFF3F4F6),
+                if (effectiveEnabled) whiteBg else Color(0xFFF3F4F6),
                 RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
             )
             .border(
@@ -167,7 +179,7 @@ fun FormTextField(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            enabled = enabled,
+            enabled = effectiveEnabled,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(
@@ -177,7 +189,7 @@ fun FormTextField(
             visualTransformation = visualTransformation,
             textStyle = TextStyle(
                 fontSize = tokens.bodyMedium,
-                color = if (enabled) Color(0xFF374151) else Color(0xFF6B7280)
+                color = if (effectiveEnabled) Color(0xFF374151) else Color(0xFF6B7280)
             )
         )
     }

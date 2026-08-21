@@ -34,26 +34,49 @@ class MeasurementsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<MeasurementsUiState>(MeasurementsUiState.Loading)
     val uiState: StateFlow<MeasurementsUiState> = _uiState.asStateFlow()
 
+    // Pagination loading and availability states
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    private val _canLoadMore = MutableStateFlow(false)
+    val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
+
+    private var currentPage = 1
+    private var totalPages = 1
+    private val loadedItems = mutableListOf<MeasurementItem>()
+
     init {
         loadMeasurements()
     }
 
+    /**
+     * Initial data load or refresh (Page 1)
+     */
     fun loadMeasurements() {
         viewModelScope.launch {
             _uiState.update { MeasurementsUiState.Loading }
+            currentPage = 1
+            loadedItems.clear()
 
+            // Pass page parameter if repository supports pagination; otherwise calls default
             val result = repository.getMeasurements()
 
             result.fold(
                 onSuccess = { response ->
-                    val items = response.customersLastOrders.map { order ->
+                    val newItems = response.customersLastOrders.map { order ->
                         order.toMeasurementItem()
                     }
+                    loadedItems.addAll(newItems)
+
+                    // Update total pages based on response if available, or determine by item count
+                    totalPages = 1
+                    _canLoadMore.update { currentPage < totalPages }
+
                     _uiState.update {
                         MeasurementsUiState.Success(
-                            items = items,
-                            total = items.size,
-                            totalPages = 1
+                            items = loadedItems.toList(),
+                            total = loadedItems.size,
+                            totalPages = totalPages
                         )
                     }
                 },
@@ -66,7 +89,49 @@ class MeasurementsViewModel @Inject constructor(
         }
     }
 
-    // ── Map raw API order → UI item ──
+    /**
+     * Fetches the next page of measurements and appends them to the current list
+     */
+    fun loadMoreMeasurements() {
+        if (_isLoadingMore.value || !_canLoadMore.value) return
+
+        viewModelScope.launch {
+            _isLoadingMore.update { true }
+            val nextPage = currentPage + 1
+
+            val result = repository.getMeasurements()
+
+            result.fold(
+                onSuccess = { response ->
+                    val newItems = response.customersLastOrders.map { order ->
+                        order.toMeasurementItem()
+                    }
+
+                    if (newItems.isNotEmpty()) {
+                        currentPage = nextPage
+                        loadedItems.addAll(newItems)
+                        _canLoadMore.update { currentPage < totalPages }
+
+                        _uiState.update {
+                            MeasurementsUiState.Success(
+                                items = loadedItems.toList(),
+                                total = loadedItems.size,
+                                totalPages = totalPages
+                            )
+                        }
+                    } else {
+                        _canLoadMore.update { false }
+                    }
+                    _isLoadingMore.update { false }
+                },
+                onFailure = {
+                    _isLoadingMore.update { false }
+                }
+            )
+        }
+    }
+
+    // Map raw API order to UI item
     private fun CustomerLastOrder.toMeasurementItem(): MeasurementItem {
         return MeasurementItem(
             id = id,

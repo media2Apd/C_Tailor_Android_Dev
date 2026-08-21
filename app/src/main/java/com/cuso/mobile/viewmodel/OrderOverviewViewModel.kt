@@ -8,6 +8,7 @@ import com.cuso.mobile.model.sales.GarmentStageDoc
 import com.cuso.mobile.model.sales.OrderOverviewData
 import com.cuso.mobile.model.sales.ReceivePaymentData
 import com.cuso.mobile.repository.SalesRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -100,7 +101,7 @@ class OrderOverviewViewModel @Inject constructor(
         stitchingStaffId: String,
         qcStaffId: String
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _assignWorkersState.value = AssignWorkersState.Loading
 
             val cuttingResult = repository.assignCutting(
@@ -111,7 +112,7 @@ class OrderOverviewViewModel @Inject constructor(
             )
             val cuttingData = cuttingResult.getOrElse { e ->
                 _assignWorkersState.value = AssignWorkersState.Error("Cutting assignment failed: ${e.message}")
-                return@launch
+                return@launchBusy
             }
 
             val stitchingResult = repository.assignStitching(
@@ -122,7 +123,7 @@ class OrderOverviewViewModel @Inject constructor(
             )
             val stitchingData = stitchingResult.getOrElse { e ->
                 _assignWorkersState.value = AssignWorkersState.Error("Stitching assignment failed: ${e.message}")
-                return@launch
+                return@launchBusy
             }
 
             val qcResult = repository.assignQc(
@@ -133,7 +134,7 @@ class OrderOverviewViewModel @Inject constructor(
             )
             val qcData = qcResult.getOrElse { e ->
                 _assignWorkersState.value = AssignWorkersState.Error("QC assignment failed: ${e.message}")
-                return@launch
+                return@launchBusy
             }
 
             _assignWorkersState.value = AssignWorkersState.Success(
@@ -152,7 +153,7 @@ class OrderOverviewViewModel @Inject constructor(
         stageName: String,
         status: String
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _stageUpdateState.value = StageUpdateState.Loading(stageId)
 
             repository.updateStage(
@@ -179,7 +180,7 @@ class OrderOverviewViewModel @Inject constructor(
         paymentDate: String? = null,
         paymentType: String = "full"
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _receivePaymentState.value = ReceivePaymentState.Loading
             repository.receivePayment(
                 orderId = orderId,
@@ -206,7 +207,7 @@ class OrderOverviewViewModel @Inject constructor(
 
     //  — call this when "Convert to Invoice" button is clicked
     fun convertToInvoice(salesOrderId: String, dueDate: String? = null) {
-        viewModelScope.launch {
+        launchBusy {
             _convertToInvoiceState.value = ConvertToInvoiceState.Loading
             repository.convertToInvoice(salesOrderId, dueDate)
                 .onSuccess { data ->

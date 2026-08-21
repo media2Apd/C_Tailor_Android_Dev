@@ -6,6 +6,7 @@ import com.cuso.mobile.model.BranchItem
 import com.cuso.mobile.model.CreateBranchRequest
 import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.repository.SalesRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 //import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,7 +56,7 @@ class BranchViewModel @Inject constructor(
     // ── Load Branches ──
     fun loadBranches() {
         if (_uiState.value is BranchUiState.Success) return
-        viewModelScope.launch {
+        launchBusy {
             _uiState.value = BranchUiState.Loading
 //            delay(300000)
             salesRepository.getBranches().fold(
@@ -75,7 +76,7 @@ class BranchViewModel @Inject constructor(
 
     // ── Refresh Branches ──
     fun refresh() {
-        viewModelScope.launch {
+        launchBusy {
             _uiState.value = BranchUiState.Loading
             salesRepository.getBranches().fold(
                 onSuccess = { response ->
@@ -94,7 +95,7 @@ class BranchViewModel @Inject constructor(
 
     // ── Update Branch ──
     fun updateBranch(branchId: String, request: UpdateBranchRequest) {
-        viewModelScope.launch {
+        launchBusy {
             _updateState.value = UpdateBranchUiState.Loading
             salesRepository.updateBranch(branchId, request).fold(
                 onSuccess = { (updated, message) ->
@@ -120,7 +121,7 @@ class BranchViewModel @Inject constructor(
 
     // ── Create Branch ──
     fun createBranch(request: CreateBranchRequest) {
-        viewModelScope.launch {
+        launchBusy {
             _createState.value = CreateBranchUiState.Loading
             salesRepository.createBranch(request).fold(
                 onSuccess = { response ->

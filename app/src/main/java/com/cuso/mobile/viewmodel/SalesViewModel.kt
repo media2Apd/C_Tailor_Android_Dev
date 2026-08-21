@@ -32,6 +32,7 @@ import com.cuso.mobile.model.sales.ConvertToOrderData
 import com.cuso.mobile.model.sales.GarmentCategory
 import com.cuso.mobile.model.sales.OrderItem
 import com.cuso.mobile.model.sales.StatusData
+import com.cuso.mobile.utils.launchBusy
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -193,7 +194,7 @@ class SalesViewModel @Inject constructor(
             _isSearchingCustomer.value = false   //   clear stale spinner
             return
         }
-        searchJob = viewModelScope.launch {
+        searchJob =  viewModelScope.launch {
             delay(400.milliseconds)
             _isSearchingCustomer.value = true
 
@@ -432,7 +433,7 @@ class SalesViewModel @Inject constructor(
     }
 
     fun convertLeadToOrder(leadId: String) {
-        viewModelScope.launch {
+        launchBusy {
             _convertOrderState.value = ConvertOrderState.Loading
             val result = repository.convertLeadToOrder(leadId)
             result.fold(
@@ -454,7 +455,7 @@ class SalesViewModel @Inject constructor(
 
     // ── Lead CRUD ─────────────────────────────────────────────────
     fun createLead(request: CreateLeadFormRequest) {
-        viewModelScope.launch {
+        launchBusy {
             _leadState.value = SaleState.Loading
             repository.createLead(request).fold(
                 onSuccess = { response ->
@@ -468,7 +469,7 @@ class SalesViewModel @Inject constructor(
     }
 
     fun updateLeadById(leadId: String, request: CreateLeadFormRequest) {
-        viewModelScope.launch {
+        launchBusy {
             _updateState.value = SaleState.Loading
             try {
                 val response = repository.updateLead(leadId, request)
@@ -485,7 +486,7 @@ class SalesViewModel @Inject constructor(
     }
 
     fun deleteLead(id: String) {
-        viewModelScope.launch {
+        launchBusy {
             _deleteState.value = SaleState.Loading
             try {
                 repository.deleteLead(id)
@@ -524,7 +525,7 @@ class SalesViewModel @Inject constructor(
     }
 
     fun addOrgGarmentCategory(categoryId: String) {
-        viewModelScope.launch {
+        launchBusy {
             try {
                 _isAddingGarment.value = true
                 _addGarmentState.value = SaleState.Loading
@@ -540,7 +541,7 @@ class SalesViewModel @Inject constructor(
     }
 
     fun removeOrgGarmentCategory(categoryId: String) {
-        viewModelScope.launch {
+        launchBusy {
             try {
                 _removeGarmentState.value = SaleState.Loading
                 _isRemovingGarment.value = true
@@ -578,7 +579,7 @@ class SalesViewModel @Inject constructor(
     }
 
     fun addOrUpdateGarment(garment: SelectedGarment) {
-        viewModelScope.launch {
+        launchBusy {
             try {
                 selectedGarmentDao.insertGarment(garment.copy(orderSessionId = currentGarmentSessionId))
             } catch (e: Exception) {
@@ -588,14 +589,14 @@ class SalesViewModel @Inject constructor(
     }
 
     fun deleteSelectedGarment(garmentId: String) {
-        viewModelScope.launch {
+        launchBusy {
             try { selectedGarmentDao.deleteGarmentById(garmentId) }
             catch (e: Exception) { Log.e(TAG, "❌ Failed to delete: ${e.message}") }
         }
     }
 
     fun clearAllSelectedGarments() {
-        viewModelScope.launch {
+        launchBusy {
             try { selectedGarmentDao.clearSession(currentGarmentSessionId) }
             catch (e: Exception) { Log.e(TAG, "❌ Failed to clear: ${e.message}") }
         }

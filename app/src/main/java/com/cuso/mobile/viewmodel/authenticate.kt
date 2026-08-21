@@ -28,9 +28,11 @@ import com.cuso.mobile.database.entities.OrganizationEntity
 import com.cuso.mobile.database.entities.SettingsEntity
 import com.cuso.mobile.database.entities.TokensEntity
 import com.cuso.mobile.database.entities.UserEntity
+import com.cuso.mobile.utils.launchBusy
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.async
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 
@@ -183,7 +185,7 @@ class Authenticate @Inject constructor(
     }
 
 //    fun loadTokensFromDb() {
-//        viewModelScope.launch {
+//        launchBusy {
 //            _tokens.value = loginRepository.getTokens()
 //        }
 //    }
@@ -206,34 +208,37 @@ class Authenticate @Inject constructor(
 
         _accountState.value = UiState.Loading
 
-        viewModelScope.launch {
+        launchBusy {
             val result = repository.login(email, password)
             if (result.isSuccess) {
                 val response = result.getOrNull()
                 if (response != null) {
                     loginRepository.saveLoginData(response.data)
                     _loginData.value = response.data
-//                    loadUser()
 
                     val token = "Bearer ${response.data.tokens.accessToken}"
 
-                    val meDeferred = async { repository.getMe(token) }
-                    val orgDeferred = async { repository.getMyOrganization(token) }
-                    val layoutDeferred = async { repository.getMyLayout(token) }
+                    // coroutineScope{} kudukura real CoroutineScope-ku ulla
+                    // async{} calls run aagum, so deprecation warning varadhu.
+                    coroutineScope {
+                        val meDeferred = async { repository.getMe(token) }
+                        val orgDeferred = async { repository.getMyOrganization(token) }
+                        val layoutDeferred = async { repository.getMyLayout(token) }
 
-                    val meResult = meDeferred.await()
-                    val orgResult = orgDeferred.await()
-                    val layoutResult = layoutDeferred.await()
+                        val meResult = meDeferred.await()
+                        val orgResult = orgDeferred.await()
+                        val layoutResult = layoutDeferred.await()
 
-                    meResult.getOrNull()?.let { }
+                        meResult.getOrNull()?.let { }
 
-                    orgResult.getOrNull()?.let { response ->
-                        loginRepository.saveOrganizationData(response.data.organization.toOrganization())
-                        loadOrganization()
-                        loadSettings()
+                        orgResult.getOrNull()?.let { orgResponse ->
+                            loginRepository.saveOrganizationData(orgResponse.data.organization.toOrganization())
+                            loadOrganization()
+                            loadSettings()
+                        }
+
+                        layoutResult.getOrNull()?.let { }
                     }
-
-                    layoutResult.getOrNull()?.let {  }
 
                     loadTokens()
 
@@ -244,7 +249,6 @@ class Authenticate @Inject constructor(
                         organization = response.data.user.organizationId
                     )
 
-                    //get user id for crashlytics
                     FirebaseCrashlytics.getInstance().apply {
                         setUserId(response.data.user.userId)
                         setCustomKey("user_email", response.data.user.email)
@@ -258,7 +262,6 @@ class Authenticate @Inject constructor(
             }
         }
     }
-
     // ─────────────────────────────────────────────────────────────
     // Google Login - FIXED
     // ─────────────────────────────────────────────────────────────
@@ -266,7 +269,7 @@ class Authenticate @Inject constructor(
 // In the googleLogin function, remove the Branch conversion since Organization expects List<String>
 
     fun googleLogin(idToken: String) {
-        viewModelScope.launch {
+        launchBusy {
             _accountState.value = UiState.Loading
             when (val result = repository.googleLogin(idToken)) {
                 is GoogleLoginResult.ExistingUser -> {
@@ -381,14 +384,26 @@ class Authenticate @Inject constructor(
     // OTP Functions
     // ─────────────────────────────────────────────────────────────
 
-    fun sendOtp(email: String) {
+    fun sendOtp(
+        email: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
         viewModelScope.launch {
-            _otpSendResult.value = repository.sendOtp(email)
+            val result = repository.sendOtp(email.trim())
+            result.fold(
+                onSuccess = {
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to send OTP")
+                }
+            )
         }
     }
 
     fun verifyOtp(email: String, otp: String) {
-        viewModelScope.launch {
+        launchBusy {
             Log.d("OTP_API", "Calling API with $email $otp")
             val result = repository.verifyOtp(email, otp)
             Log.d("OTP_API", "Response = $result")
@@ -407,7 +422,7 @@ class Authenticate @Inject constructor(
     }
 
 //    fun registerVerifyOtp(email: String, otp: String) {
-//        viewModelScope.launch {
+//        launchBusy {
 //            _isLoading.value = true
 //            Log.d("OTP_API", "Calling API with $email $otp")
 //
@@ -427,7 +442,7 @@ class Authenticate @Inject constructor(
     // ─────────────────────────────────────────────────────────────
 
     fun forgotPasswordOtp(email: String) {
-        viewModelScope.launch {
+        launchBusy {
             _forgotPasswordState.value = UiState.Loading
             val result = repository.forgotPassword(email)
             _forgotPasswordState.value = if (result.isSuccess) {
@@ -439,7 +454,7 @@ class Authenticate @Inject constructor(
     }
 
     fun verifyForgotPasswordOtp(email: String, otp: String) {
-        viewModelScope.launch {
+        launchBusy {
             _accountState.value = UiState.Loading
             val result = repository.verifyForgotPasswordOtp(email, otp)
             _accountState.value = if (result.isSuccess) {
@@ -464,7 +479,7 @@ class Authenticate @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
+        launchBusy {
             _resetPasswordState.value = UiState.Loading
             val result = repository.resetNewPassword(token, newPassword, confirmPassword)
             _resetPasswordState.value = if (result.isSuccess) {
@@ -480,7 +495,7 @@ class Authenticate @Inject constructor(
     // ─────────────────────────────────────────────────────────────
 
     fun organizationSetup(request: organizationSetUpRequest) {
-        viewModelScope.launch {
+        launchBusy {
             _accountState.value = UiState.Loading
 
             val tokens = tokensDao.getTokens()
@@ -489,7 +504,7 @@ class Authenticate @Inject constructor(
 
             if (accessToken.isNullOrBlank() || csrfToken.isNullOrBlank()) {
                 _accountState.value = UiState.Error("Session expired. Please log in again.")
-                return@launch
+                return@launchBusy
             }
 
             val result = repository.organizationSetup("Bearer $accessToken", csrfToken, request)
@@ -559,7 +574,7 @@ class Authenticate @Inject constructor(
 //
 //        _accountState.value = UiState.Loading
 //
-//        viewModelScope.launch {
+//        launchBusy {
 //            val result = repository.createAccount(
 //                SignupRequest(
 //                    country = country,
@@ -596,7 +611,7 @@ class Authenticate @Inject constructor(
 
         _accountState.value = UiState.Loading
 
-        viewModelScope.launch {
+        launchBusy {
             val result = repository.verifyEmail(email)
             _accountState.value = if (result.isSuccess) {
                 UiState.EmailVerified(result.getOrNull()?.message ?: "Email verified")
@@ -628,7 +643,7 @@ class Authenticate @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
+        launchBusy {
             loginRepository.updateProfilePicture(currentUser.id, newUrl)
         }
     }
@@ -638,7 +653,7 @@ class Authenticate @Inject constructor(
     // ─────────────────────────────────────────────────────────────
 
     fun logout(onLoggedOut: () -> Unit) {
-        viewModelScope.launch {
+        launchBusy {
             //   1. Clear the Database
             loginRepository.clearAll()
 

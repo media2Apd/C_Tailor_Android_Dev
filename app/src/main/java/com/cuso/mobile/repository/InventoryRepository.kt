@@ -5,13 +5,13 @@ import com.cuso.mobile.model.inventory.InventoryItemListResponse
 import com.cuso.mobile.model.inventory.InventoryItemviewone
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.cuso.mobile.network.ApiService
+import com.cuso.mobile.network.inventory.InventoryApiService
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 
 @Singleton
 class InventoryRepository @Inject constructor(
-    private val api: ApiService,
+    private val inventoryApi: InventoryApiService,
     private val tokensDao: com.cuso.mobile.database.dao.TokensDao
 ) {
 
@@ -30,7 +30,7 @@ class InventoryRepository @Inject constructor(
     ): Result<InventoryItemListResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getInventoryItems(
+            val response = inventoryApi.getInventoryItems(
                 token = accessToken,
                 csrfToken = csrfToken,
                 page = page,
@@ -54,7 +54,7 @@ class InventoryRepository @Inject constructor(
     suspend fun getInventoryItemById(id: String): Result<InventoryItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getInventoryItemById(
+            val response = inventoryApi.getInventoryItemById(
                 token = accessToken,
                 csrfToken = csrfToken,
                 id = id
@@ -75,7 +75,7 @@ class InventoryRepository @Inject constructor(
     suspend fun getRecentInventoryItems(limit: Int = 10): Result<InventoryItemListResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getRecentInventoryItems(
+            val response = inventoryApi.getRecentInventoryItems(
                 token = accessToken,
                 csrfToken = csrfToken,
                 limit = limit
@@ -102,7 +102,7 @@ class InventoryRepository @Inject constructor(
     ): Result<InventoryItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.adjustStock(
+            val response = inventoryApi.adjustStock(
                 token = accessToken,
                 csrfToken = csrfToken,
                 request = com.cuso.mobile.model.inventory.AdjustStockRequest(
@@ -179,7 +179,7 @@ class InventoryRepository @Inject constructor(
                 }
             }
 
-            val response = api.createInventoryItem(
+            val response = inventoryApi.createInventoryItem(
                 token = accessToken,
                 csrfToken = csrfToken,
                 fields = fields,
@@ -200,7 +200,7 @@ class InventoryRepository @Inject constructor(
     suspend fun getInventoryViewOne(id: String): Result<InventoryItemviewone> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = api.getInventoryViewOne(
+            val response = inventoryApi.getInventoryViewOne(
                 token = accessToken,
                 csrfToken = csrfToken,
                 id = id

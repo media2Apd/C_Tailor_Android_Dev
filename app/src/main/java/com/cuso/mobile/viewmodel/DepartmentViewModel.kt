@@ -7,6 +7,7 @@ import com.cuso.mobile.model.DepartmentCreateRequest
 import com.cuso.mobile.model.DepartmentItem
 import com.cuso.mobile.model.DepartmentUpdateRequest
 import com.cuso.mobile.repository.SalesRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -70,7 +71,7 @@ class DepartmentViewModel @Inject constructor(
     // ── Load Departments ──
     fun loadDepartments() {
         if (_uiState.value is DepartmentUiState.Success) return
-        viewModelScope.launch {
+        launchBusy {
             _uiState.value = DepartmentUiState.Loading
             salesRepository.getDepartments().fold(
                 onSuccess = { response ->
@@ -89,7 +90,7 @@ class DepartmentViewModel @Inject constructor(
 
     // ── Refresh Departments ──
     fun refresh() {
-        viewModelScope.launch {
+        launchBusy {
             _uiState.value = DepartmentUiState.Loading
             salesRepository.getDepartments().fold(
                 onSuccess = { response ->
@@ -108,7 +109,7 @@ class DepartmentViewModel @Inject constructor(
 
     // ── Create Department ──
     fun createDepartment(name: String, description: String, departmentHead: String) {
-        viewModelScope.launch {
+        launchBusy {
             _createState.value = DesignationCreateState.Loading
             val request = DepartmentCreateRequest(
                 name = name,
@@ -149,7 +150,7 @@ class DepartmentViewModel @Inject constructor(
 
     // ── Update Department ──
     fun updateDepartment(id: String, name: String, description: String?, departmentHead: String?, status: Boolean?) {
-        viewModelScope.launch {
+        launchBusy {
             _updateState.value = DepartmentUpdateUiState.Loading
             val request = DepartmentUpdateRequest(
                 name = name,

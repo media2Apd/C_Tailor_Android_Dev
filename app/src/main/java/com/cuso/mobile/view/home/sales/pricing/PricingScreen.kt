@@ -101,6 +101,7 @@ fun PricingScreen(
                     onClick = { onBreadCrumbClick() }
                 )
             }
+            Spacer(Modifier.height(10.dp))
             HorizontalDivider(color = CardBorder)
 
             when (val state = listState) {

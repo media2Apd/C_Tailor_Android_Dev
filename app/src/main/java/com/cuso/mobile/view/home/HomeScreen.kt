@@ -1453,9 +1453,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
                             "sales_customers" -> CustomerScreen(
                                 navController = navController,
-                                customerState = customerUiState,
-                                onSearch = customerViewModel::onSearch,
-                                onTypeFilterChange = customerViewModel::onTypeFilterChange,
 
                                 onClose = { goBack() },
                                 onCreateCustomer = { navigateTo("create_customer") },
@@ -1856,7 +1853,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
         DynamicIslandSuccess(
             modifier = Modifier.align(Alignment.TopCenter)
-                .padding(top = 50.dp),
+                .padding(top = 100.dp),
             message = comingSoonMessage,
             onDismiss = { comingSoonMessage = null }
         )
@@ -3022,28 +3019,6 @@ fun buildFilterSections(
         )
     )
 }
-
-fun formatLeadDate(raw: String?): String {
-    if (raw.isNullOrBlank()) return "—"
-    return try {
-        val datePart = raw.take(10)
-        val parts = datePart.split("-")
-        if (parts.size == 3) {
-            val year = parts[0]
-            val month = parts[1].toIntOrNull()
-            val day = parts[2]
-
-            val monthNames = listOf(
-                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-            )
-            val monthName = month?.let { if (it in 1..12) monthNames[it - 1] else null }
-
-            if (monthName != null) "$day $monthName $year" else raw
-        } else raw
-    } catch (_: Exception) { raw }
-}
-
 fun formatIndianNumber(number: Number): String {
     val value = number.toLong()
 
@@ -3059,16 +3034,6 @@ fun formatIndianNumber(number: Number): String {
 
     return "$grouped,$last3"
 }
-
-
-
-
-
-
-
-
-
-
 fun normalizeRoute(rawKey: String): String {
     return when (rawKey) {
         // Sales
@@ -3150,10 +3115,40 @@ fun menuForScreen(screen: String): String = when {
     else -> "Home"
 }
 
-fun String.toIsoDate(): String {
-    if (this.isEmpty() || this == " ") return ""
+// Converts an ISO date string ("yyyy-MM-dd" or full ISO datetime like
+// "2026-08-03T00:00:00.000Z") coming from the API into "dd-MM-yyyy" format.
+fun formatLeadDate(raw: String?): String {
+    if (raw.isNullOrBlank()) return "—"
     return try {
-        val parts = this.split("-")
-        if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}T00:00:00.000Z" else ""
-    } catch (_: Exception) { "" }
+        val datePart = raw.take(10) // Extracts "yyyy-MM-dd"
+        val parts = datePart.split("-")
+        if (parts.size == 3) {
+            val year = parts[0]
+            val month = parts[1]
+            val day = parts[2]
+            "$day-$month-$year"
+        } else {
+            raw
+        }
+    } catch (_: Exception) {
+        raw
+    }
+}
+
+// Converts a "dd-MM-yyyy" display date into a full ISO datetime string for the API.
+fun String.toIsoDate(): String {
+    if (this.isBlank()) return ""
+    return try {
+        val parts = this.trim().split("-")
+        if (parts.size == 3) {
+            val day = parts[0]
+            val month = parts[1]
+            val year = parts[2]
+            "$year-$month-${day}T00:00:00.000Z"
+        } else {
+            ""
+        }
+    } catch (_: Exception) {
+        ""
+    }
 }

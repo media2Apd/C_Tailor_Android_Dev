@@ -21,13 +21,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.lightGray
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AppButton
 import com.cuso.mobile.view.composable.AuthScreenScaffold
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.CusoTextField
@@ -91,14 +94,24 @@ fun ResetPassword(
             subtitle = "Create a new password for your account"
         ) {
             // New Password field
+//            CusoTextField(
+//                value = newPassword,
+//                onValueChange = {
+//                    newPassword = it
+//                    errorMessage = null
+//                },
+//                label = "New Password",
+//                placeholder = "..",
+//                isPassword = true,
+//                isError = false,
+//                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+//            )
             CusoTextField(
                 value = newPassword,
-                onValueChange = {
-                    newPassword = it
-                    errorMessage = null
-                },
-                label = "New Password",
-                placeholder = "..",
+                onValueChange = { newPassword = it; authViewModel.resetState() },
+                label = "Password",
+                placeholder = "Enter password",
+                leadingIconPainter = painterResource(R.drawable.ic_lock),
                 isPassword = true,
                 isError = false,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
@@ -107,14 +120,25 @@ fun ResetPassword(
             Spacer(modifier = Modifier.height(tokens.screenPadding / 2))
 
             // Confirm Password field, with the match-error state wired into isError
+//            CusoTextField(
+//                value = confirmPassword,
+//                onValueChange = {
+//                    confirmPassword = it
+//                    errorMessage = null
+//                },
+//                label = "Confirm Password",
+//                placeholder = "..",
+//                isPassword = true,
+//                isError = isConfirmError,
+//                errorText = if (isConfirmError) "Passwords don't match" else null,
+//                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+//            )
             CusoTextField(
                 value = confirmPassword,
-                onValueChange = {
-                    confirmPassword = it
-                    errorMessage = null
-                },
-                label = "Confirm Password",
-                placeholder = "..",
+                onValueChange = { confirmPassword = it; authViewModel.resetState() },
+                label = "Password",
+                placeholder = "Confirm password",
+                leadingIconPainter = painterResource(R.drawable.ic_lock),
                 isPassword = true,
                 isError = isConfirmError,
                 errorText = if (isConfirmError) "Passwords don't match" else null,
@@ -133,7 +157,8 @@ fun ResetPassword(
             Spacer(modifier = Modifier.height(tokens.screenPadding / 2))
 
             // Reset Password button
-            Button(
+            AppButton(
+                text = "Reset Password",
                 onClick = {
                     authViewModel.resetNewPassword(
                         token = resetToken,
@@ -142,32 +167,9 @@ fun ResetPassword(
                     )
                 },
                 enabled = isFormValid && resetPasswordState !is UiState.Loading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(tokens.buttonHeight),
-                shape = RoundedCornerShape(tokens.cardCornerRadius / 2), // Adaptive radius instead of fixed 8.dp
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Primary,
-                    disabledContainerColor = lightGray
-                )
-            ) {
-                if (resetPasswordState is UiState.Loading) {
-                    CirculerProgressIndicatorSmall()
-
-                    Spacer(modifier = Modifier.width(tokens.screenPadding / 2))
-                    Text(
-                        text = "Resetting Password",
-                        fontSize = tokens.bodyMedium,
-                        color = whiteBg
-                    )
-                } else {
-                    Text(
-                        text = "Reset Password",
-                        fontSize = tokens.bodyMedium,
-                        color = whiteBg
-                    )
-                }
-            }
+                isLoading = resetPasswordState is UiState.Loading,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         // Floating error pill, shown at the top of the screen whenever

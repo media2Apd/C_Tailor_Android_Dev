@@ -5,41 +5,47 @@ import com.cuso.mobile.model.EmailResponse
 import com.cuso.mobile.model.EmailVerify
 import com.cuso.mobile.model.GoogleLoginNewUser
 import com.cuso.mobile.model.GoogleLoginRequest
-import com.cuso.mobile.model.SignupRequest
-import com.cuso.mobile.model.otpSendRequest
-import com.cuso.mobile.model.otpSendResponse
+import com.cuso.mobile.model.GoogleLoginResult
+import com.cuso.mobile.model.GoogleLoginSuccess
 import com.cuso.mobile.model.PasswordResponse
 import com.cuso.mobile.model.PasswordVerify
+import com.cuso.mobile.model.RegisterVerifyOtp
+import com.cuso.mobile.model.RegisterVerifyOtpResponse
+import com.cuso.mobile.model.SignupRequest
 import com.cuso.mobile.model.SignupResponse
 import com.cuso.mobile.model.forgotPasswordRequest
 import com.cuso.mobile.model.forgotPasswordResponse
-import com.cuso.mobile.model.otpVerifyRequest
-import com.cuso.mobile.model.otpVerifyResponse
-import com.cuso.mobile.model.GoogleLoginResult
-import com.cuso.mobile.model.GoogleLoginSuccess
-import com.cuso.mobile.model.RegisterVerifyOtp
-import com.cuso.mobile.model.RegisterVerifyOtpResponse
 import com.cuso.mobile.model.forgotPasswordVerifyRequest
 import com.cuso.mobile.model.forgotPasswordVerifyResponse
+import com.cuso.mobile.model.organizationSetUpRequest
+import com.cuso.mobile.model.organizationSetUpResponse
+import com.cuso.mobile.model.otpSendRequest
+import com.cuso.mobile.model.otpSendResponse
+import com.cuso.mobile.model.otpVerifyRequest
+import com.cuso.mobile.model.otpVerifyResponse
+import com.cuso.mobile.model.resetNewPasswordRequest
+import com.cuso.mobile.model.resetNewPasswordResponse
 import com.cuso.mobile.model.sales.meResponse
 import com.cuso.mobile.model.sales.myLayoutResponse
 import com.cuso.mobile.model.sales.myOrganizationResponse
-import com.cuso.mobile.model.organizationSetUpRequest
-import com.cuso.mobile.model.organizationSetUpResponse
-import com.cuso.mobile.model.resetNewPasswordRequest
-import com.cuso.mobile.model.resetNewPasswordResponse
-import com.cuso.mobile.network.ApiService
+import com.cuso.mobile.network.auth.AuthApiService
+import com.cuso.mobile.network.user.UserApiService
 import com.google.gson.Gson
 import org.json.JSONObject
 import javax.inject.Inject
 
 class AuthRepository @Inject constructor(
-    private val api: ApiService,
+    private val authApi: AuthApiService,
+    private val userApi: UserApiService
 ) {
+
+    // ---------------------------------------------------------
+    // Login
+    // ---------------------------------------------------------
 
     suspend fun login(email: String, password: String): Result<PasswordResponse> {
         return try {
-            val response =api.verifyPassword(
+            val response = authApi.verifyPassword(
                 PasswordVerify(email, password)
             )
             if (response.isSuccessful && response.body() != null) {
@@ -52,27 +58,35 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    // ---------------------------------------------------------
+    // User Profile & Preferences (UserApiService)
+    // ---------------------------------------------------------
+
     suspend fun getMe(token: String): Result<meResponse> = try {
-        val res = api.getMe(token)
+        val res = userApi.getMe(token)
         if (res.isSuccessful && res.body() != null) Result.success(res.body()!!)
         else Result.failure(Exception(res.message()))
     } catch (e: Exception) { Result.failure(e) }
 
     suspend fun getMyOrganization(token: String): Result<myOrganizationResponse> = try {
-        val res = api.getMyOrganization(token)
+        val res = userApi.getMyOrganization(token)
         if (res.isSuccessful && res.body() != null) Result.success(res.body()!!)
         else Result.failure(Exception(res.message()))
     } catch (e: Exception) { Result.failure(e) }
 
     suspend fun getMyLayout(token: String): Result<myLayoutResponse> = try {
-        val res = api.getMyLayout(token)
+        val res = userApi.getMyLayout(token)
         if (res.isSuccessful && res.body() != null) Result.success(res.body()!!)
         else Result.failure(Exception(res.message()))
     } catch (e: Exception) { Result.failure(e) }
-    // Create Account
+
+    // ---------------------------------------------------------
+    // Sign Up & Email Verification (AuthApiService)
+    // ---------------------------------------------------------
+
     suspend fun createAccount(request: SignupRequest): Result<SignupResponse> {
         return try {
-            val response = api.signup(request)
+            val response = authApi.signup(request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
@@ -87,7 +101,7 @@ class AuthRepository @Inject constructor(
 
     suspend fun verifyEmail(email: String): Result<EmailResponse> {
         return try {
-            val response = api.verifyEmail(
+            val response = authApi.verifyEmail(
                 EmailVerify(email)
             )
 
@@ -98,7 +112,7 @@ class AuthRepository @Inject constructor(
                 val status = try {
                     val json = JSONObject(errorBody ?: "")
                     json.getString("status")
-                } catch (_:Exception) {
+                } catch (_: Exception) {
                     "unknown"
                 }
                 Result.failure(Exception(status))
@@ -108,14 +122,13 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    // AuthRepository.kt
     suspend fun organizationSetup(
         token: String,
         csrfToken: String,
         request: organizationSetUpRequest
     ): Result<organizationSetUpResponse> {
         return try {
-            val response = api.organizationSetUp(token, csrfToken, request)
+            val response = authApi.organizationSetUp(token, csrfToken, request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
@@ -130,11 +143,13 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    //otpSend
+    // ---------------------------------------------------------
+    // OTP Handling (AuthApiService)
+    // ---------------------------------------------------------
+
     suspend fun sendOtp(email: String): Result<otpSendResponse> {
         return try {
-
-            val response = api.otpSend(
+            val response = authApi.otpSend(
                 otpSendRequest(email)
             )
 
@@ -145,17 +160,14 @@ class AuthRepository @Inject constructor(
                     Exception("Error ${response.code()} - ${response.message()}")
                 )
             }
-
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    //otpVerify
-    suspend fun verifyOtp(email: String,otp:String): Result<otpVerifyResponse> {
+    suspend fun verifyOtp(email: String, otp: String): Result<otpVerifyResponse> {
         return try {
-
-            val response = api.verifyOtp(
+            val response = authApi.verifyOtp(
                 otpVerifyRequest(email, otp)
             )
 
@@ -166,15 +178,14 @@ class AuthRepository @Inject constructor(
                     Exception("Error ${response.code()} - ${response.message()}")
                 )
             }
-
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    //otp verify for register
+
     suspend fun registerVerifyOtp(email: String, otp: String): Result<RegisterVerifyOtpResponse> {
         return try {
-            val response = api.signupVerifyOtp(
+            val response = authApi.signupVerifyOtp(
                 RegisterVerifyOtp(email, otp)
             )
 
@@ -190,9 +201,13 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    // ---------------------------------------------------------
+    // Forgot Password Flow (AuthApiService)
+    // ---------------------------------------------------------
+
     suspend fun forgotPassword(email: String): Result<forgotPasswordResponse> {
         return try {
-            val response = api.forgotPassword(
+            val response = authApi.forgotPassword(
                 forgotPasswordRequest(email)
             )
             if (response.isSuccessful && response.body() != null) {
@@ -213,11 +228,15 @@ class AuthRepository @Inject constructor(
 
     suspend fun verifyForgotPasswordOtp(email: String, otp: String): Result<forgotPasswordVerifyResponse> {
         return try {
-            val response = api.forgotPasswordVerify(
+            val response = authApi.forgotPasswordVerify(
                 forgotPasswordVerifyRequest(email, otp)
             )
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+            val body = response.body()
+
+            if (response.isSuccessful && body != null && body.success) {
+                Result.success(body)
+            } else if (body != null) {
+                Result.failure(Exception(body.message))
             } else {
                 val errorBody = response.errorBody()?.string()
                 val message = try {
@@ -232,7 +251,7 @@ class AuthRepository @Inject constructor(
 
     suspend fun resetNewPassword(token: String, newPassword: String, confirmPassword: String): Result<resetNewPasswordResponse> {
         return try {
-            val response = api.resetNewPassword(
+            val response = authApi.resetNewPassword(
                 resetNewPasswordRequest(
                     token = token,
                     newPassword = newPassword,
@@ -253,17 +272,19 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    // ---------------------------------------------------------
+    // Google Login (AuthApiService)
+    // ---------------------------------------------------------
+
     suspend fun googleLogin(idToken: String): GoogleLoginResult {
         return try {
-            val response = api.googleLogin(GoogleLoginRequest(idToken))
+            val response = authApi.googleLogin(GoogleLoginRequest(idToken))
             if (response.isSuccessful && response.body() != null) {
                 val json = response.body()!!
                 if (json.has("requiresRegistration")) {
-                    // ← new user
                     val newUser = Gson().fromJson(json, GoogleLoginNewUser::class.java)
                     GoogleLoginResult.NewUser(newUser)
                 } else {
-                    // ← existing user
                     val existingUser = Gson().fromJson(json, GoogleLoginSuccess::class.java)
                     GoogleLoginResult.ExistingUser(existingUser)
                 }

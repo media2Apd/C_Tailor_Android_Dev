@@ -19,6 +19,7 @@ import com.cuso.mobile.model.hr.RoleItem
 import com.cuso.mobile.model.hr.ShiftItem
 import com.cuso.mobile.model.hr.UpdateMemberRequest
 import com.cuso.mobile.repository.HrRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,7 +50,7 @@ class HrViewModel @Inject constructor(
     val rolesError: StateFlow<String?> = _rolesError.asStateFlow()
 
     fun fetchRoles() {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingRoles.value = true
             _rolesError.value = null
             val result = hrRepository.getRoles()
@@ -74,7 +75,7 @@ class HrViewModel @Inject constructor(
     val shiftsError: StateFlow<String?> = _shiftsError.asStateFlow()
 
     fun fetchShifts() {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingShifts.value = true
             _shiftsError.value = null
             val result = hrRepository.getShifts()
@@ -107,7 +108,7 @@ class HrViewModel @Inject constructor(
         search: String? = null,
         status: String? = null
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingMembers.value = true
             _membersError.value = null
             val result = hrRepository.getMembers(page, limit, search, status)
@@ -145,7 +146,7 @@ class HrViewModel @Inject constructor(
     val deletePictureState: StateFlow<DeletePictureState> = _deletePictureState
 
     fun uploadProfilePicture(memberId: String, file: File) {
-        viewModelScope.launch {
+        launchBusy {
             _uploadPictureState.value = UploadPictureState.Loading
             val result = hrRepository.uploadProfilePicture(memberId, file)
             result.onSuccess { response ->
@@ -162,7 +163,7 @@ class HrViewModel @Inject constructor(
     }
 
     fun deleteProfilePicture(memberId: String) {
-        viewModelScope.launch {
+        launchBusy {
             _deletePictureState.value = DeletePictureState.Loading
             val result = hrRepository.deleteProfilePicture(memberId)
             result.onSuccess {
@@ -178,7 +179,7 @@ class HrViewModel @Inject constructor(
     }
 
     fun fetchMemberDetail(memberId: String) {
-        viewModelScope.launch {
+        launchBusy {
             _isLoadingMemberDetail.value = true
             _memberDetailError.value = null
             val result = hrRepository.getMemberDetail(memberId)
@@ -201,7 +202,7 @@ class HrViewModel @Inject constructor(
     val createMemberState: StateFlow<CreateMemberState> = _createMemberState.asStateFlow()
 
     fun createMember(request: CreateMemberRequest) {
-        viewModelScope.launch {
+        launchBusy {
             _createMemberState.value = CreateMemberState.Loading
             val result = hrRepository.createMember(request)
             result.fold(
@@ -212,7 +213,7 @@ class HrViewModel @Inject constructor(
     }
 
     fun updateMember(memberId: String, request: UpdateMemberRequest) {
-        viewModelScope.launch {
+        launchBusy {
             _createMemberState.value = CreateMemberState.Loading
             val result = hrRepository.updateMember(memberId, request)
             result.fold(

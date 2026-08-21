@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.sales.OrderViewData
 import com.cuso.mobile.repository.SalesRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +28,7 @@ class OrderViewViewModel @Inject constructor(
     val orderViewState: StateFlow<OrderViewUiState> = _orderViewState.asStateFlow()
 
     fun getOrdersView(orderId: String) {
-        viewModelScope.launch {
+        launchBusy {
             _orderViewState.value = OrderViewUiState.Loading
             repository.getOrdersView(orderId)
                 .onSuccess { data ->

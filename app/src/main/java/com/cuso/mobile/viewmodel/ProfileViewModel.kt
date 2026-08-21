@@ -6,6 +6,7 @@ import com.cuso.mobile.model.sales.OrganizationDataWrapper
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.repository.AuthRepository
 import com.cuso.mobile.repository.SalesRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -53,7 +54,7 @@ class ProfileViewModel @Inject constructor(
     // ─── Load Organization ───
     fun loadOrganization(token: String) {
         if (_uiState.value is ProfileUiState.Success) return
-        viewModelScope.launch {
+        launchBusy {
             _uiState.value = ProfileUiState.Loading
             val result = authRepository.getMyOrganization("Bearer $token")
             result.fold(
@@ -73,7 +74,7 @@ class ProfileViewModel @Inject constructor(
 
     // ─── Refresh Organization (used after update, so UI shows the fresh logo URL too) ───
     fun refreshOrganization(token: String) {
-        viewModelScope.launch {
+        launchBusy {
             val result = authRepository.getMyOrganization("Bearer $token")
             result.fold(
                 onSuccess = { response ->
@@ -93,7 +94,7 @@ class ProfileViewModel @Inject constructor(
         request: UpdateOrganizationRequest,
         logoFile: java.io.File? = null
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _updateState.value = UpdateOrgUiState.Loading
 
             // Step 1: picture separate ah upload (already existing logic)
@@ -103,7 +104,7 @@ class ProfileViewModel @Inject constructor(
                     _updateState.value = UpdateOrgUiState.Error(
                         uploadResult.exceptionOrNull()?.message ?: "Failed to upload picture"
                     )
-                    return@launch
+                    return@launchBusy
                 }
             }
 

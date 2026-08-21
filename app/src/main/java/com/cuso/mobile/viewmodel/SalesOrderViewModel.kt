@@ -6,6 +6,7 @@ import com.cuso.mobile.model.sales.CreateOrderRequest
 import com.cuso.mobile.model.sales.OrderItem
 import com.cuso.mobile.model.sales.toOrderItem
 import com.cuso.mobile.repository.SalesRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,9 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // UI State
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 sealed class OrderUiState {
     data object Loading : OrderUiState()
@@ -36,9 +37,9 @@ sealed class OrderActionState {
     data class Error(val message: String) : OrderActionState()
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // ViewModel
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 @Suppress("UNUSED_PARAMETER")
 @HiltViewModel
 class SalesOrderViewModel @Inject constructor(
@@ -54,21 +55,38 @@ class SalesOrderViewModel @Inject constructor(
     private val _selectedOrder = MutableStateFlow<OrderItem?>(null)
     val selectedOrder: StateFlow<OrderItem?> = _selectedOrder.asStateFlow()
 
+    // Pagination states
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    private val _canLoadMore = MutableStateFlow(false)
+    val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
+
+    private var currentPage = 1
+    private var totalPages = 1
+    private var currentSearch: String? = null
+    private var currentStatus: String? = null
+    private val loadedOrders = mutableListOf<OrderItem>()
+
     private var fetchJob: Job? = null
 
-    // ─────────────────────────────────────────────────────────
-    // Fetch Orders (paginated, filtered)
-    // ─────────────────────────────────────────────────────────
+    // ---------------------------------------------------------
+    // Fetch Orders (Initial load / Refresh)
+    // ---------------------------------------------------------
 
     fun fetchOrders(
         page: Int = 1,
         limit: Int = 10,
         search: String? = null,
-        status: String? = null,
+        status: String? = null
     ) {
         fetchJob?.cancel()
         fetchJob = viewModelScope.launch {
             _orderState.value = OrderUiState.Loading
+            currentPage = page
+            currentSearch = search
+            currentStatus = status
+            loadedOrders.clear()
 
             val result = repository.getOrders(
                 page = page,
@@ -81,16 +99,21 @@ class SalesOrderViewModel @Inject constructor(
                 val response = result.getOrNull()!!
                 try {
                     val orders = response.data.map { it.toOrderItem() }
-                    val totalPages = if (response.totalPages > 0) {
+                    loadedOrders.addAll(orders)
+
+                    totalPages = if (response.totalPages > 0) {
                         response.totalPages
                     } else {
                         maxOf(1, (response.total + limit - 1) / limit)
                     }
+
+                    _canLoadMore.value = currentPage < totalPages
+
                     _orderState.value = OrderUiState.Success(
-                        orders = orders,
+                        orders = loadedOrders.toList(),
                         total = response.total,
                         totalPages = totalPages,
-                        currentPage = page,
+                        currentPage = currentPage
                     )
                 } catch (e: Exception) {
                     _orderState.value = OrderUiState.Error("Error parsing data: ${e.message}")
@@ -103,9 +126,59 @@ class SalesOrderViewModel @Inject constructor(
         }
     }
 
-    // ─────────────────────────────────────────────────────────
+    // ---------------------------------------------------------
+    // Fetch Next Page (Infinite Scroll)
+    // ---------------------------------------------------------
+
+    fun loadMoreOrders(limit: Int = 10) {
+        if (_isLoadingMore.value || !_canLoadMore.value) return
+
+        viewModelScope.launch {
+            _isLoadingMore.value = true
+            val nextPage = currentPage + 1
+
+            val result = repository.getOrders(
+                page = nextPage,
+                limit = limit,
+                search = currentSearch?.takeIf { it.isNotBlank() },
+                status = currentStatus?.takeIf { it.isNotBlank() }
+            )
+
+            if (result.isSuccess) {
+                val response = result.getOrNull()!!
+                val newOrders = response.data.map { it.toOrderItem() }
+
+                if (newOrders.isNotEmpty()) {
+                    currentPage = nextPage
+                    loadedOrders.addAll(newOrders)
+
+                    totalPages = if (response.totalPages > 0) {
+                        response.totalPages
+                    } else {
+                        maxOf(1, (response.total + limit - 1) / limit)
+                    }
+
+                    _canLoadMore.value = currentPage < totalPages
+
+                    _orderState.value = OrderUiState.Success(
+                        orders = loadedOrders.toList(),
+                        total = response.total,
+                        totalPages = totalPages,
+                        currentPage = currentPage
+                    )
+                } else {
+                    _canLoadMore.value = false
+                }
+            } else {
+                _canLoadMore.value = false
+            }
+            _isLoadingMore.value = false
+        }
+    }
+
+    // ---------------------------------------------------------
     // Fetch Single Order by ID
-    // ─────────────────────────────────────────────────────────
+    // ---------------------------------------------------------
 
     fun fetchOrderById(orderId: String) {
         viewModelScope.launch {
@@ -114,7 +187,7 @@ class SalesOrderViewModel @Inject constructor(
             val result = repository.getOrderById(orderId)
 
             if (result.isSuccess) {
-                _selectedOrder.value = result.getOrNull()  // already OrderItem
+                _selectedOrder.value = result.getOrNull()
                 _actionState.value = OrderActionState.Idle
             } else {
                 _actionState.value = OrderActionState.Error(
@@ -124,9 +197,9 @@ class SalesOrderViewModel @Inject constructor(
         }
     }
 
-    // ─────────────────────────────────────────────────────────
+    // ---------------------------------------------------------
     // Update Order Status
-    // ─────────────────────────────────────────────────────────
+    // ---------------------------------------------------------
 
     fun updateOrderStatus(
         orderId: String,
@@ -135,9 +208,9 @@ class SalesOrderViewModel @Inject constructor(
         limit: Int = 10,
         search: String? = null,
         statusFilter: String? = null,
-        onSuccess: (() -> Unit)? = null,
+        onSuccess: (() -> Unit)? = null
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _actionState.value = OrderActionState.Loading
 
             val result = repository.updateOrderStatus(orderId, status)
@@ -154,18 +227,17 @@ class SalesOrderViewModel @Inject constructor(
         }
     }
 
-    // ─────────────────────────────────────────────────────────
-    // Create order
-    // ─────────────────────────────────────────────────────────
+    // ---------------------------------------------------------
+    // Create Order
+    // ---------------------------------------------------------
 
-    // NEW
     fun createOrder(
         request: CreateOrderRequest,
         imageParts: List<okhttp3.MultipartBody.Part> = emptyList(),
         voiceNotePart: okhttp3.MultipartBody.Part? = null,
         onSuccess: (OrderItem) -> Unit
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _actionState.value = OrderActionState.Loading
             val result = repository.createOrder(request, imageParts, voiceNotePart)
             if (result.isSuccess) {
@@ -179,9 +251,9 @@ class SalesOrderViewModel @Inject constructor(
         }
     }
 
-    // ─────────────────────────────────────────────────────────
-    // Update order (Edit flow)
-    // ─────────────────────────────────────────────────────────
+    // ---------------------------------------------------------
+    // Update Order
+    // ---------------------------------------------------------
 
     fun updateOrder(
         orderId: String,
@@ -191,7 +263,7 @@ class SalesOrderViewModel @Inject constructor(
         voiceNotePart: okhttp3.MultipartBody.Part? = null,
         onSuccess: (OrderItem) -> Unit
     ) {
-        viewModelScope.launch {
+        launchBusy {
             _actionState.value = OrderActionState.Loading
             val result = repository.updateOrder(orderId, request, existingImages, imageParts, voiceNotePart)
             if (result.isSuccess) {
@@ -204,9 +276,10 @@ class SalesOrderViewModel @Inject constructor(
             }
         }
     }
-    // ─────────────────────────────────────────────────────────
+
+    // ---------------------------------------------------------
     // Helpers
-    // ─────────────────────────────────────────────────────────
+    // ---------------------------------------------------------
 
     fun clearSelectedOrder() {
         _selectedOrder.value = null

@@ -10,13 +10,37 @@
 package com.cuso.mobile.view.home.sales.customer
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,37 +51,34 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.cuso.mobile.R
 import com.cuso.mobile.model.sales.CustomerItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.view.composable.DynamicIslandError
-import com.cuso.mobile.view.composable.DynamicIslandSuccess
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.DataCardImage
+import com.cuso.mobile.view.composable.DeleteModel
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.CustomerCreateState
 import com.cuso.mobile.viewmodel.CustomerDeleteState
 import com.cuso.mobile.viewmodel.CustomerUiState
 import com.cuso.mobile.viewmodel.CustomerViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
-import com.cuso.mobile.R
-import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.view.composable.DeleteModel
-import com.cuso.mobile.view.composable.TitleBar
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 fun String?.toDisplayDate(): String {
     if (this.isNullOrBlank()) return "—"
@@ -86,16 +107,14 @@ fun String?.toDisplayDate(): String {
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
+// Customer Screen with Infinite Scroll
+// -------------------------------------------------------------
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun CustomerScreen(
     navController: NavController,
-    customerState: CustomerUiState,
-    onSearch: (String) -> Unit = {},
-    onTypeFilterChange: (String) -> Unit = {},
+    customerViewModel: CustomerViewModel = hiltViewModel(),
     onClose: () -> Unit = {},
     onCreateCustomer: () -> Unit = {},
     onView: (CustomerItem) -> Unit = {},
@@ -104,8 +123,8 @@ fun CustomerScreen(
     onBreadCrumbClick: () -> Unit = {}
 ) {
     val listState = rememberLazyListState()
-    val customerViewModel: CustomerViewModel = hiltViewModel()
 
+    val uiState by customerViewModel.uiState.collectAsStateWithLifecycle()
     val isLoadingMore by customerViewModel.isLoadingMore.collectAsStateWithLifecycle()
     val canLoadMore by customerViewModel.canLoadMore.collectAsStateWithLifecycle()
 
@@ -113,10 +132,6 @@ fun CustomerScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var customerPendingDelete by remember { mutableStateOf<CustomerItem?>(null) }
-
-    val uiState by customerViewModel.uiState.collectAsStateWithLifecycle()
-    val currentPage by customerViewModel.currentPageFlow.collectAsStateWithLifecycle()
-    val pageSize by customerViewModel.pageSizeFlow.collectAsStateWithLifecycle()
 
     val deleteState by customerViewModel.deleteState.collectAsStateWithLifecycle()
     val createState by customerViewModel.createState.collectAsStateWithLifecycle()
@@ -126,6 +141,7 @@ fun CustomerScreen(
     var deleteSuccessMessage by remember { mutableStateOf("Customer Deleted Successfully") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // Infinite scroll listener
     LaunchedEffect(listState) {
         snapshotFlow {
             val info = listState.layoutInfo
@@ -136,23 +152,20 @@ fun CustomerScreen(
             .distinctUntilChanged()
             .collect { nearEnd ->
                 if (nearEnd && canLoadMore && !isLoadingMore) {
-                    customerViewModel.loadMoreCustomers() // ViewModel-ல் இந்த பங்க்ஷன் இருக்க வேண்டும்
+                    customerViewModel.loadMoreCustomers()
                 }
             }
     }
 
+    // Debounced search
     LaunchedEffect(searchQuery) {
-        if (searchQuery.isNotEmpty()) {
-            delay(500)
-            onSearch(searchQuery)
-        } else {
-            onSearch("")
-        }
+        delay(400)
+        customerViewModel.onSearch(searchQuery)
     }
 
-    LaunchedEffect(customerState) {
-        if (customerState is CustomerUiState.Error) {
-            errorMessage = customerState.message
+    LaunchedEffect(uiState) {
+        if (uiState is CustomerUiState.Error) {
+            errorMessage = (uiState as CustomerUiState.Error).message
         }
     }
 
@@ -186,9 +199,8 @@ fun CustomerScreen(
         }
     }
 
-    val isLoading = customerState is CustomerUiState.Loading
-    val customers = (customerState as? CustomerUiState.Success)?.customers ?: emptyList()
-    val total = (customerState as? CustomerUiState.Success)?.total ?: 0
+    val isLoading = uiState is CustomerUiState.Loading
+    val customers = (uiState as? CustomerUiState.Success)?.customers ?: emptyList()
 
     FabScaffold(
         fab = null,
@@ -200,43 +212,38 @@ fun CustomerScreen(
                     .fillMaxSize()
                     .background(Color.Transparent)
             ) {
-                // ── Top Bar ──────────────────────────────────────────
+                // Top Bar
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     TitleBar("Customers", onClose = onClose)
                 }
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        ScreenBreadcrumb(segments = listOf("Sales", "Customers"), onClick = { onBreadCrumbClick() })
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    ScreenBreadcrumb(segments = listOf("Sales", "Customers"), onClick = { onBreadCrumbClick() })
 
-                        SearchFilterBar(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            placeholder = "Search Customers...",
-                            accentColor = BluePrimary,
-                            borderColor = BorderGray,
-                            textSecondaryColor = TextSecondary,
-                            onFilterClick = { }
-                        )
-                    }
-
+                    SearchFilterBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        placeholder = "Search Customers...",
+                        accentColor = BluePrimary,
+                        borderColor = BorderGray,
+                        textSecondaryColor = TextSecondary,
+                        onFilterClick = { }
+                    )
+                }
 
                 HorizontalDivider(color = Color(0xFFF0F0F0))
 
-                // ── Content ──────────────────────────────────────────
+                // Content View
                 when {
                     isLoading -> {
                         ListSkeleton()
                     }
 
-                    customerState is CustomerUiState.Error -> {
+                    uiState is CustomerUiState.Error -> {
                         Box(
                             modifier = Modifier.weight(1f).fillMaxWidth(),
                             contentAlignment = Alignment.Center
@@ -245,7 +252,7 @@ fun CustomerScreen(
                                 Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
                                 Spacer(Modifier.height(8.dp))
                                 Text(
-                                    "Something went wrong, Please try again after sometime",
+                                    text = "Something went wrong, Please try again after sometime",
                                     color = Color.Red,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.padding(horizontal = 32.dp)
@@ -253,7 +260,8 @@ fun CustomerScreen(
                             }
                         }
                     }
-                    customerState is CustomerUiState.Success -> {
+
+                    uiState is CustomerUiState.Success -> {
                         if (customers.isEmpty()) {
                             Box(
                                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -322,14 +330,14 @@ fun CustomerScreen(
                                             }
                                         }
                                     }
-                                } // LazyColumn  
-                            } // Box  
-                        } // else (Success)  
-                    } // Success branch  
-                } // when block
-            } // Column
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
-            // ── Dynamic Island Notifications ──────────────────────────
+            // Dynamic Island Notifications
             if (showCreateSuccess) {
                 DynamicIslandSuccess(
                     message = "Customer Created Successfully",
@@ -353,8 +361,8 @@ fun CustomerScreen(
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
             }
-        } 
-    } 
+        }
+    }
 
     customerPendingDelete?.let { customer ->
         DeleteModel(

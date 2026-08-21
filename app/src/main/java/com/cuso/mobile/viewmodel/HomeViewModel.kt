@@ -7,6 +7,7 @@ import com.cuso.mobile.database.entities.UserEntity
 import com.cuso.mobile.database.entities.OrganizationEntity
 import com.cuso.mobile.database.entities.TokensEntity
 import com.cuso.mobile.repository.LoginRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,14 +36,14 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun loadData() {
-        viewModelScope.launch {
+        launchBusy {
             _user.value = loginRepository.getUser()
             _org.value = loginRepository.getOrganization()
             _tokens.value = loginRepository.getTokens()
         }
     }
     fun logout() {
-        viewModelScope.launch {
+        launchBusy {
             loginRepository.clearAll()
             _isLoggedOut.value = true
         }

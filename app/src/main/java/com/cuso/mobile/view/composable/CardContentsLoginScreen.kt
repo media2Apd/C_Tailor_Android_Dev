@@ -1,19 +1,39 @@
 package com.cuso.mobile.view.composable
 
 import android.app.Activity
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.PersonOutline
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,13 +44,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
-import com.cuso.mobile.ui.theme.*
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.PrimaryTextColor
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.viewmodel.UiState
-import com.cuso.mobile.R
 
 @Composable
 fun CardContentsLoginScreen(
@@ -49,14 +72,19 @@ fun CardContentsLoginScreen(
     var isSubmitted by remember { mutableStateOf(prefilledEmail.isNotBlank()) }
     var showEmailNotFound by remember { mutableStateOf(false) }
 
+    // Error state declaration for local validation and OTP error messages
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     val isError = accountState is UiState.Error || accountState is UiState.EmailNotFound
-    val errorMsg = (accountState as? UiState.Error)?.message
+    val errorMsg = (accountState as? UiState.Error)?.message ?: errorMessage
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // Clear focus and hide keyboard when clicking background
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
                 focusManager.clearFocus()
             }
             .padding(tokens.screenPadding)
@@ -69,6 +97,7 @@ fun CardContentsLoginScreen(
                     email = it
                     authViewModel.resetState()
                     showEmailNotFound = false
+                    errorMessage = null
                 },
                 leadingIconPainter = painterResource(R.drawable.ic_mail),
                 label = "Email",
@@ -96,19 +125,48 @@ fun CardContentsLoginScreen(
                     .border(1.dp, PrimaryBorder, shape = RoundedCornerShape(5.dp))
                     .padding(horizontal = 12.dp)
             ) {
-                Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.PersonOutline, null, tint = PrimaryTextColor, modifier = Modifier.size(18.dp))
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFF5F5F5)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.PersonOutline,
+                            contentDescription = null,
+                            tint = PrimaryTextColor,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Sign in as", fontSize = tokens.caption, color = PrimaryTextColor)
-                        Text(submittedEmail, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = blackTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            text = "Sign in as",
+                            fontSize = tokens.caption,
+                            color = PrimaryTextColor
+                        )
+                        Text(
+                            text = submittedEmail,
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = blackTitle,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                     Text(
-                        "Change",
-                        modifier = Modifier.clickable { navController.navigate("login") }.padding(8.dp),
-                        color = Primary, fontSize = tokens.caption, fontWeight = FontWeight.Bold
+                        text = "Change",
+                        modifier = Modifier
+                            .clickable { navController.navigate("login") }
+                            .padding(8.dp),
+                        color = Primary,
+                        fontSize = tokens.caption,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -117,7 +175,11 @@ fun CardContentsLoginScreen(
 
             CusoTextField(
                 value = password,
-                onValueChange = { password = it; authViewModel.resetState() },
+                onValueChange = {
+                    password = it
+                    authViewModel.resetState()
+                    errorMessage = null
+                },
                 label = "Password",
                 placeholder = "Enter password",
                 leadingIconPainter = painterResource(R.drawable.ic_lock),
@@ -127,11 +189,47 @@ fun CardContentsLoginScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
             )
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Spacer(Modifier.height(8.dp))
+
+            // Row containing Sign In with OTP (Left) and Forgot Password (Right)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    "Forgot Password?",
-                    modifier = Modifier.clickable { navController.navigate("new-pass/${email}") }.padding(vertical = 8.dp),
-                    color = Color(0xFF0A42BE), fontSize = tokens.caption, fontWeight = FontWeight.Medium
+                    text = "Sign In with OTP",
+                    modifier = Modifier
+                        .clickable {
+                            if (email.isNotBlank()) {
+                                val formattedEmail = email.trim()
+                                authViewModel.sendOtp(
+                                    email = formattedEmail,
+                                    onSuccess = {
+                                        navController.navigate("login-otp/${Uri.encode(formattedEmail)}")
+                                    },
+                                    onError = { error ->
+                                        errorMessage = error
+                                    }
+                                )
+                            } else {
+                                errorMessage = "Please enter your email"
+                            }
+                        }
+                        .padding(vertical = 8.dp),
+                    color = Color(0xFF0A42BE),
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Text(
+                    text = "Forgot Password?",
+                    modifier = Modifier
+                        .clickable { navController.navigate("new-pass/${email.trim()}") }
+                        .padding(vertical = 8.dp),
+                    color = Primary,
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -147,40 +245,34 @@ fun CardContentsLoginScreen(
 
         Spacer(Modifier.height(tokens.screenPadding))
 
-        // Main Login/Verify Button - height 40dp, radius 5dp
+        // Main Login/Verify Button
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-            Button(
+            AppButton(
+                text = if (isSubmitted) "Continue" else "Verify Email",
                 onClick = {
                     focusManager.clearFocus()
                     if (!isSubmitted) authViewModel.verifyEmail(email)
                     else authViewModel.login(email, password)
                 },
-                modifier = Modifier.height(40.dp).fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = whiteBg),
-                shape = RoundedCornerShape(5.dp),
-                contentPadding = PaddingValues(0.dp)
+                isLoading = accountState is UiState.Loading,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(tokens.screenPadding))
+            OrText()
+            Spacer(Modifier.height(tokens.screenPadding))
+
+            ContinueWithGoogle(activity, navController)
+            Spacer(Modifier.height(tokens.screenPadding / 2))
+            ContinueWithApple(activity, navController)
+
+            Spacer(Modifier.height(tokens.screenPadding))
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                if (accountState is UiState.Loading) {
-                    CirculerProgressIndicatorSmall()
-                } else {
-                    Text(
-                        text = if (isSubmitted) "Continue" else "Verify Email",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+                SignUpText()
             }
         }
-
-        Spacer(Modifier.height(tokens.screenPadding))
-        OrText()
-        Spacer(Modifier.height(tokens.screenPadding))
-
-        ContinueWithGoogle(activity, navController)
-        Spacer(Modifier.height(tokens.screenPadding / 2))
-        ContinueWithApple(activity, navController)
-
-        Spacer(Modifier.height(tokens.screenPadding))
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { SignUpText() }
     }
 }

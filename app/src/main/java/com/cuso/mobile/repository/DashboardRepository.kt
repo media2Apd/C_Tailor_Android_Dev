@@ -2,7 +2,7 @@ package com.cuso.mobile.repository
 
 import com.cuso.mobile.database.dao.TokensDao
 import com.cuso.mobile.model.DashboardData
-import com.cuso.mobile.network.ApiService
+import com.cuso.mobile.network.user.UserApiService
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -12,7 +12,7 @@ interface DashboardRepository {
 
 @Singleton
 class DashboardRepositoryImpl @Inject constructor(
-    private val apiService: ApiService,
+    private val userApi: UserApiService,
     private val tokensDao: TokensDao
 ) : DashboardRepository {
 
@@ -27,7 +27,7 @@ class DashboardRepositoryImpl @Inject constructor(
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
 
-            val response = apiService.getDashboardDetails(
+            val response = userApi.getDashboardDetails(
                 token = accessToken,
                 csrfToken = csrfToken
             )

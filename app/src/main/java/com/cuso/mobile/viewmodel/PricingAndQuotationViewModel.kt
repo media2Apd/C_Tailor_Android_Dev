@@ -13,6 +13,7 @@
     import com.cuso.mobile.model.sales.PricingStatValue
     import com.cuso.mobile.model.sales.PricingStats
     import com.cuso.mobile.repository.SalesRepository
+    import com.cuso.mobile.utils.launchBusy
     import dagger.hilt.android.lifecycle.HiltViewModel
     import kotlinx.coroutines.delay
     import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,7 +78,7 @@
 
         // ── Load Pricing Quotation Data ──
         fun loadPricingQuotation() {
-            viewModelScope.launch {
+            launchBusy {
                 _uiState.value = PricingQuotationUiState.Loading
                 try {
                     delay(300.milliseconds) // simulate network
@@ -98,7 +99,7 @@
             expressCharge: Double,
             bulkRules: List<BulkRuleDto>
         ) {
-            viewModelScope.launch {
+            launchBusy {
                 // Reset and show loading
                 _saveState.value = SaveUiState(isLoading = true)
 
@@ -215,7 +216,7 @@
             expressCharge: Double,
             bulkRules: List<BulkRuleDto>
         ) {
-            viewModelScope.launch {
+            launchBusy {
                 _saveState.value = SaveUiState(isLoading = true)
 
                 try {
@@ -258,7 +259,7 @@
         }
 
         fun fetchGarmentPricingList() {
-            viewModelScope.launch {
+            launchBusy {
                 _garmentPricingListState.value = GarmentPricingListUiState.Loading
                 val result = repository.getGarmentPricingList()   //   no token param
                 result.fold(
@@ -269,7 +270,7 @@
         }
 
         fun fetchGarmentPricingDetail(id: String) {
-            viewModelScope.launch {
+            launchBusy {
                 _garmentPricingDetailState.value = GarmentPricingDetailUiState.Loading
                 val result = repository.getGarmentPricingDetail(id)   //   no token param
                 result.fold(

@@ -30,6 +30,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.*
+import com.cuso.mobile.utils.AppLoadingManager
 import com.cuso.mobile.view.home.LeadPrimary
 import java.util.*
 
@@ -74,14 +75,18 @@ fun DatePickerField(
     val tokens = LocalAppTokens.current
     var showPicker by remember { mutableStateOf(false) }
 
-    // Palette now comes from MaterialTheme, so it automatically switches
-    // colors when the app theme (light/dark) changes.
+    // Combine the caller's enabled flag with the global "app busy" state,
+    // so this field automatically disables whenever any API call
+    // (create, update, etc.) is in flight app-wide.
+    val isAppBusy by AppLoadingManager.busyState.collectAsState()
+    val effectiveEnabled = enabled && !isAppBusy
+
     val palette = rememberDatePickerPalette()
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.6f)
+            .alpha(if (effectiveEnabled) 1f else 0.6f)
             .then(
                 if (isError) Modifier.border(1.dp, redtext, RoundedCornerShape(8.dp))
                 else Modifier
@@ -90,16 +95,16 @@ fun DatePickerField(
         FormDateField(
             value = value,
             palette = palette,
-            onClick = { if (enabled) showPicker = true }
+            onClick = { if (effectiveEnabled) showPicker = true }
         )
 
-        if (!enabled) {
+        if (!effectiveEnabled) {
             // Invisible overlay that blocks clicks when the field is disabled
             Box(modifier = Modifier.matchParentSize().clickable(enabled = false) {})
         }
     }
 
-    if (showPicker && enabled) {
+    if (showPicker && effectiveEnabled) {
         CustomDatePickerDialog(
             palette = palette,
             initialDate = value,
@@ -478,12 +483,20 @@ private fun rememberTimePickerPalette(): TimePickerPalette {
 fun TimePickerField(
     value: String,
     onTimeSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // NEW: allows callers to explicitly disable this field (e.g. based on
+    // form validation state), in addition to the automatic global busy check below.
+    enabled: Boolean = true
 ) {
     val tokens = LocalAppTokens.current
     var showPicker by remember { mutableStateOf(false) }
 
-    // Palette still built for the dialog/wheel picker below (dark/light aware)
+    // Combine the caller's enabled flag with the global "app busy" state,
+    // so this field automatically disables whenever any API call
+    // (create, update, etc.) is in flight app-wide.
+    val isAppBusy by AppLoadingManager.busyState.collectAsState()
+    val effectiveEnabled = enabled && !isAppBusy
+
     val palette = rememberTimePickerPalette()
 
     var selectedHour by remember(value) {
@@ -525,9 +538,10 @@ fun TimePickerField(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .alpha(if (effectiveEnabled) 1f else 0.6f) // NEW: visually dim when disabled
             .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
             .border(1.dp, PrimaryBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-            .clickable { showPicker = true }
+            .clickable(enabled = effectiveEnabled) { showPicker = true } // NEW: block click when disabled
             .padding(
                 horizontal = tokens.cardPadding * 0.6f,
                 vertical = tokens.screenPadding * 0.375f
@@ -548,7 +562,7 @@ fun TimePickerField(
         )
     }
 
-    if (showPicker) {
+    if (showPicker && effectiveEnabled) { // NEW: dialog only opens when enabled
         AlertDialog(
             onDismissRequest = { showPicker = false },
             containerColor = whiteBg,

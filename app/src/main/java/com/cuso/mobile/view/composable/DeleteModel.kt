@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.redtext
+import com.cuso.mobile.ui.theme.whiteBg
 
 @Composable
 fun DeleteModel(
@@ -105,7 +107,8 @@ fun DeleteModel(
                             checked = isConfirmed,
                             onCheckedChange = { isConfirmed = it },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFFEF4444)
+                                checkedColor = redtext,
+                                checkmarkColor = whiteBg
                             )
                         )
                         Spacer(modifier = Modifier.width(4.dp))

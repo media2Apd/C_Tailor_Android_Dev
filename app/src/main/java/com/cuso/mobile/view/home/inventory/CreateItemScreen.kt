@@ -62,6 +62,9 @@ import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.view.composable.AccordionSection
+import com.cuso.mobile.view.composable.SettingsTabs
+import com.cuso.mobile.view.composable.TabItem
+import com.cuso.mobile.view.composable.TitleBar
 
 
 // ── Design tokens (colors only — sizing now comes from AppDesignTokens) ──
@@ -160,33 +163,8 @@ fun CreateItemScreen(
                 .background(Color.Transparent)
         ) {
             // ── Header ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = tokens.screenPadding, vertical = tokens.cardPadding * 0.55f),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (isEditMode) "Edit Item" else "Create Item",
-                    fontSize = title_font,
-                    fontWeight = FontWeight.Bold,
-                    color = title_color
-                )
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "Close",
-                    tint = close_color,
-                    modifier = Modifier
-                        .size(tokens.iconSize)
-                        .clickable {
-                            viewModel.resetCreateItemForm()
-                            onDismiss()
-                        }
-                )
-            }
-            HorizontalDivider(color = BorderColor)
+
+            TitleBar(if (isEditMode) "Edit Item" else "Create Item", onClose = onDismiss)
 
             Column(
                 modifier = Modifier
@@ -202,12 +180,20 @@ fun CreateItemScreen(
                     onHeaderClick = { viewModel.toggleSection(ItemSection.ITEM_IDENTITY) }
                 ) {
                     FormLabel("Item Type")
-                    SegmentedToggle(
-                        optionA = "Goods",
-                        optionB = "Service",
-                        selectedA = formState.itemType == ItemType.IN_HOUSE,
-                        onSelectA = { viewModel.updateCreateItemForm { it.copy(itemType = ItemType.IN_HOUSE) } },
-                        onSelectB = { viewModel.updateCreateItemForm { it.copy(itemType = ItemType.CLIENT) } }
+                    val itemTypeTabs = remember {
+                        listOf(
+                            TabItem(label = "Goods"),
+                            TabItem(label = "Service")
+                        )
+                    }
+                    SettingsTabs(
+                        tabs = itemTypeTabs,
+                        selectedIndex = if (formState.itemType == ItemType.IN_HOUSE) 0 else 1,
+                        onTabSelected = { index ->
+                            viewModel.updateCreateItemForm {
+                                it.copy(itemType = if (index == 0) ItemType.IN_HOUSE else ItemType.CLIENT)
+                            }
+                        }
                     )
 
                     Spacer(Modifier.height(tokens.screenPadding * 0.8f))
@@ -533,6 +519,7 @@ fun CreateItemScreen(
                 viewModel.resetCreateItemForm()
                 onDismiss()
             },
+            showBackArrow = false,
             backLabel = "Cancel",
             trailingAction = TrailingFabAction.Update(
                 isLoading = uiState is CreateItemUiState.Loading,
@@ -562,39 +549,6 @@ private fun AppTextArea(value: String, onValueChange: (String) -> Unit) {
         ),
         modifier = Modifier.fillMaxWidth().height(90.dp)
     )
-}
-
-@Composable
-private fun SegmentedToggle(
-    optionA: String, optionB: String,
-    selectedA: Boolean,
-    onSelectA: () -> Unit, onSelectB: () -> Unit
-) {
-    val tokens = LocalAppTokens.current
-    val FieldShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, BorderColor, FieldShape)
-            .padding(4.dp)
-    ) {
-        SegmentedOption(optionA, selectedA, onSelectA, Modifier.weight(1f))
-        SegmentedOption(optionB, !selectedA, onSelectB, Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun SegmentedOption(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val tokens = LocalAppTokens.current
-    Box(
-        modifier = modifier
-            .background(if (selected) Primary else Color.Transparent, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-            .clickable { onClick() }
-            .padding(vertical = 5.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text, color = if (selected) whiteBg else LabelColor, fontWeight = FontWeight.Medium, fontSize = tokens.bodyMedium)
-    }
 }
 
 @Composable

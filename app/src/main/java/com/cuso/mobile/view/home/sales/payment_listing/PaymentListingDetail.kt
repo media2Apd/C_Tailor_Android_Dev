@@ -1,3 +1,5 @@
+@file:Suppress("SameParameterValue", "SameParameterValue","unused","unusedVariable")
+
 package com.cuso.mobile.view.home.sales.payment_listing
 
 import androidx.compose.foundation.BorderStroke
@@ -8,7 +10,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -18,7 +19,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.focusOrder
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -45,15 +45,10 @@ import com.cuso.mobile.view.home.inventory.FormTextArea
 // close_color, title_color, title_font, blackTitle) are reused as-is from
 // the theme file. Only the few tokens missing from the theme are added below.
 // ─────────────────────────────────────────────────────────────────────────
-private val PrimaryLightBg = Color(0xFFEEF0FF)
-private val PrimaryBorderSoft = Color(0xFFD6D2FB)
-private val WhatsAppGreen = Color(0xFF25D366)
-private val LinkCardBg = Color(0xFFECFDF5)
-private val LinkCardBorder = Color(0xFFA7F3D0)
+
 private val LinkChipBg = Color(0xFFF0FDF4)
 private val UpiChipBg = Color(0xFFDBEAFE)
 private val UpiChipText = Color(0xFF1654E7)
-private val DividerColor = Color(0xFFF0F0F0)
 
 // ─────────────────────────────────────────────────────────────────────────
 // SAMPLE DATA MODELS (design-only placeholders)
@@ -307,7 +302,7 @@ private fun OrderSummaryCard(
                 .fillMaxWidth()
                 .padding(horizontal = tokens.screenPadding)
         ) {
-            items.forEachIndexed { index, item ->
+            items.forEachIndexed { _, item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -529,7 +524,7 @@ private fun ReceivePaymentCard(
     onReceivePaymentClick: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    var amountText by remember { mutableStateOf(totalDue.toString() + ".00") }
+    var amountText by remember { mutableStateOf("$totalDue.00") }
     var paymentMode by remember { mutableStateOf("UPI") }
     var paymentModeExpanded by remember { mutableStateOf(false) }
     var referenceNo by remember { mutableStateOf("") }
@@ -711,20 +706,20 @@ fun ReceivePaymentSheet(
 ) {
     val tokens = LocalAppTokens.current
     var isFullAmount by remember { mutableStateOf(true) }
-    var amountText by remember { mutableStateOf(totalDue.toString() + ".00") }
+    var amountText by remember { mutableStateOf("$totalDue.00") }
     var selectedMethod by remember { mutableStateOf("Cash") }
     var referenceNo by remember { mutableStateOf("") }
     var completionDate by remember { mutableStateOf("06-07-2026") }
     var notes by remember { mutableStateOf("") }
 
     LaunchedEffect(isFullAmount) {
-        if (isFullAmount) amountText = totalDue.toString() + ".00"
+        if (isFullAmount) amountText = "$totalDue.00"
     }
 
     SmoothBottomSheet(
         state = sheetState,
         onStateChange = onStateChange,
-        collapsedFraction = 0.82f,
+        collapsedFraction = 0.55f,
         topInset = 66.dp,
         onDismissRequest = onDismiss,
         onBlurScrimChange = onBlurScrimChange

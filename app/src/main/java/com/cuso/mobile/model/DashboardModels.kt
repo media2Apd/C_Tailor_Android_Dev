@@ -43,6 +43,7 @@ data class LeadChartItem(
 )
 
 data class OperationItem(
+    val customerId: String = "",
     val customer: String,
     val type: String,
     val status: String

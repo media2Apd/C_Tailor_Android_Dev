@@ -497,7 +497,8 @@ fun LeadFormScreen(
         return
     }
 
-    if (!isCreate && isLoadingLead) {
+    // Only show full screen loader on initial entry when lead data is not yet in memory
+    if (!isCreate && l == null && isLoadingLead) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CirculerProgressIndicatorReuse()
@@ -794,18 +795,24 @@ fun LeadFormScreen(
         }
     }
 
+
     LaunchedEffect(updateState) {
         if (!isEdit) return@LaunchedEffect
         when (val state = updateState) {
             is SaleState.Success<*> -> {
-                // Show success notification on the current screen
                 successMessage = "Lead updated successfully"
+                salesViewModel.fetchTableLeads()
 
-                // Give the user time to see the message before navigating away
-                delay(1500)
+                delay(1200)
 
-                // Reset VM state before navigating
+                // Reset update state first so it doesn't re-trigger
                 salesViewModel.resetUpdateState()
+
+                // Refresh the lead details for the View screen
+                l?.id?.let { leadId ->
+                    salesViewModel.fetchLeadDetails(leadId) { /* Refresh completed */ }
+                }
+
                 onBack()
             }
             is SaleState.Error -> {
@@ -813,6 +820,39 @@ fun LeadFormScreen(
                 salesViewModel.resetUpdateState()
             }
             else -> Unit
+        }
+    }
+
+    // Synchronize form fields whenever the selected lead data updates
+    LaunchedEffect(l) {
+        if (l != null) {
+            leadSource = l.source
+            enquiryDate = formatLeadDate(l.enquiryDate)
+            leadOwner = l.leadOwner
+            leadStatus = l.status
+            customerType = l.customerType.replaceFirstChar { c -> c.uppercase() }
+            fullName = l.fullName
+            email = l.email
+            gender = l.gender
+            dob = formatLeadDate(l.dob)
+            address = l.address
+            areaZone = l.area
+            city = l.city
+            preferredContact = l.preferredContactMethod
+            enquiryType = l.enquiryType.orEmpty()
+            estimatedQuantity = if (l.estimatedQuantity == 0) "" else l.estimatedQuantity.toString()
+            budgetRange = l.budgetMin.toFloat()
+            requiredDate = formatLeadDate(l.requiredDate)
+            occasion = l.occasion
+            appointmentRequired = l.appointmentRequired
+            appointmentDate = formatLeadDate(l.appointmentDate)
+            appointmentTime = l.appointmentTime.orEmpty()
+            assignedStaff = l.assignedStaff.orEmpty()
+            followUpDate = formatLeadDate(l.followUpDate)
+            priority = l.priority.orEmpty()
+            internalNotes = l.internalNotes
+            customerNotes = l.customerNotes
+            phone = l.phone
         }
     }
 

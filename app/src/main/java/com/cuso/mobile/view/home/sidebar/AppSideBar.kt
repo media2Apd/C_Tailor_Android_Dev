@@ -951,7 +951,7 @@ fun QuickAccessPanel(
     SmoothBottomSheet(
         state = sheetState,
         onStateChange = { sheetState = it },
-        collapsedFraction = HALF_FRACTION,
+        collapsedFraction = 0.55f,
         expandedFraction = FULL_FRACTION,
         dragCloseEnabled = false,
         scrollableContent = false,
@@ -1212,7 +1212,7 @@ private fun ModulesPanelContent(
     SmoothBottomSheet(
         state = sheetState,
         onStateChange = { sheetState = it },
-        collapsedFraction = HALF_FRACTION,
+        collapsedFraction = 0.55f,
         expandedFraction = FULL_FRACTION,
         dragCloseEnabled = false,
         scrollableContent = false,

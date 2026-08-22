@@ -1,3 +1,7 @@
+// ─────────────────────────────────────────────────────────────
+// FinanceInvoiceScreen — "All Invoice" list (View All)
+// ─────────────────────────────────────────────────────────────
+
 package com.cuso.mobile.view.home.finance
 
 import androidx.compose.foundation.BorderStroke
@@ -50,7 +54,9 @@ import kotlinx.coroutines.withContext
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
-
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
+import kotlinx.coroutines.flow.distinctUntilChanged
 private val InvPrimary = Color(0xFF3B3BF9)
 private val InvTextDark = Color(0xFF111827)
 private val InvmutedText = Color(0xFF9CA3AF)
@@ -59,25 +65,44 @@ private val InvRed = Color(0xFFEF4444)
 private val InvYellow = Color(0xFFF59E0B)
 
 // ─────────────────────────────────────────────────────────────
-// FinanceInvoiceScreen — "All Invoice" list (View All)
+// FinanceInvoiceScreen — "All Invoice" list with Infinite Scroll
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun FinanceInvoiceScreen(
     onClose: () -> Unit,
     onInvoiceClick: (InvoiceItem) -> Unit,
-    onBreadCrumbClick: () -> Unit ={}
-
+    onBreadCrumbClick: () -> Unit = {}
 ) {
     val viewModel: FinanceViewModel = hiltViewModel()
 
     val invoices by viewModel.invoiceList.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingInvoices.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMoreInvoices.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMoreInvoices.collectAsStateWithLifecycle()
     val error by viewModel.invoiceError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
 
+    // Fetch initial list
     LaunchedEffect(Unit) {
         viewModel.fetchInvoices()
+    }
+
+    // Infinite scroll detection: triggers loadMore when 3 items away from the bottom
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            totalItems > 0 && lastVisibleIndex >= totalItems - 3
+        }
+            .distinctUntilChanged()
+            .collect { nearBottom ->
+                if (nearBottom && canLoadMore && !isLoadingMore && !isLoading) {
+                    viewModel.loadMoreInvoices()
+                }
+            }
     }
 
     val filteredInvoices = invoices.filter { inv ->
@@ -91,7 +116,7 @@ fun FinanceInvoiceScreen(
             .fillMaxSize()
             .background(Color.Transparent)
     ) {
-        // ── Top bar ──
+        // ── Top Bar ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -105,13 +130,16 @@ fun FinanceInvoiceScreen(
                 Icons.Default.Close,
                 contentDescription = "Close",
                 tint = InvTextDark,
-                modifier = Modifier.size(24.dp).clickable { onClose() }
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable { onClose() }
             )
         }
 
         // ── Breadcrumb ──
-        ScreenBreadcrumb(listOf("Finance","Sales Invoice"), onClick = {onBreadCrumbClick()})
+        ScreenBreadcrumb(listOf("Finance", "Sales Invoice"), onClick = { onBreadCrumbClick() })
 
+        // ── Search Bar ──
         SearchFilterBar(
             query = searchQuery,
             onQueryChange = { searchQuery = it },
@@ -122,7 +150,6 @@ fun FinanceInvoiceScreen(
             onFilterClick = { }
         )
         HorizontalDivider(color = Color(0xFFF0F0F0))
-
 
         // ── Body ──
         Box(modifier = Modifier.fillMaxSize()) {
@@ -142,7 +169,12 @@ fun FinanceInvoiceScreen(
                 filteredInvoices.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.AutoMirrored.Filled.ReceiptLong, null, tint = InvmutedText, modifier = Modifier.size(48.dp))
+                            Icon(
+                                Icons.AutoMirrored.Filled.ReceiptLong,
+                                contentDescription = null,
+                                tint = InvmutedText,
+                                modifier = Modifier.size(48.dp)
+                            )
                             Spacer(Modifier.height(8.dp))
                             Text("No invoices found", fontSize = 14.sp, color = InvmutedText)
                         }
@@ -150,6 +182,7 @@ fun FinanceInvoiceScreen(
                 }
                 else -> {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
@@ -161,6 +194,20 @@ fun FinanceInvoiceScreen(
                                     onInvoiceClick(invoice)
                                 }
                             )
+                        }
+
+                        // Bottom loading indicator for pagination
+                        if (isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CirculerProgressIndicatorSmall()
+                                }
+                            }
                         }
                     }
                 }

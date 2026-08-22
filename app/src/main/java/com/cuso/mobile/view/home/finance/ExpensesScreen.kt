@@ -1,13 +1,18 @@
-@file:Suppress("UNUSED_PARAMETER",
+@file:Suppress(
+    "UNUSED_PARAMETER",
     "UNUSED",
     "RedundantSuppression",
     "unused_variable",
-    "AssignedValueIsNeverRead", "VariableNeverRead"
+    "AssignedValueIsNeverRead",
+    "VariableNeverRead"
 )
-
 
 package com.cuso.mobile.view.home.finance
 
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,17 +23,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,21 +45,35 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.BranchItem
 import com.cuso.mobile.model.finance.ChartOfAccountItem
 import com.cuso.mobile.model.finance.ExpenseItem
+import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.DatePickerField
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.ErrorFieldWrapper
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
-import com.cuso.mobile.view.composable.DataCard
-import com.cuso.mobile.view.composable.DataCardField
-import com.cuso.mobile.view.composable.FabConfig
-import com.cuso.mobile.view.composable.FabScaffold
+import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.PlanLimitDialog
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
+import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.view.composable.ValidationField
 import com.cuso.mobile.viewmodel.BranchUiState
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.CreateExpenseState
@@ -58,47 +81,17 @@ import com.cuso.mobile.viewmodel.FinanceViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import android.net.Uri
-import android.provider.OpenableColumns
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.ui.platform.LocalContext
-import com.cuso.mobile.ui.theme.BluePrimary
-import com.cuso.mobile.ui.theme.BorderGray
-import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.DynamicIslandError
-import com.cuso.mobile.view.composable.ErrorFieldWrapper
-import com.cuso.mobile.view.composable.FieldValidator
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
-import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.composable.ValidationField
-import com.cuso.mobile.view.composable.ListSkeleton
-import com.cuso.mobile.view.composable.PlanLimitDialog
-import com.cuso.mobile.view.composable.SearchFilterBar
-// ── Adaptive design tokens ──
-import com.cuso.mobile.adaptive_screen.LocalAppTokens
 
 private val ExpensePrimary = Color(0xFF3B3BF9)
 private val ExpenseBg = Color(0xFFF5F5F5)
 private val ExpenseBorder = Color(0xFFE5E7EB)
 
-// ─────────────────────────────────────────────────────────────
-// 🧾 EXPENSES SCREEN (List / Empty state) — now wired to real API
-// ─────────────────────────────────────────────────────────────
-
 @Composable
 fun ExpensesScreen(
     onClose: () -> Unit,
-    onBreadCrumbClick: () -> Unit ={}
-
+    onBreadCrumbClick: () -> Unit = {}
 ) {
-    //   NEW — adaptive tokens
     val tokens = LocalAppTokens.current
-
     val financeViewModel: FinanceViewModel = hiltViewModel()
 
     var showAddExpense by remember { mutableStateOf(false) }
@@ -109,7 +102,6 @@ fun ExpensesScreen(
     val isLoadingExpenses by financeViewModel.isLoadingExpenses.collectAsStateWithLifecycle()
     val expenseError by financeViewModel.expenseError.collectAsStateWithLifecycle()
 
-    //   Fetch real expenses + chart of accounts when screen opens
     LaunchedEffect(Unit) {
         financeViewModel.fetchExpenses()
         financeViewModel.fetchChartOfAccounts()
@@ -121,11 +113,12 @@ fun ExpensesScreen(
             onClose = { showAddExpense = false },
             onSaved = {
                 showAddExpense = false
-                financeViewModel.fetchExpenses()   // refresh list after add
+                financeViewModel.fetchExpenses()
             }
         )
         return
     }
+
     selectedExpenseForView?.let { expense ->
         ExpenseDetailScreen(
             expense = expense,
@@ -139,20 +132,15 @@ fun ExpensesScreen(
             .fillMaxSize()
             .background(Color.Transparent)
     ) {
-        // ── Header ──
         Row(
-            modifier = Modifier
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             TitleBar("All Expense", onClose = onClose)
-
         }
-        Column(Modifier.fillMaxWidth()
-        ) {
 
-            // ── Breadcrumb ──
+        Column(Modifier.fillMaxWidth()) {
             ScreenBreadcrumb(
                 segments = listOf("Finance", "Expenses"),
                 onClick = { onBreadCrumbClick() }
@@ -165,18 +153,14 @@ fun ExpensesScreen(
                 accentColor = BluePrimary,
                 borderColor = BorderGray,
                 textSecondaryColor = TextSecondary,
-                onFilterClick = {  }
+                onFilterClick = { }
             )
         }
         HorizontalDivider(color = Color(0xFFF0F0F0))
 
-
-
-
         val filtered = expenses.filter {
-            searchQuery.isBlank() ||
-                    it.accountId.accountName.contains(searchQuery, ignoreCase = true) ||
-                    it.expenseNumber.contains(searchQuery, ignoreCase = true)
+            val query = searchQuery.trim()
+            query.isBlank() || it.accountId.accountName.contains(query, ignoreCase = true) || it.expenseNumber.contains(query, ignoreCase = true) || (it.referenceNumber?.contains(query, ignoreCase = true) == true)
         }
 
         when {
@@ -187,11 +171,24 @@ fun ExpensesScreen(
             expenseError != null -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(tokens.iconSize * 2.4f))
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color.Red,
+                            modifier = Modifier.size(tokens.iconSize * 2.4f)
+                        )
                         Spacer(Modifier.height(8.dp))
-                        Text("Something went wrong, Please try again later", color = Color.Red, fontSize = tokens.bodyMedium)
+                        Text(
+                            "Something went wrong, Please try again later",
+                            color = Color.Red,
+                            fontSize = tokens.bodyMedium
+                        )
                         Spacer(Modifier.height(12.dp))
-                        Button(onClick = { financeViewModel.fetchExpenses() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(tokens.cardCornerRadius / 2)) {
+                        Button(
+                            onClick = { financeViewModel.fetchExpenses() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
+                            shape = RoundedCornerShape(tokens.cardCornerRadius / 2)
+                        ) {
                             Text("Retry", color = whiteBg, fontSize = tokens.bodyMedium)
                         }
                     }
@@ -199,7 +196,6 @@ fun ExpensesScreen(
             }
 
             filtered.isEmpty() -> {
-                // ── Empty state ──
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -214,10 +210,20 @@ fun ExpensesScreen(
                             .background(Color(0xFFE7E5FE)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Description, contentDescription = null, tint = Color(0xFF9B96F5), modifier = Modifier.size(tokens.iconSize * 1.6f))
+                        Icon(
+                            Icons.Default.Description,
+                            contentDescription = null,
+                            tint = Color(0xFF9B96F5),
+                            modifier = Modifier.size(tokens.iconSize * 1.6f)
+                        )
                     }
                     Spacer(Modifier.height(16.dp))
-                    Text("No Expenses Found", fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                    Text(
+                        "No Expenses Found",
+                        fontSize = tokens.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF111827)
+                    )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "Start by creating your first expense record",
@@ -232,14 +238,23 @@ fun ExpensesScreen(
                         shape = RoundedCornerShape(tokens.cardCornerRadius / 1.5f),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = whiteBg, modifier = Modifier.size(tokens.iconSize))
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            tint = whiteBg,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
                         Spacer(Modifier.width(6.dp))
-                        Text("Add Expenses", color = whiteBg, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium)
+                        Text(
+                            "Add Expenses",
+                            color = whiteBg,
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }
 
-            //
             else -> {
                 FabScaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -249,22 +264,22 @@ fun ExpensesScreen(
                         onClick = { showAddExpense = true }
                     )
                 ) {
-                    // ── List (real API data) ──
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(Color.Transparent)
                     ) {
                         items(filtered) { expense ->
-                            val (statusFg, statusBg) = expenseStatusColors(expense.status)
+                            val status = expense.status.ifBlank { "Paid" }
+                            val (statusFg, statusBg) = expenseStatusColors(status)
                             DataCard(
                                 item = expense,
                                 dateText = formatExpenseDate(expense.expenseDate),
-                                topBadgeText = expense.status,
+                                topBadgeText = status,
                                 topBadgeTextColor = statusFg,
                                 topBadgeBgColor = statusBg,
-                                title = expense.accountId.accountName,
-                                subtitle = "Paid via ${expense.paymentAccountId.accountName}",
+                                title = expense.accountId.accountName.ifBlank { "Expense" },
+                                subtitle = "Paid via ${expense.paymentAccountId.accountName.ifBlank { "Account" }}",
                                 footerFields = listOf(
                                     DataCardField(
                                         asRow = true,
@@ -288,17 +303,15 @@ fun ExpensesScreen(
         }
     }
 }
-// ─────────────────────────────────────────────────────────────
-//  EXPENSE DETAIL SCREEN — read-only view
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 fun ExpenseDetailScreen(
     expense: ExpenseItem,
     onClose: () -> Unit
 ) {
-    //   NEW — adaptive tokens
     val tokens = LocalAppTokens.current
+    val status = expense.status.ifBlank { "Paid" }
+    val (statusFg, statusBg) = expenseStatusColors(status)
 
     Column(
         modifier = Modifier
@@ -330,21 +343,54 @@ fun ExpenseDetailScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding)
         ) {
-            ExpenseDetailField("Expense Number", expense.expenseNumber)
-            ExpenseDetailField("Expense Date", formatExpenseDate(expense.expenseDate))
-            ExpenseDetailField("Expense Account", expense.accountId.accountName)
-            ExpenseDetailField("Payment Mode", expense.paymentAccountId.accountName)
-            ExpenseDetailField("Amount", "₹${formatAmount(expense.amount)}")
+            ExpenseDetailField(
+                label = "Expense Number",
+                value = expense.expenseNumber.ifBlank { "—" }
+            )
+            ExpenseDetailField(
+                label = "Expense Date",
+                value = formatExpenseDate(expense.expenseDate)
+            )
+            ExpenseDetailField(
+                label = "Expense Account",
+                value = expense.accountId.accountName.ifBlank { "—" }
+            )
+            ExpenseDetailField(
+                label = "Payment Mode",
+                value = expense.paymentAccountId.accountName.ifBlank { "—" }
+            )
+            ExpenseDetailField(
+                label = "Amount",
+                value = "₹${formatAmount(expense.amount)}"
+            )
+
+            if (!expense.referenceNumber.isNullOrBlank()) {
+                ExpenseDetailField(
+                    label = "Reference Number",
+                    value = expense.referenceNumber
+                )
+            }
+
+            if (!expense.notes.isNullOrBlank()) {
+                ExpenseDetailField(
+                    label = "Notes",
+                    value = expense.notes
+                )
+            }
 
             FormLabel("Status")
             Spacer(Modifier.height(6.dp))
-            val (statusFg, statusBg) = expenseStatusColors(expense.status)
             Box(
                 modifier = Modifier
                     .background(statusBg, RoundedCornerShape(20.dp))
                     .padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
-                Text(expense.status, fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = statusFg)
+                Text(
+                    text = status,
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.SemiBold,
+                    color = statusFg
+                )
             }
             Spacer(Modifier.height(20.dp))
         }
@@ -352,7 +398,7 @@ fun ExpenseDetailScreen(
 }
 
 @Composable
-private fun ExpenseDetailField(label: String, value: String) {
+private fun ExpenseDetailField(label: String, value: String?) {
     val tokens = LocalAppTokens.current
     FormLabel(label)
     Spacer(Modifier.height(4.dp))
@@ -363,20 +409,25 @@ private fun ExpenseDetailField(label: String, value: String) {
             .border(1.dp, ExpenseBorder, RoundedCornerShape(tokens.cardCornerRadius / 2))
             .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
-        Text(value, fontSize = tokens.bodyMedium, color = Color(0xFF374151))
+        Text(
+            text = value?.ifBlank { "—" } ?: "—",
+            fontSize = tokens.bodyMedium,
+            color = Color(0xFF374151)
+        )
     }
     Spacer(Modifier.height(14.dp))
 }
-private fun expenseStatusColors(status: String): Pair<Color, Color> {
-    return when (status.lowercase()) {
-        "paid" -> Color(0xFF16A34A) to Color(0xFFDCFCE7)      // text, bg
+
+private fun expenseStatusColors(status: String?): Pair<Color, Color> {
+    return when (status?.lowercase()) {
+        "paid" -> Color(0xFF16A34A) to Color(0xFFDCFCE7)
         "pending" -> Color(0xFFCA8A04) to Color(0xFFFEF3C7)
         else -> Color(0xFF6B7280) to Color(0xFFF3F4F6)
     }
 }
 
-private fun formatAmount(amount: Double): String {
-    val value = amount.toLong()
+private fun formatAmount(amount: Double?): String {
+    val value = (amount ?: 0.0).toLong()
     val s = value.toString()
     if (s.length <= 3) return s
     val last3 = s.takeLast(3)
@@ -385,9 +436,10 @@ private fun formatAmount(amount: Double): String {
     return "$grouped,$last3"
 }
 
-private fun formatExpenseDate(iso: String): String {
+private fun formatExpenseDate(iso: String?): String {
+    if (iso.isNullOrBlank()) return "—"
     return try {
-        val datePart = iso.take(10) // "2026-07-15"
+        val datePart = iso.take(10)
         val parts = datePart.split("-")
         if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else iso
     } catch (_: Exception) {
@@ -395,29 +447,22 @@ private fun formatExpenseDate(iso: String): String {
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// ➕ ADD EXPENSE SCREEN — now wired to real Chart of Accounts + create API
-// ─────────────────────────────────────────────────────────────
-
 @Composable
 fun AddExpenseScreen(
     financeViewModel: FinanceViewModel,
     onClose: () -> Unit,
     onSaved: () -> Unit
 ) {
-    //   NEW — adaptive tokens
     val tokens = LocalAppTokens.current
 
-    //
     val chartOfAccounts by financeViewModel.chartOfAccounts.collectAsStateWithLifecycle()
     val isLoadingAccounts by financeViewModel.isLoadingChartOfAccounts.collectAsStateWithLifecycle()
     val createExpenseState by financeViewModel.createExpenseState.collectAsStateWithLifecycle()
     val createAccountState by financeViewModel.createAccountState.collectAsStateWithLifecycle()
-    //   Category options = leaf Expense accounts (e.g. Salary, Rent, Electricity...)
+
     val categoryAccounts = remember(chartOfAccounts) {
         chartOfAccounts.filter { it.accountType == "Expense" && !it.isGroup }
     }
-    //   Payment Mode options = leaf Asset accounts you can pay FROM (Cash, Bank...)
     val paymentAccounts = remember(chartOfAccounts) {
         chartOfAccounts.filter { it.accountType == "Asset" && it.allowManualEntry }
     }
@@ -426,7 +471,6 @@ fun AddExpenseScreen(
         mutableStateOf(SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()).format(Date()))
     }
 
-    //
     var selectedCategory by remember { mutableStateOf<ChartOfAccountItem?>(null) }
     var categoryExpanded by remember { mutableStateOf(false) }
 
@@ -451,29 +495,18 @@ fun AddExpenseScreen(
 
     var amount by remember { mutableStateOf("") }
 
-    var expenseType by remember { mutableStateOf("Operational") }
-    var expenseTypeExpanded by remember { mutableStateOf(false) }
-    val expenseTypeOptions = listOf("Operational", "Capital", "Administrative", "Miscellaneous")
-
     var referenceNumber by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
 
-    //
     val isSaving = createExpenseState is CreateExpenseState.Loading
     val isSavingAccount = createAccountState is com.cuso.mobile.viewmodel.CreateAccountState.Loading
 
-    // ── Dynamic Island error state ──
     var showError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
-
-    // ── Required field validation (Lead-screen pattern) ──
     var errorField by remember { mutableStateOf<String?>(null) }
 
-    // ── Plan limit state for Documentation upload ──
     var showPlanLimitDialog by remember { mutableStateOf(false) }
-
-    // e.g. organizationViewModel.organization.plan?.name
-    val currentPlanName = "starter" // "starter" | "light" | "pro" | "premium" etc.
+    val currentPlanName = "starter"
     val isUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
             currentPlanName.equals("light", ignoreCase = true)
 
@@ -490,7 +523,6 @@ fun AddExpenseScreen(
         }
     }
 
-    //   Handle save result
     LaunchedEffect(createExpenseState) {
         when (val state = createExpenseState) {
             is CreateExpenseState.Success -> {
@@ -505,9 +537,8 @@ fun AddExpenseScreen(
         }
     }
 
-    //   Handle add-account result — same pattern as expense save
     LaunchedEffect(createAccountState) {
-        when (val state = createAccountState) {
+        when (createAccountState) {
             is com.cuso.mobile.viewmodel.CreateAccountState.Success -> {
                 financeViewModel.resetCreateAccountState()
                 showAddAccountDialog = false
@@ -523,19 +554,14 @@ fun AddExpenseScreen(
                 .fillMaxSize()
                 .background(Color.Transparent)
         ) {
-            // ── Header ──
             Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TitleBar("Add Expense", onClose = onClose)
-
             }
             HorizontalDivider(color = Color(0xFFF0F0F0))
-
-
 
             Column(
                 modifier = Modifier
@@ -543,7 +569,12 @@ fun AddExpenseScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding)
             ) {
-                Text("Expense Details", fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                Text(
+                    "Expense Details",
+                    fontSize = tokens.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF111827)
+                )
                 Spacer(Modifier.height(14.dp))
 
                 FormLabel("Expense Date", isRequired = true)
@@ -561,17 +592,11 @@ fun AddExpenseScreen(
                 }
                 Spacer(Modifier.height(14.dp))
 
-
-                //
-// ── Category — real Chart of Accounts (Expense accounts) + Add New ──
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-
                     Box(modifier = Modifier.weight(1f)) {
-                        FormLabel("Expense Account")
-
                         FormDropdown(
                             label = "Expense Account",
                             value = selectedCategory?.accountName ?: if (isLoadingAccounts) "Loading..." else "Select An Option",
@@ -589,8 +614,7 @@ fun AddExpenseScreen(
                         )
                     }
                     Box(
-                        Modifier
-                            .background(Primary, RoundedCornerShape(5.dp))
+                        Modifier.background(Primary, RoundedCornerShape(5.dp))
                     ) {
                         Icon(
                             Icons.Default.Add,
@@ -622,18 +646,15 @@ fun AddExpenseScreen(
                 )
                 Spacer(Modifier.height(14.dp))
 
-                // ── Amount + Payment Mode ──
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(modifier = Modifier.weight(1f)) {
                         FormLabel("Amount", isRequired = true)
                         FormTextField(
                             value = amount,
                             onValueChange = { input ->
-                                //   allow only digits + a single decimal point (e.g. "1250.50")
-                                val filtered = input
-                                    .filterIndexed { index, c ->
-                                        c.isDigit() || (c == '.' && input.indexOf('.') == index)
-                                    }
+                                val filtered = input.filterIndexed { index, c ->
+                                    c.isDigit() || (c == '.' && input.indexOf('.') == index)
+                                }
                                 amount = filtered
                                 errorField = null
                             },
@@ -693,11 +714,15 @@ fun AddExpenseScreen(
                 }
                 Spacer(Modifier.height(20.dp))
 
-                Text("Documentation & Receipts", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                Text(
+                    "Documentation & Receipts",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF111827)
+                )
                 Spacer(Modifier.height(10.dp))
 
                 if (selectedDocumentName != null) {
-                    // ── Uploaded file shown with remove button ──
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -719,7 +744,7 @@ fun AddExpenseScreen(
                             )
                             Spacer(Modifier.width(10.dp))
                             Text(
-                                selectedDocumentName ?: "",
+                                selectedDocumentName.orEmpty(),
                                 fontSize = tokens.bodySmall,
                                 color = Color(0xFF374151),
                                 maxLines = 1
@@ -738,7 +763,6 @@ fun AddExpenseScreen(
                         )
                     }
                 } else {
-                    // ── Empty upload box ──
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -755,21 +779,24 @@ fun AddExpenseScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(Icons.Default.CloudUpload, contentDescription = null, tint = ExpensePrimary, modifier = Modifier.size(tokens.iconSize * 1.4f))
+                        Icon(
+                            Icons.Default.CloudUpload,
+                            contentDescription = null,
+                            tint = ExpensePrimary,
+                            modifier = Modifier.size(tokens.iconSize * 1.4f)
+                        )
                         Spacer(Modifier.height(6.dp))
                         Text("Drag and drop files here", fontSize = tokens.caption, color = Color(0xFF9CA3AF))
                     }
                 }
                 Spacer(Modifier.height(80.dp))
             }
+        }
 
-            // ── Cancel / Save footer ──
-        }   // ← closes the inner Column (header + scrollable form)
-
-        // ── Cancel / Save footer (StepNavigationFab) ──
         StepNavigationFab(
             showBack = true,
             onBack = onClose,
+            showBackArrow = false,
             backLabel = "Cancel",
             backEnabled = !isSaving,
             trailingAction = TrailingFabAction.Update(
@@ -780,12 +807,12 @@ fun AddExpenseScreen(
                         ValidationField("expenseDate", expenseDate, "Expense date is required"),
                         ValidationField(
                             "expenseAccount",
-                            selectedCategory?.accountName ?: "",
+                            selectedCategory?.accountName.orEmpty(),
                             "Expense account is required"
                         ),
-                        ValidationField("branch", selectedBranch?.name ?: "", "Branch is required"),
+                        ValidationField("branch", selectedBranch?.name.orEmpty(), "Branch is required"),
                         ValidationField("amount", amount, "Amount is required"),
-                        ValidationField("paymentMode", selectedPaymentAccount?.accountName ?: "", "Payment mode is required")
+                        ValidationField("paymentMode", selectedPaymentAccount?.accountName.orEmpty(), "Payment mode is required")
                     )
 
                     val result = FieldValidator.validate(fields)
@@ -797,9 +824,9 @@ fun AddExpenseScreen(
                     }
                     errorField = null
 
-                    val category = selectedCategory!!
-                    val paymentAccount = selectedPaymentAccount!!
-                    val branchItem = selectedBranch!!
+                    val category = selectedCategory ?: return@Update
+                    val paymentAccount = selectedPaymentAccount ?: return@Update
+                    val branchItem = selectedBranch ?: return@Update
 
                     financeViewModel.createExpense(
                         branch = branchItem.id,
@@ -814,22 +841,19 @@ fun AddExpenseScreen(
                 }
             )
         )
-        // ── Dynamic Island error toast ──
+
         DynamicIslandError(
             modifier = Modifier.align(Alignment.TopCenter),
             message = if (showError) errorMessage else null,
             onDismiss = { showError = false }
         )
 
-        // ── Plan limit dialog for Documentation upload ──
         if (showPlanLimitDialog) {
             PlanLimitDialog(
                 title = "Feature restricted",
                 message = "You're on the ${currentPlanName.replaceFirstChar { it.uppercase() }} plan and can't upload documents or receipts. Upgrade your plan to unlock this feature.",
                 onDismiss = { showPlanLimitDialog = false },
-                onUpgrade = {
-                    showPlanLimitDialog = false
-                }
+                onUpgrade = { showPlanLimitDialog = false }
             )
         }
 
@@ -858,7 +882,6 @@ fun AddExpenseScreen(
                     Spacer(Modifier.height(20.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        //
                         OutlinedButton(
                             onClick = {
                                 showAddAccountDialog = false
@@ -870,7 +893,7 @@ fun AddExpenseScreen(
                         ) {
                             Text("Cancel", color = Color(0xFF374151), fontSize = tokens.bodyMedium)
                         }
-                        //
+
                         Button(
                             onClick = {
                                 if (newAccountName.isNotBlank()) {
@@ -897,7 +920,6 @@ fun AddExpenseScreen(
         }
     }
 }
-
 
 private fun String.toIsoDateFromDDMMYYYY(): String {
     return try {

@@ -1,12 +1,12 @@
 @file:Suppress("UNUSED_PARAMETER", "UNUSED", "RedundantSuppression", "unused")
 
-
 package com.cuso.mobile.view.home.finance
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,15 +22,17 @@ import com.cuso.mobile.model.sales.CustomerItemV2
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
-import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.home.formatIndianNumber
+import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.viewmodel.FinanceViewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 private val CustPrimary = Color(0xFF3B3BF9)
 private val CustPrimarySoft = Color(0xFFEEEEFE)
@@ -42,27 +44,7 @@ private val CustYellow = Color(0xFFF59E0B)
 private val CustBgLight = Color(0xFFF5F5F7)
 
 // ─────────────────────────────────────────────────────────────
-// Static Mock Data
-// ─────────────────────────────────────────────────────────────
-
-data class StaticCustomer(
-    val id: String,
-    val name: String,
-    val mobile: String,
-    val type: String,
-    val address: String,
-    val status: String,
-    val outstanding: Int,
-    val totalSpend: Int,
-    val pendingPayment: Int,
-    val createdAt: String,
-    val billingAddress: String = "sdsdsdsds",
-    val shippingAddress: String = "sdsdsdsds"
-)
-
-
-// ─────────────────────────────────────────────────────────────
-// FinanceCustomerScreen
+// FinanceCustomerScreen — Customer list with Infinite Scroll
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun FinanceCustomerScreen(
@@ -75,13 +57,33 @@ fun FinanceCustomerScreen(
 
     val customerListResponse by viewModel.financeCustomerList.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingFinanceCustomers.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMoreFinanceCustomers.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMoreFinanceCustomers.collectAsStateWithLifecycle()
     val error by viewModel.financeCustomerError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("All") }
+    val listState = rememberLazyListState()
 
+    // Fetch initial list
     LaunchedEffect(Unit) {
         viewModel.fetchCustomerForFinance()
+    }
+
+    // Infinite scroll detection: triggers loadMore when 3 items away from the bottom
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            totalItems > 0 && lastVisibleIndex >= totalItems - 3
+        }
+            .distinctUntilChanged()
+            .collect { nearBottom ->
+                if (nearBottom && canLoadMore && !isLoadingMore && !isLoading) {
+                    viewModel.loadMoreCustomerForFinance()
+                }
+            }
     }
 
     val allCustomers = customerListResponse?.data ?: emptyList()
@@ -106,7 +108,6 @@ fun FinanceCustomerScreen(
             .background(Color.Transparent)
     ) {
         // --- PERSISTENT HEADER SECTION ---
-        // This part stays visible even during loading
         Column(modifier = Modifier.fillMaxWidth()) {
             TitleBar("All Customers", onClose = onClose)
 
@@ -129,7 +130,6 @@ fun FinanceCustomerScreen(
         }
 
         // --- DYNAMIC CONTENT SECTION ---
-        // Only this part changes based on the state (Loading, Error, List)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -137,7 +137,6 @@ fun FinanceCustomerScreen(
         ) {
             when {
                 isLoading -> {
-                    // Skeleton appears below the SearchBar
                     ListSkeleton()
                 }
 
@@ -158,7 +157,7 @@ fun FinanceCustomerScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
                                 Icons.Default.PersonOff,
-                                null,
+                                contentDescription = null,
                                 tint = CustmutedText,
                                 modifier = Modifier.size(48.dp)
                             )
@@ -175,6 +174,7 @@ fun FinanceCustomerScreen(
 
                 else -> {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
@@ -184,6 +184,20 @@ fun FinanceCustomerScreen(
                                 onClick = { onCustomerClick(customer._id) },
                                 onEdit = { onCustomerEdit(customer._id) }
                             )
+                        }
+
+                        // Bottom loading indicator for pagination
+                        if (isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CirculerProgressIndicatorSmall()
+                                }
+                            }
                         }
                     }
                 }
@@ -234,7 +248,6 @@ private fun statusColorsOfCustomer(status: String?): Pair<String, Color> = when 
     "inactive" -> "Inactive" to Color(0xFF6B7280)
     else -> "Unknown" to Color(0xFF9CA3AF)
 }
-
 
 fun formatDate(dateString: String): String {
     return try {

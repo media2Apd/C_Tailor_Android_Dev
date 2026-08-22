@@ -638,7 +638,7 @@ fun AddAccountScreen(
                             val code = display.substringBefore(" - ")
                             selectedParent = eligibleParentAccounts.find { it.accountCode == code }
                         },
-                        enabled = fieldsEnabled
+                        enabled = true
                     )
                 }
                 Spacer(Modifier.height(14.dp))

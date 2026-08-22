@@ -11,6 +11,7 @@ package com.cuso.mobile.view.home.sales.sales_order
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -183,6 +184,7 @@ fun OrderOverviewScreen(
     var paymentSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     val isPaymentSheetOpen = paymentSheetState != SheetValue.Hidden
 
+
     fun closePaymentSheet() {
         paymentSheetState = SheetValue.Hidden
         paymentSheetBlur = 0.dp
@@ -258,6 +260,13 @@ fun OrderOverviewScreen(
     val combinedSheetBlur = maxOf(assignSheetBlur, paymentSheetBlur)
     val combinedSheetScrim = maxOf(assignSheetScrim, paymentSheetScrim)
     val isAnySheetOpen = isAssignSheetOpen || isPaymentSheetOpen
+
+    BackHandler(enabled = isAnySheetOpen) {
+        when {
+            isAssignSheetOpen -> closeAssignSheet()
+            isPaymentSheetOpen -> closePaymentSheet()
+        }
+    }
 
     // Payment data needed at root level so ReceivePaymentSheet can render as a sibling
     // of the tab content (same pattern as AssignTailorsSheet using selectedGarmentForSheet)
@@ -426,11 +435,13 @@ fun OrderOverviewScreen(
                         ) {
                             StepNavigationFab(
                                 showBack = true,
+                                showBackArrow = false,
+                                showTrailingArrow = false,
                                 onBack = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
                                 backEnabled = currentOrderData != null,
                                 backLabel = "Edit Order",
-                                backWidthFraction = 0.45f,
-                                trailingWidthFraction = 0.45f,
+                                backWidthFraction = 0.25f,
+                                trailingWidthFraction = 0.30f,
                                 trailingAction = TrailingFabAction.Next(
                                     label = "Create New",
                                     onClick = onCreateNew
@@ -1035,7 +1046,7 @@ private fun AssignTailorsSheet(
     sheetState: SheetValue,
     onStateChange: (SheetValue) -> Unit,
     onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> },
-    topInset: Dp = 66.dp,
+    topInset: Dp = 5.dp,
     onDismiss: () -> Unit,
     onError: (String) -> Unit = {}
 ) {
@@ -1070,7 +1081,7 @@ private fun AssignTailorsSheet(
     SmoothBottomSheet(
         state = sheetState,
         onStateChange = onStateChange,
-        collapsedFraction = 0.75f,   // 75% of the container height — safe across screen sizes
+        collapsedFraction = 0.55f,   // 75% of the container height — safe across screen sizes
         topInset = topInset,
         onDismissRequest = onDismiss,
         onBlurScrimChange = onBlurScrimChange
@@ -1441,7 +1452,7 @@ private fun ReceivePaymentSheet(
     sheetState: SheetValue,
     onStateChange: (SheetValue) -> Unit,
     onBlurChange: (Dp) -> Unit,
-    topInset: Dp = 66.dp,
+    topInset: Dp = 5.dp,
     onDismiss: () -> Unit
 ) {
     // Local states for payment input fields
@@ -1476,7 +1487,7 @@ private fun ReceivePaymentSheet(
     SmoothBottomSheet(
         state = sheetState,
         onStateChange = onStateChange,
-        collapsedFraction = 0.9f,
+        collapsedFraction = 0.55f,
         topInset = topInset,
         onDismissRequest = onDismiss,
         onBlurScrimChange = { r, _ -> onBlurChange(r) }

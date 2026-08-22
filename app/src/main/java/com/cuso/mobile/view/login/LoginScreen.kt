@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.view.composable.ExitAppDialog
 
 @Suppress("UNUSED_PARAMETER", "VariableNeverRead")
 @Composable
@@ -59,37 +60,10 @@ fun LoginScreen(
         showExitDialog = true
     }
 
-    if (showExitDialog) {
-        AlertDialog(
-            onDismissRequest = { showExitDialog = false },
-            containerColor = whiteBg,
-            title = {
-                Text(
-                    text = "Exit App",
-                    color = blackTitle,
-                    fontSize = tokens.h2, // Adaptive Font
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(
-                    text = "Are you sure you want to exit?",
-                    color = blackTitle,
-                    fontSize = tokens.bodyMedium // Adaptive Font
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { (context as? Activity)?.finish() }) {
-                    Text("Exit", color = Color.Red, fontSize = tokens.bodyLarge)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showExitDialog = false }) {
-                    Text("Cancel", color = blackTitle, fontSize = tokens.bodyLarge)
-                }
-            }
-        )
-    }
+    ExitAppDialog(
+        show = showExitDialog,
+        onDismiss = { showExitDialog = false }
+    )
 
     LaunchedEffect(authState) {
         when (val state = authState) {

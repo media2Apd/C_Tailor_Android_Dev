@@ -6,12 +6,11 @@
     "AssignedValueIsNeverRead",
     "VariableNeverRead",
     "unused"
-
 )
+
 package com.cuso.mobile.view.home.inventory
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -29,25 +28,29 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.toHealthDisplay
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.redtext
+import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.SettingsTabs
+import com.cuso.mobile.view.composable.TabItem
+import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.view.composable.blurScrim
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
-// ── Design tokens (match the screenshot) ──
 private val PurplePrimary = Color(0xFF5A4FE0)
 private val PurpleLight = Color(0xFFEFEDFC)
 private val GreenActive = Color(0xFF1FAA59)
 private val GreenActiveBg = Color(0xFFE4F7EC)
 private val DarkCardBg = Color(0xFF1B2437)
-private val DarkCardBg2 = Color(0xFF212B40)
 private val AmberText = Color(0xFFE8A33D)
 private val RedText = Color(0xFFE5484D)
 private val TextGray = Color(0xFF8A93A6)
@@ -60,213 +63,235 @@ fun InventoryViewOne(
     errorMessage: String?,
     onDismiss: () -> Unit,
     onAdjustStock: (InventoryItem) -> Unit = {},
-    onAdjustStockSubmit: (AdjustmentType, Double, String, String) -> Unit = { _, _, _, _ -> },   //   NEW
+    onAdjustStockSubmit: (AdjustmentType, Double, String, String) -> Unit = { _, _, _, _ -> },
     onWarehouseTransfer: (InventoryItem) -> Unit = {},
     onReorderStock: (InventoryItem) -> Unit = {},
     onMarkInactive: (InventoryItem) -> Unit = {},
     onEdit: (InventoryItem) -> Unit = {},
     onShare: (InventoryItem) -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Overview, 1 = Transactions
-    var showAdjustStockSheet by remember { mutableStateOf(false) }   //   NEW
+    var showAdjustStockSheet by remember { mutableStateOf(false) }
+    var sheetBlur by remember { mutableStateOf(0.dp) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-    ) {
-        // ── Header ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TitleBar("Item Details", onClose = onDismiss)
-
-        }
-
-            when {
-                isLoading -> {
-                    ListSkeleton()
-                }
-                errorMessage != null -> {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp, horizontal = 20.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(errorMessage, color = RedText, textAlign = TextAlign.Center)
-                    }
-                }
-                item != null -> {
-                    Column(
-                        modifier = Modifier
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 20.dp)
-                    ) {
-                        // ── Name row: name + Active badge + edit/share ──
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(item.name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.width(8.dp))
-                            StatusBadge(active = item.status.equals("active", ignoreCase = true))
-                            Spacer(Modifier.weight(1f))
-                            IconButton(onClick = { onEdit(item) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Outlined.Edit, contentDescription = "Edit", tint = TextGray)
-                            }
-                            IconButton(onClick = { onShare(item) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Outlined.Share, contentDescription = "Share", tint = TextGray)
-                            }
-                        }
-
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "SKU: ${item.sku} | Created on ${formatDate(item.createdAt)}",
-                            fontSize = 12.sp,
-                            color = TextGray
-                        )
-
-                        Spacer(Modifier.height(16.dp))
-                        Button(
-                            onClick = { showAdjustStockSheet = true },   //   CHANGED
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)
-                        ) {
-                            Text("Adjust Stock", fontWeight = FontWeight.Medium, color = whiteBg)
-                        }
-
-                        Spacer(Modifier.height(16.dp))
-                        SegmentedTabs(selectedTab = selectedTab, onTabSelected = { selectedTab = it })
-
-                        Spacer(Modifier.height(20.dp))
-
-                        if (selectedTab == 0) {
-                            OverviewContent(
-                                item = item,
-                                onAdjustStockClick = { showAdjustStockSheet = true },   //   CHANGED
-                                onWarehouseTransfer = onWarehouseTransfer,
-                                onReorderStock = onReorderStock,
-                                onMarkInactive = onMarkInactive
-                            )
-                        } else {
-                            TransactionsPlaceholder()
-                        }
-
-                        Spacer(Modifier.height(24.dp))
-                    }
-                }
-            }
-    }
-
-    //   NEW — Adjust Stock bottom sheet (still inside InventoryViewOne, before its closing brace)
-    if (showAdjustStockSheet && item != null) {
-        AdjustStockSheet(
-            item = item,
-            onDismiss = { showAdjustStockSheet = false },
-            onSubmit = { type, quantity, reason, notes ->
-                showAdjustStockSheet = false
-                onAdjustStockSubmit(type, quantity, reason, notes)   //   CHANGED
-            }
+    val inventoryTabs = remember {
+        listOf(
+            TabItem(label = "Overview", icon = Icons.Outlined.Description),
+            TabItem(label = "Transactions", icon = Icons.Outlined.SwapHoriz)
         )
     }
-}   //   this closes InventoryViewOne
+    Scaffold(
+        topBar = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TitleBar("Item Details", onClose = onDismiss)
+            }
+        },
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+    ) {paddingValues ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(Color.Transparent)
+        ) {
+
+            // Content + BottomSheet container below TitleBar
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
+            ) {
+                // Scrollable view that gets blurred only when sheet opens
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .blurScrim(sheetBlur)
+                ) {
+                    when {
+                        isLoading -> {
+                            ListSkeleton()
+                        }
+
+                        errorMessage != null -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = tokens.screenPadding * 2.5f, horizontal = tokens.screenPadding),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(errorMessage, color = RedText, textAlign = TextAlign.Center)
+                            }
+                        }
+
+                        item != null -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(horizontal = tokens.screenPadding)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        item.name,
+                                        fontSize = tokens.h2,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = title_color
+                                    )
+                                    Spacer(Modifier.width(tokens.extraPadding - 2.dp))
+                                    StatusBadge(
+                                        active = item.status.equals(
+                                            "active",
+                                            ignoreCase = true
+                                        )
+                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    IconButton(
+                                        onClick = { onEdit(item) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Edit,
+                                            contentDescription = "Edit",
+                                            tint = TextGray
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { onShare(item) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Share,
+                                            contentDescription = "Share",
+                                            tint = TextGray
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "SKU: ${item.sku} | Created on ${formatDate(item.createdAt)}",
+                                    fontSize = tokens.caption,
+                                    color = TextGray
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding + 6.dp))
+                                Button(
+                                    onClick = { showAdjustStockSheet = true },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(tokens.buttonHeight),
+                                    shape = RoundedCornerShape(tokens.cardCornerRadius),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                                ) {
+                                    Text(
+                                        "Adjust Stock",
+                                        fontWeight = FontWeight.Medium,
+                                        color = whiteBg
+                                    )
+                                }
+
+                                Spacer(Modifier.height(tokens.extraPadding + 6.dp))
+
+                                SettingsTabs(
+                                    tabs = inventoryTabs,
+                                    selectedIndex = selectedTab,
+                                    onTabSelected = { selectedTab = it }
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding * 2))
+
+                                if (selectedTab == 0) {
+                                    OverviewContent(
+                                        item = item,
+                                        onAdjustStockClick = { showAdjustStockSheet = true },
+                                        onWarehouseTransfer = onWarehouseTransfer,
+                                        onReorderStock = onReorderStock,
+                                        onMarkInactive = onMarkInactive
+                                    )
+                                } else {
+                                    TransactionsPlaceholder()
+                                }
+
+                                Spacer(Modifier.height(tokens.extraPadding * 2 + 4.dp))
+                            }
+                        }
+                    }
+                }
+
+                // AdjustStockSheet overlay strictly below the TitleBar
+                if (showAdjustStockSheet && item != null) {
+                    AdjustStockSheet(
+                        item = item,
+                        onDismiss = {
+                            showAdjustStockSheet = false
+                            sheetBlur = 0.dp
+                        },
+                        onBlurScrimChange = { radius, _ ->
+                            sheetBlur = radius
+                        },
+                        onSubmit = { type, quantity, reason, notes ->
+                            showAdjustStockSheet = false
+                            sheetBlur = 0.dp
+                            onAdjustStockSubmit(type, quantity, reason, notes)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun StatusBadge(active: Boolean) {
+    val tokens = LocalAppTokens.current
     val bg = if (active) GreenActiveBg else Color(0xFFFBE9E9)
     val fg = if (active) GreenActive else RedText
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
             .background(bg)
-            .padding(horizontal = 10.dp, vertical = 3.dp)
+            .padding(horizontal = tokens.extraPadding, vertical = 3.dp)
     ) {
-        Text(if (active) "Active" else "Inactive", color = fg, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Text(if (active) "Active" else "Inactive", color = fg, fontSize = tokens.caption, fontWeight = FontWeight.Medium)
     }
 }
 
-@Composable
-private fun SegmentedTabs(selectedTab: Int, onTabSelected: (Int) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFFF3F4F7))
-            .padding(4.dp)
-    ) {
-        TabChip(
-            label = "Overview",
-            icon = Icons.Outlined.Description,
-            selected = selectedTab == 0,
-            modifier = Modifier.weight(1f)
-        ) { onTabSelected(0) }
-        TabChip(
-            label = "Transactions",
-            icon = Icons.Outlined.SwapHoriz,
-            selected = selectedTab == 1,
-            modifier = Modifier.weight(1f)
-        ) { onTabSelected(1) }
-    }
-}
-
-@Composable
-private fun TabChip(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val bg = if (selected) whiteBg else Color.Transparent
-    val fg = if (selected) PurplePrimary else TextGray
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(bg)
-            .padding(vertical = 5.dp)
-            .then(Modifier),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick).padding(4.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = label, tint = fg, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(label, color = fg, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-        }
-    }
-}
 @Composable
 private fun OverviewContent(
     item: InventoryItem,
-    onAdjustStockClick: () -> Unit,          //   CHANGED — was onAdjustStock: (InventoryItem) -> Unit
+    onAdjustStockClick: () -> Unit,
     onWarehouseTransfer: (InventoryItem) -> Unit,
     onReorderStock: (InventoryItem) -> Unit,
     onMarkInactive: (InventoryItem) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     val health = item.toHealthDisplay()
 
     SectionHeader(icon = Icons.Outlined.Inventory2, title = "Item Details")
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(tokens.extraPadding - 2.dp))
     InfoRow("Item Type", item.type.replaceFirstChar { it.uppercase() })
     DividerLine()
     InfoRow("Unit", item.unit)
     DividerLine()
     InfoRow("Current Stock", formatQty(item.currentStock))
 
-    Spacer(Modifier.height(20.dp))
+    Spacer(Modifier.height(tokens.extraPadding * 2))
     SectionHeader(icon = Icons.Outlined.Sell, title = "Sales Information")
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(tokens.extraPadding - 2.dp))
     InfoRow("Selling Price", formatCurrency(item.sellingPrice))
 
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(tokens.extraPadding + 6.dp))
     InventoryHealthCard(
         isTracked = health.isTracked,
         statusLabel = item.stockStatus,
@@ -278,62 +303,68 @@ private fun OverviewContent(
         lowThreshold = health.lowThreshold
     )
 
-    Spacer(Modifier.height(20.dp))
+    Spacer(Modifier.height(tokens.extraPadding * 2))
     SectionHeader(icon = Icons.Outlined.ShoppingCart, title = "Inventory Actions")
-    Spacer(Modifier.height(10.dp))
+    Spacer(Modifier.height(tokens.extraPadding))
 
     Button(
-        onClick = onAdjustStockClick,        //   CHANGED
-        modifier = Modifier.fillMaxWidth().height(48.dp),
-        shape = RoundedCornerShape(10.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)
+        onClick = onAdjustStockClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(tokens.buttonHeight),
+        shape = RoundedCornerShape(tokens.cardCornerRadius),
+        colors = ButtonDefaults.buttonColors(containerColor = Primary)
     ) {
-        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(6.dp))
+        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(tokens.iconSize), tint = whiteBg)
+        Spacer(Modifier.width(tokens.extraPadding - 4.dp))
         Text("Adjust Stock", fontWeight = FontWeight.Medium, color = whiteBg)
     }
-    Spacer(Modifier.height(10.dp))
+    Spacer(Modifier.height(tokens.extraPadding))
     OutlinedActionButton(
         label = "Warehouse Transfer",
         icon = Icons.Outlined.SwapHoriz,
         onClick = { onWarehouseTransfer(item) }
     )
-    Spacer(Modifier.height(10.dp))
+    Spacer(Modifier.height(tokens.extraPadding))
     OutlinedActionButton(
         label = "Reorder Stock",
         icon = Icons.Outlined.Refresh,
         onClick = { onReorderStock(item) }
     )
-    Spacer(Modifier.height(10.dp))
+    Spacer(Modifier.height(tokens.extraPadding))
     OutlinedActionButton(
         label = "Mark Inactive",
         icon = Icons.Outlined.Block,
         onClick = { onMarkInactive(item) },
-        contentColor = RedText,
-        borderColor = Color(0xFFF6D2D2)
+        contentColor = redtext,
+        borderColor = redtext
     )
 
-    Spacer(Modifier.height(20.dp))
+    Spacer(Modifier.height(tokens.extraPadding * 2))
     QuickInsightCard(item = item)
 }
 
 @Composable
 private fun SectionHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String) {
+    val tokens = LocalAppTokens.current
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = blackTitle)
+        Icon(icon, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(tokens.iconSize))
+        Spacer(Modifier.width(tokens.extraPadding - 2.dp))
+        Text(title, fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold, color = blackTitle)
     }
 }
 
 @Composable
 private fun InfoRow(label: String, value: String) {
+    val tokens = LocalAppTokens.current
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = tokens.extraPadding),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, color = TextGray, fontSize = 13.sp)
-        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextGray)
+        Text(label, color = TextGray, fontSize = tokens.bodySmall)
+        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextGray)
     }
 }
 
@@ -353,12 +384,13 @@ private fun InventoryHealthCard(
     incoming: Double,
     lowThreshold: Double
 ) {
+    val tokens = LocalAppTokens.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(tokens.cardCornerRadius))
             .background(DarkCardBg)
-            .padding(18.dp)
+            .padding(tokens.cardPadding - 2.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -369,7 +401,7 @@ private fun InventoryHealthCard(
                 Text(
                     "INVENTORY HEALTH",
                     color = TextGray,
-                    fontSize = 10.sp,
+                    fontSize = tokens.label,
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(Modifier.height(4.dp))
@@ -377,7 +409,7 @@ private fun InventoryHealthCard(
                     Text(
                         statusLabel.uppercase(),
                         color = whiteBg,
-                        fontSize = 18.sp,
+                        fontSize = tokens.h2,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.width(6.dp))
@@ -391,7 +423,7 @@ private fun InventoryHealthCard(
             }
             Box(
                 modifier = Modifier
-                    .size(26.dp)
+                    .size(tokens.iconSize + 8.dp)
                     .clip(CircleShape)
                     .background(GreenActive),
                 contentAlignment = Alignment.Center
@@ -400,22 +432,22 @@ private fun InventoryHealthCard(
                     Icons.Filled.Check,
                     contentDescription = null,
                     tint = whiteBg,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(tokens.iconSize - 3.dp)
                 )
             }
         }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(tokens.extraPadding + 8.dp))
         Row(modifier = Modifier.fillMaxWidth()) {
             HealthMetric("Total Stock Value", formatCurrency(totalStockValue), Modifier.weight(1f))
             HealthMetric("Available", formatQty(available), Modifier.weight(1f))
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(tokens.extraPadding + 6.dp))
         Row(modifier = Modifier.fillMaxWidth()) {
             HealthMetric("Reserved", formatQty(reserved), Modifier.weight(1f))
             HealthMetric("WIP", formatQty(wip), Modifier.weight(1f))
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(tokens.extraPadding + 6.dp))
         Row(modifier = Modifier.fillMaxWidth()) {
             HealthMetric("Incoming", formatQty(incoming), Modifier.weight(1f), valueColor = AmberText)
             HealthMetric("Low Threshold", formatQty(lowThreshold), Modifier.weight(1f), valueColor = AmberText)
@@ -430,10 +462,11 @@ private fun HealthMetric(
     modifier: Modifier = Modifier,
     valueColor: Color = whiteBg
 ) {
+    val tokens = LocalAppTokens.current
     Column(modifier = modifier) {
-        Text(label, color = TextGray, fontSize = 11.sp)
+        Text(label, color = TextGray, fontSize = tokens.caption)
         Spacer(Modifier.height(4.dp))
-        Text(value, color = valueColor, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text(value, color = valueColor, fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -445,36 +478,40 @@ private fun OutlinedActionButton(
     contentColor: Color = Color(0xFF2B2F38),
     borderColor: Color = Color(0xFFE2E4E9)
 ) {
+    val tokens = LocalAppTokens.current
     OutlinedButton(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().height(48.dp),
-        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(tokens.buttonHeight),
+        shape = RoundedCornerShape(tokens.cardCornerRadius),
         border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = contentColor)
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(6.dp))
+        Icon(icon, contentDescription = null, modifier = Modifier.size(tokens.iconSize))
+        Spacer(Modifier.width(tokens.extraPadding - 4.dp))
         Text(label, fontWeight = FontWeight.Medium)
     }
 }
 
 @Composable
 private fun QuickInsightCard(item: InventoryItem) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(tokens.cardCornerRadius - 3.dp))
             .background(PurpleLight)
-            .padding(16.dp)
+            .padding(tokens.extraPadding + 6.dp)
     ) {
-        Icon(Icons.Outlined.Lightbulb, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(10.dp))
+        Icon(Icons.Outlined.Lightbulb, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(tokens.iconSize + 2.dp))
+        Spacer(Modifier.width(tokens.extraPadding))
         Column {
-            Text("Quick Insight", fontWeight = FontWeight.SemiBold, fontSize = 14.sp,color=whiteBg)
+            Text("Quick Insight", fontWeight = FontWeight.SemiBold, fontSize = tokens.bodyMedium, color = title_color)
             Spacer(Modifier.height(4.dp))
             Text(
                 "Demand for ${item.name} has been changing recently. Review reorder point and current stock to avoid stockouts.",
-                fontSize = 12.sp,
+                fontSize = tokens.caption,
                 color = Color(0xFF4A4A5A)
             )
         }
@@ -483,15 +520,17 @@ private fun QuickInsightCard(item: InventoryItem) {
 
 @Composable
 private fun TransactionsPlaceholder() {
+    val tokens = LocalAppTokens.current
     Box(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 60.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = tokens.screenPadding * 3.75f),
         contentAlignment = Alignment.Center
     ) {
         Text("No transactions to show yet.", color = TextGray)
     }
 }
 
-// ── Formatting helpers ──
 private fun formatCurrency(value: Double): String {
     val format = NumberFormat.getNumberInstance(
         Locale.Builder().setLanguage("en").setRegion("IN").build()

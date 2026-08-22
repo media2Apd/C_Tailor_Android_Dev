@@ -306,7 +306,13 @@ fun CustomerScreen(
                                                 DataCardField(label = "Email", text = customer.email?.ifBlank { "—" } ?: "—", asRow = true),
                                                 DataCardField(label = "Mobile", text = customer.mobile?.ifBlank { "—" } ?: "—", asRow = true),
                                                 DataCardField(label = "Gender", text = customer.gender?.ifBlank { "—" } ?: "—", asRow = true),
-                                                DataCardField(label = "Location", text = customer.location.ifBlank { "—" }, asRow = true)
+                                                DataCardField(
+                                                    label = "Location",
+                                                    text = customer.location.ifBlank { "—" }.let { loc ->
+                                                        if (loc.length > 30) "${loc.take(30)}..." else loc
+                                                    },
+                                                    asRow = true
+                                                )
                                             ),
                                             actions = listOf(
                                                 MenuAction("View", Icons.Default.Visibility) { onView(customer) },

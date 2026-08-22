@@ -1,5 +1,6 @@
 package com.cuso.mobile.view.home.inventory
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,15 +17,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.inventory.InventoryItem
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.modelBg
+import com.cuso.mobile.ui.theme.modelGray
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.view.composable.SheetValue
+import com.cuso.mobile.view.composable.SmoothBottomSheet
 
-private val PurplePrimary = Color(0xFF5A4FE0)
+private val PurplePrimary = Primary
 private val PurpleLight = Color(0xFFF3F1FE)
 private val BorderGray = Color(0xFFE5E7EB)
 private val TextGray = Color(0xFF8A93A6)
@@ -36,14 +45,16 @@ enum class AdjustmentType(val label: String) {
     SET_EXACT("Set Exact Quantity")
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdjustStockSheet(
     item: InventoryItem,
     onDismiss: () -> Unit,
+    onBlurScrimChange: (Dp, Float) -> Unit = { _, _ -> },
     onSubmit: (type: AdjustmentType, quantity: Double, reason: String, notes: String) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val tokens = LocalAppTokens.current
+
+    var sheetState by remember { mutableStateOf(SheetValue.Collapsed) }
 
     var adjustmentType by remember { mutableStateOf(AdjustmentType.INCREASE) }
     var quantityText by remember { mutableStateOf("") }
@@ -64,37 +75,40 @@ fun AdjustStockSheet(
 
     val reasonOptions = listOf("Damaged Goods", "Inventory Correction", "Production Loss")
 
-    ModalBottomSheet(
+    SmoothBottomSheet(
+        state = sheetState,
+        onStateChange = { newState ->
+            sheetState = newState
+            if (newState == SheetValue.Hidden) {
+                onDismiss()
+            }
+        },
+        collapsedFraction = 0.55f, // Starts at half-page (~55%)
+        topInset = 5.dp,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = whiteBg,
-        dragHandle = { Box(
-            modifier = Modifier
-                .padding(top = 10.dp)
-                .width(36.dp)
-                .height(4.dp)
-                .clip(RoundedCornerShape(50))
-                .background(Color(0xFFD1D5DB))
-        ) }
+        onBlurScrimChange = onBlurScrimChange,
+        sheetBackgroundColor = Primary_background,
+        scrollableContent = true
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(top = 8.dp, bottom = 24.dp)
+                .padding(horizontal = tokens.screenPadding)
+                .padding(bottom = tokens.screenPadding)
         ) {
+            Spacer(Modifier.padding(top = 10.dp))
             Text(
-                "ADJUST STOCK",
-                fontSize = 13.sp,
+                text = "ADJUST STOCK",
+                fontSize = tokens.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = TextDark,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(tokens.extraPadding * 2))
 
-            Text("Adjustment Type", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextDark)
-            Spacer(Modifier.height(10.dp))
+            Text("Adjustment Type", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextDark)
+            Spacer(Modifier.height(tokens.extraPadding))
 
             AdjustmentType.entries.forEach { type ->
                 AdjustmentTypeOption(
@@ -102,38 +116,40 @@ fun AdjustStockSheet(
                     selected = adjustmentType == type,
                     onClick = { adjustmentType = type }
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(tokens.extraPadding))
             }
 
-            Spacer(Modifier.height(6.dp))
-            Text("Quantity", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextDark)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(tokens.extraPadding / 2))
+            Text("Quantity", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextDark)
+            Spacer(Modifier.height(tokens.extraPadding - 2.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(1.dp, BorderGray, RoundedCornerShape(10.dp)),
+                    .height(tokens.fieldHeight)
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius))
+                    .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius)),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .padding(horizontal = 14.dp),
+                        .padding(horizontal = tokens.extraPadding),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     if (quantityText.isEmpty()) {
-                        Text("0", color = Color(0xFF9CA3AF), fontSize = 14.sp)
+                        Text("0", color = Color(0xFF9CA3AF), fontSize = tokens.bodyMedium)
                     }
                     BasicTextField(
                         value = quantityText,
-                        onValueChange = { input -> if (input.all { it.isDigit() || it == '.' }) quantityText = input },
+                        onValueChange = { input ->
+                            if (input.all { it.isDigit() || it == '.' }) quantityText = input
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         textStyle = androidx.compose.ui.text.TextStyle(
-                            fontSize = 14.sp,
+                            fontSize = tokens.bodyMedium,
                             color = Color(0xFF111827)
                         )
                     )
@@ -144,17 +160,22 @@ fun AdjustStockSheet(
                         .background(Color(0xFFF3F4F6)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(item.unit, modifier = Modifier.padding(horizontal = 14.dp), color = blackTitle, fontSize = 13.sp)
+                    Text(
+                        item.unit,
+                        modifier = Modifier.padding(horizontal = tokens.extraPadding),
+                        color = blackTitle,
+                        fontSize = tokens.bodySmall
+                    )
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(tokens.extraPadding + 6.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius))
                     .background(PurpleLight)
-                    .padding(vertical = 14.dp),
+                    .padding(vertical = tokens.extraPadding + 4.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 SummaryMetric("Current", formatQty(item.currentStock))
@@ -162,7 +183,7 @@ fun AdjustStockSheet(
                 SummaryMetric("New Balance", "${formatQty(newBalance)} ${item.unit}", valueColor = PurplePrimary)
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(tokens.extraPadding * 2))
             FormDropdown(
                 label = "Adjustment Reason",
                 value = reason.ifEmpty { "Select an option" },
@@ -172,50 +193,52 @@ fun AdjustStockSheet(
                 onOptionSelected = { reason = it }
             )
 
-            Spacer(Modifier.height(20.dp))
-            Text("Internal Notes", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextDark)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(tokens.extraPadding * 2))
+            Text("Internal Notes", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextDark)
+            Spacer(Modifier.height(tokens.extraPadding - 2.dp))
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                placeholder = { Text("Enter optional notes for audit trail...", color = Color(0xFF9CA3AF), fontSize = 13.sp) },
+                placeholder = {
+                    Text("Enter optional notes for audit trail...", color = Color(0xFF9CA3AF), fontSize = tokens.bodySmall)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(90.dp),
-                shape = RoundedCornerShape(10.dp),
+                    .height(90.dp), // multiline field, kept fixed since no dedicated textarea token
+                shape = RoundedCornerShape(tokens.cardCornerRadius),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = BorderGray,
                     focusedBorderColor = PurplePrimary
                 )
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(tokens.extraPadding * 2 + 4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding + 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
                     onClick = onDismiss,
                     modifier = Modifier
                         .weight(1f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryBorder),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextGray)
+                        .height(tokens.buttonHeight),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius),
+                    border = BorderStroke(1.dp, TextSecondary),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = whiteBg)
                 ) {
-                    Text("Cancel", fontWeight = FontWeight.Medium)
+                    Text("Cancel", fontWeight = FontWeight.Medium, color = TextSecondary)
                 }
 
                 Button(
                     onClick = { onSubmit(adjustmentType, quantity, reason, notes) },
                     modifier = Modifier
                         .weight(1f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)
+                        .height(tokens.buttonHeight),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
                 ) {
-                    Text("Adjust Stock", fontWeight = FontWeight.Medium)
+                    Text("Adjust Stock", fontWeight = FontWeight.Medium, color = whiteBg)
                 }
             }
         }
@@ -224,18 +247,19 @@ fun AdjustStockSheet(
 
 @Composable
 private fun AdjustmentTypeOption(label: String, selected: Boolean, onClick: () -> Unit) {
+    val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .border(1.dp, if (selected) PurplePrimary else BorderGray, RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(tokens.cardCornerRadius))
+            .border(1.dp, if (selected) PurplePrimary else BorderGray, RoundedCornerShape(tokens.cardCornerRadius))
             .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = tokens.extraPadding, vertical = tokens.extraPadding),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(18.dp)
+                .size(tokens.iconSize)
                 .clip(CircleShape)
                 .border(1.5.dp, if (selected) PurplePrimary else Color(0xFFD1D5DB), CircleShape),
             contentAlignment = Alignment.Center
@@ -243,23 +267,24 @@ private fun AdjustmentTypeOption(label: String, selected: Boolean, onClick: () -
             if (selected) {
                 Box(
                     modifier = Modifier
-                        .size(9.dp)
+                        .size(tokens.iconSize / 2)
                         .clip(CircleShape)
                         .background(PurplePrimary)
                 )
             }
         }
-        Spacer(Modifier.width(10.dp))
-        Text(label, fontSize = 14.sp, color = TextDark)
+        Spacer(Modifier.width(tokens.extraPadding))
+        Text(label, fontSize = tokens.bodyMedium, color = TextDark)
     }
 }
 
 @Composable
 private fun SummaryMetric(label: String, value: String, valueColor: Color = TextDark) {
+    val tokens = LocalAppTokens.current
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, fontSize = 11.sp, color = TextGray)
+        Text(label, fontSize = tokens.caption, color = TextGray)
         Spacer(Modifier.height(4.dp))
-        Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = valueColor)
+        Text(value, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = valueColor)
     }
 }
 

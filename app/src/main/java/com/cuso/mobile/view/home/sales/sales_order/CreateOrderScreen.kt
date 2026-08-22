@@ -29,7 +29,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,7 +53,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -62,7 +60,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -70,7 +67,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.rememberAsyncImagePainter
 import com.cuso.mobile.database.entities.GarmentMeasurement
 import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.model.sales.Customer
@@ -98,8 +94,6 @@ import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.primary_light
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.utils.safeDate
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
@@ -118,8 +112,9 @@ import com.cuso.mobile.view.composable.TrailingFabButton
 // Adaptive design tokens - shared padding, corner radius, typography, and component scale
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary_background
-import com.cuso.mobile.ui.theme.modelGray
-import com.cuso.mobile.view.composable.dashedBorder
+import com.cuso.mobile.view.composable.AccordionSection
+import com.cuso.mobile.view.composable.ImageUploadSection
+import com.cuso.mobile.view.composable.TitleBar
 
 // ─────────────────────────────────────────────────────────────
 // Data Models
@@ -653,30 +648,9 @@ fun CreateOrderScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
             ) {
-                Text(
-                    if (isEditMode) "Edit Order" else "Create Order",
-                    fontSize = title_font,
-                    fontWeight = FontWeight.Bold,
-                    color = title_color
-                )
-                Spacer(Modifier.weight(1f))
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "close",
-                    modifier = Modifier
-                        .size(tokens.iconSize)
-                        .clickable {
-                            salesViewModel.clearAllSelectedGarments()
-                            salesViewModel.clearCustomerSearch()
-                            onBack()
-                        },
-                    tint = Color(0xFF111827)
-                )
+                TitleBar(if (isEditMode) "Edit Order" else "Create Order", onClose = onCancel)
+
             }
         },
         containerColor = Color.Transparent
@@ -694,10 +668,10 @@ fun CreateOrderScreen(
                 // ══════════════════════════════════════════════
                 // 1. CUSTOMER DETAILS
                 // ══════════════════════════════════════════════
-                SectionCard(
+                AccordionSection(
                     title = "Customer Details",
                     expanded = expandedSection == "customer",
-                    onToggle = { expandedSection = if (expandedSection == "customer") "" else "customer" }
+                    onHeaderClick = { expandedSection = if (expandedSection == "customer") "" else "customer" }
                 ) {
 
                     Box(
@@ -969,11 +943,10 @@ fun CreateOrderScreen(
                 // ══════════════════════════════════════════════
                 // 2. GARMENT DETAILS
                 // ══════════════════════════════════════════════
-                SectionCard(
+                AccordionSection(
                     title = "Garment Details",
                     expanded = expandedSection == "garment",
-                    onToggle = { expandedSection = if (expandedSection == "garment") "" else "garment" },
-                    action = { }
+                    onHeaderClick = { expandedSection = if (expandedSection == "garment") "" else "garment" }
                 ) {
                     Row(
                         Modifier.fillMaxWidth()
@@ -1202,10 +1175,10 @@ fun CreateOrderScreen(
                 // ══════════════════════════════════════════════
                 // 3. DELIVERY DETAILS
                 // ══════════════════════════════════════════════
-                SectionCard(
+                AccordionSection(
                     title = "Delivery Details",
                     expanded = expandedSection == "delivery",
-                    onToggle = { expandedSection = if (expandedSection == "delivery") "" else "delivery" }
+                    onHeaderClick = { expandedSection = if (expandedSection == "delivery") "" else "delivery" }
                 ) {
                     FormLabel("Order Date", isRequired = true)
                     // Assumes DatePickerField supports isError/errorMessage — share the file if not.
@@ -1293,142 +1266,42 @@ fun CreateOrderScreen(
                 // ══════════════════════════════════════════════
                 // 4. DESIGN REFERENCE
                 // ══════════════════════════════════════════════
-                SectionCard(
+                AccordionSection(
                     title = "Design Reference",
                     expanded = expandedSection == "design",
-                    onToggle = { expandedSection = if (expandedSection == "design") "" else "design" }
+                    onHeaderClick = { expandedSection = if (expandedSection == "design") "" else "design" }
                 ) {
-                    // Dash border container matching the image
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp)
-                            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
-                            .dashedBorder(
-                                color = PrimaryBorder, // Light gray/blue dashed border
-                                strokeWidth = 1.dp,
-                                shape = RoundedCornerShape(tokens.cardCornerRadius)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            // --- Browse Files Text Button ---
-                            Text(
-                                text = "Browse Files",
-                                fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Medium,
-                                color = Primary,
-                                textDecoration = TextDecoration.Underline,
-                                modifier = Modifier
-                                    .clickable {
-                                        if (isMediaUploadRestricted) {
-                                            showPlanLimitDialog = true
-
-                                        } else {
-                                            showImagePickerOptions = true
-                                        }
-                                    }
-                                    .padding(8.dp)
-                            )
-
-                            Spacer(modifier = Modifier.width(24.dp))
-
-                            // --- Camera Icon Button ---
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .clickable {
-                                        if (isMediaUploadRestricted) {
-                                            showPlanLimitDialog = true
-                                        } else if (cameraPermissionState.status.isGranted) {
-                                            captureDesignImage()
-                                        } else {
-                                            cameraPermissionState.launchPermissionRequest()
-                                        }
-                                    }
-                                    .padding(8.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.camera),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = Color(0xFF6B7280) // Muted gray/blue
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = "Camera",
-                                    fontSize = tokens.bodySmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF6B7280)
-                                )
+                    ImageUploadSection(
+                        selectedImages = selectedDesignImages,
+                        onBrowseClick = {
+                            if (isMediaUploadRestricted) {
+                                showPlanLimitDialog = true
+                            } else {
+                                showImagePickerOptions = true
                             }
-                        }
-                    }
-
-                    // Selected Images preview logic below the box
-                    if (selectedDesignImages.isNotEmpty()) {
-                        Spacer(Modifier.height(tokens.extraPadding))
-                        Text(
-                            "SELECTED IMAGES (${selectedDesignImages.size})",
-                            fontSize = tokens.caption,
-                            color = Color(0xFF9CA3AF),
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.5.sp
-                        )
-                        Spacer(Modifier.height(tokens.extraPadding))
-
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            items(selectedDesignImages) { uri ->
-                                Box(
-                                    modifier = Modifier
-                                        .size(80.dp)
-                                        .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                                        .background(Color(0xFFF3F4F6))
-                                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
-                                ) {
-                                    Image(
-                                        painter = rememberAsyncImagePainter(uri),
-                                        contentDescription = "Design Reference",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                    // Close/Delete icon logic remains same as your original code
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .size(20.dp)
-                                            .background(Color(0xFFEF4444), CircleShape)
-                                            .clickable {
-                                                selectedDesignImages = selectedDesignImages.filter { it != uri }
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = "close",
-                                            modifier = Modifier.size(14.dp),
-                                            tint = Color.White
-                                        )
-                                    }
-                                }
+                        },
+                        onCameraClick = {
+                            if (isMediaUploadRestricted) {
+                                showPlanLimitDialog = true
+                            } else if (cameraPermissionState.status.isGranted) {
+                                captureDesignImage()
+                            } else {
+                                cameraPermissionState.launchPermissionRequest()
                             }
+                        },
+                        onRemoveImage = { removedUri ->
+                            selectedDesignImages = selectedDesignImages.filter { it != removedUri }
                         }
-                    }
+                    )
                 }
 
                 // ══════════════════════════════════════════════
                 // 5. INSTRUCTIONS
                 // ══════════════════════════════════════════════
-                SectionCard(
+                AccordionSection(
                     title = "Instructions",
                     expanded = expandedSection == "instructions",
-                    onToggle = { expandedSection = if (expandedSection == "instructions") "" else "instructions" }
+                    onHeaderClick = { expandedSection = if (expandedSection == "instructions") "" else "instructions" }
                 ) {
                     FormLabel("Styling Notes")
                     OutlinedTextField(
@@ -1629,9 +1502,11 @@ fun CreateOrderScreen(
                     salesViewModel.clearCustomerSearch()
                     onCancel()
                 },
+                showTrailingArrow = true,
+                showBackArrow = false,
                 backLabel = "Cancel",
-                backWidthFraction = 0.40f,
-                trailingWidthFraction = 0.40f,
+                backWidthFraction = 0.25f,
+                trailingWidthFraction = 0.30f,
                 trailingAction = TrailingFabAction.Next(
                     label = "Next Step",
                     onClick = {
@@ -2052,6 +1927,7 @@ fun PreviousMeasurementsDialog(
                     ) {
                         Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.SemiBold)
                     }
+                    Spacer(Modifier.padding(10.dp))
                     Button(
                         onClick = {
                             val garmentsToImport = orders.flatMap { order ->
@@ -2060,7 +1936,7 @@ fun PreviousMeasurementsDialog(
                             }
                             onImport(garmentsToImport)
                         },
-                        modifier = Modifier.weight(2f).height(tokens.buttonHeight),
+                        modifier = Modifier.weight(1f).height(tokens.buttonHeight),
                         enabled = totalSelected > 0,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF3B3BF9),
@@ -2393,44 +2269,6 @@ private fun GarmentSubSection(
     }
 }
 
-// ── Segmented toggle (In-House / Client) ──
-@Composable
-fun SegmentedToggle(
-    options: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit
-) {
-    val tokens = LocalAppTokens.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(tokens.buttonHeight)
-            .clip(RoundedCornerShape(tokens.cardCornerRadius))
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
-            .background(whiteBg)
-            .padding(4.dp)
-    ) {
-        options.forEach { option ->
-            val isSelected = option == selected
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                    .background(if (isSelected) Color(0xFF3B3BF9) else Color.Transparent)
-                    .clickable { onSelect(option) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    option,
-                    fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isSelected) whiteBg else Color(0xFF374151)
-                )
-            }
-        }
-    }
-}
 
 // ── Model selector chips (pill style, matches CategoryPillButton) ──
 @Composable
@@ -2683,48 +2521,6 @@ private fun defaultMeasurementsFor(modelNames: List<String>): List<MeasurementFi
         MeasurementField(id = "chest", label = "Chest"),
         MeasurementField(id = "sleeve_length", label = "Sleeve Length")
     )
-}
-
-@Composable
-private fun SectionCard(
-    title: String,
-    expanded: Boolean,
-    onToggle: () -> Unit,
-    action: @Composable (() -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    val tokens = LocalAppTokens.current
-    val chevronRotation by androidx.compose.animation.core.animateFloatAsState(
-        if (expanded) 180f else 0f, label = "section_chevron"
-    )
-    Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().clickable { onToggle() }.padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(title, fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                action?.invoke()
-                Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = Color(0xFF6B7280),
-                    modifier = Modifier.size(tokens.iconSize).rotate(chevronRotation)
-                )
-            }
-        }
-        AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding).padding(bottom = tokens.screenPadding)) {
-                content()
-            }
-        }
-    }
-    HorizontalDivider(color = Color(0xFFF3F4F6))
 }
 
 @Composable

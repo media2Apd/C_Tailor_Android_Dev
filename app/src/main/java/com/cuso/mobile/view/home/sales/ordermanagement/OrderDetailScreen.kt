@@ -43,7 +43,6 @@ import com.cuso.mobile.ui.theme.TextPrimary
 import com.cuso.mobile.ui.theme.disabled
 import com.cuso.mobile.ui.theme.greenBg
 import com.cuso.mobile.ui.theme.greentext
-import com.cuso.mobile.ui.theme.lightGray
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.redtext
 import com.cuso.mobile.ui.theme.whiteBg
@@ -579,16 +578,36 @@ private fun StageCard(
             }
 
             Spacer(Modifier.height(12.dp))
-            Box(modifier = Modifier.fillMaxWidth().border(1.dp, BorderGray, RoundedCornerShape(8.dp)).padding(12.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp) // fixed height set to 40.dp
+                    .border(1.dp, BorderGray, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp) // vertical padding removed so text isn't cropped
+            ) {
                 BasicTextField(
                     value = stageNotes,
                     onValueChange = onNotesChange,
                     enabled = isUnlocked,
+                    singleLine = true, // single line so text fits within fixed height
                     textStyle = TextStyle(fontSize = tokens.bodySmall, color = TextPrimary),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(), // fill available height for proper vertical centering
                     decorationBox = { inner ->
-                        if (stageNotes.isEmpty()) Text("Add stage notes...", fontSize = tokens.bodySmall, color = mutedText)
-                        inner()
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.CenterStart // center text vertically inside fixed height
+                        ) {
+                            if (stageNotes.isEmpty()) {
+                                Text(
+                                    "Add stage notes...",
+                                    fontSize = tokens.bodySmall,
+                                    color = mutedText
+                                )
+                            }
+                            inner()
+                        }
                     }
                 )
             }
@@ -606,7 +625,7 @@ private fun StageCard(
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (buttonEnabled) Primary else disabled,
-                    disabledContainerColor = lightGray
+                    disabledContainerColor = disabled
                 )
             ) {
                 if (isUpdating) CirculerProgressIndicatorSmall()

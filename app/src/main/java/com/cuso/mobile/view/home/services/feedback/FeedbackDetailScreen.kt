@@ -9,10 +9,12 @@
     "unusedvariable",
     "SameParameterValue"
 )
-package com.cuso.mobile.view.home.services
+
+package com.cuso.mobile.view.home.services.feedback
 
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -343,7 +345,7 @@ fun FeedbackDetailScreen(
                     OutlinedButton(
                         onClick = onViewFullHistory,
                         shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, AccentColor),
+                        border = BorderStroke(1.dp, AccentColor),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentColor),
                         modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight)
                     ) {

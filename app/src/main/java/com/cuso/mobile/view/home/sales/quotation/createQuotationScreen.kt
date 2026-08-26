@@ -46,7 +46,7 @@ import com.cuso.mobile.model.sales.QuotationItemInput
 import com.cuso.mobile.model.sales.QuotationOptionInput
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.darkgreenBg
+import com.cuso.mobile.ui.theme.darkGreenBg
 import com.cuso.mobile.ui.theme.light_blue
 import com.cuso.mobile.ui.theme.primary_light
 import com.cuso.mobile.ui.theme.title_color
@@ -69,7 +69,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.cuso.mobile.R
-import com.cuso.mobile.ui.theme.greenBg
 
 private val Purple = Color(0xFF3B3BF9)
 private val Green = Color(0xFF22C55E)
@@ -494,7 +493,7 @@ private fun SendQuotationSection(
                 onClick = onEmail,
                 modifier = Modifier.weight(1f).height(44.dp),
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = darkgreenBg)
+                colors = ButtonDefaults.buttonColors(containerColor = darkGreenBg)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_whatsapp),
@@ -1474,7 +1473,7 @@ private fun SendQuotationSection(
                     .height(46.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = darkgreenBg,
+                    containerColor = darkGreenBg,
                     contentColor = whiteBg
                 ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
@@ -1731,7 +1730,7 @@ private fun StepCircle(stepNum: Int, currentStep: Int) {
             .clip(CircleShape)
             .background(
                 when {
-                    isDone -> darkgreenBg
+                    isDone -> darkGreenBg
                     isCurrent -> Primary
                     else -> whiteBg
                 }

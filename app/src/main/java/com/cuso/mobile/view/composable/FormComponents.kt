@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.utils.AppLoadingManager
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -70,6 +72,12 @@ fun FormDropdown(
     val density = LocalDensity.current
     var triggerWidthPx by remember { mutableIntStateOf(0) }
 
+    // ── 1. ADD ROTATION ANIMATION ──
+    val arrowRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        label = "DropdownArrowRotation"
+    )
+
     Box {
         Row(
             modifier = Modifier
@@ -85,7 +93,8 @@ fun FormDropdown(
                     if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
                     RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
                 )
-                .clickable(enabled = effectiveEnabled) { onExpandChange(true) }
+                // ── 2. TOGGLE EXPAND / COLLAPSE ON CLICK ──
+                .clickable(enabled = effectiveEnabled) { onExpandChange(!expanded) }
                 .padding(horizontal = tokens.cardPadding * 0.6f),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -99,10 +108,13 @@ fun FormDropdown(
                     else -> Color(0xFF374151)
                 }
             )
+
+            // ── 3. ATTACH ROTATION MODIFIER TO ICON ──
             Icon(
                 Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
-                tint = if (effectiveEnabled) Color.Gray else Color(0xFFD1D5DB)
+                tint = if (effectiveEnabled) Color.Gray else Color(0xFFD1D5DB),
+                modifier = Modifier.graphicsLayer { rotationZ = arrowRotation }
             )
         }
         if (effectiveEnabled) {
@@ -264,7 +276,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
-import com.cuso.mobile.ui.theme.redtext
+import com.cuso.mobile.ui.theme.redText
 
 // Holds all colors used by form fields (dropdown, text field, label).
 // Built from MaterialTheme.colorScheme so it automatically switches
@@ -293,7 +305,7 @@ private fun rememberFormFieldPalette(): FormFieldPalette {
         fieldBackground = colorScheme.surface,
         fieldBackgroundDisabled = colorScheme.surfaceVariant,
         fieldBorder = colorScheme.outline,
-        fieldBorderError = redtext,
+        fieldBorderError = redText,
         text = colorScheme.onSurface,
         textDisabled = colorScheme.onSurfaceVariant,
         placeholderText = colorScheme.onSurfaceVariant,
@@ -301,7 +313,7 @@ private fun rememberFormFieldPalette(): FormFieldPalette {
         iconTintDisabled = colorScheme.outline,
         menuSurface = colorScheme.surface,
         labelText = colorScheme.onSurfaceVariant,
-        errorText = redtext
+        errorText = redText
     )
 }
 

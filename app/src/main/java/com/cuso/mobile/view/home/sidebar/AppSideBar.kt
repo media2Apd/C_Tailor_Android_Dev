@@ -89,7 +89,7 @@ data class MenuItem(
 )
 
 // ─────────────────────────────────────────────────────────────
-// Navigation Key Builder  (top-level — visible to all composables)
+// Navigation Key Builder
 // ─────────────────────────────────────────────────────────────
 
 fun buildNavigationKey(menu: String, subItem: String): String {
@@ -102,7 +102,22 @@ fun buildNavigationKey(menu: String, subItem: String): String {
             else -> "home_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
     }
-    val menuKey    = menu.lowercase().replace(" ", "_").replace("&", "and")
+
+    // Explicit routing for Services
+    if (menu == "Services") {
+        return when (subItem) {
+            "Service Status"       -> "services_service_status"
+            "Delay and Rework"     -> "services_delay_rework"
+            "Service Delivery"     -> "services_service_delivery"
+            "Service Order"        -> "services_service_orders"
+            "Service Request"      -> "services_service_request"
+            "Alteration Management" -> "services_alteration_management"
+            "Customer Feedback"    -> "services_customer_feedback"
+            else -> "services_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
+        }
+    }
+
+    val menuKey = menu.lowercase().replace(" ", "_").replace("&", "and")
     val subItemKey = subItem.lowercase().replace(" ", "_").replace("&", "and")
     return "${menuKey}_${subItemKey}"
 }
@@ -126,10 +141,10 @@ object SidebarConfig {
                 isPanel = true,
                 categories = listOf(
                     "Lead Management", "Customer", "Measurements",
-                    "Sales & Orders", "Order Management", "Pricing & Quotes", "Payment & Billing"
+                    "Sales & Orders", "Pricing & Quotes", "Payment & Billing"
                 ),
                 subItems = mapOf(
-                    "Pricing & Quotes"         to listOf("Pricing Overview","Quotation")
+                    "Pricing & Quotes" to listOf("Pricing Overview", "Quotation")
                 )
             ),
             MenuItem(
@@ -137,11 +152,11 @@ object SidebarConfig {
                 isPanel = true,
                 categories = listOf("Website", "Campaigns", "Leads & Audience", "Engagement", "Growth", "Pages", "Budget", "Team"),
                 subItems = mapOf(
-                    "Campaigns"       to listOf("Campaigns", "Promotions", "Marketing & Calendar"),
+                    "Campaigns"        to listOf("Campaigns", "Promotions", "Marketing & Calendar"),
                     "Leads & Audience" to listOf("Lead Generation", "Customer Segmentation"),
-                    "Engagement"      to listOf("Customer Engagement", "WhatsApp", "Social Media", "Review & Feedback"),
-                    "Growth"          to listOf("Referral Program", "Influencer"),
-                    "Team"            to listOf("Marketing Tasks", "Team Management")
+                    "Engagement"       to listOf("Customer Engagement", "WhatsApp", "Social Media", "Review & Feedback"),
+                    "Growth"           to listOf("Referral Program", "Influencer"),
+                    "Team"             to listOf("Marketing Tasks", "Team Management")
                 )
             ),
             MenuItem(
@@ -154,7 +169,7 @@ object SidebarConfig {
                 subItems = mapOf(
                     "Accounts Receivable" to listOf("Sales Invoices", "Customers", "Payments Received"),
                     "Accounts Payable"    to listOf("Suppliers", "Purchase Invoices", "Payments Mode"),
-                    "Finance Core"        to listOf("Chart of Accounts","Journal Entries", "Trial Balance")
+                    "Finance Core"        to listOf("Chart of Accounts", "Journal Entries", "Trial Balance")
                 )
             ),
             MenuItem(
@@ -175,15 +190,30 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.services, "Services",
                 isPanel = true,
-                categories = listOf("Service Request", "Alteration Management", "Return", "Damaged Goods", "Customer Feedback")
+                categories = listOf(
+                    "Service Status",
+                    "Service Request",
+                    "Service Order",
+                    "Alteration Management",
+                    "Customer Feedback"
+                ),
+                subItems = mapOf(
+                    "Service Status" to listOf("Service Status", "Delay and Rework", "Service Delivery")
+                )
             ),
-            MenuItem(R.drawable.hr, "HR", isPanel = true,
-                categories = listOf("Employees","Attendance")
+            MenuItem(
+                R.drawable.hr, "HR",
+                isPanel = true,
+                categories = listOf("Employees", "Attendance")
             ),
-            MenuItem(R.drawable.it, "IT", isPanel = true,
+            MenuItem(
+                R.drawable.it, "IT",
+                isPanel = true,
                 categories = listOf("Integrations")
             ),
-            MenuItem(R.drawable.legal, "Legal", isPanel = true,
+            MenuItem(
+                R.drawable.legal, "Legal",
+                isPanel = true,
                 categories = listOf("Legal Management")
             ),
             MenuItem(
@@ -199,7 +229,7 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.reports, "Reports",
                 isPanel = true,
-                categories = listOf("Sales","Marketing","Finance","Inventory","Human Resource","Logistics","IT","Legal")
+                categories = listOf("Sales", "Marketing", "Finance", "Inventory", "Human Resource", "Logistics", "IT", "Legal")
             )
         )
     }
@@ -240,7 +270,7 @@ object SidebarConfig {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  FULL NAV BAR
+// FULL SIDEBAR
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -267,7 +297,7 @@ fun FullSideBar(
 }
 
 // ─────────────────────────────────────────────────────────────
-//  SALES NAV BAR
+// SALES SIDEBAR
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -294,7 +324,7 @@ fun SalesSideBar(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 🧩 Reusable Sidebar Content
+// Reusable Sidebar Content
 // ─────────────────────────────────────────────────────────────
 
 @Suppress("UNUSED_PARAMETER")
@@ -324,7 +354,6 @@ private fun AppSidebarContent(
 
     val context = LocalContext.current
 
-    //   NEW — drives blur/scrim reported up to the host screen
     val blurRadius by animateDpAsState(
         targetValue = if (isOpen) 12.dp else 0.dp,
         animationSpec = tween(durationMillis = 250),
@@ -372,7 +401,6 @@ private fun AppSidebarContent(
         onClose()
     }
 
-    // ── Scrim (animated alpha instead of fixed) ──
     if (isOpen || scrimAlpha > 0f) {
         Box(
             modifier = Modifier
@@ -687,7 +715,6 @@ private fun SidebarAccordionPanel(
     onClose: () -> Unit
 ) {
     Column(modifier = modifier) {
-        // ── Header ────────────────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -724,7 +751,6 @@ private fun SidebarAccordionPanel(
             )
         }
 
-        // ── Categories ────────────────────────────────────────
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -739,8 +765,6 @@ private fun SidebarAccordionPanel(
 
                 if (shouldShowCategory) {
                     Column(modifier = Modifier.fillMaxWidth()) {
-
-                        // ── Category row (plain list style, no box/border) ──
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -790,10 +814,8 @@ private fun SidebarAccordionPanel(
                             }
                         }
 
-                        // ── Divider between items (subtle, like image spacing) ──
                         HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 0.6.dp)
 
-                        // ── Sub-items (kept functional, simplified styling) ──
                         if (isExpanded && !isHomeMenu) {
                             val subItems = activeSubItems[category].orEmpty()
                             Column(modifier = Modifier.fillMaxWidth().padding(start = 34.dp)) {
@@ -819,7 +841,10 @@ private fun SidebarAccordionPanel(
     }
 }
 
-// ── Module descriptions (shown under each module title) ──
+// ─────────────────────────────────────────────────────────────
+// Frequently Used Data
+// ─────────────────────────────────────────────────────────────
+
 private val moduleDescriptions = mapOf(
     "Sales" to "Manage leads, customers, orders & quotes",
     "Marketing" to "Campaigns, promotions & customer outreach",
@@ -878,7 +903,7 @@ private const val HALF_FRACTION = 0.55f
 private const val FULL_FRACTION = 0.96f
 
 // ─────────────────────────────────────────────────────────────
-//  FULL MODULES PANEL
+// FULL MODULES PANEL
 // ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -903,7 +928,7 @@ fun ModulesPanel(
 }
 
 // ─────────────────────────────────────────────────────────────
-//  QUICK ACCESS PANEL  (NEW)
+// QUICK ACCESS PANEL
 // ─────────────────────────────────────────────────────────────
 
 private data class QuickAccessItem(
@@ -923,7 +948,6 @@ fun QuickAccessPanel(
     onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> }
 ) {
     val tokens = LocalAppTokens.current
-
     var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
 
     LaunchedEffect(isOpen) {
@@ -944,8 +968,6 @@ fun QuickAccessPanel(
         )
     }
 
-    // Adaptive column count: 3 on phones, matches tokens.gridColumns on
-    // bigger screens too, but capped at 4 so icons never get too spread out.
     val columns = tokens.gridColumns.coerceIn(3, 4)
 
     SmoothBottomSheet(
@@ -964,7 +986,6 @@ fun QuickAccessPanel(
                 .fillMaxSize()
                 .background(whiteBg)
         ) {
-
             Text(
                 "QUICK ACCESS",
                 fontSize = tokens.bodyMedium,
@@ -998,7 +1019,6 @@ fun QuickAccessPanel(
                                 onItemClick(item.route)
                             }
                         }
-                        // Fill leftover slots in the last row so items don't stretch wider
                         repeat(columns - row.size) {
                             Spacer(Modifier.weight(1f))
                         }
@@ -1009,6 +1029,7 @@ fun QuickAccessPanel(
         }
     }
 }
+
 @Composable
 private fun QuickAccessGridItem(
     item: QuickAccessItem,
@@ -1027,7 +1048,7 @@ private fun QuickAccessGridItem(
     ) {
         Box(
             modifier = Modifier
-                .size(tokens.iconSize * 3f)   // scales with screen size
+                .size(tokens.iconSize * 3f)
                 .clip(CircleShape)
                 .background(quickaccessBg),
             contentAlignment = Alignment.Center
@@ -1052,11 +1073,6 @@ private fun QuickAccessGridItem(
     }
 }
 
-/**
- * Modules panel header — title row + close icon + divider + search field.
- * Matches the design exactly: solid white background across the entire
- * header block (title, divider, and search bar all share one white surface).
- */
 @Composable
 fun ModulesPanelHeader(
     searchQuery: String,
@@ -1064,14 +1080,11 @@ fun ModulesPanelHeader(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    //   Single Column wrapping everything — this is what guarantees
-    // one continuous white surface behind title + divider + search bar.
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(whiteBg)
     ) {
-        // ── Title row ──────────────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1085,13 +1098,10 @@ fun ModulesPanelHeader(
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF111827)
             )
-
         }
 
-        // ── Divider ────────────────────────────────────────────
         HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 1.dp)
 
-        // ── Search field ───────────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1114,7 +1124,7 @@ fun ModulesPanelHeader(
                 singleLine = true,
                 textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
                 cursorBrush = SolidColor(Color(0xFF3B3BF9)),
-                decorationBox = { inner ->
+                decorationBox = { innerTextField ->
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.CenterStart
@@ -1126,18 +1136,18 @@ fun ModulesPanelHeader(
                                 color = Color(0xFF9CA3AF)
                             )
                         }
-                        inner()
+                        innerTextField()
                     }
                 }
             )
         }
-
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Reusable Modules Panel Content — backed by SmoothBottomSheet
+// Reusable Modules Panel Content
 // ─────────────────────────────────────────────────────────────
+
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("SameParameterValue")
@@ -1152,7 +1162,6 @@ private fun ModulesPanelContent(
     initialExpandedCategory: String? = null,
     initialActiveSubItem: String? = null
 ) {
-    //   Blur state for the background
     var modulesPanelBlur by remember { mutableStateOf(0.dp) }
 
     val context = LocalContext.current
@@ -1164,7 +1173,6 @@ private fun ModulesPanelContent(
     var activeSubItem by remember { mutableStateOf<String?>(null) }
     var expandedSubCategory by remember { mutableStateOf<String?>(null) }
 
-    //   Sheet state for SmoothBottomSheet
     var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
 
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -1184,7 +1192,6 @@ private fun ModulesPanelContent(
         derivedStateOf { buildFrequentlyUsed(context, menuItems).take(3) }
     }
 
-    //   Handle sheet open/close and initial state
     LaunchedEffect(isOpen, initialExpandedModule, initialExpandedCategory, initialActiveSubItem) {
         if (isOpen) {
             sheetState = SheetValue.Collapsed
@@ -1208,7 +1215,6 @@ private fun ModulesPanelContent(
         }
     }
 
-    // ── The reusable sheet with blur support ──
     SmoothBottomSheet(
         state = sheetState,
         onStateChange = { sheetState = it },
@@ -1219,28 +1225,26 @@ private fun ModulesPanelContent(
         sheetBackgroundColor = Color(0xFFFAFAFB),
         onDismissRequest = onClose,
         onBlurScrimChange = { blur, _ ->
-            modulesPanelBlur = blur  //   Update blur state
+            modulesPanelBlur = blur
         }
     ) {
         Scaffold(
             containerColor = whiteBg,
-            topBar ={
+            topBar = {
                 ModulesPanelHeader(
                     searchQuery = searchQuery,
-                    onSearchQueryChange = {searchQuery = it},
+                    onSearchQueryChange = { searchQuery = it },
                     onClose = onClose
                 )
             },
             contentWindowInsets = WindowInsets(0, 0, 0, 0)
-
-        ) {innerPadding ->
+        ) { innerPadding ->
             Column(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
                     .padding(innerPadding)
-                .background(Primary_background)
-            )
-            {
-
+                    .background(Primary_background)
+            ) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),

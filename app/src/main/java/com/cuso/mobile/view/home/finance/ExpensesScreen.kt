@@ -10,7 +10,6 @@
 package com.cuso.mobile.view.home.finance
 
 import android.net.Uri
-import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -19,15 +18,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
@@ -65,6 +63,7 @@ import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
+import com.cuso.mobile.view.composable.ImageUploadSection
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.PlanLimitDialog
@@ -100,11 +99,36 @@ fun ExpensesScreen(
 
     val expenses by financeViewModel.expenseList.collectAsStateWithLifecycle()
     val isLoadingExpenses by financeViewModel.isLoadingExpenses.collectAsStateWithLifecycle()
+    val isLoadingMoreExpenses by financeViewModel.isLoadingMoreExpenses.collectAsStateWithLifecycle()
+    val canLoadMoreExpenses by financeViewModel.canLoadMoreExpenses.collectAsStateWithLifecycle()
     val expenseError by financeViewModel.expenseError.collectAsStateWithLifecycle()
+
+    val listState = rememberLazyListState()
 
     LaunchedEffect(Unit) {
         financeViewModel.fetchExpenses()
         financeViewModel.fetchChartOfAccounts()
+    }
+
+    LaunchedEffect(searchQuery) {
+        kotlinx.coroutines.delay(400)
+        financeViewModel.fetchExpenses(search = searchQuery.trim().ifBlank { null })
+    }
+
+    val shouldLoadMore = remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val totalItemsNumber = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+
+            totalItemsNumber > 0 && lastVisibleItemIndex >= totalItemsNumber - 2
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore.value) {
+        if (shouldLoadMore.value && canLoadMoreExpenses && !isLoadingMoreExpenses && !isLoadingExpenses) {
+            financeViewModel.loadMoreExpenses()
+        }
     }
 
     if (showAddExpense) {
@@ -158,17 +182,12 @@ fun ExpensesScreen(
         }
         HorizontalDivider(color = Color(0xFFF0F0F0))
 
-        val filtered = expenses.filter {
-            val query = searchQuery.trim()
-            query.isBlank() || it.accountId.accountName.contains(query, ignoreCase = true) || it.expenseNumber.contains(query, ignoreCase = true) || (it.referenceNumber?.contains(query, ignoreCase = true) == true)
-        }
-
         when {
-            isLoadingExpenses -> {
+            isLoadingExpenses && expenses.isEmpty() -> {
                 ListSkeleton()
             }
 
-            expenseError != null -> {
+            expenseError != null && expenses.isEmpty() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
@@ -185,7 +204,7 @@ fun ExpensesScreen(
                         )
                         Spacer(Modifier.height(12.dp))
                         Button(
-                            onClick = { financeViewModel.fetchExpenses() },
+                            onClick = { financeViewModel.fetchExpenses(search = searchQuery.trim().ifBlank { null }) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
                             shape = RoundedCornerShape(tokens.cardCornerRadius / 2)
                         ) {
@@ -195,7 +214,7 @@ fun ExpensesScreen(
                 }
             }
 
-            filtered.isEmpty() -> {
+            expenses.isEmpty() -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -265,11 +284,12 @@ fun ExpensesScreen(
                     )
                 ) {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier
                             .fillMaxSize()
                             .background(Color.Transparent)
                     ) {
-                        items(filtered) { expense ->
+                        items(expenses, key = { it._id }) { expense ->
                             val status = expense.status.ifBlank { "Paid" }
                             val (statusFg, statusBg) = expenseStatusColors(status)
                             DataCard(
@@ -296,6 +316,24 @@ fun ExpensesScreen(
                                 )
                             )
                         }
+
+                        if (isLoadingMoreExpenses) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = ExpensePrimary,
+                                        strokeWidth = 2.5.dp,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                        }
+
                         item { Spacer(Modifier.height(80.dp)) }
                     }
                 }
@@ -494,7 +532,6 @@ fun AddExpenseScreen(
     var branchExpanded by remember { mutableStateOf(false) }
 
     var amount by remember { mutableStateOf("") }
-
     var referenceNumber by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
 
@@ -510,16 +547,13 @@ fun AddExpenseScreen(
     val isUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
             currentPlanName.equals("light", ignoreCase = true)
 
-    val context = LocalContext.current
-    var selectedDocumentUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedDocumentName by remember { mutableStateOf<String?>(null) }
+    var selectedDocuments by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            selectedDocumentUri = uri
-            selectedDocumentName = getFileNameFromUri(context, uri)
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            selectedDocuments = selectedDocuments + uris
         }
     }
 
@@ -722,73 +756,24 @@ fun AddExpenseScreen(
                 )
                 Spacer(Modifier.height(10.dp))
 
-                if (selectedDocumentName != null) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFF7F7FE), RoundedCornerShape(tokens.cardCornerRadius / 1.8f))
-                            .border(1.dp, Color(0xFFD6D3FB), RoundedCornerShape(tokens.cardCornerRadius / 1.8f))
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.InsertDriveFile,
-                                contentDescription = null,
-                                tint = ExpensePrimary,
-                                modifier = Modifier.size(tokens.iconSize)
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Text(
-                                selectedDocumentName.orEmpty(),
-                                fontSize = tokens.bodySmall,
-                                color = Color(0xFF374151),
-                                maxLines = 1
-                            )
+                ImageUploadSection(
+                    selectedImages = selectedDocuments,
+                    browseText = "Browse Files",
+                    onBrowseClick = {
+                        if (isUploadRestricted) {
+                            showPlanLimitDialog = true
+
+                        } else {
+                            filePickerLauncher.launch("*/*")
                         }
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Remove",
-                            tint = Color(0xFF9CA3AF),
-                            modifier = Modifier
-                                .size(tokens.iconSize)
-                                .clickable {
-                                    selectedDocumentUri = null
-                                    selectedDocumentName = null
-                                }
-                        )
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(110.dp)
-                            .background(Color(0xFFF7F7FE), RoundedCornerShape(tokens.cardCornerRadius / 1.8f))
-                            .border(1.dp, Color(0xFFD6D3FB), RoundedCornerShape(tokens.cardCornerRadius / 1.8f))
-                            .clickable {
-                                if (isUploadRestricted) {
-                                    showPlanLimitDialog = true
-                                } else {
-                                    filePickerLauncher.launch("*/*")
-                                }
-                            },
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            Icons.Default.CloudUpload,
-                            contentDescription = null,
-                            tint = ExpensePrimary,
-                            modifier = Modifier.size(tokens.iconSize * 1.4f)
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text("Drag and drop files here", fontSize = tokens.caption, color = Color(0xFF9CA3AF))
-                    }
-                }
+                    },
+                    onCameraClick = null,
+                    onRemoveImage = { removedUri ->
+                        selectedDocuments = selectedDocuments.filter { it != removedUri }
+                    },
+                    previewHeaderTitle = "ATTACHED RECEIPTS"
+                )
+
                 Spacer(Modifier.height(80.dp))
             }
         }
@@ -928,15 +913,4 @@ private fun String.toIsoDateFromDDMMYYYY(): String {
     } catch (_: Exception) {
         this
     }
-}
-
-private fun getFileNameFromUri(context: android.content.Context, uri: Uri): String {
-    var name = "Unknown file"
-    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-        if (cursor.moveToFirst() && nameIndex >= 0) {
-            name = cursor.getString(nameIndex)
-        }
-    }
-    return name
 }

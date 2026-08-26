@@ -23,12 +23,25 @@ import com.cuso.mobile.view.home.sales.*
 import com.cuso.mobile.view.home.sales.customer.*
 import com.cuso.mobile.view.home.sales.lead.*
 import com.cuso.mobile.view.home.sales.measurements.MeasurementsScreen
-import com.cuso.mobile.view.home.sales.ordermanagement.*
 import com.cuso.mobile.view.home.sales.payment_listing.*
 import com.cuso.mobile.view.home.sales.pricing.*
 import com.cuso.mobile.view.home.sales.quotation.*
 import com.cuso.mobile.view.home.sales.sales_order.*
-import com.cuso.mobile.view.home.services.*
+import com.cuso.mobile.view.home.services.alteration_management.AlterationManagementScreen
+import com.cuso.mobile.view.home.services.alteration_management.CreateAlterationManagementScreen
+import com.cuso.mobile.view.home.services.feedback.CustomerFeedbackScreen
+import com.cuso.mobile.view.home.services.feedback.FeedbackDetailScreen
+import com.cuso.mobile.view.home.services.service_order.ServiceOrderOverviewScreen
+import com.cuso.mobile.view.home.services.service_order.ServiceOrderScreen
+import com.cuso.mobile.view.home.services.service_request.CreateServiceRequest
+import com.cuso.mobile.view.home.services.service_request.OrderDetails
+import com.cuso.mobile.view.home.services.service_request.ServiceDetails
+import com.cuso.mobile.view.home.services.service_request.ServiceRequestScreen
+import com.cuso.mobile.view.home.services.service_request.ServiceRequetDetailsScreen
+import com.cuso.mobile.view.home.services.service_status.delay_rework.DelayReworkTrackingScreen
+import com.cuso.mobile.view.home.services.service_status.service_delivery.ServiceDeliveryStatusScreen
+import com.cuso.mobile.view.home.services.service_status.status.ServiceStatusDetailScreen
+import com.cuso.mobile.view.home.services.service_status.status.ServiceStatusScreen
 import com.cuso.mobile.view.home.warehouse.WarehouseSettingsScreen
 import com.cuso.mobile.viewmodel.*
 
@@ -96,6 +109,22 @@ fun HomeScreenRouter(
     onOrderSavedSuccessfully: (savedOrderId: String?) -> Unit
 ) {
     when (screen) {
+        // ─────────────────────────────────────────────────────────────
+        // 1. HOME & SETTINGS MODULE
+        // ─────────────────────────────────────────────────────────────
+        "home" -> HomeScreenContent(
+            navController = navController,
+            widthSizeClass = widthSizeClass,
+            onNavigate = onSafeNavigate,
+            onCustomerClick = { customerId ->
+                if (customerId.isNotBlank()) {
+                    onRecentCustomerIdSelected(customerId)
+                    onNavigate("view_customer_recent")
+                } else {
+                    onNavigate("sales_customers")
+                }
+            }
+        )
         "settings", "home_organization_profile" -> SettingsScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
@@ -116,34 +145,41 @@ fun HomeScreenRouter(
             onMenuClick = onOpenDrawer,
             onBack = onGoBack
         )
-        "sales_settings" -> SalesSettingsScreen(
+        "home_role_management" -> RoleSettingsScreen(
             navController = navController,
-            onClose = {
-                onSalesSettingsModeChange(false)
-                onGoBack()
-            },
-            onMenuClick = onOpenDrawer
+            onMenuClick = onOpenDrawer,
+            onBack = onGoBack
         )
-        "sales_garment_type" -> GarmentTypeContent(
-            onClose = {
-                onSalesSettingsModeChange(true)
-                onGoBack()
-            },
-            onMenuClick = onOpenDrawer
-        )
-        "home" -> HomeScreenContent(
+        "home_opening_balance" -> OpeningBalancesScreen(
             navController = navController,
-            widthSizeClass = widthSizeClass,
-            onNavigate = onSafeNavigate,
-            onCustomerClick = { customerId ->
-                if (customerId.isNotBlank()) {
-                    onRecentCustomerIdSelected(customerId)
-                    onNavigate("view_customer_recent")
-                } else {
-                    onNavigate("sales_customers")
+            onBack = onGoBack
+        )
+        "home_warehouse_management" -> WarehouseSettingsScreen(
+            navController = navController,
+            onMenuClick = onOpenDrawer,
+            onBack = onGoBack
+        )
+        "profile-settings" -> ProfileSettingsScreen(
+            onClose = onGoBack,
+            onOrganizationSetup = { onSafeNavigate("home_organization_profile") },
+            onBranchManagement = { onSafeNavigate("home_branch_management") },
+            onDepartment = { onSafeNavigate("home_department_teams") },
+            onDesignation = { onSafeNavigate("home_designation") },
+            onHelpSupport = { onSafeNavigate("home_warehouse_management") },
+            onLogout = {
+                settingsViewModel.logout {
+                    authViewModel.logout {
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 }
             }
         )
+
+        // ─────────────────────────────────────────────────────────────
+        // 2. SALES MODULE
+        // ─────────────────────────────────────────────────────────────
         "sales_lead" -> LeadScreenContent(
             onCreateLead = { onNavigate("create_lead") },
             onViewLead = { onNavigate("view_lead") },
@@ -171,6 +207,65 @@ fun HomeScreenRouter(
                 onOrderFlowOriginChange("lead")
                 onNavigate("create_order")
             }
+        )
+        "sales_customers" -> CustomerScreen(
+            navController = navController,
+            onClose = onGoBack,
+            onCreateCustomer = { onNavigate("create_customer") },
+            onView = { customer ->
+                onCustomerSelected(customer)
+                onNavigate("view_customer")
+            },
+            onEdit = { customer ->
+                onCustomerSelected(customer)
+                onNavigate("edit_customer")
+            },
+            onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) },
+            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
+        )
+        "view_customer", "edit_customer" -> {
+            if (selectedCustomer != null && selectedCustomer.id.isNotBlank()) {
+                CustomerDetailScreen(
+                    navController = navController,
+                    customerId = selectedCustomer.id,
+                    startInEditMode = screen == "edit_customer",
+                    onClose = onGoBack,
+                    onUpdateSuccess = {
+                        customerViewModel.refresh()
+                        onGoBack()
+                    },
+                    onRequestEdit = { onNavigate("edit_customer") }
+                )
+            } else {
+                onGoBack()
+            }
+        }
+        "view_customer_recent" -> {
+            if (!selectedRecentCustomerId.isNullOrBlank()) {
+                CustomerDetailScreen(
+                    navController = navController,
+                    customerId = selectedRecentCustomerId,
+                    startInEditMode = false,
+                    onClose = {
+                        onRecentCustomerIdSelected(null)
+                        onGoBack()
+                    },
+                    onUpdateSuccess = {
+                        customerViewModel.refresh()
+                        onRecentCustomerIdSelected(null)
+                        onGoBack()
+                    },
+                    onRequestEdit = { onNavigate("edit_customer") }
+                )
+            } else {
+                onGoBack()
+            }
+        }
+        "sales_measurements" -> MeasurementsScreen(
+            navController = navController,
+            onBack = onGoBack,
+            onCreateOrder = { onNavigate("create_order") },
+            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
         )
         "sales_sales_orders" -> SalesOrderScreen(
             navController = navController,
@@ -202,6 +297,21 @@ fun HomeScreenRouter(
                 onNavigate("create_order_review")
             }
         )
+        "create_order_review" -> {
+            pendingOrderReviewData?.let { data ->
+                CreateOrderNextStep(
+                    orderData = data,
+                    onBack = { updatedData ->
+                        onPendingOrderReviewDataChange(updatedData)
+                        onGoBack()
+                    },
+                    onClose = onGoBack,
+                    onSaveOrder = { _, savedOrderId ->
+                        onOrderSavedSuccessfully(savedOrderId)
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
         "order_overview" -> {
             selectedOrderId?.let { id ->
                 OrderOverviewScreen(
@@ -218,28 +328,173 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
-        "sales_orders" -> OrderManagementScreen(
-            navController = navController,
-            onMenuClick = onOpenDrawer,
-            onBack = onGoBack,
-            onViewOrder = { orderId ->
-                onManagementOrderIdSelected(orderId)
-                onNavigate("order_management_overview")
+        "sales_pricing_overview" -> PricingScreen(
+            onClose = {
+                onSalesSettingsModeChange(false)
+                onGoBack()
+            },
+            onAddNewPricing = {
+                onEditingPricingIdChange(null)
+                onNavigate("create_garment_pricing")
+            },
+            onCardClick = { pricingId ->
+                onEditingPricingIdChange(pricingId)
+                onNavigate("create_garment_pricing")
             },
             onBreadCrumbClick = { onOpenModulesPanel("Sales") }
         )
-        "order_management_overview" -> {
-            selectedManagementOrderId?.let { id ->
-                OrderDetailScreen(
-                    orderId = id,
+        "garment_pricing_list" -> GarmentPricingListScreen(
+            onBack = onGoBack,
+            onAddNewPricing = {
+                onEditingPricingIdChange(null)
+                onNavigate("create_garment_pricing")
+            },
+            onCardClick = { pricingId ->
+                onEditingPricingIdChange(pricingId)
+                onNavigate("create_garment_pricing")
+            }
+        )
+        "create_garment_pricing" -> AddGarmentPricingScreen(
+            pricingId = editingPricingId,
+            onClose = {
+                onEditingPricingIdChange(null)
+                onGoBack()
+            },
+            onSave = {
+                onEditingPricingIdChange(null)
+                onGoBack()
+            }
+        )
+        "sales_pricing_quotation" -> QuotationScreen(
+            onClose = {
+                onSalesSettingsModeChange(false)
+                onGoBack()
+            },
+            onAddNe = {
+                onEditingPricingIdChange(null)
+                onQuotationScreenModeChange("create")
+                onNavigate("create_quotation")
+            },
+            onView = { id ->
+                onEditingPricingIdChange(id)
+                onQuotationScreenModeChange("view")
+                onNavigate("create_quotation")
+            },
+            onEdit = { id ->
+                onEditingPricingIdChange(id)
+                onQuotationScreenModeChange("edit")
+                onNavigate("create_quotation")
+            },
+            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
+        )
+        "create_quotation" -> CreateQuotationScreen(
+            quotationId = editingPricingId,
+            mode = quotationScreenMode,
+            onClose = onGoBack,
+            onSave = onGoBack,
+            token = token
+        )
+        "sales_payment_and_billing" -> PaymentListingScreen(
+            navController = navController,
+            widthSizeClass = widthSizeClass,
+            onBack = {
+                onSalesSettingsModeChange(false)
+                onGoBack()
+            },
+            onBreadCrumbClick = { onOpenModulesPanel("Sales") },
+            onPaymentClick = { onNavigate("payment_detail") }
+        )
+        "payment_detail" -> PaymentInformationScreen(onClose = onGoBack)
+        "sales_settings" -> SalesSettingsScreen(
+            navController = navController,
+            onClose = {
+                onSalesSettingsModeChange(false)
+                onGoBack()
+            },
+            onMenuClick = onOpenDrawer
+        )
+        "sales_garment_type" -> GarmentTypeContent(
+            onClose = {
+                onSalesSettingsModeChange(true)
+                onGoBack()
+            },
+            onMenuClick = onOpenDrawer
+        )
+
+        // ─────────────────────────────────────────────────────────────
+        // 3. FINANCE MODULE
+        // ─────────────────────────────────────────────────────────────
+        "finance_sales_invoices" -> FinanceInvoiceScreen(
+            onClose = onGoBack,
+            onInvoiceClick = { invoice ->
+                onInvoiceSelected(invoice.id)
+                onNavigate("finance_invoice_detail")
+            },
+            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
+        )
+        "finance_invoice_detail" -> {
+            selectedInvoiceId?.let { id ->
+                InvoiceDetailScreen(
+                    invoiceId = id,
                     onClose = {
-                        onManagementOrderIdSelected(null)
+                        onInvoiceSelected(null)
                         onGoBack()
                     },
-                    onEditOrder = { onEditOrderIdChange(id) }
+                    token = token
                 )
             } ?: run { onGoBack() }
         }
+        "finance_purchase_invoices" -> PurchaseInvoiceScreen(
+            onClose = onGoBack,
+            onInvoiceClick = { invoice ->
+                onPurchaseInvoiceSelected(invoice)
+                onNavigate("finance_purchase_invoice_detail")
+            },
+            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
+        )
+        "finance_purchase_invoice_detail" -> {
+            selectedPurchaseInvoice?.let { invoice ->
+                PurchaseInvoiceDetailScreen(
+                    invoiceId = invoice.id,
+                    onClose = onGoBack
+                )
+            } ?: run { onGoBack() }
+        }
+        "finance_customers" -> FinanceCustomerScreen(
+            onClose = onGoBack,
+            onCustomerEdit = { },
+            onCustomerClick = { },
+            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
+        )
+        "finance_suppliers" -> AllSuppliersScreen(
+            onClose = onGoBack,
+            onBreadCrumbClick = { onOpenModulesPanel("Finance") },
+            onSupplierClick = { supplier ->
+                onSupplierSelected(supplier)
+                onNavigate("finance_supplier_detail")
+            }
+        )
+        "finance_supplier_detail" -> {
+            selectedSupplier?.let { supplier ->
+                SupplierDetailScreen(
+                    supplier = supplier,
+                    onClose = {
+                        onSupplierSelected(null)
+                        onGoBack()
+                    },
+                    onBreadcrumbClick = { onOpenModulesPanel("Finance") }
+                )
+            } ?: run { onGoBack() }
+        }
+        "finance_expenses" -> ExpensesScreen(
+            onClose = onGoBack,
+            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
+        )
+        "finance_chart_of_accounts" -> ChartOfAccountScreen(
+            onClose = onGoBack,
+            onBreadcrumbClick = { onOpenModulesPanel("Finance") }
+        )
+        "finance_journal_screen" -> ManualJournalEntryScreen(onClose = onGoBack)
         "finance_trial_balance" -> TrialBalanceScreen(
             onClose = onGoBack,
             onAccountClick = { accountId, accountName ->
@@ -261,30 +516,11 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
-        "finance_chart_of_accounts" -> ChartOfAccountScreen(
-            onClose = onGoBack,
-            onBreadcrumbClick = { onOpenModulesPanel("Finance") }
+        "finance_payments_received" -> AllPaymentScreen(
+            onViewPayment = { onNavigate("payment_detail_screen") },
+            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
         )
-        "finance_suppliers" -> AllSuppliersScreen(
-            onClose = onGoBack,
-            onBreadcrumbClick = { onOpenModulesPanel("Finance") },
-            onSupplierClick = { supplier ->
-                onSupplierSelected(supplier)
-                onNavigate("finance_supplier_detail")
-            }
-        )
-        "finance_supplier_detail" -> {
-            selectedSupplier?.let { supplier ->
-                SupplierDetailScreen(
-                    supplier = supplier,
-                    onClose = {
-                        onSupplierSelected(null)
-                        onGoBack()
-                    },
-                    onBreadcrumbClick = { onOpenModulesPanel("Finance") }
-                )
-            } ?: run { onGoBack() }
-        }
+        "payment_detail_screen" -> PaymentDetailScreenAR(onClose = onGoBack)
         "finance_payments_mode" -> AllPaymentListScreen(
             onClose = onGoBack,
             onPaymentClick = { paymentId ->
@@ -298,6 +534,10 @@ fun HomeScreenRouter(
                 onGoBack()
             }
         )
+
+        // ─────────────────────────────────────────────────────────────
+        // 4. INVENTORY MODULE
+        // ─────────────────────────────────────────────────────────────
         "inventory_items" -> InventoryScreen(
             onClose = onGoBack,
             onAddItem = { onNavigate("inventory_create_item") },
@@ -307,93 +547,6 @@ fun HomeScreenRouter(
             },
             onEditItem = { onNavigate("inventory_create_item") },
             onBreadCrumbClick = { onOpenModulesPanel("Inventory") }
-        )
-        "inventory_low_stock_alerts" -> LowStockAlertsScreen(
-            onClose = onGoBack,
-            onReorderClick = { item ->
-                onLowStockItemSelected(item)
-                onNavigate("inventory_create_purchase_order")
-            },
-            onCreateNewItem = { onNavigate("inventory_create_purchase_order") },
-            onBreadcrumbClick = { onOpenModulesPanel("Inventory") }
-        )
-        "inventory_create_purchase_order" -> CreatePurchaseOrderScreen(
-            onClose = {
-                onLowStockItemSelected(null)
-                onGoBack()
-            },
-            onCancel = {
-                onLowStockItemSelected(null)
-                onGoBack()
-            },
-            onCreateOrder = {
-                onLowStockItemSelected(null)
-                onGoBack()
-                onGoBack()
-            }
-        )
-        "hr_all_employees" -> AllEmployeesScreen(
-            onDismiss = onGoBack,
-            onAddEmployee = {
-                onEmployeeScreenModeChange(ScreenMode.CREATE)
-                onEmployeeIdSelected(null)
-                onNavigate("hr_employee_onboarding")
-            },
-            onView = { employee ->
-                onEmployeeScreenModeChange(ScreenMode.VIEW)
-                onEmployeeIdSelected(employee._id)
-                onNavigate("hr_employee_onboarding")
-            },
-            onEdit = { employee ->
-                onEmployeeScreenModeChange(ScreenMode.EDIT)
-                onEmployeeIdSelected(employee._id)
-                onNavigate("hr_employee_onboarding")
-            },
-            onDelete = { },
-            hrViewModel = hrViewModel,
-            onBreadCrumbClick = { onOpenModulesPanel("HR") }
-        )
-        "hr_attendance" -> AttendanceScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("HR") },
-            onRecordClick = { recordId ->
-                onAttendanceIdSelected(recordId)
-                onNavigate("hr_attendance_detail")
-            }
-        )
-        "hr_attendance_detail" -> AttendanceDetailScreen(
-            onClose = {
-                onAttendanceIdSelected(null)
-                onGoBack()
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("HR") },
-            onHistoryClick = { }
-        )
-        "logistics_order_tracking" -> OrderTrackingScreen(
-            onClose = onGoBack,
-            onViewOrder = { order ->
-                onOrderIdSelected(order.id)
-                onNavigate("tracking_overview")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Logistics") }
-        )
-        "tracking_overview" -> TrackingOverviewScreen(onClose = onGoBack)
-        "hr_employee_onboarding" -> EmployeeOnboardingScreen(
-            mode = employeeScreenMode,
-            memberIdToLoad = selectedEmployeeId,
-            onDismiss = {
-                onEmployeeIdSelected(null)
-                onGoBack()
-            },
-            onCreateEmployee = {
-                onEmployeeIdSelected(null)
-                onGoBack()
-            },
-            onUpdateEmployee = {
-                onEmployeeIdSelected(null)
-                onGoBack()
-            },
-            hrViewModel = hrViewModel
         )
         "inventory_create_item" -> CreateItemScreen(
             onDismiss = onGoBack,
@@ -441,23 +594,201 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
-        "services_customer_feedback" -> CustomerFeedbackScreen(
-            onDismiss = onGoBack,
-            onView = { feedbackId ->
-                onFeedbackIdSelected(feedbackId)
-                onNavigate("feedback_detail")
+        "inventory_low_stock_alerts" -> LowStockAlertsScreen(
+            onClose = onGoBack,
+            onReorderClick = { item ->
+                onLowStockItemSelected(item)
+                onNavigate("inventory_create_purchase_order")
             },
-            onEdit = { },
+            onCreateNewItem = { onNavigate("inventory_create_purchase_order") },
+            onBreadcrumbClick = { onOpenModulesPanel("Inventory") }
+        )
+        "inventory_create_purchase_order" -> CreatePurchaseOrderScreen(
+            onClose = {
+                onLowStockItemSelected(null)
+                onGoBack()
+            },
+            onCancel = {
+                onLowStockItemSelected(null)
+                onGoBack()
+            },
+            onCreateOrder = {
+                onLowStockItemSelected(null)
+                onGoBack()
+                onGoBack()
+            }
+        )
+        "inventory_item_groups" -> AllItemGroupScreen(
+            onDismiss = onGoBack,
+            onAddItemGroup = { onNavigate("inventory_create_item_group") },
+            onView = { groupId -> onItemGroupIdSelected(groupId) },
+            onEdit = { groupId ->
+                onItemGroupIdSelected(groupId)
+                onNavigate("inventory_create_item_group")
+            },
             onDelete = { },
+            onBreadCrumbClick = { onOpenModulesPanel("Inventory") }
+        )
+        "inventory_create_item_group" -> CreateItemGroupScreen(
+            onDismiss = {
+                onItemGroupIdSelected(null)
+                onGoBack()
+            },
+            onSave = {
+                onItemGroupIdSelected(null)
+                onGoBack()
+            }
+        )
+
+        // ─────────────────────────────────────────────────────────────
+        // 5. HR MODULE
+        // ─────────────────────────────────────────────────────────────
+        "hr_all_employees" -> AllEmployeesScreen(
+            onDismiss = onGoBack,
+            onAddEmployee = {
+                onEmployeeScreenModeChange(ScreenMode.CREATE)
+                onEmployeeIdSelected(null)
+                onNavigate("hr_employee_onboarding")
+            },
+            onView = { employee ->
+                onEmployeeScreenModeChange(ScreenMode.VIEW)
+                onEmployeeIdSelected(employee._id)
+                onNavigate("hr_employee_onboarding")
+            },
+            onEdit = { employee ->
+                onEmployeeScreenModeChange(ScreenMode.EDIT)
+                onEmployeeIdSelected(employee._id)
+                onNavigate("hr_employee_onboarding")
+            },
+            onDelete = { },
+            hrViewModel = hrViewModel,
+            onBreadCrumbClick = { onOpenModulesPanel("HR") }
+        )
+        "hr_employee_onboarding" -> EmployeeOnboardingScreen(
+            mode = employeeScreenMode,
+            memberIdToLoad = selectedEmployeeId,
+            onDismiss = {
+                onEmployeeIdSelected(null)
+                onGoBack()
+            },
+            onCreateEmployee = {
+                onEmployeeIdSelected(null)
+                onGoBack()
+            },
+            onUpdateEmployee = {
+                onEmployeeIdSelected(null)
+                onGoBack()
+            },
+            hrViewModel = hrViewModel
+        )
+        "hr_attendance" -> AttendanceScreen(
+            onClose = onGoBack,
+            onBreadCrumbClick = { onOpenModulesPanel("HR") },
+            onRecordClick = { recordId ->
+                onAttendanceIdSelected(recordId)
+                onNavigate("hr_attendance_detail")
+            }
+        )
+        "hr_attendance_detail" -> AttendanceDetailScreen(
+            onClose = {
+                onAttendanceIdSelected(null)
+                onGoBack()
+            },
+            onBreadCrumbClick = { onOpenModulesPanel("HR") },
+            onHistoryClick = { }
+        )
+
+        // ─────────────────────────────────────────────────────────────
+        // 6. LOGISTICS MODULE
+        // ─────────────────────────────────────────────────────────────
+        "logistics_delivery" -> DeliveryManagementScreen(
+            onDismiss = onGoBack,
+            onView = { onNavigate("delivery_detail") },
+            onBreadCrumbClick = { onOpenModulesPanel("Logistics") }
+        )
+        "delivery_detail" -> DeliveryDetailScreen(onDismiss = onGoBack)
+        "logistics_order_tracking" -> OrderTrackingScreen(
+            onClose = onGoBack,
+            onViewOrder = { order ->
+                onOrderIdSelected(order.id)
+                onNavigate("tracking_overview")
+            },
+            onBreadCrumbClick = { onOpenModulesPanel("Logistics") }
+        )
+        "tracking_overview" -> TrackingOverviewScreen(onClose = onGoBack)
+
+        // ─────────────────────────────────────────────────────────────
+        // 7. SERVICES MODULE
+        // ─────────────────────────────────────────────────────────────
+        "services_service_status", "sales_orders" -> ServiceStatusScreen(
+            navController = navController,
+            onMenuClick = onOpenDrawer,
+            onBack = onGoBack,
+            onViewOrder = { orderId ->
+                onManagementOrderIdSelected(orderId)
+                onNavigate("service_status_detail")
+            },
             onBreadCrumbClick = { onOpenModulesPanel("Services") }
         )
-        "services_alteration_management" -> AlterationManagementScreen(
+        "service_status_detail", "order_management_overview" -> {
+            selectedManagementOrderId?.let { id ->
+                ServiceStatusDetailScreen(
+                    orderId = id,
+                    onClose = {
+                        onManagementOrderIdSelected(null)
+                        onGoBack()
+                    },
+                    onEditOrder = { onEditOrderIdChange(id) }
+                )
+            } ?: run { onGoBack() }
+        }
+        "services_delay_rework" -> DelayReworkTrackingScreen(
             onClose = onGoBack,
-            onCreateNewAlteration = { onNavigate("create_alteration") },
-            onBreadcrumbClick = { onOpenModulesPanel("Services") },
-            onViewClick = { }
+            onLogNewDelay = { },
+            onRegisterAlteration = { onNavigate("create_alteration") },
+            onCreateReworkOrder = { onNavigate("create_order") },
+            onViewLog = { },
+            onGenerateReport = { }
         )
-        "create_alteration" -> CreateAlterationManagementScreen(onClose = onGoBack)
+        "services_service_delivery" -> ServiceDeliveryStatusScreen(
+            onClose = onGoBack,
+            onContactCustomer = { },
+            onEditDetails = { },
+            onReschedule = { },
+            onMarkDelivered = { },
+            onViewUrgentOrder = { }
+        )
+        "services_service_order", "services_service_orders" -> ServiceOrderScreen(
+            navController = navController,
+            onMenuClick = onOpenDrawer,
+            onBack = onGoBack,
+            onCreateOrder = {
+                onPendingOrderReviewDataChange(null)
+                onNavigate("create_order")
+            },
+            onViewOrder = { orderId ->
+                onOrderIdSelected(orderId)
+                onNavigate("service_order_overview")
+            },
+            onEditOrder = { orderId -> onEditOrderIdChange(orderId) },
+            onBreadCrumbClick = { onOpenModulesPanel("Services") }
+        )
+        "service_order_overview" -> {
+            selectedOrderId?.let { id ->
+                ServiceOrderOverviewScreen(
+                    orderId = id,
+                    onClose = onGoBack,
+                    onEditOrder = { reviewData ->
+                        onPendingOrderReviewDataChange(reviewData)
+                        onNavigate("create_order")
+                    },
+                    onCreateNew = {
+                        onPendingOrderReviewDataChange(null)
+                        onNavigate("create_order")
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
         "services_service_request" -> ServiceRequestScreen(
             onClose = { },
             onBreadcrumbClick = { },
@@ -465,7 +796,7 @@ fun HomeScreenRouter(
             onViewClick = { onNavigate("review_services") }
         )
         "create_request" -> CreateServiceRequest()
-        "review_services" -> ServiceOrderDetailsScreen(
+        "review_services" -> ServiceRequetDetailsScreen(
             service = ServiceDetails(
                 serviceRef = "SR-1045",
                 reviewStatus = "Pending Review",
@@ -493,276 +824,36 @@ fun HomeScreenRouter(
             onBack = onGoBack,
             onViewFullOrderHistory = { onNavigate("order_history") }
         )
+        "services_alteration_management" -> AlterationManagementScreen(
+            onClose = onGoBack,
+            onCreateNewAlteration = { onNavigate("create_alteration") },
+            onBreadcrumbClick = { onOpenModulesPanel("Services") },
+            onViewClick = { }
+        )
+        "create_alteration" -> CreateAlterationManagementScreen(onClose = onGoBack)
+        "services_customer_feedback" -> CustomerFeedbackScreen(
+            onDismiss = onGoBack,
+            onView = { feedbackId ->
+                onFeedbackIdSelected(feedbackId)
+                onNavigate("feedback_detail")
+            },
+            onEdit = { },
+            onDelete = { },
+            onBreadCrumbClick = { onOpenModulesPanel("Services") }
+        )
         "feedback_detail" -> FeedbackDetailScreen(
             onDismiss = {
                 onFeedbackIdSelected(null)
                 onGoBack()
             }
         )
-        "sales_pricing_quotation" -> QuotationScreen(
-            onClose = {
-                onSalesSettingsModeChange(false)
-                onGoBack()
-            },
-            onAddNe = {
-                onEditingPricingIdChange(null)
-                onQuotationScreenModeChange("create")
-                onNavigate("create_quotation")
-            },
-            onView = { id ->
-                onEditingPricingIdChange(id)
-                onQuotationScreenModeChange("view")
-                onNavigate("create_quotation")
-            },
-            onEdit = { id ->
-                onEditingPricingIdChange(id)
-                onQuotationScreenModeChange("edit")
-                onNavigate("create_quotation")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
-        )
-        "create_quotation" -> CreateQuotationScreen(
-            quotationId = editingPricingId,
-            mode = quotationScreenMode,
-            onClose = onGoBack,
-            onSave = onGoBack,
-            token = token
-        )
-        "inventory_item_groups" -> AllItemGroupScreen(
-            onDismiss = onGoBack,
-            onAddItemGroup = { onNavigate("inventory_create_item_group") },
-            onView = { groupId -> onItemGroupIdSelected(groupId) },
-            onEdit = { groupId ->
-                onItemGroupIdSelected(groupId)
-                onNavigate("inventory_create_item_group")
-            },
-            onDelete = { },
-            onBreadCrumbClick = { onOpenModulesPanel("Inventory") }
-        )
-        "inventory_create_item_group" -> CreateItemGroupScreen(
-            onDismiss = {
-                onItemGroupIdSelected(null)
-                onGoBack()
-            },
-            onSave = {
-                onItemGroupIdSelected(null)
-                onGoBack()
-            }
-        )
-        "sales_pricing_overview" -> PricingScreen(
-            onClose = {
-                onSalesSettingsModeChange(false)
-                onGoBack()
-            },
-            onAddNewPricing = {
-                onEditingPricingIdChange(null)
-                onNavigate("create_garment_pricing")
-            },
-            onCardClick = { pricingId ->
-                onEditingPricingIdChange(pricingId)
-                onNavigate("create_garment_pricing")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
-        )
-        "sales_payment_and_billing" -> PaymentListingScreen(
-            navController = navController,
-            widthSizeClass = widthSizeClass,
-            onBack = {
-                onSalesSettingsModeChange(false)
-                onGoBack()
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Sales") },
-            onPaymentClick = { onNavigate("payment_detail") }
-        )
-        "payment_detail" -> PaymentInformationScreen(onClose = onGoBack)
-        "garment_pricing_list" -> GarmentPricingListScreen(
-            onBack = onGoBack,
-            onAddNewPricing = {
-                onEditingPricingIdChange(null)
-                onNavigate("create_garment_pricing")
-            },
-            onCardClick = { pricingId ->
-                onEditingPricingIdChange(pricingId)
-                onNavigate("create_garment_pricing")
-            }
-        )
-        "create_garment_pricing" -> AddGarmentPricingScreen(
-            pricingId = editingPricingId,
-            onClose = {
-                onEditingPricingIdChange(null)
-                onGoBack()
-            },
-            onSave = {
-                onEditingPricingIdChange(null)
-                onGoBack()
-            }
-        )
-        "sales_customers" -> CustomerScreen(
-            navController = navController,
-            onClose = onGoBack,
-            onCreateCustomer = { onNavigate("create_customer") },
-            onView = { customer ->
-                onCustomerSelected(customer)
-                onNavigate("view_customer")
-            },
-            onEdit = { customer ->
-                onCustomerSelected(customer)
-                onNavigate("edit_customer")
-            },
-            onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) },
-            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
-        )
-        "finance_customers" -> FinanceCustomerScreen(
-            onClose = onGoBack,
-            onCustomerEdit = { },
-            onCustomerClick = { },
-            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
-        )
-        "finance_expenses" -> ExpensesScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
-        )
-        "finance_journal_screen" -> ManualJournalEntryScreen(onClose = onGoBack)
-        "finance_payments_received" -> AllPaymentScreen(
-            onViewPayment = { onNavigate("payment_detail_screen") },
-            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
-        )
-        "payment_detail_screen" -> PaymentDetailScreenAR(onClose = onGoBack)
-        "finance_sales_invoices" -> FinanceInvoiceScreen(
-            onClose = onGoBack,
-            onInvoiceClick = { invoice ->
-                onInvoiceSelected(invoice.id)
-                onNavigate("finance_invoice_detail")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
-        )
-        "finance_purchase_invoices" -> PurchaseInvoiceScreen(
-            onClose = onGoBack,
-            onInvoiceClick = { invoice ->
-                onPurchaseInvoiceSelected(invoice)
-                onNavigate("finance_purchase_invoice_detail")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
-        )
-        "finance_purchase_invoice_detail" -> {
-            selectedPurchaseInvoice?.let { invoice ->
-                PurchaseInvoiceDetailScreen(
-                    invoiceId = invoice.id,
-                    onClose = onGoBack
-                )
-            } ?: run { onGoBack() }
-        }
-        "finance_invoice_detail" -> {
-            selectedInvoiceId?.let { id ->
-                InvoiceDetailScreen(
-                    invoiceId = id,
-                    onClose = {
-                        onInvoiceSelected(null)
-                        onGoBack()
-                    },
-                    token = token
-                )
-            } ?: run { onGoBack() }
-        }
-        "logistics_delivery" -> DeliveryManagementScreen(
-            onDismiss = onGoBack,
-            onView = { onNavigate("delivery_detail") },
-            onBreadCrumbClick = { onOpenModulesPanel("Logistics") }
-        )
-        "delivery_detail" -> DeliveryDetailScreen(onDismiss = onGoBack)
-        "view_customer", "edit_customer" -> {
-            if (selectedCustomer != null && selectedCustomer.id.isNotBlank()) {
-                CustomerDetailScreen(
-                    navController = navController,
-                    customerId = selectedCustomer.id,
-                    startInEditMode = screen == "edit_customer",
-                    onClose = onGoBack,
-                    onUpdateSuccess = {
-                        customerViewModel.refresh()
-                        onGoBack()
-                    },
-                    onRequestEdit = { onNavigate("edit_customer") }
-                )
-            } else {
-                onGoBack()
-            }
-        }
-        "view_customer_recent" -> {
-            if (!selectedRecentCustomerId.isNullOrBlank()) {
-                CustomerDetailScreen(
-                    navController = navController,
-                    customerId = selectedRecentCustomerId,
-                    startInEditMode = false,
-                    onClose = {
-                        onRecentCustomerIdSelected(null)
-                        onGoBack()
-                    },
-                    onUpdateSuccess = {
-                        customerViewModel.refresh()
-                        onRecentCustomerIdSelected(null)
-                        onGoBack()
-                    },
-                    onRequestEdit = { onNavigate("edit_customer") }
-                )
-            } else {
-                onGoBack()
-            }
-        }
-        "sales_measurements" -> MeasurementsScreen(
-            navController = navController,
-            onBack = onGoBack,
-            onCreateOrder = { onNavigate("create_order") },
-            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
-        )
-        "create_order_review" -> {
-            pendingOrderReviewData?.let { data ->
-                CreateOrderNextStep(
-                    orderData = data,
-                    onBack = { updatedData ->
-                        onPendingOrderReviewDataChange(updatedData)
-                        onGoBack()
-                    },
-                    onClose = onGoBack,
-                    onSaveOrder = { _, savedOrderId ->
-                        onOrderSavedSuccessfully(savedOrderId)
-                    }
-                )
-            } ?: run { onGoBack() }
-        }
-        "profile-settings" -> ProfileSettingsScreen(
-            onClose = onGoBack,
-            onOrganizationSetup = { onNavigate("home_organization_profile") },
-            onBranchManagement = { onNavigate("home_branch_management") },
-            onDepartment = { onNavigate("home_department_teams") },
-            onDesignation = { onNavigate("home_designation") },
-            onHelpSupport = { onNavigate("home_warehouse_management") },
-            onLogout = {
-                settingsViewModel.logout {
-                    authViewModel.logout {
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
-                }
-            }
-        )
+
+        // ─────────────────────────────────────────────────────────────
+        // 8. REPORTS MODULE
+        // ─────────────────────────────────────────────────────────────
         "reports_sales" -> SalesOrderReportsScreen(
             onClose = onGoBack,
             onBreadCrumbClick = { onOpenModulesPanel("Reports") }
-        )
-        "home_role_management" -> RoleSettingsScreen(
-            navController = navController,
-            onMenuClick = onOpenDrawer,
-            onBack = onGoBack
-        )
-        "home_opening_balance" -> OpeningBalancesScreen(
-            navController = navController,
-            onBack = onGoBack
-        )
-        "home_warehouse_management" -> WarehouseSettingsScreen(
-            navController = navController,
-            onMenuClick = onOpenDrawer,
-            onBack = onGoBack
         )
         "reports_inventory" -> InventoryReportPage(
             onClose = onGoBack,
@@ -790,6 +881,7 @@ fun HomeScreenRouter(
             }
         )
         "reports_finance_profit_and_loss_report" -> ProfitAndLossReportScreen(onClose = onGoBack)
+
         else -> {}
     }
 }

@@ -36,7 +36,7 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.mutedText
-import com.cuso.mobile.ui.theme.redtext
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
@@ -56,7 +56,7 @@ import com.cuso.mobile.view.composable.rememberFilterDrawerState
 
 // ── Design tokens (screen-specific accent colors; sizing/spacing now comes from LocalAppTokens) ──
 private val ReportPrimary = Primary
-private val LostRed = redtext
+private val LostRed = redText
 private val ConvertedGreen = Color(0xFF16A34A)
 private val TitleColor = title_color
 private val MutedColor = mutedText

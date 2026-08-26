@@ -22,6 +22,8 @@ import com.cuso.mobile.model.sales.CustomerItemV2
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.greentext
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -244,9 +246,10 @@ private fun CustomerCardItem(
 }
 
 private fun statusColorsOfCustomer(status: String?): Pair<String, Color> = when (status?.lowercase()) {
-    "active" -> "Active" to Color(0xFF16A34A)
+    "active" -> "Active" to greentext
+    "blocked" -> "Blocked" to redText
     "inactive" -> "Inactive" to Color(0xFF6B7280)
-    else -> "Unknown" to Color(0xFF9CA3AF)
+    else -> "N/A" to Color(0xFF9CA3AF)
 }
 
 fun formatDate(dateString: String): String {

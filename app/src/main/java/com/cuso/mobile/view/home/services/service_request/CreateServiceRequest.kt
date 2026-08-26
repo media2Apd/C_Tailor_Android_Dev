@@ -7,7 +7,8 @@
     "unused_parameter",
     "UnusedMaterial3ScaffoldPaddingParameter", "VariableNeverRead"
 )
-package com.cuso.mobile.view.home.services
+
+package com.cuso.mobile.view.home.services.service_request
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,19 +23,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.EventAvailable
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -58,7 +53,8 @@ import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 // ── NEW: adaptive design tokens ──
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
-
+import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.R
 private val BorderColor = Color(0xFFE3E4E8)
 
 @Composable
@@ -129,27 +125,13 @@ fun CreateServiceRequest(
 
     Scaffold(
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = whiteBg
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
             ) {
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(sectionGap)
-                    ) {
-                        Text("Create Service Request", fontSize = tokens.h1, fontWeight = FontWeight.Bold)
-                        IconButton(onClick = onClose) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(tokens.iconSize))
-                        }
-                    }
-                    HorizontalDivider(color = BorderColor)
-                }
+                TitleBar("Create Service Request", onClose = onClose)
             }
-
+            HorizontalDivider(color = BorderColor)
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = Color.Transparent
@@ -169,7 +151,7 @@ fun CreateServiceRequest(
             ) {
                 // ── Customer Information (expanded by default) ──
                 AccordionSection(
-                    icon = Icons.Filled.Person,
+                    iconPainter = painterResource(R.drawable.ic_person),
                     title = "Customer Information",
                     expanded = expandedSection == "Customer Information",
                     onHeaderClick = {
@@ -212,7 +194,7 @@ fun CreateServiceRequest(
 
                 // ── Sales Order Reference ──
                 AccordionSection(
-                    icon = Icons.Filled.Receipt,
+                    iconPainter = painterResource(R.drawable.ic_transaction_sheet),
                     title = "Sales Order Reference",
                     expanded = expandedSection == "Sales Order Reference",
                     onHeaderClick = {
@@ -283,7 +265,7 @@ fun CreateServiceRequest(
 
                 // ── Service Request Details ──
                 AccordionSection(
-                    icon = Icons.Filled.Description,
+                    iconPainter = painterResource(R.drawable.ic_clippad_lines),
                     title = "Service Request Details",
                     expanded = expandedSection == "Service Request Details",
                     onHeaderClick = {
@@ -323,7 +305,7 @@ fun CreateServiceRequest(
 
                 // ── Product Details ──
                 AccordionSection(
-                    icon = Icons.Filled.Inventory2,
+                    iconPainter = painterResource(R.drawable.ic_clippad_tick),
                     title = "Product Details",
                     expanded = expandedSection == "Product Details",
                     onHeaderClick = {
@@ -353,7 +335,7 @@ fun CreateServiceRequest(
 
                 // ── Upload Evidence ──
                 AccordionSection(
-                    icon = Icons.Filled.CloudUpload,
+                    iconPainter = painterResource(R.drawable.ic_upload_cloud),
                     title = "Upload Evidence",
                     expanded = expandedSection == "Upload Evidence",
                     onHeaderClick = {
@@ -367,7 +349,7 @@ fun CreateServiceRequest(
 
                 // ── Preferred Resolution ──
                 AccordionSection(
-                    icon = Icons.Filled.EventAvailable,
+                    iconPainter = painterResource(R.drawable.ic_calendar_tick),
                     title = "Preferred Resolution",
                     expanded = expandedSection == "Preferred Resolution",
                     onHeaderClick = {
@@ -390,7 +372,7 @@ fun CreateServiceRequest(
 
                 // ── Internal Notes ──
                 AccordionSection(
-                    icon = Icons.Filled.Lock,
+                    iconPainter = painterResource(R.drawable.ic_lock_2),
                     title = "Internal Notes",
                     iconTint = TextSecondary,
                     expanded = expandedSection == "Internal Notes",

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -40,6 +41,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.redBg
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -112,81 +117,106 @@ fun LowStockAlertCard(
 ) {
     // Outer white rounded + elevated container — gives the card its
     // shadow and rounded corners, matching the design image.
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        DataCard(
-            item = item,
-            // showDivider = false so DataCard's own bottom divider doesn't
-            // cut across the rounded corners of our outer Card above.
-            showDivider = false,
 
-            // ── Title + subtitle ──
-            title = item.name,
-            subtitle = "SKU: ${item.sku} · Variant: ${item.variant}",
+    DataCard(
+        item = item,
+        // showDivider = false so DataCard's own bottom divider doesn't
+        // cut across the rounded corners of our outer Card above.
+        showDivider = true,
+        topBadgeShowDot = false,
 
-            // ── "Critical" pill badge, top-right, inline with the title ──
-            topBadgeText = "Critical",
-            topBadgeTextColor = Color(0xFFE53935),
-            topBadgeBgColor = Color(0xFFFDE7E7),
-            // Dot color matched to the badge background so the dot blends
-            // in and effectively disappears — image shows a plain pill,
-            // no visible dot.
-            topBadgeDotColor = Color(0xFFFDE7E7),
-            topBadgeInline = true,
+        // ── Title + subtitle ──
+        title = item.name,
+        subtitle = "SKU: ${item.sku} · Variant: ${item.variant}",
 
-            // ── Warehouse / Available rows ──
-            footerAsRows = true,
-            footerFields = listOf(
-                DataCardField(
-                    label = "Warehouse",
-                    text = item.warehouse,
-                    valueFontWeight = FontWeight.SemiBold
-                ),
-                DataCardField(
-                    label = "Available",
-                    text = item.availableQty,
-                    textColor = Color(0xFFE53935),
-                    valueFontWeight = FontWeight.SemiBold
-                )
+        // ── "Critical" pill badge, top-right, inline with the title ──
+        topBadgeText = "Critical",
+        topBadgeTextColor = redText,
+        topBadgeBgColor = redBg,
+        // Dot color matched to the badge background so the dot blends
+        // in and effectively disappears — image shows a plain pill,
+        // no visible dot.
+        topBadgeDotColor = Color(0xFFFDE7E7),
+        topBadgeInline = true,
+
+        // ── Warehouse / Available rows ──
+//            footerAsRows = true,
+        footerAsColumns = true,
+        footerFields = listOf(
+            DataCardField(
+                label = "Warehouse",
+                text = item.warehouse,
+                valueFontWeight = FontWeight.SemiBold,
+//                    asRow = true
             ),
+            DataCardField(
+                label = "Available",
+                text = item.availableQty,
+                textColor = Color(0xFFE53935),
+                valueFontWeight = FontWeight.SemiBold,
+//                    asRow = true
 
-            // ── Gauge + Reorder row, reusing DataCardProgressBar ──
-            content = {
-                Column(modifier = Modifier.fillMaxWidth()) {
+            )
+        ),
+
+        // ── Gauge + Reorder row, reusing DataCardProgressBar ──
+        content = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // ── Left Column: Progress bar + Reorder Level ──
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 20.dp)
+                ) {
                     DataCardProgressBar(
                         progress = item.utilizationPercent,
-                        progressColor = Color(0xFFE53935),
+                        progressColor = redText,
                         trackColor = Color(0xFFEDEDF2)
                     )
-                    Spacer(Modifier.height(14.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Reorder Level Text
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Reorder Level: ${item.reorderLevel}",
-                            fontSize = 12.sp,
+                            text = "Reorder Level: ",
+                            fontSize = 13.sp,
                             color = Color(0xFF9B9BA5)
                         )
-                        OutlinedButton(
-                            onClick = onReorderClick,
-                            shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF3D3DFF)),
-                            border = BorderStroke(1.dp, Color(0xFF3D3DFF)),
-                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
-                        ) {
-                            Text("Reorder →", fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                        }
+                        Text(
+                            text = item.reorderLevel, // e.g., "100 m"
+                            fontSize = 13.sp,
+                            color = Color(0xFF1E2238) // Darker text for the value
+                        )
                     }
                 }
+
+                // ── Right Side: Reorder Button (Vertically Centered) ──
+                OutlinedButton(
+                    onClick = onReorderClick,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.5.dp, Primary), // Blue border
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = Primary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "Reorder →",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Primary
+                    )
+                }
             }
-        )
-    }
+        }
+    )
+
 }
 // ─────────────────────────────────────────────
 // LowStockAlertsScreen — full screen
@@ -241,18 +271,14 @@ fun LowStockAlertsScreen(
                     segments = listOf("Inventory", "Alerts & Reorder", "Low Stock Alerts"),
                     onClick = onBreadcrumbClick
                 )
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                ) {
-                    SearchFilterBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        placeholder = "Search Stock Items...",
-                        onFilterClick = {  }
-                    )
-                }
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    placeholder = "Search Stock Items...",
+                    onFilterClick = {  }
+                )
+                HorizontalDivider(color = BorderGray)
+
                 LazyColumn {
                     items(dummyLowStockItems) { item ->
                         LowStockAlertCard(

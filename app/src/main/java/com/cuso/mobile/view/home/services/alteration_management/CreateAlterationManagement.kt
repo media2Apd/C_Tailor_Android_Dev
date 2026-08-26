@@ -7,7 +7,8 @@
     "unused_parameter",
     "UnusedMaterial3ScaffoldPaddingParameter"
 )
-package com.cuso.mobile.view.home.services
+
+package com.cuso.mobile.view.home.services.alteration_management
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background

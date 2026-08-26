@@ -3,14 +3,10 @@
     "SpellCheckingInspection",
     "GrazieInspection",
     "AssignedValueIsNeverRead",
-    "UNUSED_VALUE",
-    "SpellCheckingInspection",
-    "GrazieInspection",
-    "AssignedValueIsNeverRead",
     "unused_variable",
     "unused_parameter",
-    "UnusedMaterial3ScaffoldPaddingParameter", "VariableNeverRead"
-
+    "UnusedMaterial3ScaffoldPaddingParameter",
+    "VariableNeverRead"
 )
 
 package com.cuso.mobile.view.home.sales.sales_order
@@ -67,21 +63,21 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.R
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.database.entities.GarmentMeasurement
 import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.model.sales.Customer
 import com.cuso.mobile.model.sales.CustomerGarment
 import com.cuso.mobile.model.sales.CustomerOrder
-import com.cuso.mobile.view.composable.DatePickerField
-import com.cuso.mobile.view.composable.DynamicIslandError
-import com.cuso.mobile.view.composable.FieldValidator
-import com.cuso.mobile.view.composable.PhoneInputField
-import com.cuso.mobile.view.composable.ValidationField
-import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.ui.theme.*
+import com.cuso.mobile.utils.safeDate
+import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.view.home.sales.customer.LabeledField
+import com.cuso.mobile.view.home.sales.lead.MiniSwitch
+import com.cuso.mobile.viewmodel.BranchUiState
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
-import com.cuso.mobile.viewmodel.BranchUiState
 import com.github.skydoves.colorpicker.compose.AlphaSlider
 import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
@@ -90,35 +86,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import java.io.File
-import com.cuso.mobile.R
-import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.PrimaryBorder
-import com.cuso.mobile.ui.theme.primary_light
-import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.utils.safeDate
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
-import com.cuso.mobile.view.composable.customFieldOutlinedColors
-import com.cuso.mobile.view.composable.FormTextField
-import com.cuso.mobile.view.composable.BackFabButton
-import com.cuso.mobile.view.composable.PlanLimitDialog
-import com.cuso.mobile.view.composable.SegmentedSelector
-import com.cuso.mobile.view.composable.SmoothBottomSheet
-import com.cuso.mobile.view.composable.StepNavigationFab
-import com.cuso.mobile.view.composable.TrailingFabAction
-import com.cuso.mobile.view.composable.blurScrim
-import com.cuso.mobile.view.home.sales.lead.MiniSwitch
-import com.cuso.mobile.view.composable.SheetValue
-import com.cuso.mobile.view.composable.TrailingFabButton
-// Adaptive design tokens - shared padding, corner radius, typography, and component scale
-import com.cuso.mobile.adaptive_screen.LocalAppTokens
-import com.cuso.mobile.ui.theme.Primary_background
-import com.cuso.mobile.view.composable.AccordionSection
-import com.cuso.mobile.view.composable.ImageUploadSection
-import com.cuso.mobile.view.composable.TitleBar
-
-// ─────────────────────────────────────────────────────────────
-// Data Models
-// ─────────────────────────────────────────────────────────────
+import com.cuso.mobile.view.composable.SheetValue as CustomSheetValue
 
 data class GarmentModel(
     val id: String,
@@ -133,26 +101,21 @@ data class MeasurementField(
     val unit: String = "inch"
 )
 
-// Maps field key -> accordion section key (same idea as leadSectionFieldMap in CreateLeadScreen)
 private val orderSectionFieldMap = mapOf(
     "customer" to listOf("mobile", "fullName", "gender", "dressFor", "source"),
     "garment" to listOf("garments"),
     "delivery" to listOf("orderDate", "trialDate", "deliveryDate", "branch")
 )
 
-// ─────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────
-// Returns list of missing field labels for a garment, empty list = complete
 private fun missingGarmentFields(g: SelectedGarment): List<String> {
     return buildList {
         if (g.fabricType.isBlank()) add("Fabric Type")
         if (g.colorTone.isBlank()) add("Color/Tone")
         if (g.pattern.isBlank()) add("Pattern")
-        if (g.models.isEmpty()) add("Model")
-        if (g.measurements.isEmpty() || g.measurements.any { it.value.isBlank() }) add("Measurements (Chest/Sleeve Length)")
+        if (g.measurements.isEmpty() || g.measurements.any { it.value.isBlank() }) add("Measurements")
     }
 }
+
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CreateOrderScreen(
@@ -163,119 +126,81 @@ fun CreateOrderScreen(
     salesViewModel: SalesViewModel = hiltViewModel(),
     branchViewModel: BranchViewModel = hiltViewModel()
 ) {
-    // Adaptive design tokens for this screen (padding, corner radius, typography, component scale)
     val tokens = LocalAppTokens.current
-
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
-    // Check if we're in edit mode
     val isEditMode = initialData?.orderId != null
 
-    var phone by rememberSaveable {
-        mutableStateOf(initialData?.phone ?: "")
-    }
+    var phone by rememberSaveable { mutableStateOf(initialData?.phone ?: "") }
+    var fullName by rememberSaveable { mutableStateOf(initialData?.fullName ?: "") }
+    var address by rememberSaveable { mutableStateOf(initialData?.address ?: "") }
+    var gender by rememberSaveable { mutableStateOf(initialData?.gender ?: "Male") }
+    var dressFor by rememberSaveable { mutableStateOf(initialData?.dressFor ?: "") }
+    var source by rememberSaveable { mutableStateOf(initialData?.source ?: "") }
+    var countryCode by rememberSaveable { mutableStateOf(initialData?.countryCode ?: "+91") }
+    var selectedDesignImages by rememberSaveable { mutableStateOf(initialData?.designImages ?: emptyList()) }
+    var selectedBranchId by rememberSaveable { mutableStateOf(initialData?.branchId ?: "") }
+    var orderDate by rememberSaveable { mutableStateOf(initialData?.orderDate ?: "") }
+    var trialDate by rememberSaveable { mutableStateOf(initialData?.trialDate ?: "") }
+    var deliveryDate by rememberSaveable { mutableStateOf(initialData?.deliveryDate ?: "") }
+    var recordedVoiceNoteUri by rememberSaveable { mutableStateOf(initialData?.voiceNoteUri) }
 
-    var fullName by rememberSaveable {
-        mutableStateOf(initialData?.fullName ?: "")
-    }
-
-    var address by rememberSaveable {
-        mutableStateOf(initialData?.address ?: "")
-    }
-
-    var gender by rememberSaveable {
-        mutableStateOf(initialData?.gender ?: "Male")
-    }
-
-    var dressFor by rememberSaveable {
-        mutableStateOf(initialData?.dressFor ?: "")
-    }
-
-    var source by rememberSaveable {
-        mutableStateOf(initialData?.source ?: "")
-    }
-
-    var countryCode by rememberSaveable {
-        mutableStateOf(initialData?.countryCode ?: "+91")
-    }
-
-    var selectedDesignImages by rememberSaveable {
-        mutableStateOf(initialData?.designImages ?: emptyList())
-    }
-
-    var selectedBranchId by rememberSaveable {
-        mutableStateOf(initialData?.branchId ?: "")
-    }
-
-    var orderDate by rememberSaveable {
-        mutableStateOf(initialData?.orderDate ?: "")
-    }
-
-    var trialDate by rememberSaveable {
-        mutableStateOf(initialData?.trialDate ?: "")
-    }
-
-    var deliveryDate by rememberSaveable {
-        mutableStateOf(initialData?.deliveryDate ?: "")
-    }
-
-    var recordedVoiceNoteUri by rememberSaveable {
-        mutableStateOf(initialData?.voiceNoteUri)
-    }
-
-    // ── Customer state ──
-    var showImagePickerOptions by rememberSaveable { mutableStateOf(false) }
-    var capturedImageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
-
-    // Plan gating for media upload
     var showPlanLimitDialog by rememberSaveable { mutableStateOf(false) }
 
-    // e.g. organizationViewModel.organization.plan?.name
-    val currentPlanName = "starter" // "starter" | "light" | "pro" | "premium" etc.
+    val currentPlanName = "starter"
     val isMediaUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
             currentPlanName.equals("light", ignoreCase = true)
 
-    // Form validation state (mirrors CreateLeadScreen's pattern)
-    var errorField by remember { mutableStateOf<String?>(null) }
-    var validationError by remember { mutableStateOf<String?>(null) }
     var garmentsError by remember { mutableStateOf(false) }
 
     var dressForExpanded by rememberSaveable { mutableStateOf(false) }
     var sourceExpanded by rememberSaveable { mutableStateOf(false) }
 
-    // ── Branches ──
     val branchUiState by branchViewModel.uiState.collectAsStateWithLifecycle()
     val branches = (branchUiState as? BranchUiState.Success)?.branches ?: emptyList()
     val isLoadingBranches = branchUiState is BranchUiState.Loading
     var genderExpanded by rememberSaveable { mutableStateOf(false) }
 
-    // ── Permission state ──
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
 
-    // ── Gallery Launcher ──
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            selectedDesignImages = selectedDesignImages + it
+    // Launcher for selecting multiple files of any format (*/*)
+    val allFilesLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            selectedDesignImages = selectedDesignImages + uris
         }
     }
 
-    var addCategorySheetState by remember { mutableStateOf(SheetValue.Hidden) }
+    var addCategorySheetState by remember { mutableStateOf(CustomSheetValue.Hidden) }
+    var errorField by remember { mutableStateOf<String?>(null) }
+    var validationError by remember { mutableStateOf<String?>(null) }
     var addCategoryBlur by remember { mutableStateOf(0.dp) }
     var addCategoryScrim by remember { mutableFloatStateOf(0f) }
     var selectedQuickCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
+    var isCategorySelectable by rememberSaveable { mutableStateOf(false) }
+
+    // Sync all fields when initialData is loaded
     LaunchedEffect(initialData) {
-        // 1. Always wipe stale garments from previous sessions first
-        salesViewModel.clearAllSelectedGarments()
+        if (initialData != null) {
+            phone = initialData.phone
+            fullName = initialData.fullName
+            address = initialData.address
+            gender = initialData.gender.orEmpty().ifBlank { "Male" }
+            dressFor = initialData.dressFor
+            source = initialData.source
+            countryCode = initialData.countryCode.ifBlank { "+91" }
+            selectedBranchId = initialData.branchId.orEmpty()
+            orderDate = initialData.orderDate
+            trialDate = initialData.trialDate
+            deliveryDate = initialData.deliveryDate
 
-        // 2. If converting from a lead or editing, insert ONLY the new garments
-        initialData?.garments?.forEach { garment ->
-            salesViewModel.addOrUpdateGarment(garment)
+            salesViewModel.clearAllSelectedGarments()
+            initialData.garments.forEach { garment ->
+                salesViewModel.addOrUpdateGarment(garment)
+            }
         }
-
-        // 3. Fetch fresh metadata & reload garments
         branchViewModel.loadBranches()
         salesViewModel.fetchOrgGarmentCategories()
         salesViewModel.fetchActiveOrgGarments()
@@ -288,7 +213,7 @@ fun CreateOrderScreen(
         }
     }
 
-    // ── Camera Launcher ──
+    var capturedImageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success: Boolean ->
@@ -299,22 +224,6 @@ fun CreateOrderScreen(
             }
         }
     }
-
-    var expandedSection by rememberSaveable { mutableStateOf("customer") }
-
-    var branchExpanded by rememberSaveable { mutableStateOf(false) }
-    val branchNameToId = rememberSaveable(branches) {
-        branches.associate { it.name.orEmpty().ifBlank { "Unnamed Branch" } to it.id }
-    }
-    val selectedBranchName = branches.find { it.id == selectedBranchId }?.name.orEmpty()
-
-    var stylingNotes by rememberSaveable { mutableStateOf("") }
-
-    var isRecording by rememberSaveable { mutableStateOf(false) }
-    var mediaRecorder by rememberSaveable { mutableStateOf<MediaRecorder?>(null) }
-    var recordingFile by rememberSaveable { mutableStateOf<File?>(null) }
-
-    val micPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
 
     fun captureDesignImage() {
         if (cameraPermissionState.status.isGranted) {
@@ -330,134 +239,19 @@ fun CreateOrderScreen(
         }
     }
 
-    if (showImagePickerOptions) {
-        AlertDialog(
-            onDismissRequest = { showImagePickerOptions = false },
-            containerColor = Primary_background,
-            shape = RoundedCornerShape(tokens.cardCornerRadius),
-            title = {
-                Text(
-                    "Add Design Reference",
-                    fontSize = tokens.h2,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(tokens.cardCornerRadius))
-                            .clickable {
-                                showImagePickerOptions = false
-                                galleryLauncher.launch("image/*")
-                            }
-                            .padding(tokens.extraPadding),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                    ) {
-                        Icon(
-                            Icons.Default.PhotoLibrary,
-                            null,
-                            tint = Color(0xFF3B3BF9),
-                            modifier = Modifier.size(tokens.iconSize)
-                        )
-                        Column {
-                            Text(
-                                "Browse",
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF111827)
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(tokens.cardCornerRadius))
-                            .clickable {
-                                showImagePickerOptions = false
-                                captureDesignImage()
-                            }
-                            .padding(tokens.extraPadding),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                    ) {
-                        Icon(
-                            Icons.Default.CameraAlt,
-                            null,
-                            tint = Color(0xFF3B3BF9),
-                            modifier = Modifier.size(tokens.iconSize)
-                        )
-                        Column {
-                            Text(
-                                "Take Photo",
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF111827)
-                            )
-                            Text(
-                                "Capture with camera",
-                                fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF6B7280)
-                            )
-                        }
-                    }
-
-                    if (selectedDesignImages.isNotEmpty()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFFEE2E2), RoundedCornerShape(tokens.cardCornerRadius))
-                                .clickable {
-                                    showImagePickerOptions = false
-                                    selectedDesignImages = emptyList()
-                                }
-                                .padding(tokens.extraPadding),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                null,
-                                tint = Color(0xFFEF4444),
-                                modifier = Modifier.size(tokens.iconSize)
-                            )
-                            Column {
-                                Text(
-                                    "Remove All Photos",
-                                    fontSize = tokens.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFFEF4444)
-                                )
-                                Text(
-                                    "Remove all selected images",
-                                    fontSize = tokens.bodySmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFFFCA5A5)
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { showImagePickerOptions = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF6B7280))
-                ) {
-                    Text("Cancel", fontWeight = FontWeight.SemiBold)
-                }
-            },
-            dismissButton = null
-        )
+    var expandedSection by rememberSaveable { mutableStateOf("customer") }
+    var branchExpanded by rememberSaveable { mutableStateOf(false) }
+    val branchNameToId = rememberSaveable(branches) {
+        branches.associate { it.name.orEmpty().ifBlank { "Unnamed Branch" } to it.id }
     }
+    val selectedBranchName = branches.find { it.id == selectedBranchId }?.name.orEmpty()
+
+    var stylingNotes by rememberSaveable { mutableStateOf("") }
+    var isRecording by rememberSaveable { mutableStateOf(false) }
+    var mediaRecorder by rememberSaveable { mutableStateOf<MediaRecorder?>(null) }
+    var recordingFile by rememberSaveable { mutableStateOf<File?>(null) }
+
+    val micPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
 
     val customerSearchResult by salesViewModel.customerSearchResult.collectAsStateWithLifecycle()
     val isSearchingCustomer by salesViewModel.isSearchingCustomer.collectAsStateWithLifecycle()
@@ -467,16 +261,6 @@ fun CreateOrderScreen(
     val commonCategories by salesViewModel.orgGarmentCategories.collectAsStateWithLifecycle()
     val isLoadingCategories by salesViewModel.isLoadingOrgGarments.collectAsStateWithLifecycle()
     val selectedGarments by salesViewModel.selectedGarments.collectAsStateWithLifecycle()
-
-    LaunchedEffect(Unit) {
-        if (initialData == null) {
-            salesViewModel.clearAllSelectedGarments()
-        }
-        branchViewModel.loadBranches()
-        salesViewModel.fetchOrgGarmentCategories()
-        salesViewModel.fetchActiveOrgGarments()
-        salesViewModel.loadSelectedGarments()
-    }
 
     LaunchedEffect(phone) {
         if (phone.length >= 4 && !isEditMode) {
@@ -536,7 +320,7 @@ fun CreateOrderScreen(
                 release()
             }
         } catch (_: Exception) {
-            // recording too short or already stopped — ignore
+            // Ignore error
         }
         mediaRecorder = null
         isRecording = false
@@ -549,7 +333,7 @@ fun CreateOrderScreen(
 
     fun openGarmentDialog(categoryName: String, category: String) {
         tempGarment = SelectedGarment(
-            id = "new_${System.currentTimeMillis()}", // Unique ID prevents state retention
+            id = "new_${System.currentTimeMillis()}",
             category = category,
             categoryName = categoryName,
             categoryId = category,
@@ -564,18 +348,42 @@ fun CreateOrderScreen(
             models = emptyList()
         )
         editingGarmentId = null
-        addCategorySheetState = SheetValue.Collapsed
+        isCategorySelectable = false
+        addCategorySheetState = CustomSheetValue.Collapsed
+    }
+
+    fun openAddCategoryDialog() {
+        tempGarment = SelectedGarment(
+            id = "new_${System.currentTimeMillis()}",
+            category = "",
+            categoryName = "",
+            categoryId = "",
+            quantity = 1,
+            price = 0.0,
+            priority = "Low",
+            trialRequired = false,
+            fabricSource = "In-House",
+            fabricType = "",
+            colorTone = "",
+            pattern = "Solid",
+            models = emptyList()
+        )
+        editingGarmentId = null
+        selectedQuickCategoryId = null
+        isCategorySelectable = true
+        addCategorySheetState = CustomSheetValue.Collapsed
     }
 
     fun editGarmentDialog(garment: SelectedGarment) {
         tempGarment = garment
         editingGarmentId = garment.id
-        addCategorySheetState = SheetValue.Collapsed
+        isCategorySelectable = false
+        addCategorySheetState = CustomSheetValue.Collapsed
     }
 
     fun saveGarment() {
         salesViewModel.addOrUpdateGarment(tempGarment)
-        addCategorySheetState = SheetValue.Hidden
+        addCategorySheetState = CustomSheetValue.Hidden
         garmentsError = false
     }
 
@@ -603,12 +411,10 @@ fun CreateOrderScreen(
         garmentsError = false
     }
 
-    // Validation function, same pattern as CreateLeadScreen.submitLead()
     fun validateOrderForm(): Boolean {
         val fields = listOf(
             ValidationField("mobile", phone, "Mobile Number is required"),
             ValidationField("fullName", fullName, "Full Name is required"),
-//            ValidationField("gender", gender, "Gender is required"),
             ValidationField("dressFor", dressFor, "Dress For is required"),
             ValidationField("source", source, "Source is required"),
             ValidationField("orderDate", orderDate, "Order Date is required"),
@@ -625,8 +431,6 @@ fun CreateOrderScreen(
             return false
         }
 
-        // Garments need their own check — at least one garment,
-        // with fabric type, color/tone, pattern, model & measurements filled
         val incompleteGarment = selectedGarments.firstOrNull { missingGarmentFields(it).isNotEmpty() }
         if (selectedGarments.isEmpty() || incompleteGarment != null) {
             errorField = "garments"
@@ -646,11 +450,9 @@ fun CreateOrderScreen(
     Scaffold(
         topBar = {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
+                modifier = Modifier.fillMaxWidth()
             ) {
                 TitleBar(if (isEditMode) "Edit Order" else "Create Order", onClose = onCancel)
-
             }
         },
         containerColor = Color.Transparent
@@ -665,9 +467,7 @@ fun CreateOrderScreen(
                     .padding(bottom = tokens.screenPadding)
             ) {
 
-                // ══════════════════════════════════════════════
                 // 1. CUSTOMER DETAILS
-                // ══════════════════════════════════════════════
                 AccordionSection(
                     title = "Customer Details",
                     expanded = expandedSection == "customer",
@@ -679,7 +479,6 @@ fun CreateOrderScreen(
                         contentAlignment = Alignment.CenterEnd
                     ) {
                         FormLabel("Phone ")
-                        // Assumes PhoneInputField supports isError/errorMessage — share the file if not.
                         PhoneInputField(
                             phoneValue = phone,
                             onPhoneChange = { newPhone ->
@@ -702,7 +501,6 @@ fun CreateOrderScreen(
                         )
                     }
 
-                    // Hide customer search in edit mode
                     if (!isEditMode) {
                         AnimatedVisibility(
                             visible = customerSearchResult?.customer != null,
@@ -885,7 +683,6 @@ fun CreateOrderScreen(
                         enabled = !isEditMode
                     )
 
-
                     Spacer(Modifier.height(4.dp))
 
                     FormDropdown(
@@ -940,9 +737,7 @@ fun CreateOrderScreen(
                     )
                 }
 
-                // ══════════════════════════════════════════════
                 // 2. GARMENT DETAILS
-                // ══════════════════════════════════════════════
                 AccordionSection(
                     title = "Garment Details",
                     expanded = expandedSection == "garment",
@@ -968,7 +763,9 @@ fun CreateOrderScreen(
                             modifier = Modifier.clickable(
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
-                            ) { addCategorySheetState = SheetValue.Collapsed }
+                            ) {
+                                openAddCategoryDialog()
+                            }
                         )
                     }
                     Spacer(Modifier.height(tokens.extraPadding))
@@ -1028,10 +825,9 @@ fun CreateOrderScreen(
                     )
                     Spacer(Modifier.height(tokens.extraPadding))
 
-                    // Inline error text for garments (no wrapper box, matches Lead-screen style)
                     if (garmentsError) {
                         Text(
-                            "Add at least one garment — with fabric type, color/tone, pattern, model, and Chest & Sleeve Length filled",
+                            "Add at least one garment — with fabric type, color/tone, pattern, and measurements filled",
                             fontSize = tokens.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFFEF4444),
@@ -1098,7 +894,6 @@ fun CreateOrderScreen(
                                                     fontWeight = FontWeight.Bold,
                                                     color = Color(0xFF111827)
                                                 )
-                                                // Visible warning badge if this specific garment is incomplete
                                                 val missing = missingGarmentFields(garment)
                                                 if (missing.isNotEmpty()) {
                                                     Box(
@@ -1121,7 +916,6 @@ fun CreateOrderScreen(
                                                 fontWeight = FontWeight.Medium,
                                                 color = Color(0xFF6B7280)
                                             )
-                                            // Tells exactly what's missing, right under the card
                                             val missing = missingGarmentFields(garment)
                                             if (missing.isNotEmpty()) {
                                                 Text(
@@ -1172,16 +966,13 @@ fun CreateOrderScreen(
                     }
                 }
 
-                // ══════════════════════════════════════════════
                 // 3. DELIVERY DETAILS
-                // ══════════════════════════════════════════════
                 AccordionSection(
                     title = "Delivery Details",
                     expanded = expandedSection == "delivery",
                     onHeaderClick = { expandedSection = if (expandedSection == "delivery") "" else "delivery" }
                 ) {
                     FormLabel("Order Date", isRequired = true)
-                    // Assumes DatePickerField supports isError/errorMessage — share the file if not.
                     DatePickerField(
                         value = orderDate,
                         onDateSelected = {
@@ -1263,9 +1054,7 @@ fun CreateOrderScreen(
                     )
                 }
 
-                // ══════════════════════════════════════════════
-                // 4. DESIGN REFERENCE
-                // ══════════════════════════════════════════════
+                // 4. DESIGN REFERENCE & ATTACHMENTS (Accepts all file types: PDF, DOC, Images, etc.)
                 AccordionSection(
                     title = "Design Reference",
                     expanded = expandedSection == "design",
@@ -1273,11 +1062,13 @@ fun CreateOrderScreen(
                 ) {
                     ImageUploadSection(
                         selectedImages = selectedDesignImages,
+                        browseText = "Browse Files",
                         onBrowseClick = {
                             if (isMediaUploadRestricted) {
                                 showPlanLimitDialog = true
+
                             } else {
-                                showImagePickerOptions = true
+                                allFilesLauncher.launch("*/*")
                             }
                         },
                         onCameraClick = {
@@ -1291,13 +1082,12 @@ fun CreateOrderScreen(
                         },
                         onRemoveImage = { removedUri ->
                             selectedDesignImages = selectedDesignImages.filter { it != removedUri }
-                        }
+                        },
+                        previewHeaderTitle = "ATTACHED FILES"
                     )
                 }
 
-                // ══════════════════════════════════════════════
                 // 5. INSTRUCTIONS
-                // ══════════════════════════════════════════════
                 AccordionSection(
                     title = "Instructions",
                     expanded = expandedSection == "instructions",
@@ -1328,7 +1118,6 @@ fun CreateOrderScreen(
 
                     Spacer(Modifier.height(tokens.screenPadding))
 
-                    // ── Voice Instructions ──
                     FormLabel("Voice Instructions")
 
                     Box(
@@ -1416,7 +1205,6 @@ fun CreateOrderScreen(
                         color = whiteBg
                     ) {
                         Column(modifier = Modifier.fillMaxSize()) {
-                            // ── Full-page top bar ──
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1442,7 +1230,6 @@ fun CreateOrderScreen(
                             }
                             HorizontalDivider(color = Color(0xFFF3F4F6))
 
-                            // ── Scrollable content ──
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -1454,6 +1241,7 @@ fun CreateOrderScreen(
                                     garment = tempGarment,
                                     categories = quickCategories,
                                     isEditing = editingGarmentId != null,
+                                    allowCategorySelection = isCategorySelectable,
                                     onGarmentChange = { tempGarment = it },
                                     onSave = {
                                         saveGarment()
@@ -1491,9 +1279,6 @@ fun CreateOrderScreen(
                     }
                 )
             }
-
-
-
 
             StepNavigationFab(
                 showBack = true,
@@ -1538,31 +1323,31 @@ fun CreateOrderScreen(
                     }
                 )
             )
-
         }
 
         SmoothBottomSheet(
             state = addCategorySheetState,
             onStateChange = { addCategorySheetState = it },
             peekHeight = 480.dp,
-            topInset = 66.dp,   // Matches "Create Order" topBar height, so Expanded stops right below it
-            onDismissRequest = { addCategorySheetState = SheetValue.Hidden },
+            topInset = 66.dp,
+            onDismissRequest = { addCategorySheetState = CustomSheetValue.Hidden },
             onBlurScrimChange = { r, s -> addCategoryBlur = r; addCategoryScrim = s }
         ) {
             InlineGarmentPanel(
                 garment = tempGarment,
                 categories = quickCategories,
                 isEditing = editingGarmentId != null,
+                allowCategorySelection = isCategorySelectable,
                 onGarmentChange = { tempGarment = it },
                 onSave = {
                     saveGarment()
-                    addCategorySheetState = SheetValue.Hidden
+                    addCategorySheetState = CustomSheetValue.Hidden
                 },
-                onCancel = { addCategorySheetState = SheetValue.Hidden }
+                onCancel = { addCategorySheetState = CustomSheetValue.Hidden }
             )
         }
-
     }
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -1573,11 +1358,10 @@ fun CreateOrderScreen(
         )
     }
 }
-// Quick Add Category - pill style selectable buttons (matches design image)
 
 @Composable
 fun QuickAddCategoryRow(
-    categories: List<Pair<String, String>>, // name to categoryId
+    categories: List<Pair<String, String>>,
     selectedCategoryId: String?,
     onCategoryClick: (String, String) -> Unit
 ) {
@@ -1624,7 +1408,7 @@ fun CategoryPillButton(
         horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
     ) {
         Icon(
-            imageVector = Icons.Default.Checkroom, // swap per-category icon if you have specific ones for Pant/Shirt
+            imageVector = Icons.Default.Checkroom,
             contentDescription = name,
             tint = contentColor,
             modifier = Modifier.size(tokens.iconSize)
@@ -1637,6 +1421,7 @@ fun CategoryPillButton(
         )
     }
 }
+
 @Composable
 fun CustomerOutlinedField(
     value: String,
@@ -1700,11 +1485,6 @@ fun CustomerOutlinedField(
         }
     }
 }
-
-
-// ─────────────────────────────────────────────────────────────
-// Previous Measurements Import Dialog
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 fun PreviousMeasurementsDialog(
@@ -1954,16 +1734,13 @@ fun PreviousMeasurementsDialog(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// GARMENT DETAIL PANEL (matches uploaded design reference)
-// ─────────────────────────────────────────────────────────────
-
 @SuppressLint("MutableCollectionMutableState")
 @Composable
 private fun InlineGarmentPanel(
     garment: SelectedGarment,
     categories: List<Pair<String, String>>,
     isEditing: Boolean = false,
+    allowCategorySelection: Boolean = false,
     onGarmentChange: (SelectedGarment) -> Unit,
     onSave: () -> Unit,
     onCancel: () -> Unit
@@ -1978,6 +1755,7 @@ private fun InlineGarmentPanel(
         GarmentModel("2", "Mom Fit")
     )
 
+    var garmentTypeExpanded by remember { mutableStateOf(false) }
     var priorityExpanded by remember { mutableStateOf(false) }
     var fabricTypeExpanded by remember { mutableStateOf(false) }
     var patternExpanded by remember { mutableStateOf(false) }
@@ -2020,25 +1798,33 @@ private fun InlineGarmentPanel(
 
             Spacer(Modifier.height(tokens.screenPadding))
 
-            // ── Basic Information ──
             GarmentSubSection(
                 iconPainter = painterResource(R.drawable.ic_info),
                 label = "Basic Information",
                 expanded = subSection == "basic",
                 onToggle = { subSection = if (subSection == "basic") "" else "basic" }
             ) {
-                LabeledField("Garment Type *") {
-                    CustomerOutlinedField(
-                        value = garment.categoryName,
-                        onValueChange = { newName ->
-                            categories.find { it.first == newName }?.let {
-                                onGarmentChange(garment.copy(categoryName = it.first, category = it.second))
-                            } ?: onGarmentChange(garment.copy(categoryName = newName))
-                        },
-                        placeholder = "Enter garment type",
-                        enabled = false
-                    )
-                }
+                FormDropdown(
+                    label = "Garment Type",
+                    value = garment.categoryName.ifEmpty { "Select Garment Type" },
+                    expanded = garmentTypeExpanded && allowCategorySelection,
+                    onExpandChange = { if (allowCategorySelection) garmentTypeExpanded = it },
+                    options = categories.map { it.first },
+                    onOptionSelected = { selectedName ->
+                        val selectedCategory = categories.find { it.first == selectedName }
+                        if (selectedCategory != null) {
+                            onGarmentChange(
+                                garment.copy(
+                                    categoryName = selectedCategory.first,
+                                    category = selectedCategory.second,
+                                    categoryId = selectedCategory.second
+                                )
+                            )
+                        }
+                    },
+                    isRequired = true,
+                    enabled = allowCategorySelection
+                )
 
                 Spacer(Modifier.height(tokens.screenPadding))
 
@@ -2087,7 +1873,6 @@ private fun InlineGarmentPanel(
                 }
             }
 
-            // ── Fabric Details ──
             GarmentSubSection(
                 iconPainter = painterResource(R.drawable.ic_message),
                 label = "Fabric Details",
@@ -2110,8 +1895,8 @@ private fun InlineGarmentPanel(
                     },
                     placeholder = "e.g Cotton",
                     keyboardType = KeyboardType.Text,
-                    isError = false, // pass your actual validation state here if you have one
-                    errorMessage = null // pass your actual error message if applicable
+                    isError = false,
+                    errorMessage = null
                 )
 
                 Spacer(Modifier.height(tokens.screenPadding))
@@ -2135,7 +1920,6 @@ private fun InlineGarmentPanel(
                 )
             }
 
-            // ── Models ──
             GarmentSubSection(
                 iconPainter = painterResource(R.drawable.ic_circle),
                 label = "Models",
@@ -2164,7 +1948,7 @@ private fun InlineGarmentPanel(
                     }
                 )
 
-                if (selectedModels.isNotEmpty()) {
+                if (selectedModels.isNotEmpty() || measurements.isNotEmpty()) {
                     Spacer(Modifier.height(tokens.screenPadding))
                     MeasurementsSection(
                         measurements = measurements,
@@ -2184,7 +1968,6 @@ private fun InlineGarmentPanel(
 
             Spacer(Modifier.height(tokens.cardPadding))
 
-            // ── Action Buttons ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
@@ -2200,14 +1983,13 @@ private fun InlineGarmentPanel(
                         label = "Apply",
                         onClick = onSave
                     ),
-                    modifier = Modifier.weight(2f)
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
     }
 }
 
-// ── Reusable Sub-Section Component ──
 @Composable
 private fun GarmentSubSection(
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
@@ -2269,8 +2051,6 @@ private fun GarmentSubSection(
     }
 }
 
-
-// ── Model selector chips (pill style, matches CategoryPillButton) ──
 @Composable
 fun ModelGridSelector(
     models: List<GarmentModel>,
@@ -2290,7 +2070,6 @@ fun ModelGridSelector(
     }
 }
 
-// ── Measurements Section: renders one MeasurementInputField per measurement + Add Custom Field ──
 @Composable
 fun MeasurementsSection(
     measurements: List<MeasurementField>,
@@ -2333,7 +2112,6 @@ fun MeasurementsSection(
             }
         )
 
-        // ── Custom field rows (label + value + remove), matches "Label / Value" in image ──
         measurements.filter { it.id.startsWith("custom_") }.forEach { field ->
             val index = measurements.indexOfFirst { it.id == field.id }
             if (index >= 0) {
@@ -2362,7 +2140,6 @@ fun MeasurementsSection(
     }
 }
 
-// ── Measurement text field (Chest, Sleeve Length etc. with unit dropdown) ──
 @Composable
 fun MeasurementInputField(
     label: String,
@@ -2434,7 +2211,6 @@ fun MeasurementInputField(
     }
 }
 
-// ── "+ Add Custom Field" link ──
 @Composable
 fun AddCustomFieldLink(onClick: () -> Unit) {
     val tokens = LocalAppTokens.current
@@ -2447,7 +2223,6 @@ fun AddCustomFieldLink(onClick: () -> Unit) {
     )
 }
 
-// ── Custom Label / Value row with remove ──
 @Composable
 fun CustomFieldRow(
     labelValue: String,
@@ -2514,7 +2289,6 @@ fun CustomFieldRow(
     }
 }
 
-// ── Default Measurements ──
 private fun defaultMeasurementsFor(modelNames: List<String>): List<MeasurementField> {
     if (modelNames.isEmpty()) return emptyList()
     return listOf(
@@ -2540,9 +2314,6 @@ private fun FormLabel(text: String, isRequired: Boolean = false) {
     }
 }
 
-/**
- * Color/Tone field: shows a swatch + hex text. Tap to open a full HSV color picker.
- */
 @Composable
 fun ColorPickerField(
     value: String,

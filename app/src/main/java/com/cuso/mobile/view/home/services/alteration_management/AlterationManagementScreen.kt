@@ -1,4 +1,4 @@
-package com.cuso.mobile.view.home.services
+package com.cuso.mobile.view.home.services.alteration_management
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

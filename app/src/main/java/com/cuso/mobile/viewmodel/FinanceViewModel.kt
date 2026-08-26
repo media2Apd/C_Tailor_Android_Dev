@@ -25,16 +25,13 @@ import com.cuso.mobile.model.sales.PaginationInfo
 import com.cuso.mobile.repository.FinanceRepository
 import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 import javax.inject.Inject
-@Suppress("UNUSED_PARAMETER")
-/**
- * FinanceViewModel - Handles all finance and customer-related operations
- * Uses FinanceRepository for V2 API calls
- */
 
 sealed class CreateAccountState {
     object Idle : CreateAccountState()
@@ -42,191 +39,25 @@ sealed class CreateAccountState {
     data class Success(val message: String) : CreateAccountState()
     data class Error(val message: String) : CreateAccountState()
 }
+
 @HiltViewModel
 class FinanceViewModel @Inject constructor(
     private val financeRepository: FinanceRepository
 ) : ViewModel() {
 
-    /**
-     * Every failure path below ultimately gets its message from Throwable.message,
-     * which — depending on how the repository/network layer surfaces HTTP errors —
-     * can be the RAW response body string, e.g.
-     *   {"success":false,"message":"E11000 duplicate key error collection: ..."}
-     * instead of a clean message. This helper extracts ONLY the "message" field
-     * from that JSON when present; if the body isn't JSON, or parsing fails, or
-     * the field is blank, it falls back to the given hardcoded [fallback] string.
-     */
     private fun extractErrorMessage(throwable: Throwable?, fallback: String): String {
         val raw = throwable?.message?.trim()
         if (raw.isNullOrBlank()) return fallback
         return try {
             JSONObject(raw).optString("message").takeIf { it.isNotBlank() } ?: fallback
         } catch (e: Exception) {
-            // Not JSON — e.g. a plain exception message like "Unable to resolve host".
-            // Only use it as-is if it doesn't look like a stray JSON fragment.
             raw.takeIf { !it.startsWith("{") } ?: fallback
         }
     }
 
-    // ── Chart of Accounts: create ──
-    private val _createAccountState = MutableStateFlow<CreateAccountState>(CreateAccountState.Idle)
-    val createAccountState: StateFlow<CreateAccountState> = _createAccountState.asStateFlow()
-
-    // ── View One (Customer Detail) ──
-    private val _financeCustomerDetail = MutableStateFlow<FinanceCustomerViewOneData?>(null)
-    val financeCustomerDetail: StateFlow<FinanceCustomerViewOneData?> = _financeCustomerDetail.asStateFlow()
-
-    private val _isLoadingFinanceCustomerDetail = MutableStateFlow(false)
-    val isLoadingFinanceCustomerDetail: StateFlow<Boolean> = _isLoadingFinanceCustomerDetail.asStateFlow()
-
-    private val _financeCustomerDetailError = MutableStateFlow<String?>(null)
-    val financeCustomerDetailError: StateFlow<String?> = _financeCustomerDetailError.asStateFlow()
-
-    // ── Selected invoice (View One) — no separate API, reuses list item ──
-    private val _selectedInvoice = MutableStateFlow<InvoiceItem?>(null)
-    val selectedInvoice: StateFlow<InvoiceItem?> = _selectedInvoice.asStateFlow()
-
-    // ── Invoice View One (Detail) ──
-    private val _invoiceDetail = MutableStateFlow<InvoiceViewOneData?>(null)
-    val invoiceDetail: StateFlow<InvoiceViewOneData?> = _invoiceDetail.asStateFlow()
-
-    private val _isLoadingInvoiceDetail = MutableStateFlow(false)
-    val isLoadingInvoiceDetail: StateFlow<Boolean> = _isLoadingInvoiceDetail.asStateFlow()
-
-    private val _invoiceDetailError = MutableStateFlow<String?>(null)
-    val invoiceDetailError: StateFlow<String?> = _invoiceDetailError.asStateFlow()
-
-    // ── Chart of Accounts ──
-    private val _chartOfAccounts = MutableStateFlow<List<ChartOfAccountItem>>(emptyList())
-    val chartOfAccounts: StateFlow<List<ChartOfAccountItem>> = _chartOfAccounts.asStateFlow()
-
-    private val _isLoadingChartOfAccounts = MutableStateFlow(false)
-    val isLoadingChartOfAccounts: StateFlow<Boolean> = _isLoadingChartOfAccounts.asStateFlow()
-
-    private val _chartOfAccountsError = MutableStateFlow<String?>(null)
-    val chartOfAccountsError: StateFlow<String?> = _chartOfAccountsError.asStateFlow()
-
-
-    // ── Expenses: view one ──
-    private val _expenseDetail = MutableStateFlow<ExpenseItem?>(null)
-    val expenseDetail: StateFlow<ExpenseItem?> = _expenseDetail.asStateFlow()
-
-    private val _isLoadingExpenseDetail = MutableStateFlow(false)
-    val isLoadingExpenseDetail: StateFlow<Boolean> = _isLoadingExpenseDetail.asStateFlow()
-
-    // ── Expenses: create ──
-    private val _createExpenseState = MutableStateFlow<CreateExpenseState>(CreateExpenseState.Idle)
-    val createExpenseState: StateFlow<CreateExpenseState> = _createExpenseState.asStateFlow()
-
-    // ── Chart of Accounts: update ──
-    private val _updateAccountState = MutableStateFlow<UpdateAccountState>(UpdateAccountState.Idle)
-    val updateAccountState: StateFlow<UpdateAccountState> = _updateAccountState.asStateFlow()
-
-    // ── Chart of Accounts: delete ──
-    private val _deleteAccountState = MutableStateFlow<DeleteAccountState>(DeleteAccountState.Idle)
-    val deleteAccountState: StateFlow<DeleteAccountState> = _deleteAccountState.asStateFlow()
-
-    // ── Trial Balance ──
-    private val _trialBalanceList = MutableStateFlow<List<TrialBalanceItem>>(emptyList())
-    val trialBalanceList: StateFlow<List<TrialBalanceItem>> = _trialBalanceList.asStateFlow()
-
-    private val _isLoadingTrialBalance = MutableStateFlow(false)
-    val isLoadingTrialBalance: StateFlow<Boolean> = _isLoadingTrialBalance.asStateFlow()
-
-    private val _trialBalanceError = MutableStateFlow<String?>(null)
-    val trialBalanceError: StateFlow<String?> = _trialBalanceError.asStateFlow()
-
-    // ── Journal Entries ──
-    private val _journalEntries = MutableStateFlow<List<JournalEntryItem>>(emptyList())
-    val journalEntries: StateFlow<List<JournalEntryItem>> = _journalEntries.asStateFlow()
-
-    private val _journalEntryPagination = MutableStateFlow<JournalEntryPagination?>(null)
-    val journalEntryPagination: StateFlow<JournalEntryPagination?> = _journalEntryPagination.asStateFlow()
-
-    private val _isLoadingJournalEntries = MutableStateFlow(false)
-    val isLoadingJournalEntries: StateFlow<Boolean> = _isLoadingJournalEntries.asStateFlow()
-
-    private val _journalEntriesError = MutableStateFlow<String?>(null)
-    val journalEntriesError: StateFlow<String?> = _journalEntriesError.asStateFlow()
-
-    // ── Journal Entries: create ──
-    private val _createJournalState = MutableStateFlow<CreateJournalState>(CreateJournalState.Idle)
-    val createJournalState: StateFlow<CreateJournalState> = _createJournalState.asStateFlow()
-
-    //   NEW — Journal Entries: update
-    private val _updateJournalState = MutableStateFlow<UpdateJournalState>(UpdateJournalState.Idle)
-    val updateJournalState: StateFlow<UpdateJournalState> = _updateJournalState.asStateFlow()
-
-    // ── Ledger ──
-    private val _ledgerList = MutableStateFlow<List<LedgerItem>>(emptyList())
-    val ledgerList: StateFlow<List<LedgerItem>> = _ledgerList.asStateFlow()
-
-    private val _isLoadingLedger = MutableStateFlow(false)
-    val isLoadingLedger: StateFlow<Boolean> = _isLoadingLedger.asStateFlow()
-
-    private val _ledgerError = MutableStateFlow<String?>(null)
-    val ledgerError: StateFlow<String?> = _ledgerError.asStateFlow()
-
-    private val _deleteJournalState = MutableStateFlow<DeleteJournalState>(DeleteJournalState.Idle)
-    val deleteJournalState: StateFlow<DeleteJournalState> = _deleteJournalState.asStateFlow()
-
-    // ── Journal Entry: view one (detail, for View/Edit prefill) ──
-    private val _journalEntryDetail = MutableStateFlow<JournalEntryDetailData?>(null)
-    val journalEntryDetail: StateFlow<JournalEntryDetailData?> = _journalEntryDetail.asStateFlow()
-
-    private val _isLoadingJournalDetail = MutableStateFlow(false)
-    val isLoadingJournalDetail: StateFlow<Boolean> = _isLoadingJournalDetail.asStateFlow()
-
-    private val _journalDetailError = MutableStateFlow<String?>(null)
-    val journalDetailError: StateFlow<String?> = _journalDetailError.asStateFlow()
-
-    // ── Invoices: List & Pagination State ──
-    private val _invoiceList = MutableStateFlow<List<InvoiceItem>>(emptyList())
-    val invoiceList: StateFlow<List<InvoiceItem>> = _invoiceList.asStateFlow()
-
-    private val _invoicePagination = MutableStateFlow<PaginationInfo?>(null)
-    val invoicePagination: StateFlow<PaginationInfo?> = _invoicePagination.asStateFlow()
-
-    private val _isLoadingInvoices = MutableStateFlow(false)
-    val isLoadingInvoices: StateFlow<Boolean> = _isLoadingInvoices.asStateFlow()
-
-    private val _isLoadingMoreInvoices = MutableStateFlow(false)
-    val isLoadingMoreInvoices: StateFlow<Boolean> = _isLoadingMoreInvoices.asStateFlow()
-
-    private val _canLoadMoreInvoices = MutableStateFlow(true)
-    val canLoadMoreInvoices: StateFlow<Boolean> = _canLoadMoreInvoices.asStateFlow()
-
-    private val _currentInvoicePage = MutableStateFlow(1)
-    val currentInvoicePage: StateFlow<Int> = _currentInvoicePage.asStateFlow()
-
-    private val _invoiceError = MutableStateFlow<String?>(null)
-    val invoiceError: StateFlow<String?> = _invoiceError.asStateFlow()
-
-    private var activeInvoiceSearch: String? = null
-    private var activeInvoiceStatus: String? = null
-
-    // ── Finance Customers: List & Pagination State ──
-    private val _financeCustomerList = MutableStateFlow<CustomerListResponseV2?>(null)
-    val financeCustomerList: StateFlow<CustomerListResponseV2?> = _financeCustomerList.asStateFlow()
-
-    private val _isLoadingFinanceCustomers = MutableStateFlow(false)
-    val isLoadingFinanceCustomers: StateFlow<Boolean> = _isLoadingFinanceCustomers.asStateFlow()
-
-    private val _isLoadingMoreFinanceCustomers = MutableStateFlow(false)
-    val isLoadingMoreFinanceCustomers: StateFlow<Boolean> = _isLoadingMoreFinanceCustomers.asStateFlow()
-
-    private val _canLoadMoreFinanceCustomers = MutableStateFlow(true)
-    val canLoadMoreFinanceCustomers: StateFlow<Boolean> = _canLoadMoreFinanceCustomers.asStateFlow()
-
-    private val _currentFinanceCustomerPage = MutableStateFlow(1)
-    val currentFinanceCustomerPage: StateFlow<Int> = _currentFinanceCustomerPage.asStateFlow()
-
-    private val _financeCustomerError = MutableStateFlow<String?>(null)
-    val financeCustomerError: StateFlow<String?> = _financeCustomerError.asStateFlow()
-
-    private var activeFinanceCustomerSearch: String? = null
-
-    // ── Expenses: List & Pagination State ──
+    // ─────────────────────────────────────────────────────────────
+    // ── 1. EXPENSES: Pagination & State ──
+    // ─────────────────────────────────────────────────────────────
     private val _expenseList = MutableStateFlow<List<ExpenseItem>>(emptyList())
     val expenseList: StateFlow<List<ExpenseItem>> = _expenseList.asStateFlow()
 
@@ -250,17 +81,16 @@ class FinanceViewModel @Inject constructor(
 
     private var activeExpenseSearch: String? = null
     private var activeExpenseStatus: String? = null
+    private var fetchExpensesJob: Job? = null
 
-    /**
-     * Initial fetch or refresh for expenses (resets pagination back to page 1)
-     */
     fun fetchExpenses(
         page: Int = 1,
         limit: Int = 10,
         search: String? = null,
         status: String? = null
     ) {
-        launchBusy {
+        fetchExpensesJob?.cancel()
+        fetchExpensesJob = launchBusy {
             _isLoadingExpenses.value = true
             _expenseError.value = null
             _currentExpensePage.value = page
@@ -276,21 +106,19 @@ class FinanceViewModel @Inject constructor(
                     _expenseList.value = newExpenses
                     _expensePagination.value = pagination
 
-                    // Check if more pages exist
                     val totalPages = pagination.totalPages
                     _canLoadMoreExpenses.value = page < totalPages && newExpenses.isNotEmpty()
                 },
                 onFailure = { e ->
-                    _expenseError.value = extractErrorMessage(e, "Failed to fetch expenses")
+                    if (e !is CancellationException) {
+                        _expenseError.value = extractErrorMessage(e, "Failed to fetch expenses")
+                    }
                 }
             )
             _isLoadingExpenses.value = false
         }
     }
 
-    /**
-     * Loads the next page of expenses and appends to the current list
-     */
     fun loadMoreExpenses(limit: Int = 10) {
         if (_isLoadingMoreExpenses.value || _isLoadingExpenses.value || !_canLoadMoreExpenses.value) {
             return
@@ -313,7 +141,7 @@ class FinanceViewModel @Inject constructor(
                     val pagination = response.pagination
 
                     if (newExpenses.isNotEmpty()) {
-                        _expenseList.value += newExpenses
+                        _expenseList.value = _expenseList.value + newExpenses
                         _currentExpensePage.value = nextPage
                         _expensePagination.value = pagination
 
@@ -324,29 +152,165 @@ class FinanceViewModel @Inject constructor(
                     }
                 },
                 onFailure = {
-                    _canLoadMoreExpenses.value = false
+                    // Do not permanently lock pagination on single request failure
                 }
             )
             _isLoadingMoreExpenses.value = false
         }
     }
 
-    /**
-     * Initial fetch or refresh for finance customers (resets pagination back to page 1)
-     */
+    fun refreshExpenses() {
+        fetchExpenses(page = 1, search = activeExpenseSearch, status = activeExpenseStatus)
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── 2. INVOICES: Pagination & State ──
+    // ─────────────────────────────────────────────────────────────
+    private val _invoiceList = MutableStateFlow<List<InvoiceItem>>(emptyList())
+    val invoiceList: StateFlow<List<InvoiceItem>> = _invoiceList.asStateFlow()
+
+    private val _invoicePagination = MutableStateFlow<PaginationInfo?>(null)
+    val invoicePagination: StateFlow<PaginationInfo?> = _invoicePagination.asStateFlow()
+
+    private val _isLoadingInvoices = MutableStateFlow(false)
+    val isLoadingInvoices: StateFlow<Boolean> = _isLoadingInvoices.asStateFlow()
+
+    private val _isLoadingMoreInvoices = MutableStateFlow(false)
+    val isLoadingMoreInvoices: StateFlow<Boolean> = _isLoadingMoreInvoices.asStateFlow()
+
+    private val _canLoadMoreInvoices = MutableStateFlow(true)
+    val canLoadMoreInvoices: StateFlow<Boolean> = _canLoadMoreInvoices.asStateFlow()
+
+    private val _currentInvoicePage = MutableStateFlow(1)
+    val currentInvoicePage: StateFlow<Int> = _currentInvoicePage.asStateFlow()
+
+    private val _invoiceError = MutableStateFlow<String?>(null)
+    val invoiceError: StateFlow<String?> = _invoiceError.asStateFlow()
+
+    private var activeInvoiceSearch: String? = null
+    private var activeInvoiceStatus: String? = null
+    private var fetchInvoicesJob: Job? = null
+
+    fun fetchInvoices(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ) {
+        fetchInvoicesJob?.cancel()
+        fetchInvoicesJob = launchBusy {
+            _isLoadingInvoices.value = true
+            _invoiceError.value = null
+            _currentInvoicePage.value = page
+            activeInvoiceSearch = search
+            activeInvoiceStatus = status
+
+            val result = financeRepository.getInvoices(page, limit, search, status)
+            when {
+                result.isSuccess -> {
+                    val body = result.getOrNull()
+                    val newInvoices = body?.data?.data ?: emptyList()
+                    val pagination = body?.data?.pagination
+
+                    _invoiceList.value = newInvoices
+                    _invoicePagination.value = pagination
+
+                    val totalPages = pagination?.totalPages ?: 1
+                    _canLoadMoreInvoices.value = page < totalPages && newInvoices.isNotEmpty()
+                }
+                result.isFailure -> {
+                    val e = result.exceptionOrNull()
+                    if (e !is CancellationException) {
+                        _invoiceError.value = extractErrorMessage(e, "Failed to fetch invoices")
+                    }
+                }
+            }
+            _isLoadingInvoices.value = false
+        }
+    }
+
+    fun loadMoreInvoices(limit: Int = 10) {
+        if (_isLoadingMoreInvoices.value || _isLoadingInvoices.value || !_canLoadMoreInvoices.value) {
+            return
+        }
+
+        launchBusy {
+            _isLoadingMoreInvoices.value = true
+            val nextPage = _currentInvoicePage.value + 1
+
+            val result = financeRepository.getInvoices(
+                page = nextPage,
+                limit = limit,
+                search = activeInvoiceSearch,
+                status = activeInvoiceStatus
+            )
+
+            when {
+                result.isSuccess -> {
+                    val body = result.getOrNull()
+                    val newInvoices = body?.data?.data ?: emptyList()
+                    val pagination = body?.data?.pagination
+
+                    if (newInvoices.isNotEmpty()) {
+                        _invoiceList.value = _invoiceList.value + newInvoices
+                        _currentInvoicePage.value = nextPage
+                        _invoicePagination.value = pagination
+
+                        val totalPages = pagination?.totalPages ?: nextPage
+                        _canLoadMoreInvoices.value = nextPage < totalPages
+                    } else {
+                        _canLoadMoreInvoices.value = false
+                    }
+                }
+                result.isFailure -> {
+                    // Do not permanently lock pagination
+                }
+            }
+            _isLoadingMoreInvoices.value = false
+        }
+    }
+
+    fun refreshInvoices() {
+        fetchInvoices(page = 1, search = activeInvoiceSearch, status = activeInvoiceStatus)
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── 3. FINANCE CUSTOMERS: Pagination & State ──
+    // ─────────────────────────────────────────────────────────────
+    private val _financeCustomerList = MutableStateFlow<CustomerListResponseV2?>(null)
+    val financeCustomerList: StateFlow<CustomerListResponseV2?> = _financeCustomerList.asStateFlow()
+
+    private val _isLoadingFinanceCustomers = MutableStateFlow(false)
+    val isLoadingFinanceCustomers: StateFlow<Boolean> = _isLoadingFinanceCustomers.asStateFlow()
+
+    private val _isLoadingMoreFinanceCustomers = MutableStateFlow(false)
+    val isLoadingMoreFinanceCustomers: StateFlow<Boolean> = _isLoadingMoreFinanceCustomers.asStateFlow()
+
+    private val _canLoadMoreFinanceCustomers = MutableStateFlow(true)
+    val canLoadMoreFinanceCustomers: StateFlow<Boolean> = _canLoadMoreFinanceCustomers.asStateFlow()
+
+    private val _currentFinanceCustomerPage = MutableStateFlow(1)
+    val currentFinanceCustomerPage: StateFlow<Int> = _currentFinanceCustomerPage.asStateFlow()
+
+    private val _financeCustomerError = MutableStateFlow<String?>(null)
+    val financeCustomerError: StateFlow<String?> = _financeCustomerError.asStateFlow()
+
+    private var activeFinanceCustomerSearch: String? = null
+    private var fetchFinanceCustomersJob: Job? = null
+
     fun fetchCustomerForFinance(
         page: Int = 1,
         limit: Int = 10,
         search: String? = null
     ) {
-        launchBusy {
+        fetchFinanceCustomersJob?.cancel()
+        fetchFinanceCustomersJob = launchBusy {
             _isLoadingFinanceCustomers.value = true
             _financeCustomerError.value = null
             _currentFinanceCustomerPage.value = page
             activeFinanceCustomerSearch = search
 
             val result = financeRepository.getCustomerForFinance(page, limit, search)
-
             when {
                 result.isSuccess -> {
                     val response = result.getOrNull()
@@ -355,22 +319,20 @@ class FinanceViewModel @Inject constructor(
 
                     _financeCustomerList.value = response
 
-                    // Check if more pages exist
                     val totalPages = pagination?.totalPages ?: 1
                     _canLoadMoreFinanceCustomers.value = page < totalPages && customers.isNotEmpty()
                 }
                 result.isFailure -> {
-                    _financeCustomerError.value =
-                        extractErrorMessage(result.exceptionOrNull(), "Failed to fetch customers")
+                    val e = result.exceptionOrNull()
+                    if (e !is CancellationException) {
+                        _financeCustomerError.value = extractErrorMessage(e, "Failed to fetch customers")
+                    }
                 }
             }
             _isLoadingFinanceCustomers.value = false
         }
     }
 
-    /**
-     * Loads the next page of finance customers and appends them to the current list
-     */
     fun loadMoreCustomerForFinance(limit: Int = 10) {
         if (_isLoadingMoreFinanceCustomers.value || _isLoadingFinanceCustomers.value || !_canLoadMoreFinanceCustomers.value) {
             return
@@ -407,97 +369,219 @@ class FinanceViewModel @Inject constructor(
                     }
                 }
                 result.isFailure -> {
-                    _canLoadMoreFinanceCustomers.value = false
+                    // Do not permanently lock pagination
                 }
             }
             _isLoadingMoreFinanceCustomers.value = false
         }
     }
 
-    /**
-     * Initial fetch or refresh for invoices (resets pagination back to page 1)
-     */
-    fun fetchInvoices(
+    fun refreshCustomerForFinance() {
+        fetchCustomerForFinance(page = 1, search = activeFinanceCustomerSearch)
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── 4. JOURNAL ENTRIES: Pagination & State ──
+    // ─────────────────────────────────────────────────────────────
+    private val _journalEntries = MutableStateFlow<List<JournalEntryItem>>(emptyList())
+    val journalEntries: StateFlow<List<JournalEntryItem>> = _journalEntries.asStateFlow()
+
+    private val _journalEntryPagination = MutableStateFlow<JournalEntryPagination?>(null)
+    val journalEntryPagination: StateFlow<JournalEntryPagination?> = _journalEntryPagination.asStateFlow()
+
+    private val _isLoadingJournalEntries = MutableStateFlow(false)
+    val isLoadingJournalEntries: StateFlow<Boolean> = _isLoadingJournalEntries.asStateFlow()
+
+    private val _isLoadingMoreJournalEntries = MutableStateFlow(false)
+    val isLoadingMoreJournalEntries: StateFlow<Boolean> = _isLoadingMoreJournalEntries.asStateFlow()
+
+    private val _canLoadMoreJournalEntries = MutableStateFlow(true)
+    val canLoadMoreJournalEntries: StateFlow<Boolean> = _canLoadMoreJournalEntries.asStateFlow()
+
+    private val _currentJournalEntryPage = MutableStateFlow(1)
+    val currentJournalEntryPage: StateFlow<Int> = _currentJournalEntryPage.asStateFlow()
+
+    private val _journalEntriesError = MutableStateFlow<String?>(null)
+    val journalEntriesError: StateFlow<String?> = _journalEntriesError.asStateFlow()
+
+    private var activeJournalSearch: String? = null
+    private var activeJournalStatus: String? = null
+    private var fetchJournalJob: Job? = null
+
+    fun fetchJournalEntries(
         page: Int = 1,
         limit: Int = 10,
         search: String? = null,
         status: String? = null
     ) {
-        launchBusy {
-            _isLoadingInvoices.value = true
-            _invoiceError.value = null
-            _currentInvoicePage.value = page
-            activeInvoiceSearch = search
-            activeInvoiceStatus = status
+        fetchJournalJob?.cancel()
+        fetchJournalJob = launchBusy {
+            _isLoadingJournalEntries.value = true
+            _journalEntriesError.value = null
+            _currentJournalEntryPage.value = page
+            activeJournalSearch = search
+            activeJournalStatus = status
 
-            val result = financeRepository.getInvoices(page, limit, search, status)
+            val result = financeRepository.getJournalEntries(page, limit, search, status)
+            result.fold(
+                onSuccess = { response ->
+                    val newEntries = response.data
+                    val pagination = response.pagination
 
-            when {
-                result.isSuccess -> {
-                    val body = result.getOrNull()
-                    val newInvoices = body?.data?.data ?: emptyList()
-                    val pagination = body?.data?.pagination
+                    _journalEntries.value = newEntries
+                    _journalEntryPagination.value = pagination
 
-                    _invoiceList.value = newInvoices
-                    _invoicePagination.value = pagination
-
-                    // Check if more pages exist
-                    val totalPages = pagination?.totalPages ?: 1
-                    _canLoadMoreInvoices.value = page < totalPages && newInvoices.isNotEmpty()
+                    val totalPages = pagination.totalPages
+                    _canLoadMoreJournalEntries.value = page < totalPages && newEntries.isNotEmpty()
+                },
+                onFailure = { e ->
+                    if (e !is CancellationException) {
+                        _journalEntriesError.value = extractErrorMessage(e, "Failed to fetch journal entries")
+                    }
                 }
-                result.isFailure -> {
-                    _invoiceError.value =
-                        extractErrorMessage(result.exceptionOrNull(), "Failed to fetch invoices")
-                }
-            }
-            _isLoadingInvoices.value = false
+            )
+            _isLoadingJournalEntries.value = false
         }
     }
 
-
-    /**
-     * Loads the next page of invoices and appends to the current list
-     */
-    fun loadMoreInvoices(limit: Int = 10) {
-        if (_isLoadingMoreInvoices.value || _isLoadingInvoices.value || !_canLoadMoreInvoices.value) {
+    fun loadMoreJournalEntries(limit: Int = 10) {
+        if (_isLoadingMoreJournalEntries.value || _isLoadingJournalEntries.value || !_canLoadMoreJournalEntries.value) {
             return
         }
 
         launchBusy {
-            _isLoadingMoreInvoices.value = true
-            val nextPage = _currentInvoicePage.value + 1
+            _isLoadingMoreJournalEntries.value = true
+            val nextPage = _currentJournalEntryPage.value + 1
 
-            val result = financeRepository.getInvoices(
+            val result = financeRepository.getJournalEntries(
                 page = nextPage,
                 limit = limit,
-                search = activeInvoiceSearch,
-                status = activeInvoiceStatus
+                search = activeJournalSearch,
+                status = activeJournalStatus
             )
 
-            when {
-                result.isSuccess -> {
-                    val body = result.getOrNull()
-                    val newInvoices = body?.data?.data ?: emptyList()
-                    val pagination = body?.data?.pagination
+            result.fold(
+                onSuccess = { response ->
+                    val newEntries = response.data
+                    val pagination = response.pagination
 
-                    if (newInvoices.isNotEmpty()) {
-                        _invoiceList.value += newInvoices
-                        _currentInvoicePage.value = nextPage
-                        _invoicePagination.value = pagination
+                    if (newEntries.isNotEmpty()) {
+                        _journalEntries.value = _journalEntries.value + newEntries
+                        _currentJournalEntryPage.value = nextPage
+                        _journalEntryPagination.value = pagination
 
-                        val totalPages = pagination?.totalPages ?: nextPage
-                        _canLoadMoreInvoices.value = nextPage < totalPages
+                        val totalPages = pagination.totalPages
+                        _canLoadMoreJournalEntries.value = nextPage < totalPages
                     } else {
-                        _canLoadMoreInvoices.value = false
+                        _canLoadMoreJournalEntries.value = false
                     }
+                },
+                onFailure = {
+                    // Do not permanently lock pagination
                 }
-                result.isFailure -> {
-                    _canLoadMoreInvoices.value = false
-                }
-            }
-            _isLoadingMoreInvoices.value = false
+            )
+            _isLoadingMoreJournalEntries.value = false
         }
     }
+
+    fun refreshJournalEntries() {
+        fetchJournalEntries(page = 1, search = activeJournalSearch, status = activeJournalStatus)
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── 5. OTHER FINANCE OPERATIONS ──
+    // ─────────────────────────────────────────────────────────────
+
+    // Chart of Accounts
+    private val _createAccountState = MutableStateFlow<CreateAccountState>(CreateAccountState.Idle)
+    val createAccountState: StateFlow<CreateAccountState> = _createAccountState.asStateFlow()
+
+    private val _updateAccountState = MutableStateFlow<UpdateAccountState>(UpdateAccountState.Idle)
+    val updateAccountState: StateFlow<UpdateAccountState> = _updateAccountState.asStateFlow()
+
+    private val _deleteAccountState = MutableStateFlow<DeleteAccountState>(DeleteAccountState.Idle)
+    val deleteAccountState: StateFlow<DeleteAccountState> = _deleteAccountState.asStateFlow()
+
+    private val _chartOfAccounts = MutableStateFlow<List<ChartOfAccountItem>>(emptyList())
+    val chartOfAccounts: StateFlow<List<ChartOfAccountItem>> = _chartOfAccounts.asStateFlow()
+
+    private val _isLoadingChartOfAccounts = MutableStateFlow(false)
+    val isLoadingChartOfAccounts: StateFlow<Boolean> = _isLoadingChartOfAccounts.asStateFlow()
+
+    private val _chartOfAccountsError = MutableStateFlow<String?>(null)
+    val chartOfAccountsError: StateFlow<String?> = _chartOfAccountsError.asStateFlow()
+
+    // View One Customer
+    private val _financeCustomerDetail = MutableStateFlow<FinanceCustomerViewOneData?>(null)
+    val financeCustomerDetail: StateFlow<FinanceCustomerViewOneData?> = _financeCustomerDetail.asStateFlow()
+
+    private val _isLoadingFinanceCustomerDetail = MutableStateFlow(false)
+    val isLoadingFinanceCustomerDetail: StateFlow<Boolean> = _isLoadingFinanceCustomerDetail.asStateFlow()
+
+    private val _financeCustomerDetailError = MutableStateFlow<String?>(null)
+    val financeCustomerDetailError: StateFlow<String?> = _financeCustomerDetailError.asStateFlow()
+
+    // Invoices View One
+    private val _selectedInvoice = MutableStateFlow<InvoiceItem?>(null)
+    val selectedInvoice: StateFlow<InvoiceItem?> = _selectedInvoice.asStateFlow()
+
+    private val _invoiceDetail = MutableStateFlow<InvoiceViewOneData?>(null)
+    val invoiceDetail: StateFlow<InvoiceViewOneData?> = _invoiceDetail.asStateFlow()
+
+    private val _isLoadingInvoiceDetail = MutableStateFlow(false)
+    val isLoadingInvoiceDetail: StateFlow<Boolean> = _isLoadingInvoiceDetail.asStateFlow()
+
+    private val _invoiceDetailError = MutableStateFlow<String?>(null)
+    val invoiceDetailError: StateFlow<String?> = _invoiceDetailError.asStateFlow()
+
+    // Expenses: detail & create
+    private val _expenseDetail = MutableStateFlow<ExpenseItem?>(null)
+    val expenseDetail: StateFlow<ExpenseItem?> = _expenseDetail.asStateFlow()
+
+    private val _isLoadingExpenseDetail = MutableStateFlow(false)
+    val isLoadingExpenseDetail: StateFlow<Boolean> = _isLoadingExpenseDetail.asStateFlow()
+
+    private val _createExpenseState = MutableStateFlow<CreateExpenseState>(CreateExpenseState.Idle)
+    val createExpenseState: StateFlow<CreateExpenseState> = _createExpenseState.asStateFlow()
+
+    // Trial Balance
+    private val _trialBalanceList = MutableStateFlow<List<TrialBalanceItem>>(emptyList())
+    val trialBalanceList: StateFlow<List<TrialBalanceItem>> = _trialBalanceList.asStateFlow()
+
+    private val _isLoadingTrialBalance = MutableStateFlow(false)
+    val isLoadingTrialBalance: StateFlow<Boolean> = _isLoadingTrialBalance.asStateFlow()
+
+    private val _trialBalanceError = MutableStateFlow<String?>(null)
+    val trialBalanceError: StateFlow<String?> = _trialBalanceError.asStateFlow()
+
+    // Ledger
+    private val _ledgerList = MutableStateFlow<List<LedgerItem>>(emptyList())
+    val ledgerList: StateFlow<List<LedgerItem>> = _ledgerList.asStateFlow()
+
+    private val _isLoadingLedger = MutableStateFlow(false)
+    val isLoadingLedger: StateFlow<Boolean> = _isLoadingLedger.asStateFlow()
+
+    private val _ledgerError = MutableStateFlow<String?>(null)
+    val ledgerError: StateFlow<String?> = _ledgerError.asStateFlow()
+
+    // Journal Entry Detail & Mutations
+    private val _createJournalState = MutableStateFlow<CreateJournalState>(CreateJournalState.Idle)
+    val createJournalState: StateFlow<CreateJournalState> = _createJournalState.asStateFlow()
+
+    private val _updateJournalState = MutableStateFlow<UpdateJournalState>(UpdateJournalState.Idle)
+    val updateJournalState: StateFlow<UpdateJournalState> = _updateJournalState.asStateFlow()
+
+    private val _deleteJournalState = MutableStateFlow<DeleteJournalState>(DeleteJournalState.Idle)
+    val deleteJournalState: StateFlow<DeleteJournalState> = _deleteJournalState.asStateFlow()
+
+    private val _journalEntryDetail = MutableStateFlow<JournalEntryDetailData?>(null)
+    val journalEntryDetail: StateFlow<JournalEntryDetailData?> = _journalEntryDetail.asStateFlow()
+
+    private val _isLoadingJournalDetail = MutableStateFlow(false)
+    val isLoadingJournalDetail: StateFlow<Boolean> = _isLoadingJournalDetail.asStateFlow()
+
+    private val _journalDetailError = MutableStateFlow<String?>(null)
+    val journalDetailError: StateFlow<String?> = _journalDetailError.asStateFlow()
 
     fun createJournal(
         branchId: String,
@@ -509,7 +593,6 @@ class FinanceViewModel @Inject constructor(
     ) {
         launchBusy {
             _createJournalState.value = CreateJournalState.Loading
-
             val result = financeRepository.createJournal(
                 branchId = branchId,
                 entryDate = entryDate,
@@ -518,13 +601,12 @@ class FinanceViewModel @Inject constructor(
                 status = status,
                 lines = lines
             )
-
             result.fold(
                 onSuccess = { response ->
                     _createJournalState.value = CreateJournalState.Success(
                         response.message ?: "Journal entry posted successfully"
                     )
-                    fetchJournalEntries()   // refresh list after posting
+                    refreshJournalEntries()
                 },
                 onFailure = { e ->
                     _createJournalState.value = CreateJournalState.Error(
@@ -535,11 +617,6 @@ class FinanceViewModel @Inject constructor(
         }
     }
 
-    fun resetCreateJournalState() {
-        _createJournalState.value = CreateJournalState.Idle
-    }
-
-    //   NEW — updates an existing journal entry by id, then refreshes the list
     fun updateJournal(
         id: String,
         branchId: String,
@@ -551,7 +628,6 @@ class FinanceViewModel @Inject constructor(
     ) {
         launchBusy {
             _updateJournalState.value = UpdateJournalState.Loading
-
             val result = financeRepository.updateJournal(
                 id = id,
                 branchId = branchId,
@@ -561,13 +637,12 @@ class FinanceViewModel @Inject constructor(
                 status = status,
                 lines = lines
             )
-
             result.fold(
                 onSuccess = { response ->
                     _updateJournalState.value = UpdateJournalState.Success(
                         response.message ?: "Journal entry updated successfully"
                     )
-                    fetchJournalEntries()   // refresh list after updating
+                    refreshJournalEntries()
                 },
                 onFailure = { e ->
                     _updateJournalState.value = UpdateJournalState.Error(
@@ -578,45 +653,30 @@ class FinanceViewModel @Inject constructor(
         }
     }
 
-    fun resetUpdateJournalState() {
-        _updateJournalState.value = UpdateJournalState.Idle
-    }
-
     fun getFinanceCustomerViewOne(id: String) {
         launchBusy {
             _isLoadingFinanceCustomerDetail.value = true
             _financeCustomerDetailError.value = null
-
             val result = financeRepository.getFinanceCustomerViewOne(id)
-
             when {
-                result.isSuccess -> {
-                    _financeCustomerDetail.value = result.getOrNull()?.data
-                }
-                result.isFailure -> {
-                    _financeCustomerDetailError.value =
-                        extractErrorMessage(result.exceptionOrNull(), "Failed to fetch customer detail")
-                }
+                result.isSuccess -> _financeCustomerDetail.value = result.getOrNull()?.data
+                result.isFailure -> _financeCustomerDetailError.value =
+                    extractErrorMessage(result.exceptionOrNull(), "Failed to fetch customer detail")
             }
             _isLoadingFinanceCustomerDetail.value = false
         }
     }
+
     fun fetchInvoiceDetail(invoiceId: String) {
         launchBusy {
             _isLoadingInvoiceDetail.value = true
             _invoiceDetailError.value = null
             _invoiceDetail.value = null
-
             val result = financeRepository.getInvoiceViewOne(invoiceId)
-
             when {
-                result.isSuccess -> {
-                    _invoiceDetail.value = result.getOrNull()
-                }
-                result.isFailure -> {
-                    _invoiceDetailError.value =
-                        extractErrorMessage(result.exceptionOrNull(), "Failed to fetch invoice details")
-                }
+                result.isSuccess -> _invoiceDetail.value = result.getOrNull()
+                result.isFailure -> _invoiceDetailError.value =
+                    extractErrorMessage(result.exceptionOrNull(), "Failed to fetch invoice details")
             }
             _isLoadingInvoiceDetail.value = false
         }
@@ -626,7 +686,6 @@ class FinanceViewModel @Inject constructor(
         launchBusy {
             _isLoadingChartOfAccounts.value = true
             _chartOfAccountsError.value = null
-
             val result = financeRepository.getChartOfAccounts()
             result.fold(
                 onSuccess = { _chartOfAccounts.value = it },
@@ -642,7 +701,6 @@ class FinanceViewModel @Inject constructor(
         launchBusy {
             _isLoadingExpenseDetail.value = true
             _expenseDetail.value = null
-
             val result = financeRepository.getExpenseViewOne(id)
             result.fold(
                 onSuccess = { _expenseDetail.value = it },
@@ -667,18 +725,16 @@ class FinanceViewModel @Inject constructor(
     ) {
         launchBusy {
             _createExpenseState.value = CreateExpenseState.Loading
-
             val result = financeRepository.createExpense(
                 branch, expenseDate, accountId, paymentAccountId,
                 amount, referenceNumber, notes, status, fileParts
             )
-
             result.fold(
                 onSuccess = { response ->
                     _createExpenseState.value = CreateExpenseState.Success(
                         response.message ?: "Expense added successfully"
                     )
-                    fetchExpenses()   // refresh list after creating
+                    refreshExpenses()
                 },
                 onFailure = { e ->
                     _createExpenseState.value = CreateExpenseState.Error(
@@ -697,20 +753,18 @@ class FinanceViewModel @Inject constructor(
     ) {
         launchBusy {
             _createAccountState.value = CreateAccountState.Loading
-
             val result = financeRepository.createChartOfAccount(
                 accountName = accountName,
                 accountType = accountType,
                 description = description,
                 parentAccount = parentAccount
             )
-
             result.fold(
                 onSuccess = { response ->
                     _createAccountState.value = CreateAccountState.Success(
                         response.message ?: "Account added successfully"
                     )
-                    fetchChartOfAccounts()   // refresh dropdown list after adding
+                    fetchChartOfAccounts()
                 },
                 onFailure = { e ->
                     _createAccountState.value = CreateAccountState.Error(
@@ -730,7 +784,6 @@ class FinanceViewModel @Inject constructor(
     ) {
         launchBusy {
             _updateAccountState.value = UpdateAccountState.Loading
-
             val result = financeRepository.updateChartOfAccount(
                 id = id,
                 accountName = accountName,
@@ -738,13 +791,12 @@ class FinanceViewModel @Inject constructor(
                 description = description,
                 parentAccount = parentAccount
             )
-
             result.fold(
                 onSuccess = { response ->
                     _updateAccountState.value = UpdateAccountState.Success(
                         response.message ?: "Account updated successfully"
                     )
-                    fetchChartOfAccounts()   // refresh list after update
+                    fetchChartOfAccounts()
                 },
                 onFailure = { e ->
                     _updateAccountState.value = UpdateAccountState.Error(
@@ -758,15 +810,13 @@ class FinanceViewModel @Inject constructor(
     fun deleteChartOfAccount(id: String) {
         launchBusy {
             _deleteAccountState.value = DeleteAccountState.Loading
-
             val result = financeRepository.deleteChartOfAccount(id)
-
             result.fold(
                 onSuccess = { response ->
                     _deleteAccountState.value = DeleteAccountState.Success(
                         response.message ?: "Account deleted successfully"
                     )
-                    fetchChartOfAccounts()   // refresh list after delete
+                    fetchChartOfAccounts()
                 },
                 onFailure = { e ->
                     _deleteAccountState.value = DeleteAccountState.Error(
@@ -781,7 +831,6 @@ class FinanceViewModel @Inject constructor(
         launchBusy {
             _isLoadingTrialBalance.value = true
             _trialBalanceError.value = null
-
             val result = financeRepository.getTrialBalance()
             result.fold(
                 onSuccess = { _trialBalanceList.value = it },
@@ -793,35 +842,10 @@ class FinanceViewModel @Inject constructor(
         }
     }
 
-    fun fetchJournalEntries(
-        page: Int = 1,
-        limit: Int = 10,
-        search: String? = null,
-        status: String? = null
-    ) {
-        launchBusy {
-            _isLoadingJournalEntries.value = true
-            _journalEntriesError.value = null
-
-            val result = financeRepository.getJournalEntries(page, limit, search, status)
-            result.fold(
-                onSuccess = { response ->
-                    _journalEntries.value = response.data
-                    _journalEntryPagination.value = response.pagination
-                },
-                onFailure = { e ->
-                    _journalEntriesError.value = extractErrorMessage(e, "Failed to fetch journal entries")
-                }
-            )
-            _isLoadingJournalEntries.value = false
-        }
-    }
-
     fun fetchLedger(accountId: String) {
         launchBusy {
             _isLoadingLedger.value = true
             _ledgerError.value = null
-
             val result = financeRepository.getLedger(accountId)
             result.fold(
                 onSuccess = { _ledgerList.value = it },
@@ -840,7 +864,7 @@ class FinanceViewModel @Inject constructor(
             result.fold(
                 onSuccess = { message ->
                     _deleteJournalState.value = DeleteJournalState.Success(message)
-                    fetchJournalEntries()   // refresh list after delete
+                    refreshJournalEntries()
                 },
                 onFailure = { e ->
                     _deleteJournalState.value = DeleteJournalState.Error(
@@ -856,7 +880,6 @@ class FinanceViewModel @Inject constructor(
             _isLoadingJournalDetail.value = true
             _journalDetailError.value = null
             _journalEntryDetail.value = null
-
             val result = financeRepository.getJournalEntryViewOne(id)
             result.fold(
                 onSuccess = { _journalEntryDetail.value = it },
@@ -900,7 +923,6 @@ class FinanceViewModel @Inject constructor(
         _isLoadingInvoiceDetail.value = false
     }
 
-
     fun selectInvoice(invoice: InvoiceItem) {
         _selectedInvoice.value = invoice
     }
@@ -917,9 +939,14 @@ class FinanceViewModel @Inject constructor(
         _expenseDetail.value = null
     }
 
+    fun resetCreateJournalState() {
+        _createJournalState.value = CreateJournalState.Idle
+    }
 
+    fun resetUpdateJournalState() {
+        _updateJournalState.value = UpdateJournalState.Idle
+    }
 }
-
 
 sealed class CreateExpenseState {
     object Idle : CreateExpenseState()
@@ -949,7 +976,6 @@ sealed class CreateJournalState {
     data class Error(val message: String) : CreateJournalState()
 }
 
-//   NEW
 sealed class UpdateJournalState {
     object Idle : UpdateJournalState()
     object Loading : UpdateJournalState()

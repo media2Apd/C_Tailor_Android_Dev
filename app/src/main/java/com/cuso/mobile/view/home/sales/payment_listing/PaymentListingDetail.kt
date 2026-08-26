@@ -41,7 +41,7 @@ import com.cuso.mobile.view.home.inventory.FormTextArea
 // ─────────────────────────────────────────────────────────────────────────
 // ADDITIONAL COLORS
 // Existing theme colors (Primary, TextPrimary, mutedText, BorderGray,
-// PanelBg, greentext/greenBg, redtext/redBg, yellowtext/yellowBg, whiteBg,
+// PanelBg, greentext/greenBg, redText/redBg, yellowText/yellowBg, whiteBg,
 // close_color, title_color, title_font, blackTitle) are reused as-is from
 // the theme file. Only the few tokens missing from the theme are added below.
 // ─────────────────────────────────────────────────────────────────────────
@@ -344,11 +344,11 @@ private fun OrderSummaryCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Balance Due", fontSize = tokens.bodyMedium, color = redtext)
+                Text("Balance Due", fontSize = tokens.bodyMedium, color = redText)
                 Text(
                     "₹${formatAmount(balanceDue)}",
                     fontSize = tokens.bodyLarge,
-                    color = redtext
+                    color = redText
                 )
             }
         }
@@ -450,7 +450,7 @@ private fun SendPaymentLinkCard(
                     Text(
                         "₹${formatAmount(balanceDue)}",
                         fontSize = tokens.bodyMedium,
-                        color = redtext
+                        color = redText
                     )
                 }
                 Column(horizontalAlignment = Alignment.Start) {
@@ -469,7 +469,7 @@ private fun SendPaymentLinkCard(
                     onClick = { },
                     modifier = Modifier.weight(1f).height(tokens.buttonHeight),
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = darkgreenBg)
+                    colors = ButtonDefaults.buttonColors(containerColor =darkGreenBg)
                 ) {
                     Icon(painter = painterResource(R.drawable.ic_whatsapp), contentDescription = null, tint = whiteBg, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
@@ -655,7 +655,7 @@ private fun PaymentHistoryList(history: List<PaymentHistoryEntry>) {
 @Composable
 private fun PaymentHistoryRow(entry: PaymentHistoryEntry) {
     val tokens = LocalAppTokens.current
-    val (chipBg, chipText) = if (entry.method == "UPI") UpiChipBg to UpiChipText else yellowBg to yellowtext
+    val (chipBg, chipText) = if (entry.method == "UPI") UpiChipBg to UpiChipText else yellowBg to yellowText
 
     Row(
         modifier = Modifier

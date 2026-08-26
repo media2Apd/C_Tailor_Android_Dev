@@ -49,7 +49,7 @@ private val dummySuppliers = List(6) {
 @Composable
  fun AllSuppliersScreen(
     onClose: () -> Unit = {},
-    onBreadcrumbClick: () -> Unit = {},
+    onBreadCrumbClick: () -> Unit = {},
     onSupplierClick: (SupplierRow) -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -73,7 +73,7 @@ private val dummySuppliers = List(6) {
         // ── Breadcrumb ──
         ScreenBreadcrumb(
             segments = listOf("Finance", "All Suppliers"),
-            onClick = onBreadcrumbClick
+            onClick = onBreadCrumbClick
         )
 
         // ── Search + filter row ──

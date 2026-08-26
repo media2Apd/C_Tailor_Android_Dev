@@ -71,12 +71,6 @@ import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.blurScrim
 
 // ─────────────────────────────────────────────────────────────
-// DepartmentSettingsScreen - Updated with SmoothBottomSheet
-// Design values now pulled from LocalAppTokens for consistency
-// across screen sizes (compact / medium / expanded).
-// ─────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────
 // DepartmentSettingsScreen - Updated to match BranchSettingsScreen's
 // blur/scrim reset pattern + DynamicIsland topmost layering
 // ─────────────────────────────────────────────────────────────

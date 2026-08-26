@@ -1,4 +1,4 @@
-@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ","UNUSED_PARAMETER")
+@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ", "UNUSED_PARAMETER")
 package com.cuso.mobile.view.home.finance
 
 import androidx.compose.foundation.background
@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
@@ -23,13 +24,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
-import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
+import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -39,6 +41,7 @@ private val BorderGray = Color(0xFFE8E8ED)
 private val BluePrimary = Color(0xFF3A2FCB)
 private val RedText = Color(0xFFDC2626)
 private val RedBg = Color(0xFFFDECEC)
+private val GreenText = Color(0xFF16A34A)
 private val PanelBg = Color(0xFFF7F7FA)
 
 private fun formatAmount(value: Double): String {
@@ -52,7 +55,7 @@ private fun formatAmount(value: Double): String {
 fun TrialBalanceScreen(
     onClose: () -> Unit = {},
     onAccountClick: (accountId: String, accountName: String) -> Unit = { _, _ -> },
-    onBreadcrumbClick: () -> Unit = {},   //   NEW
+    onBreadcrumbClick: () -> Unit = {},
     financeViewModel: FinanceViewModel = hiltViewModel()
 ) {
     val items by financeViewModel.trialBalanceList.collectAsStateWithLifecycle()
@@ -60,19 +63,31 @@ fun TrialBalanceScreen(
     val errorMessage by financeViewModel.trialBalanceError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
+    var debouncedSearchQuery by remember { mutableStateOf("") }
 
+    val listState = rememberLazyListState()
+
+    // Initial fetch on screen entry
     LaunchedEffect(Unit) {
         financeViewModel.fetchTrialBalance()
     }
 
-    val filteredItems = remember(items, searchQuery) {
-        if (searchQuery.isBlank()) items
+    // Debounce search query filtering
+    LaunchedEffect(searchQuery) {
+        delay(300)
+        debouncedSearchQuery = searchQuery.trim()
+    }
+
+    // Filter trial balance list based on debounced search query
+    val filteredItems = remember(items, debouncedSearchQuery) {
+        if (debouncedSearchQuery.isBlank()) items
         else items.filter {
-            it.account.contains(searchQuery, ignoreCase = true) ||
-                    it.code.contains(searchQuery, ignoreCase = true)
+            it.account.contains(debouncedSearchQuery, ignoreCase = true) ||
+                    it.code.contains(debouncedSearchQuery, ignoreCase = true)
         }
     }
 
+    // Calculate report totals
     val totalDebit = remember(items) { items.sumOf { it.debit } }
     val totalCredit = remember(items) { items.sumOf { it.credit } }
     val imbalance = remember(totalDebit, totalCredit) { kotlin.math.abs(totalDebit - totalCredit) }
@@ -84,13 +99,11 @@ fun TrialBalanceScreen(
     ) {
         // ── Title bar ──
         Row(
-            modifier = Modifier
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             TitleBar("Trial Balance", onClose = onClose)
-
         }
 
         Column {
@@ -100,7 +113,7 @@ fun TrialBalanceScreen(
                 onClick = onBreadcrumbClick
             )
 
-            // ── Search + Filter ──
+            // ── Search & Filter bar ──
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
@@ -108,57 +121,95 @@ fun TrialBalanceScreen(
                 accentColor = BluePrimary,
                 borderColor = BorderGray,
                 textSecondaryColor = TextSecondary,
-                onFilterClick = { /* open your filter drawer here */ }
+                onFilterClick = { }
             )
         }
+        HorizontalDivider(color = Color(0xFFF0F0F0))
 
         when {
-            isLoading -> {
+            // Loading skeleton state
+            isLoading && items.isEmpty() -> {
                 ListSkeleton()
             }
-            errorMessage != null -> {
-                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text(text = errorMessage ?: "Something went wrong", color = Color.Red)
-                }
-            }
-            filteredItems.isEmpty() -> {
-                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text("No accounts found", color = TextSecondary)
-                }
-            }
-            else -> {
-                LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    items(filteredItems, key = { it.accountId }) { item ->
-                        //   Reusing the shared DataCard component.
-                        // Debit / Credit / BAL passed as footerFields with asRow=true
-                        // so DataCard renders each as a SpaceBetween row → label on
-                        // the left, value on the right — all three values land on the
-                        // exact same right-edge column, same as the header/title column.
-                        Box(modifier = Modifier.clickable { onAccountClick(item.accountId, item.account) }) {
 
+            // Error state with retry option
+            errorMessage != null && items.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = RedText,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = errorMessage ?: "Something went wrong",
+                            color = RedText,
+                            fontSize = 14.sp
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(
+                            onClick = { financeViewModel.fetchTrialBalance() },
+                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Retry", color = whiteBg, fontSize = 14.sp)
+                        }
+                    }
+                }
+            }
+
+            // Empty state
+            filteredItems.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No accounts found", color = TextSecondary, fontSize = 14.sp)
+                }
+            }
+
+            // Trial balance list & total summary
+            else -> {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    items(filteredItems, key = { it.accountId }) { item ->
+                        Box(modifier = Modifier.clickable { onAccountClick(item.accountId, item.account) }) {
                             DataCard(
                                 item = item,
                                 title = item.account,
                                 trailingText = "Code: ${item.code}",
                                 titleColor = TextPrimary,
-                                footerAsRows = true, // every field below renders as a full-width row
+                                footerAsRows = true,
                                 footerFields = listOf(
                                     DataCardField(
                                         label = "Debit",
                                         text = formatAmount(item.debit),
-                                        textColor = blackTitle,      //   value in black
+                                        textColor = blackTitle,
                                         labelColor = TextSecondary
                                     ),
                                     DataCardField(
                                         label = "Credit",
                                         text = formatAmount(item.credit),
-                                        textColor = blackTitle,      //   value in black
+                                        textColor = blackTitle,
                                         labelColor = TextSecondary
                                     ),
                                     DataCardField(
                                         label = "BAL",
                                         text = "${formatAmount(item.balanceAbs)} ${item.balanceLabel}",
-                                        textColor = blackTitle,      //   value in black
+                                        textColor = blackTitle,
                                         labelColor = TextSecondary
                                     )
                                 )
@@ -166,11 +217,9 @@ fun TrialBalanceScreen(
                         }
                     }
 
-                    // ── Total Summary card ──
+                    // ── Total Summary Card ──
                     item {
-                        Column(
-                            Modifier.background(PanelBg)
-                        ) {
+                        Column(modifier = Modifier.background(PanelBg)) {
                             Spacer(modifier = Modifier.padding(top = 10.dp))
                             TotalSummaryCard(
                                 totalDebit = totalDebit,
@@ -179,6 +228,7 @@ fun TrialBalanceScreen(
                             )
                         }
                     }
+
                     item { Spacer(modifier = Modifier.height(24.dp)) }
                 }
             }
@@ -187,8 +237,11 @@ fun TrialBalanceScreen(
 }
 
 @Composable
-private fun TotalSummaryCard(totalDebit: Double, totalCredit: Double, imbalance: Double) {
-
+private fun TotalSummaryCard(
+    totalDebit: Double,
+    totalCredit: Double,
+    imbalance: Double
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -207,7 +260,12 @@ private fun TotalSummaryCard(totalDebit: Double, totalCredit: Double, imbalance:
                     .background(BluePrimary),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.BarChart, contentDescription = null, tint = whiteBg, modifier = Modifier.size(16.dp))
+                Icon(
+                    Icons.Default.BarChart,
+                    contentDescription = null,
+                    tint = whiteBg,
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
         HorizontalDivider(color = BorderGray, modifier = Modifier.padding(vertical = 12.dp))
@@ -222,10 +280,11 @@ private fun TotalSummaryCard(totalDebit: Double, totalCredit: Double, imbalance:
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("Total Credit", fontSize = 12.sp, color = TextSecondary)
-                Text(formatAmount(totalCredit), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Green)
+                Text(formatAmount(totalCredit), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GreenText)
             }
         }
 
+        // Show imbalance indicator if debits and credits do not balance
         if (imbalance != 0.0) {
             Spacer(Modifier.height(14.dp))
             Row(
@@ -238,7 +297,12 @@ private fun TotalSummaryCard(totalDebit: Double, totalCredit: Double, imbalance:
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = RedText, modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = RedText,
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(Modifier.width(6.dp))
                     Text("Imbalance", color = RedText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }

@@ -32,7 +32,7 @@ interface AuthApiService {
     @POST("/api/forgot-password/verify-otp")
     suspend fun forgotPasswordVerify(@Body request: forgotPasswordVerifyRequest): Response<forgotPasswordVerifyResponse>
 
-    @POST("api/forgot-password/reset-password")
+    @POST("/api/forgot-password/reset-password")
     suspend fun resetNewPassword(@Body request: resetNewPasswordRequest): Response<resetNewPasswordResponse>
 
     @POST("/api/auth/google/login")

@@ -39,10 +39,10 @@ import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.greenBg
 import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.redBg
-import com.cuso.mobile.ui.theme.redtext
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.ui.theme.yellowBg
-import com.cuso.mobile.ui.theme.yellowtext
+import com.cuso.mobile.ui.theme.yellowText
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -315,17 +315,17 @@ private fun formatGarmentsSummary(garments: String): String {
 
 fun orderStatusColors(status: String?): Pair<Color, Color> = when (status?.lowercase()) {
     "confirmed"  -> greenBg to greentext
-    "pending"    -> yellowBg to yellowtext
+    "pending"    -> yellowBg to yellowText
     "processing" -> Color(0xFFF3E5F5) to Color(0xFF9C27B0)
     "completed"  -> greenBg to greentext
-    "cancelled"  -> redBg to redtext
+    "cancelled"  -> redBg to redText
     else         -> Color(0xFFE3F2FD) to Color(0xFF1976D2)
 }
 
 fun paymentStatusColors(status: String): Pair<Color, Color> = when (status.lowercase()) {
     "paid"    -> greenBg to greentext
-    "partial" -> yellowBg to yellowtext
-    "unpaid"  -> redBg to redtext
+    "partial" -> yellowBg to yellowText
+    "unpaid"  -> redBg to redText
     else      -> Color(0xFFF3F4F6) to Color(0xFF6B7280)
 }
 

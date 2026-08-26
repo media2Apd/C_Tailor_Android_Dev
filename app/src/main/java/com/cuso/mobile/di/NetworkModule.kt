@@ -28,8 +28,8 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "http://192.168.0.7:5000"
-    // private const val BASE_URL = "https://cuso-tailor-production.onrender.com"
+    private const val BASE_URL = "http://192.168.0.5:5000"
+//     private const val BASE_URL = "https://cuso-tailor-production.onrender.com"
 
     // ---------------------------------------------------------
     // Base Network Infrastructure

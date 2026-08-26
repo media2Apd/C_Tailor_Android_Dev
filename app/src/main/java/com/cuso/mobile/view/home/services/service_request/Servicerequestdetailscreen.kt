@@ -7,12 +7,12 @@
     "unused_parameter",
     "UnusedMaterial3ScaffoldPaddingParameter"
 )
-package com.cuso.mobile.view.home.services
+
+package com.cuso.mobile.view.home.services.service_request
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Image
@@ -31,14 +30,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.computeHorizontalBounds
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cuso.mobile.ui.theme.TitleColor
-import com.cuso.mobile.ui.theme.modelGray
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.TitleBar
 
@@ -88,7 +86,7 @@ data class ServiceDetails(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ServiceOrderDetailsScreen(
+fun ServiceRequetDetailsScreen(
     service: ServiceDetails,
     order: OrderDetails,
     onBack: () -> Unit = {},
@@ -311,7 +309,7 @@ fun ServiceOrderDetailsScreen(
                         onValueChange = { serviceCharge = it },
                         modifier = Modifier.width(110.dp),
                         singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.End),
+                        textStyle = TextStyle(fontSize = 14.sp, textAlign = TextAlign.End),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = Color.Transparent,
@@ -352,7 +350,7 @@ fun ServiceOrderDetailsScreen(
 // ---------- Reusable pieces ----------
 
 @Composable
-private fun SectionHeader(icon: androidx.compose.ui.graphics.vector.ImageVector?, title: String) {
+private fun SectionHeader(icon: ImageVector?, title: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp).background(whiteBg)
@@ -403,37 +401,3 @@ private fun StatusChip(text: String, bg: Color, fg: Color) {
     }
 }
 
-// ---------- Preview with sample data matching the reference screens ----------
-
-@Preview(showBackground = true, widthDp = 360, heightDp = 900)
-@Composable
-private fun ServiceOrderDetailsScreenPreview() {
-    MaterialTheme {
-        ServiceOrderDetailsScreen(
-            service = ServiceDetails(
-                serviceRef = "SR-1045",
-                reviewStatus = "Pending Review",
-                service = "Bespoke Alteration",
-                requestDate = "Oct 24, 2025",
-                priority = "High",
-                serviceCategory = "Suit Fitting & Adjustments",
-                preferredCompletionDate = "Nov 15, 2023",
-                serviceType = "Internal Production Refit",
-                customerName = "Jonathan Sterling",
-                phoneNumber = "+1 (555) 123-4567",
-                emailAddress = "j.sterling@executive.com",
-                shippingAddress = "452 Premium Way, Floor 12\nManhattan, NY 10001"
-            ),
-            order = OrderDetails(
-                orderId = "#ORD-8829-23",
-                status = "Completed",
-                garmentItem = "Custom Charcoal 3-Piece Wool Suit",
-                orderDate = "Sep 12, 2023",
-                deliveryDate = "Oct 15, 2023",
-                issueDescription = "The sleeves are approximately 2 inches too long and the waist needs to be taken in by 1 inch for a better fit. The customer also requested to check the shoulder alignment as it feels slightly loose on the left side.",
-                internalNotes = "Check fabric elasticity before cutting. This particular silk blend is prone to fraying at the seams. Suggest reinforcing the waist darts.",
-                attachmentCount = 3
-            )
-        )
-    }
-}

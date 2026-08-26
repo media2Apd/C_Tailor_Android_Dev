@@ -440,8 +440,8 @@ fun OrderOverviewScreen(
                                 onBack = { currentOrderData?.let { onEditOrder(it.toOrderReviewData()) } },
                                 backEnabled = currentOrderData != null,
                                 backLabel = "Edit Order",
-                                backWidthFraction = 0.25f,
-                                trailingWidthFraction = 0.30f,
+                                backWidthFraction = 0.30f,
+                                trailingWidthFraction = 0.35f,
                                 trailingAction = TrailingFabAction.Next(
                                     label = "Create New",
                                     onClick = onCreateNew

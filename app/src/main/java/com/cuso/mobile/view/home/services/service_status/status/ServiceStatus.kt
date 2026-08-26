@@ -6,9 +6,11 @@
     "AssignedValueIsNeverRead",
     "GrazieInspection",
     "SpellCheckingInspection",
-    "unusedvariable", "VariableNeverRead"
+    "unusedvariable",
+    "VariableNeverRead"
 )
-package com.cuso.mobile.view.home.sales.ordermanagement
+
+package com.cuso.mobile.view.home.services.service_status.status
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -56,12 +58,8 @@ import com.cuso.mobile.viewmodel.OrderManagementViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 
-// -------------------------------------------------------------
-// Order Management Screen (Infinite Scrolling)
-// -------------------------------------------------------------
-@Suppress("UNUSED_PARAMETER")
 @Composable
-fun OrderManagementScreen(
+fun ServiceStatusScreen(
     navController: NavController,
     onMenuClick: () -> Unit = {},
     onBack: () -> Unit = {},
@@ -80,7 +78,6 @@ fun OrderManagementScreen(
     var statusFilter by remember { mutableStateOf("all") }
     val itemsPerPage = 10
 
-    // Infinite scroll trigger
     LaunchedEffect(listState) {
         snapshotFlow {
             val info = listState.layoutInfo
@@ -96,7 +93,6 @@ fun OrderManagementScreen(
             }
     }
 
-    // Debounced search and filter listener
     LaunchedEffect(searchQuery, statusFilter) {
         delay(400)
         viewModel.fetchOrderManagement(
@@ -113,18 +109,16 @@ fun OrderManagementScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
-            // Header
             Column(modifier = Modifier.fillMaxWidth()) {
-                TitleBar("Orders Management", onClose = onBack)
+                TitleBar("Service Status", onClose = onBack)
             }
 
-            // Breadcrumb + Search + Filter
             Column(modifier = Modifier.fillMaxWidth()) {
-                ScreenBreadcrumb(segments = listOf("Sales", "Orders Management"), onClick = { onBreadCrumbClick() })
+                ScreenBreadcrumb(segments = listOf("Services", "Service Status"), onClick = { onBreadCrumbClick() })
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
-                    placeholder = "Search Orders...",
+                    placeholder = "Search Service Status...",
                     accentColor = BluePrimary,
                     borderColor = BorderGray,
                     textSecondaryColor = TextSecondary,
@@ -134,7 +128,6 @@ fun OrderManagementScreen(
 
             HorizontalDivider(color = Color(0xFFF0F0F0))
 
-            // Content
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when {
                     isLoading -> {
@@ -177,7 +170,7 @@ fun OrderManagementScreen(
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(Icons.Default.Receipt, null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
                                     Spacer(Modifier.height(8.dp))
-                                    Text("No orders found", color = Color.Gray, fontSize = 15.sp)
+                                    Text("No service records found", color = Color.Gray, fontSize = 15.sp)
                                 }
                             }
                         } else {
@@ -187,14 +180,13 @@ fun OrderManagementScreen(
                                     modifier = Modifier.fillMaxWidth().weight(1f)
                                 ) {
                                     items(orders, key = { it.id }) { order ->
-                                        OrderManagementCard(
+                                        ServiceStatusCard(
                                             order = order,
                                             onView = { onViewOrder(order.id) },
                                             onEdit = { onEditOrder(order.id) }
                                         )
                                     }
 
-                                    // Bottom loader when fetching next page
                                     if (isLoadingMore) {
                                         item {
                                             Box(
@@ -219,11 +211,28 @@ fun OrderManagementScreen(
     }
 }
 
-// -------------------------------------------------------------
-// Individual Order Card
-// -------------------------------------------------------------
+// Backward-compatible alias for existing references
 @Composable
-private fun OrderManagementCard(
+fun OrderManagementScreen(
+    navController: NavController,
+    onMenuClick: () -> Unit = {},
+    onBack: () -> Unit = {},
+    onViewOrder: (String) -> Unit = {},
+    onEditOrder: (String) -> Unit = {},
+    onBreadCrumbClick: () -> Unit = {}
+) {
+    ServiceStatusScreen(
+        navController = navController,
+        onMenuClick = onMenuClick,
+        onBack = onBack,
+        onViewOrder = onViewOrder,
+        onEditOrder = onEditOrder,
+        onBreadCrumbClick = onBreadCrumbClick
+    )
+}
+
+@Composable
+private fun ServiceStatusCard(
     order: OrderManagementItem,
     onView: () -> Unit,
     onEdit: () -> Unit
@@ -287,9 +296,6 @@ private fun OrderManagementCard(
     )
 }
 
-// -------------------------------------------------------------
-// Date Formatter Helper
-// -------------------------------------------------------------
 private fun formatIsoDate(iso: String?): String {
     if (iso.isNullOrBlank()) return "—"
     return try {

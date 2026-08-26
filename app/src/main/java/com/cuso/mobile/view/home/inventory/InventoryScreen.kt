@@ -1,9 +1,15 @@
 package com.cuso.mobile.view.home.inventory
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -11,6 +17,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,22 +35,22 @@ import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
-import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.InventoryViewModel
+import kotlinx.coroutines.delay
 
 private val InventoryBg = Color(0xFFF5F5F5)
 
-// stockStatus badge colors — "Not Tracked" red/pink, "In Stock" green, "Low Stock" orange, fallback gray
 private fun inventoryStatusColors(status: String?): Pair<Color, Color> {
-    val safeStatus = status.orEmpty()   //   CHANGED: null-safe fallback
+    val safeStatus = status.orEmpty()
     return when {
         safeStatus.contains("In Stock", ignoreCase = true) && !safeStatus.contains("inactive", ignoreCase = true) ->
             Pair(Color(0xFF16A34A), Color(0xFFDCFCE7))
@@ -64,38 +71,55 @@ fun InventoryScreen(
     onClose: () -> Unit = {},
     onAddItem: () -> Unit = {},
     onViewItem: (InventoryItem) -> Unit = {},
-    onEditItem: () -> Unit = {},   //   CHANGED — no item param needed; form is populated in the ViewModel before navigating
+    onEditItem: () -> Unit = {},
     inventoryViewModel: InventoryViewModel = hiltViewModel(),
-    onBreadCrumbClick: () -> Unit ={}
-
+    onBreadCrumbClick: () -> Unit = {}
 ) {
     val items by inventoryViewModel.inventoryItems.collectAsStateWithLifecycle()
     val isLoading by inventoryViewModel.isLoadingInventoryItems.collectAsStateWithLifecycle()
+    val isLoadingMore by inventoryViewModel.isLoadingMoreInventoryItems.collectAsStateWithLifecycle()
+    val canLoadMore by inventoryViewModel.canLoadMoreInventoryItems.collectAsStateWithLifecycle()
     val errorMessage by inventoryViewModel.inventoryError.collectAsStateWithLifecycle()
-    val viewOneItem by inventoryViewModel.viewOneItem.collectAsStateWithLifecycle()   //   drives the Edit prefill flow
+    val viewOneItem by inventoryViewModel.viewOneItem.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
 
+    // Initial fetch
     LaunchedEffect(Unit) {
         inventoryViewModel.fetchInventoryItems()
     }
 
-    //   FIXED — once GetInventoryViewOne succeeds, push the response into the
-    // create/edit form state, then navigate to CreateItemScreen (which reads
-    // that same form state and renders in Edit mode).
+    // Debounced search that resets pagination and calls backend API
+    LaunchedEffect(searchQuery) {
+        delay(400)
+        inventoryViewModel.fetchInventoryItems(search = searchQuery.trim().ifBlank { null })
+    }
+
+    // Detect when the user scrolls near the end (2 items buffer)
+    val shouldLoadMore = remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val totalItemsNumber = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+
+            totalItemsNumber > 0 && lastVisibleItemIndex >= totalItemsNumber - 2
+        }
+    }
+
+    // Trigger load more when reaching the end of list
+    LaunchedEffect(shouldLoadMore.value) {
+        if (shouldLoadMore.value && canLoadMore && !isLoadingMore && !isLoading) {
+            inventoryViewModel.loadMoreInventoryItems()
+        }
+    }
+
+    // Handle view-one prefill for editing
     LaunchedEffect(viewOneItem) {
         viewOneItem?.let { item ->
             inventoryViewModel.populateFormForEdit(item)
             onEditItem()
             inventoryViewModel.clearViewOneItem()
-        }
-    }
-
-    val filtered = remember(items, searchQuery) {
-        if (searchQuery.isBlank()) items
-        else items.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.sku.contains(searchQuery, ignoreCase = true)
         }
     }
 
@@ -106,29 +130,25 @@ fun InventoryScreen(
     ) {
         // ── Header ──
         Row(
-            modifier = Modifier
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             TitleBar("All Items", onClose = onClose)
-
         }
 
-        Column(
-            Modifier
-                .fillMaxWidth()
-        ) {
+        Column(Modifier.fillMaxWidth()) {
             // ── Breadcrumb ──
             ScreenBreadcrumb(
                 segments = listOf("Inventory", "All Items"),
-                onClick = {onBreadCrumbClick()}
+                onClick = { onBreadCrumbClick() }
             )
 
+            // ── Search & Filter ──
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
-                placeholder = "Search Customers...",
+                placeholder = "Search Items...",
                 accentColor = BluePrimary,
                 borderColor = BorderGray,
                 textSecondaryColor = TextSecondary,
@@ -137,22 +157,49 @@ fun InventoryScreen(
         }
         HorizontalDivider(color = Color(0xFFF0F0F0))
 
-
         when {
-            isLoading -> {
+            // Loading initial page skeleton
+            isLoading && items.isEmpty() -> {
                 ListSkeleton()
             }
 
-            errorMessage != null -> {
+            // Error state
+            errorMessage != null && items.isEmpty() -> {
                 Box(
-                    modifier = Modifier.fillMaxSize().background(InventoryBg),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(InventoryBg),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(errorMessage ?: "Failed to load items", color = Color.Red, fontSize = 13.sp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color.Red,
+                            modifier = Modifier.size(44.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = errorMessage ?: "Failed to load items",
+                            color = Color.Red,
+                            fontSize = 14.sp
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(
+                            onClick = {
+                                inventoryViewModel.fetchInventoryItems(search = searchQuery.trim().ifBlank { null })
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Retry", color = whiteBg, fontSize = 14.sp)
+                        }
+                    }
                 }
             }
 
-            filtered.isEmpty() -> {
+            // Empty state
+            items.isEmpty() -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -167,10 +214,20 @@ fun InventoryScreen(
                             .background(Color(0xFFE7E5FE)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Inventory2, contentDescription = null, tint = Color(0xFF9B96F5), modifier = Modifier.size(30.dp))
+                        Icon(
+                            Icons.Default.Inventory2,
+                            contentDescription = null,
+                            tint = Color(0xFF9B96F5),
+                            modifier = Modifier.size(30.dp)
+                        )
                     }
                     Spacer(Modifier.height(16.dp))
-                    Text("No Items Found", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                    Text(
+                        "No Items Found",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF111827)
+                    )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "Start by adding your first inventory item",
@@ -185,13 +242,24 @@ fun InventoryScreen(
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = whiteBg, modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            tint = whiteBg,
+                            modifier = Modifier.size(18.dp)
+                        )
                         Spacer(Modifier.width(6.dp))
-                        Text("Add Item", color = whiteBg, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            "Add Item",
+                            color = whiteBg,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }
 
+            // Paginated items list with item placement & entry animations
             else -> {
                 FabScaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -202,14 +270,18 @@ fun InventoryScreen(
                     )
                 ) {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().background(Color.Transparent)
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Transparent)
                     ) {
-                        items(filtered, key = { it._id }) { item ->
+                        items(items, key = { it._id }) { item ->
                             val (badgeFg, badgeBg) = inventoryStatusColors(item.stockStatus)
                             val stockText = if (!item.trackInventory) "—" else item.currentStock.toInt().toString()
 
                             DataCard(
                                 item = item,
+                                modifier = Modifier.animateItem(), // Smooth animation for item updates & list insertions
                                 title = "${item.sku} • SKU",
                                 subtitle = item.name,
                                 topBadgeText = item.stockStatus,
@@ -218,9 +290,15 @@ fun InventoryScreen(
                                 topBadgeInline = true,
                                 footerAsRows = true,
                                 footerFields = listOf(
-                                    DataCardField(label = "Type", text = item.type.replaceFirstChar { it.uppercase() }),
+                                    DataCardField(
+                                        label = "Type",
+                                        text = item.type.replaceFirstChar { it.uppercase() }
+                                    ),
                                     DataCardField(label = "Stock", text = stockText),
-                                    DataCardField(label = "Selling Price", text = "₹${"%.2f".format(item.sellingPrice)}")
+                                    DataCardField(
+                                        label = "Selling Price",
+                                        text = "₹${"%.2f".format(item.sellingPrice)}"
+                                    )
                                 ),
                                 actions = listOf(
                                     MenuAction(
@@ -231,17 +309,41 @@ fun InventoryScreen(
                                     MenuAction(
                                         label = "Edit",
                                         icon = Icons.Default.Edit,
-                                        onClick = { inventoryViewModel.onViewOneClicked(item._id) }   //   triggers GetInventoryViewOne → prefill → navigate
+                                        onClick = { inventoryViewModel.onViewOneClicked(item._id) }
                                     ),
                                     MenuAction(
                                         label = "Delete",
                                         icon = Icons.Default.Delete,
                                         onClick = { onViewItem(item) }
-                                    ),
-
                                     )
+                                )
                             )
                         }
+
+                        // Animated pagination loading spinner at the bottom
+                        item {
+                            Column(Modifier.fillMaxWidth()) {
+                                AnimatedVisibility(
+                                    visible = isLoadingMore,
+                                    enter = fadeIn() + slideInVertically { it / 2 },
+                                    exit = fadeOut() + slideOutVertically { it / 2 }
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            color = BluePrimary,
+                                            strokeWidth = 2.5.dp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         item { Spacer(Modifier.height(80.dp)) }
                     }
                 }

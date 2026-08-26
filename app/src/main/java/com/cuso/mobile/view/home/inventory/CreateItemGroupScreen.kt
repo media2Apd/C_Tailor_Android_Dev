@@ -12,6 +12,9 @@ package com.cuso.mobile.view.home.inventory
 
 
 import android.annotation.SuppressLint
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -78,6 +81,7 @@ import androidx.compose.ui.unit.Dp
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
+import com.cuso.mobile.view.composable.ImageUploadSection
 import com.cuso.mobile.view.composable.TitleBar
 
 
@@ -113,7 +117,7 @@ fun CreateItemGroupScreen(
     onSave: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    val FieldShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
+    val fieldShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
 
     var expandedSection by remember { mutableStateOf("Item Group Information") }
 
@@ -156,6 +160,15 @@ fun CreateItemGroupScreen(
             VariantEntry(label = "Item - Blue / L", sku = "ITM-BLUE-L")
         )
     }
+    var itemGroupImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            itemGroupImages = itemGroupImages + uris
+        }
+    }
     var bulkCost by remember { mutableStateOf("0") }
     var bulkPrice by remember { mutableStateOf("0") }
     var bulkReorder by remember { mutableStateOf("0") }
@@ -173,7 +186,7 @@ fun CreateItemGroupScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TitleBar("Create customer", onClose = onDismiss)
+                TitleBar("Create Item Group", onClose = onDismiss)
 
             }
             HorizontalDivider(color = BorderColor)
@@ -214,7 +227,7 @@ fun CreateItemGroupScreen(
                         value = description,
                         onValueChange = { description = it },
                         placeholder = { Text("Add detailed information about this fabric group..", color = Color(0xFF9CA3AF), fontSize = tokens.bodySmall) },
-                        shape = FieldShape,
+                        shape = fieldShape,
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = BorderColor,
                             focusedBorderColor = AccentColor
@@ -243,7 +256,19 @@ fun CreateItemGroupScreen(
                     Spacer(Modifier.height(tokens.screenPadding * 0.9f))
                     Text("Item Group Image", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = LabelColor)
                     Spacer(Modifier.height(8.dp))
-                    UploadImageBox()
+
+                    ImageUploadSection(
+                        selectedImages = itemGroupImages,
+                        browseText = "Browse Files",
+                        onBrowseClick = {
+                            imagePickerLauncher.launch("*/*")
+                        },
+                        onCameraClick = null,
+                        onRemoveImage = { removedImage ->
+                            itemGroupImages = itemGroupImages.filter { it != removedImage }
+                        },
+                        previewHeaderTitle = "ATTACHED FILES"
+                    )
 
                     Spacer(Modifier.height(tokens.screenPadding * 0.9f))
                     Row(
@@ -254,7 +279,7 @@ fun CreateItemGroupScreen(
                         Text("Status", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TitleColor)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                if (status) "Active" else "Inactive",
+                                text = if (status) "Active" else "Inactive",
                                 fontSize = tokens.bodySmall,
                                 color = if (status) AccentColor else LabelColor,
                                 fontWeight = FontWeight.Medium
@@ -394,7 +419,7 @@ fun CreateItemGroupScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, BorderColor, FieldShape)
+                            .border(1.dp, BorderColor, fieldShape)
                             .padding(3.dp)
                     ) {
                         listOf("Manual", "Auto All").forEach { option ->

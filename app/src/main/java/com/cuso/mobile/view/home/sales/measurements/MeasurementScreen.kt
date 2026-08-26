@@ -62,7 +62,7 @@ import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.ui.theme.yellowBg
-import com.cuso.mobile.ui.theme.yellowtext
+import com.cuso.mobile.ui.theme.yellowText
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -281,7 +281,7 @@ fun MeasurementsScreen(
                                     "₹${formatAmount(pendingAmount)} Pending"
                                 }
 
-                                val badgeTextColor = if (isPaid) greentext else yellowtext
+                                val badgeTextColor = if (isPaid) greentext else yellowText
                                 val badgeBgColor = if (isPaid) greenBg else yellowBg
 
                                 DataCard(

@@ -10,7 +10,6 @@
 )
 package com.cuso.mobile.view.home.finance
 
-
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,8 +17,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.filled.InsertDriveFile
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -27,7 +24,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -46,11 +42,12 @@ import com.cuso.mobile.model.finance.JournalEntryLineRequest
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.BackFabButton
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
-import com.cuso.mobile.view.composable.BackFabButton
+import com.cuso.mobile.view.composable.ImageUploadSection
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.PlanLimitDialog
 import com.cuso.mobile.view.composable.TrailingFabAction
@@ -82,7 +79,7 @@ data class JournalLineDraft(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JournalEntryFormScreen(
-    mode: String = "create",   // "create" | "view" | "edit"
+    mode: String = "create",
     entryId: String? = null,
     existingEntry: com.cuso.mobile.model.finance.JournalEntryItem? = null,
     onClose: () -> Unit = {},
@@ -91,7 +88,6 @@ fun JournalEntryFormScreen(
     branchViewModel: BranchViewModel = hiltViewModel()
 ) {
     val isReadOnly = mode == "view"
-
     val isPrefillMode = mode == "view" || mode == "edit"
 
     val journalDetail by financeViewModel.journalEntryDetail.collectAsStateWithLifecycle()
@@ -137,44 +133,28 @@ fun JournalEntryFormScreen(
     var expenseDetailsExpanded by remember { mutableStateOf(true) }
 
     var journalNo by remember { mutableStateOf("") }
-    var financialYear by remember { mutableStateOf("") }
-
     var branch: String? by remember { mutableStateOf("") }
     var selectedBranchId by remember { mutableStateOf("") }
     var branchExpanded by remember { mutableStateOf(false) }
 
-    var currency by remember { mutableStateOf("") }
-
     var date by remember {
         mutableStateOf(
-            //   default to today's date in create mode; view/edit modes
-            // overwrite this from journalDetail in the LaunchedEffect below
             if (mode == "create")
                 java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault()).format(java.util.Date())
             else ""
         )
     }
-    var company by remember { mutableStateOf("Select an option") }
-    var companyExpanded by remember { mutableStateOf(false) }
-
-    var department by remember { mutableStateOf("Select an option") }
-    var departmentExpanded by remember { mutableStateOf(false) }
-
-    var journalType by remember { mutableStateOf("Select an option") }
-    var journalTypeExpanded by remember { mutableStateOf(false) }
 
     var lines by remember {
         mutableStateOf(listOf(JournalLineDraft(id = "line_1")))
     }
 
     var notes by remember { mutableStateOf("") }
-
     var journalRef by remember { mutableStateOf("") }
 
-//   NEW — Documentation & Receipts upload state
-    //   NEW — Documentation & Receipts upload state
     var uploadedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
+    // Launcher configured to pick any file type (PDF, DOCX, Images, etc.)
     val documentPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
@@ -183,11 +163,8 @@ fun JournalEntryFormScreen(
         }
     }
 
-//   NEW — Plan gating for document upload
     var showPlanLimitDialog by remember { mutableStateOf(false) }
-
-// e.g. organizationViewModel.organization.plan?.name
-    val currentPlanName = "starter" // "starter" | "light" | "pro" | "premium" etc.
+    val currentPlanName = "starter"
     val isUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
             currentPlanName.equals("light", ignoreCase = true)
 
@@ -196,12 +173,9 @@ fun JournalEntryFormScreen(
     val isBalanced = remember(totalDebit, totalCredit) {
         kotlin.math.abs(totalDebit - totalCredit) < 0.001
     }
-    //   NEW — every line must have an Account selected before posting
     val allLinesHaveAccount = remember(lines) {
         lines.isNotEmpty() && lines.all { it.account.isNotBlank() }
     }
-    //   NEW — button should stay disabled if totals are zero (nothing entered),
-    // debit/credit aren't balanced, or any line is missing an Account selection
     val canPost = remember(totalDebit, totalCredit, isBalanced, allLinesHaveAccount) {
         isBalanced && (totalDebit > 0.0 || totalCredit > 0.0) && allLinesHaveAccount
     }
@@ -214,7 +188,6 @@ fun JournalEntryFormScreen(
         }
     }
 
-    //   NEW — mirrors createJournalState handling above, but for edit/update
     val updateJournalState by financeViewModel.updateJournalState.collectAsStateWithLifecycle()
     LaunchedEffect(updateJournalState) {
         if (updateJournalState is UpdateJournalState.Success) {
@@ -236,8 +209,6 @@ fun JournalEntryFormScreen(
         }
     }
 
-    // waits for both the full detail AND the branch list, so branch
-    // name/id can be matched correctly (detail only has branchId, not the name).
     LaunchedEffect(journalDetail, branches) {
         val entry = journalDetail ?: return@LaunchedEffect
         journalNo = entry.entryNumber
@@ -306,9 +277,6 @@ fun JournalEntryFormScreen(
 
         val readyToShowForm = !isPrefillMode || (journalDetail != null && !isLoadingDetail)
 
-        //  everything that should scroll together now lives inside this one
-        // Column. Only the top title bar and the bottom Cancel/Post footer stay
-        // outside, so they remain fixed while the body scrolls.
         if (readyToShowForm) {
             Column(
                 modifier = Modifier
@@ -356,8 +324,6 @@ fun JournalEntryFormScreen(
                         )
                         Spacer(Modifier.height(14.dp))
 
-                        Spacer(Modifier.height(14.dp))
-
                         FormDropdown(
                             label = "Branch",
                             value = branch?.ifBlank { "Select an option" } ?: "",
@@ -387,21 +353,10 @@ fun JournalEntryFormScreen(
                         }
                         Spacer(Modifier.height(14.dp))
 
-                        Spacer(Modifier.height(14.dp))
-
                         FormLabel("End Date")
-                        //  pass `enabled = !isReadOnly` straight into DatePickerField
-                        // so the field itself is visually + functionally disabled in
-                        // View mode and the picker can't even be opened.
-                        //
-                        // NOTE: This assumes DatePickerField exposes an `enabled: Boolean`
-                        // parameter (same pattern as FormTextField/FormDropdown below).
-                        // If your DatePickerField composable doesn't have that param yet,
-                        // share it and I'll add it — the fix is to gate the onClick that
-                        // opens the dialog behind `enabled`.
                         DatePickerField(
                             value = date,
-                            enabled = !isReadOnly,   //   NEW
+                            enabled = !isReadOnly,
                             onDateSelected = { if (!isReadOnly) date = it }
                         )
                         Spacer(Modifier.height(14.dp))
@@ -415,8 +370,6 @@ fun JournalEntryFormScreen(
                         )
                         Spacer(Modifier.height(14.dp))
 
-                        Spacer(Modifier.height(14.dp))
-
                         lines.forEachIndexed { index, line ->
                             JournalLineRow(
                                 line = line,
@@ -428,7 +381,7 @@ fun JournalEntryFormScreen(
                             Spacer(Modifier.height(10.dp))
                         }
 
-                        if (!isReadOnly) {   // hide "Add Entry" entirely in view mode
+                        if (!isReadOnly) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -476,85 +429,36 @@ fun JournalEntryFormScreen(
                 }
                 HorizontalDivider(color = BorderGray)
 
+                // Documentation & Receipts Upload Section supporting all file types
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                 ) {
                     FormLabel("Documentation & Receipts")
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp)
-                            .background(PanelBg, RoundedCornerShape(8.dp))
-                            .border(1.dp, BorderGray, RoundedCornerShape(8.dp))
-                            .clickable(enabled = !isReadOnly) {
+                    Spacer(Modifier.height(8.dp))
+
+                    ImageUploadSection(
+                        selectedImages = uploadedFiles,
+                        browseText = if (isReadOnly) "No files attached" else "Browse Files",
+                        onBrowseClick = {
+                            if (!isReadOnly) {
                                 if (isUploadRestricted) {
                                     showPlanLimitDialog = true
                                 } else {
-                                    documentPickerLauncher.launch(arrayOf("image/*", "application/pdf"))
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.CloudUpload, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(28.dp))
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                if (isReadOnly) "No files attached" else "Tap to upload files",
-                                fontSize = 13.sp,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-
-                    //   NEW — show selected files with a remove option
-                    if (uploadedFiles.isNotEmpty()) {
-                        Spacer(Modifier.height(10.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            uploadedFiles.forEachIndexed { index, uri ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(PanelBg, RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.InsertDriveFile,
-                                            contentDescription = null,
-                                            tint = BluePrimary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Text(
-                                            uri.lastPathSegment ?: "File ${index + 1}",
-                                            fontSize = 13.sp,
-                                            color = Color(0xFF374151),
-                                            maxLines = 1
-                                        )
-                                    }
-                                    if (!isReadOnly) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = "Remove file",
-                                            tint = RedText,
-                                            modifier = Modifier
-                                                .size(16.dp)
-                                                .clickable {
-                                                    uploadedFiles = uploadedFiles.toMutableList().also { it.removeAt(index) }
-                                                }
-                                        )
-                                    }
+                                    // Accept all file types: PDF, Word, Excel, Images, etc.
+                                    documentPickerLauncher.launch(arrayOf("*/*"))
                                 }
                             }
-                        }
-                    }
+                        },
+                        onCameraClick = null,
+                        onRemoveImage = { removedFile ->
+                            if (!isReadOnly) {
+                                uploadedFiles = uploadedFiles.filter { it != removedFile }
+                            }
+                        },
+                        previewHeaderTitle = "ATTACHED FILES"
+                    )
                 }
                 HorizontalDivider(color = BorderGray)
 
@@ -645,7 +549,6 @@ fun JournalEntryFormScreen(
                     }
                 }
 
-                // small bottom padding so the last card isn't flush against the footer divider
                 Spacer(Modifier.height(12.dp))
             }
         }
@@ -663,13 +566,12 @@ fun JournalEntryFormScreen(
                 label = "Cancel"
             )
             Spacer(Modifier.width(12.dp))
-            if (!isReadOnly) {   // hide Post/Update button entirely in view mode
+            if (!isReadOnly) {
                 TrailingFabButton(
                     action = TrailingFabAction.Update(
-                        //   CHANGED — loading now reflects whichever operation is in flight
                         isLoading = createJournalState is CreateJournalState.Loading ||
                                 updateJournalState is UpdateJournalState.Loading,
-                        enabled = canPost,   //   NEW — disabled until debit/credit are entered and balanced
+                        enabled = canPost,
                         label = if (mode == "edit") "Update Journal" else "Post Journal",
                         onClick = {
                             if (canPost) {
@@ -685,7 +587,6 @@ fun JournalEntryFormScreen(
                                     )
                                 }
                                 if (mode == "edit" && entryId != null) {
-
                                     financeViewModel.updateJournal(
                                         id = entryId,
                                         branchId = selectedBranchId,
@@ -711,8 +612,6 @@ fun JournalEntryFormScreen(
                 )
             }
 
-
-            //   NEW — surfaces update-specific errors the same way create errors are shown
             if (updateJournalState is UpdateJournalState.Error) {
                 Text(
                     (updateJournalState as UpdateJournalState.Error).message,
@@ -723,7 +622,6 @@ fun JournalEntryFormScreen(
         }
     }
 
-    //   NEW — Plan limit dialog for document upload
     if (showPlanLimitDialog) {
         PlanLimitDialog(
             title = "Feature restricted",
@@ -833,7 +731,7 @@ private fun LineFieldRow(
 
 private fun formatIsoToDDMMYYYY(iso: String): String {
     return try {
-        val datePart = iso.take(10) // "2026-07-16"
+        val datePart = iso.take(10)
         val parts = datePart.split("-")
         if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else iso
     } catch (_: Exception) {

@@ -34,6 +34,7 @@ import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.redBg
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
@@ -44,7 +45,7 @@ import com.cuso.mobile.view.composable.blurScrim
 
 // ── Design tokens ──
 private val HrPrimary = Primary
-private val CriticalRed = redBg
+private val CriticalRed = redText
 private val WarningOrange = Color(0xFFF59E0B)
 private val HealthyGreen = greentext
 private val TitleColor = title_color
@@ -143,7 +144,7 @@ fun AttendanceScreen(
                         // ── Breadcrumb + Export ──
                         item {
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding, vertical = 10.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(modifier = Modifier.weight(1f)) {

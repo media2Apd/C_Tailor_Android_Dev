@@ -130,6 +130,7 @@ import com.cuso.mobile.viewmodel.DashboardUiState
 import com.cuso.mobile.viewmodel.DashboardViewModel
 import com.cuso.mobile.viewmodel.HomeViewModel
 import com.cuso.mobile.viewmodel.HrViewModel
+import com.cuso.mobile.viewmodel.OrderOverviewState
 import com.cuso.mobile.viewmodel.OrderOverviewViewModel
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.SettingsViewModel
@@ -238,6 +239,107 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+//    val implementedRoutes = remember {
+//        setOf(
+//            // ── Home & Settings ──
+//            "home",
+//            "settings",
+//            "profile-settings",
+//            "home_organization_profile",
+//            "home_branch_management",
+//            "home_department_teams",
+//            "home_designation",
+////            "home_role_management",
+////            "home_warehouse_management",
+////            "home_opening_balance",
+//
+//            // ── Sales ──
+//            "sales_lead",
+//            "create_lead",
+//            "view_lead",
+//            "edit_lead",
+//            "sales_customers",
+//            "create_customer",
+//            "view_customer",
+//            "edit_customer",
+//            "view_customer_recent",
+//            "sales_measurements",
+//            "sales_sales_orders",
+//            "create_order",
+//            "order_overview",
+//            "create_order_review",
+//            "sales_orders",
+//            "order_management_overview",
+//            "sales_pricing_overview",
+//            "create_garment_pricing",
+//            "garment_pricing_list",
+//            "sales_pricing_quotation",
+//            "create_quotation",
+////            "sales_payment_and_billing",
+////            "payment_detail",
+//            "sales_settings",
+//            "sales_garment_type",
+//
+//            // ── Finance ──
+//            "finance_sales_invoices",
+//            "finance_invoice_detail",
+////            "finance_purchase_invoices",
+////            "finance_purchase_invoice_detail",
+//            "finance_customers",
+////            "finance_suppliers",
+////            "finance_supplier_detail",
+//            "finance_expenses",
+//            "finance_chart_of_accounts",
+//            "finance_journal_screen",
+//            "finance_trial_balance",
+//            "finance_ledger",
+////            "finance_payments_received",
+////            "payment_detail_screen",
+////            "finance_payments_mode",
+////            "payment_mode_detail",
+//
+//            // ── Inventory ──
+//            "inventory_items",
+//            "inventory_create_item",
+//            "inventory_item_detail",
+////            "inventory_low_stock_alerts",
+////            "inventory_create_purchase_order",
+////            "inventory_item_groups",
+////            "inventory_create_item_group",
+//
+//            // ── HR ──
+//            "hr_all_employees",
+//            "hr_employee_onboarding",
+////            "hr_attendance",
+////            "hr_attendance_detail",
+//
+//            // ── Logistics ──
+////            "logistics_delivery",
+////            "delivery_detail",
+////            "logistics_order_tracking",
+////            "tracking_overview",
+//
+//            // ── Services ──
+////            "services_customer_feedback",
+////            "feedback_detail",
+////            "services_alteration_management",
+////            "create_alteration",
+////            "services_service_request",
+////            "create_request",
+////            "review_services",
+//
+//            // ── Reports ──
+////            "reports_sales",
+////            "reports_inventory",
+////            "reports_inventory_stock_summary",
+////            "reports_inventory_low_stock",
+////            "reports_inventory_warehouse_report",
+////            "reports_inventory_purchase_report",
+////            "reports_inventory_dead_stock",
+////            "reports_finance",
+////            "reports_finance_profit_and_loss_report"
+//        )
+//    }
     val implementedRoutes = remember {
         setOf(
             // ── Home & Settings ──
@@ -319,6 +421,13 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "tracking_overview",
 
             // ── Services ──
+            "services_service_status",
+            "services_delay_rework",
+            "services_service_delivery",
+            "service_status_detail",
+            "services_service_orders",
+            "services_service_order",
+            "service_order_overview",
             "services_customer_feedback",
             "feedback_detail",
             "services_alteration_management",
@@ -380,12 +489,12 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     LaunchedEffect(editOverviewState) {
         if (editOrderId == null) return@LaunchedEffect
         when (val s = editOverviewState) {
-            is com.cuso.mobile.viewmodel.OrderOverviewState.Success -> {
+            is OrderOverviewState.Success -> {
                 pendingOrderReviewData = s.data.toOrderReviewData()
                 navigateTo("create_order")
                 editOrderId = null
             }
-            is com.cuso.mobile.viewmodel.OrderOverviewState.Error -> {
+            is OrderOverviewState.Error -> {
                 Toast.makeText(context, "Failed to load order for editing", Toast.LENGTH_SHORT).show()
                 editOrderId = null
             }
@@ -457,7 +566,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 "feedback_detail" -> selectedFeedbackId = null
                 "view_customer", "edit_customer" -> selectedCustomer = null
                 "view_customer_recent" -> selectedRecentCustomerId = null
-                "order_overview" -> selectedOrderId = null
+                "order_overview", "service_order_overview" -> selectedOrderId = null
                 "order_management_overview" -> selectedManagementOrderId = null
                 "payment_mode_detail" -> selectedPaymentModeId = null
             }
@@ -1306,12 +1415,12 @@ private fun HomeScreenContentBody(
             QuickModule("Leads", R.drawable.ic_lead),
             QuickModule("Deals", R.drawable.ic_speaker),
             QuickModule("Tickets", R.drawable.ic_ticket),
-            QuickModule("Email", R.drawable.ic_contact),
-            QuickModule("Calendar", R.drawable.ic_contact),
-            QuickModule("Orders", R.drawable.ic_contact),
-            QuickModule("Reports", R.drawable.ic_contact),
-            QuickModule("Customer feedback", R.drawable.ic_contact),
-            QuickModule("Quotation Screen", R.drawable.ic_contact)
+            QuickModule("Email", R.drawable.ic_mail),
+            QuickModule("Calendar", R.drawable.ic_calendar),
+            QuickModule("Orders", R.drawable.box),
+            QuickModule("Reports", R.drawable.ic_report),
+            QuickModule("Customer feedback", R.drawable.ic_document),
+            QuickModule("Quotation Screen", R.drawable.ic_file)
         )
     }
 
@@ -1564,6 +1673,10 @@ private fun QuickModulesSection(
                                 "Contacts" -> "sales_customers"
                                 "Leads" -> "sales_lead"
                                 "Deals" -> "sales_sales_orders"
+                                "Orders"->"sales_sales_orders"
+                                "Reports"->"sales_reports"
+                                "Customer feedback"->""
+                                "Quotation Screen"->""
                                 else -> null
                             }
                             route?.let { onNavigate(it) }
@@ -1911,9 +2024,14 @@ fun normalizeRoute(rawKey: String): String {
         "logistics_delivery" -> "logistics_delivery"
         "logistics_order_tracking" -> "logistics_order_tracking"
 
+        "services_service_status" -> "services_service_status"
+        "services_delay_rework" -> "services_delay_rework"
+        "services_service_delivery" -> "services_service_delivery"
         "services_customer_feedback" -> "services_customer_feedback"
         "services_alteration_management" -> "services_alteration_management"
         "services_service_request" -> "services_service_request"
+        "services_service_orders", "services_service_order" -> "services_service_orders"
+        "service_order_overview" -> "service_order_overview"
 
         "hr_employees" -> "hr_all_employees"
 
@@ -1939,6 +2057,14 @@ fun menuForScreen(screen: String): String = when {
         "create_quotation", "create_garment_pricing", "garment_pricing_list",
         "order_management_overview"
     ) -> "Sales"
+    screen.startsWith("services_") || screen in setOf(
+        "service_status_detail",
+        "service_order_overview",
+        "review_services",
+        "feedback_detail",
+        "create_alteration",
+        "create_request"
+    ) -> "Services"
     screen.startsWith("finance_") -> "Finance"
     screen.startsWith("inventory_") -> "Inventory"
     screen.startsWith("hr_") -> "HR"

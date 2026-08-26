@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.cuso.mobile.adaptive_screen.LocalAppTokens // Global design system tokens
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.mutedText
@@ -51,10 +51,6 @@ import com.cuso.mobile.ui.theme.whiteBg
 
 // --- String Utilities ---
 
-/**
- * Converts any string into Title Case (Capitalizes the first letter of each word).
- * Useful for ensuring customer names and titles look consistent.
- */
 fun String.toTitleCase(): String {
     if (this.isBlank()) return ""
     return this.trim().lowercase().split("\\s+".toRegex())
@@ -93,6 +89,7 @@ data class DataCardField(
     val iconTint: Color = Color(0xFF9CA3AF),
     val label: String? = null,
     val asRow: Boolean = false,
+    val asColumn: Boolean = false,
     val labelColor: Color = Color(0xFF9CA3AF),
     val labelBackgroundColor: Color? = null,
     val valueBadge: Boolean = false,
@@ -101,23 +98,18 @@ data class DataCardField(
     val valueBadgeCornerRadius: Dp = 20.dp,
     val iconBackgroundColor: Color? = null,
     val iconCircleSize: Dp = 24.dp,
-    // NEW: lets a row's value text render bold (e.g. "Factory" / "12 m" in the low-stock card)
     val valueFontWeight: FontWeight = FontWeight.Normal
 )
 
 // --- Components ---
 
-/**
- * A pill-style status badge with a leading colored dot and semibold text.
- * Matches the "• Active" style badge (light pastel bg, dot + text in the same accent color).
- */
 @Composable
 fun StatusBadge(
     text: String,
     modifier: Modifier = Modifier,
     bgColor: Color = Color(0xFFDCFCE7),
     textColor: Color = Color(0xFF10B981),
-    dotColor: Color = textColor, // dot always follows the text color unless explicitly overridden
+    dotColor: Color = textColor,
     cornerRadius: Dp = 20.dp,
     dotSize: Dp = 7.dp,
     showDot: Boolean = true
@@ -130,7 +122,7 @@ fun StatusBadge(
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if(showDot) {
+        if (showDot) {
             Box(
                 modifier = Modifier
                     .size(dotSize)
@@ -148,10 +140,6 @@ fun StatusBadge(
     }
 }
 
-/**
- * An adaptive overflow menu (vertical/horizontal dots).
- * Uses tokens to scale font sizes for better accessibility on larger screens.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActionDropdownMenu(
@@ -219,10 +207,6 @@ fun ActionDropdownMenu(
     }
 }
 
-/**
- * DataCard is a versatile, adaptive container for displaying list items (Leads, Orders, Customers).
- * Standardized for both Phone and Tablet layouts using CompositionLocal tokens.
- */
 @Composable
 fun <T> DataCard(
     item: T,
@@ -234,24 +218,25 @@ fun <T> DataCard(
     topBadgeTextColor: Color = Color(0xFF10B981),
     topBadgeBgColor: Color = Color(0xFFDCFCE7),
     topBadgeShowDot: Boolean = true,
-    topBadgeDotColor: Color = topBadgeTextColor, // dot follows whatever text color is passed
+    topBadgeDotColor: Color = topBadgeTextColor,
     topBadgeCornerRadius: Dp = 20.dp,
     topBadgeInline: Boolean = false,
     bottomBadgeText: String? = null,
     bottomBadgeTextColor: Color = Color(0xFF10B981),
     bottomBadgeBgColor: Color = Color(0xFFDCFCE7),
-    bottomBadgeDotColor: Color = bottomBadgeTextColor, // dot follows whatever text color is passed
+    bottomBadgeDotColor: Color = bottomBadgeTextColor,
     bottomBadgeCornerRadius: Dp = 20.dp,
     eyebrowText: String? = null,
     eyebrowColor: Color = Color(0xFF6B7280),
     title: String? = null,
     smalltitle: String? = null,
-    percentage: String? =null,
+    percentage: String? = null,
     titleFontWeight: FontWeight = FontWeight.SemiBold,
     titleColor: Color = Color(0xFF111827),
     subtitle: String? = null,
     footerFields: List<DataCardField> = emptyList(),
     footerAsRows: Boolean = false,
+    footerAsColumns: Boolean = false,
     actions: List<MenuAction> = emptyList(),
     onClick: ((T) -> Unit)? = null,
     containerBrush: Brush? = null,
@@ -262,15 +247,9 @@ fun <T> DataCard(
     content: (@Composable () -> Unit)? = null,
     showDateIcon: Boolean = true,
     showActionsInHeader: Boolean = false,
-    // NEW: lets a caller hide the automatic bottom divider (e.g. when this
-    // DataCard is nested inside its own rounded/elevated Card, where the
-    // divider would otherwise cut across the rounded corners).
     showDivider: Boolean = true
 ) {
-    // Access global design tokens for responsive UI
     val tokens = LocalAppTokens.current
-
-    // Formats title to Title Case (e.g., "john doe" -> "John Doe")
     val formattedTitle = remember(title) { title?.toTitleCase() }
 
     Card(
@@ -284,7 +263,6 @@ fun <T> DataCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .let { m -> if (containerBrush != null) m.background(containerBrush) else m }
-                // Use screenPadding token (16dp phone / 32dp tablet)
                 .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
         ) {
             // --- Header: Metadata & Status Badges ---
@@ -361,7 +339,7 @@ fun <T> DataCard(
                         if (formattedTitle != null) {
                             Text(
                                 text = formattedTitle,
-                                fontSize = tokens.bodyMedium, // Adaptive heading
+                                fontSize = tokens.bodyMedium,
                                 color = titleColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -370,7 +348,7 @@ fun <T> DataCard(
                         if (smalltitle != null) {
                             Text(
                                 text = smalltitle,
-                                fontSize = tokens.bodySmall, // Adaptive heading
+                                fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Normal,
                                 color = titleColor,
                                 maxLines = 1,
@@ -382,7 +360,7 @@ fun <T> DataCard(
                         if (percentage != null) {
                             Text(
                                 text = percentage,
-                                fontSize = tokens.bodySmall, // Adaptive heading
+                                fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Normal,
                                 color = Primary,
                                 maxLines = 1,
@@ -395,7 +373,7 @@ fun <T> DataCard(
                         Spacer(Modifier.height(2.dp))
                         Text(
                             text = subtitle,
-                            fontSize = tokens.caption, // Adaptive detail text
+                            fontSize = tokens.caption,
                             color = Color(0xFF6B7280),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -403,7 +381,7 @@ fun <T> DataCard(
                     }
                 }
 
-                // Inline badge (optional)
+                // Inline badge
                 if (topBadgeText != null && topBadgeInline) {
                     StatusBadge(
                         text = topBadgeText,
@@ -416,7 +394,7 @@ fun <T> DataCard(
                     Spacer(Modifier.width(8.dp))
                 }
 
-                // Expandable chevron (optional)
+                // Expandable chevron
                 if (showChevron) {
                     val rotation by animateFloatAsState(if (chevronExpanded) 180f else 0f, label = "rotate")
                     IconButton(onClick = { onChevronClick?.invoke() }, modifier = Modifier.size(28.dp)) {
@@ -434,11 +412,51 @@ fun <T> DataCard(
             if (footerFields.isNotEmpty() || trailingText != null) {
                 Spacer(Modifier.height(10.dp))
 
-                val rowFields = footerFields.filter { it.asRow }
-                val plainFields = footerFields.filter { !it.asRow }
+                val columnFields = footerFields.filter { it.asColumn || footerAsColumns }
+                val rowFields = footerFields.filter { (it.asRow || footerAsRows) && !it.asColumn && !footerAsColumns }
+                val plainFields = footerFields.filter { !it.asRow && !it.asColumn && !footerAsRows && !footerAsColumns }
 
+                // 1. Column format (Left & Right vertical stacks)
+                if (columnFields.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        columnFields.forEachIndexed { index, field ->
+                            val alignment = if (index == columnFields.lastIndex && columnFields.size > 1) {
+                                Alignment.End
+                            } else {
+                                Alignment.Start
+                            }
+                            Column(
+                                horizontalAlignment = alignment,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                if (field.label != null) {
+                                    Text(
+                                        text = field.label,
+                                        fontSize = tokens.bodySmall,
+                                        color = field.labelColor
+                                    )
+                                }
+                                Text(
+                                    text = field.text,
+                                    fontSize = tokens.bodySmall,
+                                    color = field.textColor,
+                                    fontWeight = field.valueFontWeight
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 2. Row format (Stacked horizontal label-value pairs)
                 if (rowFields.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(
+                        modifier = Modifier.padding(top = if (columnFields.isNotEmpty()) 10.dp else 0.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         rowFields.forEach { field ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -449,15 +467,13 @@ fun <T> DataCard(
                                     Text(
                                         text = field.label,
                                         fontSize = tokens.bodySmall,
-                                        color = mutedText
+                                        color = field.labelColor
                                     )
                                 }
                                 Text(
                                     text = field.text,
                                     fontSize = tokens.bodySmall,
-                                    color = titleColor,
-                                    // NEW: uses field.valueFontWeight so callers can bold
-                                    // the value (e.g. "Factory" / "12 m") when needed.
+                                    color = field.textColor,
                                     fontWeight = field.valueFontWeight
                                 )
                             }
@@ -465,11 +481,12 @@ fun <T> DataCard(
                     }
                 }
 
+                // 3. Plain fields & Trailing Text
                 if (plainFields.isNotEmpty() || trailingText != null) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = if (rowFields.isNotEmpty()) 10.dp else 0.dp),
+                            .padding(top = if (rowFields.isNotEmpty() || columnFields.isNotEmpty()) 10.dp else 0.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.Bottom
                     ) {
@@ -503,8 +520,7 @@ fun <T> DataCard(
             }
         }
     }
-    // NEW: divider now optional — pass showDivider = false when nesting
-    // this DataCard inside a rounded/elevated Card of your own.
+
     if (showDivider) {
         HorizontalDivider(color = BorderGray, thickness = 1.dp)
     }

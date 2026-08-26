@@ -27,13 +27,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.toHealthDisplay
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.redtext
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ListSkeleton
@@ -253,18 +254,55 @@ fun InventoryViewOne(
 }
 
 @Composable
-private fun StatusBadge(active: Boolean) {
+fun StatusBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+    bgColor: Color = Color(0xFFDCFCE7),
+    textColor: Color = Color(0xFF10B981),
+    dotColor: Color = textColor,
+    cornerRadius: Dp = 20.dp,
+    dotSize: Dp = 7.dp,
+    showDot: Boolean = true
+) {
     val tokens = LocalAppTokens.current
-    val bg = if (active) GreenActiveBg else Color(0xFFFBE9E9)
-    val fg = if (active) GreenActive else RedText
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(bg)
-            .padding(horizontal = tokens.extraPadding, vertical = 3.dp)
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(cornerRadius))
+            .background(bgColor)
+            .padding(horizontal = 10.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(if (active) "Active" else "Inactive", color = fg, fontSize = tokens.caption, fontWeight = FontWeight.Medium)
+        if (showDot) {
+            Box(
+                modifier = Modifier
+                    .size(dotSize)
+                    .clip(CircleShape)
+                    .background(dotColor)
+            )
+            Spacer(Modifier.width(6.dp))
+        }
+        Text(
+            text = text,
+            fontSize = tokens.caption,
+            fontWeight = FontWeight.Medium,
+            color = textColor
+        )
     }
+}
+
+// 2. Boolean-க்கு மட்டுமான Overload (Active / Inactive-க்கு)
+@Composable
+fun StatusBadge(
+    active: Boolean,
+    modifier: Modifier = Modifier
+) {
+    StatusBadge(
+        text = if (active) "Active" else "Inactive",
+        bgColor = if (active) GreenActiveBg else Color(0xFFFBE9E9),
+        textColor = if (active) GreenActive else RedText,
+        showDot = false,
+        modifier = modifier
+    )
 }
 
 @Composable
@@ -336,8 +374,8 @@ private fun OverviewContent(
         label = "Mark Inactive",
         icon = Icons.Outlined.Block,
         onClick = { onMarkInactive(item) },
-        contentColor = redtext,
-        borderColor = redtext
+        contentColor = redText,
+        borderColor = redText
     )
 
     Spacer(Modifier.height(tokens.extraPadding * 2))

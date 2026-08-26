@@ -1416,6 +1416,7 @@ fun LeadFormScreen(
             StepNavigationFab(
                 showBack = true,
                 onBack = onBack,
+                showBackArrow = false,
                 backLabel = if (isEdit) "Cancel" else "Back",
                 trailingAction = if (isEdit) {
                     TrailingFabAction.Update(
@@ -1611,13 +1612,17 @@ fun LeadScreenContent(
     }
 
     val filteredLeads = leads.filter { lead ->
+        // 1. Safe Search Match (null-safety உடன்)
+        val personName = lead.person?.name.orEmpty()
+        val enquiryType = lead.enquiryType.orEmpty()
         val matchesSearch = searchQuery.isBlank() ||
-                lead.person.name.contains(searchQuery, ignoreCase = true) ||
-                lead.enquiryType.contains(searchQuery, ignoreCase = true)
+                personName.contains(searchQuery, ignoreCase = true) ||
+                enquiryType.contains(searchQuery, ignoreCase = true)
 
-        val statusName = when (lead.status) {
-            is String -> lead.status
-            is Map<*, *> -> (lead.status["name"] as? String) ?: ""
+        // 2. Status Match
+        val statusName = when (val status = lead.status) {
+            is String -> status
+            is Map<*, *> -> (status["name"] as? String) ?: ""
             else -> ""
         }
         val selectedStatusLabels = filterSections.find { it.title == "Status" }
@@ -1625,31 +1630,36 @@ fun LeadScreenContent(
         val matchesStatus = selectedStatusLabels.isEmpty() ||
                 selectedStatusLabels.any { it.equals(statusName, ignoreCase = true) }
 
+        // 3. Source Match
         val selectedSourceLabels = filterSections.find { it.title == "Source" }
             ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
         val matchesSource = selectedSourceLabels.isEmpty() ||
-                selectedSourceLabels.any { it.equals(lead.source, ignoreCase = true) }
+                selectedSourceLabels.any { it.equals(lead.source.orEmpty(), ignoreCase = true) }
 
+        // 4. Garments Match
         val garmentName = getGarmentName(lead)
         val selectedGarmentLabels = filterSections.find { it.title == "Garments" }
             ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
         val matchesGarments = selectedGarmentLabels.isEmpty() ||
                 selectedGarmentLabels.any { it.equals(garmentName, ignoreCase = true) }
 
+        // 5. Amount Range Match (null-safe budget check)
         val minAmountFilter = filterSections.find { it.title == "Amount Range" }?.minAmount?.toIntOrNull()
         val maxAmountFilter = filterSections.find { it.title == "Amount Range" }?.maxAmount?.toIntOrNull()
-        val matchesAmount = (minAmountFilter == null || lead.budgetRange.max >= minAmountFilter) &&
-                (maxAmountFilter == null || lead.budgetRange.min <= maxAmountFilter)
+        val leadMinBudget = lead.budgetRange?.min ?: 0
+        val leadMaxBudget = lead.budgetRange?.max ?: Int.MAX_VALUE
+        val matchesAmount = (minAmountFilter == null || leadMaxBudget >= minAmountFilter) &&
+                (maxAmountFilter == null || leadMinBudget <= maxAmountFilter)
 
+        // 6. Priority Match
         val selectedPriority = filterSections.find { it.title == "Priority" }
             ?.options
             ?.find { it.isSelected }
             ?.id
 
-
         val matchesPriority = selectedPriority == null || run {
             val priority = lead.appointment?.priority?.lowercase() ?: ""
-            when (selectedPriority) {
+            when (selectedPriority.lowercase()) {
                 "high" -> priority.contains("high")
                 "medium" -> priority.contains("medium")
                 "low" -> priority.contains("low")
@@ -1657,10 +1667,12 @@ fun LeadScreenContent(
             }
         }
 
+        // 7. Sales Person Match
         val selectedStaffIds = filterSections.find { it.title == "Sales Person" }
             ?.options?.filter { it.isSelected }?.map { it.id } ?: emptyList()
+        val assignedStaffId = lead.appointment?.assignedStaff
         val matchesSalesPerson = selectedStaffIds.isEmpty() ||
-                selectedStaffIds.contains(lead.appointment?.assignedStaff)
+                (assignedStaffId != null && selectedStaffIds.contains(assignedStaffId))
 
         matchesSearch && matchesStatus && matchesSource && matchesGarments && matchesPriority && matchesAmount && matchesSalesPerson
     }

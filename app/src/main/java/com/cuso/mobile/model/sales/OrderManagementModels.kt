@@ -1,6 +1,11 @@
 package com.cuso.mobile.model.sales
 
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
+import java.lang.reflect.Type
 
 data class OrderManagementResponse(
     val success: Boolean,
@@ -24,9 +29,6 @@ data class OrderManagementItem(
     val orderDate: String?,
     val deliveryDate: String?
 )
-
-
-//order view models
 
 data class OrderViewResponse(
     @SerializedName("success")
@@ -128,10 +130,10 @@ data class OrderViewGarmentItem(
     @SerializedName("trialRequired")
     val trialRequired: Boolean = false,
     @SerializedName("measurementSnapshot")
-    val measurementSnapshot: Map<String, MeasurementValues>? = null  // Added this field
+    val measurementSnapshot: Map<String, MeasurementValues>? = null
 )
 
-// Add this new data class for measurement values
+@JsonAdapter(MeasurementValuesDeserializer::class)
 data class MeasurementValues(
     @SerializedName("inputType")
     val inputType: String? = null,
@@ -140,6 +142,44 @@ data class MeasurementValues(
     @SerializedName("value")
     val value: List<String> = emptyList()
 )
+
+class MeasurementValuesDeserializer : JsonDeserializer<MeasurementValues> {
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type?,
+        context: JsonDeserializationContext?
+    ): MeasurementValues {
+        if (json == null || !json.isJsonObject) return MeasurementValues()
+
+        val obj = json.asJsonObject
+        val inputType = obj.get("inputType")?.takeIf { !it.isJsonNull }?.asString
+        val unit = obj.get("unit")?.takeIf { !it.isJsonNull }?.asString
+
+        val valueList = mutableListOf<String>()
+        val valElem = obj.get("value")
+
+        if (valElem != null && !valElem.isJsonNull) {
+            when {
+                valElem.isJsonArray -> {
+                    valElem.asJsonArray.forEach { elem ->
+                        if (!elem.isJsonNull) {
+                            valueList.add(elem.asString)
+                        }
+                    }
+                }
+                valElem.isJsonPrimitive -> {
+                    valueList.add(valElem.asString)
+                }
+            }
+        }
+
+        return MeasurementValues(
+            inputType = inputType,
+            unit = unit,
+            value = valueList
+        )
+    }
+}
 
 data class OrderViewFabricDetails(
     @SerializedName("fabricSource")
@@ -174,7 +214,6 @@ data class OrderViewAssignedWorker(
     val lastName: String? = null
 )
 
-// Update OrderViewStage
 data class OrderViewStage(
     @SerializedName("_id")
     val id: String,
@@ -191,7 +230,7 @@ data class OrderViewStage(
     @SerializedName("status")
     val status: String = "",
     @SerializedName("completedAt")
-val completedAt: String? = null
+    val completedAt: String? = null
 )
 
 data class OrderViewPayment(

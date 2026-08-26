@@ -9,17 +9,17 @@
 package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.InventoryItemviewone
 import com.cuso.mobile.model.inventory.InventoryPagination
 import com.cuso.mobile.repository.InventoryRepository
 import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed class CreateItemUiState {
@@ -34,15 +34,15 @@ enum class ItemSection {
 }
 
 /**
- * InventoryViewModel - Handles inventory item listing (GetInventoryItems)
- * and single item details (GetInventoryItemById) used by the "View" popup.
+ * InventoryViewModel - Handles inventory item listing with infinite scroll pagination
+ * and item detail operations.
  */
 @HiltViewModel
 class InventoryViewModel @Inject constructor(
     private val inventoryRepository: InventoryRepository
 ) : ViewModel() {
 
-    // ── Inventory Items: list ──
+    // ── Inventory Items: List & Pagination State ──
     private val _inventoryItems = MutableStateFlow<List<InventoryItem>>(emptyList())
     val inventoryItems: StateFlow<List<InventoryItem>> = _inventoryItems.asStateFlow()
 
@@ -52,8 +52,114 @@ class InventoryViewModel @Inject constructor(
     private val _isLoadingInventoryItems = MutableStateFlow(false)
     val isLoadingInventoryItems: StateFlow<Boolean> = _isLoadingInventoryItems.asStateFlow()
 
+    private val _isLoadingMoreInventoryItems = MutableStateFlow(false)
+    val isLoadingMoreInventoryItems: StateFlow<Boolean> = _isLoadingMoreInventoryItems.asStateFlow()
+
+    private val _canLoadMoreInventoryItems = MutableStateFlow(true)
+    val canLoadMoreInventoryItems: StateFlow<Boolean> = _canLoadMoreInventoryItems.asStateFlow()
+
+    private val _currentInventoryPage = MutableStateFlow(1)
+    val currentInventoryPage: StateFlow<Int> = _currentInventoryPage.asStateFlow()
+
     private val _inventoryError = MutableStateFlow<String?>(null)
     val inventoryError: StateFlow<String?> = _inventoryError.asStateFlow()
+
+    private var activeInventorySearch: String? = null
+    private var activeInventoryStatus: String? = null
+    private var fetchInventoryJob: Job? = null
+
+    /**
+     * Initial fetch or filter search for inventory items (resets pagination back to page 1)
+     */
+    fun fetchInventoryItems(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ) {
+        fetchInventoryJob?.cancel()
+        fetchInventoryJob = launchBusy {
+            _isLoadingInventoryItems.value = true
+            _inventoryError.value = null
+            _currentInventoryPage.value = page
+            activeInventorySearch = search
+            activeInventoryStatus = status
+
+            val result = inventoryRepository.getInventoryItems(page, limit, search, status)
+            result.fold(
+                onSuccess = { response ->
+                    val newItems = response.data
+                    val pagination = response.pagination
+
+                    _inventoryItems.value = newItems
+                    _inventoryPagination.value = pagination
+
+                    val totalPages = pagination?.totalPages ?: 1
+                    _canLoadMoreInventoryItems.value = page < totalPages && newItems.isNotEmpty()
+                },
+                onFailure = { e ->
+                    if (e !is CancellationException) {
+                        _inventoryError.value = e.message ?: "Failed to fetch inventory items"
+                    }
+                }
+            )
+            _isLoadingInventoryItems.value = false
+        }
+    }
+
+    /**
+     * Loads the next page of inventory items and appends them to the current list
+     */
+    fun loadMoreInventoryItems(limit: Int = 10) {
+        if (_isLoadingMoreInventoryItems.value || _isLoadingInventoryItems.value || !_canLoadMoreInventoryItems.value) {
+            return
+        }
+
+        launchBusy {
+            _isLoadingMoreInventoryItems.value = true
+            val nextPage = _currentInventoryPage.value + 1
+
+            val result = inventoryRepository.getInventoryItems(
+                page = nextPage,
+                limit = limit,
+                search = activeInventorySearch,
+                status = activeInventoryStatus
+            )
+
+            result.fold(
+                onSuccess = { response ->
+                    val newItems = response.data
+                    val pagination = response.pagination
+
+                    if (newItems.isNotEmpty()) {
+                        _inventoryItems.value = _inventoryItems.value + newItems
+                        _currentInventoryPage.value = nextPage
+                        _inventoryPagination.value = pagination
+
+                        val totalPages = pagination?.totalPages ?: nextPage
+                        _canLoadMoreInventoryItems.value = nextPage < totalPages
+                    } else {
+                        _canLoadMoreInventoryItems.value = false
+                    }
+                },
+                onFailure = {
+                    // Retain load status so the user can re-trigger on scroll
+                }
+            )
+            _isLoadingMoreInventoryItems.value = false
+        }
+    }
+
+    /**
+     * Helper to refresh list from page 1 while preserving current search & status filters
+     */
+    fun refreshInventoryItems() {
+        fetchInventoryItems(page = 1, search = activeInventorySearch, status = activeInventoryStatus)
+    }
+
+    fun clearInventoryError() {
+        _inventoryError.value = null
+    }
 
     // ── Inventory Item: View One (details bottom sheet) ──
     private val _viewOneItem = MutableStateFlow<InventoryItemviewone?>(null)
@@ -72,35 +178,7 @@ class InventoryViewModel @Inject constructor(
         updateCreateItemForm { it.copy(imageUri = uri) }
     }
 
-    fun fetchInventoryItems(
-        page: Int = 1,
-        limit: Int = 10,
-        search: String? = null,
-        status: String? = null
-    ) {
-        launchBusy {
-            _isLoadingInventoryItems.value = true
-            _inventoryError.value = null
-
-            val result = inventoryRepository.getInventoryItems(page, limit, search, status)
-            result.fold(
-                onSuccess = { response ->
-                    _inventoryItems.value = response.data
-                    _inventoryPagination.value = response.pagination
-                },
-                onFailure = { e ->
-                    _inventoryError.value = e.message ?: "Failed to fetch inventory items"
-                }
-            )
-            _isLoadingInventoryItems.value = false
-        }
-    }
-
-    fun clearInventoryError() {
-        _inventoryError.value = null
-    }
-
-    // ── Inventory Item: single item detail (for the "View" popup / bottom sheet) ──
+    // ── Inventory Item: single item detail ──
     private val _selectedItem = MutableStateFlow<InventoryItem?>(null)
     val selectedItem: StateFlow<InventoryItem?> = _selectedItem.asStateFlow()
 
@@ -110,11 +188,9 @@ class InventoryViewModel @Inject constructor(
     private val _itemDetailError = MutableStateFlow<String?>(null)
     val itemDetailError: StateFlow<String?> = _itemDetailError.asStateFlow()
 
-    // Controls whether the details bottom sheet is visible
     private val _showItemDetailSheet = MutableStateFlow(false)
     val showItemDetailSheet: StateFlow<Boolean> = _showItemDetailSheet.asStateFlow()
 
-    /** Call this from the "View" button's onClick */
     fun onViewItemClicked(itemId: String) {
         _showItemDetailSheet.value = true
         fetchInventoryItemDetail(itemId)
@@ -171,13 +247,12 @@ class InventoryViewModel @Inject constructor(
     private val _adjustStockError = MutableStateFlow<String?>(null)
     val adjustStockError: StateFlow<String?> = _adjustStockError.asStateFlow()
 
-    // Set to true right after a successful adjust, so the UI can close the sheet / show a toast
     private val _adjustStockSuccess = MutableStateFlow(false)
     val adjustStockSuccess: StateFlow<Boolean> = _adjustStockSuccess.asStateFlow()
 
     fun adjustStock(
         itemId: String,
-        adjustmentType: String,   // "increase" | "decrease" | "set"
+        adjustmentType: String,
         quantity: Double,
         reason: String,
         notes: String
@@ -190,7 +265,7 @@ class InventoryViewModel @Inject constructor(
             val result = inventoryRepository.adjustStock(itemId, adjustmentType, quantity, reason, notes)
             result.fold(
                 onSuccess = { updatedItem ->
-                    _selectedItem.value = updatedItem   //   refresh the item shown in InventoryViewOne
+                    _selectedItem.value = updatedItem
                     _adjustStockSuccess.value = true
                 },
                 onFailure = { e -> _adjustStockError.value = e.message ?: "Failed to adjust stock" }
@@ -198,6 +273,7 @@ class InventoryViewModel @Inject constructor(
             _isAdjustingStock.value = false
         }
     }
+
     private val _createItemForm = MutableStateFlow(com.cuso.mobile.model.inventory.CreateItemFormState())
     val createItemForm: StateFlow<com.cuso.mobile.model.inventory.CreateItemFormState> = _createItemForm.asStateFlow()
 
@@ -221,7 +297,6 @@ class InventoryViewModel @Inject constructor(
         _expandedSection.value = ItemSection.ITEM_IDENTITY
     }
 
-    // ──   NEW: Populate Create/Edit form from the View-One response (Edit flow) ──
     fun populateFormForEdit(item: InventoryItemviewone) {
         _createItemForm.value = com.cuso.mobile.model.inventory.CreateItemFormState(
             itemId = item._id,
@@ -232,7 +307,7 @@ class InventoryViewModel @Inject constructor(
             category = "",
             status = item.status,
             unit = item.unit,
-            autoGenerateSku = false,          //   editing an existing item, SKU already assigned
+            autoGenerateSku = false,
             returnable = false,
             hsnCode = "",
             taxPercentage = "",
@@ -274,7 +349,6 @@ class InventoryViewModel @Inject constructor(
             val result = inventoryRepository.createInventoryItem(context, form)
             _createItemUiState.value = result.fold(
                 onSuccess = { item ->
-                    //   optionally push the new item into the list so it shows up immediately
                     _inventoryItems.value = listOf(item) + _inventoryItems.value
                     CreateItemUiState.Success(item)
                 },
@@ -288,7 +362,7 @@ class InventoryViewModel @Inject constructor(
             .filter { it.isLetter() }
             .take(3)
             .uppercase()
-            .ifBlank { "ITM" }   // fallback if name has no letters yet (e.g. empty name)
+            .ifBlank { "ITM" }
         val randomDigits = (100000..999999).random()
         return "$prefix-$randomDigits"
     }
@@ -297,12 +371,11 @@ class InventoryViewModel @Inject constructor(
         updateCreateItemForm { current ->
             current.copy(
                 autoGenerateSku = enabled,
-                sku = if (enabled) generateSku(current.name) else current.sku   //   CHANGED — keep old value on OFF, don't clear
+                sku = if (enabled) generateSku(current.name) else current.sku
             )
         }
     }
 
-    /** Call this from the "View"/"Edit" button's onClick on InventoryScreen */
     fun onViewOneClicked(itemId: String) {
         _showViewOneSheet.value = true
         fetchInventoryViewOne(itemId)
@@ -328,8 +401,6 @@ class InventoryViewModel @Inject constructor(
         _viewOneError.value = null
     }
 
-    //   Alias kept for readability at call sites that just want to clear the fetched item
-    // (e.g. after consuming it to populate the edit form) without touching the sheet flag.
     fun clearViewOneItem() {
         _viewOneItem.value = null
         _viewOneError.value = null

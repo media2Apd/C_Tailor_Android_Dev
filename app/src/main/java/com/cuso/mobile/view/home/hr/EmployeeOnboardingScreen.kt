@@ -15,22 +15,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -44,20 +36,18 @@ import com.cuso.mobile.viewmodel.DepartmentViewModel
 import com.cuso.mobile.viewmodel.DesignationViewModel
 import com.cuso.mobile.viewmodel.HrViewModel
 import android.net.Uri
+import com.cuso.mobile.R
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import coil.compose.AsyncImage
 import com.cuso.mobile.model.hr.displayName
 import com.cuso.mobile.view.composable.CountryAndStatePicker
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.viewmodel.BranchUiState
 import com.cuso.mobile.viewmodel.DepartmentUiState
 import com.cuso.mobile.viewmodel.DesignationUiState
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -78,7 +68,8 @@ import com.cuso.mobile.view.composable.GovernmentIdValidator
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.viewmodel.Authenticate
 import androidx.activity.ComponentActivity
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
+import androidx.compose.material.icons.outlined.Work
+import androidx.compose.ui.res.painterResource
 import com.yalantis.ucrop.UCrop
 import java.io.File
 import androidx.core.graphics.toColorInt
@@ -87,14 +78,19 @@ import com.cuso.mobile.view.composable.AccordionSection
 // ── NEW: adaptive design tokens ──
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.view.composable.EditableAvatar
+import com.cuso.mobile.view.composable.SettingsTabs
+import com.cuso.mobile.view.composable.TabItem
 
 
 // ── Design tokens (match screenshot) ──
 // NOTE: colors stay constant across screen sizes; only spacing/typography adapts now.
-private val AccentColor = Color(0xFF4F39F6)
+private val AccentColor = Primary
 private val BorderColor = Color(0xFFE3E4E8)
 private val LabelColor = Color(0xFF6B7280)
-private val TitleColor = Color(0xFF111827)
+private val TitleColor = title_color
 private val WarnBg = Color(0xFFFFF7E6)
 private val WarnBorder = Color(0xFFFCE3B0)
 private val WarnText = Color(0xFF9A6A17)
@@ -192,6 +188,7 @@ fun EmployeeOnboardingScreen(
     var streetAddress by remember { mutableStateOf("") }
 
     // ── Address state (Temporary) ──
+    var isSameAsPermanent by remember { mutableStateOf(false) }
     var tempCountry by remember { mutableStateOf("Select country") }
     var tempState by remember { mutableStateOf("Select state") }
     var tempCity by remember { mutableStateOf("") }
@@ -705,60 +702,32 @@ fun EmployeeOnboardingScreen(
             ) {
                 // ── Basic Information ──
                 AccordionSection(
-                    icon = Icons.Filled.Person,
+                    iconPainter = painterResource(R.drawable.person),
                     title = "Basic Information",
                     expanded = expandedSection == "Basic Information",
                     onHeaderClick = { expandedSection = if (expandedSection == "Basic Information") "" else "Basic Information" }
                 ) {
-                    // Avatar with center upload icon / tap-to-manage
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Box(
-                            modifier = Modifier
-                                .size(avatarSize)
-                                .clip(CircleShape)
-                                .background(AccentColor)
-                                .clickable(enabled = !isReadOnly) {
-                                    if (profileImageUri != null || !existingProfilePictureUrl.isNullOrBlank()) {
-                                        showProfileOptionsDialog = true
-                                    } else {
-                                        imagePickerLauncher.launch("image/*")
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            when {
-                                isUploading -> {
-                                    CirculerProgressIndicatorSmall()
-                                }
-                                profileImageUri != null -> {
-                                    AsyncImage(
-                                        model = profileImageUri,
-                                        contentDescription = "Profile Photo",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.size(avatarSize).clip(CircleShape)
-                                    )
-                                }
-                                !existingProfilePictureUrl.isNullOrBlank() -> {
-                                    AsyncImage(
-                                        model = existingProfilePictureUrl,
-                                        contentDescription = "Profile Photo",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.size(avatarSize).clip(CircleShape)
-                                    )
-                                }
-                                initials != "?" -> {
-                                    Text(initials, color = whiteBg, fontSize = tokens.h1, fontWeight = FontWeight.Bold)
-                                }
-                                else -> {
-                                    Icon(
-                                        imageVector = Icons.Default.CameraAlt,
-                                        contentDescription = "Upload Photo",
-                                        tint = whiteBg,
-                                        modifier = Modifier.size(tokens.iconSize * 1.7f)
-                                    )
+                    // ── Avatar Picker ──
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        EditableAvatar(
+                            imageUri = profileImageUri,
+                            imageUrl = existingProfilePictureUrl,
+                            initials = initials,
+                            isUploading = isUploading,
+                            isReadOnly = isReadOnly,
+                            avatarSize = avatarSize,
+                            backgroundColor = Color.Gray,
+                            onClick = {
+                                if (profileImageUri != null || !existingProfilePictureUrl.isNullOrBlank()) {
+                                    showProfileOptionsDialog = true
+                                } else {
+                                    imagePickerLauncher.launch("image/*")
                                 }
                             }
-                        }
+                        )
                     }
 
                     Spacer(Modifier.height(sectionGap))
@@ -849,6 +818,7 @@ fun EmployeeOnboardingScreen(
                         isError = currentErrorField == "Date of Birth"
                     )
                     Spacer(Modifier.height(fieldGap))
+                    FormLabel("Gender")
                     ErrorFieldWrapper(isError = currentErrorField == "Gender") {
                         FormDropdown(
                             label = "Gender",
@@ -878,14 +848,22 @@ fun EmployeeOnboardingScreen(
 
                 // ── Address ──
                 AccordionSection(
-                    icon = Icons.Filled.LocationOn,
+                    iconPainter = painterResource(R.drawable.ic_location),
                     title = "Address",
                     expanded = expandedSection == "Address",
                     onHeaderClick = { expandedSection = if (expandedSection == "Address") "" else "Address" }
                 ) {
-                    AddressTypeToggle(
-                        selected = addressTab,
-                        onSelect = { if (!isReadOnly) addressTab = it }
+                    SettingsTabs(
+                        tabs = listOf(
+                            TabItem(label = "Permanent"),
+                            TabItem(label = "Temporary")
+                        ),
+                        selectedIndex = if (addressTab == "Permanent") 0 else 1,
+                        onTabSelected = { index ->
+                            if (!isReadOnly) {
+                                addressTab = if (index == 0) "Permanent" else "Temporary"
+                            }
+                        }
                     )
 
                     Spacer(Modifier.height(fieldGap))
@@ -906,6 +884,48 @@ fun EmployeeOnboardingScreen(
                         FormLabel("Street Address")
                         FormTextField(value = streetAddress, onValueChange = { if (!isReadOnly) streetAddress = it }, placeholder = "Enter street address")
                     } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !isReadOnly) {
+                                    val next = !isSameAsPermanent
+                                    isSameAsPermanent = next
+                                    if (next) {
+                                        tempCountry = country
+                                        tempState = state
+                                        tempCity = city
+                                        tempPostalCode = postalCode
+                                        tempStreetAddress = streetAddress
+                                    }
+                                }
+                        ) {
+                            Checkbox(
+                                checked = isSameAsPermanent,
+                                onCheckedChange = { checked ->
+                                    if (!isReadOnly) {
+                                        isSameAsPermanent = checked
+                                        if (checked) {
+                                            tempCountry = country
+                                            tempState = state
+                                            tempCity = city
+                                            tempPostalCode = postalCode
+                                            tempStreetAddress = streetAddress
+                                        }
+                                    }
+                                },
+                                enabled = !isReadOnly,
+                                colors = CheckboxDefaults.colors(checkedColor = AccentColor)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "Same as Permanent Address",
+                                fontSize = tokens.bodySmall,
+                                color = TitleColor
+                            )
+                        }
+
+                        Spacer(Modifier.height(fieldGap))
                         CountryAndStatePicker(
                             selectedCountry = tempCountry,
                             selectedState = tempState,
@@ -926,7 +946,7 @@ fun EmployeeOnboardingScreen(
 
                 // ── Government IDs ──
                 AccordionSection(
-                    icon = Icons.Filled.Badge,
+                    iconPainter = painterResource(R.drawable.ic_credit),
                     title = "Government IDs",
                     expanded = expandedSection == "Government IDs",
                     onHeaderClick = { expandedSection = if (expandedSection == "Government IDs") "" else "Government IDs" }
@@ -1122,7 +1142,7 @@ fun EmployeeOnboardingScreen(
 
                 // ── Education ──
                 AccordionSection(
-                    icon = Icons.Filled.School,
+                    iconPainter = painterResource(R.drawable.ic_education),
                     title = "Education",
                     expanded = expandedSection == "Education",
                     onHeaderClick = { expandedSection = if (expandedSection == "Education") "" else "Education" }
@@ -1207,7 +1227,7 @@ fun EmployeeOnboardingScreen(
 
                 // ── Experience ──
                 AccordionSection(
-                    icon = Icons.Filled.Work,
+                    icon = Icons.Outlined.Work,
                     title = "Experience",
                     expanded = expandedSection == "Experience",
                     onHeaderClick = { expandedSection = if (expandedSection == "Experience") "" else "Experience" }
@@ -1321,7 +1341,7 @@ fun EmployeeOnboardingScreen(
 
                 // ── Work Info ──
                 AccordionSection(
-                    icon = Icons.Filled.AccountBalance,
+                    iconPainter = painterResource(R.drawable.ic_building),
                     title = "Work Info",
                     expanded = expandedSection == "Work Info",
                     onHeaderClick = { expandedSection = if (expandedSection == "Work Info") "" else "Work Info" }
@@ -1471,155 +1491,154 @@ fun EmployeeOnboardingScreen(
             }
         }
 
-        // ── Fixed bottom button — hidden entirely in VIEW mode ──
+        // ── Floating Action Button (No background bar) ──
         if (mode != ScreenMode.VIEW) {
-            Box(
+            ExtendedFloatingActionButton(
+                onClick = {
+                    // ── Step 1: Validate Government IDs first ──
+                    var hasGovIdError = false
+
+                    // Validate PAN if not empty
+                    if (pan.isNotBlank()) {
+                        val panResult = GovernmentIdValidator.validatePan(pan)
+                        if (!panResult.isValid) {
+                            currentErrorField = "PAN"
+                            topError = panResult.message
+                            expandedSection = "Government IDs"
+                            hasGovIdError = true
+                        }
+                    }
+
+                    // Validate Aadhaar if not empty
+                    if (!hasGovIdError && aadhaar.isNotBlank()) {
+                        val aadhaarResult = GovernmentIdValidator.validateAadhaar(aadhaar)
+                        if (!aadhaarResult.isValid) {
+                            currentErrorField = "Aadhaar"
+                            topError = aadhaarResult.message
+                            expandedSection = "Government IDs"
+                            hasGovIdError = true
+                        }
+                    }
+
+                    // Validate UAN if not empty
+                    if (!hasGovIdError && uan.isNotBlank()) {
+                        val uanResult = GovernmentIdValidator.validateUan(uan)
+                        if (!uanResult.isValid) {
+                            currentErrorField = "UAN"
+                            topError = uanResult.message
+                            expandedSection = "Government IDs"
+                            hasGovIdError = true
+                        }
+                    }
+
+                    // ── Step 2: Check required fields ──
+                    if (!hasGovIdError) {
+                        val missingField = findFirstMissingField()
+                        if (missingField != null) {
+                            currentErrorField = missingField
+                            topError = "$missingField is required"
+                            expandedSection = when (missingField) {
+                                "First Name", "Last Name", "Work Phone", "Personal Phone", "Date of Birth", "Gender" -> "Basic Information"
+                                "Date of Joining", "Department", "Role" -> "Work Info"
+                                else -> expandedSection
+                            }
+                        } else {
+                            // ── Step 3: All validations passed - submit ──
+                            currentErrorField = null
+                            topError = null
+
+                            val createRequest = CreateMemberRequest(
+                                firstName = firstName,
+                                lastName = lastName,
+                                email = workEmail,
+                                personalEmail = personalEmail,
+                                personalMobile = personalPhone,
+                                workMobile = workPhone,
+                                dob = toApiDate(dob),
+                                gender = gender.lowercase(),
+                                martialStatus = maritalStatus.lowercase(),
+                                doj = toApiDate(doj),
+                                branchId = selectedBranchId,
+                                departmentId = selectedDepartmentId,
+                                designationId = selectedDesignationId,
+                                customRoleId = selectedRoleId,
+                                shiftId = selectedShiftId,
+                                workingDistrict = workLocation,
+                                employmentType = employmentType.lowercase().replace(" ", "-"),
+                                reportingTo = selectedReportingToId,
+                                secondaryReportingTo = selectedSecondaryReportingToId,
+                                permanentAddress = AddressRequest(country, state, city, streetAddress, postalCode),
+                                hasTemporaryAddress = addressTab == "Temporary",
+                                temporaryAddress = if (addressTab == "Temporary")
+                                    AddressRequest(tempCountry, tempState, tempCity, tempStreetAddress, tempPostalCode)
+                                else null,
+                                education = educationList.map {
+                                    EducationRequestItem(it.instituteName, it.degree, it.specialization, toApiDate(it.completionDate))
+                                },
+                                workExperience = experienceList.map {
+                                    WorkExperienceRequestItem(it.companyName, it.jobTitle, toApiDate(it.fromDate), it.jobDescription, it.isCurrentRole)
+                                }
+                            )
+                            val updateRequest = UpdateMemberRequest(
+                                firstName = firstName,
+                                lastName = lastName,
+                                personalEmail = personalEmail,
+                                personalMobile = personalPhone,
+                                workMobile = workPhone,
+                                dob = dob.toIsoDate(),
+                                gender = gender.lowercase(),
+                                martialStatus = maritalStatus,
+                                doj = doj.toIsoDate(),
+                                branchId = selectedBranchId,
+                                departmentId = selectedDepartmentId,
+                                designationId = selectedDesignationId,
+                                customRoleId = selectedRoleId,
+                                shiftId = selectedShiftId,
+                                workingDistrict = workLocation,
+                                employmentType = employmentType.lowercase(),
+                                reportingTo = selectedReportingToId,
+                                secondaryReportingTo = selectedSecondaryReportingToId,
+                                permanentAddress = AddressRequest(country, state, city, streetAddress, postalCode),
+                                hasTemporaryAddress = addressTab == "Temporary",
+                                temporaryAddress = if (addressTab == "Temporary")
+                                    AddressRequest(tempCountry, tempState, tempCity, tempStreetAddress, tempPostalCode)
+                                else null,
+                                education = educationList.map {
+                                    EducationRequestItem(it.instituteName, it.degree, it.specialization, toApiDate(it.completionDate))
+                                },
+                                workExperience = experienceList.map {
+                                    WorkExperienceRequestItem(it.companyName, it.jobTitle, toApiDate(it.fromDate), it.jobDescription, it.isCurrentRole)
+                                }
+                            )
+
+                            if (mode == ScreenMode.EDIT && memberIdToLoad != null) {
+                                hrViewModel.updateMember(memberIdToLoad, updateRequest)
+                            } else {
+                                hrViewModel.createMember(createRequest)
+                            }
+                        }
+                    }
+                },
+                containerColor = Primary,
+                contentColor = whiteBg,
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = sectionGap, vertical = smallGap + tinyGap)
-            ) {
-                Button(
-                    onClick = {
-                        // ── Step 1: Validate Government IDs first ──
-                        var hasGovIdError = false
-
-                        // Validate PAN if not empty
-                        if (pan.isNotBlank()) {
-                            val panResult = GovernmentIdValidator.validatePan(pan)
-                            if (!panResult.isValid) {
-                                currentErrorField = "PAN"
-                                topError = panResult.message
-                                expandedSection = "Government IDs"
-                                hasGovIdError = true
-                            }
-                        }
-
-                        // Validate Aadhaar if not empty
-                        if (!hasGovIdError && aadhaar.isNotBlank()) {
-                            val aadhaarResult = GovernmentIdValidator.validateAadhaar(aadhaar)
-                            if (!aadhaarResult.isValid) {
-                                currentErrorField = "Aadhaar"
-                                topError = aadhaarResult.message
-                                expandedSection = "Government IDs"
-                                hasGovIdError = true
-                            }
-                        }
-
-                        // Validate UAN if not empty
-                        if (!hasGovIdError && uan.isNotBlank()) {
-                            val uanResult = GovernmentIdValidator.validateUan(uan)
-                            if (!uanResult.isValid) {
-                                currentErrorField = "UAN"
-                                topError = uanResult.message
-                                expandedSection = "Government IDs"
-                                hasGovIdError = true
-                            }
-                        }
-
-                        // ── Step 2: Check required fields ──
-                        if (!hasGovIdError) {
-                            val missingField = findFirstMissingField()
-                            if (missingField != null) {
-                                currentErrorField = missingField
-                                topError = "$missingField is required"
-                                expandedSection = when (missingField) {
-                                    "First Name", "Last Name", "Work Phone", "Personal Phone", "Date of Birth", "Gender" -> "Basic Information"
-                                    "Date of Joining", "Department", "Role" -> "Work Info"
-                                    else -> expandedSection
-                                }
-                            } else {
-                                // ── Step 3: All validations passed - submit ──
-                                currentErrorField = null
-                                topError = null
-
-                                val createRequest = CreateMemberRequest(
-                                    firstName = firstName,
-                                    lastName = lastName,
-                                    email = workEmail,
-                                    personalEmail = personalEmail,
-                                    personalMobile = personalPhone,
-                                    workMobile = workPhone,
-                                    dob = toApiDate(dob),
-                                    gender = gender.lowercase(),
-                                    martialStatus = maritalStatus.lowercase(),
-                                    doj = toApiDate(doj),
-                                    branchId = selectedBranchId,
-                                    departmentId = selectedDepartmentId,
-                                    designationId = selectedDesignationId,
-                                    customRoleId = selectedRoleId,
-                                    shiftId = selectedShiftId,
-                                    workingDistrict = workLocation,
-                                    employmentType = employmentType.lowercase().replace(" ", "-"),
-                                    reportingTo = selectedReportingToId,
-                                    secondaryReportingTo = selectedSecondaryReportingToId,
-                                    permanentAddress = AddressRequest(country, state, city, streetAddress, postalCode),
-                                    hasTemporaryAddress = addressTab == "Temporary",
-                                    temporaryAddress = if (addressTab == "Temporary")
-                                        AddressRequest(tempCountry, tempState, tempCity, tempStreetAddress, tempPostalCode)
-                                    else null,
-                                    education = educationList.map {
-                                        EducationRequestItem(it.instituteName, it.degree, it.specialization, toApiDate(it.completionDate))
-                                    },
-                                    workExperience = experienceList.map {
-                                        WorkExperienceRequestItem(it.companyName, it.jobTitle, toApiDate(it.fromDate), it.jobDescription, it.isCurrentRole)
-                                    }
-                                )
-                                val updateRequest = UpdateMemberRequest(
-                                    firstName = firstName,
-                                    lastName = lastName,
-                                    personalEmail = personalEmail,
-                                    personalMobile = personalPhone,
-                                    workMobile = workPhone,
-                                    dob = dob.toIsoDate(),
-                                    gender = gender.lowercase(),
-                                    martialStatus = maritalStatus,
-                                    doj = doj.toIsoDate(),
-                                    branchId = selectedBranchId,
-                                    departmentId = selectedDepartmentId,
-                                    designationId = selectedDesignationId,
-                                    customRoleId = selectedRoleId,
-                                    shiftId = selectedShiftId,
-                                    workingDistrict = workLocation,
-                                    employmentType = employmentType.lowercase(),
-                                    reportingTo = selectedReportingToId,
-                                    secondaryReportingTo = selectedSecondaryReportingToId,
-                                    permanentAddress = AddressRequest(country, state, city, streetAddress, postalCode),
-                                    hasTemporaryAddress = addressTab == "Temporary",
-                                    temporaryAddress = if (addressTab == "Temporary")
-                                        AddressRequest(tempCountry, tempState, tempCity, tempStreetAddress, tempPostalCode)
-                                    else null,
-                                    education = educationList.map {
-                                        EducationRequestItem(it.instituteName, it.degree, it.specialization, toApiDate(it.completionDate))
-                                    },
-                                    workExperience = experienceList.map {
-                                        WorkExperienceRequestItem(it.companyName, it.jobTitle, toApiDate(it.fromDate), it.jobDescription, it.isCurrentRole)
-                                    }
-                                )
-
-
-                                val imageFile = profileImageUri?.let { uriToFile(context, it) }
-
-                                if (mode == ScreenMode.EDIT && memberIdToLoad != null) {
-                                    hrViewModel.updateMember(memberIdToLoad, updateRequest)
-                                } else {
-                                    hrViewModel.createMember(createRequest)
-                                }
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
-                    modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight)
-                ) {
-                    Text(
-                        text = if (mode == ScreenMode.EDIT) "Save Changes" else "Create Employee",
-                        color = whiteBg,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = tokens.bodyLarge
+                    .padding(
+                        start = sectionGap,
+                        end = sectionGap,
+                        bottom = sectionGap + 10.dp
                     )
-                }
+                    .height(tokens.buttonHeight)
+            ) {
+                Text(
+                    text = if (mode == ScreenMode.EDIT) "Save Changes" else "Create Employee",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = tokens.bodyLarge,
+                    color = whiteBg
+                )
             }
         }
 
@@ -1675,38 +1694,4 @@ fun uriToFile(context: android.content.Context, uri: Uri): File {
         file.outputStream().use { output -> input.copyTo(output) }
     }
     return file
-}
-
-// ── Permanent / Temporary segmented toggle (Address section) ──
-// Now reads LocalAppTokens directly since it's a standalone composable.
-@Composable
-private fun AddressTypeToggle(selected: String, onSelect: (String) -> Unit) {
-    val tokens = LocalAppTokens.current
-    val toggleShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, BorderColor, toggleShape)
-            .padding(tokens.screenPadding * 0.25f)
-    ) {
-        listOf("Permanent", "Temporary").forEach { option ->
-            val isSelected = selected == option
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .background(if (isSelected) AccentColor else Color.Transparent, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                    .clickable { onSelect(option) }
-                    .padding(vertical = tokens.screenPadding * 0.55f),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "$option Address",
-                    color = if (isSelected) whiteBg else LabelColor,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = tokens.bodySmall
-                )
-            }
-        }
-    }
 }

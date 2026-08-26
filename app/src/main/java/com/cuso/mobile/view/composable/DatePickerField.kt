@@ -88,7 +88,7 @@ fun DatePickerField(
             .fillMaxWidth()
             .alpha(if (effectiveEnabled) 1f else 0.6f)
             .then(
-                if (isError) Modifier.border(1.dp, redtext, RoundedCornerShape(8.dp))
+                if (isError) Modifier.border(1.dp, redText, RoundedCornerShape(8.dp))
                 else Modifier
             )
     ) {
@@ -198,7 +198,7 @@ private fun CustomDatePickerDialog(
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = palette.accent,
                                 unfocusedBorderColor = palette.fieldBorder,
-                                errorBorderColor = redtext,
+                                errorBorderColor = redText,
                                 focusedTextColor = palette.text,
                                 unfocusedTextColor = palette.text,
                                 cursorColor = palette.accent
@@ -210,7 +210,7 @@ private fun CustomDatePickerDialog(
                         if (manualError != null) {
                             Text(
                                 text = manualError!!,
-                                color = redtext,
+                                color = redText,
                                 fontSize = 11.sp,
                                 modifier = Modifier.padding(top = 4.dp, start = 4.dp)
                             )

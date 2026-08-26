@@ -35,7 +35,7 @@ import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.redBg
-import com.cuso.mobile.ui.theme.redtext
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
@@ -368,7 +368,7 @@ fun DeadStockReportScreen(
                                                 "${deadStockItem.noMovementDays} Days",
                                                 fontSize = tokens.caption,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = redtext
+                                                color = redText
                                             )
                                         }
                                         Spacer(Modifier.height(10.dp))

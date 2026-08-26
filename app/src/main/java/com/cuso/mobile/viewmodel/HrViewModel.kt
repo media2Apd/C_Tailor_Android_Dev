@@ -8,9 +8,7 @@
 )
 package com.cuso.mobile.viewmodel
 
-
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.hr.CreateMemberRequest
 import com.cuso.mobile.model.hr.CreatedMemberFullData
 import com.cuso.mobile.model.hr.MemberDetail
@@ -21,16 +19,17 @@ import com.cuso.mobile.model.hr.UpdateMemberRequest
 import com.cuso.mobile.repository.HrRepository
 import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
 /**
- * HrViewModel - Handles Roles, Shifts, Members (list + detail), and Create/Update
- * for the HR module.
+ * HrViewModel - Handles Roles, Shifts, Members (with infinite scroll pagination),
+ * and Create/Update operations for the HR module.
  */
 @HiltViewModel
 class HrViewModel @Inject constructor(
@@ -88,7 +87,7 @@ class HrViewModel @Inject constructor(
     }
 
     // ═══════════════════════════════════════════════
-    // ── Members (list) ──
+    // ── Members (List & Infinite Scroll) ──
     // ═══════════════════════════════════════════════
     private val _members = MutableStateFlow<List<MemberItem>>(emptyList())
     val members: StateFlow<List<MemberItem>> = _members.asStateFlow()
@@ -99,8 +98,21 @@ class HrViewModel @Inject constructor(
     private val _isLoadingMembers = MutableStateFlow(false)
     val isLoadingMembers: StateFlow<Boolean> = _isLoadingMembers.asStateFlow()
 
+    private val _isLoadingMoreMembers = MutableStateFlow(false)
+    val isLoadingMoreMembers: StateFlow<Boolean> = _isLoadingMoreMembers.asStateFlow()
+
+    private val _canLoadMoreMembers = MutableStateFlow(true)
+    val canLoadMoreMembers: StateFlow<Boolean> = _canLoadMoreMembers.asStateFlow()
+
+    private val _currentMemberPage = MutableStateFlow(1)
+    val currentMemberPage: StateFlow<Int> = _currentMemberPage.asStateFlow()
+
     private val _membersError = MutableStateFlow<String?>(null)
     val membersError: StateFlow<String?> = _membersError.asStateFlow()
+
+    private var activeMemberSearch: String? = null
+    private var activeMemberStatus: String? = null
+    private var fetchMembersJob: Job? = null
 
     fun fetchMembers(
         page: Int = 1,
@@ -108,19 +120,74 @@ class HrViewModel @Inject constructor(
         search: String? = null,
         status: String? = null
     ) {
-        launchBusy {
+        fetchMembersJob?.cancel()
+        fetchMembersJob = launchBusy {
             _isLoadingMembers.value = true
             _membersError.value = null
+            _currentMemberPage.value = page
+            activeMemberSearch = search
+            activeMemberStatus = status
+
             val result = hrRepository.getMembers(page, limit, search, status)
             result.fold(
                 onSuccess = { response ->
-                    _members.value = response.data
+                    val newMembers = response.data
+                    _members.value = newMembers
                     _membersTotal.value = response.total
+
+                    // Check if more items exist based on total count
+                    _canLoadMoreMembers.value = newMembers.size < response.total && newMembers.isNotEmpty()
                 },
-                onFailure = { e -> _membersError.value = e.message ?: "Failed to fetch employees" }
+                onFailure = { e ->
+                    if (e !is CancellationException) {
+                        _membersError.value = e.message ?: "Failed to fetch employees"
+                    }
+                }
             )
             _isLoadingMembers.value = false
         }
+    }
+
+    fun loadMoreMembers(limit: Int = 10) {
+        if (_isLoadingMoreMembers.value || _isLoadingMembers.value || !_canLoadMoreMembers.value) {
+            return
+        }
+
+        launchBusy {
+            _isLoadingMoreMembers.value = true
+            val nextPage = _currentMemberPage.value + 1
+
+            val result = hrRepository.getMembers(
+                page = nextPage,
+                limit = limit,
+                search = activeMemberSearch,
+                status = activeMemberStatus
+            )
+
+            result.fold(
+                onSuccess = { response ->
+                    val newMembers = response.data
+                    if (newMembers.isNotEmpty()) {
+                        val updatedList = _members.value + newMembers
+                        _members.value = updatedList
+                        _currentMemberPage.value = nextPage
+                        _membersTotal.value = response.total
+
+                        _canLoadMoreMembers.value = updatedList.size < response.total
+                    } else {
+                        _canLoadMoreMembers.value = false
+                    }
+                },
+                onFailure = {
+                    // Do not permanently lock pagination so user can retry on scroll
+                }
+            )
+            _isLoadingMoreMembers.value = false
+        }
+    }
+
+    fun refreshMembers() {
+        fetchMembers(page = 1, search = activeMemberSearch, status = activeMemberStatus)
     }
 
     fun clearMembersError() {
@@ -140,10 +207,10 @@ class HrViewModel @Inject constructor(
     val memberDetailError: StateFlow<String?> = _memberDetailError.asStateFlow()
 
     private val _uploadPictureState = MutableStateFlow<UploadPictureState>(UploadPictureState.Idle)
-    val uploadPictureState: StateFlow<UploadPictureState> = _uploadPictureState
+    val uploadPictureState: StateFlow<UploadPictureState> = _uploadPictureState.asStateFlow()
 
     private val _deletePictureState = MutableStateFlow<DeletePictureState>(DeletePictureState.Idle)
-    val deletePictureState: StateFlow<DeletePictureState> = _deletePictureState
+    val deletePictureState: StateFlow<DeletePictureState> = _deletePictureState.asStateFlow()
 
     fun uploadProfilePicture(memberId: String, file: File) {
         launchBusy {
@@ -188,7 +255,6 @@ class HrViewModel @Inject constructor(
                 onFailure = { e -> _memberDetailError.value = e.message ?: "Failed to fetch employee detail" }
             )
             _isLoadingMemberDetail.value = false
-
         }
     }
 
@@ -196,8 +262,9 @@ class HrViewModel @Inject constructor(
         _memberDetail.value = null
     }
 
-
-
+    // ═══════════════════════════════════════════════
+    // ── Create / Update Member ──
+    // ═══════════════════════════════════════════════
     private val _createMemberState = MutableStateFlow<CreateMemberState>(CreateMemberState.Idle)
     val createMemberState: StateFlow<CreateMemberState> = _createMemberState.asStateFlow()
 
@@ -206,7 +273,10 @@ class HrViewModel @Inject constructor(
             _createMemberState.value = CreateMemberState.Loading
             val result = hrRepository.createMember(request)
             result.fold(
-                onSuccess = { _createMemberState.value = CreateMemberState.Success(it) },
+                onSuccess = {
+                    _createMemberState.value = CreateMemberState.Success(it)
+                    refreshMembers()
+                },
                 onFailure = { e -> _createMemberState.value = CreateMemberState.Error(e.message ?: "Failed to create employee") }
             )
         }
@@ -217,12 +287,14 @@ class HrViewModel @Inject constructor(
             _createMemberState.value = CreateMemberState.Loading
             val result = hrRepository.updateMember(memberId, request)
             result.fold(
-                onSuccess = { _createMemberState.value = CreateMemberState.Success(it) },
+                onSuccess = {
+                    _createMemberState.value = CreateMemberState.Success(it)
+                    refreshMembers()
+                },
                 onFailure = { e -> _createMemberState.value = CreateMemberState.Error(e.message ?: "Failed to update employee") }
             )
         }
     }
-
 
     fun resetCreateMemberState() {
         _createMemberState.value = CreateMemberState.Idle
@@ -242,9 +314,6 @@ class HrViewModel @Inject constructor(
         data class Error(val message: String) : DeletePictureState()
     }
 
-    // ═══════════════════════════════════════════════
-    // ── Create / Update Member ──
-    // ═══════════════════════════════════════════════
     sealed class CreateMemberState {
         object Idle : CreateMemberState()
         object Loading : CreateMemberState()

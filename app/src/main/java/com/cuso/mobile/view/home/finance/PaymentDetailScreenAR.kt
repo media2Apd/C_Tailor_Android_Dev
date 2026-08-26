@@ -29,7 +29,7 @@ import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.redBg
-import com.cuso.mobile.ui.theme.redtext
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.TitleBar
@@ -208,8 +208,8 @@ fun PaymentDetailScreenAP(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Balance Due", fontSize = tokens.bodyMedium, color = redtext)
-                    Text("₹2,350", fontSize = tokens.bodyMedium, color = redtext)
+                    Text("Balance Due", fontSize = tokens.bodyMedium, color = redText)
+                    Text("₹2,350", fontSize = tokens.bodyMedium, color = redText)
                 }
             }
 

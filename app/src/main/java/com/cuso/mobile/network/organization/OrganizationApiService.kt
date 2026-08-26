@@ -7,7 +7,7 @@ import retrofit2.http.*
 
 interface OrganizationApiService {
     @Multipart
-    @POST("api/organizations/upload-picture")
+    @POST("/api/organizations/upload-picture")
     suspend fun uploadOrganizationPicture(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,

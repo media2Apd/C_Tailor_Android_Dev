@@ -1,10 +1,11 @@
-@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ","VariableNeverRead")
+@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ", "VariableNeverRead")
 package com.cuso.mobile.view.home.finance
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -15,24 +16,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.finance.JournalEntryItem
-import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
-import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.DeleteJournalState
 import com.cuso.mobile.viewmodel.FinanceViewModel
+import kotlinx.coroutines.delay
 
 private val BluePrimary = Color(0xFF3A2FCB)
 private val TextSecondary = Color(0xFF9A9AA8)
@@ -53,8 +52,8 @@ fun ManualJournalEntryScreen(
     onClose: () -> Unit = {},
     financeViewModel: FinanceViewModel = hiltViewModel()
 ) {
-    // one local state machine drives Create / View / Edit
-    var formMode by remember { mutableStateOf<String?>(null) }   // null = list, "create" | "view" | "edit"
+    // Drives Create / View / Edit form mode
+    var formMode by remember { mutableStateOf<String?>(null) }
     var selectedEntry by remember { mutableStateOf<JournalEntryItem?>(null) }
     var selectedEntryId by remember { mutableStateOf<String?>(null) }
     var deleteTarget by remember { mutableStateOf<JournalEntryItem?>(null) }
@@ -62,12 +61,23 @@ fun ManualJournalEntryScreen(
     val deleteJournalState by financeViewModel.deleteJournalState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Collect Journal Entry list and pagination states
+    val entries by financeViewModel.journalEntries.collectAsStateWithLifecycle()
+    val isLoading by financeViewModel.isLoadingJournalEntries.collectAsStateWithLifecycle()
+    val isLoadingMore by financeViewModel.isLoadingMoreJournalEntries.collectAsStateWithLifecycle()
+    val canLoadMore by financeViewModel.canLoadMoreJournalEntries.collectAsStateWithLifecycle()
+    val errorMessage by financeViewModel.journalEntriesError.collectAsStateWithLifecycle()
+
+    var searchQuery by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+
+    // Handle delete state feedback
     LaunchedEffect(deleteJournalState) {
         when (val s = deleteJournalState) {
             is DeleteJournalState.Success -> {
-                deleteTarget = null                          // dialog closes immediately
+                deleteTarget = null
                 financeViewModel.resetDeleteJournalState()
-                snackbarHostState.showSnackbar(s.message)     // snackbar shows after
+                snackbarHostState.showSnackbar(s.message)
             }
             is DeleteJournalState.Error -> {
                 deleteTarget = null
@@ -78,7 +88,36 @@ fun ManualJournalEntryScreen(
         }
     }
 
-    // Create / View / Edit all reuse the same form screen
+    // Initial fetch
+    LaunchedEffect(Unit) {
+        financeViewModel.fetchJournalEntries()
+    }
+
+    // Debounced search that resets pagination and calls API with search query
+    LaunchedEffect(searchQuery) {
+        delay(400)
+        financeViewModel.fetchJournalEntries(search = searchQuery.trim().ifBlank { null })
+    }
+
+    // Detect when the user scrolls near the bottom of the list
+    val shouldLoadMore = remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val totalItemsNumber = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+
+            totalItemsNumber > 0 && lastVisibleItemIndex >= totalItemsNumber - 2
+        }
+    }
+
+    // Trigger load more when reaching the end
+    LaunchedEffect(shouldLoadMore.value) {
+        if (shouldLoadMore.value && canLoadMore && !isLoadingMore && !isLoading) {
+            financeViewModel.loadMoreJournalEntries()
+        }
+    }
+
+    // Navigate to form screen if create/view/edit is active
     if (formMode != null) {
         JournalEntryFormScreen(
             mode = formMode!!,
@@ -92,34 +131,16 @@ fun ManualJournalEntryScreen(
                 formMode = null
                 selectedEntryId = null
                 selectedEntry = null
-                financeViewModel.fetchJournalEntries()
+                financeViewModel.refreshJournalEntries()
             }
         )
         return
     }
 
-    val entries by financeViewModel.journalEntries.collectAsStateWithLifecycle()
-    val isLoading by financeViewModel.isLoadingJournalEntries.collectAsStateWithLifecycle()
-    val errorMessage by financeViewModel.journalEntriesError.collectAsStateWithLifecycle()
-
-    var searchQuery by remember { mutableStateOf("") }
-
-    LaunchedEffect(Unit) {
-        financeViewModel.fetchJournalEntries()
+    val filteredEntries = remember(entries) {
+        entries.filter { it.isManual }
     }
 
-    val filteredEntries = remember(entries, searchQuery) {
-        val manualOnly = entries.filter { it.isManual }
-
-        if (searchQuery.isBlank()) manualOnly
-        else manualOnly.filter {
-            it.primaryAccountName.contains(searchQuery, ignoreCase = true) ||
-                    it.entryNumber.contains(searchQuery, ignoreCase = true) ||
-                    it.primaryAccountCode.contains(searchQuery, ignoreCase = true)
-        }
-    }
-
-    // Scaffold wraps everything so the delete-confirmation snackbar can show
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = Color.Transparent,
@@ -133,22 +154,17 @@ fun ManualJournalEntryScreen(
         ) {
             // ── Title bar ──
             Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TitleBar("Manual Journal Entry", onClose = onClose)
-
             }
 
             Column {
                 // ── Breadcrumb ──
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
-                    ScreenBreadcrumb(listOf("Finance","Journal Entry"), onClick = {})
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    ScreenBreadcrumb(listOf("Finance", "Journal Entry"), onClick = {})
                 }
 
                 SearchFilterBar(
@@ -158,22 +174,12 @@ fun ManualJournalEntryScreen(
                     accentColor = BluePrimary,
                     borderColor = BorderGray,
                     textSecondaryColor = TextSecondary,
-                    onFilterClick = {  }
+                    onFilterClick = { }
                 )
             }
             HorizontalDivider(color = Color(0xFFF0F0F0))
 
-
             // ── Content ──
-            // FabScaffold is now called ONCE, always, regardless of state.
-            // The when{} that switches between loading/error/empty/list lives
-            // INSIDE it, as the scaffold's content lambda. Previously FabScaffold
-            // was only one branch of an outer when{}, so the FAB disappeared
-            // whenever loading/error/empty were true. Do NOT nest another
-            // when{} branch around FabScaffold — that's what caused the
-            // "Condition type mismatch: inferred type is Unit but Boolean was
-            // expected" error you just hit (a composable call with no
-            // condition sitting inside a `when { ... }`).
             FabScaffold(
                 modifier = Modifier.weight(1f),
                 fab = FabConfig(
@@ -187,10 +193,10 @@ fun ManualJournalEntryScreen(
                 )
             ) {
                 when {
-                    isLoading -> {
+                    isLoading && filteredEntries.isEmpty() -> {
                         ListSkeleton()
                     }
-                    errorMessage != null -> {
+                    errorMessage != null && filteredEntries.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(text = errorMessage ?: "Something went wrong", color = Color.Red)
                         }
@@ -201,7 +207,10 @@ fun ManualJournalEntryScreen(
                         }
                     }
                     else -> {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
                             items(filteredEntries, key = { it.id }) { entry ->
                                 val (badgeBg, badgeFg) = journalStatusColors(entry.status)
 
@@ -243,6 +252,25 @@ fun ManualJournalEntryScreen(
                                     )
                                 )
                             }
+
+                            // Loading footer when fetching the next page
+                            if (isLoadingMore) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            color = BluePrimary,
+                                            strokeWidth = 2.5.dp
+                                        )
+                                    }
+                                }
+                            }
+
                             item { Spacer(modifier = Modifier.height(80.dp)) }
                         }
                     }
@@ -251,9 +279,7 @@ fun ManualJournalEntryScreen(
         }
     }
 
-    // Delete confirmation dialog, sits outside the Scaffold body,
-    // shows on top of everything when deleteTarget is non-null.
-    // Closes immediately on success/error (see LaunchedEffect above).
+    // Delete confirmation dialog
     deleteTarget?.let { entry ->
         DeleteModel(
             title = "Delete Journal Entry",

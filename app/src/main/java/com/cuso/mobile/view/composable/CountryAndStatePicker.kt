@@ -1,6 +1,7 @@
 package com.cuso.mobile.view.composable
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -105,13 +107,18 @@ fun SearchableDropdownContents(
     var searchQuery by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
 
+    // ── 1. ADD ROTATION ANIMATION ──
+    val arrowRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        label = "DropdownArrowRotation"
+    )
+
     val filteredItems = remember(searchQuery, items) {
         if (searchQuery.isEmpty()) items
         else items.filter { it.contains(searchQuery, ignoreCase = true) }
     }
 
     Column {
-        // ── Trigger Field — plain Box, exact 40dp height, no clipping ──
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -139,12 +146,15 @@ fun SearchableDropdownContents(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+
+                // ── 2. REPLACE WITH ROTATING CHEVRON & UPDATED TINT ──
                 Icon(
-                    imageVector = if (expanded) Icons.Filled.KeyboardArrowUp
-                    else Icons.Filled.KeyboardArrowDown,
+                    imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = Color.LightGray,
-                    modifier = Modifier.size(20.dp)
+                    tint = if (enabled) Color.Gray else Color(0xFFD1D5DB),
+                    modifier = Modifier
+                        .size(20.dp)
+                        .graphicsLayer { rotationZ = arrowRotation }
                 )
             }
         }

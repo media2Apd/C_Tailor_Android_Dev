@@ -38,6 +38,7 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.disabled
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
@@ -247,7 +248,7 @@ fun DepartmentSettingsScreen(
                                     onFilterClick = { }
                                 )
                             }
-                            HorizontalDivider(color = Color(0xFFF0F0F0))
+                            HorizontalDivider(color = title_border)
 
                             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                                 when (val state = uiState) {
@@ -341,7 +342,7 @@ fun DepartmentSettingsScreen(
                                                 }
                                                 Box(modifier = Modifier.fillMaxWidth().background(whiteBg, RoundedCornerShape(topStart = tokens.cardCornerRadius, topEnd = tokens.cardCornerRadius))) {
                                                     Column {
-                                                        HorizontalDivider(color = Color(0xFFF0F0F0))
+                                                        HorizontalDivider(color = title_border)
                                                         Row(
                                                             modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
                                                             verticalAlignment = Alignment.CenterVertically,

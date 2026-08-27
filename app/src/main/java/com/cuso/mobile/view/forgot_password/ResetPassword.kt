@@ -93,24 +93,11 @@ fun ResetPassword(
             title = "Reset Password",
             subtitle = "Create a new password for your account"
         ) {
-            // New Password field
-//            CusoTextField(
-//                value = newPassword,
-//                onValueChange = {
-//                    newPassword = it
-//                    errorMessage = null
-//                },
-//                label = "New Password",
-//                placeholder = "..",
-//                isPassword = true,
-//                isError = false,
-//                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-//            )
             CusoTextField(
                 value = newPassword,
                 onValueChange = { newPassword = it; authViewModel.resetState() },
-                label = "Password",
-                placeholder = "Enter password",
+                label = "New Password",
+                placeholder = "Enter Your Password",
                 leadingIconPainter = painterResource(R.drawable.ic_lock),
                 isPassword = true,
                 isError = false,
@@ -119,25 +106,11 @@ fun ResetPassword(
 
             Spacer(modifier = Modifier.height(tokens.screenPadding / 2))
 
-            // Confirm Password field, with the match-error state wired into isError
-//            CusoTextField(
-//                value = confirmPassword,
-//                onValueChange = {
-//                    confirmPassword = it
-//                    errorMessage = null
-//                },
-//                label = "Confirm Password",
-//                placeholder = "..",
-//                isPassword = true,
-//                isError = isConfirmError,
-//                errorText = if (isConfirmError) "Passwords don't match" else null,
-//                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-//            )
             CusoTextField(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it; authViewModel.resetState() },
-                label = "Password",
-                placeholder = "Confirm password",
+                label = "Confirm Password",
+                placeholder = "Re-Enter Password",
                 leadingIconPainter = painterResource(R.drawable.ic_lock),
                 isPassword = true,
                 isError = isConfirmError,

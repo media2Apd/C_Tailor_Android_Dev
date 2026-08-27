@@ -55,10 +55,12 @@ import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.disabled
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.light_blue
 import com.cuso.mobile.ui.theme.light_blue_border
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.primary_light
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.BackFabButton
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
@@ -75,7 +77,7 @@ import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.composable.blurScrim
-import com.cuso.mobile.view.home.inventory.FormTextArea
+import com.cuso.mobile.view.home.inventory.procurement.orders.FormTextArea
 import com.cuso.mobile.view.home.pdfgenerator.OrderReceiptPdfGenerator
 import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 import com.cuso.mobile.view.home.sales.sales_order.toOrderReviewData
@@ -92,7 +94,7 @@ private val TabActive = Color(0xFF4F46E5)
 private val TextPrimary = Color(0xFF111827)
 private val mutedTextDark = Color(0xFF6B7280)
 private val SectionBg = Color(0xFFF9FAFB)
-private val BorderLight = Color(0xFFF0F0F0)
+private val BorderLight = title_border
 private val StatusGreenBg = Color(0xFFDCFCE7)
 private val StatusGreenText = Color(0xFF16A34A)
 private val StatusOrangeBg = Color(0xFFFEF3C7)
@@ -789,7 +791,7 @@ private fun ServiceGarmentsTab(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.cardColors(containerColor = whiteBg),
-            border = BorderStroke(1.dp, Color(0xFFF0F0F0))
+            border = BorderStroke(1.dp, title_border)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -878,7 +880,7 @@ private fun ServiceGarmentCard(
             ) { onClick() },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = whiteBg),
-        border = BorderStroke(1.dp, Color(0xFFF0F0F0))
+        border = BorderStroke(1.dp, title_border)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // ── Top Section: Avatar, Title, Badges & Chevron ──
@@ -1155,7 +1157,7 @@ private fun ServiceAssignmentCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = whiteBg),
-        border = BorderStroke(1.dp, Color(0xFFF0F0F0))
+        border = BorderStroke(1.dp, title_border)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             // ── Top Header: Title, Subtitle, Assigned Status Pill ──
@@ -1541,7 +1543,7 @@ private fun AssignMethodSelectionSheet(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = whiteBg),
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                    border = BorderStroke(1.dp, grey_border)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -1645,7 +1647,7 @@ private fun AssignMethodSelectionSheet(
                             .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                        border = BorderStroke(1.dp, grey_border)
                     ) {
                         Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.Medium)
                     }
@@ -1776,7 +1778,7 @@ private fun AssignServiceTailorsSheet(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = whiteBg),
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                    border = BorderStroke(1.dp, grey_border)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1937,7 +1939,7 @@ private fun AssignServiceTailorsSheet(
                             .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                        border = BorderStroke(1.dp, grey_border),
                         enabled = !isAssigning
                     ) {
                         Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.Medium)
@@ -2060,7 +2062,7 @@ private fun ServicePaymentTab(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = whiteBg),
-                border = BorderStroke(1.dp, Color(0xFFF0F0F0))
+                border = BorderStroke(1.dp, title_border)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     // Header Row: Status Badge & Order ID
@@ -2137,7 +2139,7 @@ private fun ServicePaymentTab(
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp)),
                         color = TabActive,
-                        trackColor = Color(0xFFE5E7EB)
+                        trackColor = grey_border
                     )
 
                     Spacer(Modifier.height(14.dp))
@@ -2225,7 +2227,7 @@ private fun ServicePaymentTab(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = whiteBg),
-                    border = BorderStroke(1.dp, Color(0xFFF0F0F0))
+                    border = BorderStroke(1.dp, title_border)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2321,7 +2323,7 @@ private fun ServicePaymentTab(
                                     .weight(1f)
                                     .height(46.dp),
                                 shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                                border = BorderStroke(1.dp, grey_border),
                                 enabled = !isSaving
                             ) {
                                 Text(
@@ -2373,7 +2375,7 @@ private fun ServicePaymentTab(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = whiteBg),
-                border = BorderStroke(1.dp, Color(0xFFF0F0F0))
+                border = BorderStroke(1.dp, title_border)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -2473,7 +2475,7 @@ private fun ServicePaymentTab(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = whiteBg),
-                border = BorderStroke(1.dp, Color(0xFFF0F0F0))
+                border = BorderStroke(1.dp, title_border)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -2825,7 +2827,7 @@ private fun ServicePaymentTypeOption(
             .clip(RoundedCornerShape(10.dp))
             .border(
                 width = if (selected) 2.dp else 1.dp,
-                color = if (selected) TabActive else Color(0xFFE5E7EB),
+                color = if (selected) TabActive else grey_border,
                 shape = RoundedCornerShape(10.dp)
             )
             .background(if (selected) light_blue else whiteBg)

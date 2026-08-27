@@ -69,10 +69,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.cuso.mobile.R
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.grey_border
 
 private val Purple = Color(0xFF3B3BF9)
 private val Green = Color(0xFF22C55E)
-private val BorderGray = Color(0xFFE5E7EB)
+private val BorderGray = grey_border
 private val TextGray = Color(0xFF6B7280)
 private val MutedGray = Color(0xFF9CA3AF)
 private val TitleDark = Color(0xFF111827)
@@ -688,8 +690,8 @@ private fun Step2GarmentDetails(
     GarmentOptionGrid(
         title = "Select Garment Type (multiple allowed)",
         options = garmentOptions,
-        selectedIds = selectedGarments.map { it.garmentId }.toSet(),   //    — set of ids
-        onToggle = onToggleGarment,                                     //    — toggle not replace
+        selectedIds = selectedGarments.map { it.garmentId }.toSet(),
+        onToggle = onToggleGarment,
         showPrice = true
     )
 
@@ -697,6 +699,11 @@ private fun Step2GarmentDetails(
     selectedGarments.forEachIndexed { index, sel ->
         val garment = garmentOptions.find { it.id == sel.garmentId } ?: return@forEachIndexed
         val breakdown = garmentBreakdowns.find { it.garmentId == sel.garmentId }
+
+        // Filter out options with blank or empty names
+        val validFabrics = garment.fabricOptions.filter { it.name.isNotBlank() }
+        val validDesigns = garment.designOptions.filter { it.name.isNotBlank() }
+        val validAddons = garment.addons.filter { it.name.isNotBlank() }
 
         Spacer(Modifier.height(16.dp))
         Column(
@@ -721,37 +728,40 @@ private fun Step2GarmentDetails(
                 )
             }
 
-            if (garment.fabricOptions.isNotEmpty()) {
+            // 1. Fabric Selection (only if valid named fabrics exist)
+            if (validFabrics.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 OptionSelectionGrid(
                     title = "Select Fabric",
-                    options = garment.fabricOptions.map { OptionWithPrice(it.name, it.price) },
+                    options = validFabrics.map { OptionWithPrice(it.name, it.price) },
                     selectedOption = sel.fabric?.name,
                     onSelect = { name ->
-                        onSelectFabric(garment.id, garment.fabricOptions.find { it.name == name })
+                        onSelectFabric(garment.id, validFabrics.find { it.name == name })
                     },
                     showPrice = true
                 )
             }
 
-            if (garment.designOptions.isNotEmpty()) {
+            // 2. Design Selection (only if valid named designs exist)
+            if (validDesigns.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 OptionSelectionGrid(
                     title = "Select Design",
-                    options = garment.designOptions.map { OptionWithPrice(it.name, it.price) },
+                    options = validDesigns.map { OptionWithPrice(it.name, it.price) },
                     selectedOption = sel.design?.name,
                     onSelect = { name ->
-                        onSelectDesign(garment.id, garment.designOptions.find { it.name == name })
+                        onSelectDesign(garment.id, validDesigns.find { it.name == name })
                     },
                     showPrice = true
                 )
             }
 
-            if (garment.addons.isNotEmpty()) {
+            // 3. Addons Selection (only if valid named addons exist)
+            if (validAddons.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 AddonSelectionGrid(
                     title = "Addons",
-                    addons = garment.addons,
+                    addons = validAddons,
                     selectedAddons = sel.addons,
                     onToggle = { addon -> onToggleAddon(garment.id, addon) }
                 )
@@ -1304,16 +1314,24 @@ private fun Step3PricingSummary(
             Spacer(Modifier.height(24.dp))
         }
     } else {
+        val tokens = LocalAppTokens.current
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight()
+                .then(
+                    // Enable vertical scroll on tablets so the larger preview and action buttons don't compress
+                    if (tokens.isTablet) Modifier.verticalScroll(rememberScrollState())
+                    else Modifier.fillMaxHeight()
+                )
         ) {
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(
+                        horizontal = if (tokens.isTablet) tokens.screenPadding else 16.dp,
+                        vertical = 8.dp
+                    ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1384,11 +1402,16 @@ private fun Step3PricingSummary(
                 }
             }
 
+            // --- Adaptive Preview Box ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
-                    .padding(horizontal = 8.dp)
+                    .then(
+                        // 540.dp height on tablets for a full readable view, weight(1f) on phones
+                        if (tokens.isTablet) Modifier.height(540.dp)
+                        else Modifier.weight(1f)
+                    )
+                    .padding(horizontal = if (tokens.isTablet) tokens.screenPadding else 8.dp)
                     .background(whiteBg)
             ) {
                 AndroidView(
@@ -1415,13 +1438,13 @@ private fun Step3PricingSummary(
                 )
             }
 
-            // Send Quotation section — WhatsApp / Email, same layout & position as the reference image
+            // Send Quotation section — WhatsApp / Email
             SendQuotationSection(
                 onWhatsApp = { shareQuotationPdf("com.whatsapp") },
                 onEmail = { shareQuotationPdf(null) }
             )
 
-            // Quick Actions section — Discount / Edit / Save as Draft, same layout as the reference image
+            // Quick Actions section — Discount / Edit / Save as Draft
             QuickActionsRow(
                 onDiscount = {},
                 onEdit = onEdit,
@@ -1429,7 +1452,8 @@ private fun Step3PricingSummary(
                 isSavingDraft = isSavingDraft
             )
 
-            Spacer(Modifier.height(16.dp))
+            // Bottom space clearance
+            Spacer(Modifier.height(if (tokens.isTablet) 80.dp else 16.dp))
         }
     }
 }

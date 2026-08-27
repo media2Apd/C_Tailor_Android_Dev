@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.home.LeadPrimary
 import com.cuso.mobile.view.home.LeadPrimarySoft
@@ -172,7 +173,7 @@ fun SelectableChipRow(
     multiSelect: Boolean = true,
     selectedColor: Color = LeadPrimary,
     selectedBackground: Color = LeadPrimarySoft,
-    unselectedBorderColor: Color = Color(0xFFE5E7EB),
+    unselectedBorderColor: Color = grey_border,
     unselectedTextColor: Color = Color(0xFF374151)
 ) {
     LazyRow(

@@ -21,6 +21,7 @@ import androidx.compose.ui.*
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.*
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.utils.AppLoadingManager
@@ -350,7 +352,7 @@ fun FormDateField(
             .fillMaxWidth()
             .height(40.dp)
             .background(whiteBg, RoundedCornerShape(8.dp))
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+            .border(1.dp, grey_border, RoundedCornerShape(8.dp))
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
@@ -366,9 +368,8 @@ fun FormDateField(
             modifier = Modifier.weight(1f)
         )
         Icon(
-            Icons.Default.CalendarMonth,
+            painter = painterResource(R.drawable.ic_calendar_2),
             contentDescription = null,
-            tint = Color.Gray,
             modifier = Modifier.size(18.dp)
         )
     }

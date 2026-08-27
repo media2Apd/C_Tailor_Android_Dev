@@ -217,7 +217,7 @@ fun CardContentsLoginScreen(
                             }
                         }
                         .padding(vertical = 8.dp),
-                    color = Color(0xFF0A42BE),
+                    color = Primary,
                     fontSize = tokens.caption,
                     fontWeight = FontWeight.Medium
                 )

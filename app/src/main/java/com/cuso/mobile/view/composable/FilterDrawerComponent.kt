@@ -53,7 +53,9 @@ import androidx.compose.ui.unit.Dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.primary_light
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 
 // ── Filter Section Data ──
@@ -255,7 +257,7 @@ fun FilterDrawer(
             }
 
             Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = Color(0xFFF0F0F0))
+            HorizontalDivider(color = title_border)
 
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
 
@@ -369,7 +371,7 @@ fun FilterDrawer(
                 )
             }
 
-//            HorizontalDivider(color = Color(0xFFF0F0F0))
+//            HorizontalDivider(color = title_border)
 //            Row(
 //                modifier = Modifier
 //                    .fillMaxWidth()
@@ -475,7 +477,7 @@ private fun GridChip(option: FilterOption, modifier: Modifier = Modifier, onClic
             .background(if (option.isSelected) Primary else Color(0xFFF9FAFB))
             .border(
                 width = if (option.isSelected) 1.5.dp else 1.dp,
-                color = if (option.isSelected) Primary else Color(0xFFE5E7EB),
+                color = if (option.isSelected) Primary else grey_border,
                 shape = RoundedCornerShape(8.dp)
             )
             .clickable { onClick() },
@@ -541,7 +543,7 @@ private fun ChipRowBody(section: FilterSection, onOptionToggle: (String) -> Unit
                         .background(if (option.isSelected) primary_light else whiteBg)
                         .border(
                             width = if (option.isSelected) 1.5.dp else 1.dp,
-                            color = if (option.isSelected) Primary else Color(0xFFE5E7EB),
+                            color = if (option.isSelected) Primary else grey_border,
                             shape = RoundedCornerShape(8.dp)
                         )
                         .clickable { onOptionToggle(option.id) }
@@ -623,7 +625,7 @@ private fun AmountField(value: String, placeholder: String, onValueChange: (Stri
         modifier = modifier
             .height(46.dp)
             .background(whiteBg, RoundedCornerShape(10.dp))
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
+            .border(1.dp, grey_border, RoundedCornerShape(10.dp))
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -651,7 +653,7 @@ private fun DropdownBody(section: FilterSection) {
             .fillMaxWidth()
             .height(46.dp)
             .background(whiteBg, RoundedCornerShape(10.dp))
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
+            .border(1.dp, grey_border, RoundedCornerShape(10.dp))
             .clickable {  }
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -677,7 +679,7 @@ private fun PriorityDotsBody(section: FilterSection, onOptionToggle: (String) ->
                     .background(if (option.isSelected) primary_light else whiteBg)
                     .border(
                         width = if (option.isSelected) 1.5.dp else 1.dp,
-                        color = if (option.isSelected) Color(0xFF6366F1) else Color(0xFFE5E7EB),
+                        color = if (option.isSelected) Color(0xFF6366F1) else grey_border,
                         shape = RoundedCornerShape(20.dp)
                     )
                     .clickable { onOptionToggle(option.id) }

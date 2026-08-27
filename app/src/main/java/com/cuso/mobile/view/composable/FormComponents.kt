@@ -40,6 +40,7 @@ import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.utils.AppLoadingManager
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.graphics.graphicsLayer
+import com.cuso.mobile.ui.theme.grey_border
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -90,7 +91,7 @@ fun FormDropdown(
                 )
                 .border(
                     1.dp,
-                    if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
+                    if (isError) Color(0xFFEF4444) else grey_border,
                     RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
                 )
                 // ── 2. TOGGLE EXPAND / COLLAPSE ON CLICK ──
@@ -179,7 +180,7 @@ fun FormTextField(
             )
             .border(
                 1.dp,
-                if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
+                if (isError) Color(0xFFEF4444) else grey_border,
                 RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
             )
             .padding(horizontal = tokens.cardPadding * 0.6f),
@@ -223,7 +224,7 @@ fun FormLabel(text: String?, isRequired: Boolean = false) {
             text ?: "",
             fontSize = tokens.bodySmall,
             fontWeight = FontWeight.Medium,
-            color = Color.Gray
+            color = Color(0xFF374151)
         )
         if (isRequired) {
             Text(

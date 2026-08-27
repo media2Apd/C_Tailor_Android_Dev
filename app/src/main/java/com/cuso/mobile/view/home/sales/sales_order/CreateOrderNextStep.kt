@@ -54,6 +54,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
@@ -72,7 +74,7 @@ private val AccentBlueBg = Color(0xFFF0EEFE)
 private val SuccessGreen = Color(0xFF22C55E)
 private val SectionBg = Color(0xFFFFFFFF)
 private val PageBg = Color(0xFFF3F4F6)
-private val BorderColor = Color(0xFFE5E7EB)
+private val BorderColor = grey_border
 private val LabelGray = Color(0xFF9CA3AF)
 private val TextPrimary = Color(0xFF111827)
 private val TextSecond = Color(0xFF6B7280)
@@ -362,7 +364,7 @@ fun CreateOrderNextStep(
 
                                         if (index != orderData.garments.lastIndex) {
                                             Spacer(Modifier.height(14.dp))
-                                            HorizontalDivider(color = Color(0xFFF0F0F0))
+                                            HorizontalDivider(color = title_border)
                                             Spacer(Modifier.height(12.dp))
                                         }
                                     }
@@ -490,7 +492,7 @@ fun CreateOrderNextStep(
                     // ── 3. DELIVERY SCHEDULE ──
                     SectionCard {
                         SectionHeader(
-                            icon = R.drawable.delivery,
+                            icon = R.drawable.ic_calendar,
                             title = "Delivery Schedule",
                             expanded = expandedSection == "delivery",
                             onToggle = { expandedSection = if (expandedSection == "delivery") "" else "delivery" }

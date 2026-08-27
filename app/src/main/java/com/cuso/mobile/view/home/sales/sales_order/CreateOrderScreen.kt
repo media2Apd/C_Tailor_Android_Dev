@@ -13,12 +13,9 @@ package com.cuso.mobile.view.home.sales.sales_order
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.media.MediaRecorder
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -30,14 +27,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -60,22 +55,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.database.entities.GarmentMeasurement
 import com.cuso.mobile.database.entities.SelectedGarment
-import com.cuso.mobile.model.sales.Customer
 import com.cuso.mobile.model.sales.CustomerGarment
 import com.cuso.mobile.model.sales.CustomerOrder
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.utils.safeDate
 import com.cuso.mobile.view.composable.*
+import com.cuso.mobile.view.home.formatIndianNumber
+import com.cuso.mobile.view.home.inventory.procurement.orders.FormTextArea
 import com.cuso.mobile.view.home.sales.customer.LabeledField
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
-import com.cuso.mobile.viewmodel.BranchUiState
 import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
 import com.github.skydoves.colorpicker.compose.AlphaSlider
@@ -83,10 +76,8 @@ import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
-import java.io.File
-import com.cuso.mobile.view.composable.SheetValue as CustomSheetValue
+import java.util.UUID
 
 data class GarmentModel(
     val id: String,
@@ -115,6 +106,36 @@ private fun missingGarmentFields(g: SelectedGarment): List<String> {
         if (g.measurements.isEmpty() || g.measurements.any { it.value.isBlank() }) add("Measurements")
     }
 }
+// ── Local Order Item State Model for Section 3 ──
+data class ConfiguredOrderItem(
+    val id: String = UUID.randomUUID().toString(),
+    var garmentCategory: String = "Men's Wear",
+    var garmentType: String = "Shirt",
+    var quantity: Int = 1,
+    var fabricSource: String = "Store Fabric",
+    var fabricSelection: String = "Premium Giza Cotton - White",
+    var designPreset: String = "Slim Fit Classic",
+    var colorAccent: String = "White",
+    var sizeStandard: String = "40",
+    var stitchingType: String = "Normal Machine",
+    var assignedTailor: String = "Master Gulam (Team A)",
+    var deliveryDate: String = "26 Oct 2026",
+    var specialInstructions: String = "",
+    var collarStyle: String = "Spread Collar",
+    var sleeveStyle: String = "Full Sleeve",
+    var cuffPreference: String = "Rounded 2-Button",
+    var pocketStyle: String = "No Pocket",
+    var fittingPreference: String = "Slim Fit",
+    var buttonStyle: String = "Classic Pearl White",
+    var stitchingPrice: Double = 1200.0,
+    var fabricPrice: Double = 2500.0,
+    var addlWorkPrice: Double = 0.0,
+    var discountPrice: Double = 300.0,
+    var taxPrice: Double = 170.0
+) {
+    val totalItemPrice: Double
+        get() = (stitchingPrice + fabricPrice + addlWorkPrice - discountPrice + taxPrice) * quantity
+}
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -132,39 +153,67 @@ fun CreateOrderScreen(
 
     val isEditMode = initialData?.orderId != null
 
+    // ── 1. Customer Details State ──
     var phone by rememberSaveable { mutableStateOf(initialData?.phone ?: "") }
     var fullName by rememberSaveable { mutableStateOf(initialData?.fullName ?: "") }
     var address by rememberSaveable { mutableStateOf(initialData?.address ?: "") }
     var gender by rememberSaveable { mutableStateOf(initialData?.gender ?: "Male") }
     var dressFor by rememberSaveable { mutableStateOf(initialData?.dressFor ?: "") }
-    var source by rememberSaveable { mutableStateOf(initialData?.source ?: "") }
+    var source by rememberSaveable { mutableStateOf(initialData?.source ?: "Walk-in") }
     var countryCode by rememberSaveable { mutableStateOf(initialData?.countryCode ?: "+91") }
+
+    // ── 2. Order Information State ──
+    val generatedOrderId = rememberSaveable { "ORD-${(1000..9999).random()}" }
+    var orderIdText by rememberSaveable { mutableStateOf(initialData?.orderId ?: generatedOrderId) }
+    var orderDate by rememberSaveable { mutableStateOf(initialData?.orderDate.orEmpty().ifBlank { "12 Oct 2026" }) }
+    var salesExecutive by rememberSaveable { mutableStateOf("Anil Kumar") }
+    var orderType by rememberSaveable { mutableStateOf("New Stitching") }
+    var priority by rememberSaveable { mutableStateOf("Normal") }
+    var expectedDeliveryDate by rememberSaveable { mutableStateOf(initialData?.deliveryDate.orEmpty().ifBlank { "26 Oct 2026" }) }
+    var deliveryMethod by rememberSaveable { mutableStateOf("Store Pickup") }
+    var orderNotes by rememberSaveable { mutableStateOf("") }
+
+    // ── 3. Order Items State ──
+    var orderItemsList by remember {
+        mutableStateOf(listOf(ConfiguredOrderItem()))
+    }
+
+    // ── 4. Pricing & Charges Calculation ──
+    val subtotalAmount = orderItemsList.sumOf { (it.stitchingPrice + it.fabricPrice + it.addlWorkPrice) * it.quantity }
+    val totalDiscount = orderItemsList.sumOf { it.discountPrice * it.quantity }
+    val totalTax = orderItemsList.sumOf { it.taxPrice * it.quantity }
+    val deliveryCharges = 0.0
+    val grandTotalAmount = subtotalAmount - totalDiscount + totalTax + deliveryCharges
+
+    // ── 5. Payment & Billing Preference State ──
+    var paymentType by rememberSaveable { mutableStateOf("Advance") }
+    var advanceAmount by rememberSaveable { mutableStateOf("1500") }
+    var paymentMode by rememberSaveable { mutableStateOf("UPI / GPay") }
+    var billingNotes by rememberSaveable { mutableStateOf("") }
+    var financeClearanceRequired by rememberSaveable { mutableStateOf(true) }
+
+    // ── 6. Attachments & Voice Notes State ──
     var selectedDesignImages by rememberSaveable { mutableStateOf(initialData?.designImages ?: emptyList()) }
-    var selectedBranchId by rememberSaveable { mutableStateOf(initialData?.branchId ?: "") }
-    var orderDate by rememberSaveable { mutableStateOf(initialData?.orderDate ?: "") }
-    var trialDate by rememberSaveable { mutableStateOf(initialData?.trialDate ?: "") }
-    var deliveryDate by rememberSaveable { mutableStateOf(initialData?.deliveryDate ?: "") }
-    var recordedVoiceNoteUri by rememberSaveable { mutableStateOf(initialData?.voiceNoteUri) }
+    var recordedVoiceNoteUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var isRecording by rememberSaveable { mutableStateOf(false) }
 
-    var showPlanLimitDialog by rememberSaveable { mutableStateOf(false) }
+    val micPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
 
-    val currentPlanName = "starter"
-    val isMediaUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
-            currentPlanName.equals("light", ignoreCase = true)
+    // ── Accordion Collapse/Expand State ──
+    var expandedSection by rememberSaveable { mutableStateOf("order_info") }
 
-    var garmentsError by remember { mutableStateOf(false) }
+    // ── Dropdown Expansion States ──
+    var orderTypeExpanded by remember { mutableStateOf(false) }
+    var salesExecExpanded by remember { mutableStateOf(false) }
+    var priorityExpanded by remember { mutableStateOf(false) }
+    var deliveryMethodExpanded by remember { mutableStateOf(false) }
+    var paymentTypeExpanded by remember { mutableStateOf(false) }
+    var paymentModeExpanded by remember { mutableStateOf(false) }
 
-    var dressForExpanded by rememberSaveable { mutableStateOf(false) }
-    var sourceExpanded by rememberSaveable { mutableStateOf(false) }
+    var errorField by remember { mutableStateOf<String?>(null) }
+    var validationError by remember { mutableStateOf<String?>(null) }
 
-    val branchUiState by branchViewModel.uiState.collectAsStateWithLifecycle()
-    val branches = (branchUiState as? BranchUiState.Success)?.branches ?: emptyList()
-    val isLoadingBranches = branchUiState is BranchUiState.Loading
-    var genderExpanded by rememberSaveable { mutableStateOf(false) }
-
-    val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
-
-    // Launcher for selecting multiple files of any format (*/*)
+    // All-Files Picker Launcher
     val allFilesLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
@@ -173,1189 +222,910 @@ fun CreateOrderScreen(
         }
     }
 
-    var addCategorySheetState by remember { mutableStateOf(CustomSheetValue.Hidden) }
-    var errorField by remember { mutableStateOf<String?>(null) }
-    var validationError by remember { mutableStateOf<String?>(null) }
-    var addCategoryBlur by remember { mutableStateOf(0.dp) }
-    var addCategoryScrim by remember { mutableFloatStateOf(0f) }
-    var selectedQuickCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
-    var isCategorySelectable by rememberSaveable { mutableStateOf(false) }
-
-    // Sync all fields when initialData is loaded
-    LaunchedEffect(initialData) {
-        if (initialData != null) {
-            phone = initialData.phone
-            fullName = initialData.fullName
-            address = initialData.address
-            gender = initialData.gender.orEmpty().ifBlank { "Male" }
-            dressFor = initialData.dressFor
-            source = initialData.source
-            countryCode = initialData.countryCode.ifBlank { "+91" }
-            selectedBranchId = initialData.branchId.orEmpty()
-            orderDate = initialData.orderDate
-            trialDate = initialData.trialDate
-            deliveryDate = initialData.deliveryDate
-
-            salesViewModel.clearAllSelectedGarments()
-            initialData.garments.forEach { garment ->
-                salesViewModel.addOrUpdateGarment(garment)
-            }
-        }
-        branchViewModel.loadBranches()
-        salesViewModel.fetchOrgGarmentCategories()
-        salesViewModel.fetchActiveOrgGarments()
-        salesViewModel.loadSelectedGarments()
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            salesViewModel.clearCustomerSearch()
-        }
-    }
-
-    var capturedImageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success: Boolean ->
-        if (success) {
-            capturedImageUri?.let { uri ->
-                selectedDesignImages = selectedDesignImages + uri
-                capturedImageUri = null
-            }
-        }
-    }
-
-    fun captureDesignImage() {
-        if (cameraPermissionState.status.isGranted) {
-            val tempFile = File.createTempFile("design_image_", ".jpg", context.cacheDir)
-            capturedImageUri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                tempFile
-            )
-            capturedImageUri?.let { cameraLauncher.launch(it) }
-        } else {
-            cameraPermissionState.launchPermissionRequest()
-        }
-    }
-
-    var expandedSection by rememberSaveable { mutableStateOf("customer") }
-    var branchExpanded by rememberSaveable { mutableStateOf(false) }
-    val branchNameToId = rememberSaveable(branches) {
-        branches.associate { it.name.orEmpty().ifBlank { "Unnamed Branch" } to it.id }
-    }
-    val selectedBranchName = branches.find { it.id == selectedBranchId }?.name.orEmpty()
-
-    var stylingNotes by rememberSaveable { mutableStateOf("") }
-    var isRecording by rememberSaveable { mutableStateOf(false) }
-    var mediaRecorder by rememberSaveable { mutableStateOf<MediaRecorder?>(null) }
-    var recordingFile by rememberSaveable { mutableStateOf<File?>(null) }
-
-    val micPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
-
-    val customerSearchResult by salesViewModel.customerSearchResult.collectAsStateWithLifecycle()
-    val isSearchingCustomer by salesViewModel.isSearchingCustomer.collectAsStateWithLifecycle()
-    var showImportDialog by rememberSaveable { mutableStateOf(false) }
-    var selectedCustomer by rememberSaveable { mutableStateOf<Customer?>(null) }
-    val activeOrgCategoryIds by salesViewModel.activeOrgCategoryIds.collectAsStateWithLifecycle()
-    val commonCategories by salesViewModel.orgGarmentCategories.collectAsStateWithLifecycle()
-    val isLoadingCategories by salesViewModel.isLoadingOrgGarments.collectAsStateWithLifecycle()
-    val selectedGarments by salesViewModel.selectedGarments.collectAsStateWithLifecycle()
-
-    LaunchedEffect(phone) {
-        if (phone.length >= 4 && !isEditMode) {
-            salesViewModel.searchCustomerByMobile(mobile = phone, countryCode = countryCode)
-        } else {
-            salesViewModel.clearCustomerSearch()
-        }
-    }
-
-    val quickCategories: List<Pair<String, String>> = remember(commonCategories, activeOrgCategoryIds) {
-        commonCategories
-            .filter { it._id in activeOrgCategoryIds }
-            .map { it.categoryName to it._id }
-    }
-
-    var showGarmentDialog by rememberSaveable { mutableStateOf(false) }
-    var editingGarmentId by rememberSaveable { mutableStateOf<String?>(null) }
-
-    var tempGarment by remember {
-        mutableStateOf(
-            SelectedGarment(
-                category = "",
-                categoryName = "",
-                categoryId = "",
-                quantity = 1,
-                price = 0.0,
-                priority = "",
-                trialRequired = false,
-                fabricSource = "",
-                fabricType = "",
-                colorTone = "",
-                pattern = "",
-                models = emptyList()
-            )
-        )
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    fun startRecording() {
-        val file = File.createTempFile("voice_note_", ".m4a", context.cacheDir)
-        recordingFile = file
-        mediaRecorder = MediaRecorder(context).apply {
-            setAudioSource(MediaRecorder.AudioSource.MIC)
-            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            setOutputFile(file.absolutePath)
-            prepare()
-            start()
-        }
-        isRecording = true
-    }
-
-    fun stopRecording() {
-        try {
-            mediaRecorder?.apply {
-                stop()
-                release()
-            }
-        } catch (_: Exception) {
-            // Ignore error
-        }
-        mediaRecorder = null
-        isRecording = false
-        recordingFile?.let { file ->
-            recordedVoiceNoteUri = FileProvider.getUriForFile(
-                context, "${context.packageName}.fileprovider", file
-            )
-        }
-    }
-
-    fun openGarmentDialog(categoryName: String, category: String) {
-        tempGarment = SelectedGarment(
-            id = "new_${System.currentTimeMillis()}",
-            category = category,
-            categoryName = categoryName,
-            categoryId = category,
-            quantity = 1,
-            price = 0.0,
-            priority = "Low",
-            trialRequired = false,
-            fabricSource = "In-House",
-            fabricType = "",
-            colorTone = "",
-            pattern = "Solid",
-            models = emptyList()
-        )
-        editingGarmentId = null
-        isCategorySelectable = false
-        addCategorySheetState = CustomSheetValue.Collapsed
-    }
-
-    fun openAddCategoryDialog() {
-        tempGarment = SelectedGarment(
-            id = "new_${System.currentTimeMillis()}",
-            category = "",
-            categoryName = "",
-            categoryId = "",
-            quantity = 1,
-            price = 0.0,
-            priority = "Low",
-            trialRequired = false,
-            fabricSource = "In-House",
-            fabricType = "",
-            colorTone = "",
-            pattern = "Solid",
-            models = emptyList()
-        )
-        editingGarmentId = null
-        selectedQuickCategoryId = null
-        isCategorySelectable = true
-        addCategorySheetState = CustomSheetValue.Collapsed
-    }
-
-    fun editGarmentDialog(garment: SelectedGarment) {
-        tempGarment = garment
-        editingGarmentId = garment.id
-        isCategorySelectable = false
-        addCategorySheetState = CustomSheetValue.Collapsed
-    }
-
-    fun saveGarment() {
-        salesViewModel.addOrUpdateGarment(tempGarment)
-        addCategorySheetState = CustomSheetValue.Hidden
-        garmentsError = false
-    }
-
-    fun deleteGarment(garmentId: String) {
-        salesViewModel.deleteSelectedGarment(garmentId)
-    }
-
-    fun importGarments(garments: List<CustomerGarment>) {
-        garments.forEach { cg ->
-            val garment = SelectedGarment(
-                category = cg.category,
-                categoryName = cg.categoryName,
-                categoryId = cg.id,
-                quantity = cg.quantity,
-                priority = cg.priority,
-                trialRequired = cg.trialRequired,
-                fabricSource = cg.fabricDetails?.fabricSource ?: "In-House",
-                fabricType = cg.fabricDetails?.fabricType ?: "",
-                colorTone = cg.fabricDetails?.color ?: "",
-                pattern = cg.fabricDetails?.pattern ?: "Solid",
-                models = cg.models
-            )
-            salesViewModel.addOrUpdateGarment(garment)
-        }
-        garmentsError = false
-    }
-
-    fun validateOrderForm(): Boolean {
-        val fields = listOf(
-            ValidationField("mobile", phone, "Mobile Number is required"),
-            ValidationField("fullName", fullName, "Full Name is required"),
-            ValidationField("dressFor", dressFor, "Dress For is required"),
-            ValidationField("source", source, "Source is required"),
-            ValidationField("orderDate", orderDate, "Order Date is required"),
-            ValidationField("trialDate", trialDate, "Trial Date is required"),
-            ValidationField("deliveryDate", deliveryDate, "Target Delivery Date is required"),
-            ValidationField("branch", selectedBranchId, "Assigned Branch is required")
-        )
-
-        val result = FieldValidator.validate(fields)
-        if (result != null) {
-            errorField = result.fieldKey
-            validationError = result.message
-            expandedSection = FieldValidator.resolveSection(result.fieldKey, orderSectionFieldMap) ?: expandedSection
-            return false
-        }
-
-        val incompleteGarment = selectedGarments.firstOrNull { missingGarmentFields(it).isNotEmpty() }
-        if (selectedGarments.isEmpty() || incompleteGarment != null) {
-            errorField = "garments"
-            garmentsError = true
-            validationError = when {
-                selectedGarments.isEmpty() -> "Add at least one garment"
-                else -> "${incompleteGarment!!.categoryName}: missing ${missingGarmentFields(incompleteGarment).joinToString(", ")}"
-            }
-            expandedSection = "garment"
-            return false
-        }
-        errorField = null
-        garmentsError = false
-        return true
-    }
-
     Scaffold(
         topBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                TitleBar(if (isEditMode) "Edit Order" else "Create Order", onClose = onCancel)
-            }
+            TitleBar(
+                title = if (isEditMode) "Edit Order" else "Create Order",
+                onClose = onCancel
+            )
         },
         containerColor = Color.Transparent
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+        Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .blurScrim(addCategoryBlur)
                     .verticalScroll(scrollState)
-                    .padding(bottom = tokens.screenPadding)
+                    .padding(bottom = 90.dp)
             ) {
-
+                // ─────────────────────────────────────────────────────────────
                 // 1. CUSTOMER DETAILS
+                // ─────────────────────────────────────────────────────────────
                 AccordionSection(
-                    title = "Customer Details",
+                    title = "1. Customer Details",
                     expanded = expandedSection == "customer",
                     onHeaderClick = { expandedSection = if (expandedSection == "customer") "" else "customer" }
                 ) {
-
+                    // Previous Measurements Hint Banner
                     Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterEnd
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFEEF2FF))
+                            .border(1.dp, Color(0xFFC7D2FE), RoundedCornerShape(8.dp))
+                            .clickable { /* Handle measurement import */ }
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
-                        FormLabel("Phone ")
-                        PhoneInputField(
-                            phoneValue = phone,
-                            onPhoneChange = { newPhone ->
-                                if (!isEditMode) {
-                                    phone = newPhone
-                                    if (newPhone.isEmpty()) salesViewModel.clearCustomerSearch()
-                                    if (errorField == "mobile" && newPhone.isNotBlank()) errorField = null
-                                }
-                            },
-                            onCountryChange = { country -> countryCode = country.code },
-                            isLoading = isSearchingCustomer,
-                            onRetry = {
-                                if (phone.length >= 4 && !isEditMode) {
-                                    salesViewModel.searchCustomerByMobile(mobile = phone, countryCode = countryCode)
-                                }
-                            },
-                            enabled = !isEditMode,
-                            isError = errorField == "mobile",
-                            errorMessage = if (errorField == "mobile") "Mobile Number is required" else null
-                        )
-                    }
-
-                    if (!isEditMode) {
-                        AnimatedVisibility(
-                            visible = customerSearchResult?.customer != null,
-                            enter = expandVertically(),
-                            exit = shrinkVertically()
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            customerSearchResult?.customer?.let { customer ->
-                                Spacer(Modifier.height(tokens.extraPadding))
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(tokens.cardCornerRadius),
-                                    colors = CardDefaults.cardColors(containerColor = whiteBg),
-                                    elevation = CardDefaults.cardElevation(3.dp)
-                                ) {
-                                    Column(modifier = Modifier.fillMaxWidth()) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .background(Color(0xFFF0FDF4))
-                                                .padding(horizontal = tokens.extraPadding, vertical = tokens.extraPadding),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.CheckCircle,
-                                                    null,
-                                                    tint = Color(0xFF16A34A),
-                                                    modifier = Modifier.size(tokens.iconSize)
-                                                )
-                                                Text(
-                                                    "FOUND CUSTOMER",
-                                                    fontSize = tokens.caption,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF16A34A),
-                                                    letterSpacing = 0.5.sp
-                                                )
-                                            }
-                                            Icon(
-                                                Icons.Default.Close,
-                                                null,
-                                                tint = Color(0xFF6B7280),
-                                                modifier = Modifier
-                                                    .size(tokens.iconSize)
-                                                    .clickable { salesViewModel.clearCustomerSearch() }
-                                            )
-                                        }
-
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = tokens.extraPadding, vertical = tokens.extraPadding),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column {
-                                                Text(
-                                                    customer.name,
-                                                    fontSize = tokens.bodyMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF111827)
-                                                )
-                                                val orderCount = customerSearchResult?.orders?.size ?: 0
-                                                Text(
-                                                    "Found $orderCount previous order${if (orderCount != 1) "s" else ""}",
-                                                    fontSize = tokens.bodySmall,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = Color(0xFF6B7280)
-                                                )
-                                            }
-
-                                            if ((customerSearchResult?.orders?.size ?: 0) > 0) {
-                                                OutlinedButton(
-                                                    onClick = {
-                                                        fullName = customer.name
-                                                        address = customer.address?.addressLine ?: ""
-                                                        showImportDialog = true
-                                                    },
-                                                    shape = RoundedCornerShape(tokens.cardCornerRadius),
-                                                    border = BorderStroke(1.dp, Color(0xFF3B3BF9)),
-                                                    colors = ButtonDefaults.outlinedButtonColors(
-                                                        containerColor = primary_light
-                                                    ),
-                                                    contentPadding = PaddingValues(horizontal = tokens.extraPadding, vertical = 6.dp)
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Download,
-                                                        null,
-                                                        tint = Color(0xFF3B3BF9),
-                                                        modifier = Modifier.size(14.dp)
-                                                    )
-                                                    Spacer(Modifier.width(4.dp))
-                                                    Text(
-                                                        "Import Data",
-                                                        fontSize = tokens.bodySmall,
-                                                        color = Color(0xFF3B3BF9),
-                                                        fontWeight = FontWeight.SemiBold
-                                                    )
-                                                }
-                                            } else {
-                                                OutlinedButton(
-                                                    onClick = {
-                                                        fullName = customer.name
-                                                        address = customer.address?.addressLine ?: ""
-                                                        salesViewModel.clearCustomerSearch()
-                                                    },
-                                                    shape = RoundedCornerShape(tokens.cardCornerRadius),
-                                                    border = BorderStroke(1.dp, Color(0xFF3B3BF9)),
-                                                    colors = ButtonDefaults.outlinedButtonColors(
-                                                        containerColor = primary_light
-                                                    ),
-                                                    contentPadding = PaddingValues(horizontal = tokens.extraPadding, vertical = 6.dp)
-                                                ) {
-                                                    Text(
-                                                        "Use Details",
-                                                        fontSize = tokens.bodySmall,
-                                                        color = Color(0xFF3B3BF9),
-                                                        fontWeight = FontWeight.SemiBold
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            Text(
+                                text = "Previous measurements available",
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Primary
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = Primary,
+                                modifier = Modifier.size(tokens.iconSize)
+                            )
                         }
                     }
 
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(14.dp))
 
-                    FormLabel("Full Name")
+                    FormLabel("Mobile Number", isRequired = true)
+                    PhoneInputField(
+                        phoneValue = phone,
+                        onPhoneChange = { phone = it },
+                        onCountryChange = { countryCode = it.code }
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    FormLabel("Customer Name", isRequired = true)
                     FormTextField(
                         value = fullName,
-                        onValueChange = {
-                            if (!isEditMode) {
-                                fullName = it
-                                if (errorField == "fullName" && it.isNotBlank()) errorField = null
-                            }
-                        },
-                        placeholder = "Enter your name",
-                        enabled = !isEditMode,
-                        isError = errorField == "fullName"
+                        onValueChange = { fullName = it },
+                        placeholder = "Enter customer full name"
                     )
-                    if (errorField == "fullName") {
-                        Text(
-                            "Full Name is required",
-                            fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFFEF4444),
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
 
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(14.dp))
 
-                    FormLabel("Address")
-                    OutlinedTextField(
+                    FormLabel("Delivery / Billing Address")
+                    FormTextArea(
                         value = address,
                         onValueChange = { address = it },
-                        modifier = Modifier.fillMaxWidth().height(100.dp),
-                        placeholder = {
-                            Text(
-                                "Enter full billing/shipping address...",
-                                color = Color(0xFF9CA3AF),
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = Color(0xFFE5E7EB),
-                            focusedBorderColor = Color(0xFF3B3BF9),
-                            unfocusedContainerColor = whiteBg,
-                            focusedContainerColor = whiteBg
-                        ),
-                        shape = RoundedCornerShape(tokens.cardCornerRadius),
-                        textStyle = TextStyle(fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Color(0xFF111827)),
-                        enabled = !isEditMode
-                    )
-
-                    Spacer(Modifier.height(4.dp))
-
-                    FormDropdown(
-                        label = "Gender",
-                        value = gender.ifEmpty { "Select an option" },
-                        expanded = genderExpanded,
-                        onExpandChange = { genderExpanded = it },
-                        options = listOf("Male", "Female", "Other"),
-                        onOptionSelected = {
-                            if (!isEditMode) {
-                                gender = it
-                                if (errorField == "gender") errorField = null
-                            }
-                        },
-                        isRequired = true,
-                        enabled = !isEditMode,
-                        isError = errorField == "gender",
-                        errorMessage = if (errorField == "gender") "Gender is required" else null
-                    )
-
-                    Spacer(Modifier.height(4.dp))
-
-                    FormDropdown(
-                        label = "Dress For",
-                        value = dressFor.ifEmpty { "Select an option" },
-                        expanded = dressForExpanded,
-                        onExpandChange = { dressForExpanded = it },
-                        options = listOf("Men", "Women", "Kids", "Unisex"),
-                        onOptionSelected = {
-                            dressFor = it
-                            if (errorField == "dressFor") errorField = null
-                        },
-                        isRequired = true,
-                        isError = errorField == "dressFor",
-                        errorMessage = if (errorField == "dressFor") "Dress For is required" else null
-                    )
-                    Spacer(Modifier.height(4.dp))
-
-                    FormDropdown(
-                        label = "Source",
-                        value = source.ifEmpty { "Select an option" },
-                        expanded = sourceExpanded,
-                        onExpandChange = { sourceExpanded = it },
-                        options = listOf("Walk-in", "Phone", "WhatsApp", "Referral", "Online"),
-                        onOptionSelected = {
-                            source = it
-                            if (errorField == "source") errorField = null
-                        },
-                        isRequired = true,
-                        isError = errorField == "source",
-                        errorMessage = if (errorField == "source") "Source is required" else null
+                        placeholder = "Enter full delivery address..."
                     )
                 }
 
-                // 2. GARMENT DETAILS
+                // ─────────────────────────────────────────────────────────────
+                // 2. ORDER INFORMATION
+                // ─────────────────────────────────────────────────────────────
                 AccordionSection(
-                    title = "Garment Details",
-                    expanded = expandedSection == "garment",
-                    onHeaderClick = { expandedSection = if (expandedSection == "garment") "" else "garment" }
+                    title = "2. Order Information",
+                    expanded = expandedSection == "order_info",
+                    onHeaderClick = { expandedSection = if (expandedSection == "order_info") "" else "order_info" }
                 ) {
-                    Row(
-                        Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            "QUICK ADD CATEGORY",
-                            fontSize = tokens.caption,
-                            color = Color(0xFF9CA3AF),
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.5.sp
-                        )
-                        Spacer(Modifier.weight(1f))
-                        Text(
-                            "+ Add Category",
-                            fontSize = tokens.caption,
-                            color = Primary,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.5.sp,
-                            modifier = Modifier.clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) {
-                                openAddCategoryDialog()
-                            }
-                        )
-                    }
-                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Order ID", isRequired = true)
+                    FormTextField(
+                        value = orderIdText,
+                        onValueChange = { orderIdText = it },
+                        placeholder = "ORD-3012"
+                    )
 
-                    when {
-                        isLoadingCategories -> {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().height(80.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CirculerProgressIndicatorReuse()
-                            }
+                    Spacer(Modifier.height(14.dp))
+
+                    FormLabel("Order Date", isRequired = true)
+                    DatePickerField(
+                        value = orderDate,
+                        onDateSelected = { orderDate = it }
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    FormDropdown(
+                        label = "Sales Executive",
+                        value = salesExecutive,
+                        expanded = salesExecExpanded,
+                        onExpandChange = { salesExecExpanded = it },
+                        options = listOf("Anil Kumar", "Suresh Raina", "Pooja Sharma"),
+                        onOptionSelected = { salesExecutive = it },
+                        isRequired = true
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    FormDropdown(
+                        label = "Order Type",
+                        value = orderType,
+                        expanded = orderTypeExpanded,
+                        onExpandChange = { orderTypeExpanded = it },
+                        options = listOf("New Stitching", "Alteration Only", "Fabric + Stitching"),
+                        onOptionSelected = { orderType = it },
+                        isRequired = true
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    FormDropdown(
+                        label = "Priority",
+                        value = priority,
+                        expanded = priorityExpanded,
+                        onExpandChange = { priorityExpanded = it },
+                        options = listOf("Normal", "High", "Urgent"),
+                        onOptionSelected = { priority = it },
+                        isRequired = true
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    FormLabel("Expected Delivery Date", isRequired = true)
+                    DatePickerField(
+                        value = expectedDeliveryDate,
+                        onDateSelected = { expectedDeliveryDate = it }
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    FormDropdown(
+                        label = "Delivery Method",
+                        value = deliveryMethod,
+                        expanded = deliveryMethodExpanded,
+                        onExpandChange = { deliveryMethodExpanded = it },
+                        options = listOf("Store Pickup", "Home Delivery", "Courier Express"),
+                        onOptionSelected = { deliveryMethod = it },
+                        isRequired = true
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    FormLabel("Order Notes")
+                    FormTextArea(
+                        value = orderNotes,
+                        onValueChange = { orderNotes = it },
+                        placeholder = "Add any order-specific notes or special instructions here..."
+                    )
+                }
+
+                // ─────────────────────────────────────────────────────────────
+                // 3. ORDER ITEMS
+                // ─────────────────────────────────────────────────────────────
+                AccordionSection(
+                    title = "3. Order Items",
+                    expanded = expandedSection == "order_items",
+                    onHeaderClick = { expandedSection = if (expandedSection == "order_items") "" else "order_items" }
+                ) {
+                    orderItemsList.forEachIndexed { itemIndex, item ->
+                        var catExpanded by remember { mutableStateOf(false) }
+                        var typeExpanded by remember { mutableStateOf(false) }
+                        var sourceExpanded by remember { mutableStateOf(false) }
+                        var fabricExpanded by remember { mutableStateOf(false) }
+                        var presetExpanded by remember { mutableStateOf(false) }
+                        var colorExpanded by remember { mutableStateOf(false) }
+                        var sizeExpanded by remember { mutableStateOf(false) }
+                        var stitchTypeExpanded by remember { mutableStateOf(false) }
+                        var tailorExpanded by remember { mutableStateOf(false) }
+
+                        // Customization dropdowns
+                        var collarExpanded by remember { mutableStateOf(false) }
+                        var sleeveExpanded by remember { mutableStateOf(false) }
+                        var cuffExpanded by remember { mutableStateOf(false) }
+                        var pocketExpanded by remember { mutableStateOf(false) }
+                        var fitExpanded by remember { mutableStateOf(false) }
+                        var buttonExpanded by remember { mutableStateOf(false) }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            Text(
+                                text = "Item #${itemIndex + 1}",
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Primary
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = "Garment Configuration",
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = title_color
+                            )
                         }
 
-                        quickCategories.isEmpty() -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(70.dp)
-                                    .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
-                                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    "No garment categories configured. Add them in Settings.",
-                                    fontSize = tokens.bodySmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF9CA3AF)
+                        // Row: Category | Type | Qty
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1.3f)) {
+                                FormDropdown(
+                                    label = "Garment Category",
+                                    value = item.garmentCategory,
+                                    expanded = catExpanded,
+                                    onExpandChange = { catExpanded = it },
+                                    options = listOf("Men's Wear", "Women's Wear", "Kids Wear"),
+                                    onOptionSelected = { item.garmentCategory = it },
+                                    isRequired = true
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1.2f)) {
+                                FormDropdown(
+                                    label = "Garment Type",
+                                    value = item.garmentType,
+                                    expanded = typeExpanded,
+                                    onExpandChange = { typeExpanded = it },
+                                    options = listOf("Shirt", "Pant", "Suit", "Kurta"),
+                                    onOptionSelected = { item.garmentType = it },
+                                    isRequired = true
+                                )
+                            }
+                            Column(modifier = Modifier.weight(0.7f)) {
+                                FormLabel("Qty", isRequired = true)
+                                FormTextField(
+                                    value = item.quantity.toString(),
+                                    onValueChange = { item.quantity = it.toIntOrNull() ?: 1 },
+                                    keyboardType = KeyboardType.Number,
+                                    placeholder = "1"
                                 )
                             }
                         }
 
-                        else -> {
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
-                                items(quickCategories) { (name, categoryId) ->
-                                    CategoryPillButton(
-                                        name = name,
-                                        isSelected = categoryId == selectedQuickCategoryId,
-                                        onClick = {
-                                            selectedQuickCategoryId = categoryId
-                                            openGarmentDialog(name, categoryId)
+                        Spacer(Modifier.height(14.dp))
+
+                        FormDropdown(
+                            label = "Fabric Source",
+                            value = item.fabricSource,
+                            expanded = sourceExpanded,
+                            onExpandChange = { sourceExpanded = it },
+                            options = listOf("Store Fabric", "Client Supplied", "In-House Tailoring"),
+                            onOptionSelected = { item.fabricSource = it },
+                            isRequired = true
+                        )
+
+                        Spacer(Modifier.height(14.dp))
+
+                        FormDropdown(
+                            label = "Fabric / Material Selection",
+                            value = item.fabricSelection,
+                            expanded = fabricExpanded,
+                            onExpandChange = { fabricExpanded = it },
+                            options = listOf("Premium Giza Cotton - White", "Linen Classic Blue", "Italian Silk Blend"),
+                            onOptionSelected = { item.fabricSelection = it }
+                        )
+
+                        Spacer(Modifier.height(14.dp))
+
+                        FormDropdown(
+                            label = "Design / Style Preset",
+                            value = item.designPreset,
+                            expanded = presetExpanded,
+                            onExpandChange = { presetExpanded = it },
+                            options = listOf("Slim Fit Classic", "Relaxed Comfort", "Tuxedo Cut"),
+                            onOptionSelected = { item.designPreset = it }
+                        )
+
+                        Spacer(Modifier.height(14.dp))
+
+                        // Reference Image Upload Box
+                        FormLabel("Reference Image")
+                        ImageUploadSection(
+                            isImage = true,
+                            selectedImages = selectedDesignImages,
+                            documentUploadText = "Browse Images",
+                            onBrowseClick = { allFilesLauncher.launch("*/*") },
+                            onRemoveImage = { removedUri ->
+                                selectedDesignImages = selectedDesignImages.filter { it != removedUri }
+                            },
+                            previewHeaderTitle = "SELECTED IMAGES"
+                        )
+
+                        Spacer(Modifier.height(14.dp))
+
+                        // Row: Color Accent | Size Standard
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                var showColorPicker by remember { mutableStateOf(false) }
+
+                                FormLabel("Color Accent")
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(tokens.fieldHeight)
+                                        .clip(RoundedCornerShape(tokens.cardCornerRadius))
+                                        .background(whiteBg)
+                                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(tokens.cardCornerRadius))
+                                        .clickable { showColorPicker = true }
+                                        .padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Color Preview Box
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(
+                                                when (item.colorAccent.lowercase()) {
+                                                    "white" -> Color.White
+                                                    "navy blue" -> Color(0xFF1E3A8A)
+                                                    "charcoal black" -> Color(0xFF1F2937)
+                                                    else -> runCatching {
+                                                        Color(android.graphics.Color.parseColor(if (item.colorAccent.startsWith("#")) item.colorAccent else "#${item.colorAccent}"))
+                                                    }.getOrDefault(Color.White)
+                                                }
+                                            )
+                                            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(4.dp))
+                                    )
+
+                                    Spacer(Modifier.width(10.dp))
+
+                                    // Color Name / Hex Text
+                                    Text(
+                                        text = item.colorAccent.ifBlank { "White" },
+                                        fontSize = tokens.bodyMedium,
+                                        color = title_color,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    // Dropdown Indicator Icon
+                                    Icon(
+                                        imageVector = Icons.Default.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        tint = Color(0xFF64748B),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                if (showColorPicker) {
+                                    ColorPickerDialog(
+                                        initialHex = if (item.colorAccent.startsWith("#")) item.colorAccent else "#FFFFFF",
+                                        onDismiss = { showColorPicker = false },
+                                        onConfirm = { hexColor ->
+                                            item.colorAccent = hexColor
+                                            showColorPicker = false
                                         }
                                     )
                                 }
                             }
+                            Column(modifier = Modifier.weight(1f)) {
+                                FormDropdown(
+                                    label = "Size Standard",
+                                    value = item.sizeStandard,
+                                    expanded = sizeExpanded,
+                                    onExpandChange = { sizeExpanded = it },
+                                    options = listOf("38", "40", "42", "44", "Custom"),
+                                    onOptionSelected = { item.sizeStandard = it }
+                                )
+                            }
                         }
-                    }
 
-                    Spacer(Modifier.height(tokens.screenPadding))
+                        Spacer(Modifier.height(14.dp))
 
-                    Text(
-                        "SELECTED GARMENTS",
-                        fontSize = tokens.caption,
-                        color = Color(0xFF9CA3AF),
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.5.sp
-                    )
-                    Spacer(Modifier.height(tokens.extraPadding))
-
-                    if (garmentsError) {
-                        Text(
-                            "Add at least one garment — with fabric type, color/tone, pattern, and measurements filled",
-                            fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFFEF4444),
-                            modifier = Modifier.padding(bottom = tokens.extraPadding)
+                        FormDropdown(
+                            label = "Stitching Type",
+                            value = item.stitchingType,
+                            expanded = stitchTypeExpanded,
+                            onExpandChange = { stitchTypeExpanded = it },
+                            options = listOf("Normal Machine", "Hand-stitched Premium", "Double Seam"),
+                            onOptionSelected = { item.stitchingType = it }
                         )
-                    }
 
-                    if (selectedGarments.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(80.dp)
-                                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
-                                .border(
-                                    1.dp,
-                                    if (garmentsError) Color(0xFFEF4444) else Color(0xFFE5E7EB),
-                                    RoundedCornerShape(tokens.cardCornerRadius)
-                                ),
-                            contentAlignment = Alignment.Center
+                        Spacer(Modifier.height(14.dp))
+
+                        FormDropdown(
+                            label = "Tailor / Production Assignment",
+                            value = item.assignedTailor,
+                            expanded = tailorExpanded,
+                            onExpandChange = { tailorExpanded = it },
+                            options = listOf("Master Gulam (Team A)", "Rashid Master (Team B)", "Unassigned"),
+                            onOptionSelected = { item.assignedTailor = it }
+                        )
+
+                        Spacer(Modifier.height(14.dp))
+
+                        FormLabel("Item Delivery Date")
+                        DatePickerField(
+                            value = item.deliveryDate,
+                            onDateSelected = { item.deliveryDate = it }
+                        )
+
+                        Spacer(Modifier.height(14.dp))
+
+                        FormLabel("Garment Special Instructions")
+                        FormTextArea(
+                            value = item.specialInstructions,
+                            onValueChange = { item.specialInstructions = it },
+                            placeholder = "Add any garment-specific stitching or design instructions for this order..."
+                        )
+
+                        Spacer(Modifier.height(16.dp))
+
+                        // ── Nested Customization & Design Details Card ──
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFCFDFF)),
+                            border = BorderStroke(1.dp, Color(0xFFE5E7EB))
                         ) {
-                            Text(
-                                "No garments added yet.",
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF9CA3AF)
-                            )
-                        }
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
-                            selectedGarments.forEach { garment ->
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    text = "Customization & Design Details",
+                                    fontSize = tokens.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = title_color
+                                )
+
+                                Spacer(Modifier.height(12.dp))
+
+                                // Row 1: Collar Style | Sleeve Style
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
-                                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
-                                        .clickable { editGarmentDialog(garment) }
-                                        .padding(tokens.extraPadding),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(36.dp)
-                                                .background(primary_light, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Checkroom,
-                                                null,
-                                                tint = Color(0xFF3B3BF9),
-                                                modifier = Modifier.size(tokens.iconSize)
-                                            )
-                                        }
-                                        Column {
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                Text(
-                                                    garment.categoryName,
-                                                    fontSize = tokens.bodyMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF111827)
-                                                )
-                                                val missing = missingGarmentFields(garment)
-                                                if (missing.isNotEmpty()) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .background(Color(0xFFFEE2E2), RoundedCornerShape(4.dp))
-                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    ) {
-                                                        Text("Incomplete", fontSize = tokens.label, color = Color(0xFFDC2626), fontWeight = FontWeight.SemiBold)
-                                                    }
-                                                }
-                                            }
-                                            val subtitleParts = mutableListOf<String>()
-                                            subtitleParts.add("Qty: ${garment.quantity}")
-                                            if (garment.fabricType.isNotBlank()) subtitleParts.add(garment.fabricType)
-                                            if (garment.colorTone.isNotBlank()) subtitleParts.add(garment.colorTone)
-                                            if (garment.pattern.isNotBlank() && garment.pattern != "Solid") subtitleParts.add(garment.pattern)
-                                            Text(
-                                                subtitleParts.joinToString(" | "),
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = Color(0xFF6B7280)
-                                            )
-                                            val missing = missingGarmentFields(garment)
-                                            if (missing.isNotEmpty()) {
-                                                Text(
-                                                    "Missing: ${missing.joinToString(", ")}",
-                                                    fontSize = tokens.caption,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = Color(0xFFDC2626)
-                                                )
-                                            }
-                                        }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        FormDropdown(
+                                            label = "Collar Style",
+                                            value = item.collarStyle,
+                                            expanded = collarExpanded,
+                                            onExpandChange = { collarExpanded = it },
+                                            options = listOf("Spread Collar", "Mandarin Collar", "Button Down"),
+                                            onOptionSelected = { item.collarStyle = it }
+                                        )
                                     }
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        IconButton(
-                                            onClick = { editGarmentDialog(garment) },
-                                            modifier = Modifier.size(32.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Edit,
-                                                null,
-                                                tint = Color(0xFF3B3BF9),
-                                                modifier = Modifier.size(tokens.iconSize)
-                                            )
-                                        }
-                                        IconButton(
-                                            onClick = { deleteGarment(garment.id) },
-                                            modifier = Modifier.size(32.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                null,
-                                                tint = Color(0xFFEF4444),
-                                                modifier = Modifier.size(tokens.iconSize)
-                                            )
-                                        }
-                                        Icon(
-                                            Icons.Default.ChevronRight,
-                                            null,
-                                            tint = Color(0xFF9CA3AF),
-                                            modifier = Modifier.size(tokens.iconSize)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        FormDropdown(
+                                            label = "Sleeve Style",
+                                            value = item.sleeveStyle,
+                                            expanded = sleeveExpanded,
+                                            onExpandChange = { sleeveExpanded = it },
+                                            options = listOf("Full Sleeve", "Half Sleeve", "Roll-up Sleeve"),
+                                            onOptionSelected = { item.sleeveStyle = it }
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.height(10.dp))
+
+                                // Row 2: Cuff Preference | Pocket Style
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        FormDropdown(
+                                            label = "Cuff Preference",
+                                            value = item.cuffPreference,
+                                            expanded = cuffExpanded,
+                                            onExpandChange = { cuffExpanded = it },
+                                            options = listOf("Rounded 2-Button", "French Cuff", "Single Button"),
+                                            onOptionSelected = { item.cuffPreference = it }
+                                        )
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        FormDropdown(
+                                            label = "Pocket Style",
+                                            value = item.pocketStyle,
+                                            expanded = pocketExpanded,
+                                            onExpandChange = { pocketExpanded = it },
+                                            options = listOf("No Pocket", "Single V-Pocket", "Double Flap Pocket"),
+                                            onOptionSelected = { item.pocketStyle = it }
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.height(10.dp))
+
+                                // Row 3: Fitting Preference | Buttons
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        FormDropdown(
+                                            label = "Fitting Preference",
+                                            value = item.fittingPreference,
+                                            expanded = fitExpanded,
+                                            onExpandChange = { fitExpanded = it },
+                                            options = listOf("Slim Fit", "Regular Fit", "Tailored Fit"),
+                                            onOptionSelected = { item.fittingPreference = it }
+                                        )
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        FormDropdown(
+                                            label = "Buttons",
+                                            value = item.buttonStyle,
+                                            expanded = buttonExpanded,
+                                            onExpandChange = { buttonExpanded = it },
+                                            options = listOf("Classic Pearl White", "Matte Horn", "Metallic Silver"),
+                                            onOptionSelected = { item.buttonStyle = it }
                                         )
                                     }
                                 }
                             }
                         }
+
+                        Spacer(Modifier.height(14.dp))
+                    }
+
+                    // + Add Another Item Action
+                    Row(
+                        modifier = Modifier
+                            .clickable {
+                                orderItemsList = orderItemsList + ConfiguredOrderItem()
+                            }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "Add Another Item",
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Primary
+                        )
                     }
                 }
 
-                // 3. DELIVERY DETAILS
+                // ─────────────────────────────────────────────────────────────
+                // 4. PRICING & CHARGES
+                // ─────────────────────────────────────────────────────────────
                 AccordionSection(
-                    title = "Delivery Details",
-                    expanded = expandedSection == "delivery",
-                    onHeaderClick = { expandedSection = if (expandedSection == "delivery") "" else "delivery" }
+                    title = "4. Pricing & Charges",
+                    expanded = expandedSection == "pricing",
+                    onHeaderClick = { expandedSection = if (expandedSection == "pricing") "" else "pricing" }
                 ) {
-                    FormLabel("Order Date", isRequired = true)
-                    DatePickerField(
-                        value = orderDate,
-                        onDateSelected = {
-                            orderDate = it
-                            if (errorField == "orderDate") errorField = null
-                        },
-                        isError = errorField == "orderDate"
-                    )
-                    if (errorField == "orderDate") {
-                        Text(
-                            "Order Date is required",
-                            fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFFEF4444),
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                    Spacer(Modifier.height(4.dp))
+                    orderItemsList.forEachIndexed { itemIdx, item ->
+                        // Item Pricing Card
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
+                            border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    text = "Item #${itemIdx + 1} – ${item.garmentType}",
+                                    fontSize = tokens.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = title_color
+                                )
 
-                    FormLabel("Trial Date", isRequired = true)
-                    DatePickerField(
-                        value = trialDate,
-                        onDateSelected = {
-                            trialDate = it
-                            if (errorField == "trialDate") errorField = null
-                        },
-                        isError = errorField == "trialDate"
-                    )
-                    if (errorField == "trialDate") {
-                        Text(
-                            "Trial Date is required",
-                            fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFFEF4444),
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                    Spacer(Modifier.height(4.dp))
+                                Spacer(Modifier.height(10.dp))
 
-                    FormLabel("Target Delivery Date", isRequired = true)
-                    DatePickerField(
-                        value = deliveryDate,
-                        onDateSelected = {
-                            deliveryDate = it
-                            if (errorField == "deliveryDate") errorField = null
-                        },
-                        isError = errorField == "deliveryDate"
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Stitching", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        Text("₹${formatIndianNumber(item.stitchingPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = title_color)
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Fabric", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        Text("₹${formatIndianNumber(item.fabricPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = title_color)
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Addl. Work", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        Text("₹${formatIndianNumber(item.addlWorkPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = title_color)
+                                    }
+                                }
+
+                                Spacer(Modifier.height(8.dp))
+
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Discount", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        Text("-₹${formatIndianNumber(item.discountPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444))
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Tax/GST", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        Text("₹${formatIndianNumber(item.taxPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = title_color)
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Total", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        Text("₹${formatIndianNumber(item.totalItemPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Primary)
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+                    }
+
+                    Spacer(Modifier.height(6.dp))
+
+                    Text(
+                        text = "Currency: INR (₹) • GST: Standard 5% applied",
+                        fontSize = 11.sp,
+                        color = Color(0xFF64748B)
                     )
-                    if (errorField == "deliveryDate") {
+
+                    Spacer(Modifier.height(14.dp))
+                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                    Spacer(Modifier.height(10.dp))
+
+                    // Summary Breakdown Table
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Subtotal", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                        Text("₹${formatIndianNumber(subtotalAmount)}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = title_color)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Total Discount", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                        Text("-₹${formatIndianNumber(totalDiscount)}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444))
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Total Tax (GST)", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                        Text("+₹${formatIndianNumber(totalTax)}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = title_color)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Delivery Charges", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                        Text("₹0", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = title_color)
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                    Spacer(Modifier.height(10.dp))
+
+                    // Grand Total
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            "Target Delivery Date is required",
-                            fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFFEF4444),
-                            modifier = Modifier.padding(top = 4.dp)
+                            text = "GRAND TOTAL",
+                            fontSize = tokens.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = title_color
+                        )
+                        Text(
+                            text = "₹${formatIndianNumber(grandTotalAmount)}",
+                            fontSize = tokens.h2,
+                            fontWeight = FontWeight.Bold,
+                            color = Primary
                         )
                     }
-                    Spacer(Modifier.height(4.dp))
+                }
+
+                // ─────────────────────────────────────────────────────────────
+                // 5. PAYMENT & BILLING PREFERENCE
+                // ─────────────────────────────────────────────────────────────
+                AccordionSection(
+                    title = "5. Payment & Billing Preference",
+                    expanded = expandedSection == "payment",
+                    onHeaderClick = { expandedSection = if (expandedSection == "payment") "" else "payment" }
+                ) {
+                    FormDropdown(
+                        label = "Payment Type",
+                        value = paymentType,
+                        expanded = paymentTypeExpanded,
+                        onExpandChange = { paymentTypeExpanded = it },
+                        options = listOf("Advance", "Full Payment", "Pay on Delivery"),
+                        onOptionSelected = { paymentType = it },
+                        isRequired = true
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    FormLabel("Advance Amount Required", isRequired = true)
+                    FormTextField(
+                        value = advanceAmount,
+                        onValueChange = { advanceAmount = it },
+                        placeholder = "₹1,500",
+                        keyboardType = KeyboardType.Number
+                    )
+
+                    Spacer(Modifier.height(14.dp))
 
                     FormDropdown(
-                        label = "Assigned Branch",
-                        value = when {
-                            isLoadingBranches -> "Loading branches..."
-                            selectedBranchName.isEmpty() -> "Select Branch"
-                            else -> selectedBranchName
-                        },
-                        expanded = branchExpanded && !isLoadingBranches,
-                        onExpandChange = { branchExpanded = it },
-                        options = if (branches.isEmpty()) listOf("No branches found") else branchNameToId.keys.toList(),
-                        onOptionSelected = { selectedName ->
-                            branchNameToId[selectedName]?.let { id ->
-                                selectedBranchId = id
-                                if (errorField == "branch") errorField = null
-                            }
-                        },
-                        isRequired = true,
-                        isError = errorField == "branch",
-                        errorMessage = if (errorField == "branch") "Assigned Branch is required" else null
+                        label = "Payment Mode",
+                        value = paymentMode,
+                        expanded = paymentModeExpanded,
+                        onExpandChange = { paymentModeExpanded = it },
+                        options = listOf("UPI / GPay", "Cash", "Card", "Bank Transfer"),
+                        onOptionSelected = { paymentMode = it },
+                        isRequired = true
                     )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    FormLabel("Billing / Credit Notes")
+                    FormTextArea(
+                        value = billingNotes,
+                        onValueChange = { billingNotes = it },
+                        placeholder = "Add any billing or credit notes..."
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // Finance Clearance Toggle Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Finance Clearance Required Before Service",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = title_color,
+                            modifier = Modifier.weight(1f)
+                        )
+                        MiniSwitch(
+                            checked = financeClearanceRequired,
+                            onCheckedChange = { financeClearanceRequired = it }
+                        )
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // Yellow Warning Box
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB)),
+                        border = BorderStroke(1.dp, Color(0xFFFDE68A))
+                    ) {
+                        Text(
+                            text = "Order will be held for finance approval before being assigned to production. Customer will be notified of payment confirmation.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF92400E),
+                            lineHeight = 16.sp,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
                 }
 
-                // 4. DESIGN REFERENCE & ATTACHMENTS (Accepts all file types: PDF, DOC, Images, etc.)
+                // ─────────────────────────────────────────────────────────────
+                // 6. ATTACHMENTS & VOICE NOTES
+                // ─────────────────────────────────────────────────────────────
                 AccordionSection(
-                    title = "Design Reference",
-                    expanded = expandedSection == "design",
-                    onHeaderClick = { expandedSection = if (expandedSection == "design") "" else "design" }
+                    title = "6. Attachments & Voice Notes",
+                    expanded = expandedSection == "attachments",
+                    onHeaderClick = { expandedSection = if (expandedSection == "attachments") "" else "attachments" }
                 ) {
-                    ImageUploadSection(
-                        selectedImages = selectedDesignImages,
-                        browseText = "Browse Files",
-                        onBrowseClick = {
-                            if (isMediaUploadRestricted) {
-                                showPlanLimitDialog = true
+                    Text(
+                        text = "Attachments & References",
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = title_color
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "Upload reference images, fabric swatches, or measurement sheets",
+                        fontSize = tokens.caption,
+                        color = Color(0xFF64748B)
+                    )
 
-                            } else {
-                                allFilesLauncher.launch("*/*")
-                            }
-                        },
-                        onCameraClick = {
-                            if (isMediaUploadRestricted) {
-                                showPlanLimitDialog = true
-                            } else if (cameraPermissionState.status.isGranted) {
-                                captureDesignImage()
-                            } else {
-                                cameraPermissionState.launchPermissionRequest()
-                            }
-                        },
+                    Spacer(Modifier.height(14.dp))
+
+                    // Cloud Document Upload Box
+                    ImageUploadSection(
+                        isImage = false,
+                        selectedImages = selectedDesignImages,
+                        documentUploadText = "Tap to upload files",
+                        onBrowseClick = { allFilesLauncher.launch("*/*") },
                         onRemoveImage = { removedUri ->
                             selectedDesignImages = selectedDesignImages.filter { it != removedUri }
                         },
                         previewHeaderTitle = "ATTACHED FILES"
                     )
-                }
 
-                // 5. INSTRUCTIONS
-                AccordionSection(
-                    title = "Instructions",
-                    expanded = expandedSection == "instructions",
-                    onHeaderClick = { expandedSection = if (expandedSection == "instructions") "" else "instructions" }
-                ) {
-                    FormLabel("Styling Notes")
-                    OutlinedTextField(
-                        value = stylingNotes,
-                        onValueChange = { stylingNotes = it },
-                        modifier = Modifier.fillMaxWidth().height(100.dp),
-                        placeholder = {
-                            Text(
-                                "Special requirements, cutting instructions...",
-                                color = Color(0xFF9CA3AF),
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = Color(0xFFE5E7EB),
-                            focusedBorderColor = Color(0xFF3B3BF9),
-                            unfocusedContainerColor = whiteBg,
-                            focusedContainerColor = whiteBg
-                        ),
-                        shape = RoundedCornerShape(tokens.cardCornerRadius),
-                        textStyle = TextStyle(fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
-                    )
+                    Spacer(Modifier.height(16.dp))
 
-                    Spacer(Modifier.height(tokens.screenPadding))
-
-                    FormLabel("Voice Instructions")
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
-                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
-                            .padding(tokens.cardPadding),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Button(
-                                onClick = {
-                                    if (isMediaUploadRestricted) {
-                                        showPlanLimitDialog = true
-                                    } else if (isRecording) {
-                                        stopRecording()
-                                    } else if (micPermissionState.status.isGranted) {
-                                        startRecording()
-                                    } else {
-                                        micPermissionState.launchPermissionRequest()
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isRecording) Color(0xFFEF4444) else primary_light
-                                ),
-                                shape = RoundedCornerShape(20.dp),
-                                elevation = ButtonDefaults.buttonElevation(0.dp)
-                            ) {
-                                Icon(
-                                    if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
-                                    null,
-                                    tint = if (isRecording) whiteBg else Color(0xFF3B3BF9),
-                                    modifier = Modifier.size(tokens.iconSize)
-                                )
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    if (isRecording) "Stop Recording" else "Start Recording",
-                                    color = if (isRecording) whiteBg else Color(0xFF3B3BF9),
-                                    fontSize = tokens.bodyMedium,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                            if (recordedVoiceNoteUri != null && !isRecording) {
-                                Spacer(Modifier.height(tokens.extraPadding))
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(Color(0xFFF0FDF4), RoundedCornerShape(tokens.cardCornerRadius))
-                                        .padding(tokens.extraPadding),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        "Voice note recorded ✓",
-                                        fontSize = tokens.bodySmall,
-                                        color = Color(0xFF16A34A),
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Text(
-                                        "Remove",
-                                        fontSize = tokens.bodySmall,
-                                        color = Color(0xFFEF4444),
-                                        fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.clickable { recordedVoiceNoteUri = null }
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
-            if (showGarmentDialog) {
-                Dialog(
-                    onDismissRequest = { showGarmentDialog = false },
-                    properties = DialogProperties(
-                        usePlatformDefaultWidth = false,
-                        dismissOnBackPress = true,
-                        dismissOnClickOutside = false
-                    )
-                ) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = whiteBg
-                    ) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(whiteBg)
-                                    .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    if (editingGarmentId != null) "Edit Garment" else "Add Garment",
-                                    fontSize = tokens.h2,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF111827)
-                                )
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "close",
-                                    tint = Color(0xFF111827),
-                                    modifier = Modifier
-                                        .size(tokens.iconSize)
-                                        .clickable { showGarmentDialog = false }
-                                )
-                            }
-                            HorizontalDivider(color = Color(0xFFF3F4F6))
-
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .weight(1f)
-                                    .background(Color.Transparent)
-                                    .verticalScroll(rememberScrollState())
-                            ) {
-                                InlineGarmentPanel(
-                                    garment = tempGarment,
-                                    categories = quickCategories,
-                                    isEditing = editingGarmentId != null,
-                                    allowCategorySelection = isCategorySelectable,
-                                    onGarmentChange = { tempGarment = it },
-                                    onSave = {
-                                        saveGarment()
-                                        showGarmentDialog = false
-                                    },
-                                    onCancel = { showGarmentDialog = false }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (showImportDialog) {
-                customerSearchResult?.let { result ->
-                    PreviousMeasurementsDialog(
-                        orders = result.orders,
-                        onImport = { selectedGarmentsList ->
-                            importGarments(selectedGarmentsList)
-                            showImportDialog = false
-                            salesViewModel.clearCustomerSearch()
-                        },
-                        onDismiss = { showImportDialog = false }
-                    )
-                }
-            }
-
-            if (showPlanLimitDialog) {
-                PlanLimitDialog(
-                    title = "Feature restricted",
-                    message = "You're on the ${currentPlanName.replaceFirstChar { it.uppercase() }} plan and can't upload design reference media. Upgrade your plan to unlock this feature.",
-                    onDismiss = { showPlanLimitDialog = false },
-                    onUpgrade = {
-                        showPlanLimitDialog = false
-                    }
-                )
-            }
-
-            StepNavigationFab(
-                showBack = true,
-                onBack = {
-                    salesViewModel.clearAllSelectedGarments()
-                    salesViewModel.clearCustomerSearch()
-                    onCancel()
-                },
-                showTrailingArrow = true,
-                showBackArrow = false,
-                backLabel = "Cancel",
-                backWidthFraction = 0.25f,
-                trailingWidthFraction = 0.30f,
-                trailingAction = TrailingFabAction.Next(
-                    label = "Next Step",
+            // ─────────────────────────────────────────────────────────────
+            // BOTTOM BAR: Full-Width Next Button Matching Screenshot
+            // ─────────────────────────────────────────────────────────────
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(whiteBg)
+                    .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
+            ) {
+                Button(
                     onClick = {
-                        if (validateOrderForm()) {
-                            val data = OrderReviewData(
-                                leadId = initialData?.leadId,
-                                orderId = initialData?.orderId,
-                                customerId = selectedCustomer?.id ?: initialData?.customerId ?: "",
-                                branchId = selectedBranchId,
-                                fullName = fullName,
-                                countryCode = countryCode,
-                                phone = phone,
-                                gender = gender,
-                                dressFor = dressFor,
-                                address = address,
-                                garments = selectedGarments,
-                                orderDate = orderDate,
-                                source = source,
-                                trialDate = trialDate,
-                                deliveryDate = deliveryDate,
-                                discount = initialData?.discount ?: 0.0,
-                                paidSoFar = initialData?.paidSoFar ?: 0.0,
-                                designImages = selectedDesignImages,
-                                existingImageUrls = initialData?.existingImageUrls ?: emptyList(),
-                                voiceNoteUri = recordedVoiceNoteUri
-                            )
-                            onNextStep(data)
-                        }
+                        val reviewData = OrderReviewData(
+                            leadId = initialData?.leadId,
+                            orderId = orderIdText,
+                            customerId = initialData?.customerId ?: "",
+                            branchId = initialData?.branchId ?: "",
+                            fullName = fullName,
+                            countryCode = countryCode.ifBlank { "+91" },
+                            phone = phone,
+                            gender = gender,
+                            dressFor = dressFor,
+                            address = address,
+                            source = source,
+                            orderDate = orderDate,
+                            trialDate = initialData?.trialDate.orEmpty().ifBlank { orderDate },
+                            deliveryDate = expectedDeliveryDate,
+                            discount = initialData?.discount ?: 0.0,
+                            paidSoFar = advanceAmount.toDoubleOrNull() ?: 0.0,
+                            designImages = selectedDesignImages,
+                            existingImageUrls = initialData?.existingImageUrls ?: emptyList(),
+                            voiceNoteUri = recordedVoiceNoteUris.firstOrNull(),
+                            garments = orderItemsList.map { item ->
+                                SelectedGarment(
+                                    category = item.garmentType,
+                                    categoryName = item.garmentType,
+                                    categoryId = item.garmentType,
+                                    quantity = item.quantity,
+                                    price = item.totalItemPrice,
+                                    priority = priority,
+                                    trialRequired = true,
+                                    fabricSource = item.fabricSource,
+                                    fabricType = item.fabricSelection,
+                                    colorTone = item.colorAccent,
+                                    pattern = item.designPreset,
+                                    models = emptyList()
+                                )
+                            }
+                        )
+                        onNextStep(reviewData)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(tokens.buttonHeight),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Primary,
+                        contentColor = whiteBg
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Next",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = whiteBg
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Next",
+                            tint = whiteBg,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
-                )
-            )
+                }
+            }
         }
-
-        SmoothBottomSheet(
-            state = addCategorySheetState,
-            onStateChange = { addCategorySheetState = it },
-            peekHeight = 480.dp,
-            topInset = 66.dp,
-            onDismissRequest = { addCategorySheetState = CustomSheetValue.Hidden },
-            onBlurScrimChange = { r, s -> addCategoryBlur = r; addCategoryScrim = s }
-        ) {
-            InlineGarmentPanel(
-                garment = tempGarment,
-                categories = quickCategories,
-                isEditing = editingGarmentId != null,
-                allowCategorySelection = isCategorySelectable,
-                onGarmentChange = { tempGarment = it },
-                onSave = {
-                    saveGarment()
-                    addCategorySheetState = CustomSheetValue.Hidden
-                },
-                onCancel = { addCategorySheetState = CustomSheetValue.Hidden }
-            )
-        }
-    }
-
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = validationError,
-            onDismiss = { validationError = null }
-        )
     }
 }
 
@@ -1388,7 +1158,7 @@ fun CategoryPillButton(
     onClick: () -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    val borderColor = if (isSelected) Primary else Color(0xFFE5E7EB)
+    val borderColor = if (isSelected) Primary else grey_border
     val contentColor = if (isSelected) Color(0xFF3B3BF9) else Color(0xFF9CA3AF)
 
     Row(
@@ -1525,7 +1295,7 @@ fun PreviousMeasurementsDialog(
                     }
                 }
 
-                HorizontalDivider(color = Color(0xFFE5E7EB))
+                HorizontalDivider(color = grey_border)
 
                 Column(
                     modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(max = 400.dp),
@@ -1540,7 +1310,7 @@ fun PreviousMeasurementsDialog(
                             shape = RoundedCornerShape(tokens.cardCornerRadius),
                             colors = CardDefaults.cardColors(containerColor = whiteBg),
                             elevation = CardDefaults.cardElevation(0.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                            border = BorderStroke(1.dp, grey_border)
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Row(
@@ -1693,7 +1463,7 @@ fun PreviousMeasurementsDialog(
                     }
                 }
 
-                HorizontalDivider(color = Color(0xFFE5E7EB))
+                HorizontalDivider(color = grey_border)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1703,7 +1473,7 @@ fun PreviousMeasurementsDialog(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f).height(tokens.buttonHeight),
                         shape = RoundedCornerShape(tokens.cardCornerRadius),
-                        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                        border = BorderStroke(1.dp, grey_border)
                     ) {
                         Text("Cancel", color = Color(0xFF374151), fontWeight = FontWeight.SemiBold)
                     }
@@ -2047,7 +1817,7 @@ private fun GarmentSubSection(
             }
         }
 
-        HorizontalDivider(color = Color(0xFFE5E7EB))
+        HorizontalDivider(color = grey_border)
     }
 }
 
@@ -2164,7 +1934,7 @@ fun MeasurementInputField(
                     .weight(1f)
                     .height(tokens.fieldHeight)
                     .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
+                    .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius))
                     .background(whiteBg)
                     .padding(horizontal = tokens.extraPadding),
                 decorationBox = { inner ->
@@ -2183,7 +1953,7 @@ fun MeasurementInputField(
                         .width(72.dp)
                         .height(tokens.fieldHeight)
                         .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
+                        .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius))
                         .background(whiteBg)
                         .clickable { unitExpanded = true }
                         .padding(horizontal = tokens.extraPadding),
@@ -2248,7 +2018,7 @@ fun CustomFieldRow(
                     .fillMaxWidth()
                     .height(tokens.fieldHeight)
                     .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
+                    .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius))
                     .background(whiteBg)
                     .padding(horizontal = tokens.extraPadding),
                 decorationBox = { inner ->
@@ -2271,7 +2041,7 @@ fun CustomFieldRow(
                     .fillMaxWidth()
                     .height(tokens.fieldHeight)
                     .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
+                    .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius))
                     .background(whiteBg)
                     .padding(horizontal = tokens.extraPadding),
                 decorationBox = { inner ->
@@ -2298,23 +2068,6 @@ private fun defaultMeasurementsFor(modelNames: List<String>): List<MeasurementFi
 }
 
 @Composable
-private fun FormLabel(text: String, isRequired: Boolean = false) {
-    val tokens = LocalAppTokens.current
-    Row {
-        Text(
-            text,
-            fontSize = tokens.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF6B7280),
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
-        if (isRequired) {
-            Text(" *", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Color(0xFFEF4444))
-        }
-    }
-}
-
-@Composable
 fun ColorPickerField(
     value: String,
     onColorSelected: (String) -> Unit,
@@ -2328,7 +2081,7 @@ fun ColorPickerField(
             .fillMaxWidth()
             .height(tokens.fieldHeight)
             .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
+            .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius))
             .clickable { showDialog = true }
             .padding(horizontal = tokens.extraPadding),
         verticalAlignment = Alignment.CenterVertically,
@@ -2408,8 +2161,8 @@ private fun ColorPickerDialog(
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .background(parseHexColorOrNull(selectedHex) ?: Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
-                            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius))
+                            .background(parseHexColorOrNull(selectedHex) ?: grey_border, RoundedCornerShape(tokens.cardCornerRadius))
+                            .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius))
                     )
                     Text(selectedHex.uppercase(), fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
                 }

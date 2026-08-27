@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.whiteBg
 
 /**
@@ -123,7 +124,7 @@ fun BackFabButton(
             containerColor = whiteBg,
             contentColor = Color(0xFF111827)
         ),
-        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+        border = BorderStroke(1.dp, grey_border),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
         modifier = modifier

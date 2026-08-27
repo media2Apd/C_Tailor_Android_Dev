@@ -30,6 +30,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.BulkRuleDto
 import com.cuso.mobile.model.sales.PriceAdjustmentDto
+import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
@@ -55,24 +57,19 @@ private data class DiscountRuleRow(val id: Int, val minQuantity: String, val dis
 fun AddGarmentPricingScreen(
     onClose: () -> Unit,
     onSave: () -> Unit = {},
-    pricingId: String? = null   //   null = Add mode, non-null = Edit mode
+    pricingId: String? = null
 ) {
     val isEditMode = pricingId != null
-    android.util.Log.d("PricingDebug", "SCREEN OPENED with pricingId=$pricingId, isEditMode=$isEditMode")
-
 
     val salesViewModel: SalesViewModel = hiltViewModel()
     val pricingViewModel: PricingQuotationViewModel = hiltViewModel()
 
-    // Collect state from ViewModels
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
     val saveState by pricingViewModel.saveState.collectAsStateWithLifecycle()
     val detailState by pricingViewModel.garmentPricingDetailState.collectAsStateWithLifecycle()
 
     val garmentOptions = garmentCategories.map { it.categoryId.categoryName }
 
-
-// ── Field-level validation errors ──     ADD THESE TWO LINES
     var showGarmentTypeError by remember { mutableStateOf(false) }
     var showBasePriceError by remember { mutableStateOf(false) }
 
@@ -89,57 +86,43 @@ fun AddGarmentPricingScreen(
     var garmentTypeExpanded by remember { mutableStateOf(false) }
     var baseStitchingPrice by remember { mutableStateOf("") }
 
-    // ── id counter for dynamic rows ──
+    // ── ID counter for dynamic rows ──
     var nextId by remember { mutableIntStateOf(1) }
     fun newId(): Int { val id = nextId; nextId++; return id }
 
-    // ── Fabric Price Adjustments ──
-    var fabricRows by remember {
-        mutableStateOf(emptyList<PriceAdjustmentRow>())
-    }
-
-    // ── Design / Style Options ──
-    var styleRows by remember {
-        mutableStateOf(emptyList<PriceAdjustmentRow>())
-    }
-
-    // ── Additional Charges ──
-    var additionalChargeRows by remember {
-        mutableStateOf(emptyList<PriceAdjustmentRow>())
-    }
-
-    // ── Quantity Discount Rules ──
-    var discountRules by remember {
-        mutableStateOf(emptyList<DiscountRuleRow>())
-    }
+    // ── Dynamic Rows ──
+    var fabricRows by remember { mutableStateOf(emptyList<PriceAdjustmentRow>()) }
+    var styleRows by remember { mutableStateOf(emptyList<PriceAdjustmentRow>()) }
+    var additionalChargeRows by remember { mutableStateOf(emptyList<PriceAdjustmentRow>()) }
+    var discountRules by remember { mutableStateOf(emptyList<DiscountRuleRow>()) }
 
     var expandedSection by remember { mutableStateOf("basic_info") }
 
-    // ── Show error snackbar state ──
     var showError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
 
-    // ── Show success snackbar state ──
     var showSuccess by remember { mutableStateOf(false) }
     var successMessage by remember { mutableStateOf("") }
-    // ── Track whether we've already prefilled fields from detail response ──
     var prefilled by remember { mutableStateOf(false) }
     var isLoadingDetail by remember { mutableStateOf(isEditMode) }
 
+    // Helper to clean up any empty/blank rows across all dynamic sections
+    fun cleanupEmptyRows() {
+        fabricRows = fabricRows.filter { it.name.isNotBlank() }
+        styleRows = styleRows.filter { it.name.isNotBlank() }
+        additionalChargeRows = additionalChargeRows.filter { it.name.isNotBlank() }
+        discountRules = discountRules.filter {
+            it.minQuantity.isNotBlank() && it.minQuantity != "0" && it.discountPercent.isNotBlank()
+        }
+    }
+
     // ── Prefill fields once detail data arrives (edit mode only) ──
-// ── Prefill fields once detail data arrives (edit mode only) ──
     LaunchedEffect(detailState, garmentCategories, pricingId) {
         if (isEditMode && !prefilled) {
             when (val ds = detailState) {
                 is GarmentPricingDetailUiState.Success -> {
                     val detail = ds.detail
-
-                    if (detail.id != pricingId) {
-                        android.util.Log.d("PricingDebug", "IGNORING STALE detail (id=${detail.id}) for pricingId=$pricingId")
-                        return@LaunchedEffect
-                    }
-
-                    android.util.Log.d("PricingDebug", "PREFILL for pricingId=$pricingId -> detail.applicableGarmentId=${detail.applicableGarmentId}, basePrice=${detail.basePrice}")
+                    if (detail.id != pricingId) return@LaunchedEffect
 
                     selectedGarmentCategoryId = detail.applicableGarmentId
                     garmentType = garmentCategories
@@ -149,21 +132,21 @@ fun AddGarmentPricingScreen(
 
                     baseStitchingPrice = detail.basePrice.toString()
 
-                    fabricRows = if (detail.fabricAdjustments.isNotEmpty()) {
-                        detail.fabricAdjustments.map { PriceAdjustmentRow(newId(), it.name, it.price.toString()) }
-                    } else emptyList()
+                    fabricRows = detail.fabricAdjustments
+                        .filter { it.name.isNotBlank() }
+                        .map { PriceAdjustmentRow(newId(), it.name, it.price.toString()) }
 
-                    styleRows = if (detail.designAdjustments.isNotEmpty()) {
-                        detail.designAdjustments.map { PriceAdjustmentRow(newId(), it.name, it.price.toString()) }
-                    } else emptyList()
+                    styleRows = detail.designAdjustments
+                        .filter { it.name.isNotBlank() }
+                        .map { PriceAdjustmentRow(newId(), it.name, it.price.toString()) }
 
-                    additionalChargeRows = if (detail.additionalCharges.isNotEmpty()) {
-                        detail.additionalCharges.map { PriceAdjustmentRow(newId(), it.name, it.price.toString()) }
-                    } else emptyList()
+                    additionalChargeRows = detail.additionalCharges
+                        .filter { it.name.isNotBlank() }
+                        .map { PriceAdjustmentRow(newId(), it.name, it.price.toString()) }
 
-                    discountRules = if (detail.bulkRules.isNotEmpty()) {
-                        detail.bulkRules.map { DiscountRuleRow(newId(), it.minQuantity.toString(), it.discountPercent.toString()) }
-                    } else emptyList()
+                    discountRules = detail.bulkRules
+                        .filter { it.minQuantity > 0 && it.discountPercent > 0 }
+                        .map { DiscountRuleRow(newId(), it.minQuantity.toString(), it.discountPercent.toString()) }
 
                     if (garmentCategories.isNotEmpty()) {
                         prefilled = true
@@ -179,6 +162,7 @@ fun AddGarmentPricingScreen(
             }
         }
     }
+
     fun updatePrice(rows: List<PriceAdjustmentRow>, id: Int, newValue: String): List<PriceAdjustmentRow> =
         rows.map { if (it.id == id) it.copy(price = newValue) else it }
 
@@ -187,15 +171,13 @@ fun AddGarmentPricingScreen(
 
     // ── Handle save / update action ──
     fun handleSave() {
-        //   Reset field errors first
         showGarmentTypeError = false
         showBasePriceError = false
 
-        android.util.Log.d("PricingDebug", "SUBMIT for pricingId=$pricingId -> selectedGarmentCategoryId=$selectedGarmentCategoryId, garmentType=$garmentType, basePrice=$baseStitchingPrice")
-
+        // Automatically clean up any rows left blank
+        cleanupEmptyRows()
 
         var hasBasicError = false
-
         if (selectedGarmentCategoryId.isEmpty()) {
             showGarmentTypeError = true
             hasBasicError = true
@@ -206,15 +188,13 @@ fun AddGarmentPricingScreen(
         }
 
         if (hasBasicError) {
-            errorMessage = "Please fill all required fields"   //   trigger Dynamic Island too
+            errorMessage = "Please fill all required fields"
             showError = true
-            expandedSection = "basic_info"   //   auto-open Basic Information
+            expandedSection = "basic_info"
             return
         }
 
-        // Validate discount rules - ensure minQuantity is at least 1
-        //   Discount rules are OPTIONAL — only validate rows the user actually added.
-// Rows left at "0" or otherwise incomplete are silently dropped, not blocked.
+        // Validate only completed rules
         val invalidRules = discountRules.filter {
             it.minQuantity.isNotBlank() && (it.minQuantity.toIntOrNull() ?: 0) < 1
         }
@@ -225,20 +205,23 @@ fun AddGarmentPricingScreen(
             return
         }
 
-// Convert UI data to DTOs
-        val fabricAdjustments = fabricRows.map {
-            PriceAdjustmentDto(name = it.name, price = it.price.toDoubleOrNull() ?: 0.0)
-        }
-        val designAdjustments = styleRows.map {
-            PriceAdjustmentDto(name = it.name, price = it.price.toDoubleOrNull() ?: 0.0)
-        }
-        val additionalCharges = additionalChargeRows.map {
-            PriceAdjustmentDto(name = it.name, price = it.price.toDoubleOrNull() ?: 0.0)
-        }
+        // Convert UI data to DTOs (filters out any empty entries)
+        val fabricAdjustments = fabricRows
+            .filter { it.name.isNotBlank() }
+            .map { PriceAdjustmentDto(name = it.name.trim(), price = it.price.toDoubleOrNull() ?: 0.0) }
+
+        val designAdjustments = styleRows
+            .filter { it.name.isNotBlank() }
+            .map { PriceAdjustmentDto(name = it.name.trim(), price = it.price.toDoubleOrNull() ?: 0.0) }
+
+        val additionalCharges = additionalChargeRows
+            .filter { it.name.isNotBlank() }
+            .map { PriceAdjustmentDto(name = it.name.trim(), price = it.price.toDoubleOrNull() ?: 0.0) }
+
         val bulkRules = discountRules.mapNotNull { rule ->
             val minQty = rule.minQuantity.toIntOrNull()
             val discount = rule.discountPercent.toDoubleOrNull()
-            if (minQty != null && minQty >= 1 && discount != null) {
+            if (minQty != null && minQty >= 1 && discount != null && discount > 0) {
                 BulkRuleDto(minQuantity = minQty, discountPercent = discount)
             } else null
         }
@@ -286,10 +269,8 @@ fun AddGarmentPricingScreen(
         }
     }
 
-    // ── Full-screen loader while fetching detail in edit mode ──
     if (isEditMode && isLoadingDetail) {
         ListSkeleton()
-
         return
     }
 
@@ -307,7 +288,7 @@ fun AddGarmentPricingScreen(
                     title = if (isEditMode) "Edit Pricing" else "Add New Garment Pricing",
                     onClose = onClose
                 )
-                HorizontalDivider(color = Color(0xFFF0F0F0))
+                HorizontalDivider(color = title_border)
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -316,10 +297,12 @@ fun AddGarmentPricingScreen(
                     // ── 1. Basic Information ──
                     item {
                         AccordionSection(
-                            icon = Icons.Default.Description,
                             title = "Basic Information",
                             expanded = expandedSection == "basic_info",
-                            onHeaderClick = { expandedSection = if (expandedSection == "basic_info") "" else "basic_info" }
+                            onHeaderClick = {
+                                cleanupEmptyRows()
+                                expandedSection = if (expandedSection == "basic_info") "" else "basic_info"
+                            }
                         ) {
                             Box(
                                 modifier = Modifier
@@ -337,13 +320,12 @@ fun AddGarmentPricingScreen(
                                         selectedGarmentCategoryId = garmentCategories
                                             .firstOrNull { it.categoryId.categoryName == selectedName }
                                             ?.id ?: ""
-                                        showGarmentTypeError = false   //   clear error once user fixes it
+                                        showGarmentTypeError = false
                                     },
                                     isRequired = true,
                                     isError = showGarmentTypeError,
                                     errorMessage = "Please select a garment type"
                                 )
-                                //   Edit mode: block all touches on the dropdown so it can't be changed
                                 if (isEditMode) {
                                     Box(
                                         modifier = Modifier
@@ -351,7 +333,7 @@ fun AddGarmentPricingScreen(
                                             .clickable(
                                                 indication = null,
                                                 interactionSource = remember { MutableInteractionSource() }
-                                            ) { /* consume click, do nothing */ }
+                                            ) { }
                                     )
                                 }
                             }
@@ -361,7 +343,7 @@ fun AddGarmentPricingScreen(
                                 value = baseStitchingPrice,
                                 onValueChange = {
                                     baseStitchingPrice = it
-                                    showBasePriceError = false   //   clear error once user types
+                                    showBasePriceError = false
                                 },
                                 keyboardType = KeyboardType.Number,
                                 placeholder = "Standard stitching charge",
@@ -369,21 +351,23 @@ fun AddGarmentPricingScreen(
                                 errorMessage = "Please enter base stitching price"
                             )
                         }
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
+                        HorizontalDivider(color = title_border)
                     }
 
                     // ── 2. Fabric Price Adjustments ──
                     item {
                         AccordionSection(
-                            icon = Icons.Default.Checkroom,
                             title = "Fabric Price Adjustments",
                             expanded = expandedSection == "fabric",
-                            onHeaderClick = { expandedSection = if (expandedSection == "fabric") "" else "fabric" }
+                            onHeaderClick = {
+                                cleanupEmptyRows()
+                                expandedSection = if (expandedSection == "fabric") "" else "fabric"
+                            }
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 OutlinedButton(
                                     onClick = {
-                                        fabricRows = fabricRows + PriceAdjustmentRow(newId(), "", "0")
+                                        fabricRows = fabricRows.filter { it.name.isNotBlank() } + PriceAdjustmentRow(newId(), "", "")
                                     },
                                     shape = RoundedCornerShape(8.dp),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, LeadPrimary),
@@ -404,21 +388,23 @@ fun AddGarmentPricingScreen(
                                 }
                             }
                         }
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
+                        HorizontalDivider(color = title_border)
                     }
 
                     // ── 3. Design / Style Options ──
                     item {
                         AccordionSection(
-                            icon = Icons.Default.Style,
                             title = "Design / Style Options",
                             expanded = expandedSection == "style",
-                            onHeaderClick = { expandedSection = if (expandedSection == "style") "" else "style" }
+                            onHeaderClick = {
+                                cleanupEmptyRows()
+                                expandedSection = if (expandedSection == "style") "" else "style"
+                            }
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 OutlinedButton(
                                     onClick = {
-                                        styleRows = styleRows + PriceAdjustmentRow(newId(), "", "0")
+                                        styleRows = styleRows.filter { it.name.isNotBlank() } + PriceAdjustmentRow(newId(), "", "")
                                     },
                                     shape = RoundedCornerShape(8.dp),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, LeadPrimary),
@@ -439,21 +425,23 @@ fun AddGarmentPricingScreen(
                                 }
                             }
                         }
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
+                        HorizontalDivider(color = title_border)
                     }
 
                     // ── 4. Additional Charges ──
                     item {
                         AccordionSection(
-                            icon = Icons.Default.AttachMoney,
                             title = "Additional Charges",
                             expanded = expandedSection == "charges",
-                            onHeaderClick = { expandedSection = if (expandedSection == "charges") "" else "charges" }
+                            onHeaderClick = {
+                                cleanupEmptyRows()
+                                expandedSection = if (expandedSection == "charges") "" else "charges"
+                            }
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 OutlinedButton(
                                     onClick = {
-                                        additionalChargeRows = additionalChargeRows + PriceAdjustmentRow(newId(), "", "0")
+                                        additionalChargeRows = additionalChargeRows.filter { it.name.isNotBlank() } + PriceAdjustmentRow(newId(), "", "")
                                     },
                                     shape = RoundedCornerShape(8.dp),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, LeadPrimary),
@@ -474,16 +462,18 @@ fun AddGarmentPricingScreen(
                                 }
                             }
                         }
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
+                        HorizontalDivider(color = title_border)
                     }
 
                     // ── 5. Quantity Discount Rules ──
                     item {
                         AccordionSection(
-                            icon = Icons.Default.LocalOffer,
                             title = "Quantity Discount Rules",
                             expanded = expandedSection == "discount_rules",
-                            onHeaderClick = { expandedSection = if (expandedSection == "discount_rules") "" else "discount_rules" }
+                            onHeaderClick = {
+                                cleanupEmptyRows()
+                                expandedSection = if (expandedSection == "discount_rules") "" else "discount_rules"
+                            }
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 if (showError && errorMessage.isNotEmpty()) {
@@ -491,7 +481,10 @@ fun AddGarmentPricingScreen(
                                 }
                                 OutlinedButton(
                                     onClick = {
-                                        discountRules = discountRules + DiscountRuleRow(newId(), "0", "0")
+                                        // Filter out any blank rules first, then add a clean empty row
+                                        discountRules = discountRules.filter {
+                                            it.minQuantity.isNotBlank() && it.minQuantity != "0" && it.discountPercent.isNotBlank()
+                                        } + DiscountRuleRow(newId(), "", "")
                                         showError = false
                                     },
                                     shape = RoundedCornerShape(8.dp),
@@ -556,14 +549,8 @@ fun AddGarmentPricingScreen(
             onDismiss = { showError = false }
         )
     }
-
-
-
 }
 
-// ── Extracts just the "message" field from a raw JSON error body.
-// Falls back to the original string if it isn't JSON (e.g. plain text
-// or network errors like "Unable to resolve host").
 private fun extractApiErrorMessage(raw: String): String {
     return try {
         val regex = Regex("\"message\"\\s*:\\s*\"(.*?)\"")
@@ -573,7 +560,6 @@ private fun extractApiErrorMessage(raw: String): String {
     }
 }
 
-// ── PriceAdjustmentField with null-safety ──
 @Composable
 private fun PriceAdjustmentField(
     name: String,
@@ -585,7 +571,7 @@ private fun PriceAdjustmentField(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+            .border(1.dp, grey_border, RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -613,7 +599,13 @@ private fun PriceAdjustmentField(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF374151), fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
-                modifier = Modifier.width(40.dp)
+                modifier = Modifier.width(40.dp),
+                decorationBox = { inner ->
+                    if (price.isEmpty()) {
+                        Text("0", fontSize = 13.sp, color = LeadmutedText)
+                    }
+                    inner()
+                }
             )
             if (onRemove != null) {
                 Spacer(Modifier.width(10.dp))
@@ -630,7 +622,6 @@ private fun PriceAdjustmentField(
     }
 }
 
-// ── DiscountRuleField with null-safety ──
 @Composable
 private fun DiscountRuleField(
     minQuantity: String,
@@ -671,7 +662,6 @@ private fun DiscountRuleField(
     }
 }
 
-// ── MiniNumberField with null-safety ──
 @Composable
 private fun MiniNumberField(
     label: String,
@@ -683,9 +673,8 @@ private fun MiniNumberField(
 ) {
     Column(modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            //   Null-safe handling for label
             Text(
-                text = label ,
+                text = label,
                 fontSize = 11.sp,
                 color = if (isError) MaterialTheme.colorScheme.error else LeadmutedText
             )
@@ -705,7 +694,7 @@ private fun MiniNumberField(
                 .height(38.dp)
                 .border(
                     1.dp,
-                    if (isError) MaterialTheme.colorScheme.error else Color(0xFFE5E7EB),
+                    if (isError) MaterialTheme.colorScheme.error else grey_border,
                     RoundedCornerShape(8.dp)
                 )
                 .padding(horizontal = 10.dp),

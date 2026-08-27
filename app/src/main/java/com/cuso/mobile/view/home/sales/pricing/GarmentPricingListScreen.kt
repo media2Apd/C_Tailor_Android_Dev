@@ -34,6 +34,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
 import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
@@ -43,7 +44,7 @@ import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 
 private val Primary = Color(0xFF3B3BF9)
   private val TextDark = Color(0xFF111827)
-private val CardBorder = Color(0xFFF0F0F0)
+private val CardBorder = title_border
 private val StripBg = Color(0xFFF9FAFB)
 
 @Composable

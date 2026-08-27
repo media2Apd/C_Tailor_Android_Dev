@@ -27,6 +27,7 @@ import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 
@@ -50,7 +51,7 @@ private val AmountHighlight = Color(0xFFEA580C)
 
 private val LabelGray = Color(0xFF9CA3AF)
 private val PrimaryDark = Color(0xFF111827)
-private val DividerGray = Color(0xFFF0F0F0)
+private val DividerGray = title_border
 private val ChevronGray = Color(0xFFC4C4C4)
 
 // ─────────────────────────────────────────────────────────────

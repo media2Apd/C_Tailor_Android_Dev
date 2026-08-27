@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.grey_border
 
 /** Big bold title on the left, "x" close button on the right. */
 @Composable
@@ -181,7 +182,7 @@ fun ReportSearchFilterBar(
         Box(
             modifier = Modifier
                 .size(tokens.fieldHeight)
-                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(tokens.cardCornerRadius / 1.5f))
+                .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius / 1.5f))
                 .clickable { onFilterClick() },
             contentAlignment = Alignment.Center
         ) {

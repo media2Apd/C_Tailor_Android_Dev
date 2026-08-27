@@ -1,12 +1,10 @@
 package com.cuso.mobile.view.composable
 
-import android.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -20,7 +18,6 @@ import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.disabled
-import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.whiteBg
 @Composable
 fun AppButton(
@@ -38,7 +35,7 @@ fun AppButton(
 
     Button(
         onClick = onClick,
-        modifier = modifier.height(tokens.buttonHeight),
+        modifier = modifier.height(40.dp),
         enabled = enabled && !isLoading,
         shape = RoundedCornerShape(5.dp),
         colors = ButtonDefaults.buttonColors(

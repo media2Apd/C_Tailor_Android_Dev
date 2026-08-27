@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DataCard
@@ -155,7 +156,7 @@ fun RoleSettingsScreen(
                                 onFilterClick = { }
                             )
                         }
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
+                        HorizontalDivider(color = title_border)
 
                         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                             if (filteredRoles.isEmpty()) {

@@ -36,6 +36,7 @@ import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.disabled
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
@@ -212,7 +213,7 @@ fun DesignationScreen(
                                     textSecondaryColor = TextSecondary
                                 )
                             }
-                            HorizontalDivider(color = Color(0xFFF0F0F0))
+                            HorizontalDivider(color = title_border)
 
                             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                                 when (uiState) {
@@ -420,7 +421,7 @@ fun PaginationFooter(
             .background(whiteBg, RoundedCornerShape(topStart = tokens.cardCornerRadius * 0.8f, topEnd = tokens.cardCornerRadius * 0.8f))
     ) {
         Column {
-            HorizontalDivider(color = Color(0xFFF0F0F0))
+            HorizontalDivider(color = title_border)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

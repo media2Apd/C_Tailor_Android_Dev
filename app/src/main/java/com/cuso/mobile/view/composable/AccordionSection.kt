@@ -23,34 +23,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
-import com.cuso.mobile.ui.theme.*
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.title_color
 
 /**
- * Updated Accordion section:
- * 1. Trailing content (badges) appears next to the Title by default.
- * 2. Dropdown arrow stays at the far right by default.
- * 3. NEW: showArrow flag lets a caller hide the dropdown arrow entirely.
- *    When showArrow = false AND a trailing composable is provided, the
- *    trailing content (e.g. a MiniSwitch) is moved to the far right —
- *    the exact spot the arrow used to occupy — instead of sitting next
- *    to the title. This lets specific sections (like Appointment &
- *    Follow-Up) show a switch where the arrow was, while every other
- *    accordion panel keeps showing its normal dropdown arrow untouched.
+ * Adaptive Accordion section:
+ * - Adapts icon sizes, chevrons, and spacing automatically across phones and tablets.
+ * - Trailing content (badges/switches) stays responsive.
+ * - If showArrow is false, trailing content moves to the far right.
  */
 @Composable
 fun AccordionSection(
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    iconPainter: androidx.compose.ui.graphics.painter.Painter? = null,
+    icon: ImageVector? = null,
+    iconPainter: Painter? = null,
     title: String,
     subtitle: String? = null,
     expanded: Boolean,
     onHeaderClick: () -> Unit,
-    iconTint: Color = Color(0xFF5A57D6),
-    trailing: @Composable (() -> Unit)? = null, // Used for the badge/switch next to title OR at far right
-    showArrow: Boolean = true, // NEW: set false to hide the dropdown arrow for this section
+    iconTint: Color = Primary,
+    trailing: @Composable (() -> Unit)? = null,
+    showArrow: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val tokens = LocalAppTokens.current
@@ -61,9 +59,12 @@ fun AccordionSection(
         label = "chevron_rotation"
     )
 
-    // NEW: When the arrow is hidden, the trailing content (e.g. MiniSwitch)
-    // takes over the far-right position instead of sitting beside the title.
     val trailingReplacesArrow = trailing != null && !showArrow
+
+    // Adaptive icon dimension calculation
+    val leadingIconSize = tokens.iconSize * 1.1f
+    val arrowIconSize = if (tokens.isTablet) 28.dp else 24.dp
+    Spacer(Modifier.height(tokens.screenPadding))
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -74,47 +75,56 @@ fun AccordionSection(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
                 ) { onHeaderClick() }
-                .padding(horizontal = tokens.screenPadding, vertical = 16.dp),
+                .padding(
+                    horizontal = tokens.screenPadding,
+                    vertical = tokens.extraPadding * 1.2f
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left Icon
+            // Adaptive Leading Icon
             if (icon != null) {
-                Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(12.dp))
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(leadingIconSize)
+                )
+                Spacer(Modifier.width(tokens.extraPadding))
             } else if (iconPainter != null) {
-                Icon(iconPainter, null, tint = iconTint, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(12.dp))
+                Icon(
+                    painter = iconPainter,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(leadingIconSize)
+                )
+                Spacer(Modifier.width(tokens.extraPadding))
             }
 
-            // Title Column
+            // Title & Subtitle Column
             Column {
                 Text(
                     text = title,
                     fontSize = tokens.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF111827)
+                    color = title_color
                 )
                 if (!subtitle.isNullOrBlank()) {
-                    Text(text = subtitle, fontSize = tokens.caption, color = TextSecondary)
+                    Text(
+                        text = subtitle,
+                        fontSize = tokens.caption,
+                        color = TextSecondary
+                    )
                 }
             }
 
-            // --- Badge / Value next to Header ---
-            // NEW: Only shown here when the trailing content is NOT taking
-            // over the arrow's spot. If trailingReplacesArrow is true, we
-            // skip rendering it here and render it at the far right instead.
+            // Inline Badge / Switch next to title
             if (trailing != null && !trailingReplacesArrow) {
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(tokens.extraPadding))
                 trailing()
             }
 
-            // Spacer to push the arrow (or the replacing trailing content) to the far right
             Spacer(Modifier.weight(1f))
 
-            // NEW: Far-right slot logic
-            // - If arrow is hidden and trailing exists -> show trailing (e.g. MiniSwitch) here.
-            // - Else if arrow should be shown -> show the dropdown arrow as before.
-            // - Else (arrow hidden and no trailing) -> show nothing.
+            // Far-right element: Replaced trailing widget OR Adaptive Chevron
             if (trailingReplacesArrow) {
                 trailing.invoke()
             } else if (showArrow) {
@@ -123,12 +133,13 @@ fun AccordionSection(
                     contentDescription = if (expanded) "Collapse" else "Expand",
                     tint = TextSecondary,
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(arrowIconSize)
                         .rotate(arrowRotationByAnim)
                 )
             }
         }
 
+        // Expanded Content Area
         AnimatedVisibility(
             visible = expanded,
             enter = fadeIn(animationSpec = tween(300)) + expandVertically(animationSpec = tween(300)),
@@ -138,7 +149,7 @@ fun AccordionSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = tokens.screenPadding)
-                    .padding(bottom = 16.dp)
+                    .padding(bottom = tokens.extraPadding * 1.2f)
             ) {
                 content()
             }

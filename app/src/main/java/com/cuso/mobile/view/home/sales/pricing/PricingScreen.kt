@@ -36,6 +36,7 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.sales.GarmentPricingListItemDto
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
@@ -48,7 +49,7 @@ import com.cuso.mobile.viewmodel.PricingQuotationViewModel
 private val Primary = Color(0xFF3B3BF9)
 private val PrimaryLight = Color(0xFFEEF0FF)
 private val TextDark = Color(0xFF111827)
-private val CardBorder = Color(0xFFF0F0F0)
+private val CardBorder = title_border
 private val StripBg = Color(0xFFF9FAFB)
 private val StatCardBorder = Color(0xFFEDEDF2)
 private val StatLabelColor = Color(0xFF9CA3AF)

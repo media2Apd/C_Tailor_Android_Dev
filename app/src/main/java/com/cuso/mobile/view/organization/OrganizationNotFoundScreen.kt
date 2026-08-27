@@ -48,6 +48,7 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import androidx.core.net.toUri
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.whiteBg
 
 @Composable
@@ -218,7 +219,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                     modifier = Modifier
                         .weight(1f)
                         .height(1.dp)
-                        .background(Color(0xFFE5E7EB))
+                        .background(grey_border)
                 )
                 Text(
                     text = "OR",
@@ -230,7 +231,7 @@ fun OrganizationNotFoundScreen(navController: NavController) {
                     modifier = Modifier
                         .weight(1f)
                         .height(1.dp)
-                        .background(Color(0xFFE5E7EB))
+                        .background(grey_border)
                 )
             }
 

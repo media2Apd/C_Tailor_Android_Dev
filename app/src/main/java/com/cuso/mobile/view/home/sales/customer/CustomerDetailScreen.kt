@@ -65,10 +65,12 @@ import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.greenBg
 import com.cuso.mobile.ui.theme.greentext
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.lightGray
 import com.cuso.mobile.ui.theme.light_blue_border
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.primary_light
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.ui.theme.yellowBg
@@ -220,7 +222,7 @@ fun CustomerDetailScreen(
                 }
 
                 HorizontalDivider(
-                    color = Color(0xFFF0F0F0),
+                    color = title_border,
                     modifier = Modifier.padding(top = 10.dp)
                 )
 
@@ -364,7 +366,7 @@ fun OrderStatusStepper(
                         targetValue = when {
                             done -> Color(0xFF22C55E)
                             active -> Color(0xFF3F37F3)
-                            else -> Color(0xFFE5E7EB)
+                            else -> grey_border
                         },
                         animationSpec = tween(durationMillis = 300),
                         label = "borderColor"
@@ -405,7 +407,7 @@ fun OrderStatusStepper(
 
                 if (index < stepLabels.lastIndex) {
                     val lineColor by animateColorAsState(
-                        targetValue = if (index < currentStep) Color(0xFF22C55E) else Color(0xFFE5E7EB),
+                        targetValue = if (index < currentStep) Color(0xFF22C55E) else grey_border,
                         animationSpec = tween(durationMillis = 300),
                         label = "lineColor"
                     )
@@ -1014,7 +1016,7 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
                     }
                 }
                 if (index != orders.lastIndex) {
-                    HorizontalDivider(color = Color(0xFFF0F0F0), modifier = Modifier.width(tableWidth))
+                    HorizontalDivider(color = title_border, modifier = Modifier.width(tableWidth))
                 }
             }
         }
@@ -1090,7 +1092,7 @@ private fun PreferencesStep() {
                     labelColor = Color(0xFF111827),
                     subColor = Color(0xFF6B7280),
                     bgColor = Color(0xFFF9FAFB),
-                    borderColor = Color(0xFFE5E7EB)
+                    borderColor = grey_border
                 )
                 InfoPill(
                     modifier = Modifier.weight(1f).fillMaxHeight(),

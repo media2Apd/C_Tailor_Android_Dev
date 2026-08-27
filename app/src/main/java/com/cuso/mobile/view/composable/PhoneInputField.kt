@@ -42,6 +42,7 @@ import com.cuso.mobile.model.Country
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Refresh
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 
@@ -114,7 +115,7 @@ fun PhoneInputField(
                 .height(40.dp)
                 .border(
                     1.dp,
-                    if (isError) Color(0xFFEF4444) else Color(0xFFE5E7EB),   // red border on error
+                    if (isError) Color(0xFFEF4444) else grey_border,   // red border on error
                     RoundedCornerShape(8.dp)
                 )
                 .background(

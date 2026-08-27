@@ -111,10 +111,10 @@ import com.cuso.mobile.view.composable.FilterOption
 import com.cuso.mobile.view.composable.FilterSection
 import com.cuso.mobile.view.composable.FilterSectionType
 import com.cuso.mobile.view.composable.blurScrim
-import com.cuso.mobile.view.home.finance.PurchaseInvoiceItem
-import com.cuso.mobile.view.home.finance.SupplierRow
-import com.cuso.mobile.view.home.hr.ScreenMode
-import com.cuso.mobile.view.home.inventory.LowStockItem
+import com.cuso.mobile.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceItem
+import com.cuso.mobile.view.home.finance.account_payable.suppliers.SupplierRow
+import com.cuso.mobile.view.home.hr.employees.ScreenMode
+import com.cuso.mobile.view.home.inventory.procurement.orders.LowStockItem
 import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 import com.cuso.mobile.view.home.sales.sales_order.toOrderReviewData
 import com.cuso.mobile.view.home.sidebar.FullSideBar
@@ -376,6 +376,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "garment_pricing_list",
             "sales_pricing_quotation",
             "create_quotation",
+            "measurement_entry",
+            "order_preview",
             "sales_payment_and_billing",
             "payment_detail",
             "sales_settings",

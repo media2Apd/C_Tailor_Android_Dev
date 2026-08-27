@@ -60,8 +60,10 @@ import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.statLogoBg
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
@@ -97,8 +99,8 @@ private object OrgTheme {
     val TextPrimary = Color(0xFF111827)
     val TextSecondary = Color(0xFF6B7280)
     val mutedText = Color(0xFF9CA3AF)
-    val Border = Color(0xFFE5E7EB)
-    val Divider = Color(0xFFF0F0F0)
+    val Border = grey_border
+    val Divider = title_border
     val PageBg = Color(0xFFF5F5F5)
     val InputBg = whiteBg
 }
@@ -197,7 +199,7 @@ fun SettingsScreen(
                 unselectedTextColor = TextSecondary,
                 selectedIconColor = Primary,
                 unselectedIconColor = TextSecondary,
-                borderColor = Color(0xFFE5E7EB),
+                borderColor = grey_border,
                 cornerRadius = 12.dp,
                 selectedCornerRadius = 10.dp
             )

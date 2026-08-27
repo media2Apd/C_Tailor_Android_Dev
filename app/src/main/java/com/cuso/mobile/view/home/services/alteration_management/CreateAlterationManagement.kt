@@ -40,6 +40,7 @@ import com.cuso.mobile.view.composable.blurScrim
 // ── NEW: adaptive design tokens ──
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.grey_border
 
 // ─────────────────────────────────────────────
 // Shared colors used across all screens
@@ -49,13 +50,13 @@ private val AccentBg = Color(0xFFEDEDFB)
 private val TitleColor = Color(0xFF111827)
 private val LabelColor = Color(0xFF6B7280)
 private val MutedLabel = Color(0xFF9CA3AF)
-private val BorderColor = Color(0xFFE5E7EB)
+private val BorderColor = grey_border
 private val StripBg = Color(0xFFF3F4F6)
 private val SectionBg = Color(0xFFF7F7FA)
 private val SuccessColor = Color(0xFF16A34A)
 private val PriorityRed = Color(0xFFE53935)
 private val StepGreen = Color(0xFF16A34A)
-private val StepGrayBg = Color(0xFFE5E7EB)
+private val StepGrayBg = grey_border
 private val StepGrayText = Color(0xFF9CA3AF)
 private val NavyFabric = Color(0xFF1E293B)
 private val NotesBg = Color(0xFFEDEDFB)
@@ -806,7 +807,7 @@ fun CreateAlterationManagementScreen(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFE5E7EB))
+                                    .background(grey_border)
                             )
                             Spacer(Modifier.width(smallGap))
                             Column {

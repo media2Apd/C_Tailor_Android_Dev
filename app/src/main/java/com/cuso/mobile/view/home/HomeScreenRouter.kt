@@ -11,13 +11,54 @@ import com.cuso.mobile.model.sales.CustomerItem
 import com.cuso.mobile.view.home.branch.BranchSettingsScreen
 import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
 import com.cuso.mobile.view.home.designation.DesignationScreen
-import com.cuso.mobile.view.home.finance.*
-import com.cuso.mobile.view.home.hr.*
-import com.cuso.mobile.view.home.inventory.*
-import com.cuso.mobile.view.home.logistics.*
+import com.cuso.mobile.view.home.finance.account_payable.payment_mode.AllPaymentListScreen
+import com.cuso.mobile.view.home.finance.account_payable.payment_mode.PaymentDetailScreenAR
+import com.cuso.mobile.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceDetailScreen
+import com.cuso.mobile.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceItem
+import com.cuso.mobile.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceScreen
+import com.cuso.mobile.view.home.finance.account_payable.suppliers.AllSuppliersScreen
+import com.cuso.mobile.view.home.finance.account_payable.suppliers.SupplierDetailScreen
+import com.cuso.mobile.view.home.finance.account_payable.suppliers.SupplierRow
+import com.cuso.mobile.view.home.finance.account_receivable.customers.CustomerDetailViewScreen
+import com.cuso.mobile.view.home.finance.account_receivable.customers.FinanceCustomerScreen
+import com.cuso.mobile.view.home.finance.account_receivable.payment_received.AllPaymentScreen
+import com.cuso.mobile.view.home.finance.account_receivable.payment_received.PaymentDetailScreenAP
+import com.cuso.mobile.view.home.finance.account_receivable.sales_invoice.FinanceInvoiceScreen
+import com.cuso.mobile.view.home.finance.account_receivable.sales_invoice.InvoiceDetailScreen
+import com.cuso.mobile.view.home.finance.expenses.ExpensesScreen
+import com.cuso.mobile.view.home.finance.finance_core.chart_of_accounts.ChartOfAccountScreen
+import com.cuso.mobile.view.home.finance.finance_core.journal_entry.ManualJournalEntryScreen
+import com.cuso.mobile.view.home.finance.finance_core.trial_balance.LedgerScreen
+import com.cuso.mobile.view.home.finance.finance_core.trial_balance.TrialBalanceScreen
+import com.cuso.mobile.view.home.hr.attendance.AttendanceDetailScreen
+import com.cuso.mobile.view.home.hr.attendance.AttendanceScreen
+import com.cuso.mobile.view.home.hr.employees.AllEmployeesScreen
+import com.cuso.mobile.view.home.hr.employees.EmployeeOnboardingScreen
+import com.cuso.mobile.view.home.hr.employees.ScreenMode
+import com.cuso.mobile.view.home.inventory.items.AllItemGroupScreen
+import com.cuso.mobile.view.home.inventory.items.CreateItemGroupScreen
+import com.cuso.mobile.view.home.inventory.items.all_items.AdjustmentType
+import com.cuso.mobile.view.home.inventory.items.all_items.CreateItemScreen
+import com.cuso.mobile.view.home.inventory.items.all_items.InventoryScreen
+import com.cuso.mobile.view.home.inventory.items.all_items.InventoryViewOne
+import com.cuso.mobile.view.home.inventory.procurement.orders.CreatePurchaseOrderScreen
+import com.cuso.mobile.view.home.inventory.procurement.orders.LowStockAlertsScreen
+import com.cuso.mobile.view.home.inventory.procurement.orders.LowStockItem
+import com.cuso.mobile.view.home.logistics.delivery.DeliveryDetailScreen
+import com.cuso.mobile.view.home.logistics.delivery.DeliveryManagementScreen
+import com.cuso.mobile.view.home.logistics.order_tracking.OrderTrackingScreen
+import com.cuso.mobile.view.home.logistics.order_tracking.TrackingOverviewScreen
 import com.cuso.mobile.view.home.opening_balance.OpeningBalancesScreen
 import com.cuso.mobile.view.home.profile.ProfileSettingsScreen
-import com.cuso.mobile.view.home.reports.*
+import com.cuso.mobile.view.home.reports.finance.FinanceReportPage
+import com.cuso.mobile.view.home.reports.finance.ProfitAndLossReportScreen
+import com.cuso.mobile.view.home.reports.inventory.DeadStockReportScreen
+import com.cuso.mobile.view.home.reports.inventory.InventoryReportPage
+import com.cuso.mobile.view.home.reports.inventory.LowStockScreen
+import com.cuso.mobile.view.home.reports.inventory.PurchaseReportScreen
+import com.cuso.mobile.view.home.reports.inventory.StockSummaryScreen
+import com.cuso.mobile.view.home.reports.inventory.WarehouseReportScreen
+import com.cuso.mobile.view.home.reports.sales.SalesOrderReportsScreen
 import com.cuso.mobile.view.home.role.RoleSettingsScreen
 import com.cuso.mobile.view.home.sales.*
 import com.cuso.mobile.view.home.sales.customer.*
@@ -294,9 +335,38 @@ fun HomeScreenRouter(
             },
             onNextStep = { orderReviewData ->
                 onPendingOrderReviewDataChange(orderReviewData)
-                onNavigate("create_order_review")
+                onNavigate("measurement_entry") // ➔ Step 1 to Step 2
             }
         )
+        "measurement_entry" -> {
+            pendingOrderReviewData?.let { data ->
+                MeasurementEntryScreen(
+                    garmentType = data.garments.firstOrNull()?.categoryName ?: "Shirt",
+                    customerName = data.fullName,
+                    customerPhone = data.phone,
+                    onClose = onGoBack,
+                    onSaveMeasurement = {
+                        onNavigate("order_preview") // ➔ Step 2 to Step 3 (Order Preview)
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
+        "order_preview" -> {
+            pendingOrderReviewData?.let { data ->
+                OrderPreviewScreen(
+                    orderData = data,
+                    onClose = onGoBack,
+                    onConfirmOrder = {
+                        // Order successfully confirmed & saved
+                        onOrderSavedSuccessfully(data.orderId)
+                    },
+                    onCancel = {
+                        onPendingOrderReviewDataChange(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
         "create_order_review" -> {
             pendingOrderReviewData?.let { data ->
                 CreateOrderNextStep(
@@ -462,10 +532,27 @@ fun HomeScreenRouter(
         }
         "finance_customers" -> FinanceCustomerScreen(
             onClose = onGoBack,
-            onCustomerEdit = { },
-            onCustomerClick = { },
+            onCustomerEdit = { customerId ->
+                onRecentCustomerIdSelected(customerId)
+                onNavigate("finance_customer_detail")
+            },
+            onCustomerClick = { customerId ->
+                onRecentCustomerIdSelected(customerId)
+                onNavigate("finance_customer_detail")
+            },
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
         )
+        "finance_customer_detail" -> {
+            selectedRecentCustomerId?.let { id ->
+                CustomerDetailViewScreen(
+                    customerId = id,
+                    onClose = {
+                        onRecentCustomerIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
         "finance_suppliers" -> AllSuppliersScreen(
             onClose = onGoBack,
             onBreadCrumbClick = { onOpenModulesPanel("Finance") },

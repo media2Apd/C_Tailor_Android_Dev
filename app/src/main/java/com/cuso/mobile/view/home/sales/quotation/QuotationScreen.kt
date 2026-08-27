@@ -35,6 +35,7 @@ import com.cuso.mobile.ui.theme.greenBg
 import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.redBg
 import com.cuso.mobile.ui.theme.redText
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.view.composable.ActionDropdownMenu
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
@@ -189,7 +190,7 @@ fun QuotationScreen(
                     )
                 }
 
-                HorizontalDivider(color = Color(0xFFF0F0F0))
+                HorizontalDivider(color = title_border)
 
                 // Content
                 when {
@@ -228,6 +229,7 @@ fun QuotationScreen(
                                 DataCard(
                                     item = item,
                                     topBadgeText = item.status,
+                                    showActionsInHeader = true,
                                     topBadgeTextColor = if (item.isActive) greentext else redText,
                                     topBadgeBgColor = if (item.isActive) greenBg else redBg,
                                     topBadgeCornerRadius = 20.dp,

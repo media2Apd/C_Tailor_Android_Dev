@@ -57,6 +57,7 @@ import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -235,7 +236,7 @@ fun CustomerScreen(
                     )
                 }
 
-                HorizontalDivider(color = Color(0xFFF0F0F0))
+                HorizontalDivider(color = title_border)
 
                 // Content View
                 when {

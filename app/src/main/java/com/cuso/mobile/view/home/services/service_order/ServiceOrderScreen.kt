@@ -69,6 +69,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.compose.ui.text.style.TextOverflow
+import com.cuso.mobile.ui.theme.title_border
 
 @Composable
 fun ServiceOrderScreen(
@@ -178,7 +179,7 @@ fun ServiceOrderScreen(
                         onFilterClick = { /* Open filter drawer if needed */ }
                     )
                 }
-                HorizontalDivider(color = Color(0xFFF0F0F0))
+                HorizontalDivider(color = title_border)
 
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when {

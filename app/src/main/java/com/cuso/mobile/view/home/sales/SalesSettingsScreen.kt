@@ -27,6 +27,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.viewmodel.SaleState
@@ -370,7 +371,7 @@ fun GarmentTypeContent(
                                     .border(
                                         width = if (isSelected) 2.dp else 1.dp,
                                         color = if (isSelected) Color(0xFF3B3BF9)
-                                        else Color(0xFFE5E7EB),
+                                        else grey_border,
                                         shape = RoundedCornerShape(12.dp)
                                     )
                                     .clickable {

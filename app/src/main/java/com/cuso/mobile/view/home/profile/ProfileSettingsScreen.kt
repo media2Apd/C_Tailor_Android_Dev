@@ -31,6 +31,7 @@ import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.grey_border
 
 // ── Data model for each settings row ──
 private data class SettingsMenuItem(
@@ -219,7 +220,7 @@ fun ProfileSettingsScreen(
 
                         Row(
                             modifier = Modifier
-                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(20.dp))
+                                .border(1.dp, grey_border, RoundedCornerShape(20.dp))
                                 .clip(RoundedCornerShape(20.dp))
                                 .clickable { onGoToProfile() }
                                 .padding(horizontal = 16.dp, vertical = 8.dp),

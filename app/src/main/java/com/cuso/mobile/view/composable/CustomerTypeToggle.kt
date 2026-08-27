@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.annotation.DrawableRes
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.whiteBg
 
 // ─────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ fun SettingsTabs(
     unselectedTextColor: Color = TextSecondary,
     selectedIconColor: Color = Primary,
     unselectedIconColor: Color = TextSecondary,
-    borderColor: Color = Color(0xFFE5E7EB),
+    borderColor: Color = grey_border,
     cornerRadius: Dp = 12.dp,
     selectedCornerRadius: Dp = 10.dp
 ) {

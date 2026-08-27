@@ -40,6 +40,7 @@ import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
@@ -126,7 +127,7 @@ fun ServiceStatusScreen(
                 )
             }
 
-            HorizontalDivider(color = Color(0xFFF0F0F0))
+            HorizontalDivider(color = title_border)
 
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when {

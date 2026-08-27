@@ -37,7 +37,7 @@ fun CusoTextField(
     isPassword: Boolean = false,
     isError: Boolean = false,
     errorText: String? = null,
-    readOnly: Boolean = false,                    // NEW: for locked/prefilled fields (e.g. email on ForgotPassword)
+    readOnly: Boolean = false,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
 ) {
@@ -70,7 +70,7 @@ fun CusoTextField(
                 textStyle = TextStyle(color = textColor, fontSize = tokens.bodySmall),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(tokens.fieldHeight),
+                    .height(40.dp),
                 interactionSource = interactionSource,
                 keyboardOptions = keyboardOptions,
                 visualTransformation = if (isPassword && !isPasswordVisible) PasswordVisualTransformation() else VisualTransformation.None,

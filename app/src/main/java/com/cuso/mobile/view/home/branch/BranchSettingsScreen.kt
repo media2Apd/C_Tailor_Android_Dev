@@ -39,6 +39,7 @@ import com.cuso.mobile.model.UpdateBranchRequest
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.disabled
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
@@ -237,7 +238,7 @@ fun BranchSettingsScreen(
                                     accentColor = BluePrimary
                                 )
                             }
-                            HorizontalDivider(color = Color(0xFFF0F0F0))
+                            HorizontalDivider(color = title_border)
 
                             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                                 when (uiState) {

@@ -36,7 +36,7 @@ import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.view.composable.FormTextField
-import com.cuso.mobile.view.home.inventory.FormTextArea
+import com.cuso.mobile.view.home.inventory.procurement.orders.FormTextArea
 
 // ─────────────────────────────────────────────────────────────────────────
 // ADDITIONAL COLORS

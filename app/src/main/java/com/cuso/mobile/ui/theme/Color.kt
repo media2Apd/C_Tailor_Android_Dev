@@ -25,6 +25,8 @@ val PanelBg = Color(0xFFF7F7FA)
 val modelBg = Color(0xfff8f9ff)
 val modelGray = Color(0xFFF1F5F9)
 val quickaccessBg = Color(0xFFDCE9FF)
+val cardBgLight = Color(0xFFFCFDFF)
+val transactionSheetBg = Color(0xFFE2EDFF)
 
 
 // ===========================================================
@@ -38,6 +40,9 @@ val blackTitle = Color.Black
 val mutedText = Color(0xFF9CA3AF)
 val dataCardField = Color(0xFF9CA3AF)
 val close_color = Color(0xFF64748B)
+val textSubdued = Color(0xFF334155)
+val iconMuted = Color(0xFF94A3B8)
+val transactionSheetTint = Color(0xFF93B3EC)
 
 // login / signup screen text
 val TextLog = Color(0xFF374151)
@@ -52,6 +57,8 @@ val title_font = 24.sp
 val BorderGray = Color(0xFFebeaf1)
 val light_blue_border = Color(0xFFDBEAFE)
 val modelBorder = Color(0xffe8eaf4)
+val dividerColor = Color(0xFFF1F5F9)
+val sectionBorder = Color(0xFFE2E8F0)
 
 
 // ===========================================================
@@ -103,7 +110,8 @@ val statLogoBg = Color(0xff424656)
 val Purple80 = Color(0xFFD0BCFF)
 val PurpleGrey80 = Color(0xFFCCC2DC)
 val Pink80 = Color(0xFFEFB8C8)
-
-//val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
+
+val grey_border = Color(0xFFE5E7EB)
+val title_border = Color(0xFFF0F0F0)

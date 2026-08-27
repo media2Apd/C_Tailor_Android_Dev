@@ -99,7 +99,9 @@ import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.close_color
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.primary_light
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
@@ -139,7 +141,7 @@ import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TimePickerField
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.composable.rememberFilterDrawerState
-import com.cuso.mobile.view.home.inventory.FormTextArea
+import com.cuso.mobile.view.home.inventory.procurement.orders.FormTextArea
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 import com.cuso.mobile.viewmodel.SaleState
@@ -878,7 +880,7 @@ fun LeadFormScreen(
                         isConverted = if (isEdit) isConvertedStatus else true,
                         onConvertToOrder = { showConvertDialog = true }
                     )
-                    HorizontalDivider(color = Color(0xFFF0F0F0))
+                    HorizontalDivider(color = title_border)
 
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -977,7 +979,7 @@ fun LeadFormScreen(
                                         unselectedTextColor = TextSecondary,
                                         selectedIconColor = Primary,
                                         unselectedIconColor = TextSecondary,
-                                        borderColor = Color(0xFFE5E7EB),
+                                        borderColor = grey_border,
                                         cornerRadius = 12.dp,
                                         selectedCornerRadius = 10.dp
                                     )
@@ -1005,7 +1007,7 @@ fun LeadFormScreen(
                                         unselectedTextColor = TextSecondary,
                                         selectedIconColor = Primary,
                                         unselectedIconColor = TextSecondary,
-                                        borderColor = Color(0xFFE5E7EB),
+                                        borderColor = grey_border,
                                         cornerRadius = 12.dp,
                                         selectedCornerRadius = 10.dp
                                     )
@@ -1203,7 +1205,7 @@ fun LeadFormScreen(
                                                         modifier = Modifier
                                                             .border(
                                                                 1.dp,
-                                                                if (isSelected) LeadPrimary else Color(0xFFE5E7EB),
+                                                                if (isSelected) LeadPrimary else grey_border,
                                                                 RoundedCornerShape(50.dp)
                                                             )
                                                             .background(
@@ -1266,7 +1268,7 @@ fun LeadFormScreen(
 
                         item {
                             AccordionSection(
-                                iconPainter = painterResource(R.drawable.calendar),
+                                iconPainter = painterResource(R.drawable.ic_calendar),
                                 iconTint = Primary,
                                 title = "Appointment & Follow-Up",
                                 expanded = if (isView) expandedSection == "appointment" else (expandedSection == "appointment" && appointmentRequired),
@@ -1774,7 +1776,7 @@ fun LeadScreenContent(
                         onFilterClick = { filterDrawerState.open() }
                     )
                 }
-                HorizontalDivider(color = Color(0xFFF0F0F0))
+                HorizontalDivider(color = title_border)
 
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when {
@@ -1932,7 +1934,7 @@ fun MiniSwitch(
             .width(30.dp)
             .height(18.dp)
             .clip(RoundedCornerShape(50))
-            .background(if (checked) Primary else Color(0xFFE5E7EB))
+            .background(if (checked) Primary else grey_border)
             .border(
                 width = 1.dp,
                 color = if (checked) Primary else Color(0xFFD1D5DB),
@@ -1986,7 +1988,7 @@ fun BudgetRangeSlider(
         colors = SliderDefaults.colors(
             thumbColor = LeadPrimary,
             activeTrackColor = LeadPrimary,
-            inactiveTrackColor = Color(0xFFE5E7EB)
+            inactiveTrackColor = grey_border
         ),
         thumb = {
             Box(
@@ -2004,7 +2006,7 @@ fun BudgetRangeSlider(
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(50))
-                    .background(Color(0xFFE5E7EB))
+                    .background(grey_border)
             ) {
                 Box(
                     modifier = Modifier

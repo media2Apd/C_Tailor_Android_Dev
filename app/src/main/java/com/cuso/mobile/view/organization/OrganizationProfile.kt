@@ -61,6 +61,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.BorderStroke
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.whiteBg
 import java.io.File
 
@@ -233,7 +234,7 @@ fun OrganizationProfile(
                 onClick = { logoGalleryLauncher.launch("image/*") },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                border = BorderStroke(1.dp, grey_border),
                 colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
             ) {
                 Icon(
@@ -256,7 +257,7 @@ fun OrganizationProfile(
                 },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                border = BorderStroke(1.dp, grey_border),
                 colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
             ) {
                 Icon(
@@ -281,7 +282,7 @@ fun OrganizationProfile(
                         .size(90.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color(0xFFF3F4F6))
-                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                        .border(1.dp, grey_border, RoundedCornerShape(8.dp))
                 ) {
                     Image(
                         painter = rememberAsyncImagePainter(selectedLogoUri),
@@ -312,7 +313,7 @@ fun OrganizationProfile(
                     .fillMaxWidth()
                     .height(90.dp)
                     .background(whiteBg, RoundedCornerShape(8.dp))
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp)),
+                    .border(1.dp, grey_border, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -641,7 +642,7 @@ fun OrganizationDropdown(
                     if (enabled) whiteBg else Color(0xFFF3F4F6),
                     RoundedCornerShape(8.dp)
                 )
-                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                .border(1.dp, grey_border, RoundedCornerShape(8.dp))
                 .clickable(enabled = enabled) { expanded = !expanded }
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,

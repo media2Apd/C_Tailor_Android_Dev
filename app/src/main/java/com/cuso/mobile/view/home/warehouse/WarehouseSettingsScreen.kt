@@ -55,6 +55,8 @@ import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 
@@ -180,7 +182,7 @@ fun WarehouseSettingsScreen(
                                 accentColor = BluePrimary
                             )
                         }
-                        HorizontalDivider(color = Color(0xFFF0F0F0))
+                        HorizontalDivider(color = title_border)
 
                         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                             if (filteredWarehouses.isEmpty()) {
@@ -421,7 +423,7 @@ private fun WarehouseStatsRow(stats: List<Pair<String, String>>) {
                         .padding(horizontal = 12.dp)
                         .width(1.dp)
                         .height(34.dp)
-                        .background(Color(0xFFE5E7EB))
+                        .background(grey_border)
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
@@ -472,7 +474,7 @@ private fun CollapsibleSection(
                 content = content
             )
         }
-        HorizontalDivider(color = Color(0xFFF0F0F0))
+        HorizontalDivider(color = title_border)
     }
 }
 

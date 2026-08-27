@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.cuso.mobile.ui.theme.title_border
 
 /**
  * Semantic status colors used by badges and progress bars across every report screen.
@@ -36,7 +37,7 @@ object ReportStatusColors {
 
     val LinkBlue = Color(0xFF3B5BDB)
     val MutedGray = Color(0xFF9CA3AF)
-    val DividerGray = Color(0xFFF0F0F0)
+    val DividerGray = title_border
     val TrackGray = Color(0xFFE9E9EC)
 }
 

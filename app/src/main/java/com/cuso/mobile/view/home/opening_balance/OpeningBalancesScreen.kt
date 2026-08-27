@@ -37,6 +37,7 @@ import androidx.navigation.NavController
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DataCard
@@ -328,7 +329,7 @@ private fun OpeningBalanceCategoryCard(
         }
 
         Spacer(Modifier.height(4.dp))
-        HorizontalDivider(color = Color(0xFFF0F0F0))
+        HorizontalDivider(color = title_border)
     }
 }
 
@@ -358,7 +359,7 @@ private fun OpeningBalanceCategoryDetailContent(
             Text(category.name, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = title_color)
             Icon(Icons.Default.KeyboardArrowUp, contentDescription = null, tint = mutedText)
         }
-        HorizontalDivider(color = Color(0xFFF0F0F0))
+        HorizontalDivider(color = title_border)
 
         // Category with no sub-accounts yet still shows a single editable
         // debit/credit row representing the category itself

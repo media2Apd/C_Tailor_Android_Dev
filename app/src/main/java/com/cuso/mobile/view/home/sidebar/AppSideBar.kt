@@ -70,6 +70,7 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.quickaccessBg
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.SmoothBottomSheet
@@ -499,7 +500,7 @@ private fun SidebarIconRail(
             }
         }
 
-        HorizontalDivider(color = Color(0xFFF0F0F0))
+        HorizontalDivider(color = title_border)
         Spacer(Modifier.height(8.dp))
 
         Column(
@@ -595,7 +596,7 @@ private fun SidebarIconRail(
             }
         }
 
-        HorizontalDivider(color = Color(0xFFF0F0F0))
+        HorizontalDivider(color = title_border)
 
         SidebarUserProfile(
             user = user,
@@ -814,7 +815,7 @@ private fun SidebarAccordionPanel(
                             }
                         }
 
-                        HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 0.6.dp)
+                        HorizontalDivider(color = title_border, thickness = 0.6.dp)
 
                         if (isExpanded && !isHomeMenu) {
                             val subItems = activeSubItems[category].orEmpty()
@@ -1100,7 +1101,7 @@ fun ModulesPanelHeader(
             )
         }
 
-        HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 1.dp)
+        HorizontalDivider(color = title_border, thickness = 1.dp)
 
         Row(
             modifier = Modifier
@@ -1276,7 +1277,7 @@ private fun ModulesPanelContent(
                                                 .background(whiteBg, RoundedCornerShape(24.dp))
                                                 .border(
                                                     1.dp,
-                                                    Color(0xFFF0F0F0),
+                                                    title_border,
                                                     RoundedCornerShape(14.dp)
                                                 )
                                                 .clickable(

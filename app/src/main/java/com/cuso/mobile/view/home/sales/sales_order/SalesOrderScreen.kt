@@ -31,11 +31,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.greenBg
 import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.redBg
@@ -46,7 +44,6 @@ import com.cuso.mobile.ui.theme.yellowText
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
-import com.cuso.mobile.view.composable.DataCardImage
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.ErrorMapper
@@ -65,11 +62,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.text.font.FontWeight
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.*
+import com.cuso.mobile.view.home.formatIndianNumber
 
-// -------------------------------------------------------------
-// Screen
-// -------------------------------------------------------------
-@Suppress("UNUSED_PARAMETER")
+
 @Composable
 fun SalesOrderScreen(
     navController: NavController,
@@ -80,6 +78,7 @@ fun SalesOrderScreen(
     onEditOrder: (String) -> Unit = {},
     onBreadCrumbClick: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
     val viewModel: SalesOrderViewModel = hiltViewModel()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
     val actionState by viewModel.actionState.collectAsStateWithLifecycle()
@@ -92,11 +91,9 @@ fun SalesOrderScreen(
     var searchQuery by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf("all") }
 
-    // Dynamic Island State variables
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Infinite scroll trigger
     LaunchedEffect(listState) {
         snapshotFlow {
             val info = listState.layoutInfo
@@ -112,7 +109,6 @@ fun SalesOrderScreen(
             }
     }
 
-    // Debounced Search and Filter Listener
     LaunchedEffect(searchQuery, statusFilter) {
         delay(400)
         viewModel.fetchOrders(
@@ -123,14 +119,12 @@ fun SalesOrderScreen(
         )
     }
 
-    // Handle initial list load error
     LaunchedEffect(orderState) {
         if (orderState is OrderUiState.Error) {
             errorMessage = ErrorMapper.map((orderState as OrderUiState.Error).message)
         }
     }
 
-    // Handle Order Create / Update / Action state
     LaunchedEffect(actionState) {
         when (val s = actionState) {
             is OrderActionState.Success -> {
@@ -159,30 +153,30 @@ fun SalesOrderScreen(
         modifier = Modifier.fillMaxSize()
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-
             Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
-                // Fixed Top Header
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    TitleBar("Sales orders", onClose = onBack)
-                }
+                // Top Bar
+                TitleBar("All Orders", onClose = onBack)
 
-                // Breadcrumb + Search + Status filter
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    ScreenBreadcrumb(segments = listOf("Sales", "Sales Orders"), onClick = { onBreadCrumbClick() })
-                    SearchFilterBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        placeholder = "Search Customers...",
-                        accentColor = BluePrimary,
-                        borderColor = BorderGray,
-                        textSecondaryColor = TextSecondary,
-                        onFilterClick = { /* open filter drawer */ }
-                    )
-                }
-                HorizontalDivider(color = Color(0xFFF0F0F0))
+                // Breadcrumb & Search
+                ScreenBreadcrumb(
+                    segments = listOf("Services", "Service & Orders"),
+                    onClick = { onBreadCrumbClick() }
+                )
 
-                // Content
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    placeholder = "Search Customers...",
+                    accentColor = BluePrimary,
+                    borderColor = BorderGray,
+                    textSecondaryColor = TextSecondary,
+                    onFilterClick = { }
+                )
+
+                HorizontalDivider(color = dividerColor)
+
+                // Dynamic Orders Content List
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when {
                         isLoading -> {
@@ -209,7 +203,7 @@ fun SalesOrderScreen(
                                                 status = statusFilter.takeIf { it != "all" }
                                             )
                                         },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
                                         shape = RoundedCornerShape(8.dp)
                                     ) {
                                         Text("Retry", color = whiteBg)
@@ -227,52 +221,60 @@ fun SalesOrderScreen(
                                     }
                                 }
                             } else {
-                                Column(modifier = Modifier.fillMaxSize()) {
-                                    LazyColumn(
-                                        state = listState,
-                                        modifier = Modifier.fillMaxWidth().weight(1f)
-                                    ) {
-                                        items(orders, key = { it.id }) { order ->
-                                            val (_, statusTextColor) = orderStatusColors(order.status)
-                                            val garmentNames = order.garments.joinToString(", ") { it.categoryName }.ifEmpty { "—" }
-                                            DataCard(
-                                                item = order,
-                                                image = DataCardImage(
-                                                    painter = painterResource(R.drawable.ic_person),
-                                                    size = 30.dp,
-                                                    backgroundColor = Color.Transparent,
-                                                    tint = blackTitle
-                                                ),
-                                                topBadgeText = order.status?.replaceFirstChar { it.uppercase() } ?: "—",
-                                                topBadgeTextColor = statusTextColor,
-                                                topBadgeBgColor = statusTextColor.copy(alpha = 0.14f),
-                                                topBadgeInline = true,
-                                                title = order.customerId?.name ?: "Unknown",
-                                                subtitle = "Order ID : ${order.orderNumber}",
-                                                footerAsRows = true,
-                                                footerFields = listOf(
-                                                    DataCardField(label = "Items", text = formatGarmentsSummary(garmentNames), asRow = true),
-                                                    DataCardField(label = "Price", text = order.totalAmount?.let { "₹$it" } ?: "—", asRow = true),
-                                                    DataCardField(label = "Date Of Delivery", text = order.deliveryDate.toDisplayDate(), asRow = true),
-                                                    DataCardField(label = "Priority", text = "—", asRow = true)
-                                                ),
-                                                actions = listOf(
-                                                    MenuAction("View", Icons.Default.Visibility) { onViewOrder(order.id) },
-                                                    MenuAction("Edit", Icons.Default.Edit) { onEditOrder(order.id) }
-                                                )
-                                            )
-                                        }
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(bottom = 80.dp)
+                                ) {
+                                    items(orders, key = { it.id }) { order ->
+                                        val status = order.status?.replaceFirstChar { it.uppercase() } ?: "Processing"
+                                        val (statusBg, statusTextColor) = orderStatusColors(status)
 
-                                        if (isLoadingMore) {
-                                            item {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(16.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    CirculerProgressIndicatorSmall()
-                                                }
+                                        val garmentCategory = order.garments.firstOrNull()?.categoryName ?: "Garments"
+                                        val totalQuantity = order.garments.sumOf { it.quantity }.let { if (it <= 0) 1 else it }
+                                        val subtitleSummary = "$garmentCategory  •  Qty $totalQuantity"
+
+                                        val paymentTag =  "Prepaid"
+                                        val branchTag = "BLR-S"
+
+                                        // Image matching Order Card Item
+                                        DataCard(
+                                            item = order,
+                                            eyebrowText = "ORD-${order.orderNumber}",
+                                            showActionsInHeader = true,
+                                            eyebrowColor = title_color,
+                                            title = order.customerId?.name.orEmpty().ifBlank { "Unknown Customer" },
+                                            subtitle = subtitleSummary,
+                                            topBadgeText = status,
+                                            topBadgeTextColor = statusTextColor,
+                                            topBadgeBgColor = statusBg,
+                                            footerTags = listOf(paymentTag, branchTag),
+                                            footerFields = listOf(
+                                                DataCardField(
+                                                    label = "Order Value",
+                                                    text = "₹${formatIndianNumber(order.totalAmount ?: 0.0)}",
+                                                    textColor = Primary,
+                                                    valueFontWeight = FontWeight.SemiBold,
+                                                    asColumn = true
+                                                )
+                                            ),
+                                            actions = listOf(
+                                                MenuAction("View", Icons.Default.Visibility) { onViewOrder(order.id) },
+                                                MenuAction("Edit", Icons.Default.Edit) { onEditOrder(order.id) }
+                                            ),
+                                            onClick = { onViewOrder(order.id) }
+                                        )
+                                    }
+
+                                    if (isLoadingMore) {
+                                        item {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                CirculerProgressIndicatorSmall()
                                             }
                                         }
                                     }

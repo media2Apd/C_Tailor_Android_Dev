@@ -6,8 +6,10 @@
     "AssignedValueIsNeverRead",
     "GrazieInspection",
     "SpellCheckingInspection",
-    "unusedvariable", "VariableNeverRead"
+    "unusedvariable",
+    "VariableNeverRead"
 )
+
 package com.cuso.mobile.view.composable
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -16,7 +18,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -42,11 +43,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.whiteBg
 
 // --- String Utilities ---
@@ -111,7 +112,7 @@ fun StatusBadge(
     textColor: Color = Color(0xFF10B981),
     dotColor: Color = textColor,
     cornerRadius: Dp = 20.dp,
-    dotSize: Dp = 7.dp,
+    dotSize: Dp = 6.dp,
     showDot: Boolean = true
 ) {
     val tokens = LocalAppTokens.current
@@ -119,7 +120,7 @@ fun StatusBadge(
         modifier = modifier
             .clip(RoundedCornerShape(cornerRadius))
             .background(bgColor)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (showDot) {
@@ -227,7 +228,7 @@ fun <T> DataCard(
     bottomBadgeDotColor: Color = bottomBadgeTextColor,
     bottomBadgeCornerRadius: Dp = 20.dp,
     eyebrowText: String? = null,
-    eyebrowColor: Color = Color(0xFF6B7280),
+    eyebrowColor: Color = Color(0xFF111827),
     title: String? = null,
     smalltitle: String? = null,
     percentage: String? = null,
@@ -235,6 +236,7 @@ fun <T> DataCard(
     titleColor: Color = Color(0xFF111827),
     subtitle: String? = null,
     footerFields: List<DataCardField> = emptyList(),
+    footerTags: List<String> = emptyList(),
     footerAsRows: Boolean = false,
     footerAsColumns: Boolean = false,
     actions: List<MenuAction> = emptyList(),
@@ -252,12 +254,35 @@ fun <T> DataCard(
     val tokens = LocalAppTokens.current
     val formattedTitle = remember(title) { title?.toTitleCase() }
 
-    Card(
+    val effectiveCardClick: (() -> Unit)? = remember(onClick, actions, item) {
+        when {
+            onClick != null -> {
+                { onClick(item) }
+            }
+            actions.isNotEmpty() -> {
+                val viewAction = actions.find {
+                    it.label.contains("view", ignoreCase = true) ||
+                            it.label.contains("detail", ignoreCase = true)
+                }
+                viewAction?.let { action -> { action.onClick() } }
+            }
+            else -> null
+        }
+    }
+
+    val showHeaderRow = (eyebrowText != null || dateText != null || (topBadgeText != null && !topBadgeInline) || (showActionsInHeader && actions.isNotEmpty()))
+
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .let { m -> if (onClick != null) m.clickable { onClick(item) } else m },
-        shape = RoundedCornerShape(0.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            .then(
+                if (effectiveCardClick != null) {
+                    Modifier.clickable { effectiveCardClick() }
+                } else {
+                    Modifier
+                }
+            ),
+        color = Color.Transparent
     ) {
         Column(
             modifier = Modifier
@@ -265,9 +290,8 @@ fun <T> DataCard(
                 .let { m -> if (containerBrush != null) m.background(containerBrush) else m }
                 .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
         ) {
-            // --- Header: Metadata & Status Badges ---
-            val showTopBadgeInTopRow = topBadgeText != null && !topBadgeInline
-            if (dateText != null || showTopBadgeInTopRow || (showActionsInHeader && actions.isNotEmpty())) {
+            // --- 1. Top Header Row: Shown when eyebrow / dateText / non-inline badge exists ---
+            if (showHeaderRow) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -276,13 +300,13 @@ fun <T> DataCard(
                     if (eyebrowText != null) {
                         Text(
                             text = eyebrowText,
-                            fontSize = tokens.label,
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
                             color = eyebrowColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                    }
-                    if (dateText != null) {
+                    } else if (dateText != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (showDateIcon) {
                                 Icon(dateIcon, null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(14.dp))
@@ -295,7 +319,7 @@ fun <T> DataCard(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (showTopBadgeInTopRow) {
+                        if (topBadgeText != null && !topBadgeInline) {
                             StatusBadge(
                                 text = topBadgeText,
                                 dotColor = topBadgeDotColor,
@@ -306,71 +330,51 @@ fun <T> DataCard(
                             )
                         }
                         if (showActionsInHeader && actions.isNotEmpty()) {
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(6.dp))
                             ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = actions)
                         }
                     }
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
             }
 
-            // --- Main Content: Identity & Actions ---
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            // --- 2. Main Identity Row: Image + Title/Subtitle + Inline Badge + Actions ---
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 if (image != null) {
                     val avatarSize = if (tokens.isTablet) image.size * 1.2f else image.size
                     Box(
-                        modifier = Modifier.size(avatarSize).clip(image.shape).background(image.backgroundColor),
+                        modifier = Modifier
+                            .size(avatarSize)
+                            .clip(image.shape)
+                            .background(image.backgroundColor),
                         contentAlignment = Alignment.Center
                     ) {
                         when {
                             image.url != null -> AsyncImage(image.url, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                             image.painter != null -> Image(image.painter, null, contentScale = ContentScale.Crop, colorFilter = image.tint?.let { ColorFilter.tint(it) }, modifier = Modifier.fillMaxSize())
-                            image.vector != null -> Icon(image.vector, null, tint = image.tint ?: Color(0xFF9CA3AF), modifier = Modifier.size(avatarSize * 0.5f))
+                            image.vector != null -> Icon(image.vector, null, tint = image.tint ?: Color(0xFF9CA3AF), modifier = Modifier.size(avatarSize * 0.7f))
                         }
                     }
                     Spacer(Modifier.width(12.dp))
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (formattedTitle != null) {
-                            Text(
-                                text = formattedTitle,
-                                fontSize = tokens.bodyMedium,
-                                color = titleColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        if (smalltitle != null) {
-                            Text(
-                                text = smalltitle,
-                                fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Normal,
-                                color = titleColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Spacer(Modifier.width(5.dp))
-
-                        if (percentage != null) {
-                            Text(
-                                text = percentage,
-                                fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Normal,
-                                color = Primary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                    if (formattedTitle != null) {
+                        Text(
+                            text = formattedTitle,
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = titleFontWeight,
+                            color = titleColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
                     if (subtitle != null) {
-                        Spacer(Modifier.height(2.dp))
+                        Spacer(Modifier.height(3.dp))
                         Text(
                             text = subtitle,
                             fontSize = tokens.caption,
@@ -381,8 +385,9 @@ fun <T> DataCard(
                     }
                 }
 
-                // Inline badge
+                // Inline badge (e.g. Active with dot) on the same line
                 if (topBadgeText != null && topBadgeInline) {
+                    Spacer(Modifier.width(8.dp))
                     StatusBadge(
                         text = topBadgeText,
                         dotColor = topBadgeDotColor,
@@ -391,32 +396,31 @@ fun <T> DataCard(
                         cornerRadius = topBadgeCornerRadius,
                         showDot = topBadgeShowDot
                     )
-                    Spacer(Modifier.width(8.dp))
                 }
 
-                // Expandable chevron
+                // Action Menu on the same line
+                if (actions.isNotEmpty() && !showActionsInHeader) {
+                    Spacer(Modifier.width(6.dp))
+                    ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = actions)
+                }
+
                 if (showChevron) {
                     val rotation by animateFloatAsState(if (chevronExpanded) 180f else 0f, label = "rotate")
                     IconButton(onClick = { onChevronClick?.invoke() }, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Default.KeyboardArrowDown, null, tint = Color(0xFF6B7280), modifier = Modifier.graphicsLayer { rotationZ = rotation })
                     }
                 }
-
-                // Action Menu
-                if (actions.isNotEmpty() && !showActionsInHeader) {
-                    ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = actions)
-                }
             }
 
-            // --- Footer: Metrics & Pricing ---
-            if (footerFields.isNotEmpty() || trailingText != null) {
+            // --- 3. Restored Multi-mode Footer System ---
+            if (footerFields.isNotEmpty() || footerTags.isNotEmpty() || trailingText != null) {
                 Spacer(Modifier.height(10.dp))
 
                 val columnFields = footerFields.filter { it.asColumn || footerAsColumns }
                 val rowFields = footerFields.filter { (it.asRow || footerAsRows) && !it.asColumn && !footerAsColumns }
                 val plainFields = footerFields.filter { !it.asRow && !it.asColumn && !footerAsRows && !footerAsColumns }
 
-                // 1. Column format (Left & Right vertical stacks)
+                // Mode 1: Column format (Left & Right vertical stacks)
                 if (columnFields.isNotEmpty()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -431,18 +435,18 @@ fun <T> DataCard(
                             }
                             Column(
                                 horizontalAlignment = alignment,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
                                 if (field.label != null) {
                                     Text(
                                         text = field.label,
-                                        fontSize = tokens.bodySmall,
+                                        fontSize = 11.sp,
                                         color = field.labelColor
                                     )
                                 }
                                 Text(
                                     text = field.text,
-                                    fontSize = tokens.bodySmall,
+                                    fontSize = tokens.bodyMedium,
                                     color = field.textColor,
                                     fontWeight = field.valueFontWeight
                                 )
@@ -451,11 +455,11 @@ fun <T> DataCard(
                     }
                 }
 
-                // 2. Row format (Stacked horizontal label-value pairs)
+                // Mode 2: Row format (Horizontal Label-on-Left, Value-on-Right lines for Customer/Invoice screens)
                 if (rowFields.isNotEmpty()) {
                     Column(
-                        modifier = Modifier.padding(top = if (columnFields.isNotEmpty()) 10.dp else 0.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier.padding(top = if (columnFields.isNotEmpty()) 8.dp else 0.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         rowFields.forEach { field ->
                             Row(
@@ -481,37 +485,70 @@ fun <T> DataCard(
                     }
                 }
 
-                // 3. Plain fields & Trailing Text
-                if (plainFields.isNotEmpty() || trailingText != null) {
+                // Mode 3: Plain fields (Left side list) + Footer Tags / Trailing Text on Right
+                if (plainFields.isNotEmpty() || footerTags.isNotEmpty() || trailingText != null) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = if (rowFields.isNotEmpty() || columnFields.isNotEmpty()) 10.dp else 0.dp),
+                            .padding(top = if (rowFields.isNotEmpty() || columnFields.isNotEmpty()) 8.dp else 0.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.Bottom
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             plainFields.forEach { field ->
-                                Text(text = field.text, fontSize = tokens.bodySmall, color = field.textColor, fontWeight = FontWeight.Medium)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (field.icon != null) {
+                                        Icon(
+                                            imageVector = field.icon,
+                                            contentDescription = null,
+                                            tint = field.iconTint,
+                                            modifier = Modifier.size(tokens.iconSize * 0.8f)
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                    }
+                                    Text(
+                                        text = field.text,
+                                        fontSize = tokens.bodySmall,
+                                        color = field.textColor,
+                                        fontWeight = field.valueFontWeight
+                                    )
+                                }
                             }
                         }
-                        if (trailingText != null) {
-                            Text(text = trailingText, fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+
+                        if (footerTags.isNotEmpty()) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                footerTags.forEachIndexed { index, tag ->
+                                    val isFirstPill = index == 0
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(if (isFirstPill) Color(0xFFE0F2FE) else Color(0xFFF1F5F9))
+                                            .padding(horizontal = 10.dp, vertical = 3.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = tag,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (isFirstPill) Color(0xFF0284C7) else Color(0xFF64748B)
+                                        )
+                                    }
+                                }
+                            }
+                        } else if (trailingText != null) {
+                            Text(
+                                text = trailingText,
+                                fontSize = tokens.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
                         }
                     }
                 }
-            }
-
-            // --- Bottom Section: Custom badges or content ---
-            if (bottomBadgeText != null) {
-                Spacer(Modifier.height(10.dp))
-                StatusBadge(
-                    text = bottomBadgeText,
-                    dotColor = bottomBadgeDotColor,
-                    bgColor = bottomBadgeBgColor,
-                    textColor = bottomBadgeTextColor,
-                    cornerRadius = bottomBadgeCornerRadius
-                )
             }
 
             if (content != null) {

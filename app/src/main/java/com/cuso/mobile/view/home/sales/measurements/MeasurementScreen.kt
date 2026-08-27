@@ -60,6 +60,7 @@ import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.greenBg
 import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.ui.theme.yellowBg
 import com.cuso.mobile.ui.theme.yellowText
@@ -149,7 +150,7 @@ fun MeasurementsScreen(
                 )
             }
 
-            HorizontalDivider(color = Color(0xFFF0F0F0))
+            HorizontalDivider(color = title_border)
 
             // Main Content Area
             when (val state = uiState) {

@@ -11,13 +11,11 @@
 
 package com.cuso.mobile.view.home.inventory.items
 
-
 import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,7 +35,6 @@ import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -52,43 +49,25 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
-import com.cuso.mobile.adaptive_screen.LocalAppTokens
-import com.cuso.mobile.view.composable.FormDropdown
-import com.cuso.mobile.view.composable.FormLabel
-import com.cuso.mobile.view.composable.FormTextField
-import com.cuso.mobile.R
-import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.view.home.sales.lead.MiniSwitch
-
-
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.cuso.mobile.R
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
+import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.ImageUploadSection
+import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import java.util.UUID
 
-
-// ── Design tokens (colors only — sizing now comes from AppDesignTokens) ──
+// ── Design tokens ──
 private val AccentColor = Color(0xFF4F39F6)
 private val BorderColor = Color(0xFFE3E4E8)
 private val LabelColor = Color(0xFF6B7280)
@@ -105,7 +84,7 @@ data class AttributeEntry(
 
 data class VariantEntry(
     val id: String = UUID.randomUUID().toString(),
-    val label: String,        // "Blue / M"
+    val label: String,
     var sku: String,
     var cost: String = "0",
     var price: String = "0",
@@ -139,17 +118,16 @@ fun CreateItemGroupScreen(
     val attributesList = remember {
         mutableStateListOf(
             AttributeEntry(attributeType = "Color", values = listOf("Blue")),
-            AttributeEntry(attributeType = "Color", values = listOf("M", "L", "XL"))
+            AttributeEntry(attributeType = "Size", values = listOf("M", "L", "XL"))
         )
     }
-    var attributeInputText by remember { mutableStateOf("") }
 
     // ── Pricing & Tax ──
     var costPrice by remember { mutableStateOf("0") }
     var sellingPrice by remember { mutableStateOf("0") }
 
     // ── Variant Matrix ──
-    var matrixMode by remember { mutableStateOf("Manual") }   // "Manual" | "Auto All"
+    var matrixMode by remember { mutableStateOf("Manual") }
     val colorOptions = listOf("Blue")
     val sizeOptions = listOf("M", "L", "XL")
     val selectedSizes = remember { mutableStateListOf("M", "L") }
@@ -183,22 +161,14 @@ fun CreateItemGroupScreen(
                 .background(Color.Transparent)
         ) {
             // ── Header ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TitleBar("Create Item Group", onClose = onDismiss)
-
-            }
+            TitleBar("Create Item Group", onClose = onDismiss)
             HorizontalDivider(color = BorderColor)
 
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(bottom = tokens.buttonHeight * 2f)
+                    .padding(bottom = tokens.buttonHeight * 2.2f)
             ) {
                 // ── 1. Item Group Information ──
                 AccordionSection(
@@ -419,7 +389,6 @@ fun CreateItemGroupScreen(
                     expanded = expandedSection == "Variant Matrix",
                     onHeaderClick = { expandedSection = if (expandedSection == "Variant Matrix") "" else "Variant Matrix" }
                 ) {
-                    // Manual / Auto All toggle
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -624,7 +593,6 @@ fun CreateItemGroupScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-
                                             MiniSwitch(
                                                 checked = variant.isActive,
                                                 onCheckedChange = { variants[index] = variant.copy(isActive = it) }
@@ -686,70 +654,27 @@ fun CreateItemGroupScreen(
                         shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
                         modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight)
                     ) {
-                        Text("Apply To All varient", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = tokens.bodyMedium)
+                        Text("Apply To All Variant", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = tokens.bodyMedium)
                     }
                 }
             }
         }
 
-        // ── Fixed bottom Cancel / Save buttons ──
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(whiteBg)
-                .padding(horizontal = tokens.screenPadding, vertical = tokens.cardPadding * 0.5f),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            OutlinedButton(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
-                border = BorderStroke(1.dp, BorderColor),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = TitleColor),
-                modifier = Modifier.weight(1f).height(tokens.buttonHeight + 2.dp)
-            ) {
-                Text("Cancel", fontWeight = FontWeight.SemiBold, fontSize = tokens.bodyMedium)
-            }
-            Button(
-                onClick = onSave,
-                colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
-                modifier = Modifier.weight(1f).height(tokens.buttonHeight + 2.dp)
-            ) {
-                Text("Save Item Group", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = tokens.bodyMedium)
-            }
-        }
-    }
-}
-
-// ── Upload image dashed box (matches image 3) ──
-@Composable
-private fun UploadImageBox() {
-    val tokens = LocalAppTokens.current
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(110.dp)
-            .border(
-                width = 1.5.dp,
-                color = AccentColor,
-                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
+        // ── Floating Action Buttons ──
+        StepNavigationFab(
+            showBack = true,
+            onBack = onDismiss,
+            showBackArrow = false,
+            backLabel = "Cancel",
+            trailingAction = TrailingFabAction.Update(
+                label = "Save Item Group",
+                onClick = onSave
             )
-            .background(Color(0xFFFAFAFF), RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
-            .clickable { /* image picker — wire later */ },
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Filled.CloudUpload, contentDescription = null, tint = AccentColor, modifier = Modifier.size(tokens.iconSize * 1.45f))
-            Spacer(Modifier.height(6.dp))
-            Text("Upload Image", fontSize = tokens.bodySmall, color = AccentColor, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(2.dp))
-            Text("PNG, JPG up to 5MB", fontSize = tokens.label, color = LabelColor)
-        }
+        )
     }
 }
 
-// ── Chip-tag input for attribute values (matches image 4) ──
+// ── Chip-tag input for attribute values ──
 @SuppressLint("RememberInComposition")
 @Composable
 private fun AttributeValuesInput(
@@ -766,13 +691,11 @@ private fun AttributeValuesInput(
             .border(1.dp, BorderColor, RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
             .padding(8.dp)
     ) {
-        // Flow layout for chips
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalSpacing = 6.dp,
+            verticalSpacing = 6.dp
         ) {
-            // Existing value chips
             values.forEach { value ->
                 Box(
                     modifier = Modifier
@@ -799,7 +722,6 @@ private fun AttributeValuesInput(
                 }
             }
 
-            // Input field as a chip
             Box(
                 modifier = Modifier
                     .background(
@@ -812,7 +734,7 @@ private fun AttributeValuesInput(
                     value = inputText,
                     onValueChange = { inputText = it },
                     modifier = Modifier
-                        .width(120.dp) // Minimum width
+                        .width(120.dp)
                         .focusRequester(FocusRequester()),
                     singleLine = true,
                     textStyle = TextStyle(
@@ -837,17 +759,14 @@ private fun AttributeValuesInput(
                                 inputText = ""
                             }
                         }
-                    ),
-                    onTextLayout = { /* Handle text layout if needed */ }
+                    )
                 )
             }
         }
     }
 }
 
-// You'll need this helper composable for FlowRow
-// If you don't have it, here's a simple implementation:
-
+// ── FlowRow Layout Helper ──
 @Composable
 fun FlowRow(
     modifier: Modifier = Modifier,

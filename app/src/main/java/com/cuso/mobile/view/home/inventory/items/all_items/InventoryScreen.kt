@@ -8,7 +8,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -50,6 +50,9 @@ import kotlinx.coroutines.delay
 
 private val InventoryBg = Color(0xFFF5F5F5)
 
+/**
+ * Returns badge foreground and background color based on stock status.
+ */
 private fun inventoryStatusColors(status: String?): Pair<Color, Color> {
     val safeStatus = status.orEmpty()
     return when {
@@ -76,12 +79,15 @@ fun InventoryScreen(
     inventoryViewModel: InventoryViewModel = hiltViewModel(),
     onBreadCrumbClick: () -> Unit = {}
 ) {
-    val items by inventoryViewModel.inventoryItems.collectAsStateWithLifecycle()
+    val rawItems by inventoryViewModel.inventoryItems.collectAsStateWithLifecycle()
     val isLoading by inventoryViewModel.isLoadingInventoryItems.collectAsStateWithLifecycle()
     val isLoadingMore by inventoryViewModel.isLoadingMoreInventoryItems.collectAsStateWithLifecycle()
     val canLoadMore by inventoryViewModel.canLoadMoreInventoryItems.collectAsStateWithLifecycle()
     val errorMessage by inventoryViewModel.inventoryError.collectAsStateWithLifecycle()
     val viewOneItem by inventoryViewModel.viewOneItem.collectAsStateWithLifecycle()
+
+    // Ensure items is never null to prevent NullPointerExceptions on .isEmpty()
+    val items = rawItems
 
     var searchQuery by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -260,7 +266,7 @@ fun InventoryScreen(
                 }
             }
 
-            // Paginated items list with item placement & entry animations
+            // Paginated items list
             else -> {
                 FabScaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -276,13 +282,24 @@ fun InventoryScreen(
                             .fillMaxSize()
                             .background(Color.Transparent)
                     ) {
-                        items(items, key = { it._id }) { item ->
+                        itemsIndexed(
+                            items = items,
+                            key = { index, item ->
+                                // Safe unique key fallback to prevent duplicate key crashes
+                                item._id.ifBlank { "$index" }
+                            }
+                        ) { _, item ->
                             val (badgeFg, badgeBg) = inventoryStatusColors(item.stockStatus)
-                            val stockText = if (!item.trackInventory) "—" else item.currentStock.toInt().toString()
+                            val isTracking = item.trackInventory
+                            val stockCount = item.currentStock
+                            val stockText = if (!isTracking) "—" else stockCount.toInt().toString()
+
+                            val itemType = item.type.replaceFirstChar { it.uppercase() }
+                            val price = item.sellingPrice
 
                             DataCard(
                                 item = item,
-                                modifier = Modifier.animateItem(), // Smooth animation for item updates & list insertions
+                                modifier = Modifier.animateItem(),
                                 title = "${item.sku} • SKU",
                                 subtitle = item.name,
                                 topBadgeText = item.stockStatus,
@@ -293,12 +310,12 @@ fun InventoryScreen(
                                 footerFields = listOf(
                                     DataCardField(
                                         label = "Type",
-                                        text = item.type.replaceFirstChar { it.uppercase() }
+                                        text = itemType
                                     ),
                                     DataCardField(label = "Stock", text = stockText),
                                     DataCardField(
                                         label = "Selling Price",
-                                        text = "₹${"%.2f".format(item.sellingPrice)}"
+                                        text = "₹${"%.2f".format(price)}"
                                     )
                                 ),
                                 actions = listOf(

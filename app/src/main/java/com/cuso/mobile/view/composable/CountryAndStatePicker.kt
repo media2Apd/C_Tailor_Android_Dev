@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -39,6 +38,7 @@ import kotlin.time.Duration.Companion.milliseconds
 fun CountryAndStatePicker(
     selectedCountry: String,
     selectedState: String,
+    enabled: Boolean = true, // Added enabled parameter
     onCountryChange: (String) -> Unit,
     onStateChange: (String) -> Unit
 ) {
@@ -62,7 +62,7 @@ fun CountryAndStatePicker(
         // ── Country Picker ──
         Text(
             "Country/Region",
-            color = blackTitle,
+            color = if (enabled) blackTitle else blackTitle.copy(alpha = 0.6f),
             fontSize = 14.sp,
             modifier = Modifier.padding(bottom = 4.dp)
         )
@@ -70,6 +70,7 @@ fun CountryAndStatePicker(
             items = countryList,
             selected = selectedCountry,
             placeholder = "Select Country",
+            enabled = enabled,
             onSelect = {
                 onCountryChange(it)
                 onStateChange("")
@@ -81,7 +82,7 @@ fun CountryAndStatePicker(
         // ── State Picker ──
         Text(
             "State/Province",
-            color = blackTitle,
+            color = if (enabled) blackTitle else blackTitle.copy(alpha = 0.6f),
             fontSize = 14.sp,
             modifier = Modifier.padding(bottom = 4.dp)
         )
@@ -89,7 +90,7 @@ fun CountryAndStatePicker(
             items = stateList,
             selected = selectedState,
             placeholder = if (selectedCountry.isEmpty()) "Select Country First" else "Select State",
-            enabled = stateList.isNotEmpty(),
+            enabled = enabled && stateList.isNotEmpty(),
             onSelect = { onStateChange(it) }
         )
     }
@@ -107,7 +108,7 @@ fun SearchableDropdownContents(
     var searchQuery by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
 
-    // ── 1. ADD ROTATION ANIMATION ──
+    // ── Dropdown Arrow Rotation Animation ──
     val arrowRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
         label = "DropdownArrowRotation"
@@ -126,10 +127,13 @@ fun SearchableDropdownContents(
                 .clip(RoundedCornerShape(10.dp))
                 .border(
                     width = 1.dp,
-                    color = PrimaryBorder,
+                    color = if (enabled) PrimaryBorder else PrimaryBorder.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(10.dp)
                 )
-                .background(whiteBg, RoundedCornerShape(10.dp))
+                .background(
+                    if (enabled) whiteBg else Color(0xFFF9FAFB),
+                    RoundedCornerShape(10.dp)
+                )
                 .clickable(enabled = enabled) { expanded = !expanded }
                 .padding(horizontal = 14.dp),
             contentAlignment = Alignment.CenterStart
@@ -140,14 +144,17 @@ fun SearchableDropdownContents(
             ) {
                 Text(
                     text = selected.ifEmpty { placeholder },
-                    color = if (selected.isEmpty()) Color.Gray else blackTitle,
+                    color = when {
+                        !enabled -> Color(0xFF6B7280)
+                        selected.isEmpty() -> Color.Gray
+                        else -> blackTitle
+                    },
                     fontSize = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
 
-                // ── 2. REPLACE WITH ROTATING CHEVRON & UPDATED TINT ──
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
@@ -160,7 +167,7 @@ fun SearchableDropdownContents(
         }
 
         // ── Dropdown Card ──
-        AnimatedVisibility(visible = expanded) {
+        AnimatedVisibility(visible = expanded && enabled) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()

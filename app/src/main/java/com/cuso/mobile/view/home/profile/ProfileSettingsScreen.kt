@@ -10,8 +10,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,13 +27,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.viewmodel.Authenticate
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.viewmodel.Authenticate
 
-// ── Data model for each settings row ──
 private data class SettingsMenuItem(
     val icon: Int,
     val iconBg: Color,
@@ -43,22 +42,6 @@ private data class SettingsMenuItem(
     val onClick: () -> Unit
 )
 
-/**
- *   NOTE ON THE SLIDE ANIMATION:
- * This screen used to wrap itself in its own `AnimatedVisibility` (slide-in on enter,
- * slide-out + 300ms delay before calling onClose() on exit). That created a DOUBLE
- * animation: this screen's own exit-slide would finish first (revealing blank/white
- * space because HomeScreen's outer `AnimatedContent` hadn't swapped screens yet),
- * and only after the 300ms delay would onClose() fire and trigger the OUTER
- * AnimatedContent transition in HomeScreen.kt — causing that white flash in between.
- *
- * HomeScreen.kt already animates every screen swap via a single `AnimatedContent`
- * (slide + fade, 300ms). So this screen now behaves like every other screen in the
- * app (CreateLeadScreen, BranchSettingsScreen, etc.) — a plain composable with no
- * animation of its own — and lets that one outer transition drive the slide.
- * That removes the double-transition gap and matches the same smooth, single-source
- * animation used everywhere else in the app.
- */
 @Suppress("UNUSED_PARAMETER")
 @SuppressLint("ContextCastToActivity")
 @Composable
@@ -70,11 +53,12 @@ fun ProfileSettingsScreen(
     onDepartment: () -> Unit = {},
     onTeams: () -> Unit = {},
     onDesignation: () -> Unit = {},
+    onGarmentType: () -> Unit = {}, // 👈👈👈 SALES - Garment Type Callback
     onHelpSupport: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val authViewModel: Authenticate = hiltViewModel(
-        LocalContext.current as ComponentActivity   //   இதை சேருங்க
+        LocalContext.current as ComponentActivity
     )
     val userEntity by authViewModel.user.collectAsStateWithLifecycle()
 
@@ -95,6 +79,18 @@ fun ProfileSettingsScreen(
         )
     )
 
+    // ── SALES ITEM ──
+    val salesItems = listOf(
+        SettingsMenuItem(
+            icon = R.drawable.ic_shirts,
+            iconBg = Color(0xFFEDE9FE),
+            iconTint = Color(0xFF3B3BF9),
+            title = "Garment Type",
+            subtitle = "Select garment categories for sales operations",
+            onClick = onGarmentType
+        )
+    )
+
     val managementItems = listOf(
         SettingsMenuItem(
             icon = R.drawable.ic_location,
@@ -112,7 +108,6 @@ fun ProfileSettingsScreen(
             subtitle = "Manage departments in your organization",
             onClick = onDepartment
         ),
-
         SettingsMenuItem(
             icon = R.drawable.ic_code,
             iconBg = Color(0xFFFFEDD5),
@@ -250,6 +245,10 @@ fun ProfileSettingsScreen(
             item { SettingsSectionLabel("ORGANIZATION") }
             item { SettingsCardGroup(organizationItems) }
 
+            // ── SALES (New Section) ──
+            item { SettingsSectionLabel("SALES") }
+            item { SettingsCardGroup(salesItems) }
+
             // ── MANAGEMENT ──
             item { SettingsSectionLabel("MANAGEMENT") }
             item { SettingsCardGroup(managementItems) }
@@ -335,7 +334,7 @@ private fun SettingsCardGroup(items: List<SettingsMenuItem>) {
                         .background(item.iconBg),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon( painterResource( item.icon), contentDescription = null, tint = item.iconTint, modifier = Modifier.size(18.dp))
+                    Icon(painterResource(item.icon), contentDescription = null, tint = item.iconTint, modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {

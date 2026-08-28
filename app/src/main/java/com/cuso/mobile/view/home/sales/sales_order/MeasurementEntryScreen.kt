@@ -1,6 +1,5 @@
 package com.cuso.mobile.view.home.sales.sales_order
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,14 +16,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
-import com.cuso.mobile.view.home.inventory.procurement.orders.FormTextArea
 
 @Composable
 fun MeasurementEntryScreen(
@@ -339,34 +336,19 @@ fun MeasurementEntryScreen(
             }
 
             // ─────────────────────────────────────────────────────────────
-            // BOTTOM BAR: Save Measurement Full-Width Button
+            // FLOATING ACTION BUTTON (TRAILING FAB)
             // ─────────────────────────────────────────────────────────────
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = 24.dp)
             ) {
-                Button(
-                    onClick = onSaveMeasurement,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(tokens.buttonHeight),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Primary,
-                        contentColor = whiteBg
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
-                ) {
-                    Text(
-                        text = "Save Measurement",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = whiteBg
+                TrailingFabButton(
+                    action = TrailingFabAction.Next(
+                        label = "Save Measurement",
+                        onClick = onSaveMeasurement
                     )
-                }
+                )
             }
         }
     }
@@ -377,13 +359,13 @@ fun MeasurementEntryScreen(
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
 fun MeasurementStepperField(
+    modifier: Modifier = Modifier,
     label: String,
     value: Float,
     unit: String,
     onValueChange: (Float) -> Unit,
     step: Float = 0.5f,
-    min: Float = 0f,
-    modifier: Modifier = Modifier
+    min: Float = 0f
 ) {
     Column(modifier = modifier) {
         Text(

@@ -15,26 +15,21 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -44,16 +39,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.finance.JournalEntryItem
 import com.cuso.mobile.model.finance.JournalEntryLineRequest
 import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.title_font
-import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.BackFabButton
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextArea
 import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.ImageUploadSection
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.PlanLimitDialog
+import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.composable.TrailingFabButton
 import com.cuso.mobile.view.home.toIsoDate
@@ -69,10 +65,8 @@ import kotlin.math.abs
 
 private val BorderGray = Color(0xFFE8E8ED)
 private val TextSecondary = Color(0xFF9A9AA8)
-private val BluePrimary = Color(0xFF3A2FCB)
 private val RedText = Color(0xFFDC2626)
 private val RedBg = Color(0xFFFDECEC)
-private val PanelBg = Color(0xFFF7F7FA)
 private val GreenText = Color(0xFF1FA751)
 
 data class JournalLineDraft(
@@ -141,6 +135,7 @@ fun JournalEntryFormScreen(
     var expenseDetailsExpanded by remember { mutableStateOf(true) }
 
     var journalNo by remember { mutableStateOf("") }
+    var financeialYear by remember { mutableStateOf("") }
     var branch: String? by remember { mutableStateOf("") }
     var selectedBranchId by remember { mutableStateOf("") }
     var branchExpanded by remember { mutableStateOf(false) }
@@ -154,15 +149,23 @@ fun JournalEntryFormScreen(
     }
 
     var lines by remember {
-        mutableStateOf(listOf(JournalLineDraft(id = "line_1")))
+        mutableStateOf(
+            listOf(
+                JournalLineDraft(id = "line_1"),
+                JournalLineDraft(id = "line_2")
+            )
+        )
     }
 
     var notes by remember { mutableStateOf("") }
     var journalRef by remember { mutableStateOf("") }
+    var journalType by remember { mutableStateOf("") }
 
     var uploadedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
-    // Launcher configured to pick any file type (PDF, DOCX, Images, etc.)
+    // Track which action triggered the network call ("draft" or "post")
+    var pendingActionType by remember { mutableStateOf<String?>(null) }
+
     val documentPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
@@ -187,20 +190,38 @@ fun JournalEntryFormScreen(
     val canPost = remember(totalDebit, totalCredit, isBalanced, allLinesHaveAccount) {
         isBalanced && (totalDebit > 0.0 || totalCredit > 0.0) && allLinesHaveAccount
     }
+
     val createJournalState by financeViewModel.createJournalState.collectAsStateWithLifecycle()
+    val updateJournalState by financeViewModel.updateJournalState.collectAsStateWithLifecycle()
+
+    val isApiLoading = createJournalState is CreateJournalState.Loading ||
+            updateJournalState is UpdateJournalState.Loading
 
     LaunchedEffect(createJournalState) {
-        if (createJournalState is CreateJournalState.Success) {
-            financeViewModel.resetCreateJournalState()
-            onSaved()
+        when (createJournalState) {
+            is CreateJournalState.Success -> {
+                pendingActionType = null
+                financeViewModel.resetCreateJournalState()
+                onSaved()
+            }
+            is CreateJournalState.Error -> {
+                pendingActionType = null
+            }
+            else -> {}
         }
     }
 
-    val updateJournalState by financeViewModel.updateJournalState.collectAsStateWithLifecycle()
     LaunchedEffect(updateJournalState) {
-        if (updateJournalState is UpdateJournalState.Success) {
-            financeViewModel.resetUpdateJournalState()
-            onSaved()
+        when (updateJournalState) {
+            is UpdateJournalState.Success -> {
+                pendingActionType = null
+                financeViewModel.resetUpdateJournalState()
+                onSaved()
+            }
+            is UpdateJournalState.Error -> {
+                pendingActionType = null
+            }
+            else -> {}
         }
     }
 
@@ -230,7 +251,7 @@ fun JournalEntryFormScreen(
             selectedBranchId = matchedBranch.id
         }
 
-        lines = entry.lines.map { line ->
+        val mappedLines = entry.lines.map { line ->
             JournalLineDraft(
                 id = line.id,
                 account = "${line.accountId.accountCode} - ${line.accountId.accountName}",
@@ -238,7 +259,15 @@ fun JournalEntryFormScreen(
                 debit = if (line.debit > 0) line.debit.toString() else "",
                 credit = if (line.credit > 0) line.credit.toString() else ""
             )
-        }.ifEmpty { listOf(JournalLineDraft(id = "line_1")) }
+        }
+
+        lines = if (mappedLines.size < 2) {
+            mappedLines + List(2 - mappedLines.size) { idx ->
+                JournalLineDraft(id = "line_${mappedLines.size + idx + 1}")
+            }
+        } else {
+            mappedLines
+        }
     }
 
     Column(
@@ -247,26 +276,15 @@ fun JournalEntryFormScreen(
             .background(Color.Transparent)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(whiteBg)
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                when (mode) {
+            TitleBar(
+                title = when (mode) {
                     "view" -> "View Journal Entry"
                     "edit" -> "Edit Journal Entry"
                     else -> "Journal Entry Form"
                 },
-                fontSize = title_font, fontWeight = FontWeight.Bold, color = title_color
-            )
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color(0xFF111827),
-                modifier = Modifier.size(22.dp).clickable { onClose() }
+                onClose = onClose
             )
         }
         HorizontalDivider(color = BorderGray)
@@ -292,152 +310,154 @@ fun JournalEntryFormScreen(
                     .verticalScroll(rememberScrollState())
                     .background(Color.Transparent)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.Transparent)
-                        .clickable(enabled = !isReadOnly) {
-                            expenseDetailsExpanded = !expenseDetailsExpanded
-                        }
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // Expense Details
+                AccordionSection(
+                    title = "Expense Details",
+                    expanded = expenseDetailsExpanded,
+                    onHeaderClick = {
+                        expenseDetailsExpanded = !expenseDetailsExpanded
+                    }
                 ) {
-                    Text(
-                        "Expense Details",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF111827)
+                    FormLabel("Journal No")
+                    FormTextField(
+                        value = journalNo,
+                        onValueChange = { journalNo = it },
+                        placeholder = "Auto-generated on save",
+                        enabled = false
                     )
-                    Icon(
-                        imageVector = if (expenseDetailsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = Color(0xFF6B7280)
+                    Spacer(Modifier.height(14.dp))
+
+                    FormLabel("Financial Year")
+                    FormTextField(
+                        value = financeialYear,
+                        onValueChange = { financeialYear = it },
+                        placeholder = "Enter Financial Year",
+                        enabled = !isReadOnly
                     )
-                }
-                HorizontalDivider(color = BorderGray)
+                    Spacer(Modifier.height(14.dp))
 
-                if (expenseDetailsExpanded) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 16.dp)
-                    ) {
-                        FormLabel("Journal No")
-                        FormTextField(
-                            value = journalNo,
-                            onValueChange = { journalNo = it },
-                            placeholder = "Auto-generated on save",
-                            enabled = false
-                        )
-                        Spacer(Modifier.height(14.dp))
-
-                        FormDropdown(
-                            label = "Branch",
-                            value = branch?.ifBlank { "Select an option" } ?: "",
-                            expanded = branchExpanded,
-                            onExpandChange = { if (!isReadOnly) branchExpanded = it },
-                            options = branchOptions as List<String>,
-                            onOptionSelected = { selected ->
-                                branch = selected
-                                selectedBranchId = branches.firstOrNull { it.name?.ifBlank { it.branchId } == selected }?.id ?: ""
-                            }
-                        )
-
-                        when (branchState) {
-                            is BranchUiState.Loading -> {
-                                Spacer(Modifier.height(4.dp))
-                                Text("Loading branches...", fontSize = 12.sp, color = TextSecondary)
-                            }
-                            is BranchUiState.Error -> {
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    branchLoadError ?: "Failed to load branches",
-                                    fontSize = 12.sp,
-                                    color = RedText
-                                )
-                            }
-                            else -> {}
+                    FormDropdown(
+                        label = "Branch",
+                        value = branch?.ifBlank { "Select an option" } ?: "",
+                        expanded = branchExpanded,
+                        onExpandChange = { if (!isReadOnly) branchExpanded = it },
+                        options = branchOptions as List<String>,
+                        onOptionSelected = { selected ->
+                            branch = selected
+                            selectedBranchId =
+                                branches.firstOrNull { it.name?.ifBlank { it.branchId } == selected }?.id
+                                    ?: ""
                         }
-                        Spacer(Modifier.height(14.dp))
+                    )
 
-                        FormLabel("End Date")
-                        DatePickerField(
-                            value = date,
-                            enabled = !isReadOnly,
-                            onDateSelected = { if (!isReadOnly) date = it }
-                        )
-                        Spacer(Modifier.height(14.dp))
+                    when (branchState) {
+                        is BranchUiState.Loading -> {
+                            Spacer(Modifier.height(4.dp))
+                            Text("Loading branches...", fontSize = 12.sp, color = TextSecondary)
+                        }
 
-                        FormLabel("Ref")
-                        FormTextField(
-                            value = journalRef,
-                            onValueChange = { journalRef = it },
-                            placeholder = "Ref",
-                            enabled = !isReadOnly
-                        )
-                        Spacer(Modifier.height(14.dp))
-
-                        lines.forEachIndexed { index, line ->
-                            JournalLineRow(
-                                line = line,
-                                accountOptions = accountOptions,
-                                isReadOnly = isReadOnly,
-                                onLineChange = { updated -> lines = lines.toMutableList().also { it[index] = updated } },
-                                onRemove = if (!isReadOnly && lines.size > 1) { { lines = lines.toMutableList().also { it.removeAt(index) } } } else null
+                        is BranchUiState.Error -> {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                branchLoadError ?: "Failed to load branches",
+                                fontSize = 12.sp,
+                                color = RedText
                             )
-                            Spacer(Modifier.height(10.dp))
                         }
 
-                        if (!isReadOnly) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { lines = lines + JournalLineDraft(id = "line_${lines.size + 1}") },
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = null, tint = BluePrimary, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Add Entry", color = BluePrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                            }
+                        else -> {}
+                    }
+                    Spacer(Modifier.height(14.dp))
+
+                    FormLabel("Date")
+                    DatePickerField(
+                        value = date,
+                        enabled = !isReadOnly,
+                        onDateSelected = { if (!isReadOnly) date = it }
+                    )
+                    Spacer(Modifier.height(14.dp))
+
+                    FormLabel("Ref.")
+                    FormTextField(
+                        value = journalRef,
+                        onValueChange = { journalRef = it },
+                        placeholder = "Enter Journal Ref.",
+                        enabled = !isReadOnly
+                    )
+                    Spacer(Modifier.height(14.dp))
+
+                    FormLabel("Journal Type")
+                    FormTextField(
+                        value = journalType,
+                        onValueChange = { journalType = it },
+                        placeholder = "Enter Journal Type",
+                        enabled = !isReadOnly
+                    )
+                    Spacer(Modifier.height(16.dp))
+
+                    HorizontalDivider(color = BorderGray)
+                    Spacer(Modifier.height(16.dp))
+
+                    // Line Items
+                    lines.forEachIndexed { index, line ->
+                        JournalLineRow(
+                            line = line,
+                            accountOptions = accountOptions,
+                            isReadOnly = isReadOnly,
+                            onLineChange = { updated -> lines = lines.toMutableList().also { it[index] = updated } },
+                            onRemove = if (!isReadOnly && lines.size > 2) {
+                                { lines = lines.toMutableList().also { it.removeAt(index) } }
+                            } else null
+                        )
+                        Spacer(Modifier.height(10.dp))
+                    }
+
+                    if (!isReadOnly) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { lines = lines + JournalLineDraft(id = "line_${lines.size + 1}") },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AddCircleOutline,
+                                contentDescription = "Add Entry",
+                                tint = Color(0xFF4B5563),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "Add Entry",
+                                color = Color(0xFF374151),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Normal
+                            )
                         }
                     }
-                    HorizontalDivider(color = BorderGray)
                 }
 
+                // Notes
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                 ) {
                     FormLabel("Notes")
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp)
-                            .background(PanelBg, RoundedCornerShape(8.dp))
-                            .border(1.dp, BorderGray, RoundedCornerShape(8.dp))
-                            .padding(12.dp)
-                    ) {
-                        BasicTextField(
-                            value = notes,
-                            onValueChange = { notes = it },
-                            readOnly = isReadOnly,
-                            modifier = Modifier.fillMaxSize(),
-                            textStyle = TextStyle(fontSize = 14.sp, color = Color(0xFF374151)),
-                            decorationBox = { inner ->
-                                if (notes.isEmpty()) {
-                                    Text("Note the scope or purpose of this price list...", fontSize = 14.sp, color = TextSecondary)
-                                }
-                                inner()
-                            }
-                        )
-                    }
+                    Spacer(Modifier.height(8.dp))
+                    FormTextArea(
+                        value = notes,
+                        enabled = !isReadOnly,
+                        onValueChange = { if (!isReadOnly) notes = it },
+                        placeholder = "Note the scope or purpose of this journal entry...",
+                        minLines = 4,
+                        maxLines = 6,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
                 HorizontalDivider(color = BorderGray)
 
-                // Documentation & Receipts Upload Section supporting all file types
+                // Documentation & Receipts
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -455,7 +475,6 @@ fun JournalEntryFormScreen(
                                 if (isUploadRestricted) {
                                     showPlanLimitDialog = true
                                 } else {
-                                    // Accept all file types: PDF, Word, Excel, Images, etc.
                                     documentPickerLauncher.launch(arrayOf("*/*"))
                                 }
                             }
@@ -471,13 +490,14 @@ fun JournalEntryFormScreen(
                 }
                 HorizontalDivider(color = BorderGray)
 
+                // Balance Summary Panel
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(whiteBg)
+                        .background(Color.Transparent)
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                 ) {
-                    Text("Balance Summary", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                    Text("Balance Summary", fontSize = 15.sp, color = title_color)
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = BorderGray)
                     Spacer(Modifier.height(12.dp))
@@ -563,31 +583,37 @@ fun JournalEntryFormScreen(
         }
 
         HorizontalDivider(color = BorderGray)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            Modifier.fillMaxWidth()
         ) {
-            BackFabButton(
-                onClick = onClose,
-                label = "Cancel"
-            )
-            Spacer(Modifier.width(12.dp))
-            if (!isReadOnly) {
-                TrailingFabButton(
-                    action = TrailingFabAction.Update(
-                        isLoading = createJournalState is CreateJournalState.Loading ||
-                                updateJournalState is UpdateJournalState.Loading,
-                        enabled = canPost,
-                        label = if (mode == "edit") "Update Journal" else "Post Journal",
-                        onClick = {
-                            if (canPost) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 25.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BackFabButton(
+                    showArrow = false,
+                    onClick = onClose,
+                    label = "Cancel"
+                )
+                Spacer(Modifier.weight(1f))
+                if (!isReadOnly) {
+
+                    // 1. Save as Draft Action Button
+                    val isDraftLoading = isApiLoading && pendingActionType == "draft"
+                    TrailingFabButton(
+                        action = TrailingFabAction.Update(
+                            isLoading = isDraftLoading,
+                            enabled = !isApiLoading,
+                            label = "Save as Draft",
+                            onClick = {
+                                pendingActionType = "draft"
                                 val lineRequests = lines.mapNotNull { line ->
-                                    val matchedAccount = accounts.find { "${it.accountCode} - ${it.accountName}" == line.account }
-                                    val accountId = matchedAccount?._id
-                                    if (accountId.isNullOrBlank()) return@mapNotNull null
+                                    val matchedAccount =
+                                        accounts.find { "${it.accountCode} - ${it.accountName}" == line.account }
+                                    val accountId = matchedAccount?._id ?: return@mapNotNull null
                                     JournalEntryLineRequest(
                                         accountId = accountId,
                                         debit = line.debit.toDoubleOrNull() ?: 0.0,
@@ -602,7 +628,7 @@ fun JournalEntryFormScreen(
                                         entryDate = date.toIsoDate(),
                                         reference = journalRef.ifBlank { null },
                                         notes = notes.ifBlank { null },
-                                        status = "Posted",
+                                        status = "Draft",
                                         lines = lineRequests
                                     )
                                 } else {
@@ -611,21 +637,70 @@ fun JournalEntryFormScreen(
                                         entryDate = date.toIsoDate(),
                                         reference = journalRef.ifBlank { null },
                                         notes = notes.ifBlank { null },
-                                        status = "Posted",
+                                        status = "Draft",
                                         lines = lineRequests
                                     )
                                 }
                             }
-                        }
+                        )
                     )
-                )
-            }
 
+                    Spacer(Modifier.weight(1f))
+
+                    // 2. Post / Update Action Button
+                    val isPostLoading = isApiLoading && pendingActionType == "post"
+                    TrailingFabButton(
+                        action = TrailingFabAction.Update(
+                            isLoading = isPostLoading,
+                            enabled = canPost && !isApiLoading,
+                            label = if (mode == "edit") "Update" else "Post",
+                            onClick = {
+                                if (canPost) {
+                                    pendingActionType = "post"
+                                    val lineRequests = lines.mapNotNull { line ->
+                                        val matchedAccount =
+                                            accounts.find { "${it.accountCode} - ${it.accountName}" == line.account }
+                                        val accountId =
+                                            matchedAccount?._id ?: return@mapNotNull null
+                                        JournalEntryLineRequest(
+                                            accountId = accountId,
+                                            debit = line.debit.toDoubleOrNull() ?: 0.0,
+                                            credit = line.credit.toDoubleOrNull() ?: 0.0,
+                                            description = line.description.ifBlank { null }
+                                        )
+                                    }
+                                    if (mode == "edit" && entryId != null) {
+                                        financeViewModel.updateJournal(
+                                            id = entryId,
+                                            branchId = selectedBranchId,
+                                            entryDate = date.toIsoDate(),
+                                            reference = journalRef.ifBlank { null },
+                                            notes = notes.ifBlank { null },
+                                            status = "Posted",
+                                            lines = lineRequests
+                                        )
+                                    } else {
+                                        financeViewModel.createJournal(
+                                            branchId = selectedBranchId,
+                                            entryDate = date.toIsoDate(),
+                                            reference = journalRef.ifBlank { null },
+                                            notes = notes.ifBlank { null },
+                                            status = "Posted",
+                                            lines = lineRequests
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    )
+                }
+            }
             if (updateJournalState is UpdateJournalState.Error) {
                 Text(
                     (updateJournalState as UpdateJournalState.Error).message,
                     color = RedText,
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
         }
@@ -654,10 +729,7 @@ private fun JournalLineRow(
     var accountExpanded by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(PanelBg, RoundedCornerShape(8.dp))
-            .padding(12.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
         if (onRemove != null) {
             Row(
@@ -668,7 +740,9 @@ private fun JournalLineRow(
                     Icons.Default.Delete,
                     contentDescription = "Remove line",
                     tint = RedText,
-                    modifier = Modifier.size(18.dp).clickable { onRemove() }
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clickable { onRemove() }
                 )
             }
             Spacer(Modifier.height(4.dp))
@@ -682,7 +756,8 @@ private fun JournalLineRow(
                 onExpandChange = { if (!isReadOnly) accountExpanded = it },
                 options = accountOptions,
                 onOptionSelected = { onLineChange(line.copy(account = it)) },
-                enabled = !isReadOnly
+                enabled = !isReadOnly,
+                maxLines = 1
             )
         }
         Spacer(Modifier.height(10.dp))
@@ -700,7 +775,9 @@ private fun JournalLineRow(
         LineFieldRow(label = "Debit") {
             FormTextField(
                 value = line.debit,
-                onValueChange = { onLineChange(line.copy(debit = it, credit = if (it.isNotBlank()) "" else line.credit)) },
+                onValueChange = {
+                    onLineChange(line.copy(debit = it, credit = if (it.isNotBlank()) "" else line.credit))
+                },
                 placeholder = "0.00",
                 keyboardType = KeyboardType.Number,
                 enabled = !isReadOnly
@@ -711,7 +788,9 @@ private fun JournalLineRow(
         LineFieldRow(label = "Credit") {
             FormTextField(
                 value = line.credit,
-                onValueChange = { onLineChange(line.copy(credit = it, debit = if (it.isNotBlank()) "" else line.debit)) },
+                onValueChange = {
+                    onLineChange(line.copy(credit = it, debit = if (it.isNotBlank()) "" else line.debit))
+                },
                 placeholder = "0.00",
                 keyboardType = KeyboardType.Number,
                 enabled = !isReadOnly
@@ -720,7 +799,6 @@ private fun JournalLineRow(
         Spacer(Modifier.height(10.dp))
     }
 }
-
 @Composable
 private fun LineFieldRow(
     label: String,

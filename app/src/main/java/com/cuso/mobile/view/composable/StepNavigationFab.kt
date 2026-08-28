@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.Primary
@@ -90,7 +92,7 @@ fun StepNavigationFab(
                 showArrow = showBackArrow,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 10.dp, bottom = 14.dp)
+                    .padding(start = 10.dp, bottom = 10.dp)
                     .let { if (backWidthFraction != null) it.fillMaxWidth(backWidthFraction) else it }
             )
         }
@@ -101,7 +103,7 @@ fun StepNavigationFab(
                 showArrow = showTrailingArrow,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 10.dp, bottom = 14.dp)
+                    .padding(end = 10.dp, bottom = 10.dp)
                     .let { if (trailingWidthFraction != null) it.fillMaxWidth(trailingWidthFraction) else it }
             )
         }
@@ -125,15 +127,21 @@ fun BackFabButton(
             contentColor = Color(0xFF111827)
         ),
         border = BorderStroke(1.dp, grey_border),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
-        modifier = modifier
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.5.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+        modifier = modifier.heightIn(min = 40.dp)
     ) {
         if (showArrow) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
         }
-        Text(label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -165,30 +173,46 @@ fun TrailingFabButton(
             disabledContainerColor = Primary.copy(alpha = 0.4f),
             disabledContentColor = whiteBg.copy(alpha = 0.7f)
         ),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
-        modifier = modifier
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.5.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+        modifier = modifier.heightIn(min = 40.dp)
     ) {
         when (action) {
             is TrailingFabAction.Next -> {
+                Text(
+                    text = action.label,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 if (showArrow) {
-                    Text(action.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
-                } else {
-                    Text(action.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
                 }
             }
             is TrailingFabAction.Edit -> {
-                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(action.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = action.label,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             is TrailingFabAction.Update -> {
                 if (action.isLoading) {
                     CirculerProgressIndicatorForButton()
                 } else {
-                    Text(action.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = action.label,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }

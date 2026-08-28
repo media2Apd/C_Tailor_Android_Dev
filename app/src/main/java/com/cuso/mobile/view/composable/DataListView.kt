@@ -47,7 +47,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.BorderGray
-import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.whiteBg
 
 // --- String Utilities ---
@@ -120,7 +119,7 @@ fun StatusBadge(
         modifier = modifier
             .clip(RoundedCornerShape(cornerRadius))
             .background(bgColor)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
+            .padding(horizontal = 10.dp, vertical = 0.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (showDot) {

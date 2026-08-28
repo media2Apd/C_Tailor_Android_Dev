@@ -46,7 +46,6 @@ import com.cuso.mobile.view.composable.rememberFilePickerLauncher
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
-import com.cuso.mobile.view.home.inventory.procurement.orders.FormTextArea
 import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
@@ -55,6 +54,8 @@ import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.R
+import com.cuso.mobile.view.composable.FormTextArea
+
 private val BorderColor = Color(0xFFE3E4E8)
 
 @Composable

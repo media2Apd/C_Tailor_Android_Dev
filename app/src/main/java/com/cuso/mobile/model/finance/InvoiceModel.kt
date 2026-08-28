@@ -5,38 +5,49 @@ import com.google.gson.annotations.SerializedName
 
 // ─────────────────────────────────────────────────────────────
 // Invoice — View All API Response
-// GET /api/finance/invoices/view-all
 // ─────────────────────────────────────────────────────────────
 
 data class InvoiceListResponse(
-    val success: Boolean,
-    val data: InvoiceListData
-)
-
-data class InvoiceListData(
-    val data: List<InvoiceItem>,
-    val pagination: PaginationInfo? = null
+    val success: Boolean = false,
+    val pagination: PaginationInfo? = null,
+    val data: List<InvoiceItem> = emptyList()
 )
 
 data class InvoiceItem(
     @SerializedName("_id")
-    val id: String,
-    val organizationId: String,
+    val id: String = "",
+    val organizationId: String? = null,
     val branchId: String? = null,
-    val invoiceNumber: String,
-    val salesOrderId: String? = null,
+    val invoiceNumber: String = "",
+    @com.google.gson.annotations.JsonAdapter(SalesOrderRefDeserializer::class)
+    val salesOrderId: SalesOrderRef? = null,
     @com.google.gson.annotations.JsonAdapter(InvoiceCustomerRefDeserializer::class)
-    val customerId: InvoiceCustomerRef? = null,   // ← was String?
+    val customerId: InvoiceCustomerRef? = null,
     val customer: CustomerInfo? = null,
-    val invoiceDate: String,
+    val invoiceDate: String = "",
     val dueDate: String? = null,
-    val items: List<InvoiceLineItem> = emptyList(),
+
+    @SerializedName("lines", alternate = ["items"])
+    val lines: List<InvoiceLineItem>? = emptyList(),
+
     val subtotal: Double = 0.0,
+
+    @SerializedName("totalTax", alternate = ["taxAmount"])
     val taxAmount: Double = 0.0,
+
+    @SerializedName("grandTotal", alternate = ["totalAmount"])
     val totalAmount: Double = 0.0,
+
+    @SerializedName("amountPaid", alternate = ["paidAmount"])
     val paidAmount: Double = 0.0,
+
+    @SerializedName("balanceDue", alternate = ["balanceAmount"])
     val balanceAmount: Double = 0.0,
-    val status: String,
+
+    @SerializedName("totalDiscount", alternate = ["discountAmount"])
+    val discountAmount: Double = 0.0,
+
+    val status: String = "",
     val createdAt: String? = null,
     val updatedAt: String? = null,
     @SerializedName("__v")
@@ -45,6 +56,39 @@ data class InvoiceItem(
     val displayCustomerName: String
         get() = customer?.name ?: customerId?.name ?: customerId?.id ?: "Walk-in Customer"
 }
+
+// ─────────────────────────────────────────────────────────────
+// Custom Deserializers
+// ─────────────────────────────────────────────────────────────
+
+data class SalesOrderRef(
+    @SerializedName("_id") val id: String? = null,
+    val orderNumber: String? = null,
+    val status: String? = null
+)
+
+class SalesOrderRefDeserializer : com.google.gson.JsonDeserializer<SalesOrderRef?> {
+    override fun deserialize(
+        json: com.google.gson.JsonElement?,
+        typeOfT: java.lang.reflect.Type?,
+        context: com.google.gson.JsonDeserializationContext?
+    ): SalesOrderRef? {
+        if (json == null || json.isJsonNull) return null
+        return when {
+            json.isJsonObject -> {
+                val obj = json.asJsonObject
+                SalesOrderRef(
+                    id = obj.get("_id")?.asString,
+                    orderNumber = obj.get("orderNumber")?.asString,
+                    status = obj.get("status")?.asString
+                )
+            }
+            json.isJsonPrimitive -> SalesOrderRef(id = json.asString)
+            else -> null
+        }
+    }
+}
+
 data class InvoiceCustomerRef(
     @SerializedName("_id") val id: String? = null,
     val name: String? = null,
@@ -74,87 +118,117 @@ class InvoiceCustomerRefDeserializer : com.google.gson.JsonDeserializer<InvoiceC
         }
     }
 }
+
 data class InvoiceLineItem(
     @SerializedName("_id")
     val id: String? = null,
-    val description: String,
-    val hsnSku: String? = null,       // 🆕
-    val quantity: Int,
-    val unitPrice: Double,
-    val discount: String? = null,     // 🆕
+    @SerializedName("itemDescription", alternate = ["description"])
+    val description: String? = null,
+    val hsnSku: String? = null,
+    val quantity: Int = 1,
+    @SerializedName("rate", alternate = ["unitPrice"])
+    val unitPrice: Double = 0.0,
+    @SerializedName("discountPercent", alternate = ["discount"])
+    val discount: String? = null,
+    @SerializedName("totalTax", alternate = ["tax"])
     val tax: Double = 0.0,
-    val total: Double
+    @SerializedName("lineTotal", alternate = ["total"])
+    val total: Double = 0.0
 )
-
-
-
-// ─────────────────────────────────────────────────────────────
-// UI State
-// ─────────────────────────────────────────────────────────────
-
-sealed class InvoiceUiState {
-    object Loading : InvoiceUiState()
-    data class Success(val invoices: List<InvoiceItem>, val pagination: PaginationInfo?) : InvoiceUiState()
-    data class Error(val message: String) : InvoiceUiState()
-}
 
 // ─────────────────────────────────────────────────────────────
 // Invoice View One Response
-// GET /api/finance/invoices/{id}
 // ─────────────────────────────────────────────────────────────
 
 data class InvoiceViewOneResponse(
-    val success: Boolean,
-    val data: InvoiceViewOneData
+    val success: Boolean = false,
+    val data: InvoiceViewOneData? = null
 )
 
 data class InvoiceViewOneData(
     @SerializedName("_id")
-    val id: String,
-    val organizationId: String,
-    val branchId: String,
-    val invoiceNumber: String,
-    val salesOrderId: String? = null,
-    val customerId: InvoiceCustomerRef? = null,   // ← was String?
-    val customer: CustomerInfo? = null,           // 🆕
-    val invoiceDate: String,
+    val id: String = "",
+    val organizationId: String? = null,
+    val branchId: String? = null,
+    val invoiceNumber: String = "",
+    @com.google.gson.annotations.JsonAdapter(SalesOrderRefDeserializer::class)
+    val salesOrderId: SalesOrderRef? = null,
+    @com.google.gson.annotations.JsonAdapter(InvoiceCustomerRefDeserializer::class)
+    val customerId: InvoiceCustomerRef? = null,
+    val customer: CustomerInfo? = null,
+    val invoiceDate: String = "",
     val dueDate: String? = null,
-    val items: List<InvoiceItemDetail>,
-    val subtotal: Double,
-    val taxAmount: Double,
-    val discountAmount: Double = 0.0,             // 🆕
-    val shippingAmount: Double = 0.0,              // 🆕
-    val totalAmount: Double,
-    val paidAmount: Double,
-    val balanceAmount: Double,
-    val paymentMethod: String? = null,             // 🆕
-    val status: String,
-    val createdAt: String,
-    val updatedAt: String,
+
+    // Backend sends "lines"
+    @SerializedName("lines", alternate = ["items"])
+    val items: List<InvoiceItemDetail>? = emptyList(),
+
+    val subtotal: Double = 0.0,
+
+    @SerializedName("totalTax", alternate = ["taxAmount"])
+    val taxAmount: Double = 0.0,
+
+    @SerializedName("totalDiscount", alternate = ["discountAmount"])
+    val discountAmount: Double = 0.0,
+
+    val shippingAmount: Double = 0.0,
+
+    @SerializedName("grandTotal", alternate = ["totalAmount"])
+    val totalAmount: Double = 0.0,
+
+    @SerializedName("amountPaid", alternate = ["paidAmount"])
+    val paidAmount: Double = 0.0,
+
+    @SerializedName("balanceDue", alternate = ["balanceAmount"])
+    val balanceAmount: Double = 0.0,
+
+    val paymentMethod: String? = null,
+    val status: String = "",
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
     @SerializedName("__v")
     val version: Int? = null,
     val journal: JournalData? = null,
-    val organization: CompanyDetails? = null,      // 🆕 company/branch info from backend
-    val bankDetails: BankDetails? = null,          // 🆕
-    val termsAndConditions: String? = null         // 🆕
+
+    @SerializedName("companySnapshot", alternate = ["organization"])
+    val organization: CompanyDetails? = null,
+
+    @SerializedName("shippingAddressSnapshot")
+    val shippingAddressSnapshot: AddressSnapshot? = null,
+
+    val bankDetails: BankDetails? = null,
+    val termsAndConditions: String? = null
 )
+
+data class AddressSnapshot(
+    val flatNo: String? = null,
+    val street: String? = null,
+    val city: String? = null,
+    val state: String? = null,
+    val stateCode: String? = null,
+    val country: String? = null,
+    val pincode: String? = null
+) {
+    val fullAddress: String
+        get() = listOfNotNull(flatNo, street, city, state, pincode).filter { it.isNotBlank() }.joinToString(", ")
+}
 
 data class InvoiceItemDetail(
-    val description: String,
-    val hsnSku: String? = null,        // 🆕
-    val quantity: Int,
-    val unitPrice: Double,
-    val discount: String? = null,      // 🆕
-    val tax: Double,
-    val total: Double,
+    @SerializedName("itemDescription", alternate = ["description"])
+    val description: String? = null,
+    val hsnSku: String? = null,
+    val quantity: Int = 1,
+    @SerializedName("rate", alternate = ["unitPrice"])
+    val unitPrice: Double = 0.0,
+    @SerializedName("discountPercent", alternate = ["discount"])
+    val discount: String? = null,
+    @SerializedName("totalTax", alternate = ["tax"])
+    val tax: Double = 0.0,
+    @SerializedName("lineTotal", alternate = ["total"])
+    val total: Double = 0.0,
     @SerializedName("_id")
-    val id: String
+    val id: String = ""
 )
-
-// ─────────────────────────────────────────────────────────────
-// 🆕 Supporting models — adjust field names to match real backend keys
-// once the API team confirms the exact response shape.
-// ─────────────────────────────────────────────────────────────
 
 data class CustomerInfo(
     @SerializedName("_id") val id: String? = null,
@@ -170,8 +244,9 @@ data class CompanyDetails(
     val address: String? = null,
     val email: String? = null,
     val phone: String? = null,
+    @SerializedName("gstin", alternate = ["gstNumber"])
     val gstNumber: String? = null,
-    val logoUrl: String? = null        // used for the WebView invoice logo
+    val logoUrl: String? = null
 )
 
 data class BankDetails(
@@ -192,7 +267,7 @@ data class JournalData(
     val referenceId: String,
     val notes: String,
     val isManual: Boolean,
-    val lines: List<JournalLine>,
+    val lines: List<JournalLine> = emptyList(),
     val status: String,
     val createdBy: String,
     val createdAt: String,
@@ -200,12 +275,3 @@ data class JournalData(
     @SerializedName("__v")
     val version: Int? = null
 )
-
-
-
-//data class AccountInfo(
-//    @SerializedName("_id")
-//    val id: String,
-//    val accountName: String,
-//    val accountCode: String
-//)

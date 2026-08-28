@@ -23,11 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.model.finance.TrialBalanceItem
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.DataCard
-import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
@@ -70,7 +68,7 @@ fun TrialBalanceScreen(
 
     val listState = rememberLazyListState()
 
-    // Initial fetch on screen entry
+    // Fetch on initial screen entry
     LaunchedEffect(Unit) {
         financeViewModel.fetchTrialBalance()
     }
@@ -86,7 +84,8 @@ fun TrialBalanceScreen(
         if (debouncedSearchQuery.isBlank()) items
         else items.filter {
             it.account.contains(debouncedSearchQuery, ignoreCase = true) ||
-                    it.code.contains(debouncedSearchQuery, ignoreCase = true)
+                    it.code.contains(debouncedSearchQuery, ignoreCase = true) ||
+                    it.accountType.contains(debouncedSearchQuery, ignoreCase = true)
         }
     }
 
@@ -189,35 +188,10 @@ fun TrialBalanceScreen(
                         .fillMaxWidth()
                 ) {
                     items(filteredItems, key = { it.accountId }) { item ->
-                        Box(modifier = Modifier.clickable { onAccountClick(item.accountId, item.account) }) {
-                            DataCard(
-                                item = item,
-                                title = item.account,
-                                trailingText = "Code: ${item.code}",
-                                titleColor = TextPrimary,
-                                footerAsRows = true,
-                                footerFields = listOf(
-                                    DataCardField(
-                                        label = "Debit",
-                                        text = formatAmount(item.debit),
-                                        textColor = blackTitle,
-                                        labelColor = TextSecondary
-                                    ),
-                                    DataCardField(
-                                        label = "Credit",
-                                        text = formatAmount(item.credit),
-                                        textColor = blackTitle,
-                                        labelColor = TextSecondary
-                                    ),
-                                    DataCardField(
-                                        label = "BAL",
-                                        text = "${formatAmount(item.balanceAbs)} ${item.balanceLabel}",
-                                        textColor = blackTitle,
-                                        labelColor = TextSecondary
-                                    )
-                                )
-                            )
-                        }
+                        TrialBalanceItemCard(
+                            item = item,
+                            onClick = { onAccountClick(item.accountId, item.account) }
+                        )
                     }
 
                     // ── Total Summary Card ──
@@ -236,6 +210,97 @@ fun TrialBalanceScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun TrialBalanceItemCard(
+    item: TrialBalanceItem,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(whiteBg)
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left Side: Account Name + Code
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = item.account,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1F2937)
+                )
+                Text(
+                    text = "Code: ${item.code}",
+                    fontSize = 13.sp,
+                    color = Color(0xFF9CA3AF)
+                )
+            }
+
+            // Right Side: Debit, Credit, BAL aligned to the right
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Debit Row
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Debit: ",
+                        fontSize = 13.sp,
+                        color = Color(0xFF9CA3AF)
+                    )
+                    Text(
+                        text = formatAmount(item.debit),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF1F2937)
+                    )
+                }
+
+                // Credit Row
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Credit: ",
+                        fontSize = 13.sp,
+                        color = Color(0xFF9CA3AF)
+                    )
+                    Text(
+                        text = formatAmount(item.credit),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF1F2937)
+                    )
+                }
+
+                // Balance Row
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "BAL: ",
+                        fontSize = 13.sp,
+                        color = Color(0xFF9CA3AF)
+                    )
+                    Text(
+                        text = "${formatAmount(item.balanceAbs)} ${item.balanceLabel}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF1F2937)
+                    )
+                }
+            }
+        }
+        HorizontalDivider(color = BorderGray, thickness = 1.dp)
     }
 }
 

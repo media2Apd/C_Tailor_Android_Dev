@@ -204,6 +204,7 @@ fun HomeScreenRouter(
             onClose = onGoBack,
             onOrganizationSetup = { onSafeNavigate("home_organization_profile") },
             onBranchManagement = { onSafeNavigate("home_branch_management") },
+            onGarmentType = { onSafeNavigate("sales_garment_type") } ,
             onDepartment = { onSafeNavigate("home_department_teams") },
             onDesignation = { onSafeNavigate("home_designation") },
             onHelpSupport = { onSafeNavigate("home_warehouse_management") },
@@ -485,11 +486,11 @@ fun HomeScreenRouter(
         )
         "sales_garment_type" -> GarmentTypeContent(
             onClose = {
-                onSalesSettingsModeChange(true)
+                onSalesSettingsModeChange(false)
                 onGoBack()
-            },
-            onMenuClick = onOpenDrawer
+            }
         )
+
 
         // ─────────────────────────────────────────────────────────────
         // 3. FINANCE MODULE

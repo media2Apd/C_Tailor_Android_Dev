@@ -29,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -571,34 +570,3 @@ fun CreatePurchaseOrderScreen(
     }
 }
 
-@Composable
-fun FormTextArea(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    placeholder: String = "",
-    minLines: Int = 4,
-    maxLines: Int = 6,
-    borderColor: Color = BorderColor,
-    focusedBorderColor: Color = AccentColor,
-    textColor: Color = TitleColor,
-    placeholderColor: Color = LabelColor
-) {
-    val tokens = LocalAppTokens.current
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = placeholderColor, fontSize = tokens.bodySmall) },
-        minLines = minLines,
-        maxLines = maxLines,
-        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.45f),
-        textStyle = TextStyle(fontSize = tokens.bodyMedium, color = textColor),
-        colors = OutlinedTextFieldDefaults.colors(
-            unfocusedBorderColor = borderColor,
-            focusedBorderColor = focusedBorderColor,
-            focusedContainerColor = whiteBg,
-            unfocusedContainerColor = whiteBg
-        ),
-        modifier = modifier.fillMaxWidth()
-    )
-}

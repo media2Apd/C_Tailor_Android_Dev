@@ -86,10 +86,10 @@ fun ReportStatusBadge(
  */
 @Composable
 fun ReportProgressBar(
+    modifier: Modifier = Modifier,
     fraction: Float,
     trackColor: Color = ReportStatusColors.TrackGray,
     fillColor: Color,
-    modifier: Modifier = Modifier,
     height: androidx.compose.ui.unit.Dp = 4.dp
 ) {
     val clamped = fraction.coerceIn(0f, 1f)

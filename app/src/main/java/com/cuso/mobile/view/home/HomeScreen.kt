@@ -353,6 +353,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "home_role_management",
             "home_warehouse_management",
             "home_opening_balance",
+            "sales_garment_type",
 
             // ── Sales ──
             "sales_lead",
@@ -1365,7 +1366,7 @@ private fun mapOperationsToCustomers(ops: List<OperationItem>): List<RecentCusto
             word.lowercase().replaceFirstChar { it.uppercase() }
         }
         RecentCustomer(
-            id = op.customerId.orEmpty(),
+            id = op.customerId,
             name = prettyName.ifBlank { op.customer },
             role = op.type,
             initials = initials,

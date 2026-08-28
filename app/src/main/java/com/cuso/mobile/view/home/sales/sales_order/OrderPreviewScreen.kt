@@ -1,14 +1,21 @@
 package com.cuso.mobile.view.home.sales.sales_order
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Email
@@ -20,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -28,7 +36,6 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.view.home.formatIndianNumber
-import com.cuso.mobile.view.home.inventory.procurement.orders.FormTextArea
 
 @Composable
 fun OrderPreviewScreen(
@@ -39,6 +46,9 @@ fun OrderPreviewScreen(
 ) {
     val tokens = LocalAppTokens.current
     val scrollState = rememberScrollState()
+
+    // ── Side Attached Share Menu State ──
+    var isShareMenuExpanded by rememberSaveable { mutableStateOf(false) }
 
     // ── Accordion Expansion States ──
     var customerDetailsExpanded by rememberSaveable { mutableStateOf(true) }
@@ -80,9 +90,9 @@ fun OrderPreviewScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .verticalScroll(scrollState)
-                    .padding(bottom = 120.dp)
+                    .padding(bottom = 120.dp) // Bottom clearance for floating buttons
             ) {
-                // ── Top Action Banner ──
+                // ── Top Header Banner ──
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -100,24 +110,6 @@ fun OrderPreviewScreen(
                         fontSize = tokens.caption,
                         color = Color(0xFF64748B)
                     )
-
-                    Spacer(Modifier.height(14.dp))
-
-                    Button(
-                        onClick = onConfirmOrder,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                    ) {
-                        Text(
-                            text = "Confirm Order Quick Action",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = whiteBg
-                        )
-                    }
                 }
 
                 HorizontalDivider(color = dividerColor)
@@ -164,7 +156,6 @@ fun OrderPreviewScreen(
                     expanded = measurementsSummaryExpanded,
                     onHeaderClick = { measurementsSummaryExpanded = !measurementsSummaryExpanded }
                 ) {
-                    // Header Filter Badges
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -176,7 +167,6 @@ fun OrderPreviewScreen(
 
                     Spacer(Modifier.height(14.dp))
 
-                    // 3-Column Capsule Pills
                     MeasurementPillsGrid(
                         measurements = listOf(
                             "Chest" to "42", "Waist" to "38", "Seat/Hip" to "40",
@@ -259,7 +249,6 @@ fun OrderPreviewScreen(
 
                     Spacer(Modifier.height(12.dp))
 
-                    // ✅ Fixed
                     FormLabel("Payment Method")
                     Box(
                         modifier = Modifier
@@ -355,7 +344,6 @@ fun OrderPreviewScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Green Advance Paid Card
                         Card(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(10.dp),
@@ -368,7 +356,6 @@ fun OrderPreviewScreen(
                             }
                         }
 
-                        // Red Balance Due Card
                         Card(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(10.dp),
@@ -431,53 +418,104 @@ fun OrderPreviewScreen(
             }
 
             // ─────────────────────────────────────────────────────────────
-            // FIXED BOTTOM ACTIONS (CONFIRM + SHARE BUTTONS)
+            // FLOATING SHARE DOCK (RIGHT-TO-LEFT SLIDING CIRCULAR PILL)
             // ─────────────────────────────────────────────────────────────
-            Surface(
+            val arrowRotation by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = if (isShareMenuExpanded) 180f else 0f,
+                animationSpec = androidx.compose.animation.core.tween(durationMillis = 300),
+                label = "ShareArrowRotation"
+            )
+
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth(),
-                color = whiteBg,
-                shadowElevation = 8.dp
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 90.dp) // Positioned above bottom FABs
             ) {
-                Column(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding, vertical = 12.dp)
+                        .clip(CircleShape)
+                        .background(whiteBg)
+                        .border(
+                            width = 1.dp,
+                            color = Color(0xFFCBD5E1),
+                            shape = CircleShape
+                        )
+                        .padding(horizontal = 6.dp, vertical = 6.dp)
                 ) {
-                    // Confirm & Finalize Primary Button
-                    Button(
-                        onClick = onConfirmOrder,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(tokens.buttonHeight),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                    // Expanding Action Buttons (Slides from Right to Left)
+                    AnimatedVisibility(
+                        visible = isShareMenuExpanded,
+                        enter = expandHorizontally(expandFrom = Alignment.End) + fadeIn(),
+                        exit = shrinkHorizontally(shrinkTowards = Alignment.End) + fadeOut()
                     ) {
-                        Text("Confirm and Finalize Order", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(start = 8.dp, end = 4.dp)
+                        ) {
+                            ShareActionButton(
+                                label = "WhatsApp",
+                                icon = Icons.Default.Whatsapp
+                            )
+                            ShareActionButton(
+                                label = "PDF",
+                                icon = Icons.Default.Download
+                            )
+                            ShareActionButton(
+                                label = "Email",
+                                icon = Icons.Default.Email
+                            )
+                        }
                     }
 
-                    Spacer(Modifier.height(10.dp))
-
-                    // Secondary Action Buttons Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    // Circular Toggle Button with 180° Rotation
+                    Surface(
+                        onClick = { isShareMenuExpanded = !isShareMenuExpanded },
+                        shape = CircleShape,
+                        color = if (isShareMenuExpanded) Color(0xFFF1F5F9) else whiteBg,
+                        modifier = Modifier.size(38.dp)
                     ) {
-                        ShareActionButton(label = "WhatsApp", icon = Icons.Default.Whatsapp, modifier = Modifier.weight(1f))
-                        ShareActionButton(label = "PDF", icon = Icons.Default.Download, modifier = Modifier.weight(0.8f))
-                        ShareActionButton(label = "Email", icon = Icons.Default.Email, modifier = Modifier.weight(0.9f))
-                        OutlinedButton(
-                            onClick = onCancel,
-                            modifier = Modifier.weight(0.9f).height(40.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            contentPadding = PaddingValues(0.dp)
-                        ) {
-                            Text("Cancel", fontSize = 12.sp, color = Color(0xFF64748B))
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
+                                contentDescription = "Toggle Share Options",
+                                tint = Primary,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .padding(start = if (isShareMenuExpanded) 0.dp else 2.dp)
+                                    .graphicsLayer { rotationZ = arrowRotation } // Smooth 180 degree rotation
+                            )
                         }
                     }
                 }
+            }
+
+            // ─────────────────────────────────────────────────────────────
+            // FLOATING BOTTOM ACTION BAR (CANCEL ON LEFT, CONFIRM ON RIGHT)
+            // ─────────────────────────────────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Back / Cancel Button on Left
+                BackFabButton(
+                    showArrow = false,
+                    onClick = onCancel,
+                    label = "Cancel"
+                )
+
+                // Trailing FAB (Confirm and Finalize) on Right
+                TrailingFabButton(
+                    action = TrailingFabAction.Next(
+                        label = "Confirm and Finalize Order",
+                        onClick = onConfirmOrder
+                    )
+                )
             }
         }
     }
@@ -588,16 +626,21 @@ private fun PriceSummaryLine(label: String, value: String, isRed: Boolean = fals
 }
 
 @Composable
-private fun ShareActionButton(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier) {
+private fun ShareActionButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit = {}
+) {
     OutlinedButton(
-        onClick = { },
-        modifier = modifier.height(40.dp),
+        onClick = onClick,
+        modifier = Modifier.height(38.dp),
         shape = RoundedCornerShape(8.dp),
         border = BorderStroke(1.dp, Primary),
-        contentPadding = PaddingValues(horizontal = 4.dp)
+        contentPadding = PaddingValues(horizontal = 10.dp),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
     ) {
-        Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(14.dp))
-        Spacer(Modifier.width(4.dp))
-        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Primary)
+        Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Primary)
     }
 }

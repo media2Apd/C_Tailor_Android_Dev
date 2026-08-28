@@ -8,6 +8,7 @@
     "SpellCheckingInspection",
     "unusedvariable"
 )
+
 package com.cuso.mobile.model.hr
 
 // ═══════════════════════════════════════════════════════════
@@ -57,19 +58,19 @@ data class MemberItem(
     val _id: String,
     val userId: MemberUserRef? = null,
     val organizationId: String? = null,
-    val role: String? = null,                    // "owner" | "admin" | ...
+    val role: String? = null,
     val branchId: MemberBranchRef? = null,
     val workingBranchId: String? = null,
     val departmentId: MemberDepartmentRef? = null,
-    val designationId: String? = null,           //   FIXED — API returns a plain id string, not {_id, name}
+    val designationId: String? = null,
     val shiftId: String? = null,
     val firstName: String? = null,
     val lastName: String? = null,
     val profilePicture: String? = null,
     val profilePictureId: String? = null,
     val hasTemporaryAddress: Boolean = false,
-    val employmentType: String? = null,           // "full-time" | ...
-    val status: String? = null,                   // "active" | "inactive"
+    val employmentType: String? = null,
+    val status: String? = null,
     val joinedAt: String? = null,
     val isDeleted: Boolean = false,
     val termsAccepted: Boolean = false,
@@ -77,11 +78,10 @@ data class MemberItem(
     val dob: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null,
-    val memberId: String? = null,                 // e.g. "CUS-001"
+    val memberId: String? = null,
     val customRoleId: MemberCustomRoleRefList? = null
 )
 
-//   NEW — matches the {_id, name} shape the list API actually returns for customRoleId
 data class MemberCustomRoleRefList(
     val _id: String? = null,
     val name: String? = null
@@ -125,7 +125,6 @@ fun MemberItem.displayRole(): String =
 fun MemberItem.displayStatus(): String =
     status?.replaceFirstChar { it.uppercase() } ?: "—"
 
-
 // ═══════════════════════════════════════════════════════════
 // ── Shifts: GET /api/shifts/view-all ──
 // ═══════════════════════════════════════════════════════════
@@ -138,9 +137,9 @@ data class ShiftListResponse(
 data class ShiftItem(
     val _id: String,
     val name: String,
-    val shiftId: String? = null,          // e.g. "SHIFT-001"
-    val startTime: String? = null,         // "09:00"
-    val endTime: String? = null,           // "18:00"
+    val shiftId: String? = null,
+    val startTime: String? = null,
+    val endTime: String? = null,
     val organizationId: String? = null,
     val description: String? = null,
     val status: Boolean = true,
@@ -152,57 +151,13 @@ data class ShiftItem(
     val updatedAt: String? = null
 )
 
-// ── Small UI helper ──
 fun ShiftItem.displayTimeRange(): String {
     if (startTime.isNullOrBlank() || endTime.isNullOrBlank()) return "—"
     return "$startTime - $endTime"
 }
 
-
-
 // ═══════════════════════════════════════════════════════════
-// ── Create Member: POST /api/members/create ──
-// ═══════════════════════════════════════════════════════════
-
-data class TemporaryAddressRequest(
-    val country: String,
-    val state: String,
-    val city: String,
-    val street: String,
-    val postalCode: String
-)
-
-data class EducationRequest(
-    val instituteName: String,
-    val degree: String,
-    val specialization: String,
-    val completionDate: String   // ISO format e.g. "2026-07-22T00:00:00.000Z"
-)
-
-data class WorkExperienceRequest(
-    val companyName: String,
-    val jobTitle: String,
-    val fromDate: String,
-    val toDate: String,
-    val jobDescription: String,
-    val isCurrentRole: Boolean
-)
-
-
-
-
-data class CreatedMemberData(
-    val _id: String,
-    val memberId: String? = null,
-    val firstName: String? = null,
-    val lastName: String? = null,
-    val doj: String? = null,
-    val status: String? = null,
-    val createdAt: String? = null
-)
-
-// ═══════════════════════════════════════════════════════════
-// ── Create Member: POST /api/members/create ──
+// ── Create & Update Request Models ──
 // ═══════════════════════════════════════════════════════════
 
 data class AddressRequest(
@@ -217,36 +172,36 @@ data class EducationRequestItem(
     val instituteName: String,
     val degree: String,
     val specialization: String,
-    val completionDate: String   // "yyyy-MM-dd"
+    val completionDate: String
 )
 
 data class WorkExperienceRequestItem(
     val companyName: String,
     val jobTitle: String,
-    val fromDate: String,        // "yyyy-MM-dd"
+    val fromDate: String,
+    val toDate: String? = null,
     val jobDescription: String,
-    val isRelevant: Boolean      // backend field name — not "isCurrentRole"
-    // NOTE: backend does not accept "toDate" for work experience
+    val isRelevant: Boolean
 )
 
 data class CreateMemberRequest(
     val firstName: String,
     val lastName: String,
-    val email: String,                    // work email
+    val email: String,
     val personalEmail: String,
     val personalMobile: String,
     val workMobile: String,
-    val dob: String,                      // "yyyy-MM-dd"
-    val gender: String,                   // "male" | "female" | "other"
-    val martialStatus: String,            // backend spelling (typo preserved intentionally)
-    val doj: String,                      // "yyyy-MM-dd"
+    val dob: String,
+    val gender: String,
+    val martialStatus: String,
+    val doj: String,
     val branchId: String?,
     val departmentId: String?,
     val designationId: String?,
     val customRoleId: String?,
     val shiftId: String?,
     val workingDistrict: String?,
-    val employmentType: String,           // "full-time" | "part-time" | "contract"
+    val employmentType: String,
     val reportingTo: String?,
     val secondaryReportingTo: String?,
     val permanentAddress: AddressRequest,
@@ -254,30 +209,6 @@ data class CreateMemberRequest(
     val temporaryAddress: AddressRequest? = null,
     val education: List<EducationRequestItem> = emptyList(),
     val workExperience: List<WorkExperienceRequestItem> = emptyList()
-)
-// ── Response ──
-
-data class CreateMemberResponse(
-    val success: Boolean,
-    val message: String? = null,
-    val data: CreatedMemberFullData? = null
-)
-
-data class EducationResponseItem(
-    val instituteName: String? = null,
-    val degree: String? = null,
-    val specialization: String? = null,
-    val completionDate: String? = null,
-    val _id: String? = null
-)
-
-data class WorkExperienceResponseItem(
-    val companyName: String? = null,
-    val jobTitle: String? = null,
-    val fromDate: String? = null,
-    val jobDescription: String? = null,
-    val isRelevant: Boolean = false,
-    val _id: String? = null
 )
 
 data class UpdateMemberRequest(
@@ -304,6 +235,32 @@ data class UpdateMemberRequest(
     val temporaryAddress: AddressRequest? = null,
     val education: List<EducationRequestItem> = emptyList(),
     val workExperience: List<WorkExperienceRequestItem> = emptyList()
+)
+
+// ── Responses ──
+
+data class CreateMemberResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: CreatedMemberFullData? = null
+)
+
+data class EducationResponseItem(
+    val instituteName: String? = null,
+    val degree: String? = null,
+    val specialization: String? = null,
+    val completionDate: String? = null,
+    val _id: String? = null
+)
+
+data class WorkExperienceResponseItem(
+    val companyName: String? = null,
+    val jobTitle: String? = null,
+    val fromDate: String? = null,
+    val toDate: String? = null,
+    val jobDescription: String? = null,
+    val isRelevant: Boolean = false,
+    val _id: String? = null
 )
 
 data class CreatedMemberFullData(
@@ -345,13 +302,8 @@ data class CreatedMemberFullData(
     val memberId: String? = null
 )
 
-
-
-//--------------------------------------------------------------------------------------------
-//---------VIEW EMPLOYEE----------------------------------------------------------------------
-//--------------------------------------------------------------------------------------------
 // ═══════════════════════════════════════════════════════════
-// ── Member Detail: GET /api/members/{id}  (VIEW/EDIT prefill) ──
+// ── Member Detail: GET /api/members/{id} ──
 // ═══════════════════════════════════════════════════════════
 
 data class MemberDetailResponse(
@@ -406,6 +358,7 @@ data class MemberWorkExperienceDetail(
     val companyName: String? = null,
     val jobTitle: String? = null,
     val fromDate: String? = null,
+    val toDate: String? = null,
     val jobDescription: String? = null,
     val isRelevant: Boolean = false,
     val _id: String? = null
@@ -416,47 +369,53 @@ data class MemberDetail(
     val userId: MemberUserRef? = null,
     val organizationId: MemberOrganizationRef? = null,
     val role: String? = null,
-    val customRoleId: MemberCustomRoleRef? = null,
     val branchId: MemberBranchDetailRef? = null,
+    val workingBranchId: String? = null,
     val departmentId: MemberDepartmentDetailRef? = null,
-    val designationId: String? = null,      // NOTE: plain id string, not an object, per this API
-    val shiftId: String? = null,            // NOTE: plain id string, not an object, per this API
-    val workingDistrict: String? = null,
-    val doj: String? = null,
+    val designationId: String? = null,
+    val shiftId: String? = null,
     val firstName: String? = null,
     val lastName: String? = null,
+    val email: String? = null,
     val workMobile: String? = null,
     val personalMobile: String? = null,
     val profilePicture: String? = null,
     val profilePictureId: String? = null,
-    val dob: String? = null,
-    val gender: String? = null,
-    val martialStatus: String? = null,
-    val permanentAddress: MemberAddress? = null,
-    val temporaryAddress: MemberAddress? = null,
     val hasTemporaryAddress: Boolean = false,
     val employmentType: String? = null,
-    val reportingTo: String? = null,
-    val secondaryReportingTo: String? = null,
     val status: String? = null,
-    val education: List<MemberEducationDetail> = emptyList(),
-    val workExperience: List<MemberWorkExperienceDetail> = emptyList(),
     val joinedAt: String? = null,
     val isDeleted: Boolean = false,
     val createdBy: String? = null,
     val termsAccepted: Boolean = false,
+    val doj: String? = null,
+    val dob: String? = null,
+    val permanentAddress: MemberAddress? = null,
+    val temporaryAddress: MemberAddress? = null,
+    val martialStatus: String? = null,
+    val gender: String? = null,
+    val workingDistrict: String? = null,
+    val reportingTo: String? = null,
+    val secondaryReportingTo: String? = null,
+    val education: List<MemberEducationDetail> = emptyList(),
+    val workExperience: List<MemberWorkExperienceDetail> = emptyList(),
     val createdAt: String? = null,
     val updatedAt: String? = null,
-    val memberId: String? = null
+    val memberId: String? = null,
+    val customRoleId: MemberCustomRoleRef? = null,
+    val permissions: Map<String, Any>? = null,
+    val __v: Int? = null
 )
 
-//upload picture
+// ═══════════════════════════════════════════════════════════
+// ── Profile Picture Upload / Delete ──
+// ═══════════════════════════════════════════════════════════
+
 data class UploadProfilePictureResponse(
     val message: String?,
     val member: UploadedMemberInfo
 )
 
-//delete profile
 data class DeleteProfilePictureResponse(
     val message: String?,
     val member: UploadedMemberInfo
@@ -466,5 +425,4 @@ data class UploadedMemberInfo(
     val _id: String?,
     val profilePicture: String?,
     val profilePictureId: String?
-
 )

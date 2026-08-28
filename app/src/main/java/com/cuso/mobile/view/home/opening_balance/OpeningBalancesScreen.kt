@@ -10,10 +10,9 @@
 )
 package com.cuso.mobile.view.home.opening_balance
 
-import androidx.compose.animation.animateContentSize
+import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -40,7 +39,6 @@ import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.SheetValue
@@ -339,6 +337,7 @@ private fun OpeningBalanceCategoryCard(
 // the totals summary box
 // ─────────────────────────────────────────────────────────────
 
+@SuppressLint("DefaultLocale")
 @Composable
 private fun OpeningBalanceCategoryDetailContent(
     category: OpeningBalanceCategory,
@@ -484,7 +483,7 @@ private fun CurrencyField(value: String, onValueChange: (String) -> Unit) {
         onValueChange = { new -> if (new.all { it.isDigit() || it == '.' }) onValueChange(new) },
         modifier = Modifier.fillMaxWidth().height(48.dp),
         singleLine = true,
-        textStyle = androidx.compose.ui.text.TextStyle(
+        textStyle = TextStyle(
             fontSize = tokens.bodySmall,
             color = title_color
         ),

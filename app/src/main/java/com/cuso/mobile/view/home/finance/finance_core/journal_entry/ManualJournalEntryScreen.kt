@@ -21,6 +21,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.finance.JournalEntryItem
+import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.greenBg
+import com.cuso.mobile.ui.theme.greentext
+import com.cuso.mobile.ui.theme.orangeBg
+import com.cuso.mobile.ui.theme.orangeText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DeleteModel
@@ -35,13 +42,11 @@ import com.cuso.mobile.viewmodel.DeleteJournalState
 import com.cuso.mobile.viewmodel.FinanceViewModel
 import kotlinx.coroutines.delay
 
-private val BluePrimary = Color(0xFF3A2FCB)
-private val TextSecondary = Color(0xFF9A9AA8)
-private val BorderGray = Color(0xFFE8E8ED)
-private val GreenBg = Color(0xFFE3F7EA)
-private val GreenText = Color(0xFF1FA751)
-private val OrangeBg = Color(0xFFFDEFE0)
-private val OrangeText = Color(0xFFE08A2C)
+private val BluePrimary = Primary
+private val GreenBg = greenBg
+private val GreenText = greentext
+private val OrangeBg = orangeBg
+private val OrangeText = orangeText
 
 private fun journalStatusColors(status: String): Pair<Color, Color> {
     val isPosted = status.equals("Posted", ignoreCase = true)
@@ -215,6 +220,43 @@ fun ManualJournalEntryScreen(
                         ) {
                             items(filteredEntries, key = { it.id }) { entry ->
                                 val (badgeBg, badgeFg) = journalStatusColors(entry.status)
+                                val isDraft = entry.status.equals("Draft", ignoreCase = true)
+
+                                val cardActions = buildList {
+                                    add(
+                                        MenuAction(
+                                            label = "View",
+                                            icon = Icons.Default.Visibility,
+                                            onClick = {
+                                                selectedEntry = entry
+                                                selectedEntryId = entry.id
+                                                formMode = "view"
+                                            }
+                                        )
+                                    )
+                                    if (isDraft) {
+                                        add(
+                                            MenuAction(
+                                                label = "Edit",
+                                                icon = Icons.Default.Edit,
+                                                onClick = {
+                                                    selectedEntry = entry
+                                                    selectedEntryId = entry.id
+                                                    formMode = "edit"
+                                                }
+                                            )
+                                        )
+                                        add(
+                                            MenuAction(
+                                                label = "Delete",
+                                                icon = Icons.Default.Delete,
+                                                tint = Color(0xFFDC2626),
+                                                textColor = Color(0xFFDC2626),
+                                                onClick = { deleteTarget = entry }
+                                            )
+                                        )
+                                    }
+                                }
 
                                 DataCard(
                                     item = entry,
@@ -225,33 +267,12 @@ fun ManualJournalEntryScreen(
                                     topBadgeTextColor = badgeFg,
                                     topBadgeBgColor = badgeBg,
                                     topBadgeInline = true,
-                                    actions = listOf(
-                                        MenuAction(
-                                            label = "View",
-                                            icon = Icons.Default.Visibility,
-                                            onClick = {
-                                                selectedEntry = entry
-                                                selectedEntryId = entry.id
-                                                formMode = "view"
-                                            }
-                                        ),
-                                        MenuAction(
-                                            label = "Edit",
-                                            icon = Icons.Default.Edit,
-                                            onClick = {
-                                                selectedEntry = entry
-                                                selectedEntryId = entry.id
-                                                formMode = "edit"
-                                            }
-                                        ),
-                                        MenuAction(
-                                            label = "Delete",
-                                            icon = Icons.Default.Delete,
-                                            tint = Color(0xFFDC2626),
-                                            textColor = Color(0xFFDC2626),
-                                            onClick = { deleteTarget = entry }
-                                        )
-                                    )
+                                    actions = cardActions,
+                                    onClick = {
+                                        selectedEntry = entry
+                                        selectedEntryId = entry.id
+                                        formMode = if (isDraft) "edit" else "view"
+                                    }
                                 )
                             }
 

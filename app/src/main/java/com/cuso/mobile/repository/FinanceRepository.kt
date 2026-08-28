@@ -19,7 +19,6 @@ import com.cuso.mobile.model.finance.TrialBalanceItem
 //   NEW imports for update journal entry
 import com.cuso.mobile.model.finance.UpdateJournalEntryRequest
 import com.cuso.mobile.model.finance.UpdateJournalEntryResponse
-import com.cuso.mobile.model.sales.CustomerDetailV2
 import com.cuso.mobile.model.sales.CustomerListResponseV2
 import com.cuso.mobile.model.sales.GetFinanceCustomerViewOneResponse
 import com.cuso.mobile.network.finance.FinanceApiService
@@ -128,18 +127,17 @@ class FinanceRepository @Inject constructor(
                 csrfToken = csrfToken,
                 id = id
             )
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!.data)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
             } else {
-                Result.failure(
-                    Exception(response.errorBody()?.string() ?: "Failed to fetch invoice details: ${response.code()}")
-                )
+                val errorMsg = response.errorBody()?.string() ?: "Failed to fetch invoice details: ${response.code()}"
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-
     // ── Chart of Accounts ──
     suspend fun getChartOfAccounts(): Result<List<ChartOfAccountItem>> {
         return try {
@@ -325,17 +323,18 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    // ── Trial Balance ──
+    // Trial Balance fetch
     suspend fun getTrialBalance(): Result<List<TrialBalanceItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = financeApi.getTrialBalance(accessToken, csrfToken)
+            val response = financeApi.getTrialBalance(
+                token = accessToken,
+                csrfToken = csrfToken
+            )
             if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!.data)
+                Result.success(response.body()?.data?.list ?: emptyList())
             } else {
-                Result.failure(
-                    Exception(response.errorBody()?.string() ?: "Failed to fetch trial balance: ${response.code()}")
-                )
+                Result.failure(Exception("Failed to fetch trial balance"))
             }
         } catch (e: Exception) {
             Result.failure(e)

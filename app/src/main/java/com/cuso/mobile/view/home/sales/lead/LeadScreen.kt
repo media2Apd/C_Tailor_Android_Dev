@@ -134,6 +134,7 @@ import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.FilterDrawer
 import com.cuso.mobile.view.composable.FilterSection
+import com.cuso.mobile.view.composable.FormTextArea
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.SearchFilterBar
@@ -141,7 +142,6 @@ import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TimePickerField
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.composable.rememberFilterDrawerState
-import com.cuso.mobile.view.home.inventory.procurement.orders.FormTextArea
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 import com.cuso.mobile.viewmodel.SaleState
@@ -1614,9 +1614,8 @@ fun LeadScreenContent(
     }
 
     val filteredLeads = leads.filter { lead ->
-        // 1. Safe Search Match (null-safety உடன்)
-        val personName = lead.person?.name.orEmpty()
-        val enquiryType = lead.enquiryType.orEmpty()
+        val personName = lead.person.name
+        val enquiryType = lead.enquiryType
         val matchesSearch = searchQuery.isBlank() ||
                 personName.contains(searchQuery, ignoreCase = true) ||
                 enquiryType.contains(searchQuery, ignoreCase = true)
@@ -1636,7 +1635,7 @@ fun LeadScreenContent(
         val selectedSourceLabels = filterSections.find { it.title == "Source" }
             ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
         val matchesSource = selectedSourceLabels.isEmpty() ||
-                selectedSourceLabels.any { it.equals(lead.source.orEmpty(), ignoreCase = true) }
+                selectedSourceLabels.any { it.equals(lead.source, ignoreCase = true) }
 
         // 4. Garments Match
         val garmentName = getGarmentName(lead)
@@ -1648,8 +1647,8 @@ fun LeadScreenContent(
         // 5. Amount Range Match (null-safe budget check)
         val minAmountFilter = filterSections.find { it.title == "Amount Range" }?.minAmount?.toIntOrNull()
         val maxAmountFilter = filterSections.find { it.title == "Amount Range" }?.maxAmount?.toIntOrNull()
-        val leadMinBudget = lead.budgetRange?.min ?: 0
-        val leadMaxBudget = lead.budgetRange?.max ?: Int.MAX_VALUE
+        val leadMinBudget = lead.budgetRange.min
+        val leadMaxBudget = lead.budgetRange.max
         val matchesAmount = (minAmountFilter == null || leadMaxBudget >= minAmountFilter) &&
                 (maxAmountFilter == null || leadMinBudget <= maxAmountFilter)
 

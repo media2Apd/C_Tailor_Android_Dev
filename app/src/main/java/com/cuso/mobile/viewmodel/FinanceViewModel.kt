@@ -209,8 +209,8 @@ class FinanceViewModel @Inject constructor(
             when {
                 result.isSuccess -> {
                     val body = result.getOrNull()
-                    val newInvoices = body?.data?.data ?: emptyList()
-                    val pagination = body?.data?.pagination
+                    val newInvoices = body?.data ?: emptyList()
+                    val pagination = body?.pagination
 
                     _invoiceList.value = newInvoices
                     _invoicePagination.value = pagination
@@ -248,8 +248,8 @@ class FinanceViewModel @Inject constructor(
             when {
                 result.isSuccess -> {
                     val body = result.getOrNull()
-                    val newInvoices = body?.data?.data ?: emptyList()
-                    val pagination = body?.data?.pagination
+                    val newInvoices = body?.data ?: emptyList()
+                    val pagination = body?.pagination
 
                     if (newInvoices.isNotEmpty()) {
                         _invoiceList.value = _invoiceList.value + newInvoices
@@ -431,7 +431,7 @@ class FinanceViewModel @Inject constructor(
                     _journalEntries.value = newEntries
                     _journalEntryPagination.value = pagination
 
-                    val totalPages = pagination.totalPages
+                    val totalPages = pagination?.totalPages ?: 1
                     _canLoadMoreJournalEntries.value = page < totalPages && newEntries.isNotEmpty()
                 },
                 onFailure = { e ->
@@ -470,7 +470,7 @@ class FinanceViewModel @Inject constructor(
                         _currentJournalEntryPage.value = nextPage
                         _journalEntryPagination.value = pagination
 
-                        val totalPages = pagination.totalPages
+                        val totalPages = pagination?.totalPages ?: nextPage
                         _canLoadMoreJournalEntries.value = nextPage < totalPages
                     } else {
                         _canLoadMoreJournalEntries.value = false

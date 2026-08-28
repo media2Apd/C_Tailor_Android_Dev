@@ -398,27 +398,30 @@ fun InvoiceDetailScreen(
     // Every value here comes from the API; only truly missing optional
     // fields fall back to an empty/neutral default.
     fun InvoiceViewOneData.toPdfData(): InvoicePdfGenerator.InvoiceData {
+        val safeItems = (items ?: emptyList()).map { item ->
+            InvoicePdfGenerator.InvoiceItemData(
+                description = item.description ?: "Item",
+                hsnSku = item.hsnSku ?: "-",
+                quantity = item.quantity,
+                unitPrice = item.unitPrice,
+                discount = item.discount ?: "-",
+                tax = item.tax,
+                total = item.total
+            )
+        }
+
         return InvoicePdfGenerator.InvoiceData(
             invoiceNumber = invoiceNumber,
             invoiceDate = formatInvoiceDate(invoiceDate),
             dueDate = formatInvoiceDate(dueDate ?: invoiceDate),
             status = status,
-            customerName = customer?.name ?: customerId?.name ?: customerId?.id ?: "Walk-in Customer",            billToAddress = customer?.billingAddress ?: "",
-            billToPhone = customer?.phone ?: "",
-            billToEmail = customer?.email ?: "",
-            shipToAddress = customer?.shippingAddress ?: customer?.billingAddress ?: "",
-            orderReference = salesOrderId ?: "",
-            items = items.map { item ->
-                InvoicePdfGenerator.InvoiceItemData(
-                    description = item.description,
-                    hsnSku = item.hsnSku ?: "-",
-                    quantity = item.quantity,
-                    unitPrice = item.unitPrice,
-                    discount = item.discount ?: "-",
-                    tax = item.tax,
-                    total = item.total
-                )
-            },
+            customerName = customer?.name ?: customerId?.name ?: customerId?.id ?: "Walk-in Customer",
+            billToAddress = customer?.billingAddress ?: shippingAddressSnapshot?.fullAddress ?: "",
+            billToPhone = customer?.phone ?: customerId?.mobile ?: "",
+            billToEmail = customer?.email ?: customerId?.email ?: "",
+            shipToAddress = customer?.shippingAddress ?: shippingAddressSnapshot?.fullAddress ?: customer?.billingAddress ?: "",
+            orderReference = salesOrderId?.orderNumber ?: salesOrderId?.id ?: "",
+            items = safeItems,
             subtotal = subtotal,
             discountAmount = discountAmount,
             taxAmount = taxAmount,
@@ -437,8 +440,6 @@ fun InvoiceDetailScreen(
             companyEmail = organization?.email ?: "",
             companyPhone = organization?.phone ?: "",
             companyGst = organization?.gstNumber ?: "",
-            // prefer the invoice's own organization logo, fall back to the
-            // profile-loaded org logo (same source used in the quotation screen)
             logoUrl = (organization?.logoUrl?.takeIf { it.isNotEmpty() }) ?: logoBase64.ifEmpty { null }
         )
     }

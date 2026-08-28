@@ -71,7 +71,7 @@ interface FinanceApiService {
         @Path("id") id: String
     ): Response<CreateChartOfAccountResponse>
 
-    @GET("api/finance/trial-balance")
+    @GET("api/reports/trial-balance")
     suspend fun getTrialBalance(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
@@ -84,7 +84,7 @@ interface FinanceApiService {
         @Path("accountId") accountId: String
     ): Response<LedgerResponse>
 
-    @GET("/api/finance/journal-entry/view-all")
+    @GET("/api/finance/journal-entries/view-all")
     suspend fun getJournalEntries(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -94,21 +94,21 @@ interface FinanceApiService {
         @Query("status") status: String? = null
     ): Response<JournalEntryListResponse>
 
-    @POST("/api/finance/journal-entry/create")
+    @POST("/api/finance/journal-entries/create")
     suspend fun createJournalEntry(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Body request: CreateJournalEntryRequest
     ): Response<CreateJournalEntryResponse>
 
-    @GET("api/finance/journal-entry/view-one/{id}")
+    @GET("api/finance/journal-entries/view-one/{id}")
     suspend fun getJournalEntryDetail(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<JournalEntryDetailResponse>
 
-    @PUT("/api/finance/journal-entry/update-one/{id}")
+    @PUT("/api/finance/journal-entries/update-one/{id}")
     suspend fun updateJournalEntry(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -116,7 +116,7 @@ interface FinanceApiService {
         @Body request: UpdateJournalEntryRequest
     ): Response<UpdateJournalEntryResponse>
 
-    @DELETE("api/finance/journal-entry/delete-one/{id}")
+    @DELETE("api/finance/journal-entries/delete-one/{id}")
     suspend fun deleteJournalEntry(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,

@@ -70,6 +70,7 @@ import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextArea
 import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
@@ -77,7 +78,6 @@ import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.composable.blurScrim
-import com.cuso.mobile.view.home.inventory.procurement.orders.FormTextArea
 import com.cuso.mobile.view.home.pdfgenerator.OrderReceiptPdfGenerator
 import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 import com.cuso.mobile.view.home.sales.sales_order.toOrderReviewData

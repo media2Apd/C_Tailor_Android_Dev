@@ -193,6 +193,7 @@ fun CustomerDetailScreen(
     ) {
         Scaffold(
             containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

@@ -82,6 +82,7 @@ val yellowBg = Color(0xFFFFFBEB)
 
 // Orange
 val orangeBg = Color(0xFFFDEFE0)
+val orangeText =Color(0xFFE08A2C)
 val darkPurple = Color(0xFF1E3A8A)
 
 

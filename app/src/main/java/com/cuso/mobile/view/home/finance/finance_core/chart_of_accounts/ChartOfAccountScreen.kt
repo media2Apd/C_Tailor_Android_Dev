@@ -245,18 +245,8 @@ fun ChartOfAccountScreen(
                     }
                 }
 
-                visibleAccounts.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("No accounts found", color = TextSecondary, fontSize = tokens.bodyMedium)
-                    }
-                }
-
                 else -> {
+                    // Wrap with FabScaffold so the FAB remains visible even when the account list is empty
                     FabScaffold(
                         modifier = Modifier.weight(1f),
                         fab = FabConfig(
@@ -265,82 +255,91 @@ fun ChartOfAccountScreen(
                             onClick = { showAddAccount = true }
                         )
                     ) {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(visibleAccounts, key = { it._id }) { account ->
-                                val (badgeBg, badgeFg) = statusBadgeColors(account.status)
-                                val expandable = !isSearching && hasChildren(account._id)
-                                val isExpanded = expandedIds.contains(account._id)
-                                val depth = account.indentLevel()
+                        if (visibleAccounts.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("No accounts found", color = TextSecondary, fontSize = tokens.bodyMedium)
+                            }
+                        } else {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(visibleAccounts, key = { it._id }) { account ->
+                                    val (badgeBg, badgeFg) = statusBadgeColors(account.status)
+                                    val expandable = !isSearching && hasChildren(account._id)
+                                    val isExpanded = expandedIds.contains(account._id)
+                                    val depth = account.indentLevel()
 
-                                val (titleColor, titleSize) = when (depth) {
-                                    0 -> Color(0xFF111827) to tokens.h2
-                                    1 -> Color(0xFF4B5563) to tokens.bodyLarge
-                                    else -> Color(0xFF7C8592) to tokens.bodyMedium
-                                }
+                                    val (titleColor, titleSize) = when (depth) {
+                                        0 -> Color(0xFF111827) to tokens.h2
+                                        1 -> Color(0xFF4B5563) to tokens.bodyLarge
+                                        else -> Color(0xFF7C8592) to tokens.bodyMedium
+                                    }
 
-                                DataCard(
-                                    item = account,
-                                    modifier = Modifier.animateItem(),
-                                    title = account.accountName,
-                                    titleColor = titleColor,
-                                    subtitle = "Code: ${account.accountCode}   Type: ${account.accountType}   Sub: ${account.category ?: "-"}",
-                                    topBadgeText = account.status,
-                                    topBadgeTextColor = badgeFg,
-                                    topBadgeBgColor = badgeBg,
-                                    topBadgeInline = true,
-                                    showChevron = expandable,
-                                    chevronExpanded = isExpanded,
-                                    onChevronClick = {
-                                        expandedIds = if (isExpanded) {
-                                            expandedIds - account._id
-                                        } else {
-                                            expandedIds + account._id
-                                        }
-                                    },
-                                    actions = buildList {
-                                        add(
-                                            MenuAction(
-                                                label = "View",
-                                                icon = Icons.Default.Visibility,
-                                                onClick = {
-                                                    selectedAccount = account
-                                                    screenMode = AccountScreenMode.VIEW
-                                                    showAddAccount = true
-                                                }
-                                            )
-                                        )
-                                        if (account.isEditable) {
+                                    DataCard(
+                                        item = account,
+                                        modifier = Modifier.animateItem(),
+                                        title = account.accountName,
+                                        titleColor = titleColor,
+                                        subtitle = "Code: ${account.accountCode}   Type: ${account.accountType}   Sub: ${account.category ?: "-"}",
+                                        topBadgeText = account.status,
+                                        topBadgeTextColor = badgeFg,
+                                        topBadgeBgColor = badgeBg,
+                                        topBadgeInline = true,
+                                        showChevron = expandable,
+                                        chevronExpanded = isExpanded,
+                                        onChevronClick = {
+                                            expandedIds = if (isExpanded) {
+                                                expandedIds - account._id
+                                            } else {
+                                                expandedIds + account._id
+                                            }
+                                        },
+                                        actions = buildList {
                                             add(
                                                 MenuAction(
-                                                    label = "Edit",
-                                                    icon = Icons.Default.Edit,
+                                                    label = "View",
+                                                    icon = Icons.Default.Visibility,
                                                     onClick = {
                                                         selectedAccount = account
-                                                        screenMode = AccountScreenMode.EDIT
+                                                        screenMode = AccountScreenMode.VIEW
                                                         showAddAccount = true
-                                                        onEditAccount(account)
                                                     }
                                                 )
                                             )
-                                        }
-                                        if (!account.isSystemAccount) {
-                                            add(
-                                                MenuAction(
-                                                    label = "Delete",
-                                                    icon = Icons.Default.Delete,
-                                                    tint = Color(0xFFDC2626),
-                                                    textColor = Color(0xFFDC2626),
-                                                    onClick = { accountPendingDelete = account }
+                                            if (account.isEditable) {
+                                                add(
+                                                    MenuAction(
+                                                        label = "Edit",
+                                                        icon = Icons.Default.Edit,
+                                                        onClick = {
+                                                            selectedAccount = account
+                                                            screenMode = AccountScreenMode.EDIT
+                                                            showAddAccount = true
+                                                            onEditAccount(account)
+                                                        }
+                                                    )
                                                 )
-                                            )
+                                            }
+                                            if (!account.isSystemAccount) {
+                                                add(
+                                                    MenuAction(
+                                                        label = "Delete",
+                                                        icon = Icons.Default.Delete,
+                                                        tint = Color(0xFFDC2626),
+                                                        textColor = Color(0xFFDC2626),
+                                                        onClick = { accountPendingDelete = account }
+                                                    )
+                                                )
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
+                                item { Spacer(modifier = Modifier.height(80.dp)) }
                             }
-                            item { Spacer(modifier = Modifier.height(80.dp)) }
                         }
                     }
                 }

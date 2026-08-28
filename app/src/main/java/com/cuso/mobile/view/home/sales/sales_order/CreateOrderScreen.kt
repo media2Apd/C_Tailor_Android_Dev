@@ -13,6 +13,7 @@ package com.cuso.mobile.view.home.sales.sales_order
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.graphics.Color.parseColor
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,7 +33,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -66,7 +66,6 @@ import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.utils.safeDate
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.view.home.formatIndianNumber
-import com.cuso.mobile.view.home.inventory.procurement.orders.FormTextArea
 import com.cuso.mobile.view.home.sales.customer.LabeledField
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.BranchViewModel
@@ -137,6 +136,7 @@ data class ConfiguredOrderItem(
         get() = (stitchingPrice + fabricPrice + addlWorkPrice - discountPrice + taxPrice) * quantity
 }
 
+@SuppressLint("UseKtx")
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CreateOrderScreen(
@@ -560,7 +560,7 @@ fun CreateOrderScreen(
                                                     "navy blue" -> Color(0xFF1E3A8A)
                                                     "charcoal black" -> Color(0xFF1F2937)
                                                     else -> runCatching {
-                                                        Color(android.graphics.Color.parseColor(if (item.colorAccent.startsWith("#")) item.colorAccent else "#${item.colorAccent}"))
+                                                        Color(parseColor(if (item.colorAccent.startsWith("#")) item.colorAccent else "#${item.colorAccent}"))
                                                     }.getOrDefault(Color.White)
                                                 }
                                             )
@@ -1045,85 +1045,58 @@ fun CreateOrderScreen(
             }
 
             // ─────────────────────────────────────────────────────────────
-            // BOTTOM BAR: Full-Width Next Button Matching Screenshot
+            // FLOATING ACTION BUTTON (TRAILING FAB)
             // ─────────────────────────────────────────────────────────────
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = 24.dp)
             ) {
-                Button(
-                    onClick = {
-                        val reviewData = OrderReviewData(
-                            leadId = initialData?.leadId,
-                            orderId = orderIdText,
-                            customerId = initialData?.customerId ?: "",
-                            branchId = initialData?.branchId ?: "",
-                            fullName = fullName,
-                            countryCode = countryCode.ifBlank { "+91" },
-                            phone = phone,
-                            gender = gender,
-                            dressFor = dressFor,
-                            address = address,
-                            source = source,
-                            orderDate = orderDate,
-                            trialDate = initialData?.trialDate.orEmpty().ifBlank { orderDate },
-                            deliveryDate = expectedDeliveryDate,
-                            discount = initialData?.discount ?: 0.0,
-                            paidSoFar = advanceAmount.toDoubleOrNull() ?: 0.0,
-                            designImages = selectedDesignImages,
-                            existingImageUrls = initialData?.existingImageUrls ?: emptyList(),
-                            voiceNoteUri = recordedVoiceNoteUris.firstOrNull(),
-                            garments = orderItemsList.map { item ->
-                                SelectedGarment(
-                                    category = item.garmentType,
-                                    categoryName = item.garmentType,
-                                    categoryId = item.garmentType,
-                                    quantity = item.quantity,
-                                    price = item.totalItemPrice,
-                                    priority = priority,
-                                    trialRequired = true,
-                                    fabricSource = item.fabricSource,
-                                    fabricType = item.fabricSelection,
-                                    colorTone = item.colorAccent,
-                                    pattern = item.designPreset,
-                                    models = emptyList()
-                                )
-                            }
-                        )
-                        onNextStep(reviewData)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(tokens.buttonHeight),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Primary,
-                        contentColor = whiteBg
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "Next",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = whiteBg
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Next",
-                            tint = whiteBg,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
+                TrailingFabButton(
+                    action = TrailingFabAction.Next(
+                        label = "Next",
+                        onClick = {
+                            val reviewData = OrderReviewData(
+                                leadId = initialData?.leadId,
+                                orderId = orderIdText,
+                                customerId = initialData?.customerId ?: "",
+                                branchId = initialData?.branchId ?: "",
+                                fullName = fullName,
+                                countryCode = countryCode.ifBlank { "+91" },
+                                phone = phone,
+                                gender = gender,
+                                dressFor = dressFor,
+                                address = address,
+                                source = source,
+                                orderDate = orderDate,
+                                trialDate = initialData?.trialDate.orEmpty().ifBlank { orderDate },
+                                deliveryDate = expectedDeliveryDate,
+                                discount = initialData?.discount ?: 0.0,
+                                paidSoFar = advanceAmount.toDoubleOrNull() ?: 0.0,
+                                designImages = selectedDesignImages,
+                                existingImageUrls = initialData?.existingImageUrls ?: emptyList(),
+                                voiceNoteUri = recordedVoiceNoteUris.firstOrNull(),
+                                garments = orderItemsList.map { item ->
+                                    SelectedGarment(
+                                        category = item.garmentType,
+                                        categoryName = item.garmentType,
+                                        categoryId = item.garmentType,
+                                        quantity = item.quantity,
+                                        price = item.totalItemPrice,
+                                        priority = priority,
+                                        trialRequired = true,
+                                        fabricSource = item.fabricSource,
+                                        fabricType = item.fabricSelection,
+                                        colorTone = item.colorAccent,
+                                        pattern = item.designPreset,
+                                        models = emptyList()
+                                    )
+                                }
+                            )
+                            onNextStep(reviewData)
+                        }
+                    )
+                )
             }
         }
     }

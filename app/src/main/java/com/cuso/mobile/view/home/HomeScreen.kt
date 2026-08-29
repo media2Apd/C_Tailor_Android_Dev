@@ -239,107 +239,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-//    val implementedRoutes = remember {
-//        setOf(
-//            // ── Home & Settings ──
-//            "home",
-//            "settings",
-//            "profile-settings",
-//            "home_organization_profile",
-//            "home_branch_management",
-//            "home_department_teams",
-//            "home_designation",
-////            "home_role_management",
-////            "home_warehouse_management",
-////            "home_opening_balance",
-//
-//            // ── Sales ──
-//            "sales_lead",
-//            "create_lead",
-//            "view_lead",
-//            "edit_lead",
-//            "sales_customers",
-//            "create_customer",
-//            "view_customer",
-//            "edit_customer",
-//            "view_customer_recent",
-//            "sales_measurements",
-//            "sales_sales_orders",
-//            "create_order",
-//            "order_overview",
-//            "create_order_review",
-//            "sales_orders",
-//            "order_management_overview",
-//            "sales_pricing_overview",
-//            "create_garment_pricing",
-//            "garment_pricing_list",
-//            "sales_pricing_quotation",
-//            "create_quotation",
-////            "sales_payment_and_billing",
-////            "payment_detail",
-//            "sales_settings",
-//            "sales_garment_type",
-//
-//            // ── Finance ──
-//            "finance_sales_invoices",
-//            "finance_invoice_detail",
-////            "finance_purchase_invoices",
-////            "finance_purchase_invoice_detail",
-//            "finance_customers",
-////            "finance_suppliers",
-////            "finance_supplier_detail",
-//            "finance_expenses",
-//            "finance_chart_of_accounts",
-//            "finance_journal_screen",
-//            "finance_trial_balance",
-//            "finance_ledger",
-////            "finance_payments_received",
-////            "payment_detail_screen",
-////            "finance_payments_mode",
-////            "payment_mode_detail",
-//
-//            // ── Inventory ──
-//            "inventory_items",
-//            "inventory_create_item",
-//            "inventory_item_detail",
-////            "inventory_low_stock_alerts",
-////            "inventory_create_purchase_order",
-////            "inventory_item_groups",
-////            "inventory_create_item_group",
-//
-//            // ── HR ──
-//            "hr_all_employees",
-//            "hr_employee_onboarding",
-////            "hr_attendance",
-////            "hr_attendance_detail",
-//
-//            // ── Logistics ──
-////            "logistics_delivery",
-////            "delivery_detail",
-////            "logistics_order_tracking",
-////            "tracking_overview",
-//
-//            // ── Services ──
-////            "services_customer_feedback",
-////            "feedback_detail",
-////            "services_alteration_management",
-////            "create_alteration",
-////            "services_service_request",
-////            "create_request",
-////            "review_services",
-//
-//            // ── Reports ──
-////            "reports_sales",
-////            "reports_inventory",
-////            "reports_inventory_stock_summary",
-////            "reports_inventory_low_stock",
-////            "reports_inventory_warehouse_report",
-////            "reports_inventory_purchase_report",
-////            "reports_inventory_dead_stock",
-////            "reports_finance",
-////            "reports_finance_profit_and_loss_report"
-//        )
-//    }
     val implementedRoutes = remember {
         setOf(
             // ── Home & Settings ──
@@ -350,10 +249,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "home_branch_management",
             "home_department_teams",
             "home_designation",
-            "home_role_management",
-            "home_warehouse_management",
-            "home_opening_balance",
-            "sales_garment_type",
+//            "home_role_management",
+//            "home_warehouse_management",
+//            "home_opening_balance",
 
             // ── Sales ──
             "sales_lead",
@@ -377,80 +275,184 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "garment_pricing_list",
             "sales_pricing_quotation",
             "create_quotation",
-            "measurement_entry",
-            "order_preview",
-            "sales_payment_and_billing",
-            "payment_detail",
+//            "sales_payment_and_billing",
+//            "payment_detail",
             "sales_settings",
             "sales_garment_type",
 
             // ── Finance ──
             "finance_sales_invoices",
             "finance_invoice_detail",
-            "finance_purchase_invoices",
-            "finance_purchase_invoice_detail",
+//            "finance_purchase_invoices",
+//            "finance_purchase_invoice_detail",
             "finance_customers",
-            "finance_suppliers",
-            "finance_supplier_detail",
+//            "finance_suppliers",
+//            "finance_supplier_detail",
             "finance_expenses",
             "finance_chart_of_accounts",
             "finance_journal_screen",
             "finance_trial_balance",
             "finance_ledger",
-            "finance_payments_received",
-            "payment_detail_screen",
-            "finance_payments_mode",
-            "payment_mode_detail",
+//            "finance_payments_received",
+//            "payment_detail_screen",
+//            "finance_payments_mode",
+//            "payment_mode_detail",
 
             // ── Inventory ──
             "inventory_items",
             "inventory_create_item",
             "inventory_item_detail",
-            "inventory_low_stock_alerts",
-            "inventory_create_purchase_order",
-            "inventory_item_groups",
-            "inventory_create_item_group",
+//            "inventory_low_stock_alerts",
+//            "inventory_create_purchase_order",
+//            "inventory_item_groups",
+//            "inventory_create_item_group",
 
             // ── HR ──
             "hr_all_employees",
             "hr_employee_onboarding",
-            "hr_attendance",
-            "hr_attendance_detail",
+//            "hr_attendance",
+//            "hr_attendance_detail",
 
             // ── Logistics ──
-            "logistics_delivery",
-            "delivery_detail",
-            "logistics_order_tracking",
-            "tracking_overview",
+//            "logistics_delivery",
+//            "delivery_detail",
+//            "logistics_order_tracking",
+//            "tracking_overview",
 
             // ── Services ──
-            "services_service_status",
-            "services_delay_rework",
-            "services_service_delivery",
-            "service_status_detail",
-            "services_service_orders",
-            "services_service_order",
-            "service_order_overview",
-            "services_customer_feedback",
-            "feedback_detail",
-            "services_alteration_management",
-            "create_alteration",
-            "services_service_request",
-            "create_request",
-            "review_services",
+//            "services_customer_feedback",
+//            "feedback_detail",
+//            "services_alteration_management",
+//            "create_alteration",
+//            "services_service_request",
+//            "create_request",
+//            "review_services",
 
             // ── Reports ──
-            "reports_sales",
-            "reports_inventory",
-            "reports_inventory_stock_summary",
-            "reports_inventory_low_stock",
-            "reports_inventory_warehouse_report",
-            "reports_inventory_purchase_report",
-            "reports_inventory_dead_stock",
-            "reports_finance",
-            "reports_finance_profit_and_loss_report"
+//            "reports_sales",
+//            "reports_inventory",
+//            "reports_inventory_stock_summary",
+//            "reports_inventory_low_stock",
+//            "reports_inventory_warehouse_report",
+//            "reports_inventory_purchase_report",
+//            "reports_inventory_dead_stock",
+//            "reports_finance",
+//            "reports_finance_profit_and_loss_report"
         )
     }
+//    val implementedRoutes = remember {
+//        setOf(
+//            // ── Home & Settings ──
+//            "home",
+//            "settings",
+//            "profile-settings",
+//            "settings_overview",
+//            "module_settings",
+//            "home_organization_profile",
+//            "home_branch_management",
+//            "home_department_teams",
+//            "home_designation",
+//            "home_role_management",
+//            "home_warehouse_management",
+//            "home_opening_balance",
+//            "sales_garment_type",
+//
+//            // ── Sales ──
+//            "sales_lead",
+//            "create_lead",
+//            "view_lead",
+//            "edit_lead",
+//            "sales_customers",
+//            "create_customer",
+//            "view_customer",
+//            "edit_customer",
+//            "view_customer_recent",
+//            "sales_measurements",
+//            "sales_sales_orders",
+//            "create_order",
+//            "order_overview",
+//            "create_order_review",
+//            "sales_orders",
+//            "order_management_overview",
+//            "sales_pricing_overview",
+//            "create_garment_pricing",
+//            "garment_pricing_list",
+//            "sales_pricing_quotation",
+//            "create_quotation",
+//            "measurement_entry",
+//            "order_preview",
+//            "sales_payment_and_billing",
+//            "payment_detail",
+//            "sales_settings",
+//            "sales_garment_type",
+//
+//            // ── Finance ──
+//            "finance_sales_invoices",
+//            "finance_invoice_detail",
+//            "finance_purchase_invoices",
+//            "finance_purchase_invoice_detail",
+//            "finance_customers",
+//            "finance_suppliers",
+//            "finance_supplier_detail",
+//            "finance_expenses",
+//            "finance_chart_of_accounts",
+//            "finance_journal_screen",
+//            "finance_trial_balance",
+//            "finance_ledger",
+//            "finance_payments_received",
+//            "payment_detail_screen",
+//            "finance_payments_mode",
+//            "payment_mode_detail",
+//
+//            // ── Inventory ──
+//            "inventory_items",
+//            "inventory_create_item",
+//            "inventory_item_detail",
+//            "inventory_low_stock_alerts",
+//            "inventory_create_purchase_order",
+//            "inventory_item_groups",
+//            "inventory_create_item_group",
+//
+//            // ── HR ──
+//            "hr_all_employees",
+//            "hr_employee_onboarding",
+//            "hr_attendance",
+//            "hr_attendance_detail",
+//
+//            // ── Logistics ──
+//            "logistics_delivery",
+//            "delivery_detail",
+//            "logistics_order_tracking",
+//            "tracking_overview",
+//
+//            // ── Services ──
+//            "services_service_status",
+//            "services_delay_rework",
+//            "services_service_delivery",
+//            "service_status_detail",
+//            "services_service_orders",
+//            "services_service_order",
+//            "service_order_overview",
+//            "services_customer_feedback",
+//            "feedback_detail",
+//            "services_alteration_management",
+//            "create_alteration",
+//            "services_service_request",
+//            "create_request",
+//            "review_services",
+//
+//            // ── Reports ──
+//            "reports_sales",
+//            "reports_inventory",
+//            "reports_inventory_stock_summary",
+//            "reports_inventory_low_stock",
+//            "reports_inventory_warehouse_report",
+//            "reports_inventory_purchase_report",
+//            "reports_inventory_dead_stock",
+//            "reports_finance",
+//            "reports_finance_profit_and_loss_report"
+//        )
+//    }
 
     fun safeNavigate(route: String) {
         val navKey = normalizeRoute(route)
@@ -2052,7 +2054,7 @@ fun normalizeRoute(rawKey: String): String {
 }
 
 fun menuForScreen(screen: String): String = when {
-    screen == "home" || screen == "settings" || screen == "profile-settings" || screen.startsWith("home_") -> "Home"
+    screen == "home" || screen == "settings" || screen == "profile-settings" || screen == "settings_overview" || screen == "module_settings" || screen.startsWith("home_") -> "Home"
     screen.startsWith("sales_") || screen in setOf(
         "create_lead", "view_lead", "edit_lead",
         "create_order", "order_overview", "create_order_review",

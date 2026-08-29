@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.cuso.mobile.view.home.logistics.order_tracking
 
 import androidx.compose.foundation.layout.*
@@ -15,7 +17,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.ui.theme.grey_border
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.MenuAction
@@ -70,8 +71,6 @@ fun OrderTrackingScreen(
 
             }
 
-            // ── Breadcrumb ──
-            ScreenBreadcrumb(listOf("Logistics", "Order Tracking"), onClick = {onBreadCrumbClick()})
 
             // ── Search + filter row ──
             SearchFilterBar(

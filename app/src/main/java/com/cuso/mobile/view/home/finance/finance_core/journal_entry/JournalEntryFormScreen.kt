@@ -17,7 +17,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -92,6 +91,7 @@ fun JournalEntryFormScreen(
     val isReadOnly = mode == "view"
     val isPrefillMode = mode == "view" || mode == "edit"
 
+    // Collect Journal Entry Details State
     val journalDetail by financeViewModel.journalEntryDetail.collectAsStateWithLifecycle()
     val isLoadingDetail by financeViewModel.isLoadingJournalDetail.collectAsStateWithLifecycle()
     val journalDetailError by financeViewModel.journalDetailError.collectAsStateWithLifecycle()
@@ -106,27 +106,25 @@ fun JournalEntryFormScreen(
         onDispose { financeViewModel.clearJournalEntryDetail() }
     }
 
-    val accounts by financeViewModel.chartOfAccounts.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { financeViewModel.fetchChartOfAccounts() }
-    val accountOptions = remember(accounts) {
-        accounts.mapNotNull { account ->
-            val code = account.accountCode
-            val name = account.accountName
-            if (code.isNotBlank() || name.isNotBlank()) {
-                "$code - $name"
-            } else {
-                null
-            }
-        }
+    // ── Fetch and Observe Accounts Dropdown with "journal_entry" Context ──
+    val dropdownAccounts by financeViewModel.accountDropdownList.collectAsStateWithLifecycle()
+    val isLoadingDropdown by financeViewModel.isLoadingAccountDropdown.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        financeViewModel.fetchChartOfAccountsDropdown(context = "journal_entry")
     }
 
-    val branchState by branchViewModel.uiState.collectAsStateWithLifecycle()
+    val accountOptions = remember(dropdownAccounts) {
+        dropdownAccounts.map { it.displayName }
+    }
 
+    // Collect Branches State
+    val branchState by branchViewModel.uiState.collectAsStateWithLifecycle()
     val branches = remember(branchState) {
         (branchState as? BranchUiState.Success)?.branches ?: emptyList()
     }
     val branchOptions = remember(branches) {
-        branches.map { it.name!!.ifBlank { it.branchId } }
+        branches.map { it.name?.ifBlank { "Select Branch" } ?: it.branchId }
     }
     val branchLoadError = remember(branchState) {
         (branchState as? BranchUiState.Error)?.message
@@ -135,7 +133,7 @@ fun JournalEntryFormScreen(
     var expenseDetailsExpanded by remember { mutableStateOf(true) }
 
     var journalNo by remember { mutableStateOf("") }
-    var financeialYear by remember { mutableStateOf("") }
+    var financialYear by remember { mutableStateOf("") }
     var branch: String? by remember { mutableStateOf("") }
     var selectedBranchId by remember { mutableStateOf("") }
     var branchExpanded by remember { mutableStateOf(false) }
@@ -162,8 +160,6 @@ fun JournalEntryFormScreen(
     var journalType by remember { mutableStateOf("") }
 
     var uploadedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
-
-    // Track which action triggered the network call ("draft" or "post")
     var pendingActionType by remember { mutableStateOf<String?>(null) }
 
     val documentPickerLauncher = rememberLauncherForActivityResult(
@@ -179,6 +175,7 @@ fun JournalEntryFormScreen(
     val isUploadRestricted = currentPlanName.equals("starter", ignoreCase = true) ||
             currentPlanName.equals("light", ignoreCase = true)
 
+    // Calculate totals and validation
     val totalDebit = remember(lines) { lines.sumOf { it.debit.toDoubleOrNull() ?: 0.0 } }
     val totalCredit = remember(lines) { lines.sumOf { it.credit.toDoubleOrNull() ?: 0.0 } }
     val isBalanced = remember(totalDebit, totalCredit) {
@@ -197,6 +194,7 @@ fun JournalEntryFormScreen(
     val isApiLoading = createJournalState is CreateJournalState.Loading ||
             updateJournalState is UpdateJournalState.Loading
 
+    // Handle Create Journal Response State
     LaunchedEffect(createJournalState) {
         when (createJournalState) {
             is CreateJournalState.Success -> {
@@ -207,10 +205,11 @@ fun JournalEntryFormScreen(
             is CreateJournalState.Error -> {
                 pendingActionType = null
             }
-            else -> {}
+            else -> Unit
         }
     }
 
+    // Handle Update Journal Response State
     LaunchedEffect(updateJournalState) {
         when (updateJournalState) {
             is UpdateJournalState.Success -> {
@@ -221,15 +220,16 @@ fun JournalEntryFormScreen(
             is UpdateJournalState.Error -> {
                 pendingActionType = null
             }
-            else -> {}
+            else -> Unit
         }
     }
 
+    // Load initial branches
     LaunchedEffect(Unit) {
         branchViewModel.loadBranches()
-        financeViewModel.fetchChartOfAccounts()
     }
 
+    // Default branch assignment
     LaunchedEffect(branches) {
         if (branch?.isBlank() == true && branches.isNotEmpty()) {
             val mainBranch = branches.firstOrNull { it.isMainBranch } ?: branches.firstOrNull()
@@ -238,7 +238,8 @@ fun JournalEntryFormScreen(
         }
     }
 
-    LaunchedEffect(journalDetail, branches) {
+    // Prefill form when in View or Edit mode
+    LaunchedEffect(journalDetail, branches, dropdownAccounts) {
         val entry = journalDetail ?: return@LaunchedEffect
         journalNo = entry.entryNumber
         journalRef = entry.reference.orEmpty()
@@ -252,9 +253,12 @@ fun JournalEntryFormScreen(
         }
 
         val mappedLines = entry.lines.map { line ->
+            val matchedAccountName = dropdownAccounts.find { it.id == line.accountId.id }?.displayName
+                ?: "${line.accountId.accountCode} - ${line.accountId.accountName}"
+
             JournalLineDraft(
                 id = line.id,
-                account = "${line.accountId.accountCode} - ${line.accountId.accountName}",
+                account = matchedAccountName,
                 description = line.description.orEmpty(),
                 debit = if (line.debit > 0) line.debit.toString() else "",
                 credit = if (line.credit > 0) line.credit.toString() else ""
@@ -275,9 +279,8 @@ fun JournalEntryFormScreen(
             .fillMaxSize()
             .background(Color.Transparent)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        // Title Bar
+        Row(modifier = Modifier.fillMaxWidth()) {
             TitleBar(
                 title = when (mode) {
                     "view" -> "View Journal Entry"
@@ -310,7 +313,7 @@ fun JournalEntryFormScreen(
                     .verticalScroll(rememberScrollState())
                     .background(Color.Transparent)
             ) {
-                // Expense Details
+                // Section: Expense Details
                 AccordionSection(
                     title = "Expense Details",
                     expanded = expenseDetailsExpanded,
@@ -329,8 +332,8 @@ fun JournalEntryFormScreen(
 
                     FormLabel("Financial Year")
                     FormTextField(
-                        value = financeialYear,
-                        onValueChange = { financeialYear = it },
+                        value = financialYear,
+                        onValueChange = { financialYear = it },
                         placeholder = "Enter Financial Year",
                         enabled = !isReadOnly
                     )
@@ -345,7 +348,7 @@ fun JournalEntryFormScreen(
                         onOptionSelected = { selected ->
                             branch = selected
                             selectedBranchId =
-                                branches.firstOrNull { it.name?.ifBlank { it.branchId } == selected }?.id
+                                branches.firstOrNull { (it.name?.ifBlank { it.branchId } ?: it.branchId) == selected }?.id
                                     ?: ""
                         }
                     )
@@ -365,7 +368,7 @@ fun JournalEntryFormScreen(
                             )
                         }
 
-                        else -> {}
+                        else -> Unit
                     }
                     Spacer(Modifier.height(14.dp))
 
@@ -437,7 +440,7 @@ fun JournalEntryFormScreen(
                     }
                 }
 
-                // Notes
+                // Section: Notes
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -457,7 +460,7 @@ fun JournalEntryFormScreen(
                 }
                 HorizontalDivider(color = BorderGray)
 
-                // Documentation & Receipts
+                // Section: Documentation & Receipts
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -490,7 +493,7 @@ fun JournalEntryFormScreen(
                 }
                 HorizontalDivider(color = BorderGray)
 
-                // Balance Summary Panel
+                // Section: Balance Summary Panel
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -583,9 +586,7 @@ fun JournalEntryFormScreen(
         }
 
         HorizontalDivider(color = BorderGray)
-        Column(
-            Modifier.fillMaxWidth()
-        ) {
+        Column(Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -601,7 +602,7 @@ fun JournalEntryFormScreen(
                 Spacer(Modifier.weight(1f))
                 if (!isReadOnly) {
 
-                    // 1. Save as Draft Action Button
+                    // Save as Draft Button
                     val isDraftLoading = isApiLoading && pendingActionType == "draft"
                     TrailingFabButton(
                         action = TrailingFabAction.Update(
@@ -611,9 +612,8 @@ fun JournalEntryFormScreen(
                             onClick = {
                                 pendingActionType = "draft"
                                 val lineRequests = lines.mapNotNull { line ->
-                                    val matchedAccount =
-                                        accounts.find { "${it.accountCode} - ${it.accountName}" == line.account }
-                                    val accountId = matchedAccount?._id ?: return@mapNotNull null
+                                    val matchedAccount = dropdownAccounts.find { it.displayName == line.account }
+                                    val accountId = matchedAccount?.id ?: return@mapNotNull null
                                     JournalEntryLineRequest(
                                         accountId = accountId,
                                         debit = line.debit.toDoubleOrNull() ?: 0.0,
@@ -647,7 +647,7 @@ fun JournalEntryFormScreen(
 
                     Spacer(Modifier.weight(1f))
 
-                    // 2. Post / Update Action Button
+                    // Post or Update Button
                     val isPostLoading = isApiLoading && pendingActionType == "post"
                     TrailingFabButton(
                         action = TrailingFabAction.Update(
@@ -658,10 +658,8 @@ fun JournalEntryFormScreen(
                                 if (canPost) {
                                     pendingActionType = "post"
                                     val lineRequests = lines.mapNotNull { line ->
-                                        val matchedAccount =
-                                            accounts.find { "${it.accountCode} - ${it.accountName}" == line.account }
-                                        val accountId =
-                                            matchedAccount?._id ?: return@mapNotNull null
+                                        val matchedAccount = dropdownAccounts.find { it.displayName == line.account }
+                                        val accountId = matchedAccount?.id ?: return@mapNotNull null
                                         JournalEntryLineRequest(
                                             accountId = accountId,
                                             debit = line.debit.toDoubleOrNull() ?: 0.0,
@@ -711,9 +709,7 @@ fun JournalEntryFormScreen(
             title = "Feature restricted",
             message = "You're on the ${currentPlanName.replaceFirstChar { it.uppercase() }} plan and can't upload documents or receipts. Upgrade your plan to unlock this feature.",
             onDismiss = { showPlanLimitDialog = false },
-            onUpgrade = {
-                showPlanLimitDialog = false
-            }
+            onUpgrade = { showPlanLimitDialog = false }
         )
     }
 }
@@ -728,9 +724,7 @@ private fun JournalLineRow(
 ) {
     var accountExpanded by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         if (onRemove != null) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -799,6 +793,7 @@ private fun JournalLineRow(
         Spacer(Modifier.height(10.dp))
     }
 }
+
 @Composable
 private fun LineFieldRow(
     label: String,

@@ -20,6 +20,7 @@ val PrimaryTextColor = Color(0xFF8d939d)
 // ===========================================================
 val whiteBg = Color.White
 val light_blue = Color(0xFFf9fbff)
+val background_light_purple = Color(0xFFEEECFC)
 val lightGray = Color(0xFFF2F2F2)
 val PanelBg = Color(0xFFF7F7FA)
 val modelBg = Color(0xfff8f9ff)

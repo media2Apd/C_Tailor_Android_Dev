@@ -3,7 +3,8 @@
     "SpellCheckingInspection",
     "GrazieInspection",
     "AssignedValueIsNeverRead",
-    "unused_variable"
+    "unused_variable",
+    "unused"
 )
 package com.cuso.mobile.view.home.services.service_order
 
@@ -15,7 +16,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Visibility
@@ -38,26 +38,15 @@ import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.blackTitle
-import com.cuso.mobile.ui.theme.greenBg
-import com.cuso.mobile.ui.theme.greentext
-import com.cuso.mobile.ui.theme.redBg
-import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.ui.theme.yellowBg
-import com.cuso.mobile.ui.theme.yellowText
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
-import com.cuso.mobile.view.composable.DataCardField
-import com.cuso.mobile.view.composable.DataCardImage
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.ErrorMapper
-import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.OrderActionState
@@ -165,10 +154,7 @@ fun ServiceOrderScreen(
                 }
 
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    ScreenBreadcrumb(
-                        segments = listOf("Services", "Service Orders"),
-                        onClick = { onBreadCrumbClick() }
-                    )
+
                     SearchFilterBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
@@ -356,13 +342,13 @@ fun ServiceOrderScreen(
                                                             verticalArrangement = Arrangement.spacedBy(4.dp)
                                                         ) {
                                                             Text(
-                                                                text = "Total: ₹${order.totalAmount?.toInt() ?: 0}",
+                                                                text = "Total: ₹${order.totalAmount ?: 0}",
                                                                 fontSize = 12.sp,
                                                                 color = Color(0xFF6B7280)
                                                             )
                                                             Row(verticalAlignment = Alignment.Bottom) {
                                                                 Text(
-                                                                    text = "₹${order.totalPaid?.toInt() ?: order.totalAmount?.toInt() ?: 0}",
+                                                                    text = "₹${order.totalPaid ?: order.totalAmount ?: 0}",
                                                                     fontSize = 18.sp,
                                                                     fontWeight = FontWeight.Bold,
                                                                     color = Color(0xFF111827)
@@ -416,24 +402,24 @@ fun ServiceOrderScreen(
     }
 }
 
-private fun formatServiceGarmentsSummary(garments: String): String {
-    if (garments.isBlank()) return "—"
-    val names = garments.split(",").map { it.trim().substringBefore("(").trim() }
-    return when {
-        names.isEmpty() -> "—"
-        names.size == 1 -> names[0]
-        else -> "${names[0]}, ${names.size - 1} more"
-    }
-}
-
-private fun serviceOrderStatusColors(status: String?): Pair<Color, Color> = when (status?.lowercase()) {
-    "confirmed"  -> greenBg to greentext
-    "pending"    -> yellowBg to yellowText
-    "processing" -> Color(0xFFF3E5F5) to Color(0xFF9C27B0)
-    "completed"  -> greenBg to greentext
-    "cancelled"  -> redBg to redText
-    else         -> Color(0xFFE3F2FD) to Color(0xFF1976D2)
-}
+//private fun formatServiceGarmentsSummary(garments: String): String {
+//    if (garments.isBlank()) return "—"
+//    val names = garments.split(",").map { it.trim().substringBefore("(").trim() }
+//    return when {
+//        names.isEmpty() -> "—"
+//        names.size == 1 -> names[0]
+//        else -> "${names[0]}, ${names.size - 1} more"
+//    }
+//}
+//
+//private fun serviceOrderStatusColors(status: String?): Pair<Color, Color> = when (status?.lowercase()) {
+//    "confirmed"  -> greenBg to greentext
+//    "pending"    -> yellowBg to yellowText
+//    "processing" -> Color(0xFFF3E5F5) to Color(0xFF9C27B0)
+//    "completed"  -> greenBg to greentext
+//    "cancelled"  -> redBg to redText
+//    else         -> Color(0xFFE3F2FD) to Color(0xFF1976D2)
+//}
 
 private fun Long?.toDisplayDate(): String {
     if (this == null) return "—"

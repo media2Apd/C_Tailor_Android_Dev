@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.model.finance.AccountDropdownItem
 import com.cuso.mobile.model.finance.ChartOfAccountItem
 import com.cuso.mobile.model.finance.indentLevel
 import com.cuso.mobile.ui.theme.BluePrimary
@@ -58,7 +59,6 @@ import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TitleBar
@@ -109,7 +109,7 @@ fun ChartOfAccountScreen(
     var expandedIds by remember { mutableStateOf(setOf<String>()) }
     val listState = rememberLazyListState()
 
-    // Fetch initial accounts
+    // Fetch initial tree accounts
     LaunchedEffect(Unit) {
         financeViewModel.fetchChartOfAccounts()
     }
@@ -175,6 +175,7 @@ fun ChartOfAccountScreen(
                 showAddAccount = false
                 selectedAccount = null
                 screenMode = AccountScreenMode.CREATE
+                financeViewModel.fetchChartOfAccounts()
                 successMessage = message.takeIf { it.isNotBlank() } ?: "Account updated successfully"
             }
         )
@@ -196,10 +197,6 @@ fun ChartOfAccountScreen(
             }
 
             Column {
-                ScreenBreadcrumb(
-                    segments = listOf("Finance", "Chart of Accounts"),
-                    onClick = onBreadcrumbClick
-                )
 
                 SearchFilterBar(
                     query = searchQuery,
@@ -246,7 +243,6 @@ fun ChartOfAccountScreen(
                 }
 
                 else -> {
-                    // Wrap with FabScaffold so the FAB remains visible even when the account list is empty
                     FabScaffold(
                         modifier = Modifier.weight(1f),
                         fab = FabConfig(
@@ -408,7 +404,13 @@ fun AddAccountScreen(
     val tokens = LocalAppTokens.current
 
     val createAccountState by financeViewModel.createAccountState.collectAsStateWithLifecycle()
-    val accounts by financeViewModel.chartOfAccounts.collectAsStateWithLifecycle()
+    val dropdownAccounts by financeViewModel.accountDropdownList.collectAsStateWithLifecycle()
+    val isLoadingDropdown by financeViewModel.isLoadingAccountDropdown.collectAsStateWithLifecycle()
+
+    // Fetch dropdown accounts for parent account selection
+    LaunchedEffect(Unit) {
+        financeViewModel.fetchChartOfAccountsDropdown(context = "parent_account")
+    }
 
     var currentMode by remember(existingAccount?._id) { mutableStateOf(mode) }
     val isViewMode = currentMode == AccountScreenMode.VIEW
@@ -421,13 +423,13 @@ fun AddAccountScreen(
     var accountName by remember { mutableStateOf(existingAccount?.accountName.orEmpty()) }
 
     var isSubAccount by remember { mutableStateOf(existingAccount?.parentAccount != null) }
-    var selectedParent by remember { mutableStateOf<ChartOfAccountItem?>(null) }
+    var selectedParent by remember { mutableStateOf<AccountDropdownItem?>(null) }
     var parentExpanded by remember { mutableStateOf(false) }
 
-    LaunchedEffect(accounts, existingAccount) {
+    LaunchedEffect(dropdownAccounts, existingAccount) {
         val parentId = existingAccount?.parentAccount?._id
         if (parentId != null && selectedParent == null) {
-            selectedParent = accounts.find { it._id == parentId }
+            selectedParent = dropdownAccounts.find { it.id == parentId }
         }
     }
 
@@ -463,7 +465,7 @@ fun AddAccountScreen(
             is UpdateAccountState.Success -> {
                 onUpdate(
                     accountName, accountType, description.ifBlank { null },
-                    if (isSubAccount) selectedParent?._id else null,
+                    if (isSubAccount) selectedParent?.id else null,
                     existingAccount?._id.orEmpty(),
                     state.message.takeIf { it.isNotBlank() } ?: "Account updated successfully"
                 )
@@ -495,7 +497,6 @@ fun AddAccountScreen(
                 }
             )
             HorizontalDivider(color = BorderGray)
-            HorizontalDivider(color = BorderGray)
 
             Column(
                 modifier = Modifier
@@ -518,7 +519,7 @@ fun AddAccountScreen(
                         }
                         errorField = null
                     },
-                    enabled = fieldsEnabled,
+                    enabled = currentMode == AccountScreenMode.CREATE,
                     isRequired = true,
                     isError = errorField == "accountType",
                     errorMessage = if (errorField == "accountType") "Account type is required" else null
@@ -571,19 +572,19 @@ fun AddAccountScreen(
                 if (subAccountEnabled && isSubAccount) {
                     Spacer(Modifier.height(10.dp))
 
-                    val eligibleParentAccounts = remember(accounts, accountType) {
-                        accounts
-                            .filter { it.accountType == accountType }
+                    val eligibleParentAccounts = remember(dropdownAccounts, accountType) {
+                        dropdownAccounts
+                            .filter { it.accountType.equals(accountType, ignoreCase = true) }
                             .sortedBy { it.accountCode.toIntOrNull() ?: Int.MAX_VALUE }
                     }
 
                     val parentDisplayOptions = remember(eligibleParentAccounts) {
-                        eligibleParentAccounts.map { "${it.accountCode} - ${it.accountName}" }
+                        eligibleParentAccounts.map { it.displayName }
                     }
 
                     FormDropdown(
                         label = "Parent Account",
-                        value = selectedParent?.let { "${it.accountCode} - ${it.accountName}" } ?: "Select an option",
+                        value = selectedParent?.displayName ?: if (isLoadingDropdown) "Loading..." else "Select an option",
                         expanded = parentExpanded,
                         onExpandChange = { parentExpanded = it },
                         options = parentDisplayOptions,
@@ -591,7 +592,7 @@ fun AddAccountScreen(
                             val code = display.substringBefore(" - ")
                             selectedParent = eligibleParentAccounts.find { it.accountCode == code }
                         },
-                        enabled = true
+                        enabled = !isLoadingDropdown
                     )
                 }
                 Spacer(Modifier.height(14.dp))
@@ -665,14 +666,14 @@ fun AddAccountScreen(
                                     accountName = accountName,
                                     accountType = accountType,
                                     description = description.ifBlank { null },
-                                    parentAccount = if (isSubAccount) selectedParent?._id else null
+                                    parentAccount = if (isSubAccount) selectedParent?.id else null
                                 )
                             } else {
                                 financeViewModel.createChartOfAccount(
                                     accountName = accountName,
                                     accountType = accountType,
                                     description = description.ifBlank { null },
-                                    parentAccount = if (isSubAccount) selectedParent?._id else null
+                                    parentAccount = if (isSubAccount) selectedParent?.id else null
                                 )
                             }
                         }

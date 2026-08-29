@@ -14,7 +14,7 @@
     "VariableNeverRead"
 )
 
-package com.cuso.mobile.view.home
+package com.cuso.mobile.view.home.profile_settings
 
 import android.content.Context
 import android.net.Uri
@@ -23,7 +23,6 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,7 +55,6 @@ import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.UpdateOrganizationRequest
 import com.cuso.mobile.model.UpdateOrganizationSettings
-import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
@@ -71,7 +69,6 @@ import com.cuso.mobile.view.composable.CountryAndStatePicker
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FormDropdown
-import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.SettingsTabs
@@ -79,7 +76,6 @@ import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TabItem
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.composable.dashedBorder
-import com.cuso.mobile.view.organization.OrgLabel
 import com.cuso.mobile.view.organization.OrgOptions
 import com.cuso.mobile.view.organization.OrgOptions.companySizes
 import com.cuso.mobile.viewmodel.Authenticate

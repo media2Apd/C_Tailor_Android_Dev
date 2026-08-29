@@ -29,7 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
@@ -158,10 +157,7 @@ fun ProfitAndLossReportScreen(
 
                             ) {
                                 Box(modifier = Modifier.weight(1f)) {
-                                    ScreenBreadcrumb(
-                                        listOf("Reports", "Finance", "Profit & Loss Report"),
-                                        onClick = { onBreadCrumbClick() }
-                                    )
+
                                 }
                                 Row(
                                     modifier = Modifier

@@ -1,4 +1,6 @@
-package com.cuso.mobile.view.home.profile
+@file:Suppress("AssignedValueIsNeverRead")
+
+package com.cuso.mobile.view.home.profile_settings
 
 import android.annotation.SuppressLint
 import androidx.activity.ComponentActivity
@@ -30,7 +32,11 @@ import coil.compose.AsyncImage
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.view.home.profile_settings.all_settings.ModuleSettingsScreen
+import com.cuso.mobile.view.home.profile_settings.all_settings.SettingsOverviewScreen
 import com.cuso.mobile.viewmodel.Authenticate
 
 private data class SettingsMenuItem(
@@ -53,10 +59,36 @@ fun ProfileSettingsScreen(
     onDepartment: () -> Unit = {},
     onTeams: () -> Unit = {},
     onDesignation: () -> Unit = {},
-    onGarmentType: () -> Unit = {}, // 👈👈👈 SALES - Garment Type Callback
+    onGarmentType: () -> Unit = {},
     onHelpSupport: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
+    // Navigation Screen State
+    var currentScreen by remember { mutableStateOf("MAIN") }
+
+    when (currentScreen) {
+        "SETTINGS_OVERVIEW" -> {
+            SettingsOverviewScreen(
+                onClose = { currentScreen = "MAIN" },
+                onNavigateToOrganizationSettings = {
+                    currentScreen = "MAIN"
+                    onOrganizationSetup()
+                },
+                onNavigateToModuleSettings = {
+                    currentScreen = "MODULE_SETTINGS"
+                }
+            )
+            return
+        }
+        "MODULE_SETTINGS" -> {
+            ModuleSettingsScreen(
+                onClose = { currentScreen = "SETTINGS_OVERVIEW" },
+                onConfigureSales = onGarmentType
+            )
+            return
+        }
+    }
+
     val authViewModel: Authenticate = hiltViewModel(
         LocalContext.current as ComponentActivity
     )
@@ -73,9 +105,9 @@ fun ProfileSettingsScreen(
             icon = R.drawable.ic_building,
             iconBg = Color(0xFFEDE9FE),
             iconTint = Color(0xFF6C4FF6),
-            title = "Organization Setup",
-            subtitle = "Manage organization details, billing & settings",
-            onClick = onOrganizationSetup
+            title = "All Settings",
+            subtitle = "Manage organization, modules and system preferences",
+            onClick = { currentScreen = "SETTINGS_OVERVIEW" }
         )
     )
 
@@ -138,25 +170,8 @@ fun ProfileSettingsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(whiteBg)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color(0xFF111827),
-                modifier = Modifier
-                    .size(22.dp)
-                    .clickable { onClose() }
-            )
-            Spacer(Modifier.width(16.dp))
-            Text(
-                text = "Settings",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
-            )
+        ){
+            TitleBar("Profile Settings", onClose)
         }
 
         LazyColumn(
@@ -338,7 +353,7 @@ private fun SettingsCardGroup(items: List<SettingsMenuItem>) {
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(item.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                    Text(item.title, fontSize = 14.sp, color = title_color)
                     Text(item.subtitle, fontSize = 11.sp, color = TextSecondary)
                 }
                 Icon(

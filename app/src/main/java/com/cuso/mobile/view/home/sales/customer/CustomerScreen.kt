@@ -68,7 +68,6 @@ import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.CustomerCreateState
@@ -223,7 +222,6 @@ fun CustomerScreen(
                 }
 
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    ScreenBreadcrumb(segments = listOf("Sales", "Customers"), onClick = { onBreadCrumbClick() })
 
                     SearchFilterBar(
                         query = searchQuery,

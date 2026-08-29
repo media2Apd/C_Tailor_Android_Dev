@@ -1,6 +1,7 @@
 package com.cuso.mobile.repository
 
-
+import com.cuso.mobile.database.dao.TokensDao
+import com.cuso.mobile.model.finance.AccountDropdownItem
 import com.cuso.mobile.model.finance.ChartOfAccountItem
 import com.cuso.mobile.model.finance.CreateChartOfAccountRequest
 import com.cuso.mobile.model.finance.CreateChartOfAccountResponse
@@ -16,25 +17,22 @@ import com.cuso.mobile.model.finance.JournalEntryLineRequest
 import com.cuso.mobile.model.finance.JournalEntryListResponse
 import com.cuso.mobile.model.finance.LedgerItem
 import com.cuso.mobile.model.finance.TrialBalanceItem
-//   NEW imports for update journal entry
 import com.cuso.mobile.model.finance.UpdateJournalEntryRequest
 import com.cuso.mobile.model.finance.UpdateJournalEntryResponse
 import com.cuso.mobile.model.sales.CustomerListResponseV2
 import com.cuso.mobile.model.sales.GetFinanceCustomerViewOneResponse
 import com.cuso.mobile.network.finance.FinanceApiService
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import javax.inject.Singleton
-@Suppress("UNUSED_PARAMETER")
-/**
- * FinanceRepository - Handles all finance and customer-related API calls
- * This is separate from SalesRepository to avoid conflicts and keep code organized
- */
+
 @Singleton
 class FinanceRepository @Inject constructor(
     private val financeApi: FinanceApiService,
-    private val tokensDao: com.cuso.mobile.database.dao.TokensDao
+    private val tokensDao: TokensDao
 ) {
 
     private suspend fun getAuthHeaders(): Pair<String, String> {
@@ -44,7 +42,7 @@ class FinanceRepository @Inject constructor(
     }
 
     // ═══════════════════════════════════════════════════════════
-    // Customer V2 API Methods
+    // 1. Customer V2 API Methods
     // ═══════════════════════════════════════════════════════════
 
     suspend fun getCustomerForFinance(
@@ -90,6 +88,10 @@ class FinanceRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    // ═══════════════════════════════════════════════════════════
+    // 2. Invoices API Methods
+    // ═══════════════════════════════════════════════════════════
 
     suspend fun getInvoices(
         page: Int = 1,
@@ -138,7 +140,11 @@ class FinanceRepository @Inject constructor(
             Result.failure(e)
         }
     }
-    // ── Chart of Accounts ──
+
+    // ═══════════════════════════════════════════════════════════
+    // 3. Chart of Accounts API Methods
+    // ═══════════════════════════════════════════════════════════
+
     suspend fun getChartOfAccounts(): Result<List<ChartOfAccountItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -155,38 +161,15 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    // ── Expenses: list ──
-    suspend fun getExpenses(
-        page: Int = 1,
-        limit: Int = 10,
-        search: String? = null,
-        status: String? = null
-    ): Result<ExpenseListResponse> {
+    suspend fun getChartOfAccountsDropdown(context: String = "parent_account"): Result<List<AccountDropdownItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = financeApi.getExpenses(accessToken, csrfToken, page, limit, search, status)
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!)
-            } else {
-                Result.failure(
-                    Exception(response.errorBody()?.string() ?: "Failed to fetch expenses: ${response.code()}")
-                )
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    // ── Expenses: view one ──
-    suspend fun getExpenseViewOne(id: String): Result<ExpenseItem> {
-        return try {
-            val (accessToken, csrfToken) = getAuthHeaders()
-            val response = financeApi.getExpenseViewOne(accessToken, csrfToken, id)
+            val response = financeApi.getChartOfAccountsDropdown(accessToken, csrfToken, context)
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!.data)
             } else {
                 Result.failure(
-                    Exception(response.errorBody()?.string() ?: "Failed to fetch expense: ${response.code()}")
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch dropdown accounts: ${response.code()}")
                 )
             }
         } catch (e: Exception) {
@@ -194,51 +177,6 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    // ── Expenses: create ──
-    suspend fun createExpense(
-        branch: String,
-        expenseDate: String,
-        accountId: String,
-        paymentAccountId: String,
-        amount: String,
-        referenceNumber: String?,
-        notes: String?,
-        status: String?,
-        fileParts: List<okhttp3.MultipartBody.Part> = emptyList()
-    ): Result<CreateExpenseResponse> {
-        return try {
-            val (accessToken, csrfToken) = getAuthHeaders()
-
-            fun String.asTextBody(): okhttp3.RequestBody =
-                this.toRequestBody("text/plain".toMediaTypeOrNull())
-
-            val response = financeApi.createExpense(
-                token = accessToken,
-                csrfToken = csrfToken,
-                branch = branch.asTextBody(),
-                expenseDate = expenseDate.asTextBody(),
-                accountId = accountId.asTextBody(),
-                paymentAccountId = paymentAccountId.asTextBody(),
-                amount = amount.asTextBody(),
-                referenceNumber = referenceNumber?.asTextBody(),
-                notes = notes?.asTextBody(),
-                status = status?.asTextBody(),
-                files = fileParts
-            )
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!)
-            } else {
-                Result.failure(
-                    Exception(response.errorBody()?.string() ?: "Failed to create expense: ${response.code()}")
-                )
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    // ── Chart of Accounts: create ──
     suspend fun createChartOfAccount(
         accountName: String,
         accountType: String,
@@ -269,7 +207,6 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    // ── Chart of Accounts: update ──
     suspend fun updateChartOfAccount(
         id: String,
         accountName: String,
@@ -302,7 +239,6 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    // ── Chart of Accounts: delete ──
     suspend fun deleteChartOfAccount(id: String): Result<CreateChartOfAccountResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -323,25 +259,94 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    // Trial Balance fetch
-    suspend fun getTrialBalance(): Result<List<TrialBalanceItem>> {
+    // ═══════════════════════════════════════════════════════════
+    // 4. Expenses API Methods
+    // ═══════════════════════════════════════════════════════════
+
+    suspend fun getExpenses(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ): Result<ExpenseListResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = financeApi.getTrialBalance(
-                token = accessToken,
-                csrfToken = csrfToken
-            )
+            val response = financeApi.getExpenses(accessToken, csrfToken, page, limit, search, status)
             if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()?.data?.list ?: emptyList())
+                Result.success(response.body()!!)
             } else {
-                Result.failure(Exception("Failed to fetch trial balance"))
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch expenses: ${response.code()}")
+                )
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    // ── Journal Entries: list ──
+    suspend fun getExpenseViewOne(id: String): Result<ExpenseItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = financeApi.getExpenseViewOne(accessToken, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch expense: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createExpense(
+        branch: String,
+        expenseDate: String,
+        accountId: String,
+        paymentAccountId: String,
+        amount: String,
+        referenceNumber: String?,
+        notes: String?,
+        status: String?,
+        fileParts: List<MultipartBody.Part> = emptyList()
+    ): Result<CreateExpenseResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+
+            fun String.asTextBody(): RequestBody =
+                this.toRequestBody("text/plain".toMediaTypeOrNull())
+
+            val response = financeApi.createExpense(
+                token = accessToken,
+                csrfToken = csrfToken,
+                branch = branch.asTextBody(),
+                expenseDate = expenseDate.asTextBody(),
+                accountId = accountId.asTextBody(),
+                paymentAccountId = paymentAccountId.asTextBody(),
+                amount = amount.asTextBody(),
+                referenceNumber = referenceNumber?.asTextBody(),
+                notes = notes?.asTextBody(),
+                status = status?.asTextBody(),
+                files = fileParts
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to create expense: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 5. Journal Entries API Methods
+    // ═══════════════════════════════════════════════════════════
+
     suspend fun getJournalEntries(
         page: Int = 1,
         limit: Int = 10,
@@ -356,6 +361,23 @@ class FinanceRepository @Inject constructor(
             } else {
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to fetch journal entries: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getJournalEntryViewOne(id: String): Result<JournalEntryDetailData> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = financeApi.getJournalEntryDetail(accessToken, csrfToken, id)
+            val data = response.body()?.data
+            if (response.isSuccessful && response.body()?.success == true && data != null) {
+                Result.success(data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch journal entry: ${response.code()}")
                 )
             }
         } catch (e: Exception) {
@@ -397,8 +419,6 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    //   NEW — Journal Entries: update
-    // PUT /api/finance/journal-entries/{id}
     suspend fun updateJournal(
         id: String,
         branchId: String,
@@ -435,23 +455,6 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    // ── Ledger (per-account transactions) ──
-    suspend fun getLedger(accountId: String): Result<List<LedgerItem>> {
-        return try {
-            val (accessToken, csrfToken) = getAuthHeaders()
-            val response = financeApi.getLedger(accessToken, csrfToken, accountId)
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!.data)
-            } else {
-                Result.failure(
-                    Exception(response.errorBody()?.string() ?: "Failed to fetch ledger: ${response.code()}")
-                )
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
     suspend fun deleteJournalEntry(id: String): Result<String> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -472,30 +475,40 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-    suspend fun getJournalEntryViewOne(id: String): Result<JournalEntryDetailData> {
+    // ═══════════════════════════════════════════════════════════
+    // 6. Trial Balance & Ledger API Methods
+    // ═══════════════════════════════════════════════════════════
+
+    suspend fun getTrialBalance(): Result<List<TrialBalanceItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = financeApi.getJournalEntryDetail(accessToken, csrfToken, id)
-            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
-                Result.success(response.body()!!.data!!)
+            val response = financeApi.getTrialBalance(
+                token = accessToken,
+                csrfToken = csrfToken
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.data?.list ?: emptyList())
             } else {
-                Result.failure(
-                    Exception(response.errorBody()?.string() ?: "Failed to fetch journal entry: ${response.code()}")
-                )
+                Result.failure(Exception("Failed to fetch trial balance"))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-}
-
-// ═══════════════════════════════════════════════════════════
-// Result Wrapper for ViewModel
-// ═══════════════════════════════════════════════════════════
-
-sealed class FinanceApiResult<out T> {
-    data class Success<T>(val data: T) : FinanceApiResult<T>()
-    data class Error(val message: String) : FinanceApiResult<Nothing>()
-    object Loading : FinanceApiResult<Nothing>()
+    suspend fun getLedger(accountId: String): Result<List<LedgerItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = financeApi.getLedger(accessToken, csrfToken, accountId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch ledger: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

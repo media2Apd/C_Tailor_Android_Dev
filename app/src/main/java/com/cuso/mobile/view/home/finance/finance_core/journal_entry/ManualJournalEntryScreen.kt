@@ -35,7 +35,6 @@ import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.DeleteJournalState
@@ -169,10 +168,7 @@ fun ManualJournalEntryScreen(
             }
 
             Column {
-                // ── Breadcrumb ──
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    ScreenBreadcrumb(listOf("Finance", "Journal Entry"), onClick = {})
-                }
+
 
                 SearchFilterBar(
                     query = searchQuery,

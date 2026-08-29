@@ -28,12 +28,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.BluePrimary
@@ -43,7 +41,7 @@ import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardImage
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
+
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
@@ -171,9 +169,6 @@ fun WarehouseSettingsScreen(
                             .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            ScreenBreadcrumb(
-                                segments = listOf("Settings", "Warehouse"),
-                                onClick = {})
 
                             SearchFilterBar(
                                 query = searchQuery,

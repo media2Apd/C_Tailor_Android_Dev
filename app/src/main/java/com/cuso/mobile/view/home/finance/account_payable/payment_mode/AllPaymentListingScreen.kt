@@ -1,3 +1,5 @@
+@file:Suppress("unused","unusedVariable")
+
 package com.cuso.mobile.view.home.finance.account_payable.payment_mode
 
 import androidx.compose.foundation.background
@@ -111,7 +113,6 @@ fun AllPaymentListScreen(
                     .padding(padding)
             ) {
                 // --- Navigation Breadcrumb ---
-                ScreenBreadcrumb(listOf("Finance", "All Payments"), onClick = {})
 
                 // --- Search + Filter Bar (Using Reusable Component) ---
                 SearchFilterBar(

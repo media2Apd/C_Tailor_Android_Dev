@@ -142,11 +142,37 @@ data class ExpensePagination(
     val totalPages: Int
 )
 
+// ═══════════════════════════════════════════════════
+// Expenses Models with Flexible ID / Object Deserializer
+// ═══════════════════════════════════════════════════
+
 data class ExpenseAccountRef(
-    val _id: String,
-    val accountName: String,
-    val accountCode: String
+    @SerializedName("_id") val _id: String = "",
+    @SerializedName("accountName") val accountName: String = "",
+    @SerializedName("accountCode") val accountCode: String = ""
 )
+class ExpenseAccountRefDeserializer : JsonDeserializer<ExpenseAccountRef?> {
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type?,
+        context: JsonDeserializationContext?
+    ): ExpenseAccountRef? {
+        if (json == null || json.isJsonNull) return null
+        return if (json.isJsonPrimitive) {
+            // Handled when API sends plain string ID e.g. "6a8c1cc569c9cae2acc78155"
+            ExpenseAccountRef(
+                _id = json.asString,
+                accountName = "",
+                accountCode = ""
+            )
+        } else if (json.isJsonObject) {
+            // Handled when API sends full populated object
+            context?.deserialize(json, ExpenseAccountRef::class.java)
+        } else {
+            null
+        }
+    }
+}
 
 data class ExpenseFile(
     val url: String,
@@ -157,20 +183,26 @@ data class ExpenseFile(
 
 data class ExpenseItem(
     val _id: String,
-    val organizationId: String,
-    val branch: String,
-    val expenseNumber: String,
-    val expenseDate: String,
-    val accountId: ExpenseAccountRef,
-    val amount: Double,
-    val paymentAccountId: ExpenseAccountRef,
+    val organizationId: String? = null,
+    val branch: String? = null,
+    val expenseNumber: String = "",
+    val expenseDate: String = "",
+
+    @JsonAdapter(ExpenseAccountRefDeserializer::class)
+    val accountId: ExpenseAccountRef? = null,
+
+    val amount: Double = 0.0,
+
+    @JsonAdapter(ExpenseAccountRefDeserializer::class)
+    val paymentAccountId: ExpenseAccountRef? = null,
+
     val referenceNumber: String? = null,
     val notes: String? = null,
-    val status: String,
+    val status: String = "Paid",
     val files: List<ExpenseFile> = emptyList(),
     val createdBy: String? = null,
-    val createdAt: String,
-    val updatedAt: String,
+    val createdAt: String = "",
+    val updatedAt: String = "",
     val __v: Int? = null
 )
 
@@ -239,3 +271,38 @@ data class CreateChartOfAccountResponse(
     val message: String? = null,
     val data: CreatedChartOfAccountData? = null
 )
+
+
+// Top-level API Response
+data class AccountDropdownResponse(
+    @SerializedName("success")
+    val success: Boolean = false,
+
+    @SerializedName("data")
+    val data: List<AccountDropdownItem> = emptyList()
+)
+
+// Individual Account Item in the data array
+data class AccountDropdownItem(
+    @SerializedName("_id")
+    val id: String,
+
+    @SerializedName("accountName")
+    val accountName: String,
+
+    @SerializedName("accountCode")
+    val accountCode: String,
+
+    @SerializedName("accountType")
+    val accountType: String,
+
+    @SerializedName("normalBalance")
+    val normalBalance: String? = null,
+
+    @SerializedName("currency")
+    val currency: String? = null
+) {
+    // Helper property to display in dropdown UI (e.g. "100000 - Assets Group")
+    val displayName: String
+        get() = "$accountCode - $accountName"
+}

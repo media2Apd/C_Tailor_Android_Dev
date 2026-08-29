@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.cuso.mobile.view.home
 
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
@@ -49,7 +51,10 @@ import com.cuso.mobile.view.home.logistics.delivery.DeliveryManagementScreen
 import com.cuso.mobile.view.home.logistics.order_tracking.OrderTrackingScreen
 import com.cuso.mobile.view.home.logistics.order_tracking.TrackingOverviewScreen
 import com.cuso.mobile.view.home.opening_balance.OpeningBalancesScreen
-import com.cuso.mobile.view.home.profile.ProfileSettingsScreen
+import com.cuso.mobile.view.home.profile_settings.ProfileSettingsScreen
+import com.cuso.mobile.view.home.profile_settings.SettingsScreen
+import com.cuso.mobile.view.home.profile_settings.all_settings.ModuleSettingsScreen
+import com.cuso.mobile.view.home.profile_settings.all_settings.SettingsOverviewScreen
 import com.cuso.mobile.view.home.reports.finance.FinanceReportPage
 import com.cuso.mobile.view.home.reports.finance.ProfitAndLossReportScreen
 import com.cuso.mobile.view.home.reports.inventory.DeadStockReportScreen
@@ -60,7 +65,11 @@ import com.cuso.mobile.view.home.reports.inventory.StockSummaryScreen
 import com.cuso.mobile.view.home.reports.inventory.WarehouseReportScreen
 import com.cuso.mobile.view.home.reports.sales.SalesOrderReportsScreen
 import com.cuso.mobile.view.home.role.RoleSettingsScreen
-import com.cuso.mobile.view.home.sales.*
+import com.cuso.mobile.view.home.sales.settings.AddNewGarmentScreen
+import com.cuso.mobile.view.home.sales.settings.AddSegmentScreen
+import com.cuso.mobile.view.home.sales.settings.GarmentCategoryDetailScreen
+import com.cuso.mobile.view.home.sales.settings.GarmentTypeContent
+import com.cuso.mobile.view.home.sales.settings.SalesSettingsScreen
 import com.cuso.mobile.view.home.sales.customer.*
 import com.cuso.mobile.view.home.sales.lead.*
 import com.cuso.mobile.view.home.sales.measurements.MeasurementsScreen
@@ -202,9 +211,9 @@ fun HomeScreenRouter(
         )
         "profile-settings" -> ProfileSettingsScreen(
             onClose = onGoBack,
-            onOrganizationSetup = { onSafeNavigate("home_organization_profile") },
+            onOrganizationSetup = { onSafeNavigate("settings_overview") },
             onBranchManagement = { onSafeNavigate("home_branch_management") },
-            onGarmentType = { onSafeNavigate("sales_garment_type") } ,
+            onGarmentType = { onSafeNavigate("sales_garment_type") },
             onDepartment = { onSafeNavigate("home_department_teams") },
             onDesignation = { onSafeNavigate("home_designation") },
             onHelpSupport = { onSafeNavigate("home_warehouse_management") },
@@ -217,6 +226,25 @@ fun HomeScreenRouter(
                     }
                 }
             }
+        )
+        "settings_overview" -> SettingsOverviewScreen(
+            onClose = onGoBack,
+            onNavigateToOrganizationSettings = { onSafeNavigate("home_organization_profile") },
+            onNavigateToModuleSettings = { onSafeNavigate("module_settings") }
+        )
+        "module_settings" -> ModuleSettingsScreen(
+            onClose = onGoBack,
+            onConfigureHome = { onSafeNavigate("home_organization_profile") },
+            onConfigureSales = { onSafeNavigate("sales_garment_type") },
+            onConfigureFinance = { onSafeNavigate("finance_chart_of_accounts") },
+            onConfigureInventory = { onSafeNavigate("inventory_items") },
+            onConfigureLogistics = { onSafeNavigate("logistics_delivery") },
+            onConfigureServices = { onSafeNavigate("services_service_status") },
+            onConfigureHR = { onSafeNavigate("hr_all_employees") },
+            onConfigureIT = { onShowComingSoon("IT Settings Coming Soon") },
+            onConfigureLegal = { onShowComingSoon("Legal Settings Coming Soon") },
+            onConfigureSecurity = { onShowComingSoon("Security Settings Coming Soon") },
+            onConfigureReports = { onSafeNavigate("reports_sales") }
         )
 
         // ─────────────────────────────────────────────────────────────
@@ -336,7 +364,7 @@ fun HomeScreenRouter(
             },
             onNextStep = { orderReviewData ->
                 onPendingOrderReviewDataChange(orderReviewData)
-                onNavigate("measurement_entry") // ➔ Step 1 to Step 2
+                onNavigate("measurement_entry")
             }
         )
         "measurement_entry" -> {
@@ -347,7 +375,7 @@ fun HomeScreenRouter(
                     customerPhone = data.phone,
                     onClose = onGoBack,
                     onSaveMeasurement = {
-                        onNavigate("order_preview") // ➔ Step 2 to Step 3 (Order Preview)
+                        onNavigate("order_preview")
                     }
                 )
             } ?: run { onGoBack() }
@@ -358,7 +386,6 @@ fun HomeScreenRouter(
                     orderData = data,
                     onClose = onGoBack,
                     onConfirmOrder = {
-                        // Order successfully confirmed & saved
                         onOrderSavedSuccessfully(data.orderId)
                     },
                     onCancel = {
@@ -488,10 +515,36 @@ fun HomeScreenRouter(
             onClose = {
                 onSalesSettingsModeChange(false)
                 onGoBack()
+            },
+            onAddSegmentClick = { onNavigate("sales_add_segment") },
+            onAddGarmentClick = { onNavigate("sales_add_garment") },
+            onConfigureClick = { categoryId ->
+                // Navigate to Category Detail screen when clicking card or Configure
+                onNavigate("sales_category_detail")
             }
         )
-
-
+        "sales_category_detail" -> GarmentCategoryDetailScreen(
+            categoryTitle = "Shirts Category",
+            onClose = onGoBack,
+            onAddGarmentClick = { onNavigate("sales_add_garment") },
+            onConfigureGarmentClick = { garmentId ->
+                // Handle specific garment configuration
+            }
+        )
+        "sales_add_segment" -> AddSegmentScreen(
+            onClose = onGoBack,
+            onSubmit = { name, code, desc, order, isActive ->
+                // Handle segment creation logic here
+                onGoBack()
+            }
+        )
+        "sales_add_garment" -> AddNewGarmentScreen(
+            onClose = onGoBack,
+            onSubmit = { name, displayName, segment, template, desc ->
+                // Handle garment creation
+                onGoBack()
+            }
+        )
         // ─────────────────────────────────────────────────────────────
         // 3. FINANCE MODULE
         // ─────────────────────────────────────────────────────────────

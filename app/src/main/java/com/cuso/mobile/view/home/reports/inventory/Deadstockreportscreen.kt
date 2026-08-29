@@ -41,7 +41,6 @@ import com.cuso.mobile.ui.theme.redBg
 import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.DataCard
@@ -197,10 +196,7 @@ fun DeadStockReportScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(modifier = Modifier.weight(1f)) {
-                                    ScreenBreadcrumb(
-                                        listOf("Reports", "Inventory", "Dead Report"),
-                                        onClick = { onBreadCrumbClick() }
-                                    )
+
                                 }
                                 Row(
                                     modifier = Modifier

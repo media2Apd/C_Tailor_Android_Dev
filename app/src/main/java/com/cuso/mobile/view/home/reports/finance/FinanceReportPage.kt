@@ -23,7 +23,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.view.composable.AccordionSection
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.R
 import com.cuso.mobile.view.home.reports.inventory.ReportCountBadge
@@ -55,8 +54,6 @@ fun FinanceReportPage(
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
         ) {
-            ScreenBreadcrumb(listOf("Reports", "Finance"), onClick = onBreadCrumbClick)
-            Spacer(modifier = Modifier.height(16.dp))
 
             AccordionSection(
                 title = "Financial Statements",

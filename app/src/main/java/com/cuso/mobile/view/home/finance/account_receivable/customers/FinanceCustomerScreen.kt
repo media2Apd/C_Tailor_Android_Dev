@@ -30,7 +30,6 @@ import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.formatIndianNumber
@@ -92,13 +91,17 @@ fun FinanceCustomerScreen(
     val allCustomers = customerListResponse?.data ?: emptyList()
 
     val filteredCustomers = allCustomers.filter { customer ->
+        val customerName = customer.name
+        val customerMobile = customer.mobile
+        val customerStatus = customer.status.orEmpty()
+
         val matchesSearch = searchQuery.isBlank() ||
-                customer.name.contains(searchQuery, ignoreCase = true) ||
-                customer.mobile.contains(searchQuery, ignoreCase = true)
+                customerName.contains(searchQuery, ignoreCase = true) ||
+                customerMobile.contains(searchQuery, ignoreCase = true)
 
         val matchesFilter = when (selectedFilter) {
-            "Active" -> customer.status.equals("Active", ignoreCase = true)
-            "Inactive" -> customer.status.equals("Inactive", ignoreCase = true)
+            "Active" -> customerStatus.equals("Active", ignoreCase = true)
+            "Inactive" -> customerStatus.equals("Inactive", ignoreCase = true)
             else -> true
         }
 
@@ -114,10 +117,7 @@ fun FinanceCustomerScreen(
         Column(modifier = Modifier.fillMaxWidth()) {
             TitleBar("All Customers", onClose = onClose)
 
-            ScreenBreadcrumb(
-                segments = listOf("Finance", "Customer"),
-                onClick = { onBreadCrumbClick() }
-            )
+
 
             SearchFilterBar(
                 query = searchQuery,
@@ -215,22 +215,26 @@ private fun CustomerCardItem(
     onClick: () -> Unit,
     onEdit: () -> Unit
 ) {
-    val (badgeText, badgeColor) = statusColorsOfCustomer(customer.status)
+    val statusSafe = customer.status?.ifBlank { "Active" } ?: "Active"
+    val (badgeText, badgeColor) = statusColorsOfCustomer(statusSafe)
 
-    val typeAndAddress = "${customer.type.replaceFirstChar { it.uppercase() }} • " +
-            (customer.address?.addressLine?.takeIf { it.isNotBlank() } ?: "N/A")
+    val safeType = (customer.type.ifBlank { "Individual" }).replaceFirstChar {
+        if (it.isLowerCase()) it.titlecase() else it.toString()
+    }
+    val safeAddress = customer.displayAddress
+    val typeAndAddress = "$safeType • $safeAddress"
 
     DataCard(
         item = customer,
         topBadgeText = badgeText,
         topBadgeTextColor = badgeColor,
         topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-        topBadgeInline = true, // Places the Badge and 3-dots Menu on the same line as the Name
-        title = customer.name,
+        topBadgeInline = true,
+        title = customer.name.ifBlank { "Walk-in Customer" },
         footerFields = listOf(
             DataCardField(
                 icon = Icons.Default.Phone,
-                text = customer.mobile
+                text = customer.mobile.ifBlank { "N/A" }
             ),
             DataCardField(
                 text = typeAndAddress
@@ -246,7 +250,6 @@ private fun CustomerCardItem(
         onClick = { onClick() }
     )
 }
-
 private fun statusColorsOfCustomer(status: String?): Pair<String, Color> = when (status?.lowercase()) {
     "active" -> "Active" to greentext
     "blocked" -> "Blocked" to redText
@@ -254,7 +257,8 @@ private fun statusColorsOfCustomer(status: String?): Pair<String, Color> = when 
     else -> "N/A" to Color(0xFF9CA3AF)
 }
 
-fun formatDate(dateString: String): String {
+fun formatDate(dateString: String?): String {
+    if (dateString.isNullOrBlank()) return "—"
     return try {
         val parts = dateString.split("T")[0].split("-")
         if (parts.size == 3) {

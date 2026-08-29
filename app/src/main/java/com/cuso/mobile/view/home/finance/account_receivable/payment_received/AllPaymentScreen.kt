@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.cuso.mobile.view.home.finance.account_receivable.payment_received
 
 import androidx.compose.foundation.background
@@ -16,7 +18,6 @@ import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.SearchFilterBar
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
@@ -77,10 +78,7 @@ fun AllPaymentScreen(
 
         // ── Breadcrumb + Search ──
         Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent)) {
-            ScreenBreadcrumb(
-                segments = listOf("Finance", "All Payments"),
-                onClick = { onBreadCrumbClick() }
-            )
+
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },

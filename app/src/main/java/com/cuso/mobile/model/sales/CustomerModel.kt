@@ -1,23 +1,34 @@
-@file:Suppress("UNUSED_PARAMETER", "UNUSED", "RedundantSuppression", "unused")
+@file:Suppress("UNUSED_PARAMETER", "UNUSED", "RedundantSuppression", "unused", "SpellCheckingInspection")
 
 package com.cuso.mobile.model.sales
 
 import com.google.gson.annotations.SerializedName
 
 // ─────────────────────────────────────────────────────────────
-// Model — matches the API response you shared
+// Common Address Models
 // ─────────────────────────────────────────────────────────────
 
 data class GetCustomerAddress(
     val addressLine: String? = null,
     val city: String? = null,
-    val area: String? = null,        //   ADDED — payload has "area"
+    val area: String? = null,
     val pincode: String? = null
 )
 
+data class CustomerAddress1(
+    val addressLine: String? = null,
+    val city: String? = null,
+    val area: String? = null,
+    val pincode: String? = null
+)
+
+data class CustomerPreferences(
+    val language: String? = null,
+    val contactMethod: String? = null
+)
 
 // ─────────────────────────────────────────────────────────────
-// Customer API Response Models
+// Customer API Response Models (v1)
 // ─────────────────────────────────────────────────────────────
 
 data class CustomerListResponse(
@@ -31,22 +42,21 @@ data class CustomerListResponse(
 
 data class CustomerItem(
     @SerializedName("_id")
-    val id: String,                 // _id
+    val id: String,
     val organizationId: String? = null,
-    val type: String? = null,       // "individual" / "business" / "regular"
+    val type: String? = null,
     val name: String,
     val email: String? = null,
     val mobile: String? = null,
     val gender: String? = null,
     @SerializedName("dob")
     val dateOfBirth: String? = null,
-    val address: CustomerAddress? = null,
+    val address: CustomerAddress1? = null,
     val preferences: CustomerPreferences? = null,
     val status: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null
 ) {
-    // "Location" column -> derive from address (city, then area, then addressLine)
     val location: String
         get() = address?.city?.takeIf { it.isNotBlank() }
             ?: address?.area?.takeIf { it.isNotBlank() }
@@ -62,14 +72,10 @@ data class CustomerItem(
         }
 }
 
-data class CustomerPreferences(
-    val language: String? = null,
-    val contactMethod: String? = null
-)
+// ─────────────────────────────────────────────────────────────
+// View & Update API Models (v1)
+// ─────────────────────────────────────────────────────────────
 
-
-//view and update
-// ── View API (GET) ──────────────────────────────
 data class GetCustomerViewResponse(
     val success: Boolean,
     val data: CustomerViewData
@@ -87,39 +93,38 @@ data class CustomerViewData(
     val dob: String? = null,
     val status: String,
     val address: CustomerViewAddress? = null,
-    val preferences: CustomerPreferences? = null,   //   ADDED — was missing, payload has this
+    val preferences: CustomerPreferences? = null,
     val customFields: Map<String, @JvmSuppressWildcards Any>? = null,
     val referralCount: Int? = 0,
     val totalSpend: Int? = 0,
     val pendingPayment: Int? = 0,
     val createdAt: String? = null,
     val updatedAt: String? = null,
-    @SerializedName("__v")                          //   FIXED — was missing, "v" never matched "__v"
+    @SerializedName("__v")
     val v: Int? = null
 )
 
 data class CustomerViewAddress(
     val addressLine: String? = null,
     val city: String? = null,
-    val area: String? = null,        //   ADDED — payload has "area"
+    val area: String? = null,
     val pincode: String? = null
 )
 
-// ── Update API (PUT) ────────────────────────────
 data class UpdateCustomerRequest(
     val type: String,
     val name: String,
     val mobile: String,
-    val email: String? = null,          //   ADD
-    val gender: String? = null,         //   ADD
-    val dob: String? = null,            //   ADD
+    val email: String? = null,
+    val gender: String? = null,
+    val dob: String? = null,
     val status: String,
     val address: CustomerViewAddress,
     val preferences: CustomerPreferences? = null,
     val referralCount: Int = 0,
     val totalSpend: Int = 0,
     val pendingPayment: Int = 0,
-    @SerializedName("_id")              //   ADD — backend expects "_id" not "id"
+    @SerializedName("_id")
     val id: String,
     val organizationId: String,
     val createdAt: String? = null,
@@ -127,6 +132,7 @@ data class UpdateCustomerRequest(
     @SerializedName("__v")
     val v: Int? = null
 )
+
 data class UpdateCustomerResponse(
     val success: Boolean,
     val data: CustomerViewData
@@ -138,13 +144,13 @@ data class DeleteCustomerResponse(
 )
 
 // ─────────────────────────────────────────────────────────────
-// NEW Customer List API Response Model (v2)
+// Customer List API Response Model (v2)
 // ─────────────────────────────────────────────────────────────
 
 data class CustomerListResponseV2(
     val success: Boolean,
     val pagination: PaginationInfo? = null,
-    val data: List<CustomerItemV2>
+    val data: List<CustomerItemV2> = emptyList()
 )
 
 data class PaginationInfo(
@@ -154,53 +160,80 @@ data class PaginationInfo(
     val totalPages: Int
 )
 
-data class CustomerItemV2(
-    @SerializedName("_id")
-    val _id: String,
-    val organizationId: String,
-    val type: String,                    // "individual" or "business"
-    val name: String,
-    val mobile: String,
-    val address: CustomerAddressV2? = null,
-    val status: String,                  // "Active", "Inactive", etc.
-    val customFields: Map<String, Any>? = null,
-    val createdAt: String,
-    val updatedAt: String,
-    @SerializedName("__v")
-    val version: Int? = null,
-    val creditLimit: Int? = 0,
-    val outstanding: Int? = 0,
-    val lastInvoice: String? = null,
-    val totalPaid: Int? = 0
-) {
-    val location: String
-        get() = address?.city?.takeIf { it.isNotBlank() }
-            ?: address?.area?.takeIf { it.isNotBlank() }     //   ADDED for consistency
-            ?: address?.addressLine?.takeIf { it.isNotBlank() }
-            ?: "—"
-
-    val displayName: String
-        get() = name.ifEmpty { "—" }
-
-    val displayMobile: String
-        get() = mobile.ifEmpty { "—" }
-
-    val displayStatus: String
-        get() = status.ifEmpty { "Active" }
-
-    val displayType: String
-        get() = type.replaceFirstChar { it.uppercase() }
-}
-
 data class CustomerAddressV2(
-    val addressLine: String? = null,
-    val city: String? = null,
-    val area: String? = null,        //   ADDED — payload has "area"
-    val pincode: String? = null
+    @SerializedName("addressLine") val addressLine: String? = null,
+    @SerializedName("city") val city: String? = null,
+    @SerializedName("area") val area: String? = null,
+    @SerializedName("pincode") val pincode: String? = null,
+    @SerializedName("state") val state: String? = null,
+    @SerializedName("street") val street: String? = null
 )
 
+data class CustomerItemV2(
+    @SerializedName("_id")
+    val _id: String = "",
+
+    @SerializedName("organizationId")
+    val organizationId: String? = null,
+
+    @SerializedName("name")
+    private val _name: String? = null,
+
+    @SerializedName("customerName")
+    private val _customerName: String? = null,
+
+    @SerializedName("mobile")
+    private val _mobile: String? = null,
+
+    @SerializedName("mobileNumber")
+    private val _mobileNumber: String? = null,
+
+    @SerializedName("email")
+    val email: String? = null,
+
+    @SerializedName("type")
+    private val _type: String? = null,
+
+    @SerializedName("customerType")
+    private val _customerType: String? = null,
+
+    @SerializedName("status")
+    val status: String? = "Active",
+
+    @SerializedName("outstanding")
+    val outstanding: Double? = 0.0,
+
+    @SerializedName("address")
+    val address: CustomerAddressV2? = null,
+
+    @SerializedName("billingAddress")
+    val billingAddress: CustomerAddressV2? = null,
+
+    @SerializedName("createdAt")
+    val createdAt: String? = "",
+
+    @SerializedName("updatedAt")
+    val updatedAt: String? = ""
+) {
+    val name: String
+        get() = _name?.ifBlank { null } ?: _customerName?.ifBlank { null } ?: "Walk-in Customer"
+
+    val mobile: String
+        get() = _mobile?.ifBlank { null } ?: _mobileNumber?.ifBlank { null } ?: "N/A"
+
+    val type: String
+        get() = _type?.ifBlank { null } ?: _customerType?.ifBlank { null } ?: "Individual"
+
+    val displayAddress: String
+        get() = address?.addressLine?.takeIf { it.isNotBlank() }
+            ?: billingAddress?.addressLine?.takeIf { it.isNotBlank() }
+            ?: address?.city?.takeIf { it.isNotBlank() }
+            ?: billingAddress?.city?.takeIf { it.isNotBlank() }
+            ?: "N/A"
+}
+
 // ─────────────────────────────────────────────────────────────
-// Extension function to convert V2 to V1 (if needed)
+// Extension function to convert V2 to V1
 // ─────────────────────────────────────────────────────────────
 
 fun CustomerItemV2.toCustomerItem(): CustomerItem {
@@ -209,15 +242,15 @@ fun CustomerItemV2.toCustomerItem(): CustomerItem {
         organizationId = this.organizationId,
         type = this.type,
         name = this.name,
-        email = null,
+        email = this.email,
         mobile = this.mobile,
         gender = null,
         dateOfBirth = null,
         address = this.address?.let {
-            CustomerAddress(
-                addressLine = it.addressLine ?: "",   //   FIXED — was hardcoded to "", now maps actual value
+            CustomerAddress1(
+                addressLine = it.addressLine ?: "",
                 city = it.city ?: "",
-                area = it.area ?: "",                  //   ADDED
+                area = it.area ?: "",
                 pincode = it.pincode ?: ""
             )
         },
@@ -227,14 +260,14 @@ fun CustomerItemV2.toCustomerItem(): CustomerItem {
     )
 }
 
+// ─────────────────────────────────────────────────────────────
+// Customer Detail API Response (v2)
+// ─────────────────────────────────────────────────────────────
+
 data class GetCustomerDetailResponseV2(
     val success: Boolean,
     val data: CustomerDetailV2
 )
-
-// ─────────────────────────────────────────────────────────────
-// Customer Detail API Response (for View/Edit)
-// ─────────────────────────────────────────────────────────────
 
 data class CustomerDetailResponseV2(
     val success: Boolean,
@@ -265,7 +298,7 @@ data class CustomerDetailV2(
 )
 
 // ─────────────────────────────────────────────────────────────
-// Create Customer Request/Response
+// Create / Update / Delete Customer (v2)
 // ─────────────────────────────────────────────────────────────
 
 data class CreateCustomerRequestV2(
@@ -281,10 +314,6 @@ data class CreateCustomerResponseV2(
     val data: CustomerDetailV2
 )
 
-// ─────────────────────────────────────────────────────────────
-// Update Customer Request/Response
-// ─────────────────────────────────────────────────────────────
-
 data class UpdateCustomerRequestV2(
     val type: String,
     val name: String,
@@ -297,10 +326,6 @@ data class UpdateCustomerResponseV2(
     val success: Boolean,
     val data: CustomerDetailV2
 )
-
-// ─────────────────────────────────────────────────────────────
-// Delete Customer Response
-// ─────────────────────────────────────────────────────────────
 
 data class DeleteCustomerResponseV2(
     val success: Boolean,
@@ -331,7 +356,7 @@ sealed class CustomerDeleteStateV2 {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Finance - Customer View One (GET /api/customers/{id} - Finance specific)
+// Finance - Customer View One (GET /api/customers/{id})
 // ─────────────────────────────────────────────────────────────
 
 data class GetFinanceCustomerViewOneResponse(
@@ -361,6 +386,6 @@ data class FinanceFinancialSummary(
 data class FinanceAddress(
     val addressLine: String? = null,
     val city: String? = null,
-    val area: String? = null,        //   ADDED — payload has "area"
+    val area: String? = null,
     val pincode: String? = null
 )

@@ -71,7 +71,6 @@ import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.MeasurementsUiState
@@ -136,7 +135,6 @@ fun MeasurementsScreen(
             }
 
             Column(Modifier.fillMaxWidth()) {
-                ScreenBreadcrumb(segments = listOf("Sales", "Measurements"), onClick = { onBreadCrumbClick() })
 
                 // Search Filter Bar
                 SearchFilterBar(

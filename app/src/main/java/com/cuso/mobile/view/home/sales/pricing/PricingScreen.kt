@@ -38,7 +38,6 @@ import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
@@ -94,15 +93,7 @@ fun PricingScreen(
             ) {
                 TitleBar("Pricing", onClose = onClose)
             }
-            HorizontalDivider(color = CardBorder)
-            Column(Modifier.fillMaxWidth()) {
-                // Breadcrumb
-                ScreenBreadcrumb(
-                    segments = listOf("Sales", "Pricing "),
-                    onClick = { onBreadCrumbClick() }
-                )
-            }
-            Spacer(Modifier.height(10.dp))
+
             HorizontalDivider(color = CardBorder)
 
             when (val state = listState) {

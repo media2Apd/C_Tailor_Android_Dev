@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.cuso.mobile.view.home.logistics.delivery
 
 import androidx.compose.foundation.background
@@ -14,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -82,8 +83,6 @@ fun DeliveryManagementScreen(
 
         }
 
-        // ── Breadcrumb ──
-        ScreenBreadcrumb(listOf("Logistics", "Delivery Management"), onClick = {onBreadCrumbClick()})
 
         // ── Search + Filter ──
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {

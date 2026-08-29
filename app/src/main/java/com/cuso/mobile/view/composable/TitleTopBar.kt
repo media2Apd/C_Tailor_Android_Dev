@@ -18,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.cuso.mobile.adaptive_screen.AppDesignTokens // டோக்கன்ஸை இம்போர்ட் செய்யவும்
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.close_color
 import com.cuso.mobile.ui.theme.title_color

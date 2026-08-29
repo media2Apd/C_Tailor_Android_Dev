@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.cuso.mobile.view.home.inventory.procurement.orders
 
 // ─────────────────────────────────────────────
@@ -6,13 +8,11 @@ package com.cuso.mobile.view.home.inventory.procurement.orders
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,9 +47,6 @@ import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.DataCardProgressBar
-
-// ── Your existing reusables ──
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
@@ -85,23 +82,23 @@ val dummyLowStockItems = List(4) {
 // ─────────────────────────────────────────────
 
 // ── Simple horizontal gauge/progress bar: red fill on a light gray track ──
-@Composable
-fun StockUtilizationGauge(percentage: Float) {
-    val clamped = percentage.coerceIn(0f, 1f)
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(6.dp)
-            .background(Color(0xFFEDEDF2), RoundedCornerShape(50)) // light gray track
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(clamped)
-                .background(Color(0xFFE53935), RoundedCornerShape(50)) // red fill
-        )
-    }
-}
+//@Composable
+//fun StockUtilizationGauge(percentage: Float) {
+//    val clamped = percentage.coerceIn(0f, 1f)
+//    Box(
+//        modifier = Modifier
+//            .fillMaxWidth()
+//            .height(6.dp)
+//            .background(Color(0xFFEDEDF2), RoundedCornerShape(50)) // light gray track
+//    ) {
+//        Box(
+//            modifier = Modifier
+//                .fillMaxHeight()
+//                .fillMaxWidth(clamped)
+//                .background(Color(0xFFE53935), RoundedCornerShape(50)) // red fill
+//        )
+//    }
+//}
 
 // ─────────────────────────────────────────────
 // LowStockAlertCard — DataCard for the info block,
@@ -265,10 +262,7 @@ fun LowStockAlertsScreen(
             )
         ) {
             Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
-                ScreenBreadcrumb(
-                    segments = listOf("Inventory", "Alerts & Reorder", "Low Stock Alerts"),
-                    onClick = onBreadcrumbClick
-                )
+
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },

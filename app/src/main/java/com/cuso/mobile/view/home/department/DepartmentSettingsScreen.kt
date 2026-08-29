@@ -49,7 +49,6 @@ import com.cuso.mobile.view.composable.DataCardStatsRow
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
@@ -236,7 +235,6 @@ fun DepartmentSettingsScreen(
                                 .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))   // Blurs only this body content
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
-                                ScreenBreadcrumb(segments = listOf("Settings", "Department"), onClick = {})
 
                                 SearchFilterBar(
                                     query = searchQuery,

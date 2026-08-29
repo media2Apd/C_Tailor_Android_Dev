@@ -47,7 +47,6 @@ import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.StatusBadge
 import com.cuso.mobile.view.composable.TitleBar
@@ -115,7 +114,6 @@ fun ServiceStatusScreen(
             }
 
             Column(modifier = Modifier.fillMaxWidth()) {
-                ScreenBreadcrumb(segments = listOf("Services", "Service Status"), onClick = { onBreadCrumbClick() })
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },

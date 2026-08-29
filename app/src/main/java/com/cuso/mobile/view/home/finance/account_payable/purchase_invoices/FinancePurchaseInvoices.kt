@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.cuso.mobile.view.home.finance.account_payable.purchase_invoices
 
 import androidx.compose.foundation.BorderStroke
@@ -23,7 +25,6 @@ import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.composable.DataCard
@@ -138,7 +139,6 @@ fun PurchaseInvoiceScreen(
         }
 
         // Breadcrumb
-        ScreenBreadcrumb(listOf("Finance", "Purchase Invoice"), onClick = { onBreadCrumbClick() })
 
         SearchFilterBar(
             query = searchQuery,

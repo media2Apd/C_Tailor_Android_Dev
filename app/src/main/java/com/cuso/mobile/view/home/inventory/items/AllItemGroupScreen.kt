@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.cuso.mobile.view.home.inventory.items
 
 import androidx.compose.foundation.background
@@ -16,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.ui.theme.title_border
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
+
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -92,8 +94,6 @@ fun AllItemGroupScreen(
 
             }
 
-            // ── Breadcrumb ──
-            ScreenBreadcrumb(listOf("Inventory", "All Item Group"), onClick = {onBreadCrumbClick()})
 
             // ── Search + Filter ──
             Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {

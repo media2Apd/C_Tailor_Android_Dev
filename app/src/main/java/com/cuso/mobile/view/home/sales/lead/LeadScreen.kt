@@ -115,7 +115,6 @@ import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FieldValidator
 import com.cuso.mobile.view.composable.PhoneInputField
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.ValidationField
 import com.cuso.mobile.view.composable.FormDropdown
@@ -1759,11 +1758,9 @@ fun LeadScreenContent(
             Column(modifier = Modifier.fillMaxSize()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     TitleBar("Lead Management", onClose = onClose)
-                    Spacer(Modifier.height(8.dp))
                 }
 
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    ScreenBreadcrumb(listOf("Sales", "Lead Management"), onClick = { onBreadCrumbClick() })
 
                     SearchFilterBar(
                         query = searchQuery,

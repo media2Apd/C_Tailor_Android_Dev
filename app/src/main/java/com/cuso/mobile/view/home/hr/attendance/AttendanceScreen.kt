@@ -38,7 +38,6 @@ import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
@@ -149,7 +148,6 @@ fun AttendanceScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(modifier = Modifier.weight(1f)) {
-                                    ScreenBreadcrumb(listOf("HR", "Attendance"), onClick = { onBreadCrumbClick() })
                                 }
                                 Row(
                                     modifier = Modifier

@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 // ─────────────────────────────────────────────────────────────
 // FinanceInvoiceScreen — "All Invoice" list (View All)
 // ─────────────────────────────────────────────────────────────
@@ -40,7 +42,6 @@ import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.pdfgenerator.InvoicePdfGenerator
@@ -144,8 +145,6 @@ fun FinanceInvoiceScreen(
             )
         }
 
-        // ── Breadcrumb ──
-        ScreenBreadcrumb(listOf("Finance", "Sales Invoice"), onClick = { onBreadCrumbClick() })
 
         // ── Search Bar ──
         SearchFilterBar(

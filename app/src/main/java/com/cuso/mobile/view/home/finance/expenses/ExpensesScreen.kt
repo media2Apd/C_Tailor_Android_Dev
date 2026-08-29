@@ -25,7 +25,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
@@ -69,7 +68,6 @@ import com.cuso.mobile.view.composable.ImageUploadSection
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.PlanLimitDialog
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TitleBar
@@ -106,6 +104,7 @@ fun ExpensesScreen(
     val isLoadingMoreExpenses by financeViewModel.isLoadingMoreExpenses.collectAsStateWithLifecycle()
     val canLoadMoreExpenses by financeViewModel.canLoadMoreExpenses.collectAsStateWithLifecycle()
     val expenseError by financeViewModel.expenseError.collectAsStateWithLifecycle()
+    val chartOfAccounts by financeViewModel.chartOfAccounts.collectAsStateWithLifecycle()
 
     val listState = rememberLazyListState()
 
@@ -124,7 +123,6 @@ fun ExpensesScreen(
             val layoutInfo = listState.layoutInfo
             val totalItemsNumber = layoutInfo.totalItemsCount
             val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-
             totalItemsNumber > 0 && lastVisibleItemIndex >= totalItemsNumber - 2
         }
     }
@@ -150,6 +148,7 @@ fun ExpensesScreen(
     selectedExpenseForView?.let { expense ->
         ExpenseDetailScreen(
             expense = expense,
+            accountList = chartOfAccounts,
             onClose = { selectedExpenseForView = null }
         )
         return
@@ -169,10 +168,6 @@ fun ExpensesScreen(
         }
 
         Column(Modifier.fillMaxWidth()) {
-            ScreenBreadcrumb(
-                segments = listOf("Finance", "Expenses"),
-                onClick = { onBreadCrumbClick() }
-            )
 
             SearchFilterBar(
                 query = searchQuery,
@@ -296,14 +291,23 @@ fun ExpensesScreen(
                         items(expenses, key = { it._id }) { expense ->
                             val status = expense.status.ifBlank { "Paid" }
                             val (statusFg, statusBg) = expenseStatusColors(status)
+
+                            val accountTitle = expense.accountId?.accountName?.ifBlank { null }
+                                ?: chartOfAccounts.find { it._id == expense.accountId?._id }?.accountName
+                                ?: "Expense"
+
+                            val paymentTitle = expense.paymentAccountId?.accountName?.ifBlank { null }
+                                ?: chartOfAccounts.find { it._id == expense.paymentAccountId?._id }?.accountName
+                                ?: "Account"
+
                             DataCard(
                                 item = expense,
                                 dateText = formatExpenseDate(expense.expenseDate),
                                 topBadgeText = status,
                                 topBadgeTextColor = statusFg,
                                 topBadgeBgColor = statusBg,
-                                title = expense.accountId.accountName.ifBlank { "Expense" },
-                                subtitle = "Paid via ${expense.paymentAccountId.accountName.ifBlank { "Account" }}",
+                                title = accountTitle,
+                                subtitle = "Paid via $paymentTitle",
                                 footerFields = listOf(
                                     DataCardField(
                                         asRow = true,
@@ -349,33 +353,36 @@ fun ExpensesScreen(
 @Composable
 fun ExpenseDetailScreen(
     expense: ExpenseItem,
+    accountList: List<ChartOfAccountItem> = emptyList(),
     onClose: () -> Unit
 ) {
     val tokens = LocalAppTokens.current
     val status = expense.status.ifBlank { "Paid" }
     val (statusFg, statusBg) = expenseStatusColors(status)
 
+    val expenseAccountName = expense.accountId?.accountName?.ifBlank { null }
+        ?: accountList.find { it._id == expense.accountId?._id }?.let { "${it.accountCode} - ${it.accountName}" }
+        ?: expense.accountId?._id
+        ?: "—"
+
+    val paymentAccountName = expense.paymentAccountId?.accountName?.ifBlank { null }
+        ?: accountList.find { it._id == expense.paymentAccountId?._id }?.let { "${it.accountCode} - ${it.accountName}" }
+        ?: expense.paymentAccountId?._id
+        ?: "—"
+
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(whiteBg)
+            .background(Color.Transparent)
     ) {
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .background(whiteBg)
         ) {
-            Text("Expense Details", fontSize = tokens.h1, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color(0xFF111827),
-                modifier = Modifier
-                    .size(tokens.iconSize)
-                    .clickable { onClose() }
-            )
+            TitleBar("Expense Details",onClose)
         }
         HorizontalDivider(color = title_border)
 
@@ -385,39 +392,18 @@ fun ExpenseDetailScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding)
         ) {
-            ExpenseDetailField(
-                label = "Expense Number",
-                value = expense.expenseNumber.ifBlank { "—" }
-            )
-            ExpenseDetailField(
-                label = "Expense Date",
-                value = formatExpenseDate(expense.expenseDate)
-            )
-            ExpenseDetailField(
-                label = "Expense Account",
-                value = expense.accountId.accountName.ifBlank { "—" }
-            )
-            ExpenseDetailField(
-                label = "Payment Mode",
-                value = expense.paymentAccountId.accountName.ifBlank { "—" }
-            )
-            ExpenseDetailField(
-                label = "Amount",
-                value = "₹${formatAmount(expense.amount)}"
-            )
+            ExpenseDetailField(label = "Expense Number", value = expense.expenseNumber.ifBlank { "—" })
+            ExpenseDetailField(label = "Expense Date", value = formatExpenseDate(expense.expenseDate))
+            ExpenseDetailField(label = "Expense Account", value = expenseAccountName)
+            ExpenseDetailField(label = "Payment Mode", value = paymentAccountName)
+            ExpenseDetailField(label = "Amount", value = "₹${formatAmount(expense.amount)}")
 
             if (!expense.referenceNumber.isNullOrBlank()) {
-                ExpenseDetailField(
-                    label = "Reference Number",
-                    value = expense.referenceNumber
-                )
+                ExpenseDetailField(label = "Reference Number", value = expense.referenceNumber)
             }
 
             if (!expense.notes.isNullOrBlank()) {
-                ExpenseDetailField(
-                    label = "Notes",
-                    value = expense.notes
-                )
+                ExpenseDetailField(label = "Notes", value = expense.notes)
             }
 
             FormLabel("Status")
@@ -502,11 +488,15 @@ fun AddExpenseScreen(
     val createExpenseState by financeViewModel.createExpenseState.collectAsStateWithLifecycle()
     val createAccountState by financeViewModel.createAccountState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(Unit) {
+        financeViewModel.fetchChartOfAccounts()
+    }
+
     val categoryAccounts = remember(chartOfAccounts) {
-        chartOfAccounts.filter { it.accountType == "Expense" && !it.isGroup }
+        chartOfAccounts.filter { it.accountType.equals("Expense", ignoreCase = true) && !it.isGroup }
     }
     val paymentAccounts = remember(chartOfAccounts) {
-        chartOfAccounts.filter { it.accountType == "Asset" && it.allowManualEntry }
+        chartOfAccounts.filter { it.accountType.equals("Asset", ignoreCase = true) && it.allowManualEntry }
     }
 
     var expenseDate by remember {
@@ -581,6 +571,7 @@ fun AddExpenseScreen(
                 financeViewModel.resetCreateAccountState()
                 showAddAccountDialog = false
                 newAccountName = ""
+                financeViewModel.fetchChartOfAccounts()
             }
             else -> Unit
         }
@@ -607,13 +598,6 @@ fun AddExpenseScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding)
             ) {
-                Text(
-                    "Expense Details",
-                    fontSize = tokens.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF111827)
-                )
-                Spacer(Modifier.height(14.dp))
 
                 FormLabel("Expense Date", isRequired = true)
                 ErrorFieldWrapper(
@@ -767,7 +751,6 @@ fun AddExpenseScreen(
                     onBrowseClick = {
                         if (isUploadRestricted) {
                             showPlanLimitDialog = true
-
                         } else {
                             filePickerLauncher.launch("*/*")
                         }

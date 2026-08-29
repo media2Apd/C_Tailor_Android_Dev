@@ -11,8 +11,6 @@
 package com.cuso.mobile.view.home.role
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -40,7 +38,6 @@ import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
@@ -49,7 +46,6 @@ import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.blurScrim
-import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────
 // RoleSettingsScreen - Scaffold with TitleBar in topBar slot,
@@ -139,10 +135,7 @@ fun RoleSettingsScreen(
                         .blurScrim(if (isAnySheetOpen) currentBlur else 0.dp)
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        ScreenBreadcrumb(
-                            segments = listOf("Settings", "Role Management"),
-                            onClick = { }
-                        )
+
 
                         Row(
                             Modifier

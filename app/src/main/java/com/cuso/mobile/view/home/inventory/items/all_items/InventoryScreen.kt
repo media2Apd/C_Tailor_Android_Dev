@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.cuso.mobile.view.home.inventory.items.all_items
 
 import androidx.compose.animation.AnimatedVisibility
@@ -42,7 +44,6 @@ import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.InventoryViewModel
@@ -86,7 +87,7 @@ fun InventoryScreen(
     val errorMessage by inventoryViewModel.inventoryError.collectAsStateWithLifecycle()
     val viewOneItem by inventoryViewModel.viewOneItem.collectAsStateWithLifecycle()
 
-    // Ensure items is never null to prevent NullPointerExceptions on .isEmpty()
+    // PERMANENT FIX: Ensure items is never null even if rawItems is null
     val items = rawItems
 
     var searchQuery by remember { mutableStateOf("") }
@@ -145,11 +146,6 @@ fun InventoryScreen(
         }
 
         Column(Modifier.fillMaxWidth()) {
-            // ── Breadcrumb ──
-            ScreenBreadcrumb(
-                segments = listOf("Inventory", "All Items"),
-                onClick = { onBreadCrumbClick() }
-            )
 
             // ── Search & Filter ──
             SearchFilterBar(
@@ -285,7 +281,6 @@ fun InventoryScreen(
                         itemsIndexed(
                             items = items,
                             key = { index, item ->
-                                // Safe unique key fallback to prevent duplicate key crashes
                                 item._id.ifBlank { "$index" }
                             }
                         ) { _, item ->

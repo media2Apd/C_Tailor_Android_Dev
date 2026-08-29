@@ -3,7 +3,8 @@
     "SpellCheckingInspection",
     "GrazieInspection",
     "AssignedValueIsNeverRead",
-    "unused_variable"
+    "unused_variable",
+    "unused"
 )
 package com.cuso.mobile.view.home.sales.sales_order
 
@@ -24,7 +25,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,7 +51,6 @@ import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.OrderActionState
@@ -158,11 +157,7 @@ fun SalesOrderScreen(
                 // Top Bar
                 TitleBar("All Orders", onClose = onBack)
 
-                // Breadcrumb & Search
-                ScreenBreadcrumb(
-                    segments = listOf("Services", "Service & Orders"),
-                    onClick = { onBreadCrumbClick() }
-                )
+
 
                 SearchFilterBar(
                     query = searchQuery,

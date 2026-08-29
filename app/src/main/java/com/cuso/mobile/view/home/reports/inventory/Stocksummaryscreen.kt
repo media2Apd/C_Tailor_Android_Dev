@@ -40,7 +40,6 @@ import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.redBg
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.DataCard
@@ -205,10 +204,7 @@ fun StockSummaryScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(modifier = Modifier.weight(1f)) {
-                                    ScreenBreadcrumb(
-                                        listOf("Reports", "Inventory", "Stock Summary"),
-                                        onClick = { onBreadCrumbClick() }
-                                    )
+
                                 }
                                 Row(
                                     modifier = Modifier

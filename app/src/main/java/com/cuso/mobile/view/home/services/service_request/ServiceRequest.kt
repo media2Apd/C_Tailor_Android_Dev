@@ -1,5 +1,5 @@
+@file:Suppress("unused")
 package com.cuso.mobile.view.home.services.service_request
-
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -15,8 +15,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.whiteBg
-
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -169,10 +167,7 @@ fun ServiceRequestScreen(
             )
         ) {
             Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
-                ScreenBreadcrumb(
-                    segments = listOf("Services", "Service Request"),
-                    onClick = onBreadcrumbClick
-                )
+
                 Row(
                     Modifier
                         .fillMaxWidth()

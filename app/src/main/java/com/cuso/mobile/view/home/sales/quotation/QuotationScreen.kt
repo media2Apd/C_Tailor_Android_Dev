@@ -3,7 +3,8 @@
     "SpellCheckingInspection",
     "GrazieInspection",
     "AssignedValueIsNeverRead",
-    "VariableNeverRead"
+    "VariableNeverRead",
+    "unused"
 )
 package com.cuso.mobile.view.home.sales.quotation
 
@@ -46,7 +47,6 @@ import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.QuotationDeleteUiState
@@ -178,7 +178,6 @@ fun QuotationScreen(
 
                 // Breadcrumb + Search
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    ScreenBreadcrumb(segments = listOf("Sales", "Pricing & Quotations"), onClick = { onBreadCrumbClick() })
                     SearchFilterBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },

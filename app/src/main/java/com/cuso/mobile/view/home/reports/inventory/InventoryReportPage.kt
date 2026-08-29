@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.view.composable.AccordionSection
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.title_border
@@ -61,8 +60,6 @@ fun InventoryReportPage(
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
         ) {
-            ScreenBreadcrumb(listOf("Reports", "Inventory"), onClick = onBreadCrumbClick)
-            Spacer(modifier = Modifier.height(16.dp))
 
             AccordionSection(
                 title = "Stock Reports",

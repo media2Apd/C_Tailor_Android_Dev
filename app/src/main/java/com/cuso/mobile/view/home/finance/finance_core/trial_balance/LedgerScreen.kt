@@ -36,7 +36,6 @@ import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.ListSkeleton
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.home.finance.account_receivable.customers.formatDate
@@ -102,11 +101,7 @@ fun LedgerScreen(
         }
 
         Column {
-            // ── Breadcrumb ──
-            ScreenBreadcrumb(
-                segments = listOf("Finance", "Ledger"),
-                onClick = onBreadcrumbClick
-            )
+
 
             SearchFilterBar(
                 query = searchQuery,

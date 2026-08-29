@@ -1,3 +1,5 @@
+@file:Suppress("unused","unusedVariable")
+
 package com.cuso.mobile.view.home.sales.payment_listing
 
 import androidx.compose.foundation.background
@@ -19,17 +21,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.adaptive_screen.getAdaptiveTokens
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.whiteBg
 
 // ─────────────────────────────────────────────────────────────
 // Local design tokens specific to this screen
@@ -112,10 +111,7 @@ fun PaymentListingScreen(
 
             // ── Breadcrumb + Search ──
             Column(modifier = Modifier.fillMaxWidth()) {
-                ScreenBreadcrumb(
-                    segments = listOf("Sales", "Payment Listing"),
-                    onClick = { onBreadCrumbClick() }
-                )
+
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },

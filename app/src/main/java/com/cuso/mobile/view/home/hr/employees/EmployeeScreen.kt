@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.cuso.mobile.view.home.hr.employees
 
 import androidx.compose.animation.AnimatedVisibility
@@ -44,7 +46,6 @@ import com.cuso.mobile.view.composable.FilterSection
 import com.cuso.mobile.view.composable.FilterSectionType
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.rememberFilterDrawerState
@@ -177,8 +178,6 @@ fun AllEmployeesScreen(
             }
 
             Column {
-                // ── Breadcrumb ──
-                ScreenBreadcrumb(listOf("HR", "All Employees"), onClick = { onBreadCrumbClick() })
 
                 // ── Search & Filter bar ──
                 SearchFilterBar(

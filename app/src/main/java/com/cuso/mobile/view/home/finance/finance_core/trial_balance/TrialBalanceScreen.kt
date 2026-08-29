@@ -27,7 +27,6 @@ import com.cuso.mobile.model.finance.TrialBalanceItem
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.ListSkeleton
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.FinanceViewModel
@@ -109,11 +108,7 @@ fun TrialBalanceScreen(
         }
 
         Column {
-            // ── Breadcrumb ──
-            ScreenBreadcrumb(
-                segments = listOf("Finance", "Trial Balance"),
-                onClick = onBreadcrumbClick
-            )
+
 
             // ── Search & Filter bar ──
             SearchFilterBar(

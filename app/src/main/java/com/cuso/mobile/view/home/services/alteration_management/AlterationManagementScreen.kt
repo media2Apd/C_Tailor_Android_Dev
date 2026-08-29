@@ -1,3 +1,4 @@
+@file:Suppress("unused")
 package com.cuso.mobile.view.home.services.alteration_management
 
 import androidx.compose.foundation.background
@@ -15,8 +16,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.ui.theme.whiteBg
-
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -153,10 +152,7 @@ fun AlterationManagementScreen(
             )
         ) {
             Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
-                ScreenBreadcrumb(
-                    segments = listOf("Services", "Alteration Management"),
-                    onClick = onBreadcrumbClick
-                )
+
                 Row(
                     Modifier
                         .fillMaxWidth()

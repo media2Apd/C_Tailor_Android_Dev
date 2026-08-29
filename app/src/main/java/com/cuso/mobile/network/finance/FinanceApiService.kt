@@ -48,6 +48,12 @@ interface FinanceApiService {
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<ChartOfAccountsResponse>
+    @GET("/api/finance/chart-of-accounts/dropdown")
+    suspend fun getChartOfAccountsDropdown(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("context") context: String = "parent_account"
+    ): Response<AccountDropdownResponse>
 
     @POST("/api/finance/chart-of-accounts/create")
     suspend fun createChartOfAccount(

@@ -762,7 +762,7 @@ fun SearchFilterBar(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth()
-                .padding(bottom = 10.dp),
+                .padding(bottom = 10.dp, top = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
 

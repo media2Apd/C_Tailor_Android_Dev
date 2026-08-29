@@ -45,7 +45,6 @@ import com.cuso.mobile.view.composable.DataCardStatsRow
 import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
-import com.cuso.mobile.view.composable.ScreenBreadcrumb
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.ListSkeleton
@@ -203,7 +202,6 @@ fun DesignationScreen(
                                 .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
-                                ScreenBreadcrumb(segments = listOf("Settings", "Designation"), onClick = {})
                                 SearchFilterBar(
                                     query = searchQuery,
                                     onQueryChange = { searchQuery = it },

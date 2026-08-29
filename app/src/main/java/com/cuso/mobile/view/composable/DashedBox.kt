@@ -40,6 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.Shape
@@ -66,14 +68,23 @@ fun Modifier.dashedBorder(
     gapLength: Dp = 6.dp,
     cornerRadius: Dp = 12.dp
 ): Modifier = this.drawBehind {
+    val strokeWidthPx = strokeWidth.toPx()
+    val halfStroke = strokeWidthPx / 2f
+
     val stroke = Stroke(
-        width = strokeWidth.toPx(),
+        width = strokeWidthPx,
         pathEffect = PathEffect.dashPathEffect(
             floatArrayOf(dashLength.toPx(), gapLength.toPx()), 0f
         )
     )
+
     drawRoundRect(
         color = color,
+        topLeft = Offset(halfStroke, halfStroke),
+        size = Size(
+            width = size.width - strokeWidthPx,
+            height = size.height - strokeWidthPx
+        ),
         style = stroke,
         cornerRadius = CornerRadius(cornerRadius.toPx(), cornerRadius.toPx())
     )
@@ -161,8 +172,6 @@ fun rememberFilePickerLauncher(
         )
     }
 }
-
-
 
 @Composable
 fun SelectableChipRow(

@@ -58,6 +58,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.compose.ui.text.style.TextOverflow
+import com.cuso.mobile.ui.theme.light_grey
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
 
 @Composable
@@ -224,11 +226,11 @@ fun ServiceOrderScreen(
                                             val (statusBg, statusText) = when (order.status?.lowercase()) {
                                                 "completed" -> Color(0xFFDCFCE7) to Color(0xFF16A34A)
                                                 "pending" -> Color(0xFFFEF3C7) to Color(0xFFD97706)
-                                                "cancelled" -> Color(0xFFFEE2E2) to Color(0xFFEF4444)
+                                                "cancelled" -> Color(0xFFFEE2E2) to redText
                                                 else -> Color(0xFFDCFCE7) to Color(0xFF16A34A)
                                             }
 
-                                            val priorityColor = Color(0xFFEF4444)
+                                            val priorityColor = redText
 
                                             DataCard(
                                                 item = order,
@@ -294,7 +296,7 @@ fun ServiceOrderScreen(
                                                     }
 
                                                     Spacer(Modifier.height(10.dp))
-                                                    HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                                                    HorizontalDivider(color = light_grey, thickness = 1.dp)
                                                     Spacer(Modifier.height(10.dp))
 
                                                     // Bottom Split: Priority & Status (Left) | Total & Paid (Right)

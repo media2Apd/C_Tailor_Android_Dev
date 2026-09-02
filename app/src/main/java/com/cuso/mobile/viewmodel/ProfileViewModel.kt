@@ -1,9 +1,8 @@
 package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.sales.OrganizationDataWrapper
-import com.cuso.mobile.model.UpdateOrganizationRequest
+import com.cuso.mobile.model.settings.UpdateOrganizationRequest
 import com.cuso.mobile.repository.AuthRepository
 import com.cuso.mobile.repository.SalesRepository
 import com.cuso.mobile.utils.launchBusy
@@ -11,7 +10,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 // ─── UI State for loading organization ───

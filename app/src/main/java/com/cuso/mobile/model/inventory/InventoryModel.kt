@@ -3,98 +3,75 @@ package com.cuso.mobile.model.inventory
 import com.google.gson.annotations.SerializedName
 
 data class InventoryItemListResponse(
-    val success: Boolean,
-    val pagination: InventoryPagination,
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("pagination") val pagination: InventoryPagination? = null,
+    @SerializedName("items") private val _items: List<InventoryItem>? = null,
+    @SerializedName("data") private val _data: List<InventoryItem>? = null
+) {
+    // Provides .data to prevent compiler breakage across ViewModels/Repos
     val data: List<InventoryItem>
-)
+        get() = _items ?: _data ?: emptyList()
+}
 
 data class InventoryPagination(
-    val total: Int,
-    val page: Int,
-    val limit: Int,
-    val totalPages: Int
+    val total: Int = 0,
+    val page: Int = 1,
+    val limit: Int = 10,
+    val totalPages: Int = 1
 )
 
 data class InventoryItem(
-    val _id: String,
-    val organizationId: String,
-    val name: String,
-    val sku: String,
-    val parentGroupId: String?,
-    val attributes: Map<String, @JvmSuppressWildcards Any?>? = emptyMap(),
-    val warehouseId: String?,
-    val type: String,
-    val unit: String,
-    val costPrice: Double,
-    val sellingPrice: Double,
-    val trackInventory: Boolean,
-    val isSerialTracked: Boolean,
-    val openingStock: Double?,
-    val currentStock: Double,
-    val reservedStock: Double,
-    val incomingStock: Double,
-    val wipStock: Double,
-    val reorderPoint: Double,
-    val status: String? = null,
-    val images: List<InventoryImage> = emptyList(),
-    val createdAt: String,
-    val updatedAt: String,
+    @SerializedName("_id") val _id: String = "",
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("organizationId") val organizationId: String = "",
+    @SerializedName("name") val name: String = "",
+    @SerializedName("sku") val sku: String = "",
+    @SerializedName("barcode") val barcode: String? = null,
+    @SerializedName("parentGroupId") val parentGroupId: String? = null,
+    @SerializedName("categoryId") val categoryId: String? = null,
+    @SerializedName("attributes") val attributes: Map<String, @JvmSuppressWildcards Any?>? = emptyMap(),
+    @SerializedName("warehouseId") val warehouseId: String? = null,
+    @SerializedName("type") val type: String = "goods",
+    @SerializedName("unit") val unit: String = "",
+    @SerializedName("costPrice") val costPrice: Double = 0.0,
+    @SerializedName("sellingPrice") val sellingPrice: Double = 0.0,
+    @SerializedName("trackInventory") val trackInventory: Boolean = true,
+    @SerializedName("isSerialTracked") val isSerialTracked: Boolean = false,
+    @SerializedName("openingStock") val openingStock: Double? = 0.0,
+    @SerializedName("currentStock") val currentStock: Double = 0.0,
+    @SerializedName("reservedStock") val reservedStock: Double = 0.0,
+    @SerializedName("incomingStock") val incomingStock: Double = 0.0,
+    @SerializedName("wipStock") val wipStock: Double = 0.0,
+    @SerializedName("reorderPoint") val reorderPoint: Double = 0.0,
+    @SerializedName("reorderLevel") val reorderLevel: Double = 0.0,
+    @SerializedName("safetyStock") val safetyStock: Double = 0.0,
+    @SerializedName("status") val status: String = "active",
+    @SerializedName("images") val images: List<InventoryImage> = emptyList(),
+    @SerializedName("tags") val tags: List<String> = emptyList(),
+    @SerializedName("createdAt") val createdAt: String = "",
+    @SerializedName("updatedAt") val updatedAt: String = "",
+    @SerializedName("stockStatus") private val _stockStatus: String? = null
+) {
     val stockStatus: String
-)
-
-//   small helper — UI code everywhere just wants a display URL
-//fun InventoryItem.firstImageUrl(): String? = images.firstOrNull()?.fileUrl
+        get() = _stockStatus ?: when {
+            !trackInventory -> "Not Tracked"
+            currentStock <= 0 -> "Out of Stock"
+            currentStock <= (if (reorderPoint > 0) reorderPoint else reorderLevel) -> "Low Stock"
+            else -> "In Stock"
+        }
+}
 
 data class InventoryImage(
-    val fileUrl: String,
-    val publicId: String? = null,
-    val _id: String? = null
+    @SerializedName("fileUrl") val fileUrl: String = "",
+    @SerializedName("publicId") val publicId: String? = null,
+    @SerializedName("_id") val _id: String? = null
 )
 
-// single-item response, in case you add a view-one endpoint later
 data class InventoryItemDetailResponse(
-    val success: Boolean,
+    val success: Boolean = false,
     val data: InventoryItem
 )
 
-
-/**
- * If your existing InventoryItem model does NOT yet have every field shown
- * in the API response, make sure it includes these (add any missing ones):
- *
- * data class InventoryItem(
- *     val _id: String,
- *     val organizationId: String,
- *     val name: String,
- *     val sku: String,
- *     val parentGroupId: String?,
- *     val attributes: Map<String, String>?,
- *     val warehouseId: String?,
- *     val type: String,              // "goods"
- *     val unit: String,               // "pcs", "m" etc
- *     val costPrice: Double,
- *     val sellingPrice: Double,
- *     val trackInventory: Boolean,
- *     val isSerialTracked: Boolean,
- *     val openingStock: Double?,
- *     val currentStock: Double,
- *     val reservedStock: Double,
- *     val incomingStock: Double,
- *     val wipStock: Double,
- *     val reorderPoint: Double,
- *     val status: String,             // "active" / "inactive"
- *     val images: List<String>,
- *     val createdAt: String,
- *     val updatedAt: String,
- *     val stockStatus: String         // "Not Tracked" / "In Stock" etc
- * )
- */
-
-/**
- * Small computed helper — used by the UI to derive the values shown on the
- * "Inventory Health" card (Total Stock Value, Available, Low Threshold),
- * since the API doesn't return these directly.
- */
 data class InventoryHealthDisplay(
     val totalStockValue: Double,
     val available: Double,
@@ -112,11 +89,10 @@ fun InventoryItem.toHealthDisplay(): InventoryHealthDisplay {
         reserved = reservedStock,
         wip = wipStock,
         incoming = incomingStock,
-        lowThreshold = reorderPoint,
+        lowThreshold = if (reorderPoint > 0) reorderPoint else reorderLevel,
         isTracked = trackInventory
     )
 }
-
 
 data class AdjustStockRequest(
     val itemId: String,
@@ -126,18 +102,14 @@ data class AdjustStockRequest(
     val notes: String
 )
 
-//create item
-// ── Create Item: form state + item type ──
-
 object ItemType {
     const val IN_HOUSE = "goods"
     const val CLIENT = "service"
 }
 
-// In com.cuso.mobile.model.inventory
 data class CreateItemFormState(
-    val itemId: String? = null,           //   NEW - tracks if we are editing
-    val existingImageUrl: String? = null, //   NEW - shows image from server
+    val itemId: String? = null,
+    val existingImageUrl: String? = null,
     val itemType: String = ItemType.IN_HOUSE,
     val name: String = "",
     val sku: String = "",
@@ -169,8 +141,6 @@ data class CreateItemFormState(
     val openingStock: String = "",
     val imageUri: android.net.Uri? = null
 ) {
-//    val isEditMode: Boolean get() = itemId != null   // NEW
-
     fun validate(): String? = when {
         name.isBlank() -> "Item name is required"
         !autoGenerateSku && sku.isBlank() -> "SKU is required"
@@ -181,41 +151,40 @@ data class CreateItemFormState(
     }
 }
 
-//inventory view one
 data class InventoryViewOneResponse(
-    val success: Boolean,
+    val success: Boolean = false,
     val data: InventoryItemviewone
 )
 
 data class InventoryItemviewone(
-    @SerializedName("_id") val _id: String,
-    val organizationId: String,
-    val name: String,
-    val sku: String,
-    val parentGroupId: String?,
-    val attributes: Map<String, @JvmSuppressWildcards Any>? = emptyMap(),
-    val warehouseId: String?,
-    val type: String,                     // "goods" | "service"
-    val unit: String,
-    val costPrice: Double,
-    val sellingPrice: Double,
-    val trackInventory: Boolean,
-    val isSerialTracked: Boolean,
-    val openingStock: Double?,
-    val currentStock: Double,
-    val reservedStock: Double,
-    val incomingStock: Double,
-    val wipStock: Double,
-    val reorderPoint: Double,
-    val status: String,                   // "active" | "inactive" | "draft"
+    @SerializedName("_id") val _id: String = "",
+    val organizationId: String = "",
+    val name: String = "",
+    val sku: String = "",
+    val parentGroupId: String? = null,
+    val attributes: Map<String, @JvmSuppressWildcards Any?>? = emptyMap(),
+    val warehouseId: String? = null,
+    val type: String = "goods",
+    val unit: String = "",
+    val costPrice: Double = 0.0,
+    val sellingPrice: Double = 0.0,
+    val trackInventory: Boolean = false,
+    val isSerialTracked: Boolean = false,
+    val openingStock: Double? = 0.0,
+    val currentStock: Double = 0.0,
+    val reservedStock: Double = 0.0,
+    val incomingStock: Double = 0.0,
+    val wipStock: Double = 0.0,
+    val reorderPoint: Double = 0.0,
+    val status: String = "active",
     val images: List<InventoryItemImage> = emptyList(),
-    val createdAt: String,
-    val updatedAt: String,
-    val stockStatus: String               // "In Stock" | "Out of Stock" | ...
+    val createdAt: String = "",
+    val updatedAt: String = "",
+    val stockStatus: String = "In Stock"
 )
 
 data class InventoryItemImage(
-    val fileUrl: String,
-    val publicId: String,
-    @SerializedName("_id") val _id: String
+    val fileUrl: String = "",
+    val publicId: String = "",
+    @SerializedName("_id") val _id: String = ""
 )

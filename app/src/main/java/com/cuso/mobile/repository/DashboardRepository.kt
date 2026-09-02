@@ -1,7 +1,7 @@
 package com.cuso.mobile.repository
 
 import com.cuso.mobile.database.dao.TokensDao
-import com.cuso.mobile.model.DashboardData
+import com.cuso.mobile.model.sales.DashboardData
 import com.cuso.mobile.network.user.UserApiService
 import javax.inject.Inject
 import javax.inject.Singleton

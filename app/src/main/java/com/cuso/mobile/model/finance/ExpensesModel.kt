@@ -48,7 +48,7 @@ data class ChartOfAccountItem(
     @SerializedName("organizationId") val organizationId: String = "",
     @SerializedName("accountName") val accountName: String = "",
     @SerializedName("accountCode") val accountCode: String = "",
-    @SerializedName("accountType") val accountType: String = "",
+    @SerializedName("accountType") val accountType: String? = "",
     @SerializedName("category") val category: String? = null,
 
     // Custom adapter handles both nested object and plain string ID

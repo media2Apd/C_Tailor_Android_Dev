@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuso.mobile.model.sales.JsonCountry
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.whiteBg
@@ -43,7 +44,7 @@ fun CountryAndStatePicker(
     onStateChange: (String) -> Unit
 ) {
     val context = LocalContext.current
-    var allCountriesData by remember { mutableStateOf(emptyList<com.cuso.mobile.model.JsonCountry>()) }
+    var allCountriesData by remember { mutableStateOf(emptyList<JsonCountry>()) }
     val countryList = remember(allCountriesData) { allCountriesData.map { it.name }.sorted() }
     var stateList by remember { mutableStateOf(emptyList<String>()) }
 

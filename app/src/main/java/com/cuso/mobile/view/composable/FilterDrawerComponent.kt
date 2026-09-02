@@ -54,7 +54,9 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.primary_light
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 
@@ -111,7 +113,7 @@ fun rememberFilterDrawerState(): FilterDrawerState {
 
 // ── Priority colors ──
 private fun priorityDotColor(id: String): Color = when (id) {
-    "high" -> Color(0xFFEF4444)
+    "high" -> redText
     "medium" -> Color(0xFFF59E0B)
     "low" -> Color(0xFF22C55E)
     else -> Color(0xFF9CA3AF)
@@ -447,7 +449,7 @@ private fun FilterSectionCard(
             }
         }
         Spacer(Modifier.height(4.dp))
-        HorizontalDivider(color = Color(0xFFF3F4F6))
+        HorizontalDivider(color = light_grey)
     }
 }
 

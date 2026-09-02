@@ -25,9 +25,9 @@ import kotlinx.coroutines.launch
 import android.util.Log
 import com.cuso.mobile.database.dao.SelectedGarmentDao
 import com.cuso.mobile.database.entities.SelectedGarment
-import com.cuso.mobile.model.AddOrgGarmentResponse
-import com.cuso.mobile.model.OrgGarmentCategory
-import com.cuso.mobile.model.RemoveOrgGarmentResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.AddOrgGarmentResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.OrgGarmentCategory
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.RemoveOrgGarmentResponse
 import com.cuso.mobile.model.sales.ConvertToOrderData
 import com.cuso.mobile.model.sales.GarmentCategory
 import com.cuso.mobile.model.sales.OrderItem

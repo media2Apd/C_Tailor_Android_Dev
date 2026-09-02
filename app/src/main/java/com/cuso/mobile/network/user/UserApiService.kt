@@ -1,6 +1,6 @@
 package com.cuso.mobile.network.user
 
-import com.cuso.mobile.model.DashboardResponse
+import com.cuso.mobile.model.sales.DashboardResponse
 import com.cuso.mobile.model.sales.meResponse
 import com.cuso.mobile.model.sales.myLayoutResponse
 import com.cuso.mobile.model.sales.myOrganizationResponse

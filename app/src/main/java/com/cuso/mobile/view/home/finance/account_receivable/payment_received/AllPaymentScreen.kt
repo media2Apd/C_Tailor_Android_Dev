@@ -21,6 +21,7 @@ import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.view.composable.TitleBar
 
 // ── Static data model ──
@@ -45,7 +46,7 @@ private val dummyPayments = listOf(
 private fun statusColorOf(status: String): Color = when (status.lowercase()) {
     "completed" -> Color(0xFF3B3BF9)
     "pending" -> Color(0xFFF59E0B)
-    "failed" -> Color(0xFFEF4444)
+    "failed" -> redText
     else -> Color(0xFF6B7280)
 }
 

@@ -1,6 +1,6 @@
 package com.cuso.mobile.model.sales
 
-import com.cuso.mobile.model.OrganizationDetails
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.OrganizationDetails
 
 data class myOrganizationResponse(
     val success: Boolean,

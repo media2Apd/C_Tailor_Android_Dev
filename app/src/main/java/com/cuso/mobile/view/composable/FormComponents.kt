@@ -42,6 +42,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.light_grey
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.utils.AppLoadingManager
 
@@ -92,12 +94,12 @@ fun FormDropdown(
                 .onGloballyPositioned { coordinates -> triggerWidthPx = coordinates.size.width }
                 .height(tokens.fieldHeight)
                 .background(
-                    if (effectiveEnabled) whiteBg else Color(0xFFF3F4F6),
+                    if (effectiveEnabled) whiteBg else light_grey,
                     RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
                 )
                 .border(
                     1.dp,
-                    if (isError) Color(0xFFEF4444) else grey_border,
+                    if (isError) redText else grey_border,
                     RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
                 )
                 .clickable(enabled = effectiveEnabled) { onExpandChange(!expanded) }
@@ -167,11 +169,16 @@ fun FormDropdown(
 fun FormTextField(
     value: String,
     onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
     placeholder: String = "",
     isError: Boolean = false,
     errorMessage: String? = null,
     enabled: Boolean = true,
+    borderColor: Color = grey_border,               // Customizable border color
+    textColor: Color = Color(0xFF374151),            // Customizable text color
+    placeholderColor: Color = Color(0xFF9CA3AF),      // Customizable placeholder color
+    containerColor: Color = whiteBg,                 // Customizable background container color
     keyboardCapitalization: androidx.compose.ui.text.input.KeyboardCapitalization =
         androidx.compose.ui.text.input.KeyboardCapitalization.None,
     visualTransformation: androidx.compose.ui.text.input.VisualTransformation =
@@ -182,17 +189,21 @@ fun FormTextField(
     val isAppBusy by AppLoadingManager.busyState.collectAsState()
     val effectiveEnabled = enabled && !isAppBusy
 
+    // Determine final border color based on error state or custom color
+    val activeBorderColor = if (isError) redText else borderColor
+    val activeContainerColor = if (effectiveEnabled) containerColor else light_grey
+
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(tokens.fieldHeight)
             .background(
-                if (effectiveEnabled) whiteBg else Color(0xFFF3F4F6),
+                activeContainerColor,
                 RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
             )
             .border(
                 1.dp,
-                if (isError) Color(0xFFEF4444) else grey_border,
+                activeBorderColor,
                 RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
             )
             .padding(horizontal = tokens.cardPadding * 0.6f),
@@ -200,9 +211,9 @@ fun FormTextField(
     ) {
         if (value.isEmpty() && placeholder.isNotEmpty()) {
             Text(
-                placeholder,
+                text = placeholder,
                 fontSize = tokens.bodySmall,
-                color = Color(0xFF9CA3AF),
+                color = placeholderColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -220,15 +231,15 @@ fun FormTextField(
             visualTransformation = visualTransformation,
             textStyle = TextStyle(
                 fontSize = tokens.bodyMedium,
-                color = if (effectiveEnabled) Color(0xFF374151) else Color(0xFF6B7280)
+                color = if (effectiveEnabled) textColor else textColor.copy(alpha = 0.5f)
             )
         )
     }
     if (isError && !errorMessage.isNullOrBlank()) {
         Text(
-            errorMessage,
+            text = errorMessage,
             fontSize = tokens.label,
-            color = Color(0xFFEF4444),
+            color = redText,
             modifier = Modifier.padding(top = tokens.screenPadding * 0.25f, start = tokens.screenPadding * 0.25f)
         )
     }

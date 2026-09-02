@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.redText
 import kotlinx.coroutines.delay
 
 // Circle diameter used ONLY for the icon bubble now — not for the whole pill
@@ -269,7 +270,7 @@ fun ErrorFieldWrapper(
         Box(
             modifier = Modifier
                 .then(
-                    if (isError) Modifier.border(1.5.dp, Color(0xFFEF4444), RoundedCornerShape(8.dp))
+                    if (isError) Modifier.border(1.5.dp, redText, RoundedCornerShape(8.dp))
                     else Modifier
                 )
         ) {
@@ -278,7 +279,7 @@ fun ErrorFieldWrapper(
         AnimatedVisibility(visible = isError && !errorMessage.isNullOrBlank()) {
             Text(
                 text = errorMessage ?: "",
-                color = Color(0xFFEF4444),
+                color = redText,
                 fontSize = tokens.label,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )

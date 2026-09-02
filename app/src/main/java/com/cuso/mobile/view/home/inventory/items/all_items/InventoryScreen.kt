@@ -36,6 +36,7 @@ import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DataCard
@@ -67,7 +68,7 @@ private fun inventoryStatusColors(status: String?): Pair<Color, Color> {
             Pair(Color(0xFFD97706), Color(0xFFFEF3C7))
 
         else ->
-            Pair(Color(0xFF6B7280), Color(0xFFF3F4F6))
+            Pair(Color(0xFF6B7280), light_grey)
     }
 }
 
@@ -87,8 +88,8 @@ fun InventoryScreen(
     val errorMessage by inventoryViewModel.inventoryError.collectAsStateWithLifecycle()
     val viewOneItem by inventoryViewModel.viewOneItem.collectAsStateWithLifecycle()
 
-    // PERMANENT FIX: Ensure items is never null even if rawItems is null
-    val items = rawItems
+    //  Guaranteed non-null list fallback
+    val items: List<InventoryItem> = rawItems.orEmpty()
 
     var searchQuery by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -146,7 +147,6 @@ fun InventoryScreen(
         }
 
         Column(Modifier.fillMaxWidth()) {
-
             // ── Search & Filter ──
             SearchFilterBar(
                 query = searchQuery,
@@ -281,23 +281,30 @@ fun InventoryScreen(
                         itemsIndexed(
                             items = items,
                             key = { index, item ->
-                                item._id.ifBlank { "$index" }
+                                val id = item._id.orEmpty()
+                                if (id.isNotBlank()) id else "item_$index"
                             }
                         ) { _, item ->
+                            // Safe handling of nullable model properties
                             val (badgeFg, badgeBg) = inventoryStatusColors(item.stockStatus)
-                            val isTracking = item.trackInventory
-                            val stockCount = item.currentStock
+                            val isTracking = item.trackInventory ?: false
+                            val stockCount = item.currentStock ?: 0.0
                             val stockText = if (!isTracking) "—" else stockCount.toInt().toString()
 
-                            val itemType = item.type.replaceFirstChar { it.uppercase() }
-                            val price = item.sellingPrice
+                            val itemType = item.type.orEmpty().replaceFirstChar {
+                                if (it.isLowerCase()) it.titlecase() else it.toString()
+                            }.ifBlank { "N/A" }
+                            val price = item.sellingPrice ?: 0.0
+                            val skuText = item.sku?.ifBlank { "—" } ?: "—"
+                            val nameText = item.name.orEmpty().ifBlank { "Unnamed Item" }
+                            val itemId = item._id.orEmpty()
 
                             DataCard(
                                 item = item,
                                 modifier = Modifier.animateItem(),
-                                title = "${item.sku} • SKU",
-                                subtitle = item.name,
-                                topBadgeText = item.stockStatus,
+                                title = "$skuText • SKU",
+                                subtitle = nameText,
+                                topBadgeText = item.stockStatus.orEmpty(),
                                 topBadgeTextColor = badgeFg,
                                 topBadgeBgColor = badgeBg,
                                 topBadgeInline = true,
@@ -322,7 +329,11 @@ fun InventoryScreen(
                                     MenuAction(
                                         label = "Edit",
                                         icon = Icons.Default.Edit,
-                                        onClick = { inventoryViewModel.onViewOneClicked(item._id) }
+                                        onClick = {
+                                            if (itemId.isNotBlank()) {
+                                                inventoryViewModel.onViewOneClicked(itemId)
+                                            }
+                                        }
                                     ),
                                     MenuAction(
                                         label = "Delete",

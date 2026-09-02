@@ -71,6 +71,7 @@ import java.util.Locale
 import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.light_grey
 
 private val Purple = Color(0xFF3B3BF9)
 private val Green = Color(0xFF22C55E)
@@ -87,7 +88,7 @@ private const val TAX_RATE = 0.18
 // ── Models ──
 data class CustomerOption(
     val id: String,
-    val name: String,
+    val name: String? = "",
     val phone: String,
     val addressLine: String = "",
     val city: String = "",
@@ -175,7 +176,7 @@ fun CreateQuotationScreen(
                 (customerState as com.cuso.mobile.viewmodel.CustomerUiState.Success).customers.map { customer ->
                     CustomerOption(
                         id = customer.id,
-                        name = customer.name,
+                        name = customer.name?:"Unknown Customer",
                         phone = customer.mobile ?: "",
                         addressLine = customer.address?.addressLine ?: "",
                         city = customer.address?.city ?: "",
@@ -580,7 +581,7 @@ private fun CustomerLeadToggle(selected: String, onSelect: (String) -> Unit) {
             .height(44.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(whiteBg)
-            .border(1.dp, Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+            .border(1.dp, light_grey, RoundedCornerShape(8.dp))
             .padding(6.dp)
     ) {
         listOf("Customer", "Lead").forEach { label ->
@@ -608,7 +609,7 @@ private fun CustomerLeadToggle(selected: String, onSelect: (String) -> Unit) {
 
 @Composable
 private fun CustomerSelectionCard(customer: CustomerOption, selected: Boolean, onSelect: () -> Unit) {
-    val formattedName = remember(customer.name) { customer.name.toTitleCase() }
+    val formattedName = remember(customer.name) { customer.name?.toTitleCase() ?: "Unknown Customer" }
 
     Row(
         modifier = Modifier
@@ -1634,7 +1635,7 @@ private fun SummaryRow(label: String, value: String) {
             Text(label, fontSize = 13.sp, color = MutedGray)
             Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TitleDark)
         }
-        HorizontalDivider(color = Color(0xFFF3F4F6), modifier = Modifier.padding(top = 8.dp))
+        HorizontalDivider(color = light_grey, modifier = Modifier.padding(top = 8.dp))
     }
 }
 

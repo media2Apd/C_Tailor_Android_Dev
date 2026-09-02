@@ -60,6 +60,7 @@ val light_blue_border = Color(0xFFDBEAFE)
 val modelBorder = Color(0xffe8eaf4)
 val dividerColor = Color(0xFFF1F5F9)
 val sectionBorder = Color(0xFFE2E8F0)
+val light_grey = Color(0xFFF3F4F6)
 
 
 // ===========================================================
@@ -115,5 +116,5 @@ val Pink80 = Color(0xFFEFB8C8)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
-val grey_border = Color(0xFFE5E7EB)
+val grey_border = Color(0xFFF3F4F6)
 val title_border = Color(0xFFF0F0F0)

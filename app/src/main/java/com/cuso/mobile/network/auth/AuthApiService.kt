@@ -1,6 +1,26 @@
 package com.cuso.mobile.network.auth
 
-import com.cuso.mobile.model.*
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.EmailResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.EmailVerify
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.GoogleLoginRequest
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.PasswordResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.PasswordVerify
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.RegisterVerifyOtp
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.RegisterVerifyOtpResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.SignupRequest
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.SignupResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.forgotPasswordRequest
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.forgotPasswordResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.forgotPasswordVerifyRequest
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.forgotPasswordVerifyResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.organizationSetUpRequest
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.organizationSetUpResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.otpSendRequest
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.otpSendResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.otpVerifyRequest
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.otpVerifyResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.resetNewPasswordRequest
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.resetNewPasswordResponse
 import com.google.gson.JsonObject
 import retrofit2.Response
 import retrofit2.http.Body

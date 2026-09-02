@@ -13,7 +13,6 @@ package com.cuso.mobile.view.home.sales.sales_order
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -245,10 +244,10 @@ private fun OrderOverviewContent(
                     .fillMaxWidth()
                     .height(40.dp),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color(0xFFEF4444)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
+                border = BorderStroke(1.dp, redText),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = redText)
             ) {
-                Text("Cancel Order", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFEF4444))
+                Text("Cancel Order", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = redText)
             }
         }
 

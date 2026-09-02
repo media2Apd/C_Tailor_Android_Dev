@@ -828,7 +828,7 @@ fun CreateOrderScreen(
                                 Row(modifier = Modifier.fillMaxWidth()) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text("Discount", fontSize = 11.sp, color = Color(0xFF64748B))
-                                        Text("-₹${formatIndianNumber(item.discountPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444))
+                                        Text("-₹${formatIndianNumber(item.discountPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = redText)
                                     }
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text("Tax/GST", fontSize = 11.sp, color = Color(0xFF64748B))
@@ -871,7 +871,7 @@ fun CreateOrderScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("Total Discount", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
-                        Text("-₹${formatIndianNumber(totalDiscount)}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444))
+                        Text("-₹${formatIndianNumber(totalDiscount)}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = redText)
                     }
 
                     Row(
@@ -1222,7 +1222,7 @@ fun CustomerOutlinedField(
                 text = errorMessage,
                 fontSize = tokens.caption,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFFEF4444),
+                color = redText,
                 modifier = Modifier.padding(top = 4.dp, start = 4.dp)
             )
         }

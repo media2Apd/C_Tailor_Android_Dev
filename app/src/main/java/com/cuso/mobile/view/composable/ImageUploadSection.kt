@@ -1,3 +1,4 @@
+@file:Suppress("unused")
 package com.cuso.mobile.view.composable
 
 import android.content.Context
@@ -68,7 +69,7 @@ import coil.compose.rememberAsyncImagePainter
 import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.PrimaryBorder
+import com.cuso.mobile.ui.theme.redText
 
 @Composable
 fun <T> ImageUploadSection(
@@ -275,7 +276,7 @@ fun <T> ImageUploadSection(
                                 .padding(4.dp)
                                 .size(18.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFEF4444))
+                                .background(redText)
                                 .clickable { onRemoveImage(item) },
                             contentAlignment = Alignment.Center
                         ) {
@@ -392,7 +393,7 @@ fun <T> VoiceUploadSection(
                         onRecordClick()
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isRecording) Color(0xFFEF4444) else Color.White
+                        containerColor = if (isRecording) redText else Color.White
                     ),
                     shape = RoundedCornerShape(24.dp),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
@@ -418,7 +419,7 @@ fun <T> VoiceUploadSection(
                 Text(
                     text = if (isRecording) "Recording in progress..." else "Tap to record voice instructions",
                     fontSize = 12.sp,
-                    color = if (isRecording) Color(0xFFEF4444) else Color(0xFF64748B),
+                    color = if (isRecording) redText else Color(0xFF64748B),
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -512,7 +513,7 @@ fun <T> VoiceUploadSection(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Delete Voice Note",
-                                tint = Color(0xFFEF4444),
+                                tint = redText,
                                 modifier = Modifier.size(14.dp)
                             )
                         }

@@ -41,7 +41,7 @@ private val CustPrimarySoft = Color(0xFFEEEEFE)
 private val CustTextDark = Color(0xFF111827)
 private val CustmutedText = Color(0xFF9CA3AF)
 private val CustGreen = Color(0xFF22C55E)
-private val CustRed = Color(0xFFEF4444)
+private val CustRed = redText
 private val CustYellow = Color(0xFFF59E0B)
 private val CustBgLight = Color(0xFFF5F5F7)
 

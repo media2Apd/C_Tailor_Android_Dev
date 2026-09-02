@@ -1,7 +1,7 @@
 package com.cuso.mobile.utils
 
 import android.content.Context
-import com.cuso.mobile.model.JsonCountry
+import com.cuso.mobile.model.sales.JsonCountry
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers

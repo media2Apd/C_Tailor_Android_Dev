@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.BluePrimary
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
@@ -518,7 +519,7 @@ private fun CodeBadge(code: String) {
     val tokens = LocalAppTokens.current
     Box(
         modifier = Modifier
-            .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
+            .background(light_grey, RoundedCornerShape(6.dp))
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Text(code, fontSize = tokens.caption, color = mutedText)

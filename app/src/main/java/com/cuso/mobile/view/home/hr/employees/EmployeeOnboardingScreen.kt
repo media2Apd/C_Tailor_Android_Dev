@@ -50,7 +50,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
-import com.cuso.mobile.model.Country
+import com.cuso.mobile.model.sales.Country
 import com.cuso.mobile.model.hr.AddressRequest
 import com.cuso.mobile.model.hr.CreateMemberRequest
 import com.cuso.mobile.model.hr.EducationRequestItem

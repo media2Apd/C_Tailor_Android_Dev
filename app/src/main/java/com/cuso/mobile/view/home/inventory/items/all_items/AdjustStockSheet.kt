@@ -1,3 +1,5 @@
+@file:Suppress("unused","AssignedValueIsNeverRead")
+
 package com.cuso.mobile.view.home.inventory.items.all_items
 
 import androidx.compose.foundation.BorderStroke
@@ -28,6 +30,7 @@ import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.SheetValue
@@ -157,7 +160,7 @@ fun AdjustStockSheet(
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
-                        .background(Color(0xFFF3F4F6)),
+                        .background(light_grey),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

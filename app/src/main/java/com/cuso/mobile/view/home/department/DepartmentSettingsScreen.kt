@@ -30,7 +30,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
-import com.cuso.mobile.model.DepartmentItem
+import com.cuso.mobile.model.settings.DepartmentItem
 import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray

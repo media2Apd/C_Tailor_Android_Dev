@@ -30,12 +30,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.cuso.mobile.model.BranchItem
-import com.cuso.mobile.model.CreateBranchAddress
-import com.cuso.mobile.model.CreateBranchRequest
+import com.cuso.mobile.model.settings.BranchItem
+import com.cuso.mobile.model.settings.CreateBranchAddress
+import com.cuso.mobile.model.settings.CreateBranchRequest
 import com.cuso.mobile.model.sales.StaffDto
-import com.cuso.mobile.model.UpdateBranchAddress
-import com.cuso.mobile.model.UpdateBranchRequest
+import com.cuso.mobile.model.settings.UpdateBranchAddress
+import com.cuso.mobile.model.settings.UpdateBranchRequest
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.disabled

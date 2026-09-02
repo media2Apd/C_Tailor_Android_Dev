@@ -148,7 +148,7 @@ fun AllPaymentListScreen(
                             topBadgeTextColor = when(entry.status) {
                                 "Completed" -> Color(0xFF10B981)
                                 "Pending" -> Color(0xFFA16207)
-                                else -> Color(0xFFEF4444)
+                                else -> redText
                             },
                             footerFields = listOf(
                                 DataCardField(

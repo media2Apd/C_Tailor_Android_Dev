@@ -5,9 +5,9 @@ package com.cuso.mobile.repository
 import androidx.room.withTransaction
 import com.cuso.mobile.database.AppDatabase
 import com.cuso.mobile.database.entities.*
-import com.cuso.mobile.model.GoogleLoginData
-import com.cuso.mobile.model.LoginData
-import com.cuso.mobile.model.Organization
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.GoogleLoginData
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.LoginData
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.Organization
 import javax.inject.Inject
 
 class LoginRepository @Inject constructor(

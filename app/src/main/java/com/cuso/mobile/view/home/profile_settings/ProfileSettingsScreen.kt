@@ -32,6 +32,8 @@ import coil.compose.AsyncImage
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.light_grey
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.TitleBar
@@ -60,6 +62,17 @@ fun ProfileSettingsScreen(
     onTeams: () -> Unit = {},
     onDesignation: () -> Unit = {},
     onGarmentType: () -> Unit = {},
+    onGarmentPricing: () -> Unit = {},
+    onMarketing: () -> Unit = {},
+    onFinance: () -> Unit = {},
+    onInventory: () -> Unit = {},
+    onLogistics: () -> Unit = {},
+    onServices: () -> Unit = {},
+    onHR: () -> Unit = {},
+    onIT: () -> Unit = {},
+    onLegal: () -> Unit = {},
+    onSecurity: () -> Unit = {},
+    onReports: () -> Unit = {},
     onHelpSupport: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
@@ -83,7 +96,19 @@ fun ProfileSettingsScreen(
         "MODULE_SETTINGS" -> {
             ModuleSettingsScreen(
                 onClose = { currentScreen = "SETTINGS_OVERVIEW" },
-                onConfigureSales = onGarmentType
+                onConfigureHome = { currentScreen = "MAIN" },
+                onConfigureSales = onGarmentType,
+                onConfigureSalesPricing = onGarmentPricing,
+                onConfigureMarketing = onMarketing,
+                onConfigureFinance = onFinance,
+                onConfigureInventory = onInventory,
+                onConfigureLogistics = onLogistics,
+                onConfigureServices = onServices,
+                onConfigureHR = onHR,
+                onConfigureIT = onIT,
+                onConfigureLegal = onLegal,
+                onConfigureSecurity = onSecurity,
+                onConfigureReports = onReports
             )
             return
         }
@@ -98,6 +123,7 @@ fun ProfileSettingsScreen(
     val lastName = userEntity?.lastName.orEmpty()
     val fullName = "$firstName $lastName".trim().ifBlank { "User" }
     val email = userEntity?.email.orEmpty()
+    val role = userEntity?.role.orEmpty()
     val profilePicture = userEntity?.profilePicture
 
     val organizationItems = listOf(
@@ -222,7 +248,7 @@ fun ProfileSettingsScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(fullName, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
                         Spacer(Modifier.height(2.dp))
-                        Text("Administrator", fontSize = 13.sp, color = Color(0xFF6B7280))
+                        Text(role, fontSize = 13.sp, color = Color(0xFF6B7280))
                         Spacer(Modifier.height(2.dp))
                         Text(email, fontSize = 13.sp, color = Color(0xFF6B7280))
 
@@ -292,19 +318,19 @@ fun ProfileSettingsScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.Logout,
                             contentDescription = null,
-                            tint = Color(0xFFEF4444),
+                            tint = redText,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Log Out", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFEF4444))
-                        Text("Sign out from CUSO Tailor", fontSize = 12.sp, color = Color(0xFFEF4444).copy(alpha = 0.7f))
+                        Text("Log Out", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = redText)
+                        Text("Sign out from CUSO Tailor", fontSize = 12.sp, color = redText.copy(alpha = 0.7f))
                     }
                     Icon(
                         Icons.Default.ChevronRight,
                         contentDescription = null,
-                        tint = Color(0xFFEF4444),
+                        tint = redText,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -364,7 +390,7 @@ private fun SettingsCardGroup(items: List<SettingsMenuItem>) {
                 )
             }
             if (index != items.lastIndex) {
-                HorizontalDivider(color = Color(0xFFF3F4F6), modifier = Modifier.padding(start = 66.dp))
+                HorizontalDivider(color = light_grey, modifier = Modifier.padding(start = 66.dp))
             }
         }
     }

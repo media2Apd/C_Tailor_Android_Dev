@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.whiteBg
 
 // --- String Utilities ---
@@ -76,7 +77,7 @@ data class DataCardImage(
     val vector: ImageVector? = null,
     val size: Dp = 44.dp,
     val shape: Shape = CircleShape,
-    val backgroundColor: Color = Color(0xFFF3F4F6),
+    val backgroundColor: Color = light_grey,
     val tint: Color? = null,
     val selfContained: Boolean = false
 )
@@ -603,7 +604,7 @@ fun DataCardProgressBar(
     progress: Float,
     progressColor: Color,
     modifier: Modifier = Modifier,
-    trackColor: Color = Color(0xFFF3F4F6),
+    trackColor: Color = light_grey,
     height: Dp = 6.dp
 ) {
     Box(

@@ -12,7 +12,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cuso.mobile.model.*
 import com.cuso.mobile.repository.AuthRepository
 import com.cuso.mobile.repository.LoginRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,6 +27,18 @@ import com.cuso.mobile.database.entities.OrganizationEntity
 import com.cuso.mobile.database.entities.SettingsEntity
 import com.cuso.mobile.database.entities.TokensEntity
 import com.cuso.mobile.database.entities.UserEntity
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.GoogleLoginResult
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.LoginData
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.Organization
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.OrganizationDetails
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.RegisterVerifyOtpResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.Settings
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.Subscription
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.Tokens
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.User
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.organizationSetUpRequest
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.otpSendResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.otpVerifyResponse
 import com.cuso.mobile.utils.launchBusy
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.async
@@ -708,7 +719,7 @@ class Authenticate @Inject constructor(
         updatedAt = this.updatedAt,
         slug = this.slug,
         __v = this.__v,
-        defaultBranch = this.defaultBranch?._id?:"",
+        defaultBranch = this.defaultBranch?._id ?: "",
         ownerId = this.ownerId,
         ownerMemberId = this.ownerMemberId,
         businessType = this.businessType,

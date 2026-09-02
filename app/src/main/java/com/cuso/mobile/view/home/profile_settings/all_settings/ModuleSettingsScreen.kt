@@ -1,13 +1,21 @@
 package com.cuso.mobile.view.home.profile_settings.all_settings
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,28 +27,27 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.R
-import com.cuso.mobile.ui.theme.BorderGray
-import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.background_light_purple
-import com.cuso.mobile.ui.theme.mutedText
-import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.SearchFilterBar
-import com.cuso.mobile.view.composable.StatusBadge
-import com.cuso.mobile.view.composable.StatusBadgeVariant
 import com.cuso.mobile.view.composable.TitleBar
 
 private val PrimaryBlue = Color(0xFF3B3BF9)
-private val TextDark = Color(0xFF111827)
-private val CardBorderColor = Color(0xFFE5E7EB)
 
+// ── Sub-Item Model for Module Settings ──
+data class ModuleSubItem(
+    val title: String,
+    val onClick: () -> Unit
+)
+
+// ── Module Setting Item Model ──
 data class ModuleSettingItem(
     val id: String,
     val title: String,
     val description: String,
     val icon: Int,
-    val tags: List<String>,
+    val tags: List<String> = emptyList(),
     val isConfigured: Boolean = true,
+    val subItems: List<ModuleSubItem> = emptyList(),
     val onConfigure: () -> Unit = {}
 )
 
@@ -49,23 +56,25 @@ fun ModuleSettingsScreen(
     onClose: () -> Unit,
     onNavigateToModule: (String) -> Unit = {},
     onConfigureHome: () -> Unit = { onNavigateToModule("home") },
-    onConfigureSales: () -> Unit = { onNavigateToModule("sales") },
-    onConfigureMarketing: () -> Unit = { onNavigateToModule("marketing") },
-    onConfigureFinance: () -> Unit = { onNavigateToModule("finance") },
-    onConfigureInventory: () -> Unit = { onNavigateToModule("inventory") },
-    onConfigureLogistics: () -> Unit = { onNavigateToModule("logistics") },
-    onConfigureServices: () -> Unit = { onNavigateToModule("services") },
-    onConfigureHR: () -> Unit = { onNavigateToModule("hr") },
-    onConfigureIT: () -> Unit = { onNavigateToModule("it") },
-    onConfigureLegal: () -> Unit = { onNavigateToModule("legal") },
-    onConfigureSecurity: () -> Unit = { onNavigateToModule("security") },
-    onConfigureReports: () -> Unit = { onNavigateToModule("reports") }
+    onConfigureSales: () -> Unit,
+    onConfigureSalesPricing: () -> Unit,
+    onConfigureMarketing: () -> Unit,
+    onConfigureFinance: () -> Unit,
+    onConfigureInventory: () -> Unit,
+    onConfigureLogistics: () -> Unit,
+    onConfigureServices: () -> Unit,
+    onConfigureHR: () -> Unit,
+    onConfigureIT: () -> Unit,
+    onConfigureLegal: () -> Unit,
+    onConfigureSecurity: () -> Unit,
+    onConfigureReports: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
     val moduleList = remember(
         onConfigureHome,
         onConfigureSales,
+        onConfigureSalesPricing,
         onConfigureMarketing,
         onConfigureFinance,
         onConfigureInventory,
@@ -94,6 +103,19 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.sales,
                 tags = listOf("Orders", "Pricing", "Approvals"),
                 isConfigured = true,
+                subItems = listOf(
+                    ModuleSubItem(
+                        title = "Garment",
+                        onClick = onConfigureSales
+                    ),
+                    ModuleSubItem(
+                        title = "Garment Pricing",
+                        onClick = {
+                            android.util.Log.d("NAV_DEBUG", "Garment Pricing tapped")
+                            onConfigureSalesPricing()
+                        }
+                    )
+                ),
                 onConfigure = onConfigureSales
             ),
             ModuleSettingItem(
@@ -203,11 +225,9 @@ fun ModuleSettingsScreen(
             .fillMaxSize()
             .background(Color.Transparent)
     ) {
-        // --- Top Bar ---
         TitleBar(title = "Module Settings", onClose = onClose)
-        HorizontalDivider(color = Color(0xFFF3F4F6))
+        HorizontalDivider(color = light_grey)
 
-        // --- Search Bar ---
         SearchFilterBar(
             query = searchQuery,
             onQueryChange = { searchQuery = it },
@@ -218,7 +238,6 @@ fun ModuleSettingsScreen(
             onFilterClick = { }
         )
 
-        // --- Module Cards List ---
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -232,45 +251,52 @@ fun ModuleSettingsScreen(
 }
 
 @Composable
-private fun ModuleSettingCard(module: ModuleSettingItem) {
-    Column(
+fun ModuleSettingCard(module: ModuleSettingItem) {
+    var isExpanded by remember { mutableStateOf(module.subItems.isNotEmpty()) }
+
+    val statusBg = if (module.isConfigured) Color(0xFFE6F7ED) else Color(0xFFFEF3C7)
+    val statusTextColor = if (module.isConfigured) Color(0xFF10B981) else Color(0xFFD97706)
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, CardBorderColor, RoundedCornerShape(16.dp))
-            .clip(RoundedCornerShape(16.dp))
-            .background(whiteBg)
-            .clickable { module.onConfigure() }
-            .padding(16.dp)
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
+        // Note: Outer card clickable removed to prevent intercepting child click events
     ) {
-        // Header (Icon, Title, Status Badge)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Outer Squircle Container
+            // Header Row: Only the header is clickable for expand/collapse or single module configure
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        if (module.subItems.isNotEmpty()) {
+                            isExpanded = !isExpanded
+                        } else {
+                            module.onConfigure()
+                        }
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Squircle Icon Container
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .background(background_light_purple, RoundedCornerShape(14.dp)),
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(background_light_purple),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Inner Circle Container
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(whiteBg),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(id = module.icon),
-                            contentDescription = null,
-                            tint = Color.Unspecified,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    Icon(
+                        painter = painterResource(id = module.icon),
+                        contentDescription = null,
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
 
                 Spacer(Modifier.width(12.dp))
@@ -279,49 +305,94 @@ private fun ModuleSettingCard(module: ModuleSettingItem) {
                     text = module.title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextDark
+                    color = title_color,
+                    modifier = Modifier.weight(1f)
                 )
+
+                // Status Badge
+                Box(
+                    modifier = Modifier
+                        .background(statusBg, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (module.isConfigured) "CONFIGURED" else "SETUP REQUIRED",
+                        color = statusTextColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.4.sp
+                    )
+                }
+
+                Spacer(Modifier.width(6.dp))
+
+                // Chevron Indicator
+                if (module.subItems.isNotEmpty()) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = Color(0xFF64748B),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
-            // Status Badge (CONFIGURED / SETUP REQUIRED)
-            StatusBadge(
-                text = if (module.isConfigured) "CONFIGURED" else "SETUP REQUIRED",
-                variant = if (module.isConfigured) StatusBadgeVariant.SUCCESS else StatusBadgeVariant.WARNING,
+            Spacer(Modifier.height(10.dp))
+
+            // Description
+            Text(
+                text = module.description,
+                fontSize = 13.sp,
+                color = close_color,
+                lineHeight = 18.sp
             )
-        }
 
-        Spacer(Modifier.height(10.dp))
+            // Expandable Sub-Items List
+            AnimatedVisibility(
+                visible = isExpanded && module.subItems.isNotEmpty(),
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp)
+                ) {
+                    module.subItems.forEach { subItem ->
+                        HorizontalDivider(
+                            color = Color(0xFFF1F5F9),
+                            thickness = 1.dp
+                        )
 
-        // Description
-        Text(
-            text = module.description,
-            fontSize = 12.5.sp,
-            color = mutedText,
-            lineHeight = 17.sp
-        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    // Invokes sub-item click action
+                                    subItem.onClick()
+                                }
+                                .padding(vertical = 14.dp, horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = subItem.title,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = title_color
+                            )
 
-        Spacer(Modifier.height(12.dp))
-
-        // Tags List
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            module.tags.forEach { tag ->
-                StatusBadge(
-                    text = tag,
-                    variant = StatusBadgeVariant.DEFAULT
-                )
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
-
-        Spacer(Modifier.height(14.dp))
-
-        // Action Link
-        Text(
-            text = "Configure ${module.title} →",
-            fontSize = 15.sp,
-            color = Primary
-        )
     }
 }

@@ -37,6 +37,7 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_color
@@ -513,7 +514,7 @@ private fun ReportTypeSelectorContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(tokens.fieldHeight)
-                .background(Color(0xFFF3F4F6), RoundedCornerShape(tokens.cardCornerRadius / 1.5f))
+                .background(light_grey, RoundedCornerShape(tokens.cardCornerRadius / 1.5f))
                 .padding(horizontal = tokens.screenPadding * 0.75f),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -636,7 +637,7 @@ private fun ExportReportSheetContent(onDismiss: () -> Unit) {
         Text("Choose an export option", fontSize = tokens.caption, color = MutedColor)
         Spacer(Modifier.height(12.dp))
 
-        ExportOptionRow(Icons.Default.PictureAsPdf, Color(0xFFEF4444), "Export as PDF") { onDismiss() }
+        ExportOptionRow(Icons.Default.PictureAsPdf, redText, "Export as PDF") { onDismiss() }
         ExportOptionRow(Icons.Default.GridOn, Color(0xFF16A34A), "Export as Excel") { onDismiss() }
         ExportOptionRow(Icons.Default.Share, Color(0xFF3B82F6), "Share Report") { onDismiss() }
         ExportOptionRow(Icons.Default.Email, Color(0xFF9333EA), "Send by Email") { onDismiss() }

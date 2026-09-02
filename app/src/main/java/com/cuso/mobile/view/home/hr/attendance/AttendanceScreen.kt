@@ -331,7 +331,7 @@ private fun ExportAttendanceSheetContent(onDismiss: () -> Unit) {
         Text("Choose an export option", fontSize = tokens.caption, color = MutedColor)
         Spacer(Modifier.height(12.dp))
         listOf(
-            Triple(Icons.Default.PictureAsPdf, Color(0xFFEF4444), "Export as PDF"),
+            Triple(Icons.Default.PictureAsPdf, redText, "Export as PDF"),
             Triple(Icons.Default.GridOn, Color(0xFF16A34A), "Export as Excel"),
             Triple(Icons.Default.Share, Color(0xFF3B82F6), "Share Report"),
             Triple(Icons.Default.Email, Color(0xFF9333EA), "Send by Email")

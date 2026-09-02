@@ -37,12 +37,13 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cuso.mobile.model.countries
-import com.cuso.mobile.model.Country
+import com.cuso.mobile.model.sales.countries
+import com.cuso.mobile.model.sales.Country
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Refresh
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.whiteBg
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 
@@ -115,7 +116,7 @@ fun PhoneInputField(
                 .height(40.dp)
                 .border(
                     1.dp,
-                    if (isError) Color(0xFFEF4444) else grey_border,   // red border on error
+                    if (isError) redText else grey_border,   // red border on error
                     RoundedCornerShape(8.dp)
                 )
                 .background(
@@ -239,7 +240,7 @@ fun PhoneInputField(
         if (isError && !errorMessage.isNullOrBlank()) {
             Text(
                 text = errorMessage,
-                color = Color(0xFFEF4444),
+                color = redText,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )

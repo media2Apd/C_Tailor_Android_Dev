@@ -620,7 +620,7 @@ private fun PriceSummaryLine(label: String, value: String, isRed: Boolean = fals
             text = value,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            color = if (isRed) Color(0xFFEF4444) else title_color
+            color = if (isRed) redText else title_color
         )
     }
 }

@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
+import com.cuso.mobile.ui.theme.light_grey
 enum class StatusBadgeVariant {
     DEFAULT,     // Neutral Grey tag (+More, Organization Profile, Sales, Finance)
     SUCCESS,     // Green tag (CONFIGURED, Active, Paid)
@@ -41,7 +41,7 @@ fun StatusBadge(
     onClick: (() -> Unit)? = null
 ) {
     val (resolvedBg, resolvedText) = when (variant) {
-        StatusBadgeVariant.DEFAULT -> Color(0xFFF3F4F6) to Color(0xFF4B5563)
+        StatusBadgeVariant.DEFAULT -> light_grey to Color(0xFF4B5563)
         StatusBadgeVariant.SUCCESS -> Color(0xFFDCFCE7) to Color(0xFF16A34A)
         StatusBadgeVariant.WARNING -> Color(0xFFFEF3C7) to Color(0xFFD97706)
         StatusBadgeVariant.PRIMARY -> Color(0xFFEDE9FE) to Color(0xFF6366F1)

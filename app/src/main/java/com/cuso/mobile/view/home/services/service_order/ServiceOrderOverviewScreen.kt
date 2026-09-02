@@ -58,8 +58,10 @@ import com.cuso.mobile.ui.theme.disabled
 import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.light_blue
 import com.cuso.mobile.ui.theme.light_blue_border
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.primary_light
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.BackFabButton
@@ -99,10 +101,10 @@ private val StatusGreenBg = Color(0xFFDCFCE7)
 private val StatusGreenText = Color(0xFF16A34A)
 private val StatusOrangeBg = Color(0xFFFEF3C7)
 private val StatusOrangeText = Color(0xFFD97706)
-private val StatusGreyBg = Color(0xFFF3F4F6)
+private val StatusGreyBg = light_grey
 private val StatusGreyText = Color(0xFF6B7280)
 private val PaidGreen = Color(0xFF16A34A)
-private val BalanceRed = Color(0xFFEF4444)
+private val BalanceRed = redText
 private val ChipPurpleBg = Color(0xFFEDE9FE)
 private val ChipPurpleText = Color(0xFF6D28D9)
 private val AvatarBg = Color(0xFFEDE9FE)
@@ -598,7 +600,7 @@ private fun ServiceOverviewTab(data: OrderOverviewData) {
     val (statusBg, statusText) = when (paymentStatusFormatted.lowercase()) {
         "paid" -> Color(0xFFDCFCE7) to Color(0xFF16A34A)
         "partial" -> Color(0xFFFEF3C7) to Color(0xFFD97706)
-        "unpaid" -> Color(0xFFFEE2E2) to Color(0xFFEF4444)
+        "unpaid" -> Color(0xFFFEE2E2) to redText
         else -> Color(0xFFFEF3C7) to Color(0xFFD97706)
     }
 
@@ -654,7 +656,7 @@ private fun ServiceOverviewTab(data: OrderOverviewData) {
             Spacer(Modifier.height(10.dp))
             OverviewFieldRow("Net Order Amount", "₹${formatOverviewNumber(order.totalAmount)}")
             OverviewFieldRow("Paid Amount", "₹${formatOverviewNumber(order.totalPaid)}")
-            OverviewFieldRow("Balance Due", "₹${formatOverviewNumber(order.balanceAmount)}", valueColor = Color(0xFFEF4444))
+            OverviewFieldRow("Balance Due", "₹${formatOverviewNumber(order.balanceAmount)}", valueColor = redText)
 
             Row(
                 modifier = Modifier
@@ -701,7 +703,7 @@ private fun ServiceOverviewTab(data: OrderOverviewData) {
             )
 
             Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+            HorizontalDivider(color = light_grey, thickness = 1.dp)
             Spacer(Modifier.height(12.dp))
 
             Text("Special Instructions", fontSize = 12.sp, color = Color(0xFF9CA3AF))
@@ -959,7 +961,7 @@ private fun ServiceGarmentCard(
             }
 
             Spacer(Modifier.height(14.dp))
-            HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+            HorizontalDivider(color = light_grey, thickness = 1.dp)
             Spacer(Modifier.height(14.dp))
 
             // ── Bottom Section: Quantity & Trial Status ──
@@ -1193,14 +1195,14 @@ private fun ServiceAssignmentCard(
                             modifier = Modifier
                                 .size(6.dp)
                                 .clip(CircleShape)
-                                .background(if (isAssigned) Color(0xFF16A34A) else Color(0xFFEF4444))
+                                .background(if (isAssigned) Color(0xFF16A34A) else redText)
                         )
                         Spacer(Modifier.width(5.dp))
                         Text(
                             text = if (isAssigned) "Assigned" else "Not Assigned",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (isAssigned) Color(0xFF16A34A) else Color(0xFFEF4444)
+                            color = if (isAssigned) Color(0xFF16A34A) else redText
                         )
                     }
                 }
@@ -1260,7 +1262,7 @@ private fun ServiceAssignmentCard(
                     .height(5.dp)
                     .clip(RoundedCornerShape(3.dp)),
                 color = Color(0xFF2F27CE),
-                trackColor = Color(0xFFF3F4F6)
+                trackColor = light_grey
             )
 
             Spacer(Modifier.height(18.dp))
@@ -1449,7 +1451,7 @@ private fun AssignMethodSelectionSheet(
                 ) {
                     Text("${garment.type}  ·  ", fontSize = 12.sp, color = Color(0xFF6B7280))
                     Text("Qty ${garment.quantity}  ·  ", fontSize = 12.sp, color = Color(0xFF6B7280))
-                    Text("$complexity  ·  ", fontSize = 12.sp, color = Color(0xFFEF4444), fontWeight = FontWeight.Medium)
+                    Text("$complexity  ·  ", fontSize = 12.sp, color = redText, fontWeight = FontWeight.Medium)
                     Text(
                         text = if (garment.trialRequired) "Trial Required" else "No Trial",
                         fontSize = 12.sp,
@@ -1554,7 +1556,7 @@ private fun AssignMethodSelectionSheet(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(Color(0xFFF3F4F6)),
+                                    .background(light_grey),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -1816,7 +1818,7 @@ private fun AssignServiceTailorsSheet(
                         }
 
                         Spacer(Modifier.height(14.dp))
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                        HorizontalDivider(color = light_grey, thickness = 1.dp)
                         Spacer(Modifier.height(12.dp))
 
                         Row(
@@ -2039,7 +2041,7 @@ private fun ServicePaymentTab(
     val (statusBg, statusText) = when (payment.status.lowercase()) {
         "paid" -> Color(0xFFDCFCE7) to Color(0xFF16A34A)
         "partial", "partially paid" -> Color(0xFFFEF3C7) to Color(0xFFD97706)
-        else -> Color(0xFFFEE2E2) to Color(0xFFEF4444)
+        else -> Color(0xFFFEE2E2) to redText
     }
 
     val statusLabel = when (payment.status.lowercase()) {
@@ -2112,7 +2114,7 @@ private fun ServicePaymentTab(
                     )
 
                     Spacer(Modifier.height(16.dp))
-                    HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                    HorizontalDivider(color = light_grey, thickness = 1.dp)
                     Spacer(Modifier.height(14.dp))
 
                     // Progress Bar
@@ -2176,7 +2178,7 @@ private fun ServicePaymentTab(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFEF4444))
+                                    .background(redText)
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
@@ -2247,7 +2249,7 @@ private fun ServicePaymentTab(
                         }
 
                         Spacer(Modifier.height(14.dp))
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                        HorizontalDivider(color = light_grey, thickness = 1.dp)
                         Spacer(Modifier.height(14.dp))
 
                         // Amount Received (₹)
@@ -2403,7 +2405,7 @@ private fun ServicePaymentTab(
 
                     if (documentsExpanded) {
                         Spacer(Modifier.height(12.dp))
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                        HorizontalDivider(color = light_grey, thickness = 1.dp)
 
                         // 1. Generate / View Invoice
                         DocumentActionItem(
@@ -2460,10 +2462,10 @@ private fun ServicePaymentTab(
                         // 4. Create Adjustment
                         DocumentActionItem(
                             icon = Icons.Default.AddCircleOutline,
-                            iconTint = Color(0xFFEF4444),
+                            iconTint = redText,
                             label = "Create Adjustment",
-                            labelColor = Color(0xFFEF4444),
-                            arrowColor = Color(0xFFEF4444),
+                            labelColor = redText,
+                            arrowColor = redText,
                             onClick = { /* Handle adjustment if needed */ }
                         )
                     }
@@ -2493,7 +2495,7 @@ private fun ServicePaymentTab(
                     }
 
                     Spacer(Modifier.height(12.dp))
-                    HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                    HorizontalDivider(color = light_grey, thickness = 1.dp)
                     Spacer(Modifier.height(12.dp))
 
                     Row(
@@ -2506,7 +2508,7 @@ private fun ServicePaymentTab(
                             "₹${formatOverviewNumber(payment.remainingAmount)}",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFEF4444)
+                            color = redText
                         )
                     }
                 }
@@ -3035,7 +3037,7 @@ fun ServiceConvertToInvoiceButton(
 
     val bgColor = when {
         invoiceExists -> Color(0xFFDCFCE7)
-        !isPaymentDone -> Color(0xFFF3F4F6)
+        !isPaymentDone -> light_grey
         else -> Color(0xFFEEF0FF)
     }
     val contentColor = when {

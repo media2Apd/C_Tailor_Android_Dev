@@ -55,6 +55,7 @@ import java.util.Date
 import java.util.Locale
 import com.cuso.mobile.R
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DynamicIslandError
@@ -73,7 +74,7 @@ private val AccentBlue = Color(0xFF4F46E5)
 private val AccentBlueBg = Color(0xFFF0EEFE)
 private val SuccessGreen = Color(0xFF22C55E)
 private val SectionBg = Color(0xFFFFFFFF)
-private val PageBg = Color(0xFFF3F4F6)
+private val PageBg = light_grey
 private val BorderColor = grey_border
 private val LabelGray = Color(0xFF9CA3AF)
 private val TextPrimary = Color(0xFF111827)

@@ -84,12 +84,12 @@ import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.adaptive_screen.getAdaptiveTokens
 import com.cuso.mobile.database.entities.SalesStatusEntity
-import com.cuso.mobile.model.DashboardStatDto
-import com.cuso.mobile.model.OperationItem
-import com.cuso.mobile.model.Organization
-import com.cuso.mobile.model.Settings
-import com.cuso.mobile.model.Subscription
-import com.cuso.mobile.model.User
+import com.cuso.mobile.model.sales.DashboardStatDto
+import com.cuso.mobile.model.sales.OperationItem
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.Organization
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.Settings
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.Subscription
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.User
 import com.cuso.mobile.model.sales.CategoryItem
 import com.cuso.mobile.model.sales.CustomerItem
 import com.cuso.mobile.model.sales.StaffDto
@@ -101,6 +101,7 @@ import com.cuso.mobile.ui.theme.light_blue_border
 import com.cuso.mobile.ui.theme.modelBg
 import com.cuso.mobile.ui.theme.modelBorder
 import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.statLogoBg
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
@@ -239,123 +240,19 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    val implementedRoutes = remember {
-        setOf(
-            // ── Home & Settings ──
-            "home",
-            "settings",
-            "profile-settings",
-            "home_organization_profile",
-            "home_branch_management",
-            "home_department_teams",
-            "home_designation",
-//            "home_role_management",
-//            "home_warehouse_management",
-//            "home_opening_balance",
-
-            // ── Sales ──
-            "sales_lead",
-            "create_lead",
-            "view_lead",
-            "edit_lead",
-            "sales_customers",
-            "create_customer",
-            "view_customer",
-            "edit_customer",
-            "view_customer_recent",
-            "sales_measurements",
-            "sales_sales_orders",
-            "create_order",
-            "order_overview",
-            "create_order_review",
-            "sales_orders",
-            "order_management_overview",
-            "sales_pricing_overview",
-            "create_garment_pricing",
-            "garment_pricing_list",
-            "sales_pricing_quotation",
-            "create_quotation",
-//            "sales_payment_and_billing",
-//            "payment_detail",
-            "sales_settings",
-            "sales_garment_type",
-
-            // ── Finance ──
-            "finance_sales_invoices",
-            "finance_invoice_detail",
-//            "finance_purchase_invoices",
-//            "finance_purchase_invoice_detail",
-            "finance_customers",
-//            "finance_suppliers",
-//            "finance_supplier_detail",
-            "finance_expenses",
-            "finance_chart_of_accounts",
-            "finance_journal_screen",
-            "finance_trial_balance",
-            "finance_ledger",
-//            "finance_payments_received",
-//            "payment_detail_screen",
-//            "finance_payments_mode",
-//            "payment_mode_detail",
-
-            // ── Inventory ──
-            "inventory_items",
-            "inventory_create_item",
-            "inventory_item_detail",
-//            "inventory_low_stock_alerts",
-//            "inventory_create_purchase_order",
-//            "inventory_item_groups",
-//            "inventory_create_item_group",
-
-            // ── HR ──
-            "hr_all_employees",
-            "hr_employee_onboarding",
-//            "hr_attendance",
-//            "hr_attendance_detail",
-
-            // ── Logistics ──
-//            "logistics_delivery",
-//            "delivery_detail",
-//            "logistics_order_tracking",
-//            "tracking_overview",
-
-            // ── Services ──
-//            "services_customer_feedback",
-//            "feedback_detail",
-//            "services_alteration_management",
-//            "create_alteration",
-//            "services_service_request",
-//            "create_request",
-//            "review_services",
-
-            // ── Reports ──
-//            "reports_sales",
-//            "reports_inventory",
-//            "reports_inventory_stock_summary",
-//            "reports_inventory_low_stock",
-//            "reports_inventory_warehouse_report",
-//            "reports_inventory_purchase_report",
-//            "reports_inventory_dead_stock",
-//            "reports_finance",
-//            "reports_finance_profit_and_loss_report"
-        )
-    }
 //    val implementedRoutes = remember {
 //        setOf(
 //            // ── Home & Settings ──
 //            "home",
 //            "settings",
 //            "profile-settings",
-//            "settings_overview",
-//            "module_settings",
 //            "home_organization_profile",
 //            "home_branch_management",
 //            "home_department_teams",
 //            "home_designation",
-//            "home_role_management",
-//            "home_warehouse_management",
-//            "home_opening_balance",
-//            "sales_garment_type",
+////            "home_role_management",
+////            "home_warehouse_management",
+////            "home_opening_balance",
 //
 //            // ── Sales ──
 //            "sales_lead",
@@ -379,80 +276,188 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 //            "garment_pricing_list",
 //            "sales_pricing_quotation",
 //            "create_quotation",
-//            "measurement_entry",
-//            "order_preview",
-//            "sales_payment_and_billing",
-//            "payment_detail",
+////            "sales_payment_and_billing",
+////            "payment_detail",
 //            "sales_settings",
 //            "sales_garment_type",
 //
 //            // ── Finance ──
 //            "finance_sales_invoices",
 //            "finance_invoice_detail",
-//            "finance_purchase_invoices",
-//            "finance_purchase_invoice_detail",
+////            "finance_purchase_invoices",
+////            "finance_purchase_invoice_detail",
 //            "finance_customers",
-//            "finance_suppliers",
-//            "finance_supplier_detail",
+////            "finance_suppliers",
+////            "finance_supplier_detail",
 //            "finance_expenses",
 //            "finance_chart_of_accounts",
 //            "finance_journal_screen",
 //            "finance_trial_balance",
 //            "finance_ledger",
-//            "finance_payments_received",
-//            "payment_detail_screen",
-//            "finance_payments_mode",
-//            "payment_mode_detail",
+////            "finance_payments_received",
+////            "payment_detail_screen",
+////            "finance_payments_mode",
+////            "payment_mode_detail",
 //
 //            // ── Inventory ──
 //            "inventory_items",
 //            "inventory_create_item",
 //            "inventory_item_detail",
-//            "inventory_low_stock_alerts",
-//            "inventory_create_purchase_order",
-//            "inventory_item_groups",
-//            "inventory_create_item_group",
+////            "inventory_low_stock_alerts",
+////            "inventory_create_purchase_order",
+////            "inventory_item_groups",
+////            "inventory_create_item_group",
 //
 //            // ── HR ──
 //            "hr_all_employees",
 //            "hr_employee_onboarding",
-//            "hr_attendance",
-//            "hr_attendance_detail",
+////            "hr_attendance",
+////            "hr_attendance_detail",
 //
 //            // ── Logistics ──
-//            "logistics_delivery",
-//            "delivery_detail",
-//            "logistics_order_tracking",
-//            "tracking_overview",
+////            "logistics_delivery",
+////            "delivery_detail",
+////            "logistics_order_tracking",
+////            "tracking_overview",
 //
 //            // ── Services ──
-//            "services_service_status",
-//            "services_delay_rework",
-//            "services_service_delivery",
-//            "service_status_detail",
-//            "services_service_orders",
-//            "services_service_order",
-//            "service_order_overview",
-//            "services_customer_feedback",
-//            "feedback_detail",
-//            "services_alteration_management",
-//            "create_alteration",
-//            "services_service_request",
-//            "create_request",
-//            "review_services",
+////            "services_customer_feedback",
+////            "feedback_detail",
+////            "services_alteration_management",
+////            "create_alteration",
+////            "services_service_request",
+////            "create_request",
+////            "review_services",
 //
 //            // ── Reports ──
-//            "reports_sales",
-//            "reports_inventory",
-//            "reports_inventory_stock_summary",
-//            "reports_inventory_low_stock",
-//            "reports_inventory_warehouse_report",
-//            "reports_inventory_purchase_report",
-//            "reports_inventory_dead_stock",
-//            "reports_finance",
-//            "reports_finance_profit_and_loss_report"
+////            "reports_sales",
+////            "reports_inventory",
+////            "reports_inventory_stock_summary",
+////            "reports_inventory_low_stock",
+////            "reports_inventory_warehouse_report",
+////            "reports_inventory_purchase_report",
+////            "reports_inventory_dead_stock",
+////            "reports_finance",
+////            "reports_finance_profit_and_loss_report"
 //        )
 //    }
+    val implementedRoutes = remember {
+        setOf(
+            // ── Home & Settings ──
+            "home",
+            "settings",
+            "profile-settings",
+            "settings_overview",
+            "module_settings",
+            "home_organization_profile",
+            "home_branch_management",
+            "home_department_teams",
+            "home_designation",
+            "home_role_management",
+            "home_warehouse_management",
+            "home_opening_balance",
+            "sales_garment_type",
+            "sales_garment_pricing_setup",
+            "sales_add_garment_pricing",
+            "sales_add_fabric_pricing",
+            "sales_add_work_pricing",
+
+            // ── Sales ──
+            "sales_lead",
+            "create_lead",
+            "view_lead",
+            "edit_lead",
+            "sales_customers",
+            "create_customer",
+            "view_customer",
+            "edit_customer",
+            "view_customer_recent",
+            "sales_measurements",
+            "sales_sales_orders",
+            "create_order",
+            "order_overview",
+            "create_order_review",
+            "sales_orders",
+            "order_management_overview",
+            "sales_pricing_overview",
+            "create_garment_pricing",
+            "garment_pricing_list",
+            "sales_pricing_quotation",
+            "create_quotation",
+            "measurement_entry",
+            "order_preview",
+            "sales_payment_and_billing",
+            "payment_detail",
+            "sales_settings",
+            "sales_garment_type",
+
+            // ── Finance ──
+            "finance_sales_invoices",
+            "finance_invoice_detail",
+            "finance_purchase_invoices",
+            "finance_purchase_invoice_detail",
+            "finance_customers",
+            "finance_suppliers",
+            "finance_supplier_detail",
+            "finance_expenses",
+            "finance_chart_of_accounts",
+            "finance_journal_screen",
+            "finance_trial_balance",
+            "finance_ledger",
+            "finance_payments_received",
+            "payment_detail_screen",
+            "finance_payments_mode",
+            "payment_mode_detail",
+
+            // ── Inventory ──
+            "inventory_items",
+            "inventory_create_item",
+            "inventory_item_detail",
+            "inventory_low_stock_alerts",
+            "inventory_create_purchase_order",
+            "inventory_item_groups",
+            "inventory_create_item_group",
+
+            // ── HR ──
+            "hr_all_employees",
+            "hr_employee_onboarding",
+            "hr_attendance",
+            "hr_attendance_detail",
+
+            // ── Logistics ──
+            "logistics_delivery",
+            "delivery_detail",
+            "logistics_order_tracking",
+            "tracking_overview",
+
+            // ── Services ──
+            "services_service_status",
+            "services_delay_rework",
+            "services_service_delivery",
+            "service_status_detail",
+            "services_service_orders",
+            "services_service_order",
+            "service_order_overview",
+            "services_customer_feedback",
+            "feedback_detail",
+            "services_alteration_management",
+            "create_alteration",
+            "services_service_request",
+            "create_request",
+            "review_services",
+
+            // ── Reports ──
+            "reports_sales",
+            "reports_inventory",
+            "reports_inventory_stock_summary",
+            "reports_inventory_low_stock",
+            "reports_inventory_warehouse_report",
+            "reports_inventory_purchase_report",
+            "reports_inventory_dead_stock",
+            "reports_finance",
+            "reports_finance_profit_and_loss_report"
+        )
+    }
 
     fun safeNavigate(route: String) {
         val navKey = normalizeRoute(route)
@@ -999,7 +1004,7 @@ fun TopBar(
                                 .align(Alignment.TopEnd)
                                 .offset(x = 2.dp, y = (-1).dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFEF4444))
+                                .background(redText)
                                 .border(1.5.dp, Color(0xFFF5F5FA), CircleShape)
                         )
                     }
@@ -1641,7 +1646,7 @@ private fun DashboardStatCard(stat: DashboardStat, tokens: AppDesignTokens, modi
         Spacer(Modifier.height(tokens.screenPadding * 0.25f))
         when (stat.trendUp) {
             true -> TrendRow(icon = Icons.Default.ArrowUpward, text = stat.trendText, color = Color(0xFF16A34A), tokens = tokens)
-            false -> TrendRow(icon = Icons.Default.ArrowDownward, text = stat.trendText, color = Color(0xFFEF4444), tokens = tokens)
+            false -> TrendRow(icon = Icons.Default.ArrowDownward, text = stat.trendText, color = redText, tokens = tokens)
             null -> Text(stat.trendText, fontSize = tokens.label, color = Color(0xFF9CA3AF))
         }
     }

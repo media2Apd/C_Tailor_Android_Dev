@@ -1,7 +1,3 @@
-// File: app/src/main/java/com/cuso/mobile/database/entities/SelectedGarment.kt
-// ⚠️ REPLACE THE ENTIRE EXISTING FILE WITH THIS — this is the missing piece
-// causing all the "Unresolved reference 'measurements'" compile errors.
-
 package com.cuso.mobile.database.entities
 
 import androidx.room.Entity
@@ -21,13 +17,14 @@ class StringListConverter {
         if (data.isBlank()) emptyList() else data.split(",")
 }
 
-// Plain serializable measurement row (kept here so Room/Gson can use it
-// without the entity layer depending on the UI layer's MeasurementField)
 data class GarmentMeasurement(
     val id: String = "",
     val label: String = "",
     val value: String = "",
-    val unit: String = "inch"
+    val unit: String = "inch",
+    val inputType: String = "Number",
+    val isRequired: Boolean = false,
+    val displayOrder: Int = 1
 )
 
 class MeasurementListConverter {

@@ -61,6 +61,7 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.core.content.FileProvider
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -70,7 +71,7 @@ private val InvPrimary = Color(0xFF3B3BF9)
 private val InvTextDark = Color(0xFF111827)
 private val InvmutedText = Color(0xFF9CA3AF)
 private val InvGreen = Color(0xFF16A34A)
-private val InvRed = Color(0xFFEF4444)
+private val InvRed = redText
 private val InvYellow = Color(0xFFF59E0B)
 
 // ─────────────────────────────────────────────────────────────

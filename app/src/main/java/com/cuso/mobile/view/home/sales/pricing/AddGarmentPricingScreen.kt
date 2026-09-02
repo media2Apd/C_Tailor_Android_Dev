@@ -10,12 +10,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.LocalOffer
-import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.sales.BulkRuleDto
 import com.cuso.mobile.model.sales.PriceAdjustmentDto
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.DynamicIslandError
@@ -477,7 +473,7 @@ fun AddGarmentPricingScreen(
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 if (showError && errorMessage.isNotEmpty()) {
-                                    Text(errorMessage, fontSize = 12.sp, color = Color(0xFFEF4444))
+                                    Text(errorMessage, fontSize = 12.sp, color = redText)
                                 }
                                 OutlinedButton(
                                     onClick = {

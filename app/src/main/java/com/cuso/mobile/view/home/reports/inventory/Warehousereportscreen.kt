@@ -37,7 +37,7 @@ import com.cuso.mobile.ui.theme.PrimaryBorder
 import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.mutedText
-import com.cuso.mobile.ui.theme.redBg
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.TitleBar
@@ -55,7 +55,7 @@ import com.cuso.mobile.view.composable.rememberFilterDrawerState
 
 // ── Design tokens (screen-specific accent colors; sizing/spacing comes from LocalAppTokens) ──
 private val ReportPrimary = Primary
-private val CriticalRed = redBg
+private val CriticalRed = redText
 private val WarningOrange = Color(0xFFF59E0B)
 private val HealthyGreen = greentext
 private val TitleColor = title_color
@@ -456,7 +456,7 @@ private fun ExportReportSheetContent(onDismiss: () -> Unit) {
         Text("Choose an export option", fontSize = tokens.caption, color = MutedColor)
         Spacer(Modifier.height(12.dp))
 
-        ExportOptionRow(Icons.Default.PictureAsPdf, Color(0xFFEF4444), "Export as PDF") { onDismiss() }
+        ExportOptionRow(Icons.Default.PictureAsPdf, redText, "Export as PDF") { onDismiss() }
         ExportOptionRow(Icons.Default.GridOn, Color(0xFF16A34A), "Export as Excel") { onDismiss() }
         ExportOptionRow(Icons.Default.Share, Color(0xFF3B82F6), "Share Report") { onDismiss() }
         ExportOptionRow(Icons.Default.Email, Color(0xFF9333EA), "Send by Email") { onDismiss() }

@@ -59,14 +59,14 @@ interface SalesPricingApiService {
     @DELETE("/api/quotations/delete-one/{id}")
     suspend fun deleteQuotation(
         @Header("Authorization") token: String,
-        @Header("x-csrf-token") csrfToken: String,
+        @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<QuotationDeleteResponse>
 
     @GET("/api/quotations/view-one/{id}")
     suspend fun getQuotationById(
         @Header("Authorization") token: String,
-        @Header("x-csrf-token") csrfToken: String,
+        @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<QuotationDetailResponse>
 }

@@ -11,7 +11,7 @@ package com.cuso.mobile.view.home.sidebar
 
 import android.annotation.SuppressLint
 import android.content.Context
-import com.cuso.mobile.model.User
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.User
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
@@ -69,7 +69,9 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.quickaccessBg
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
@@ -867,7 +869,7 @@ private val moduleAccentColors = mapOf(
     "Marketing"  to Color(0xFFEC4899),
     "Logistics"  to Color(0xFF0EA5E9),
     "Services"   to Color(0xFF8B5CF6),
-    "HR"         to Color(0xFFEF4444),
+    "HR"         to redText,
     "IT"         to Color(0xFF6366F1),
     "Legal"      to Color(0xFF64748B),
     "Security"   to Color(0xFF14B8A6),
@@ -1379,7 +1381,7 @@ private fun ModulesPanelContent(
                                     modifier = Modifier
                                         .size(40.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFFF3F4F6)),
+                                        .background(light_grey),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(

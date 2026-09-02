@@ -53,8 +53,8 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
-import com.cuso.mobile.model.UpdateOrganizationRequest
-import com.cuso.mobile.model.UpdateOrganizationSettings
+import com.cuso.mobile.model.settings.UpdateOrganizationRequest
+import com.cuso.mobile.model.settings.UpdateOrganizationSettings
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary

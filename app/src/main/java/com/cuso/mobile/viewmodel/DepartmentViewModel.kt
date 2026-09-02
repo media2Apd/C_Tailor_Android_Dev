@@ -2,17 +2,15 @@
 package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.cuso.mobile.model.DepartmentCreateRequest
-import com.cuso.mobile.model.DepartmentItem
-import com.cuso.mobile.model.DepartmentUpdateRequest
+import com.cuso.mobile.model.settings.DepartmentCreateRequest
+import com.cuso.mobile.model.settings.DepartmentItem
+import com.cuso.mobile.model.settings.DepartmentUpdateRequest
 import com.cuso.mobile.repository.SalesRepository
 import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 // ── List state (getDepartments) ──

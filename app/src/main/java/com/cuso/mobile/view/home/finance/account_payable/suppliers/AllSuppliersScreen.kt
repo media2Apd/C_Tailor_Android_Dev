@@ -13,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.cuso.mobile.ui.theme.lightGray
+import com.cuso.mobile.ui.theme.light_grey
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -85,7 +87,7 @@ private val dummySuppliers = List(6) {
                     subtitle = "Code: ${supplier.code}  •  ${supplier.phone}",
                     topBadgeText = if (supplier.isActive) "Active" else "Inactive",
                     topBadgeTextColor = if (supplier.isActive) Color(0xFF16A34A) else Color(0xFF6B7280),
-                    topBadgeBgColor = if (supplier.isActive) Color(0xFFDCFCE7) else Color(0xFFF3F4F6),
+                    topBadgeBgColor = if (supplier.isActive) Color(0xFFDCFCE7) else light_grey,
                     topBadgeInline = true,
                     footerFields = listOf(
                         DataCardField(
@@ -100,7 +102,7 @@ private val dummySuppliers = List(6) {
                     actions = listOf(
                         MenuAction(label = "View", onClick = { onSupplierClick(supplier) }),
                         MenuAction(label = "Edit", onClick = { }),
-                        MenuAction(label = "Delete", textColor = Color(0xFFEF4444), onClick = { })
+                        MenuAction(label = "Delete", textColor = redText, onClick = { })
                     ),
                     onClick = { onSupplierClick(it) }
                 )

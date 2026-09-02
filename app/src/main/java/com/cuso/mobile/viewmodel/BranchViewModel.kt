@@ -1,10 +1,9 @@
 package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.cuso.mobile.model.BranchItem
-import com.cuso.mobile.model.CreateBranchRequest
-import com.cuso.mobile.model.UpdateBranchRequest
+import com.cuso.mobile.model.settings.BranchItem
+import com.cuso.mobile.model.settings.CreateBranchRequest
+import com.cuso.mobile.model.settings.UpdateBranchRequest
 import com.cuso.mobile.repository.SalesRepository
 import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,7 +11,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 // ── List state (getBranches) ──

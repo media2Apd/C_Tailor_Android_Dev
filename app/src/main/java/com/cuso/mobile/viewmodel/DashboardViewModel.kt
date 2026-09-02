@@ -1,8 +1,7 @@
 package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.cuso.mobile.model.DashboardData
+import com.cuso.mobile.model.sales.DashboardData
 import com.cuso.mobile.repository.DashboardRepository
 import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -10,7 +9,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed class DashboardUiState {

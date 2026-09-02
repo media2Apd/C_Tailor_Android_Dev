@@ -97,7 +97,7 @@ fun InventoryViewOne(
         },
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-    ) {paddingValues ->
+    ) { paddingValues ->
 
         Column(
             modifier = Modifier
@@ -105,14 +105,11 @@ fun InventoryViewOne(
                 .padding(paddingValues)
                 .background(Color.Transparent)
         ) {
-
-            // Content + BottomSheet container below TitleBar
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Transparent)
             ) {
-                // Scrollable view that gets blurred only when sheet opens
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -153,10 +150,7 @@ fun InventoryViewOne(
                                     )
                                     Spacer(Modifier.width(tokens.extraPadding - 2.dp))
                                     StatusBadge(
-                                        active = item.status.equals(
-                                            "active",
-                                            ignoreCase = true
-                                        )
+                                        active = item.status.equals("active", ignoreCase = true)
                                     )
                                     Spacer(Modifier.weight(1f))
                                     IconButton(
@@ -232,7 +226,6 @@ fun InventoryViewOne(
                     }
                 }
 
-                // AdjustStockSheet overlay strictly below the TitleBar
                 if (showAdjustStockSheet && item != null) {
                     AdjustStockSheet(
                         item = item,
@@ -292,7 +285,6 @@ fun StatusBadge(
     }
 }
 
-// 2. Boolean-க்கு மட்டுமான Overload (Active / Inactive-க்கு)
 @Composable
 fun StatusBadge(
     active: Boolean,
@@ -320,7 +312,7 @@ private fun OverviewContent(
 
     SectionHeader(icon = Icons.Outlined.Inventory2, title = "Item Details")
     Spacer(Modifier.height(tokens.extraPadding - 2.dp))
-    InfoRow("Item Type", item.type.replaceFirstChar { it.uppercase() })
+    InfoRow("Item Type", item.type.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() })
     DividerLine()
     InfoRow("Unit", item.unit)
     DividerLine()

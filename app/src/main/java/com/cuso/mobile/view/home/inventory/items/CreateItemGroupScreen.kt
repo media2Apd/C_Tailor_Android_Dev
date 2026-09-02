@@ -55,6 +55,7 @@ import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.FormDropdown
@@ -282,7 +283,7 @@ fun CreateItemGroupScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
+                                .background(light_grey, RoundedCornerShape(6.dp))
                                 .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
                             Text("Max 3 Attributes", fontSize = tokens.label, color = LabelColor)
@@ -509,7 +510,7 @@ fun CreateItemGroupScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(tokens.fieldHeight)
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(tokens.cardCornerRadius * 0.55f))
+                            .background(light_grey, RoundedCornerShape(tokens.cardCornerRadius * 0.55f))
                             .padding(horizontal = 12.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {

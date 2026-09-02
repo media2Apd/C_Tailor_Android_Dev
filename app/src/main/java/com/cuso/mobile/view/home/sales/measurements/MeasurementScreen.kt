@@ -59,6 +59,7 @@ import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.greenBg
 import com.cuso.mobile.ui.theme.greentext
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
@@ -211,7 +212,7 @@ fun MeasurementsScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(80.dp)
-                                        .background(Color(0xFFF3F4F6), CircleShape),
+                                        .background(light_grey, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(

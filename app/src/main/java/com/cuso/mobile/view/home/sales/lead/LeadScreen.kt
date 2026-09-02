@@ -100,7 +100,9 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.close_color
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.primary_light
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.title_font
@@ -1187,7 +1189,7 @@ fun LeadFormScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                                                    .background(light_grey, RoundedCornerShape(8.dp))
                                                     .padding(tokens.screenPadding * 0.85f),
                                                 contentAlignment = Alignment.Center
                                             ) {
@@ -1710,7 +1712,7 @@ fun LeadScreenContent(
             statusName.contains("Quot", ignoreCase = true) || statusName.equals("QUOTED", ignoreCase = true) ->
                 "Quoted" to Color(0xFFF59E0B)
             statusName.contains("Follow", ignoreCase = true) || statusName.equals("FOLLOW_UP", ignoreCase = true) || statusName.contains("Pending", ignoreCase = true) ->
-                "Follow-up" to Color(0xFFEF4444)
+                "Follow-up" to redText
             statusName.contains("Lost", ignoreCase = true) ->
                 "Lost" to Color(0xFF6B7280)
             else -> statusName to Color(0xFF9CA3AF)

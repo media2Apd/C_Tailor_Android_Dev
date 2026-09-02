@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.sp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.light_grey
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.TitleBar
@@ -63,7 +65,7 @@ private val InTransitText = Color(0xFF6D28D9)
 private val RecommendedColor = Color(0xFF4F39F6)
 private val SuccessGreen = Color(0xFF16A34A)
 private val BusyOrange = Color(0xFFEA580C)
-private val UnavailableRed = Color(0xFFEF4444)
+private val UnavailableRed = redText
 private val SelectedBg = Color(0xFFEEF0FF)
 
 private data class StaffMember(
@@ -444,7 +446,7 @@ fun DeliveryDetailScreen(
                         modifier = Modifier
                             .weight(1f)
                             .height(tokens.fieldHeight)
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
+                            .background(light_grey, RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
                             .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {

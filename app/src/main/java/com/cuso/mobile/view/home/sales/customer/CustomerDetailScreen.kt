@@ -68,6 +68,7 @@ import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.lightGray
 import com.cuso.mobile.ui.theme.light_blue_border
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.primary_light
 import com.cuso.mobile.ui.theme.title_border
@@ -960,7 +961,7 @@ private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
             Row(
                 modifier = Modifier
                     .width(tableWidth)
-                    .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp))
+                    .background(light_grey, RoundedCornerShape(12.dp))
                     .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 14.dp)
             ) {
                 Text("Order ID", fontSize = tokens.bodyMedium, color = Color(0xFF374151),

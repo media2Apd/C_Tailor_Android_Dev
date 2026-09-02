@@ -1,6 +1,5 @@
 package com.cuso.mobile.view.composable
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -142,7 +141,7 @@ fun DeleteModel(
                             onClick = onDelete,
                             enabled = isConfirmed, // Dynamic enable logic
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFEF4444),
+                                containerColor = redText,
                                 disabledContainerColor = Color(0xFFFEE2E2)
                             ),
                             shape = RoundedCornerShape(10.dp),
@@ -150,7 +149,7 @@ fun DeleteModel(
                         ) {
                             Text(
                                 text = "Delete",
-                                color = if (isConfirmed) Color.White else Color(0xFFEF4444).copy(alpha = 0.5f),
+                                color = if (isConfirmed) Color.White else redText.copy(alpha = 0.5f),
                                 fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -173,7 +172,7 @@ fun DeleteModel(
                     Icon(
                         imageVector = Icons.Outlined.DeleteOutline,
                         contentDescription = null,
-                        tint = Color(0xFFEF4444),
+                        tint = redText,
                         modifier = Modifier.size(32.dp)
                     )
                 }

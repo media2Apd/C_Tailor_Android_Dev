@@ -30,8 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.mobile.model.OrgSettingsRequest
-import com.cuso.mobile.model.organizationSetUpRequest
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.OrgSettingsRequest
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.organizationSetUpRequest
 import com.cuso.mobile.view.composable.AppLogo
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.CountryAndStatePicker
@@ -62,6 +62,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.BorderStroke
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.light_grey
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.whiteBg
 import java.io.File
 
@@ -281,7 +283,7 @@ fun OrganizationProfile(
                     modifier = Modifier
                         .size(90.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFF3F4F6))
+                        .background(light_grey)
                         .border(1.dp, grey_border, RoundedCornerShape(8.dp))
                 ) {
                     Image(
@@ -295,7 +297,7 @@ fun OrganizationProfile(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .size(20.dp)
-                        .background(Color(0xFFEF4444), CircleShape)
+                        .background(redText, CircleShape)
                         .clickable { selectedLogoUri = null },
                     contentAlignment = Alignment.Center
                 ) {
@@ -639,7 +641,7 @@ fun OrganizationDropdown(
                 .fillMaxWidth()
                 .height(40.dp)
                 .background(
-                    if (enabled) whiteBg else Color(0xFFF3F4F6),
+                    if (enabled) whiteBg else light_grey,
                     RoundedCornerShape(8.dp)
                 )
                 .border(1.dp, grey_border, RoundedCornerShape(8.dp))

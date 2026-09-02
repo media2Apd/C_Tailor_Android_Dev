@@ -23,6 +23,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.whiteBg
 
 // ─────────────────────────────────────────────────────────────
@@ -108,7 +109,7 @@ fun PlanLimitDialog(
                             text = title,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFEF4444),
+                            color = redText,
                             textAlign = TextAlign.Center
                         )
 

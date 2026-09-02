@@ -41,6 +41,7 @@ import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.light_grey
 
 // ─────────────────────────────────────────────
 // Shared colors used across all screens
@@ -51,7 +52,7 @@ private val TitleColor = Color(0xFF111827)
 private val LabelColor = Color(0xFF6B7280)
 private val MutedLabel = Color(0xFF9CA3AF)
 private val BorderColor = grey_border
-private val StripBg = Color(0xFFF3F4F6)
+private val StripBg = light_grey
 private val SectionBg = Color(0xFFF7F7FA)
 private val SuccessColor = Color(0xFF16A34A)
 private val PriorityRed = Color(0xFFE53935)

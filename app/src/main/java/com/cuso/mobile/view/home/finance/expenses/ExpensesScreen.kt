@@ -43,7 +43,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
-import com.cuso.mobile.model.BranchItem
+import com.cuso.mobile.model.settings.BranchItem
 import com.cuso.mobile.model.finance.ChartOfAccountItem
 import com.cuso.mobile.model.finance.ExpenseItem
 import com.cuso.mobile.ui.theme.BluePrimary
@@ -51,6 +51,7 @@ import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DataCard
@@ -450,7 +451,7 @@ private fun expenseStatusColors(status: String?): Pair<Color, Color> {
     return when (status?.lowercase()) {
         "paid" -> Color(0xFF16A34A) to Color(0xFFDCFCE7)
         "pending" -> Color(0xFFCA8A04) to Color(0xFFFEF3C7)
-        else -> Color(0xFF6B7280) to Color(0xFFF3F4F6)
+        else -> Color(0xFF6B7280) to light_grey
     }
 }
 

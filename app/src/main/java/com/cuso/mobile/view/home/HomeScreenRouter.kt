@@ -1,4 +1,4 @@
-@file:Suppress("unused")
+@file:Suppress("unused","unusedVariable","AssignedValueIsNeverRead")
 
 package com.cuso.mobile.view.home
 
@@ -6,10 +6,15 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.cuso.mobile.model.sales.CustomerItem
+import com.cuso.mobile.model.settings.SegmentItem
 import com.cuso.mobile.view.home.branch.BranchSettingsScreen
 import com.cuso.mobile.view.home.department.DepartmentSettingsScreen
 import com.cuso.mobile.view.home.designation.DesignationScreen
@@ -65,11 +70,11 @@ import com.cuso.mobile.view.home.reports.inventory.StockSummaryScreen
 import com.cuso.mobile.view.home.reports.inventory.WarehouseReportScreen
 import com.cuso.mobile.view.home.reports.sales.SalesOrderReportsScreen
 import com.cuso.mobile.view.home.role.RoleSettingsScreen
-import com.cuso.mobile.view.home.sales.settings.AddNewGarmentScreen
-import com.cuso.mobile.view.home.sales.settings.AddSegmentScreen
-import com.cuso.mobile.view.home.sales.settings.GarmentCategoryDetailScreen
-import com.cuso.mobile.view.home.sales.settings.GarmentTypeContent
-import com.cuso.mobile.view.home.sales.settings.SalesSettingsScreen
+import com.cuso.mobile.view.home.sales.settings.garment.AddNewGarmentScreen
+import com.cuso.mobile.view.home.sales.settings.garment.AddSegmentScreen
+import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.GarmentCategoryDetailScreen
+import com.cuso.mobile.view.home.sales.settings.garment.GarmentTypeContent
+import com.cuso.mobile.view.home.sales.settings.garment.SalesSettingsScreen
 import com.cuso.mobile.view.home.sales.customer.*
 import com.cuso.mobile.view.home.sales.lead.*
 import com.cuso.mobile.view.home.sales.measurements.MeasurementsScreen
@@ -77,6 +82,15 @@ import com.cuso.mobile.view.home.sales.payment_listing.*
 import com.cuso.mobile.view.home.sales.pricing.*
 import com.cuso.mobile.view.home.sales.quotation.*
 import com.cuso.mobile.view.home.sales.sales_order.*
+import com.cuso.mobile.view.home.sales.settings.garment.AddNewGarmentCategoryScreen
+import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.AddExistingFieldScreen
+import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.ConfigurationPreviewScreen
+import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.CreateMeasurementFieldScreen
+import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.GarmentProfileConfigScreen
+import com.cuso.mobile.view.home.sales.settings.pricing_setup.AddFabricPriceScreen
+import com.cuso.mobile.view.home.sales.settings.pricing_setup.AddNewGarmentPricingScreen
+import com.cuso.mobile.view.home.sales.settings.pricing_setup.AddWorkPricingScreen
+import com.cuso.mobile.view.home.sales.settings.pricing_setup.PricingSetupScreen
 import com.cuso.mobile.view.home.services.alteration_management.AlterationManagementScreen
 import com.cuso.mobile.view.home.services.alteration_management.CreateAlterationManagementScreen
 import com.cuso.mobile.view.home.services.feedback.CustomerFeedbackScreen
@@ -158,6 +172,14 @@ fun HomeScreenRouter(
     onOrderFlowOriginChange: (String?) -> Unit,
     onOrderSavedSuccessfully: (savedOrderId: String?) -> Unit
 ) {
+    var isGarmentActive by remember { mutableStateOf(false) }
+    var selectedSegmentForEdit by remember { mutableStateOf<SegmentItem?>(null) }
+
+    // Persistent primitive states for garment detail navigation
+    var selectedSegmentIdForDetail by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedGarmentIdForDetail by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedGarmentTitleForDetail by rememberSaveable { mutableStateOf("Garment Categories") }
+
     when (screen) {
         // ─────────────────────────────────────────────────────────────
         // 1. HOME & SETTINGS MODULE
@@ -214,6 +236,17 @@ fun HomeScreenRouter(
             onOrganizationSetup = { onSafeNavigate("settings_overview") },
             onBranchManagement = { onSafeNavigate("home_branch_management") },
             onGarmentType = { onSafeNavigate("sales_garment_type") },
+            onGarmentPricing = { onSafeNavigate("sales_garment_pricing_setup") },
+            onMarketing = { onShowComingSoon("Marketing Settings Coming Soon") },
+            onFinance = { onSafeNavigate("finance_chart_of_accounts") },
+            onInventory = { onSafeNavigate("inventory_items") },
+            onLogistics = { onSafeNavigate("logistics_delivery") },
+            onServices = { onSafeNavigate("services_service_status") },
+            onHR = { onSafeNavigate("hr_all_employees") },
+            onIT = { onShowComingSoon("IT Settings Coming Soon") },
+            onLegal = { onShowComingSoon("Legal Settings Coming Soon") },
+            onSecurity = { onShowComingSoon("Security Settings Coming Soon") },
+            onReports = { onSafeNavigate("reports_sales") },
             onDepartment = { onSafeNavigate("home_department_teams") },
             onDesignation = { onSafeNavigate("home_designation") },
             onHelpSupport = { onSafeNavigate("home_warehouse_management") },
@@ -236,6 +269,7 @@ fun HomeScreenRouter(
             onClose = onGoBack,
             onConfigureHome = { onSafeNavigate("home_organization_profile") },
             onConfigureSales = { onSafeNavigate("sales_garment_type") },
+            onConfigureSalesPricing = { onSafeNavigate("sales_garment_pricing_setup") },
             onConfigureFinance = { onSafeNavigate("finance_chart_of_accounts") },
             onConfigureInventory = { onSafeNavigate("inventory_items") },
             onConfigureLogistics = { onSafeNavigate("logistics_delivery") },
@@ -244,7 +278,9 @@ fun HomeScreenRouter(
             onConfigureIT = { onShowComingSoon("IT Settings Coming Soon") },
             onConfigureLegal = { onShowComingSoon("Legal Settings Coming Soon") },
             onConfigureSecurity = { onShowComingSoon("Security Settings Coming Soon") },
-            onConfigureReports = { onSafeNavigate("reports_sales") }
+            onConfigureReports = { onSafeNavigate("reports_sales") },
+            onConfigureMarketing = {onShowComingSoon("Marketing Settings Coming Soon")},
+            onNavigateToModule = {}
         )
 
         // ─────────────────────────────────────────────────────────────
@@ -505,46 +541,162 @@ fun HomeScreenRouter(
         "payment_detail" -> PaymentInformationScreen(onClose = onGoBack)
         "sales_settings" -> SalesSettingsScreen(
             navController = navController,
-            onClose = {
-                onSalesSettingsModeChange(false)
-                onGoBack()
+            onClose = onGoBack,
+            onAddSegmentClick = {
+                selectedSegmentForEdit = null
+                settingsViewModel.clearSelectedSegmentDetail()
+                onNavigate("sales_add_segment")
             },
-            onMenuClick = onOpenDrawer
-        )
-        "sales_garment_type" -> GarmentTypeContent(
-            onClose = {
-                onSalesSettingsModeChange(false)
-                onGoBack()
+            onEditSegmentClick = { segment ->
+                selectedSegmentForEdit = segment
+                settingsViewModel.fetchSegmentById(segment.id)
+                onNavigate("sales_add_segment")
             },
-            onAddSegmentClick = { onNavigate("sales_add_segment") },
             onAddGarmentClick = { onNavigate("sales_add_garment") },
-            onConfigureClick = { categoryId ->
-                // Navigate to Category Detail screen when clicking card or Configure
+            onConfigureGarmentClick = { segmentId, garmentId, garmentTitle ->
+                settingsViewModel.setSelectedGarmentForDetail(segmentId, garmentId, garmentTitle)
+                onNavigate("sales_category_detail")
+            },
+            viewModel = settingsViewModel
+        )
+
+        "sales_garment_category_detail", "sales_category_detail" -> {
+            val segmentId by settingsViewModel.selectedSegmentIdForStyle.collectAsStateWithLifecycle()
+            val garmentId by settingsViewModel.selectedGarmentIdForStyle.collectAsStateWithLifecycle()
+            val title by settingsViewModel.selectedGarmentTitleForStyle.collectAsStateWithLifecycle()
+
+            GarmentCategoryDetailScreen(
+                categoryTitle = title,
+                segmentId = segmentId,
+                garmentId = garmentId,
+                onClose = onGoBack,
+                onAddGarmentCategoryClick = {
+                    onNavigate("sales_add_garment_category")
+                },
+                viewModel = settingsViewModel
+            )
+        }
+        "sales_add_segment" -> AddSegmentScreen(
+            segmentToEdit = selectedSegmentForEdit,
+            viewModel = settingsViewModel,
+            onClose = {
+                selectedSegmentForEdit = null
+                settingsViewModel.clearSelectedSegmentDetail()
+                onGoBack()
+            },
+            onSegmentSaved = {
+                selectedSegmentForEdit = null
+                settingsViewModel.clearSelectedSegmentDetail()
+                settingsViewModel.fetchSegments()
+                onGoBack()
+            }
+        )
+
+        // ─────────────────────────────────────────────────────────────
+        // 2. SALES MODULE - GARMENT SETTINGS
+        // ─────────────────────────────────────────────────────────────
+        "sales_garment_type" -> GarmentTypeContent(
+            viewModel = settingsViewModel,
+            onClose = {
+                onSalesSettingsModeChange(false)
+                onGoBack()
+            },
+            onAddSegmentClick = {
+                selectedSegmentForEdit = null
+                settingsViewModel.clearSelectedSegmentDetail()
+                onNavigate("sales_add_segment")
+            },
+            onEditSegmentClick = { segment ->
+                selectedSegmentForEdit = segment
+                settingsViewModel.fetchSegmentById(segment.id)
+                onNavigate("sales_add_segment")
+            },
+            onAddGarmentClick = { onNavigate("sales_add_garment") },
+            onConfigureGarmentClick = { segmentId, garmentId, garmentTitle ->
+                settingsViewModel.setSelectedGarmentForDetail(segmentId, garmentId, garmentTitle)
                 onNavigate("sales_category_detail")
             }
         )
-        "sales_category_detail" -> GarmentCategoryDetailScreen(
-            categoryTitle = "Shirts Category",
+
+        // 2. Garment Profile Screen
+        "sales_garment_profile" -> GarmentProfileConfigScreen(
+            profileTitle = "Men's Shirt Profile",
+            isActive = isGarmentActive,
             onClose = onGoBack,
-            onAddGarmentClick = { onNavigate("sales_add_garment") },
-            onConfigureGarmentClick = { garmentId ->
-                // Handle specific garment configuration
-            }
+            onAddExistingClick = { onNavigate("sales_add_existing_field") },
+            onAddFieldClick = { onNavigate("sales_create_measurement_field") },
+            onPreviewClick = { onNavigate("sales_configuration_preview") },
+            onToggleActiveState = { isGarmentActive = it }
         )
-        "sales_add_segment" -> AddSegmentScreen(
+        "sales_configuration_preview" -> ConfigurationPreviewScreen(
+            garmentTitle = "Men's Shirt",
             onClose = onGoBack,
-            onSubmit = { name, code, desc, order, isActive ->
-                // Handle segment creation logic here
+            onBackToEdit = onGoBack,
+            onActivateConfirmed = {
+                isGarmentActive = true
                 onGoBack()
             }
         )
+
+        // 3. Add Existing Field Screen
+        "sales_add_existing_field" -> AddExistingFieldScreen(
+            onClose = onGoBack,
+            onAddSelected = { selectedFields ->
+                onGoBack()
+            },
+            viewModel = settingsViewModel
+        )
+
+        // 4. Create Measurement Field Screen
+        "sales_create_measurement_field" -> CreateMeasurementFieldScreen(
+            onClose = onGoBack,
+            onSave = { createdField ->
+                // Return back after saving the measurement field
+                onGoBack()
+            },
+            viewModel = settingsViewModel
+        )
+
         "sales_add_garment" -> AddNewGarmentScreen(
+            viewModel = settingsViewModel,
             onClose = onGoBack,
-            onSubmit = { name, displayName, segment, template, desc ->
-                // Handle garment creation
-                onGoBack()
+            onGarmentCreated = onGoBack
+        )
+
+        "sales_add_garment_category" -> AddNewGarmentCategoryScreen(
+            onClose = onGoBack,
+            onGarmentCategoryCreated = onGoBack,
+            viewModel = settingsViewModel
+        )
+
+        // ─────────────────────────────────────────────────────────────
+        // SALES PRICING SETUP SCREEN
+        // ─────────────────────────────────────────────────────────────
+        "sales_garment_pricing_setup" -> PricingSetupScreen(
+            onClose = onGoBack,
+            onAddGarmentPricing = { onNavigate("sales_add_garment_pricing") },
+            onAddFabricPricing = { onNavigate("sales_add_fabric_pricing") },
+            onAddWorkPricing = { onNavigate("sales_add_work_pricing") },
+            onEditGarmentPricing = { garmentName ->
+                onNavigate("sales_add_garment_pricing")
             }
         )
+
+        "sales_add_garment_pricing" -> AddNewGarmentPricingScreen(
+            onClose = onGoBack,
+            onSaveSuccess = onGoBack
+        )
+
+        "sales_add_fabric_pricing" -> AddFabricPriceScreen(
+            onClose = onGoBack,
+            onSaveSuccess = onGoBack
+        )
+
+        "sales_add_work_pricing" -> AddWorkPricingScreen(
+            onClose = onGoBack,
+            onSaveSuccess = onGoBack
+        )
+
         // ─────────────────────────────────────────────────────────────
         // 3. FINANCE MODULE
         // ─────────────────────────────────────────────────────────────

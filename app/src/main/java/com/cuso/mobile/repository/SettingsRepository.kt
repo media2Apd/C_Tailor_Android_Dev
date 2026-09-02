@@ -1,5 +1,6 @@
 package com.cuso.mobile.repository
 
+import com.android.volley.Response
 import com.cuso.mobile.database.dao.SelectedGarmentDao
 import com.cuso.mobile.database.dao.TokensDao
 import com.cuso.mobile.database.entities.GarmentMeasurement
@@ -10,6 +11,7 @@ import com.cuso.mobile.model.settings.CreateGarmentStyleRequest
 import com.cuso.mobile.model.settings.CreateMeasurementFieldRequest
 import com.cuso.mobile.model.settings.CreateSegmentRequest
 import com.cuso.mobile.model.settings.CreateSegmentResponse
+import com.cuso.mobile.model.settings.DeactivateMeasurementFieldResponse
 import com.cuso.mobile.model.settings.DeleteSegmentResponse
 import com.cuso.mobile.model.settings.GarmentItem
 import com.cuso.mobile.model.settings.GarmentStyleItem
@@ -305,6 +307,26 @@ class SettingsRepository @Inject constructor(
                 val errorMsg = response.errorBody()?.string()
                     ?: response.message()
                     ?: "Failed to fetch garment category details"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Deactivate Measurement Field ──
+    suspend fun deactivateMeasurementField(fieldId: String): Result<DeactivateMeasurementFieldResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.deactivateMeasurementField(accessToken, csrfToken, fieldId)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body)
+            } else {
+                val errorMsg = response.errorBody()?.string()
+                    ?: response.message()
+                    ?: "Failed to deactivate measurement field"
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {

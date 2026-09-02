@@ -1,3 +1,5 @@
+@file:Suppress("unused", "SpellCheckingInspection", "UNUSED_PARAMETER")
+
 package com.cuso.mobile.view.home.profile_settings.all_settings
 
 import androidx.compose.animation.AnimatedVisibility
@@ -33,13 +35,13 @@ import com.cuso.mobile.view.composable.TitleBar
 
 private val PrimaryBlue = Color(0xFF3B3BF9)
 
-// ── Sub-Item Model for Module Settings ──
+// Sub-Item Model for Module Settings
 data class ModuleSubItem(
     val title: String,
     val onClick: () -> Unit
 )
 
-// ── Module Setting Item Model ──
+// Module Setting Item Model
 data class ModuleSettingItem(
     val id: String,
     val title: String,
@@ -56,18 +58,26 @@ fun ModuleSettingsScreen(
     onClose: () -> Unit,
     onNavigateToModule: (String) -> Unit = {},
     onConfigureHome: () -> Unit = { onNavigateToModule("home") },
-    onConfigureSales: () -> Unit,
-    onConfigureSalesPricing: () -> Unit,
-    onConfigureMarketing: () -> Unit,
-    onConfigureFinance: () -> Unit,
-    onConfigureInventory: () -> Unit,
-    onConfigureLogistics: () -> Unit,
-    onConfigureServices: () -> Unit,
-    onConfigureHR: () -> Unit,
-    onConfigureIT: () -> Unit,
-    onConfigureLegal: () -> Unit,
-    onConfigureSecurity: () -> Unit,
-    onConfigureReports: () -> Unit
+    onConfigureSales: () -> Unit = { onNavigateToModule("sales_garment_type") },
+    onConfigureSalesPricing: () -> Unit = { onNavigateToModule("sales_garment_pricing_setup") },
+    onConfigureMarketing: () -> Unit = {},
+    onConfigureFinance: () -> Unit = { onNavigateToModule("finance_chart_of_accounts") },
+    onConfigureInventory: () -> Unit = { onNavigateToModule("inventory_allocation_rules") },
+    // Inventory 7 Sub-items Navigation
+    onNavigateAllocationRules: () -> Unit = { onNavigateToModule("inventory_allocation_rules") },
+    onNavigatePdfTemplates: () -> Unit = { onNavigateToModule("inventory_pdf_templates") },
+    onNavigateLocationStructure: () -> Unit = { onNavigateToModule("inventory_location_structure") },
+    onNavigateFloorOverview: () -> Unit = { onNavigateToModule("inventory_floor_overview") },
+    onNavigateSectionOverview: () -> Unit = { onNavigateToModule("inventory_section_overview") },
+    onNavigateRackOverview: () -> Unit = { onNavigateToModule("inventory_rack_overview") },
+    onNavigateBinOverview: () -> Unit = { onNavigateToModule("inventory_bin_overview") },
+    onConfigureLogistics: () -> Unit = { onNavigateToModule("logistics_delivery") },
+    onConfigureServices: () -> Unit = { onNavigateToModule("services_service_status") },
+    onConfigureHR: () -> Unit = { onNavigateToModule("hr_all_employees") },
+    onConfigureIT: () -> Unit = {},
+    onConfigureLegal: () -> Unit = {},
+    onConfigureSecurity: () -> Unit = {},
+    onConfigureReports: () -> Unit = { onNavigateToModule("reports_sales") }
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -78,6 +88,13 @@ fun ModuleSettingsScreen(
         onConfigureMarketing,
         onConfigureFinance,
         onConfigureInventory,
+        onNavigateAllocationRules,
+        onNavigatePdfTemplates,
+        onNavigateLocationStructure,
+        onNavigateFloorOverview,
+        onNavigateSectionOverview,
+        onNavigateRackOverview,
+        onNavigateBinOverview,
         onConfigureLogistics,
         onConfigureServices,
         onConfigureHR,
@@ -104,17 +121,8 @@ fun ModuleSettingsScreen(
                 tags = listOf("Orders", "Pricing", "Approvals"),
                 isConfigured = true,
                 subItems = listOf(
-                    ModuleSubItem(
-                        title = "Garment",
-                        onClick = onConfigureSales
-                    ),
-                    ModuleSubItem(
-                        title = "Garment Pricing",
-                        onClick = {
-                            android.util.Log.d("NAV_DEBUG", "Garment Pricing tapped")
-                            onConfigureSalesPricing()
-                        }
-                    )
+                    ModuleSubItem(title = "Garment", onClick = onConfigureSales),
+                    ModuleSubItem(title = "Garment Pricing", onClick = onConfigureSalesPricing)
                 ),
                 onConfigure = onConfigureSales
             ),
@@ -143,7 +151,16 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.inventory,
                 tags = listOf("Stock", "Warehouse", "Procurement"),
                 isConfigured = true,
-                onConfigure = onConfigureInventory
+                subItems = listOf(
+                    ModuleSubItem(title = "Allocation Rules", onClick = onNavigateAllocationRules),
+                    ModuleSubItem(title = "PDF Templates", onClick = onNavigatePdfTemplates),
+                    ModuleSubItem(title = "Location Structure", onClick = onNavigateLocationStructure),
+                    ModuleSubItem(title = "Floor Overview", onClick = onNavigateFloorOverview),
+                    ModuleSubItem(title = "Section Overview", onClick = onNavigateSectionOverview),
+                    ModuleSubItem(title = "Rack Overview", onClick = onNavigateRackOverview),
+                    ModuleSubItem(title = "Bin Overview", onClick = onNavigateBinOverview)
+                ),
+                onConfigure = onNavigateAllocationRules
             ),
             ModuleSettingItem(
                 id = "logistics",
@@ -263,14 +280,12 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
         modifier = Modifier
             .fillMaxWidth()
             .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
-        // Note: Outer card clickable removed to prevent intercepting child click events
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Header Row: Only the header is clickable for expand/collapse or single module configure
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -283,7 +298,6 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                     },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Squircle Icon Container
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -309,7 +323,6 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                     modifier = Modifier.weight(1f)
                 )
 
-                // Status Badge
                 Box(
                     modifier = Modifier
                         .background(statusBg, RoundedCornerShape(20.dp))
@@ -327,7 +340,6 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
 
                 Spacer(Modifier.width(6.dp))
 
-                // Chevron Indicator
                 if (module.subItems.isNotEmpty()) {
                     Icon(
                         imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
@@ -340,7 +352,6 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
 
             Spacer(Modifier.height(10.dp))
 
-            // Description
             Text(
                 text = module.description,
                 fontSize = 13.sp,
@@ -348,7 +359,6 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                 lineHeight = 18.sp
             )
 
-            // Expandable Sub-Items List
             AnimatedVisibility(
                 visible = isExpanded && module.subItems.isNotEmpty(),
                 enter = expandVertically() + fadeIn(),
@@ -368,10 +378,7 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    // Invokes sub-item click action
-                                    subItem.onClick()
-                                }
+                                .clickable { subItem.onClick() }
                                 .padding(vertical = 14.dp, horizontal = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically

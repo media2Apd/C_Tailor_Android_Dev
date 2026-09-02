@@ -417,6 +417,19 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_create_purchase_order",
             "inventory_item_groups",
             "inventory_create_item_group",
+            "inventory_allocation_rules",
+
+            "inventory_create_allocation",
+            "inventory_pdf_templates",
+            "inventory_location_structure",
+            "inventory_floor_overview",
+            "inventory_add_floor",
+            "inventory_section_overview",
+            "inventory_add_section",
+            "inventory_rack_overview",
+            "inventory_add_rack",
+            "inventory_bin_overview",
+            "inventory_add_bin",
 
             // ── HR ──
             "hr_all_employees",
@@ -1242,7 +1255,7 @@ fun BottomBar(
                         )
 
                         BottomNavItem(
-                            icon = R.drawable.modules,
+                            icon = R.drawable.ic_modules,
                             label = "Modules",
                             isSelected = currentScreen == "modules",
                             selectedColor = Primary,

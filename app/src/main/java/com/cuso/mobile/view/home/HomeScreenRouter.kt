@@ -1,4 +1,4 @@
-@file:Suppress("unused","unusedVariable","AssignedValueIsNeverRead")
+@file:Suppress("unused", "unusedVariable", "AssignedValueIsNeverRead", "SpellCheckingInspection")
 
 package com.cuso.mobile.view.home
 
@@ -51,6 +51,18 @@ import com.cuso.mobile.view.home.inventory.items.all_items.InventoryViewOne
 import com.cuso.mobile.view.home.inventory.procurement.orders.CreatePurchaseOrderScreen
 import com.cuso.mobile.view.home.inventory.procurement.orders.LowStockAlertsScreen
 import com.cuso.mobile.view.home.inventory.procurement.orders.LowStockItem
+import com.cuso.mobile.view.home.inventory.settings.AddBinScreen
+import com.cuso.mobile.view.home.inventory.settings.AddFloorScreen
+import com.cuso.mobile.view.home.inventory.settings.AddRackScreen
+import com.cuso.mobile.view.home.inventory.settings.AddSectionScreen
+import com.cuso.mobile.view.home.inventory.settings.AllocationRulesScreen
+import com.cuso.mobile.view.home.inventory.settings.BinOverviewScreen
+import com.cuso.mobile.view.home.inventory.settings.CreateAllocationScreen
+import com.cuso.mobile.view.home.inventory.settings.FloorOverviewScreen
+import com.cuso.mobile.view.home.inventory.settings.LocationStructureScreen
+import com.cuso.mobile.view.home.inventory.settings.PdfTemplatesScreen
+import com.cuso.mobile.view.home.inventory.settings.RackOverviewScreen
+import com.cuso.mobile.view.home.inventory.settings.SectionOverviewScreen
 import com.cuso.mobile.view.home.logistics.delivery.DeliveryDetailScreen
 import com.cuso.mobile.view.home.logistics.delivery.DeliveryManagementScreen
 import com.cuso.mobile.view.home.logistics.order_tracking.OrderTrackingScreen
@@ -175,7 +187,6 @@ fun HomeScreenRouter(
     var isGarmentActive by remember { mutableStateOf(false) }
     var selectedSegmentForEdit by remember { mutableStateOf<SegmentItem?>(null) }
 
-    // Persistent primitive states for garment detail navigation
     var selectedSegmentIdForDetail by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedGarmentIdForDetail by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedGarmentTitleForDetail by rememberSaveable { mutableStateOf("Garment Categories") }
@@ -267,24 +278,84 @@ fun HomeScreenRouter(
         )
         "module_settings" -> ModuleSettingsScreen(
             onClose = onGoBack,
+            onNavigateToModule = { route -> onSafeNavigate(route) },
             onConfigureHome = { onSafeNavigate("home_organization_profile") },
             onConfigureSales = { onSafeNavigate("sales_garment_type") },
             onConfigureSalesPricing = { onSafeNavigate("sales_garment_pricing_setup") },
+            onConfigureMarketing = { onShowComingSoon("Marketing Settings Coming Soon") },
             onConfigureFinance = { onSafeNavigate("finance_chart_of_accounts") },
-            onConfigureInventory = { onSafeNavigate("inventory_items") },
+            onConfigureInventory = { onSafeNavigate("inventory_allocation_rules") },
+            // Inventory 7 Sub-routes linked to new screens
+            onNavigateAllocationRules = { onSafeNavigate("inventory_allocation_rules") },
+            onNavigatePdfTemplates = { onSafeNavigate("inventory_pdf_templates") },
+            onNavigateLocationStructure = { onSafeNavigate("inventory_location_structure") },
+            onNavigateFloorOverview = { onSafeNavigate("inventory_floor_overview") },
+            onNavigateSectionOverview = { onSafeNavigate("inventory_section_overview") },
+            onNavigateRackOverview = { onSafeNavigate("inventory_rack_overview") },
+            onNavigateBinOverview = { onSafeNavigate("inventory_bin_overview") },
             onConfigureLogistics = { onSafeNavigate("logistics_delivery") },
             onConfigureServices = { onSafeNavigate("services_service_status") },
             onConfigureHR = { onSafeNavigate("hr_all_employees") },
             onConfigureIT = { onShowComingSoon("IT Settings Coming Soon") },
             onConfigureLegal = { onShowComingSoon("Legal Settings Coming Soon") },
             onConfigureSecurity = { onShowComingSoon("Security Settings Coming Soon") },
-            onConfigureReports = { onSafeNavigate("reports_sales") },
-            onConfigureMarketing = {onShowComingSoon("Marketing Settings Coming Soon")},
-            onNavigateToModule = {}
+            onConfigureReports = { onSafeNavigate("reports_sales") }
         )
 
         // ─────────────────────────────────────────────────────────────
-        // 2. SALES MODULE
+        // 2. INVENTORY SETTINGS & STRUCTURE MODULE
+        // ─────────────────────────────────────────────────────────────
+        "inventory_allocation_rules" -> AllocationRulesScreen(
+            onClose = onGoBack,
+            onAddNewClick = { onNavigate("inventory_create_allocation") }
+        )
+        "inventory_create_allocation" -> CreateAllocationScreen(
+            onClose = onGoBack,
+            onSaveRule = onGoBack
+        )
+        "inventory_pdf_templates" -> PdfTemplatesScreen(
+            onClose = onGoBack,
+            onCreateNewTemplate = { onShowComingSoon("Create Template Coming Soon") }
+        )
+        "inventory_location_structure" -> LocationStructureScreen(
+            onClose = onGoBack,
+            onAddLocation = { onNavigate("inventory_add_floor") }
+        )
+        "inventory_floor_overview" -> FloorOverviewScreen(
+            onClose = onGoBack,
+            onAddFloor = { onNavigate("inventory_add_floor") }
+        )
+        "inventory_add_floor" -> AddFloorScreen(
+            onClose = onGoBack,
+            onSave = onGoBack
+        )
+        "inventory_section_overview" -> SectionOverviewScreen(
+            onClose = onGoBack,
+            onAddSection = { onNavigate("inventory_add_section") }
+        )
+        "inventory_add_section" -> AddSectionScreen(
+            onClose = onGoBack,
+            onSave = onGoBack
+        )
+        "inventory_rack_overview" -> RackOverviewScreen(
+            onClose = onGoBack,
+            onAddRack = { onNavigate("inventory_add_rack") }
+        )
+        "inventory_add_rack" -> AddRackScreen(
+            onClose = onGoBack,
+            onSave = onGoBack
+        )
+        "inventory_bin_overview" -> BinOverviewScreen(
+            onClose = onGoBack,
+            onAddBin = { onNavigate("inventory_add_bin") }
+        )
+        "inventory_add_bin" -> AddBinScreen(
+            onClose = onGoBack,
+            onSave = onGoBack
+        )
+
+        // ─────────────────────────────────────────────────────────────
+        // 3. SALES MODULE
         // ─────────────────────────────────────────────────────────────
         "sales_lead" -> LeadScreenContent(
             onCreateLead = { onNavigate("create_lead") },
@@ -592,9 +663,6 @@ fun HomeScreenRouter(
             }
         )
 
-        // ─────────────────────────────────────────────────────────────
-        // 2. SALES MODULE - GARMENT SETTINGS
-        // ─────────────────────────────────────────────────────────────
         "sales_garment_type" -> GarmentTypeContent(
             viewModel = settingsViewModel,
             onClose = {
@@ -617,8 +685,6 @@ fun HomeScreenRouter(
                 onNavigate("sales_category_detail")
             }
         )
-
-        // 2. Garment Profile Screen
         "sales_garment_profile" -> GarmentProfileConfigScreen(
             profileTitle = "Men's Shirt Profile",
             isActive = isGarmentActive,
@@ -637,68 +703,48 @@ fun HomeScreenRouter(
                 onGoBack()
             }
         )
-
-        // 3. Add Existing Field Screen
         "sales_add_existing_field" -> AddExistingFieldScreen(
             onClose = onGoBack,
-            onAddSelected = { selectedFields ->
-                onGoBack()
-            },
+            onAddSelected = { onGoBack() },
             viewModel = settingsViewModel
         )
-
-        // 4. Create Measurement Field Screen
         "sales_create_measurement_field" -> CreateMeasurementFieldScreen(
             onClose = onGoBack,
-            onSave = { createdField ->
-                // Return back after saving the measurement field
-                onGoBack()
-            },
+            onSave = { onGoBack() },
             viewModel = settingsViewModel
         )
-
         "sales_add_garment" -> AddNewGarmentScreen(
             viewModel = settingsViewModel,
             onClose = onGoBack,
             onGarmentCreated = onGoBack
         )
-
         "sales_add_garment_category" -> AddNewGarmentCategoryScreen(
             onClose = onGoBack,
             onGarmentCategoryCreated = onGoBack,
             viewModel = settingsViewModel
         )
-
-        // ─────────────────────────────────────────────────────────────
-        // SALES PRICING SETUP SCREEN
-        // ─────────────────────────────────────────────────────────────
         "sales_garment_pricing_setup" -> PricingSetupScreen(
             onClose = onGoBack,
             onAddGarmentPricing = { onNavigate("sales_add_garment_pricing") },
             onAddFabricPricing = { onNavigate("sales_add_fabric_pricing") },
             onAddWorkPricing = { onNavigate("sales_add_work_pricing") },
-            onEditGarmentPricing = { garmentName ->
-                onNavigate("sales_add_garment_pricing")
-            }
+            onEditGarmentPricing = { onNavigate("sales_add_garment_pricing") }
         )
-
         "sales_add_garment_pricing" -> AddNewGarmentPricingScreen(
             onClose = onGoBack,
             onSaveSuccess = onGoBack
         )
-
         "sales_add_fabric_pricing" -> AddFabricPriceScreen(
             onClose = onGoBack,
             onSaveSuccess = onGoBack
         )
-
         "sales_add_work_pricing" -> AddWorkPricingScreen(
             onClose = onGoBack,
             onSaveSuccess = onGoBack
         )
 
         // ─────────────────────────────────────────────────────────────
-        // 3. FINANCE MODULE
+        // 4. FINANCE MODULE
         // ─────────────────────────────────────────────────────────────
         "finance_sales_invoices" -> FinanceInvoiceScreen(
             onClose = onGoBack,
@@ -829,7 +875,7 @@ fun HomeScreenRouter(
         )
 
         // ─────────────────────────────────────────────────────────────
-        // 4. INVENTORY MODULE
+        // 5. INVENTORY MODULE
         // ─────────────────────────────────────────────────────────────
         "inventory_items" -> InventoryScreen(
             onClose = onGoBack,
@@ -934,7 +980,7 @@ fun HomeScreenRouter(
         )
 
         // ─────────────────────────────────────────────────────────────
-        // 5. HR MODULE
+        // 6. HR MODULE
         // ─────────────────────────────────────────────────────────────
         "hr_all_employees" -> AllEmployeesScreen(
             onDismiss = onGoBack,
@@ -992,7 +1038,7 @@ fun HomeScreenRouter(
         )
 
         // ─────────────────────────────────────────────────────────────
-        // 6. LOGISTICS MODULE
+        // 7. LOGISTICS MODULE
         // ─────────────────────────────────────────────────────────────
         "logistics_delivery" -> DeliveryManagementScreen(
             onDismiss = onGoBack,
@@ -1011,7 +1057,7 @@ fun HomeScreenRouter(
         "tracking_overview" -> TrackingOverviewScreen(onClose = onGoBack)
 
         // ─────────────────────────────────────────────────────────────
-        // 7. SERVICES MODULE
+        // 8. SERVICES MODULE
         // ─────────────────────────────────────────────────────────────
         "services_service_status", "sales_orders" -> ServiceStatusScreen(
             navController = navController,
@@ -1142,7 +1188,7 @@ fun HomeScreenRouter(
         )
 
         // ─────────────────────────────────────────────────────────────
-        // 8. REPORTS MODULE
+        // 9. REPORTS MODULE
         // ─────────────────────────────────────────────────────────────
         "reports_sales" -> SalesOrderReportsScreen(
             onClose = onGoBack,

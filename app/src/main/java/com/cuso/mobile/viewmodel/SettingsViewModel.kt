@@ -128,6 +128,9 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    private val _isDeactivatingField = MutableStateFlow(false)
+    val isDeactivatingField = _isDeactivatingField.asStateFlow()
+
     fun saveSelectedFieldsToLocal(
         categoryId: String,
         categoryName: String,
@@ -755,6 +758,22 @@ class SettingsViewModel @Inject constructor(
             }.onFailure { error ->
                 _errorMessage.value = error.message ?: "Failed to fetch garment category"
             }
+        }
+    }
+
+    fun deactivateMeasurementField(
+        fieldId: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            settingsRepository.deactivateMeasurementField(fieldId)
+                .onSuccess { response ->
+                    onSuccess(response.message)
+                }
+                .onFailure { exception ->
+                    onError(exception.localizedMessage ?: "Failed to deactivate field")
+                }
         }
     }
 

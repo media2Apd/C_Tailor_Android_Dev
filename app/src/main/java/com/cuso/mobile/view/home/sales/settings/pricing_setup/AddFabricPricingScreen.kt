@@ -34,18 +34,18 @@ fun AddFabricPriceScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    var fabricName by remember { mutableStateOf("Linen Premium") }
-    var sku by remember { mutableStateOf("FAB-002") }
-    var fabricType by remember { mutableStateOf("Linen") }
-    var fabricColor by remember { mutableStateOf("Blue") }
+    var fabricName by remember { mutableStateOf("") }
+    var sku by remember { mutableStateOf("") }
+    var fabricType by remember { mutableStateOf("") }
+    var fabricColor by remember { mutableStateOf("") }
 
-    var currentPrice by remember { mutableStateOf("—") }
-    var newSalesPrice by remember { mutableStateOf("₹ 500") }
-    var effectiveFromDate by remember { mutableStateOf("01 Sep 2026") }
+    var currentPrice by remember { mutableStateOf("") }
+    var newSalesPrice by remember { mutableStateOf("") }
+    var effectiveFromDate by remember { mutableStateOf("") }
 
     var isStatusActive by remember { mutableStateOf(true) }
-    var pricePerMeter by remember { mutableStateOf("₹ 600") }
-    var unit by remember { mutableStateOf("Meter") }
+    var pricePerMeter by remember { mutableStateOf("") }
+    var unit by remember { mutableStateOf("") }
 
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }

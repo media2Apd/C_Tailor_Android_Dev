@@ -55,22 +55,15 @@ fun AddNewGarmentScreen(
 
     var garmentName by remember { mutableStateOf("") }
     var garmentCode by remember { mutableStateOf("") }
-    var baseStitchingCharge by remember { mutableStateOf("0") }
+    var baseStitchingCharge by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
-    // Segment selection state
-    var selectedSegmentId by remember { mutableStateOf("") }
+    // Multi-segment selection state
     var segmentExpanded by remember { mutableStateOf(false) }
+    var selectedSegmentIds by remember { mutableStateOf<List<String>>(emptyList()) }
 
-    // Initialize default segment selection
-    LaunchedEffect(segments) {
-        if (segments.isNotEmpty() && selectedSegmentId.isEmpty()) {
-            selectedSegmentId = segments.first().id
-        }
-    }
-
-    val selectedSegmentName = remember(selectedSegmentId, segments) {
-        segments.find { it.id == selectedSegmentId }?.name ?: "Select Segment"
+    val selectedSegmentNames = remember(selectedSegmentIds, segments) {
+        segments.filter { it.id in selectedSegmentIds }.map { it.name }
     }
 
     var selectedImagesList by remember { mutableStateOf<List<Uri>>(emptyList()) }
@@ -146,18 +139,19 @@ fun AddNewGarmentScreen(
                     )
                 }
 
-                // Segment Selection Dropdown
+                // Multi-Segment Selection Dropdown
                 Column {
                     FormDropdown(
                         label = "Segment",
-                        value = selectedSegmentName,
                         expanded = segmentExpanded,
                         onExpandChange = { segmentExpanded = it },
                         options = segments.map { it.name },
-                        onOptionSelected = { optionName ->
-                            segments.find { it.name == optionName }?.let {
-                                selectedSegmentId = it.id
-                            }
+                        isMultiSelect = true,
+                        selectedOptions = selectedSegmentNames,
+                        onMultiOptionSelected = { chosenNames ->
+                            selectedSegmentIds = segments
+                                .filter { it.name in chosenNames }
+                                .map { it.id }
                         },
                         isRequired = true
                     )
@@ -168,7 +162,11 @@ fun AddNewGarmentScreen(
                     FormLabel(text = "Base Stitching Charge (₹)")
                     FormTextField(
                         value = baseStitchingCharge,
-                        onValueChange = { baseStitchingCharge = it },
+                        onValueChange = { input ->
+                            if (input.all { it.isDigit() }) {
+                                baseStitchingCharge = input
+                            }
+                        },
                         placeholder = "500",
                         keyboardType = KeyboardType.Number
                     )
@@ -224,8 +222,8 @@ fun AddNewGarmentScreen(
                         errorMessage = "Please enter a garment name"
                         return@Next
                     }
-                    if (selectedSegmentId.isBlank()) {
-                        errorMessage = "Please select a segment"
+                    if (selectedSegmentIds.isEmpty()) {
+                        errorMessage = "Please select at least one segment"
                         return@Next
                     }
 
@@ -238,7 +236,7 @@ fun AddNewGarmentScreen(
                         name = garmentName,
                         code = finalCode,
                         description = description,
-                        applicableSegmentIds = listOf(selectedSegmentId),
+                        applicableSegmentIds = selectedSegmentIds, // Passed full multiple IDs list
                         baseStitchingCharge = stitchingCharge,
                         onSuccess = { response ->
                             successMessage = "Garment created successfully"
@@ -264,7 +262,6 @@ fun AddNewGarmentScreen(
         )
     }
 }
-
 // ─────────────────────────────────────────────────────────────
 // 2. Add New Garment Category Screen
 // ─────────────────────────────────────────────────────────────

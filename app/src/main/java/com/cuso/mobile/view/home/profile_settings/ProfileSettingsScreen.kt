@@ -30,15 +30,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.cuso.mobile.R
-import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.grey_border
-import com.cuso.mobile.ui.theme.light_grey
-import com.cuso.mobile.ui.theme.redText
-import com.cuso.mobile.ui.theme.title_color
-import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.home.profile_settings.all_settings.ModuleSettingsScreen
-import com.cuso.mobile.view.home.profile_settings.all_settings.SettingsOverviewScreen
 import com.cuso.mobile.viewmodel.Authenticate
 
 private data class SettingsMenuItem(
@@ -76,44 +69,6 @@ fun ProfileSettingsScreen(
     onHelpSupport: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
-    // Navigation Screen State
-    var currentScreen by remember { mutableStateOf("MAIN") }
-
-    when (currentScreen) {
-        "SETTINGS_OVERVIEW" -> {
-            SettingsOverviewScreen(
-                onClose = { currentScreen = "MAIN" },
-                onNavigateToOrganizationSettings = {
-                    currentScreen = "MAIN"
-                    onOrganizationSetup()
-                },
-                onNavigateToModuleSettings = {
-                    currentScreen = "MODULE_SETTINGS"
-                }
-            )
-            return
-        }
-        "MODULE_SETTINGS" -> {
-            ModuleSettingsScreen(
-                onClose = { currentScreen = "SETTINGS_OVERVIEW" },
-                onConfigureHome = { currentScreen = "MAIN" },
-                onConfigureSales = onGarmentType,
-                onConfigureSalesPricing = onGarmentPricing,
-                onConfigureMarketing = onMarketing,
-                onConfigureFinance = onFinance,
-                onConfigureInventory = onInventory,
-                onConfigureLogistics = onLogistics,
-                onConfigureServices = onServices,
-                onConfigureHR = onHR,
-                onConfigureIT = onIT,
-                onConfigureLegal = onLegal,
-                onConfigureSecurity = onSecurity,
-                onConfigureReports = onReports
-            )
-            return
-        }
-    }
-
     val authViewModel: Authenticate = hiltViewModel(
         LocalContext.current as ComponentActivity
     )
@@ -133,11 +88,10 @@ fun ProfileSettingsScreen(
             iconTint = Color(0xFF6C4FF6),
             title = "All Settings",
             subtitle = "Manage organization, modules and system preferences",
-            onClick = { currentScreen = "SETTINGS_OVERVIEW" }
+            onClick = onOrganizationSetup // Navigates to settings_overview directly via Router
         )
     )
 
-    // ── SALES ITEM ──
     val salesItems = listOf(
         SettingsMenuItem(
             icon = R.drawable.ic_shirts,
@@ -192,11 +146,7 @@ fun ProfileSettingsScreen(
             .fillMaxSize()
             .background(Color(0xFFF7F7FB))
     ) {
-        // ── Top bar ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-        ){
+        Row(modifier = Modifier.fillMaxWidth()) {
             TitleBar("Profile Settings", onClose)
         }
 
@@ -205,7 +155,6 @@ fun ProfileSettingsScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ── Profile card ──
             item {
                 Row(
                     modifier = Modifier
@@ -282,23 +231,18 @@ fun ProfileSettingsScreen(
                 }
             }
 
-            // ── ORGANIZATION ──
             item { SettingsSectionLabel("ORGANIZATION") }
             item { SettingsCardGroup(organizationItems) }
 
-            // ── SALES (New Section) ──
             item { SettingsSectionLabel("SALES") }
             item { SettingsCardGroup(salesItems) }
 
-            // ── MANAGEMENT ──
             item { SettingsSectionLabel("MANAGEMENT") }
             item { SettingsCardGroup(managementItems) }
 
-            // ── SUPPORT & HELP ──
             item { SettingsSectionLabel("SUPPORT & HELP") }
             item { SettingsCardGroup(supportItems) }
 
-            // ── Log Out ──
             item {
                 Row(
                     modifier = Modifier

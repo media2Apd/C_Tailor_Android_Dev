@@ -36,6 +36,7 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.database.entities.GarmentMeasurement
 import com.cuso.mobile.model.settings.GarmentStyleItem
 import com.cuso.mobile.model.settings.MeasurementFieldItem
+import com.cuso.mobile.model.settings.StyleMeasurementFieldDetail
 import com.cuso.mobile.model.settings.StyleMeasurementFieldEntry
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
@@ -59,7 +60,16 @@ data class MeasurementGroupItem(
     val displayOrder: Int = 1,
     val isActive: Boolean = true
 )
-
+fun MeasurementFieldItem.toStyleFieldDetail(): StyleMeasurementFieldDetail {
+    return StyleMeasurementFieldDetail(
+        id = this.id,
+        name = this.name,
+        displayName = this.displayName ?: this.name,
+        inputType = this.inputType,
+        unit = this.unit ?: "inch",
+        options = this.options
+    )
+}
 @Composable
 fun GarmentCategoryDetailScreen(
     categoryTitle: String = "Garment Categories",
@@ -75,6 +85,9 @@ fun GarmentCategoryDetailScreen(
     var selectedStyle by remember { mutableStateOf<GarmentStyleItem?>(null) }
     var isConfigurationActive by remember { mutableStateOf(false) }
 
+    // In-memory list of measurement fields for the active style configuration (No Room DB)
+    val activeMeasurementFields = remember { mutableStateListOf<StyleMeasurementFieldEntry>() }
+
     // Dynamic measurement groups state
     val dynamicGroups = remember {
         mutableStateListOf(
@@ -89,6 +102,7 @@ fun GarmentCategoryDetailScreen(
         if (!segmentId.isNullOrBlank() || !garmentId.isNullOrBlank()) {
             currentStep = GarmentConfigStep.GARMENT_LIST
             selectedStyle = null
+            activeMeasurementFields.clear()
             viewModel.fetchGarmentStyles(segmentId = segmentId, garmentId = garmentId)
         }
     }
@@ -123,7 +137,8 @@ fun GarmentCategoryDetailScreen(
                 onConfigureGarmentClick = { styleItem ->
                     selectedStyle = styleItem
                     isConfigurationActive = styleItem.isActive
-                    viewModel.loadLocalMeasurements(styleItem.id)
+                    activeMeasurementFields.clear()
+                    activeMeasurementFields.addAll(styleItem.measurementFields)
                     onConfigureGarmentClick(styleItem.id)
                     currentStep = GarmentConfigStep.GARMENT_PROFILE
                 }
@@ -133,6 +148,7 @@ fun GarmentCategoryDetailScreen(
         GarmentConfigStep.GARMENT_PROFILE -> {
             GarmentProfileConfigScreen(
                 garmentStyle = selectedStyle,
+                activeFields = activeMeasurementFields,
                 isActive = isConfigurationActive,
                 viewModel = viewModel,
                 groupsList = dynamicGroups,
@@ -141,7 +157,12 @@ fun GarmentCategoryDetailScreen(
                 onAddExistingClick = { currentStep = GarmentConfigStep.ADD_EXISTING_FIELD },
                 onAddFieldClick = { currentStep = GarmentConfigStep.CREATE_MEASUREMENT_FIELD },
                 onPreviewClick = { currentStep = GarmentConfigStep.CONFIGURATION_PREVIEW },
-                onToggleActiveState = { isConfigurationActive = it }
+                onToggleActiveState = { isConfigurationActive = it },
+                onRemoveField = { fieldEntry ->
+                    activeMeasurementFields.removeAll {
+                        it.id == fieldEntry.id || (it.fieldDetail?.id != null && it.fieldDetail.id == fieldEntry.fieldDetail?.id)
+                    }
+                }
             )
         }
 
@@ -171,15 +192,40 @@ fun GarmentCategoryDetailScreen(
         }
 
         GarmentConfigStep.ADD_EXISTING_FIELD -> {
+            val existingIds = remember(activeMeasurementFields.toList()) {
+                activeMeasurementFields.mapNotNull { it.fieldDetail?.id ?: it.id }.toSet()
+            }
+            val existingNames = remember(activeMeasurementFields.toList()) {
+                activeMeasurementFields.mapNotNull {
+                    (it.fieldDetail?.displayName ?: it.fieldDetail?.name)?.trim()?.lowercase()
+                }.toSet()
+            }
+
             AddExistingFieldScreen(
+                existingFieldIds = existingIds,
+                existingFieldNames = existingNames,
                 viewModel = viewModel,
                 onClose = { currentStep = GarmentConfigStep.GARMENT_PROFILE },
                 onAddSelected = { selectedFieldsList ->
-                    val styleId = selectedStyle?.id ?: "temp_category"
-                    val styleName = selectedStyle?.displayName ?: selectedStyle?.name ?: "Category"
-                    viewModel.saveSelectedFieldsToLocal(styleId, styleName, selectedFieldsList) {
-                        currentStep = GarmentConfigStep.GARMENT_PROFILE
+                    selectedFieldsList.forEach { fieldItem ->
+                        val alreadyExists = activeMeasurementFields.any {
+                            it.fieldDetail?.id == fieldItem.id ||
+                                    it.id == fieldItem.id ||
+                                    it.fieldDetail?.name.equals(fieldItem.name, ignoreCase = true) ||
+                                    (it.fieldDetail?.displayName != null && it.fieldDetail.displayName.equals(fieldItem.displayName, ignoreCase = true))
+                        }
+                        if (!alreadyExists) {
+                            activeMeasurementFields.add(
+                                StyleMeasurementFieldEntry(
+                                    id = fieldItem.id,
+                                    isRequired = true,
+                                    displayOrder = activeMeasurementFields.size + 1,
+                                    fieldDetail = fieldItem.toStyleFieldDetail()
+                                )
+                            )
+                        }
                     }
+                    currentStep = GarmentConfigStep.GARMENT_PROFILE
                 }
             )
         }
@@ -189,14 +235,19 @@ fun GarmentCategoryDetailScreen(
                 viewModel = viewModel,
                 onClose = { currentStep = GarmentConfigStep.GARMENT_PROFILE },
                 onSave = { newCreatedField ->
-                    val styleId = selectedStyle?.id ?: "temp_category"
-                    val styleName = selectedStyle?.displayName ?: selectedStyle?.name ?: "Category"
-                    viewModel.saveSelectedFieldsToLocal(styleId, styleName, listOf(newCreatedField)) {
-                        currentStep = GarmentConfigStep.GARMENT_PROFILE
-                    }
+                    activeMeasurementFields.add(
+                        StyleMeasurementFieldEntry(
+                            id = newCreatedField.id,
+                            isRequired = true,
+                            displayOrder = activeMeasurementFields.size + 1,
+                            fieldDetail = newCreatedField.toStyleFieldDetail()
+                        )
+                    )
+                    currentStep = GarmentConfigStep.GARMENT_PROFILE
                 }
             )
         }
+
     }
 
     DynamicIslandError(
@@ -358,11 +409,12 @@ private fun GarmentCategoryListView(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Garment Profile Config Screen (API Response Only - No Room DB)
+// Garment Profile Config Screen (Live In-Memory List & API Sync)
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun GarmentProfileConfigScreen(
     garmentStyle: GarmentStyleItem? = null,
+    activeFields: MutableList<StyleMeasurementFieldEntry> = remember { mutableStateListOf() },
     styleId: String? = garmentStyle?.id,
     profileTitle: String = garmentStyle?.displayName ?: garmentStyle?.name ?: "Garment Profile",
     isActive: Boolean = garmentStyle?.isActive ?: false,
@@ -373,7 +425,12 @@ fun GarmentProfileConfigScreen(
     onAddExistingClick: () -> Unit = {},
     onAddFieldClick: () -> Unit = {},
     onPreviewClick: () -> Unit = {},
-    onToggleActiveState: (Boolean) -> Unit = {}
+    onToggleActiveState: (Boolean) -> Unit = {},
+    onRemoveField: (StyleMeasurementFieldEntry) -> Unit = { field ->
+        activeFields.removeAll {
+            it.id == field.id || (it.fieldDetail?.id != null && it.fieldDetail.id == field.fieldDetail?.id)
+        }
+    }
 ) {
     val tokens = LocalAppTokens.current
 
@@ -389,12 +446,17 @@ fun GarmentProfileConfigScreen(
     val isLoadingDetail by viewModel.isLoadingStyleDetail.collectAsState()
     val isSaving by viewModel.isLoadingStyles.collectAsState()
 
-    // Determine current effective style from API response
+    // Sync API fields once loaded if list is currently empty
+    LaunchedEffect(styleDetail) {
+        styleDetail?.measurementFields?.let { fields ->
+            if (activeFields.isEmpty() && fields.isNotEmpty()) {
+                activeFields.addAll(fields)
+            }
+        }
+    }
+
     val currentEffectiveStyle = styleDetail ?: garmentStyle
     val effectiveTitle = currentEffectiveStyle?.displayName ?: currentEffectiveStyle?.name ?: profileTitle
-
-    // Measurement Fields directly from API Response
-    val displayFields: List<StyleMeasurementFieldEntry> = currentEffectiveStyle?.measurementFields ?: emptyList()
 
     var selectedGroupIndex by remember { mutableIntStateOf(0) }
     var fieldToDelete by remember { mutableStateOf<StyleMeasurementFieldEntry?>(null) }
@@ -458,7 +520,7 @@ fun GarmentProfileConfigScreen(
                     ) {
                         groupsList.forEachIndexed { index, group ->
                             val isSelected = selectedGroupIndex == index
-                            val count = if (index == 0) displayFields.size else 0
+                            val count = if (index == 0) activeFields.size else 0
 
                             Surface(
                                 shape = RoundedCornerShape(20.dp),
@@ -494,39 +556,6 @@ fun GarmentProfileConfigScreen(
                         }
                     }
 
-                    // Add Group Action Button
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = tokens.screenPadding, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "+ Add Group",
-                            color = Primary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.clickable { onAddGroupClick() }
-                        )
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-
-                    Column(modifier = Modifier.padding(horizontal = tokens.screenPadding)) {
-                        Text(
-                            text = "Body Measurements",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = title_color
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "Define standard parameters for regular fitting templates.",
-                            fontSize = 12.sp,
-                            color = close_color,
-                            lineHeight = 16.sp
-                        )
-                    }
-
                     Spacer(Modifier.height(16.dp))
 
                     Row(
@@ -552,7 +581,7 @@ fun GarmentProfileConfigScreen(
 
                     Spacer(Modifier.height(12.dp))
 
-                    if (displayFields.isEmpty()) {
+                    if (activeFields.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -571,8 +600,8 @@ fun GarmentProfileConfigScreen(
                             contentPadding = PaddingValues(bottom = 90.dp)
                         ) {
                             itemsIndexed(
-                                items = displayFields,
-                                key = { index, item -> item.id ?: index.toString() }
+                                items = activeFields,
+                                key = { index, item -> item.id ?: item.fieldDetail?.id ?: index.toString() }
                             ) { _, fieldEntry ->
                                 val fieldDetail = fieldEntry.fieldDetail
                                 val fieldName = fieldDetail?.displayName ?: fieldDetail?.name ?: "Field ${fieldEntry.displayOrder}"
@@ -646,11 +675,11 @@ fun GarmentProfileConfigScreen(
                                         }
 
                                         Box {
-                                            IconButton(onClick = { expandedMenuFieldId = fieldEntry.id }) {
+                                            IconButton(onClick = { expandedMenuFieldId = fieldEntry.id ?: fieldDetail?.id }) {
                                                 Icon(Icons.Default.MoreVert, contentDescription = "More", tint = iconMuted)
                                             }
                                             DropdownMenu(
-                                                expanded = expandedMenuFieldId == fieldEntry.id,
+                                                expanded = expandedMenuFieldId == (fieldEntry.id ?: fieldDetail?.id),
                                                 onDismissRequest = { expandedMenuFieldId = null }
                                             ) {
                                                 DropdownMenuItem(
@@ -684,14 +713,14 @@ fun GarmentProfileConfigScreen(
                 onClick = {
                     if (isSaving) return@Next
                     currentEffectiveStyle?.let { style ->
-                        val mappedMeasurements = displayFields.map { entry ->
+                        val mappedMeasurements = activeFields.mapIndexed { index, entry ->
                             GarmentMeasurement(
                                 id = entry.fieldDetail?.id ?: entry.id ?: "",
                                 label = entry.fieldDetail?.displayName ?: entry.fieldDetail?.name ?: "",
                                 unit = entry.fieldDetail?.unit ?: "inch",
                                 inputType = entry.fieldDetail?.inputType ?: "Number",
                                 isRequired = entry.isRequired,
-                                displayOrder = entry.displayOrder
+                                displayOrder = index + 1
                             )
                         }
 
@@ -730,42 +759,16 @@ fun GarmentProfileConfigScreen(
         DeleteMeasurementFieldDialog(
             onDismiss = { fieldToDelete = null },
             onConfirmDelete = {
+                onRemoveField(field)
                 fieldToDelete = null
-                currentEffectiveStyle?.let { style ->
-                    val remainingFields = displayFields
-                        .filter { it.id != field.id }
-                        .map { entry ->
-                            GarmentMeasurement(
-                                id = entry.fieldDetail?.id ?: entry.id ?: "",
-                                label = entry.fieldDetail?.displayName ?: entry.fieldDetail?.name ?: "",
-                                unit = entry.fieldDetail?.unit ?: "inch",
-                                inputType = entry.fieldDetail?.inputType ?: "Number",
-                                isRequired = entry.isRequired,
-                                displayOrder = entry.displayOrder
-                            )
-                        }
-
-                    viewModel.saveGarmentProfileMeasurements(
-                        style = style,
-                        measurements = remainingFields,
-                        onSuccess = {
-                            successMessage = "Measurement field deleted successfully"
-                            if (!styleId.isNullOrBlank()) {
-                                viewModel.fetchGarmentCategoryById(styleId)
-                            }
-                        },
-                        onError = { err ->
-                            errorMessage = err
-                        }
-                    )
-                }
+                successMessage = "Measurement field removed"
             }
         )
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// Add Measurement Group Screen (With Floating StepNavigationFab)
+// Add Measurement Group Screen
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun AddMeasurementGroupScreen(
@@ -1108,123 +1111,14 @@ fun DeleteMeasurementFieldDialog(
     }
 }
 
-@Composable
-fun DeactivateFieldDialog(
-    onDismiss: () -> Unit,
-    onConfirmDeactivate: () -> Unit
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = Color.White,
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .padding(vertical = 24.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(54.dp)
-                        .background(Color(0xFFFEF3C7), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_alert_shield),
-                        contentDescription = null,
-                        tint = Color(0xFFF59E0B),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Spacer(Modifier.height(14.dp))
-
-                Text(
-                    text = "Deactivate Field?",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = title_color,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                Text(
-                    text = "Deleting this custom field will remove it from all garment configurations. Data collected using this field will no longer be accessible.",
-                    fontSize = 12.sp,
-                    color = close_color,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 17.sp
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFFFBEB),
-                    border = BorderStroke(1.dp, Color(0xFFFDE68A)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_info),
-                            contentDescription = null,
-                            tint = Color(0xFFD97706),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "2 orders and 5 profiles currently use this field.",
-                            fontSize = 11.sp,
-                            color = Color(0xFF92400E),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(20.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(42.dp)
-                    ) {
-                        Text("Cancel", color = title_color, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    }
-
-                    Button(
-                        onClick = onConfirmDeactivate,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(42.dp)
-                    ) {
-                        Text("Deactivate", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-        }
-    }
-}
-
+// ─────────────────────────────────────────────────────────────
+// Add Existing Field Screen (With Disabled Already Added Fields)
+// ─────────────────────────────────────────────────────────────
 @Composable
 fun AddExistingFieldScreen(
+    existingFieldIds: Set<String> = emptySet(),
+    existingFieldNames: Set<String> = emptySet(),
+    existingFieldCodes: Set<String> = emptySet(),
     onClose: () -> Unit,
     onAddSelected: (List<MeasurementFieldItem>) -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
@@ -1368,18 +1262,35 @@ fun AddExistingFieldScreen(
                         contentPadding = PaddingValues(bottom = 90.dp)
                     ) {
                         items(filteredFields, key = { it.id }) { item ->
-                            val isChecked = selectedFields.any { it.id == item.id }
+                            // Check if this item is already part of the garment profile
+                            val isAlreadyAdded = existingFieldIds.contains(item.id) ||
+                                    existingFieldNames.contains(item.name.trim().lowercase()) ||
+                                    (item.displayName != null && existingFieldNames.contains(item.displayName.trim().lowercase())) ||
+                                    (item.code != null && existingFieldCodes.contains(item.code.trim().uppercase()))
+
+                            val isChecked = isAlreadyAdded || selectedFields.any { it.id == item.id }
                             val fieldDisplayName = item.displayName ?: item.name
                             val unitText = if (!item.unit.isNullOrBlank()) " · ${item.unit}" else ""
                             val inputTypeText = item.inputType
 
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = if (isChecked) primary_light else whiteBg,
-                                border = BorderStroke(1.dp, if (isChecked) Primary else sectionBorder),
+                                color = when {
+                                    isAlreadyAdded -> Color(0xFFF8FAFC)
+                                    isChecked -> primary_light
+                                    else -> whiteBg
+                                },
+                                border = BorderStroke(
+                                    1.dp,
+                                    when {
+                                        isAlreadyAdded -> Color(0xFFE2E8F0)
+                                        isChecked -> Primary
+                                        else -> sectionBorder
+                                    }
+                                ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable {
+                                    .clickable(enabled = !isAlreadyAdded) {
                                         if (isChecked) {
                                             selectedFields.removeAll { it.id == item.id }
                                         } else {
@@ -1394,10 +1305,12 @@ fun AddExistingFieldScreen(
                                     AppCheckbox(
                                         checked = isChecked,
                                         onCheckedChange = { checked ->
-                                            if (checked) {
-                                                if (!selectedFields.any { it.id == item.id }) selectedFields.add(item)
-                                            } else {
-                                                selectedFields.removeAll { it.id == item.id }
+                                            if (!isAlreadyAdded) {
+                                                if (checked) {
+                                                    if (!selectedFields.any { it.id == item.id }) selectedFields.add(item)
+                                                } else {
+                                                    selectedFields.removeAll { it.id == item.id }
+                                                }
                                             }
                                         }
                                     )
@@ -1407,14 +1320,29 @@ fun AddExistingFieldScreen(
                                             text = fieldDisplayName,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = title_color
+                                            color = if (isAlreadyAdded) iconMuted else title_color
                                         )
                                         Spacer(Modifier.height(2.dp))
                                         Text(
                                             text = "$inputTypeText$unitText",
                                             fontSize = 12.sp,
-                                            color = TextSecondary
+                                            color = if (isAlreadyAdded) Color(0xFF94A3B8) else TextSecondary
                                         )
+                                    }
+
+                                    if (isAlreadyAdded) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(Color(0xFFE2E8F0), RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Text(
+                                                text = "ADDED",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF64748B)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1475,18 +1403,17 @@ fun CreateMeasurementFieldScreen(
     var description by remember { mutableStateOf("") }
 
     var fieldTypeExpanded by remember { mutableStateOf(false) }
-    var selectedFieldType by remember { mutableStateOf("Number") }
+    var selectedFieldType by remember { mutableStateOf("") }
     val fieldTypeOptions = listOf("Number", "Text", "Select", "Formula")
 
     var unitExpanded by remember { mutableStateOf(false) }
-    var selectedUnit by remember { mutableStateOf("inch") }
+    var selectedUnit by remember { mutableStateOf("") }
     val unitOptions = listOf("inch", "cm", "meter")
 
     var isRequired by remember { mutableStateOf(true) }
-    var minValue by remember { mutableStateOf("0") }
-    var maxValue by remember { mutableStateOf("100") }
+    var minValue by remember { mutableStateOf("") }
+    var maxValue by remember { mutableStateOf("") }
 
-    // Loading state from ViewModel
     val isCreating by viewModel.isLoadingMeasurementFields.collectAsState()
 
     var successMessage by remember { mutableStateOf<String?>(null) }
@@ -1494,14 +1421,25 @@ fun CreateMeasurementFieldScreen(
 
     val scrollState = rememberScrollState()
 
-    fun autoGenerateCode(name: String) {
+    // Visibility & Rules
+    var visibilityStatus by remember { mutableStateOf("Always Visible") }
+    val visibilityOptions = listOf("Always Visible", "Conditional", "Hidden by Default")
+
+    var dependentFieldExpanded by remember { mutableStateOf(false) }
+    var selectedDependentField by remember { mutableStateOf("") }
+    val triggerFieldOptions = listOf("Shirt Type", "Fit Preference", "Collar Type", "Sleeve Style")
+
+    var conditionExpanded by remember { mutableStateOf(false) }
+    var selectedCondition by remember { mutableStateOf("") }
+    val conditionOptions = listOf("Equals", "Not Equals", "Contains", "Is Greater Than")
+
+    // Assignment
+    val selectedGarments = remember { mutableStateListOf("Shirt", "Formal Shirt") }
+
+    fun onFieldNameChange(name: String) {
         fieldName = name
-        if (displayLabel.isBlank() || displayLabel == name.dropLast(1)) {
-            displayLabel = name
-        }
-        if (fieldCode.isBlank() || fieldCode == name.dropLast(1).trim().uppercase().replace(" ", "_")) {
-            fieldCode = name.trim().uppercase().replace(" ", "_")
-        }
+        displayLabel = name
+        fieldCode = name.uppercase().replace(" ", "_")
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -1523,20 +1461,19 @@ fun CreateMeasurementFieldScreen(
                     .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
                     .padding(bottom = 90.dp)
             ) {
+                // Section 1 — Basic Information
                 SectionHeader("Section 1 - Basic Information")
                 Spacer(Modifier.height(14.dp))
 
-                // Field Name
                 FormLabel(text = "Field Name", isRequired = true)
                 FormTextField(
                     value = fieldName,
-                    onValueChange = { autoGenerateCode(it) },
+                    onValueChange = { onFieldNameChange(it) },
                     placeholder = "e.g. Chest"
                 )
 
                 Spacer(Modifier.height(12.dp))
 
-                // Display Label
                 FormLabel(text = "Display Label", isRequired = false)
                 FormTextField(
                     value = displayLabel,
@@ -1546,17 +1483,15 @@ fun CreateMeasurementFieldScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                // Field Code
                 FormLabel(text = "Field Code", isRequired = true)
                 FormTextField(
                     value = fieldCode,
-                    onValueChange = { fieldCode = it },
+                    onValueChange = { fieldCode = it.uppercase().replace(" ", "_") },
                     placeholder = "CHEST"
                 )
 
                 Spacer(Modifier.height(12.dp))
 
-                // Description
                 FormLabel(text = "Description", isRequired = false)
                 FormTextArea(
                     value = description,
@@ -1568,10 +1503,10 @@ fun CreateMeasurementFieldScreen(
 
                 Spacer(Modifier.height(24.dp))
 
+                // Section 2 — Field Configuration
                 SectionHeader("Section 2 - Field Configuration")
                 Spacer(Modifier.height(14.dp))
 
-                // Field Type Dropdown
                 FormDropdown(
                     label = "Field Type",
                     value = selectedFieldType,
@@ -1583,7 +1518,6 @@ fun CreateMeasurementFieldScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                // Unit Dropdown
                 FormDropdown(
                     label = "Unit",
                     value = selectedUnit,
@@ -1595,7 +1529,6 @@ fun CreateMeasurementFieldScreen(
 
                 Spacer(Modifier.height(14.dp))
 
-                // Required Toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1615,7 +1548,6 @@ fun CreateMeasurementFieldScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                // Min & Max Value Range
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1639,10 +1571,117 @@ fun CreateMeasurementFieldScreen(
                 }
 
                 Spacer(Modifier.height(28.dp))
+
+                // Section 3 — Visibility & Rules
+                SectionHeader("Section 3 — Visibility & Rules")
+                Spacer(Modifier.height(14.dp))
+
+                FormLabel(text = "Visibility Status", isRequired = false)
+                Spacer(Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    visibilityOptions.forEach { option ->
+                        val isSelected = visibilityStatus == option
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { visibilityStatus = option }
+                        ) {
+                            AppRadioButton(
+                                selected = isSelected,
+                                onClick = { visibilityStatus = option }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = option,
+                                fontSize = 11.sp,
+                                color = title_color,
+                                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                FormDropdown(
+                    label = "Dependent Field",
+                    value = selectedDependentField.ifEmpty { "Select trigger field" },
+                    expanded = dependentFieldExpanded,
+                    onExpandChange = { dependentFieldExpanded = it },
+                    options = triggerFieldOptions,
+                    onOptionSelected = { selectedDependentField = it }
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                FormDropdown(
+                    label = "Condition",
+                    value = selectedCondition.ifEmpty { "Select condition" },
+                    expanded = conditionExpanded,
+                    onExpandChange = { conditionExpanded = it },
+                    options = conditionOptions,
+                    onOptionSelected = { selectedCondition = it }
+                )
+
+                Spacer(Modifier.height(24.dp))
+
+                // Section 4 — Assignment
+                SectionHeader("Section 4 — Assignment")
+                Spacer(Modifier.height(14.dp))
+
+                FormLabel(text = "Available for Garments", isRequired = false)
+                Spacer(Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    selectedGarments.forEach { garment ->
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFFEEF2FF)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = garment,
+                                    fontSize = 13.sp,
+                                    color = Primary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_close_circle),
+                                    contentDescription = "Remove",
+                                    tint = Primary,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { selectedGarments.remove(garment) }
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "+ Add more",
+                        color = Primary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable {}
+                    )
+                }
+
+                Spacer(Modifier.height(28.dp))
             }
         }
 
-        // Floating Action Bar
         StepNavigationFab(
             showBack = true,
             onBack = onClose,
@@ -1662,7 +1701,6 @@ fun CreateMeasurementFieldScreen(
                         fieldName.trim().uppercase().replace(" ", "_")
                     }
 
-                    // Trigger ViewModel API Call
                     viewModel.createMeasurementField(
                         name = fieldName,
                         displayName = displayLabel.ifBlank { fieldName },
@@ -1684,7 +1722,6 @@ fun CreateMeasurementFieldScreen(
             )
         )
 
-        // Dynamic Island Overlays
         DynamicIslandSuccess(
             message = successMessage,
             onDismiss = { successMessage = null }

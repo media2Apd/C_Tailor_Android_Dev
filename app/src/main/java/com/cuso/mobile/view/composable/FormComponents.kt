@@ -41,6 +41,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.disabled
 import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.redText
@@ -56,11 +58,14 @@ private val LabelColor = Color(0xFF8A8A99)
 @Composable
 fun FormDropdown(
     label: String? = null,
-    value: String,
+    value: String = "",
     expanded: Boolean,
     onExpandChange: (Boolean) -> Unit,
     options: List<String>,
-    onOptionSelected: (String) -> Unit,
+    onOptionSelected: (String) -> Unit = {},
+    isMultiSelect: Boolean = false,
+    selectedOptions: List<String> = emptyList(),
+    onMultiOptionSelected: (List<String>) -> Unit = {},
     isRequired: Boolean = false,
     enabled: Boolean = true,
     isError: Boolean = false,
@@ -81,13 +86,31 @@ fun FormDropdown(
     val density = LocalDensity.current
     var triggerWidthPx by remember { mutableIntStateOf(0) }
 
-    // ── Rotation Animation for Arrow ──
+    // Dropdown arrow rotation animation
     val arrowRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
         label = "DropdownArrowRotation"
     )
 
+    // Compute display text based on selection mode
+    val displayText = remember(value, isMultiSelect, selectedOptions) {
+        when {
+            isMultiSelect -> {
+                if (selectedOptions.isNotEmpty()) {
+                    selectedOptions.joinToString(", ")
+                } else if (value.isNotBlank() && value != "Select an option") {
+                    value
+                } else {
+                    "Select options"
+                }
+            }
+            value.isNotBlank() -> value
+            else -> "Select an option"
+        }
+    }
+
     Box {
+        // Trigger Box
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -107,15 +130,14 @@ fun FormDropdown(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // ── Max 1 Line & Ellipsis ──
             Text(
-                text = value,
+                text = displayText,
                 fontSize = tokens.bodySmall,
                 maxLines = maxLines,
                 overflow = TextOverflow.Ellipsis,
                 color = when {
                     !effectiveEnabled -> Color(0xFF9CA3AF)
-                    value == "Select an option" -> Color(0xFF9CA3AF)
+                    displayText == "Select an option" || displayText == "Select options" -> Color(0xFF9CA3AF)
                     else -> Color(0xFF374151)
                 },
                 modifier = Modifier.weight(1f, fill = false)
@@ -123,7 +145,6 @@ fun FormDropdown(
 
             Spacer(Modifier.width(tokens.cardPadding * 0.3f))
 
-            // ── Dropdown Arrow Icon ──
             Icon(
                 Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
@@ -132,6 +153,7 @@ fun FormDropdown(
             )
         }
 
+        // Dropdown Menu
         if (effectiveEnabled) {
             DropdownMenu(
                 expanded = expanded,
@@ -140,24 +162,56 @@ fun FormDropdown(
                 shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
                 modifier = Modifier
                     .width(with(density) { triggerWidthPx.toDp() })
-                    .heightIn(max = tokens.fieldHeight * 4.5f)
+                    .heightIn(max = tokens.fieldHeight * 5f)
             ) {
                 options.forEach { option ->
-                    Text(
-                        text = option,
-                        fontSize = tokens.bodyMedium,
-                        color = Color(0xFF374151),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onOptionSelected(option)
-                                onExpandChange(false)
-                            }
-                            .padding(
-                                horizontal = tokens.cardPadding * 0.6f,
-                                vertical = tokens.screenPadding * 0.5f
+                    if (isMultiSelect) {
+                        val isSelected = selectedOptions.contains(option)
+                        // Multi-select row with background highlighting (No Checkbox)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(if (isSelected) disabled else Color.Transparent)
+                                .clickable {
+                                    val updatedList = if (isSelected) {
+                                        selectedOptions - option
+                                    } else {
+                                        selectedOptions + option
+                                    }
+                                    onMultiOptionSelected(updatedList)
+                                }
+                                .padding(
+                                    horizontal = tokens.cardPadding * 0.6f,
+                                    vertical = tokens.screenPadding * 0.5f
+                                ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = option,
+                                fontSize = tokens.bodyMedium,
+                                color = if (isSelected) Primary else Color(0xFF374151),
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                             )
-                    )
+                        }
+                    } else {
+                        // Single-select row
+                        Text(
+                            text = option,
+                            fontSize = tokens.bodyMedium,
+                            color = Color(0xFF374151),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onOptionSelected(option)
+                                    onExpandChange(false)
+                                }
+                                .padding(
+                                    horizontal = tokens.cardPadding * 0.6f,
+                                    vertical = tokens.screenPadding * 0.5f
+                                )
+                        )
+                    }
                 }
             }
         }

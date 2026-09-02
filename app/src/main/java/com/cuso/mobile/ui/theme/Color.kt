@@ -14,7 +14,6 @@ val Primary_background = Color(0xFFFAFAFB)
 val PrimaryBorder = Color(0xFFE9EAEC)
 val PrimaryTextColor = Color(0xFF8d939d)
 
-
 // ===========================================================
 // PAGE / SCREEN BACKGROUND COLORS - Whole screen bg colors
 // ===========================================================

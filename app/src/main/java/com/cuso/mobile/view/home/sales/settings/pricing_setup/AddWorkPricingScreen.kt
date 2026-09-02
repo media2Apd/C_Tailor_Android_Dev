@@ -43,7 +43,7 @@ fun AddWorkPricingScreen(
 
     val segmentOptions = segments.map { it.name }
 
-    var workType by remember { mutableStateOf("Aari Work") }
+    var workType by remember { mutableStateOf("") }
 
     var segmentExpanded by remember { mutableStateOf(false) }
     var selectedSegment by remember { mutableStateOf("") }
@@ -55,14 +55,14 @@ fun AddWorkPricingScreen(
     }
 
     var garmentExpanded by remember { mutableStateOf(false) }
-    var selectedGarment by remember { mutableStateOf("Mens Shirt") }
+    var selectedGarment by remember { mutableStateOf("") }
     val garmentOptions = listOf("Mens Shirt", "Women's Blouse", "Lehenga", "Trouser")
 
     var variantExpanded by remember { mutableStateOf(false) }
-    var selectedVariant by remember { mutableStateOf("Full Sleeve") }
+    var selectedVariant by remember { mutableStateOf("") }
     val variantOptions = listOf("Full Sleeve", "Half Sleeve", "Standard")
 
-    var baseWorkPrice by remember { mutableStateOf("₹600") }
+    var baseWorkPrice by remember { mutableStateOf("") }
     var isStatusActive by remember { mutableStateOf(true) }
 
     var successMessage by remember { mutableStateOf<String?>(null) }
@@ -90,30 +90,21 @@ fun AddWorkPricingScreen(
                     .padding(bottom = 100.dp)
             ) {
                 // Section 1: Select Work Type
-                Text(
-                    text = "1. Select Work Type",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = title_color
-                )
+                SectionHeader("1.Select Work Type")
                 Spacer(Modifier.height(14.dp))
 
                 FormLabel(text = "Work Type", isRequired = false)
                 FormTextField(
                     value = workType,
                     onValueChange = { workType = it },
-                    placeholder = "Aari Work"
+                    placeholder = "Enter Work Type"
                 )
 
                 Spacer(Modifier.height(24.dp))
 
                 // Section 2: Garment Details
-                Text(
-                    text = "2. Garment Details",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = title_color
-                )
+                SectionHeader("2.Garment Details")
+
                 Spacer(Modifier.height(14.dp))
 
                 FormDropdown(
@@ -150,12 +141,7 @@ fun AddWorkPricingScreen(
                 Spacer(Modifier.height(24.dp))
 
                 // Section 3: Pricing & Status
-                Text(
-                    text = "3. Pricing & Status",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = title_color
-                )
+                SectionHeader("3.Pricing & Status")
                 Spacer(Modifier.height(14.dp))
 
                 FormLabel(text = "Base Work Price", isRequired = false)
@@ -212,6 +198,21 @@ fun AddWorkPricingScreen(
         DynamicIslandError(
             message = errorMessage,
             onDismiss = { errorMessage = null }
+        )
+    }
+}
+
+@Composable
+fun SectionHeader(text:String){
+    Row(
+        Modifier.fillMaxWidth()
+            .padding(vertical = 10.dp)
+    ) {
+        Text(
+            text = text,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = title_color
         )
     }
 }

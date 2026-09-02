@@ -6,6 +6,7 @@ import com.cuso.mobile.model.settings.CreateGarmentStyleRequest
 import com.cuso.mobile.model.settings.CreateMeasurementFieldRequest
 import com.cuso.mobile.model.settings.CreateSegmentRequest
 import com.cuso.mobile.model.settings.CreateSegmentResponse
+import com.cuso.mobile.model.settings.DeactivateMeasurementFieldResponse
 import com.cuso.mobile.model.settings.DeleteGarmentStyleResponse
 import com.cuso.mobile.model.settings.DeleteSegmentResponse
 import com.cuso.mobile.model.settings.GarmentListResponse
@@ -152,4 +153,12 @@ interface SalesSettingsApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<GarmentStyleDetailResponse>
+
+    // ── Deactivate measurement ──
+    @DELETE("sales/settings/measurement-fields/{id}/deactivate")
+    suspend fun deactivateMeasurementField(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") fieldId: String
+    ): Response<DeactivateMeasurementFieldResponse>
 }

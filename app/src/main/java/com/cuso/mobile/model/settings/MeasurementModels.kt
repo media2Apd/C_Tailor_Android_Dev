@@ -30,3 +30,16 @@ data class MeasurementFieldItem(
     @SerializedName("createdAt") val createdAt: String? = null,
     @SerializedName("updatedAt") val updatedAt: String? = null
 )
+
+data class DeactivateMeasurementFieldResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String,
+    @SerializedName("data") val data: MeasurementFieldItem?
+)
+
+data class UserAuditReference(
+    @SerializedName("_id") val id: String,
+    @SerializedName("firstName") val firstName: String?,
+    @SerializedName("lastName") val lastName: String?,
+    @SerializedName("memberId") val memberId: String?
+)

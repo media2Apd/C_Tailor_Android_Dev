@@ -270,7 +270,6 @@ private fun GarmentPricingListContent(
                 Text(
                     text = "Garment Styles & Variants",
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
                     color = title_color
                 )
                 Spacer(Modifier.height(2.dp))
@@ -296,7 +295,6 @@ private fun GarmentPricingListContent(
                     Text(
                         text = group.garmentName,
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
                         color = title_color
                     )
                     Row(
@@ -400,7 +398,6 @@ private fun FabricPricingListContent() {
                 Text(
                     text = "Fabric Pricing",
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
                     color = title_color
                 )
                 Spacer(Modifier.height(2.dp))
@@ -426,7 +423,6 @@ private fun FabricPricingListContent() {
                     Text(
                         text = item.name,
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
                         color = title_color
                     )
                     Row(
@@ -480,7 +476,6 @@ private fun FabricPricingListContent() {
                         Text(
                             text = "Current: ${item.currentPrice}",
                             fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
                             color = title_color
                         )
                         Text(
@@ -530,7 +525,6 @@ private fun WorkPricingListContent() {
                 Text(
                     text = "Pricing Setup",
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
                     color = title_color
                 )
                 Spacer(Modifier.height(2.dp))
@@ -556,7 +550,6 @@ private fun WorkPricingListContent() {
                     Text(
                         text = item.title,
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
                         color = title_color
                     )
                     Row(
@@ -566,7 +559,7 @@ private fun WorkPricingListContent() {
                         Box(
                             modifier = Modifier
                                 .background(Color(0xFFE6F7ED), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .padding(horizontal = 6.dp, vertical = 0.dp)
                         ) {
                             Text(
                                 text = "ACTIVE",
@@ -599,7 +592,6 @@ private fun WorkPricingListContent() {
                     Text(
                         text = item.price,
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
                         color = title_color
                     )
                 }

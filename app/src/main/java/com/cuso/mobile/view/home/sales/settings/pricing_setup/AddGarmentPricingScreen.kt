@@ -54,15 +54,15 @@ fun AddNewGarmentPricingScreen(
     }
 
     var garmentExpanded by remember { mutableStateOf(false) }
-    var selectedGarment by remember { mutableStateOf("Men's Shirt") }
+    var selectedGarment by remember { mutableStateOf("") }
     val garmentOptions = listOf("Men's Shirt", "Trouser", "Kurta", "Blazer")
 
     var variantExpanded by remember { mutableStateOf(false) }
-    var selectedVariant by remember { mutableStateOf("Full Sleeve") }
+    var selectedVariant by remember { mutableStateOf("") }
     val variantOptions = listOf("Full Sleeve", "Half Sleeve", "Sleeveless")
 
     // Pricing Configuration States
-    var basePrice by remember { mutableStateOf("₹1,200") }
+    var basePrice by remember { mutableStateOf("") }
     var isStatusActive by remember { mutableStateOf(true) }
 
     var successMessage by remember { mutableStateOf<String?>(null) }
@@ -90,12 +90,8 @@ fun AddNewGarmentPricingScreen(
                     .padding(bottom = 100.dp)
             ) {
                 // Section 1: Category Selection
-                Text(
-                    text = "1. Category Selection",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = title_color
-                )
+                SectionHeader("1.Category Selection")
+
                 Spacer(Modifier.height(14.dp))
 
                 FormDropdown(
@@ -132,12 +128,8 @@ fun AddNewGarmentPricingScreen(
                 Spacer(Modifier.height(24.dp))
 
                 // Section 2: Base Pricing Configuration
-                Text(
-                    text = "2. Base Pricing Configuration",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = title_color
-                )
+                SectionHeader("2. Base Pricing Configuration")
+
                 Spacer(Modifier.height(14.dp))
 
                 FormLabel(text = "Base Price", isRequired = false)
@@ -152,7 +144,7 @@ fun AddNewGarmentPricingScreen(
 
                 FormLabel(text = "Pricing Unit", isRequired = false)
                 FormTextField(
-                    value = "Per Garment (Read-Only)",
+                    value = "",
                     onValueChange = {},
                     enabled = true,
                     placeholder = "Per Garment (Read-Only)"

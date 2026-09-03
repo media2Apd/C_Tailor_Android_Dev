@@ -33,6 +33,7 @@ import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.ListSkeleton
@@ -120,35 +121,11 @@ fun LedgerScreen(
                 ListSkeleton()
             }
             errorMessage != null && items.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = Color.Red,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = errorMessage ?: "Something went wrong",
-                            color = Color.Red,
-                            fontSize = 14.sp
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = { financeViewModel.fetchLedger(accountId) },
-                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Retry", color = whiteBg, fontSize = 14.sp)
-                        }
-                    }
-                }
+                AppErrorState(
+                    title = "Failed to load dashboard",
+                    message = "Something went wrong. Please check your connection and try again.",
+                    onRetry = { financeViewModel.fetchLedger(accountId) }
+                )
             }
             filteredItems.isEmpty() -> {
                 Box(

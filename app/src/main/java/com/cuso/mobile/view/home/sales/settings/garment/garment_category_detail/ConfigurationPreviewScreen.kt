@@ -1,5 +1,8 @@
+@file:Suppress("UNUSED_PARAMETER", "unusedVariable")
+
 package com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -40,10 +43,11 @@ import com.cuso.mobile.viewmodel.SettingsViewModel
 @Composable
 fun ConfigurationPreviewScreen(
     garmentStyle: GarmentStyleItem? = null,
+    activeFields: List<StyleMeasurementFieldEntry> = emptyList(),
     garmentTitle: String = garmentStyle?.displayName ?: garmentStyle?.name ?: "Garment Style",
     viewModel: SettingsViewModel = hiltViewModel(),
     onClose: () -> Unit = {},
-    onBackToEdit: () -> Unit = {},
+    onBackToEdit: () -> Unit = onClose,
     onActivateConfirmed: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
@@ -53,34 +57,24 @@ fun ConfigurationPreviewScreen(
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // 1. Server Measurement Fields
-    val serverFields: List<StyleMeasurementFieldEntry> = garmentStyle?.measurementFields ?: emptyList()
+    // Handle system back gesture
+    BackHandler {
+        onBackToEdit()
+    }
 
-    // 2. Room DB Local Measurements
-    val localFields: List<GarmentMeasurement> by viewModel.localMeasurements.collectAsState()
-
-    // 3. Merged Dynamic Measurements List
-    val displayMeasurements: List<GarmentMeasurement> = remember(serverFields, localFields) {
-        val serverMapped = serverFields.map { entry ->
+    // Convert exact activeFields from Profile screen to GarmentMeasurement objects for Preview
+    val displayMeasurements: List<GarmentMeasurement> = remember(activeFields.size, activeFields.toList()) {
+        activeFields.mapIndexed { index, entry ->
             val detail = entry.fieldDetail
             GarmentMeasurement(
                 id = entry.id ?: detail?.id ?: "",
-                label = detail?.displayName ?: detail?.name ?: "Field ${entry.displayOrder}",
+                label = detail?.displayName ?: detail?.name ?: "Field ${index + 1}",
                 unit = detail?.unit ?: "inch",
                 inputType = detail?.inputType ?: "Number",
                 isRequired = entry.isRequired,
-                displayOrder = entry.displayOrder
+                displayOrder = if (entry.displayOrder > 0) entry.displayOrder else (index + 1)
             )
         }
-
-        val existingIds = serverMapped.map { it.id }.toSet()
-        val combined = serverMapped.toMutableList()
-        localFields.forEach { local ->
-            if (!existingIds.contains(local.id)) {
-                combined.add(local)
-            }
-        }
-        combined
     }
 
     val requiredCount = displayMeasurements.count { it.isRequired }
@@ -93,7 +87,7 @@ fun ConfigurationPreviewScreen(
             topBar = {
                 TitleBar(
                     title = "Configuration Preview",
-                    onClose = onClose
+                    onClose = onBackToEdit
                 )
             }
         ) { padding ->
@@ -137,7 +131,7 @@ fun ConfigurationPreviewScreen(
                 } else {
                     PreviewSectionTitle("Measurement Fields (${displayMeasurements.size})")
 
-                    // Render dynamic rows loaded from Server and Room DB
+                    // Render all live fields active in profile config
                     displayMeasurements.forEach { item ->
                         PreviewMeasurementRow(item = item)
                     }

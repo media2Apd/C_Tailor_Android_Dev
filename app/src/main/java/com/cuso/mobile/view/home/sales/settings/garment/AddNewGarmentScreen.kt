@@ -81,10 +81,10 @@ fun AddNewGarmentScreen(
 
     val scrollState = rememberScrollState()
 
-    fun autoGenerateCode() {
-        if (garmentName.isNotBlank()) {
-            garmentCode = garmentName.trim().uppercase().replace(" ", "_")
-        }
+    // Helper function to generate uppercase code from garment name
+    fun updateGarmentCodeFromName(name: String) {
+        garmentName = name
+        garmentCode = name.trim().uppercase().replace("\\s+".toRegex(), "_")
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -108,34 +108,28 @@ fun AddNewGarmentScreen(
             ) {
                 Spacer(Modifier.height(4.dp))
 
-                // Garment Name Field
+                // Garment Name Field with Real-Time Capitalized Code Generation
                 Column {
                     FormLabel(text = "Garment Name", isRequired = true)
                     FormTextField(
                         value = garmentName,
-                        onValueChange = { garmentName = it },
-                        placeholder = "e.g. Formal Shirt"
+                        onValueChange = { newName ->
+                            updateGarmentCodeFromName(newName)
+                        },
+                        placeholder = "Enter Garment name here"
                     )
                 }
 
-                // Garment Code Field
+                // Garment Code Field (Automatically populated in uppercase)
                 Column {
                     FormLabel(text = "Garment Code")
                     FormTextField(
                         value = garmentCode,
-                        onValueChange = { garmentCode = it },
-                        placeholder = "SHIRT"
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = "Auto-generate from name",
-                        color = Primary,
-                        fontSize = tokens.caption,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) { autoGenerateCode() }
+                        onValueChange = { newCode ->
+                            garmentCode = newCode.uppercase().replace("\\s+".toRegex(), "_")
+                        },
+                        placeholder = "Garment Code will be automatically generated",
+                        enabled = false
                     )
                 }
 
@@ -167,7 +161,7 @@ fun AddNewGarmentScreen(
                                 baseStitchingCharge = input
                             }
                         },
-                        placeholder = "500",
+                        placeholder = "Enter base stitching charge",
                         keyboardType = KeyboardType.Number
                     )
                 }
@@ -198,7 +192,7 @@ fun AddNewGarmentScreen(
                     FormTextArea(
                         value = description,
                         onValueChange = { description = it },
-                        placeholder = "Standard shirt construction — applies to formal, casual, and uniform variants.",
+                        placeholder = "Description here",
                         minLines = 4,
                         maxLines = 6
                     )
@@ -228,7 +222,7 @@ fun AddNewGarmentScreen(
                     }
 
                     val finalCode = garmentCode.ifBlank {
-                        garmentName.trim().uppercase().replace(" ", "_")
+                        garmentName.trim().uppercase().replace("\\s+".toRegex(), "_")
                     }
                     val stitchingCharge = baseStitchingCharge.toDoubleOrNull() ?: 0.0
 
@@ -236,7 +230,7 @@ fun AddNewGarmentScreen(
                         name = garmentName,
                         code = finalCode,
                         description = description,
-                        applicableSegmentIds = selectedSegmentIds, // Passed full multiple IDs list
+                        applicableSegmentIds = selectedSegmentIds,
                         baseStitchingCharge = stitchingCharge,
                         onSuccess = { response ->
                             successMessage = "Garment created successfully"
@@ -262,6 +256,7 @@ fun AddNewGarmentScreen(
         )
     }
 }
+
 // ─────────────────────────────────────────────────────────────
 // 2. Add New Garment Category Screen
 // ─────────────────────────────────────────────────────────────
@@ -404,6 +399,7 @@ fun AddNewGarmentCategoryScreen(
             )
         )
 
+        // Dynamic Island Overlay
         DynamicIslandSuccess(
             message = successMessage,
             onDismiss = { successMessage = null }

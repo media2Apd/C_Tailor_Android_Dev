@@ -1,43 +1,53 @@
 package com.cuso.mobile.repository
 
-import com.android.volley.Response
 import com.cuso.mobile.database.dao.SelectedGarmentDao
 import com.cuso.mobile.database.dao.TokensDao
 import com.cuso.mobile.database.entities.GarmentMeasurement
 import com.cuso.mobile.database.entities.SelectedGarment
+import com.cuso.mobile.model.settings.BaseInventoryResponse
+import com.cuso.mobile.model.settings.BinItem
+import com.cuso.mobile.model.settings.CreateBinRequest
+import com.cuso.mobile.model.settings.CreateFloorRequest
 import com.cuso.mobile.model.settings.CreateGarmentRequest
 import com.cuso.mobile.model.settings.CreateGarmentResponse
 import com.cuso.mobile.model.settings.CreateGarmentStyleRequest
 import com.cuso.mobile.model.settings.CreateMeasurementFieldRequest
+import com.cuso.mobile.model.settings.CreateRackRequest
+import com.cuso.mobile.model.settings.CreateSectionRequest
 import com.cuso.mobile.model.settings.CreateSegmentRequest
 import com.cuso.mobile.model.settings.CreateSegmentResponse
 import com.cuso.mobile.model.settings.DeactivateMeasurementFieldResponse
 import com.cuso.mobile.model.settings.DeleteSegmentResponse
+import com.cuso.mobile.model.settings.FloorItem
 import com.cuso.mobile.model.settings.GarmentItem
 import com.cuso.mobile.model.settings.GarmentStyleItem
+import com.cuso.mobile.model.settings.GetBinsResponse // 👈 Added
 import com.cuso.mobile.model.settings.MeasurementFieldItem
+import com.cuso.mobile.model.settings.RackItem
+import com.cuso.mobile.model.settings.SectionItem
 import com.cuso.mobile.model.settings.SegmentItem
 import com.cuso.mobile.model.settings.UpdateGarmentStyleRequest
+import com.cuso.mobile.network.inventory.settings.InventorySettingsApiService
 import com.cuso.mobile.network.sales.settings.SalesSettingsApiService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import retrofit2.Response
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class SettingsRepository @Inject constructor(
     private val salesSettingsApi: SalesSettingsApiService,
+    private val inventoryApi: InventorySettingsApiService,
     private val tokensDao: TokensDao,
-    val selectedGarmentDao: SelectedGarmentDao // 👈 1. Injected SelectedGarmentDao
+    val selectedGarmentDao: SelectedGarmentDao
 ) {
-    // Helper method to fetch auth tokens from local database
     private suspend fun getAuthHeaders(): Pair<String, String> {
         val tokens = tokensDao.getTokens()
             ?: throw Exception("No tokens found, please login again")
         return Pair("Bearer ${tokens.accessToken}", tokens.csrfToken)
     }
 
-    // Fetch all segments list
     suspend fun getSegments(page: Int = 1, limit: Int = 50): Result<List<SegmentItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -56,7 +66,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // Fetch single segment by ID (View One)
     suspend fun getSegmentById(id: String): Result<SegmentItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -73,7 +82,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // Call API to create a new garment segment
     suspend fun createSegment(request: CreateSegmentRequest): Result<CreateSegmentResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -92,7 +100,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // Call API to update segment
     suspend fun updateSegment(id: String, request: CreateSegmentRequest): Result<CreateSegmentResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -123,7 +130,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // ── Garment Operations ──
     suspend fun getGarments(): Result<List<GarmentItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -152,14 +158,12 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // ── Get Garment Style ──
     fun getGarmentStyles(
         segmentId: String?,
         garmentId: String?
     ): Flow<Result<List<GarmentStyleItem>>> = flow {
         try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            android.util.Log.d("API_QUERY", "Calling view-all with segmentId=$segmentId, garmentId=$garmentId")
             val response = salesSettingsApi.getGarmentStyle(
                 token = accessToken,
                 csrfToken = csrfToken,
@@ -176,7 +180,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // ── Create Garment Style ──
     suspend fun createGarmentStyle(request: CreateGarmentStyleRequest): Result<GarmentStyleItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -196,7 +199,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // ── Update Garment Style ──
     suspend fun updateGarmentStyle(id: String, request: CreateGarmentStyleRequest): Result<GarmentStyleItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -216,7 +218,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // ── Delete Garment Style ──
     suspend fun deleteGarmentStyle(id: String): Result<String> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -232,7 +233,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // ── Fetch Measurement Fields ──
     suspend fun getMeasurementFields(page: Int = 1, limit: Int = 50): Result<List<MeasurementFieldItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -252,7 +252,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // ── Create Measurement Field ──
     suspend fun createMeasurementField(request: CreateMeasurementFieldRequest): Result<MeasurementFieldItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -272,7 +271,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // ── Update Measurement Field ──
     suspend fun updateMeasurementField(
         id: String,
         request: UpdateGarmentStyleRequest
@@ -294,7 +292,7 @@ class SettingsRepository @Inject constructor(
             Result.failure(e)
         }
     }
-    // ── Fetch Single Garment Category by ID (View One) ──
+
     suspend fun getGarmentCategoryById(id: String): Result<GarmentStyleItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -314,7 +312,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // ── Deactivate Measurement Field ──
     suspend fun deactivateMeasurementField(fieldId: String): Result<DeactivateMeasurementFieldResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -334,7 +331,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    // ── 2. Room DB Local Measurement Operations ──
     fun getLocalMeasurements(categoryId: String): Flow<SelectedGarment?> {
         return selectedGarmentDao.getGarmentByCategoryId(categoryId)
     }
@@ -365,5 +361,134 @@ class SettingsRepository @Inject constructor(
             measurements = updated
         )
         selectedGarmentDao.insertGarment(entity)
+    }
+
+    suspend fun createFloor(request: CreateFloorRequest): Result<FloorItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response: Response<BaseInventoryResponse<FloorItem>> = inventoryApi.createFloor(accessToken, csrfToken, request)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to create floor"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getFloors(warehouseId: String? = null): Result<List<FloorItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response: Response<BaseInventoryResponse<List<FloorItem>>> = inventoryApi.getFloors(accessToken, csrfToken, warehouseId)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.data ?: emptyList())
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch floors"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createSection(request: CreateSectionRequest): Result<SectionItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response: Response<BaseInventoryResponse<SectionItem>> = inventoryApi.createSection(accessToken, csrfToken, request)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to create section"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSections(warehouseId: String? = null, floorId: String? = null): Result<List<SectionItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response: Response<BaseInventoryResponse<List<SectionItem>>> = inventoryApi.getSections(accessToken, csrfToken, warehouseId, floorId)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.data ?: emptyList())
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch sections"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createRack(request: CreateRackRequest): Result<RackItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response: Response<BaseInventoryResponse<RackItem>> = inventoryApi.createRack(accessToken, csrfToken, request)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to create rack"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getRacks(warehouseId: String? = null, floorId: String? = null, sectionId: String? = null): Result<List<RackItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response: Response<BaseInventoryResponse<List<RackItem>>> = inventoryApi.getRacks(accessToken, csrfToken, warehouseId, floorId, sectionId)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.data ?: emptyList())
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch racks"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createBin(request: CreateBinRequest): Result<BinItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response: Response<BaseInventoryResponse<BinItem>> = inventoryApi.createBin(accessToken, csrfToken, request)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to create bin"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Fixed getBins Method ──
+    suspend fun getBins(warehouseId: String? = null, rackId: String? = null): Result<List<BinItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response: Response<GetBinsResponse> = inventoryApi.getBins(accessToken, csrfToken, warehouseId, rackId)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.bins ?: emptyList())
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch bins"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

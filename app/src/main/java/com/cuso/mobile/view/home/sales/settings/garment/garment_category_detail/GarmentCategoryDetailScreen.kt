@@ -2,6 +2,7 @@
 
 package com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,7 +43,6 @@ import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.SettingsViewModel
-
 enum class GarmentConfigStep {
     GARMENT_LIST,
     GARMENT_PROFILE,
@@ -60,6 +60,7 @@ data class MeasurementGroupItem(
     val displayOrder: Int = 1,
     val isActive: Boolean = true
 )
+
 fun MeasurementFieldItem.toStyleFieldDetail(): StyleMeasurementFieldDetail {
     return StyleMeasurementFieldDetail(
         id = this.id,
@@ -70,6 +71,7 @@ fun MeasurementFieldItem.toStyleFieldDetail(): StyleMeasurementFieldDetail {
         options = this.options
     )
 }
+
 @Composable
 fun GarmentCategoryDetailScreen(
     categoryTitle: String = "Garment Categories",
@@ -85,24 +87,43 @@ fun GarmentCategoryDetailScreen(
     var selectedStyle by remember { mutableStateOf<GarmentStyleItem?>(null) }
     var isConfigurationActive by remember { mutableStateOf(false) }
 
-    // In-memory list of measurement fields for the active style configuration (No Room DB)
+    // In-memory list of measurement fields for active style configuration
     val activeMeasurementFields = remember { mutableStateListOf<StyleMeasurementFieldEntry>() }
 
     // Dynamic measurement groups state
-    val dynamicGroups = remember {
-        mutableStateListOf(
-            MeasurementGroupItem("1", "All Fields", "ALL", displayOrder = 1),
-            MeasurementGroupItem("2", "Body", "BODY", displayOrder = 2),
-            MeasurementGroupItem("3", "Shoulder", "SHOULDER", displayOrder = 3),
-            MeasurementGroupItem("4", "Sleeve", "SLEEVE", displayOrder = 4)
-        )
+    val defaultGroups = listOf(
+        MeasurementGroupItem("1", "All Fields", "ALL", displayOrder = 1),
+        MeasurementGroupItem("2", "Body", "BODY", displayOrder = 2),
+        MeasurementGroupItem("3", "Shoulder", "SHOULDER", displayOrder = 3),
+        MeasurementGroupItem("4", "Sleeve", "SLEEVE", displayOrder = 4)
+    )
+    val dynamicGroups = remember { mutableStateListOf<MeasurementGroupItem>().apply { addAll(defaultGroups) } }
+
+    fun resetStateToGarmentList() {
+        activeMeasurementFields.clear()
+        selectedStyle = null
+        isConfigurationActive = false
+        dynamicGroups.clear()
+        dynamicGroups.addAll(defaultGroups)
+        currentStep = GarmentConfigStep.GARMENT_LIST
+    }
+
+    BackHandler {
+        when (currentStep) {
+            GarmentConfigStep.GARMENT_LIST -> onClose()
+            GarmentConfigStep.GARMENT_PROFILE -> resetStateToGarmentList()
+            GarmentConfigStep.ADD_EXISTING_FIELD,
+            GarmentConfigStep.CREATE_MEASUREMENT_FIELD,
+            GarmentConfigStep.CONFIGURATION_PREVIEW,
+            GarmentConfigStep.ADD_MEASUREMENT_GROUP -> {
+                currentStep = GarmentConfigStep.GARMENT_PROFILE
+            }
+        }
     }
 
     LaunchedEffect(segmentId, garmentId) {
         if (!segmentId.isNullOrBlank() || !garmentId.isNullOrBlank()) {
-            currentStep = GarmentConfigStep.GARMENT_LIST
-            selectedStyle = null
-            activeMeasurementFields.clear()
+            resetStateToGarmentList()
             viewModel.fetchGarmentStyles(segmentId = segmentId, garmentId = garmentId)
         }
     }
@@ -138,7 +159,8 @@ fun GarmentCategoryDetailScreen(
                     selectedStyle = styleItem
                     isConfigurationActive = styleItem.isActive
                     activeMeasurementFields.clear()
-                    activeMeasurementFields.addAll(styleItem.measurementFields)
+                    activeMeasurementFields.addAll(mergeAllMeasurementFields(styleItem))
+                    viewModel.fetchGarmentCategoryById(styleItem.id)
                     onConfigureGarmentClick(styleItem.id)
                     currentStep = GarmentConfigStep.GARMENT_PROFILE
                 }
@@ -152,7 +174,7 @@ fun GarmentCategoryDetailScreen(
                 isActive = isConfigurationActive,
                 viewModel = viewModel,
                 groupsList = dynamicGroups,
-                onClose = { currentStep = GarmentConfigStep.GARMENT_LIST },
+                onClose = { resetStateToGarmentList() },
                 onAddGroupClick = { currentStep = GarmentConfigStep.ADD_MEASUREMENT_GROUP },
                 onAddExistingClick = { currentStep = GarmentConfigStep.ADD_EXISTING_FIELD },
                 onAddFieldClick = { currentStep = GarmentConfigStep.CREATE_MEASUREMENT_FIELD },
@@ -180,6 +202,7 @@ fun GarmentCategoryDetailScreen(
         GarmentConfigStep.CONFIGURATION_PREVIEW -> {
             ConfigurationPreviewScreen(
                 garmentStyle = selectedStyle,
+                activeFields = activeMeasurementFields,
                 garmentTitle = selectedStyle?.displayName ?: selectedStyle?.name ?: "Garment Style",
                 viewModel = viewModel,
                 onClose = { currentStep = GarmentConfigStep.GARMENT_PROFILE },
@@ -192,10 +215,10 @@ fun GarmentCategoryDetailScreen(
         }
 
         GarmentConfigStep.ADD_EXISTING_FIELD -> {
-            val existingIds = remember(activeMeasurementFields.toList()) {
+            val existingIds = remember(activeMeasurementFields.size) {
                 activeMeasurementFields.mapNotNull { it.fieldDetail?.id ?: it.id }.toSet()
             }
-            val existingNames = remember(activeMeasurementFields.toList()) {
+            val existingNames = remember(activeMeasurementFields.size) {
                 activeMeasurementFields.mapNotNull {
                     (it.fieldDetail?.displayName ?: it.fieldDetail?.name)?.trim()?.lowercase()
                 }.toSet()
@@ -209,8 +232,8 @@ fun GarmentCategoryDetailScreen(
                 onAddSelected = { selectedFieldsList ->
                     selectedFieldsList.forEach { fieldItem ->
                         val alreadyExists = activeMeasurementFields.any {
-                            it.fieldDetail?.id == fieldItem.id ||
-                                    it.id == fieldItem.id ||
+                            val fieldId = it.fieldDetail?.id ?: it.id
+                            fieldId == fieldItem.id ||
                                     it.fieldDetail?.name.equals(fieldItem.name, ignoreCase = true) ||
                                     (it.fieldDetail?.displayName != null && it.fieldDetail.displayName.equals(fieldItem.displayName, ignoreCase = true))
                         }
@@ -247,7 +270,6 @@ fun GarmentCategoryDetailScreen(
                 }
             )
         }
-
     }
 
     DynamicIslandError(
@@ -407,9 +429,31 @@ private fun GarmentCategoryListView(
         }
     }
 }
+// Helper to merge fields from both category and parent garment without duplicates
+fun mergeAllMeasurementFields(styleItem: GarmentStyleItem): List<StyleMeasurementFieldEntry> {
+    val mergedList = mutableListOf<StyleMeasurementFieldEntry>()
+    val seenFieldIds = mutableSetOf<String>()
 
+    // 1. First add the category specific measurement fields
+    styleItem.measurementFields.forEach { entry ->
+        val fId = entry.fieldDetail?.id ?: entry.id
+        if (fId != null && seenFieldIds.add(fId)) {
+            mergedList.add(entry)
+        }
+    }
+
+    // 2. Then add the parent garment measurement fields if not already present
+    styleItem.garment?.measurementFields?.forEach { entry ->
+        val fId = entry.fieldDetail?.id ?: entry.id
+        if (fId != null && seenFieldIds.add(fId)) {
+            mergedList.add(entry.copy(displayOrder = mergedList.size + 1))
+        }
+    }
+
+    return mergedList
+}
 // ─────────────────────────────────────────────────────────────
-// Garment Profile Config Screen (Live In-Memory List & API Sync)
+// Garment Profile Config Screen
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun GarmentProfileConfigScreen(
@@ -434,23 +478,15 @@ fun GarmentProfileConfigScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    // Fetch Single Garment Category Details directly from API on screen load
-    LaunchedEffect(styleId) {
-        if (!styleId.isNullOrBlank()) {
-            viewModel.fetchGarmentCategoryById(styleId)
-        }
-    }
-
-    // Observe live View One API response from ViewModel
     val styleDetail by viewModel.selectedStyleDetail.collectAsState()
     val isLoadingDetail by viewModel.isLoadingStyleDetail.collectAsState()
     val isSaving by viewModel.isLoadingStyles.collectAsState()
 
-    // Sync API fields once loaded if list is currently empty
+    // Populate activeFields ONLY IF it is empty when styleDetail loads
     LaunchedEffect(styleDetail) {
-        styleDetail?.measurementFields?.let { fields ->
-            if (activeFields.isEmpty() && fields.isNotEmpty()) {
-                activeFields.addAll(fields)
+        styleDetail?.let { detail ->
+            if (detail.id == styleId && activeFields.isEmpty()) {
+                activeFields.addAll(mergeAllMeasurementFields(detail))
             }
         }
     }
@@ -701,7 +737,6 @@ fun GarmentProfileConfigScreen(
             }
         }
 
-        // Floating Step Navigation FAB
         StepNavigationFab(
             showBack = true,
             onBack = onPreviewClick,
@@ -727,7 +762,7 @@ fun GarmentProfileConfigScreen(
                         viewModel.saveGarmentProfileMeasurements(
                             style = style,
                             measurements = mappedMeasurements,
-                            onSuccess = { updatedStyle ->
+                            onSuccess = { _ ->
                                 successMessage = "Configuration saved successfully"
                                 if (!styleId.isNullOrBlank()) {
                                     viewModel.fetchGarmentCategoryById(styleId)
@@ -742,7 +777,6 @@ fun GarmentProfileConfigScreen(
             )
         )
 
-        // Dynamic Island Notifications
         DynamicIslandSuccess(
             message = successMessage,
             onDismiss = { successMessage = null }
@@ -754,7 +788,6 @@ fun GarmentProfileConfigScreen(
         )
     }
 
-    // Delete Measurement Field Dialog
     fieldToDelete?.let { field ->
         DeleteMeasurementFieldDialog(
             onDismiss = { fieldToDelete = null },
@@ -768,351 +801,7 @@ fun GarmentProfileConfigScreen(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Add Measurement Group Screen
-// ─────────────────────────────────────────────────────────────
-@Composable
-fun AddMeasurementGroupScreen(
-    initialOrder: Int = 1,
-    onClose: () -> Unit,
-    onCreateGroup: (MeasurementGroupItem) -> Unit
-) {
-    val tokens = LocalAppTokens.current
-
-    var groupName by remember { mutableStateOf("") }
-    var groupCode by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var displayOrder by remember { mutableStateOf(initialOrder.toString()) }
-    var isStatusActive by remember { mutableStateOf(true) }
-
-    var successMessage by remember { mutableStateOf<String?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    val scrollState = rememberScrollState()
-
-    fun autoGenerateCode(name: String) {
-        groupName = name
-        if (name.isNotBlank()) {
-            groupCode = name.trim().uppercase().replace(" ", "_")
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
-                TitleBar(
-                    title = "Add Measurement Group",
-                    onClose = onClose
-                )
-            }
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
-                    .padding(bottom = 90.dp)
-            ) {
-                Spacer(Modifier.height(4.dp))
-
-                // Group Name Field
-                FormLabel(text = "Group Name", isRequired = true)
-                Spacer(Modifier.height(4.dp))
-                FormTextField(
-                    value = groupName,
-                    onValueChange = { autoGenerateCode(it) },
-                    placeholder = "Cuff & Wrist"
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Use a clear name that describes the measurements in this group.",
-                    fontSize = 11.sp,
-                    color = iconMuted
-                )
-
-                Spacer(Modifier.height(18.dp))
-
-                // Group Code Field with Auto-generated Badge
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FormLabel(text = "Group Code", isRequired = true)
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = Color(0xFFEEF2FF)
-                    ) {
-                        Text(
-                            text = "Auto-generated from Group Name",
-                            fontSize = 10.sp,
-                            color = Primary,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-                Spacer(Modifier.height(4.dp))
-                FormTextField(
-                    value = groupCode,
-                    onValueChange = { groupCode = it },
-                    placeholder = "CUFF_WRIST"
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Unique code used to identify this measurement group.",
-                    fontSize = 11.sp,
-                    color = iconMuted
-                )
-
-                Spacer(Modifier.height(18.dp))
-
-                // Description Field
-                FormLabel(text = "Description", isRequired = false)
-                Spacer(Modifier.height(4.dp))
-                FormTextArea(
-                    value = description,
-                    onValueChange = { description = it },
-                    placeholder = "Describe what measurements this group contains.",
-                    minLines = 4,
-                    maxLines = 6
-                )
-
-                Spacer(Modifier.height(18.dp))
-
-                // Display Order Field
-                FormLabel(text = "Display Order", isRequired = false)
-                Spacer(Modifier.height(4.dp))
-                Box(modifier = Modifier.width(120.dp)) {
-                    FormTextField(
-                        value = displayOrder,
-                        onValueChange = { displayOrder = it },
-                        keyboardType = KeyboardType.Number,
-                        placeholder = "6"
-                    )
-                }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Controls where this group appears in the measurement form.",
-                    fontSize = 11.sp,
-                    color = iconMuted
-                )
-
-                Spacer(Modifier.height(18.dp))
-
-                // Status Toggle Switch
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Status",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = title_color
-                    )
-                    MiniSwitch(
-                        checked = isStatusActive,
-                        onCheckedChange = { isStatusActive = it }
-                    )
-                }
-
-                Spacer(Modifier.height(28.dp))
-            }
-        }
-
-        // Floating Step Navigation FAB
-        StepNavigationFab(
-            showBack = true,
-            onBack = onClose,
-            backLabel = "Cancel",
-            showBackArrow = false,
-            showTrailingArrow = false,
-            trailingAction = TrailingFabAction.Next(
-                label = "Create Group",
-                onClick = {
-                    if (groupName.isBlank()) {
-                        errorMessage = "Please enter a group name"
-                        return@Next
-                    }
-                    val finalCode = groupCode.ifBlank {
-                        groupName.trim().uppercase().replace(" ", "_")
-                    }
-                    val order = displayOrder.toIntOrNull() ?: initialOrder
-
-                    successMessage = "Measurement group created successfully"
-                    onCreateGroup(
-                        MeasurementGroupItem(
-                            id = System.currentTimeMillis().toString(),
-                            name = groupName.trim(),
-                            code = finalCode,
-                            description = description.trim(),
-                            displayOrder = order,
-                            isActive = isStatusActive
-                        )
-                    )
-                }
-            )
-        )
-
-        // Dynamic Island Overlay
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
-    }
-}
-
-@Composable
-fun DeleteMeasurementFieldDialog(
-    onDismiss: () -> Unit,
-    onConfirmDelete: () -> Unit
-) {
-    var deleteConfirmText by remember { mutableStateOf("") }
-    val isDeleteEnabled = deleteConfirmText.trim().equals("DELETE", ignoreCase = false)
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = Color.White,
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .padding(vertical = 24.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(54.dp)
-                        .background(Color(0xFFFFE5E5), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_alert_shield),
-                        contentDescription = null,
-                        tint = redText,
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-
-                Spacer(Modifier.height(14.dp))
-
-                Text(
-                    text = "Delete Measurement Field?",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = title_color,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                Text(
-                    text = "This action is permanent. Deleting this measurement field will affect all active orders and customer profiles that reference it.",
-                    fontSize = 12.sp,
-                    color = TextSecondary,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 17.sp
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFEF2F2),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_amber),
-                            contentDescription = null,
-                            tint = redText,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "This action cannot be undone. Historical measurement data will be orphaned.",
-                            fontSize = 11.sp,
-                            color = Color(0xFFB91C1C),
-                            lineHeight = 15.sp
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Type DELETE to confirm",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = title_color
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    FormTextField(
-                        value = deleteConfirmText,
-                        onValueChange = { deleteConfirmText = it },
-                        placeholder = "Delete",
-                        borderColor = redText,
-                        textColor = redText,
-                        placeholderColor = redText
-                    )
-                }
-
-                Spacer(Modifier.height(20.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(42.dp)
-                    ) {
-                        Text("Cancel", color = title_color, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    }
-
-                    Button(
-                        onClick = onConfirmDelete,
-                        enabled = isDeleteEnabled,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = redText,
-                            disabledContainerColor = Color(0xFFFCA5A5)
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(42.dp)
-                    ) {
-                        Text("Delete", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Add Existing Field Screen (With Disabled Already Added Fields)
+// Add Existing Field Screen
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun AddExistingFieldScreen(
@@ -1134,7 +823,6 @@ fun AddExistingFieldScreen(
     var selectedType by remember { mutableStateOf("All Types") }
     val typeOptions = listOf("All Types", "Number", "Select", "Text")
 
-    // API Data from ViewModel
     val availableFields by viewModel.measurementFields.collectAsState()
     val isLoading by viewModel.isLoadingMeasurementFields.collectAsState()
     val apiError by viewModel.errorMessage.collectAsState()
@@ -1262,7 +950,6 @@ fun AddExistingFieldScreen(
                         contentPadding = PaddingValues(bottom = 90.dp)
                     ) {
                         items(filteredFields, key = { it.id }) { item ->
-                            // Check if this item is already part of the garment profile
                             val isAlreadyAdded = existingFieldIds.contains(item.id) ||
                                     existingFieldNames.contains(item.name.trim().lowercase()) ||
                                     (item.displayName != null && existingFieldNames.contains(item.displayName.trim().lowercase())) ||
@@ -1421,7 +1108,6 @@ fun CreateMeasurementFieldScreen(
 
     val scrollState = rememberScrollState()
 
-    // Visibility & Rules
     var visibilityStatus by remember { mutableStateOf("Always Visible") }
     val visibilityOptions = listOf("Always Visible", "Conditional", "Hidden by Default")
 
@@ -1433,7 +1119,6 @@ fun CreateMeasurementFieldScreen(
     var selectedCondition by remember { mutableStateOf("") }
     val conditionOptions = listOf("Equals", "Not Equals", "Contains", "Is Greater Than")
 
-    // Assignment
     val selectedGarments = remember { mutableStateListOf("Shirt", "Formal Shirt") }
 
     fun onFieldNameChange(name: String) {
@@ -1461,7 +1146,6 @@ fun CreateMeasurementFieldScreen(
                     .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
                     .padding(bottom = 90.dp)
             ) {
-                // Section 1 — Basic Information
                 SectionHeader("Section 1 - Basic Information")
                 Spacer(Modifier.height(14.dp))
 
@@ -1487,7 +1171,8 @@ fun CreateMeasurementFieldScreen(
                 FormTextField(
                     value = fieldCode,
                     onValueChange = { fieldCode = it.uppercase().replace(" ", "_") },
-                    placeholder = "CHEST"
+                    placeholder = "CHEST",
+                    enabled = false
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -1503,7 +1188,6 @@ fun CreateMeasurementFieldScreen(
 
                 Spacer(Modifier.height(24.dp))
 
-                // Section 2 — Field Configuration
                 SectionHeader("Section 2 - Field Configuration")
                 Spacer(Modifier.height(14.dp))
 
@@ -1572,7 +1256,6 @@ fun CreateMeasurementFieldScreen(
 
                 Spacer(Modifier.height(28.dp))
 
-                // Section 3 — Visibility & Rules
                 SectionHeader("Section 3 — Visibility & Rules")
                 Spacer(Modifier.height(14.dp))
 
@@ -1629,7 +1312,6 @@ fun CreateMeasurementFieldScreen(
 
                 Spacer(Modifier.height(24.dp))
 
-                // Section 4 — Assignment
                 SectionHeader("Section 4 — Assignment")
                 Spacer(Modifier.height(14.dp))
 
@@ -1745,3 +1427,342 @@ private fun SectionHeader(text: String) {
     Spacer(Modifier.height(5.dp))
     HorizontalDivider(color = grey_border, thickness = 1.dp)
 }
+
+// ─────────────────────────────────────────────────────────────
+// Add Measurement Group Screen
+// ─────────────────────────────────────────────────────────────
+@Composable
+fun AddMeasurementGroupScreen(
+    initialOrder: Int = 1,
+    onClose: () -> Unit,
+    onCreateGroup: (MeasurementGroupItem) -> Unit
+) {
+    val tokens = LocalAppTokens.current
+
+    var groupName by remember { mutableStateOf("") }
+    var groupCode by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var displayOrder by remember { mutableStateOf(initialOrder.toString()) }
+    var isStatusActive by remember { mutableStateOf(true) }
+
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val scrollState = rememberScrollState()
+
+    fun autoGenerateCode(name: String) {
+        groupName = name
+        if (name.isNotBlank()) {
+            groupCode = name.trim().uppercase().replace(" ", "_")
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                TitleBar(
+                    title = "Add Measurement Group",
+                    onClose = onClose
+                )
+            }
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
+                    .padding(bottom = 90.dp)
+            ) {
+                Spacer(Modifier.height(4.dp))
+
+                FormLabel(text = "Group Name", isRequired = true)
+                Spacer(Modifier.height(4.dp))
+                FormTextField(
+                    value = groupName,
+                    onValueChange = { autoGenerateCode(it) },
+                    placeholder = "Cuff & Wrist"
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "Use a clear name that describes the measurements in this group.",
+                    fontSize = 11.sp,
+                    color = iconMuted
+                )
+
+                Spacer(Modifier.height(18.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FormLabel(text = "Group Code", isRequired = true)
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color(0xFFEEF2FF)
+                    ) {
+                        Text(
+                            text = "Auto-generated from Group Name",
+                            fontSize = 10.sp,
+                            color = Primary,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                FormTextField(
+                    value = groupCode,
+                    onValueChange = { groupCode = it },
+                    placeholder = "CUFF_WRIST"
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "Unique code used to identify this measurement group.",
+                    fontSize = 11.sp,
+                    color = iconMuted
+                )
+
+                Spacer(Modifier.height(18.dp))
+
+                FormLabel(text = "Description", isRequired = false)
+                Spacer(Modifier.height(4.dp))
+                FormTextArea(
+                    value = description,
+                    onValueChange = { description = it },
+                    placeholder = "Describe what measurements this group contains.",
+                    minLines = 4,
+                    maxLines = 6
+                )
+
+                Spacer(Modifier.height(18.dp))
+
+                FormLabel(text = "Display Order", isRequired = false)
+                Spacer(Modifier.height(4.dp))
+                Box(modifier = Modifier.width(120.dp)) {
+                    FormTextField(
+                        value = displayOrder,
+                        onValueChange = { displayOrder = it },
+                        keyboardType = KeyboardType.Number,
+                        placeholder = "6"
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "Controls where this group appears in the measurement form.",
+                    fontSize = 11.sp,
+                    color = iconMuted
+                )
+
+                Spacer(Modifier.height(18.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Status",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = title_color
+                    )
+                    MiniSwitch(
+                        checked = isStatusActive,
+                        onCheckedChange = { isStatusActive = it }
+                    )
+                }
+
+                Spacer(Modifier.height(28.dp))
+            }
+        }
+
+        StepNavigationFab(
+            showBack = true,
+            onBack = onClose,
+            backLabel = "Cancel",
+            showBackArrow = false,
+            showTrailingArrow = false,
+            trailingAction = TrailingFabAction.Next(
+                label = "Create Group",
+                onClick = {
+                    if (groupName.isBlank()) {
+                        errorMessage = "Please enter a group name"
+                        return@Next
+                    }
+                    val finalCode = groupCode.ifBlank {
+                        groupName.trim().uppercase().replace(" ", "_")
+                    }
+                    val order = displayOrder.toIntOrNull() ?: initialOrder
+
+                    successMessage = "Measurement group created successfully"
+                    onCreateGroup(
+                        MeasurementGroupItem(
+                            id = System.currentTimeMillis().toString(),
+                            name = groupName.trim(),
+                            code = finalCode,
+                            description = description.trim(),
+                            displayOrder = order,
+                            isActive = isStatusActive
+                        )
+                    )
+                }
+            )
+        )
+
+        DynamicIslandSuccess(
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
+
+        DynamicIslandError(
+            message = errorMessage,
+            onDismiss = { errorMessage = null }
+        )
+    }
+}
+
+@Composable
+fun DeleteMeasurementFieldDialog(
+    onDismiss: () -> Unit,
+    onConfirmDelete: () -> Unit
+) {
+    var deleteConfirmText by remember { mutableStateOf("") }
+    val isDeleteEnabled = deleteConfirmText.trim().equals("DELETE", ignoreCase = false)
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White,
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .padding(vertical = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .background(Color(0xFFFFE5E5), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_alert_shield),
+                        contentDescription = null,
+                        tint = redText,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Text(
+                    text = "Delete Measurement Field?",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = title_color,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    text = "This action is permanent. Deleting this measurement field will affect all active orders and customer profiles that reference it.",
+                    fontSize = 12.sp,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 17.sp
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFEF2F2),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_amber),
+                            contentDescription = null,
+                            tint = redText,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "This action cannot be undone. Historical measurement data will be orphaned.",
+                            fontSize = 11.sp,
+                            color = Color(0xFFB91C1C),
+                            lineHeight = 15.sp
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Type DELETE to confirm",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = title_color
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    FormTextField(
+                        value = deleteConfirmText,
+                        onValueChange = { deleteConfirmText = it },
+                        placeholder = "Delete",
+                        borderColor = redText,
+                        textColor = redText,
+                        placeholderColor = redText
+                    )
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                    ) {
+                        Text("Cancel", color = title_color, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
+
+                    Button(
+                        onClick = onConfirmDelete,
+                        enabled = isDeleteEnabled,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = redText,
+                            disabledContainerColor = Color(0xFFFCA5A5)
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                    ) {
+                        Text("Delete", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+

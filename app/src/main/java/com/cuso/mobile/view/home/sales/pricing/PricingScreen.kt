@@ -38,6 +38,7 @@ import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
@@ -101,20 +102,11 @@ fun PricingScreen(
                     ListSkeleton()
                 }
                 is GarmentPricingListUiState.Error -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Default.Warning,
-                                null,
-                                tint = Color.Red,
-                                modifier = Modifier.size(tokens.iconSize * 2f)
-                            )
-                            Spacer(Modifier.height(tokens.extraPadding * 0.5f))
-                            Text(state.message, color = Color.Red, fontSize = tokens.bodySmall)
-                            Spacer(Modifier.height(tokens.extraPadding * 0.75f))
-                            Button(onClick = { viewModel.fetchGarmentPricingList() }) { Text("Retry") }
-                        }
-                    }
+                    AppErrorState(
+                        title = "Failed to load garment pricing",
+                        message = "Something went wrong. Please check your connection and try again.",
+                        onRetry = { viewModel.fetchGarmentPricingList() }
+                    )
                 }
                 is GarmentPricingListUiState.Success -> {
                     val uniqueItems = state.items.distinctBy { it.id }

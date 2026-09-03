@@ -1,181 +1,86 @@
-@file:Suppress("unused")
+@file:Suppress("unused", "SpellCheckingInspection", "UNUSED_PARAMETER")
 
 package com.cuso.mobile.view.home.inventory.procurement.orders
 
-// ─────────────────────────────────────────────
-// Imports
-// ─────────────────────────────────────────────
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cuso.mobile.ui.theme.BorderGray
-import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.redBg
-import com.cuso.mobile.ui.theme.redText
-import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.DataCard
-import com.cuso.mobile.view.composable.DataCardField
-import com.cuso.mobile.view.composable.DataCardProgressBar
-import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.composable.FabConfig
-import com.cuso.mobile.view.composable.FabScaffold
-import com.cuso.mobile.view.composable.SearchFilterBar
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.model.inventory.LowStockItemDto
+import com.cuso.mobile.ui.theme.*
+import com.cuso.mobile.view.composable.*
+import com.cuso.mobile.viewmodel.InventoryViewModel
 
 // ─────────────────────────────────────────────
-// Data model (static/dummy)
+// LowStockAlertCard
 // ─────────────────────────────────────────────
-// Data model for a low-stock item
-data class LowStockItem(
-    val name: String,
-    val sku: String,
-    val variant: String,
-    val warehouse: String,
-    val availableQty: String,
-    val utilizationPercent: Float, // 0f..1f, used for the red progress bar fill
-    val reorderLevel: String
-)
-val dummyLowStockItems = List(4) {
-    LowStockItem(
-        name = "Linen Shirt Fabric",
-        sku = "60756",
-        variant = "Blue",
-        warehouse = "Factory",
-        availableQty = "12 m",
-        reorderLevel = "100 m",
-        utilizationPercent = 12f
-    )
-}
-
-// ─────────────────────────────────────────────
-// Reusable gauge (shared with Create Purchase Order screen too)
-// ─────────────────────────────────────────────
-
-// ── Simple horizontal gauge/progress bar: red fill on a light gray track ──
-//@Composable
-//fun StockUtilizationGauge(percentage: Float) {
-//    val clamped = percentage.coerceIn(0f, 1f)
-//    Box(
-//        modifier = Modifier
-//            .fillMaxWidth()
-//            .height(6.dp)
-//            .background(Color(0xFFEDEDF2), RoundedCornerShape(50)) // light gray track
-//    ) {
-//        Box(
-//            modifier = Modifier
-//                .fillMaxHeight()
-//                .fillMaxWidth(clamped)
-//                .background(Color(0xFFE53935), RoundedCornerShape(50)) // red fill
-//        )
-//    }
-//}
-
-// ─────────────────────────────────────────────
-// LowStockAlertCard — DataCard for the info block,
-// gauge + reorder row attached right below it
-// ─────────────────────────────────────────────
-
 @Composable
 fun LowStockAlertCard(
-    item: LowStockItem,
+    item: LowStockItemDto,
     onReorderClick: () -> Unit
 ) {
-    // Outer white rounded + elevated container — gives the card its
-    // shadow and rounded corners, matching the design image.
+    val progressRatio = (item.stockUtilizationPercent.toFloat() / 100f).coerceIn(0f, 1f)
 
     DataCard(
         item = item,
-        // showDivider = false so DataCard's own bottom divider doesn't
-        // cut across the rounded corners of our outer Card above.
         showDivider = true,
         topBadgeShowDot = false,
-
-        // ── Title + subtitle ──
         title = item.name,
-        subtitle = "SKU: ${item.sku} · Variant: ${item.variant}",
-
-        // ── "Critical" pill badge, top-right, inline with the title ──
-        topBadgeText = "Critical",
+        subtitle = "SKU: ${item.sku} · Variant: ${item.variantLabel ?: "-"}",
+        topBadgeText = item.severity.ifBlank { "Critical" },
         topBadgeTextColor = redText,
         topBadgeBgColor = redBg,
-        // Dot color matched to the badge background so the dot blends
-        // in and effectively disappears — image shows a plain pill,
-        // no visible dot.
-        topBadgeDotColor = Color(0xFFFDE7E7),
+        topBadgeDotColor = redBg,
         topBadgeInline = true,
-
-        // ── Warehouse / Available rows ──
-//            footerAsRows = true,
         footerAsColumns = true,
         footerFields = listOf(
             DataCardField(
                 label = "Warehouse",
-                text = item.warehouse,
-                valueFontWeight = FontWeight.SemiBold,
-//                    asRow = true
+                text = item.warehouseName ?: "Central Warehouse",
+                valueFontWeight = FontWeight.SemiBold
             ),
             DataCardField(
                 label = "Available",
-                text = item.availableQty,
-                textColor = Color(0xFFE53935),
-                valueFontWeight = FontWeight.SemiBold,
-//                    asRow = true
-
+                text = "${item.available.toInt()} ${item.unit ?: "pcs"}",
+                textColor = redText,
+                valueFontWeight = FontWeight.SemiBold
             )
         ),
-
-        // ── Gauge + Reorder row, reusing DataCardProgressBar ──
         content = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // ── Left Column: Progress bar + Reorder Level ──
+                // Progress Bar & Reorder Info
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 20.dp)
                 ) {
                     DataCardProgressBar(
-                        progress = item.utilizationPercent,
+                        progress = progressRatio,
                         progressColor = redText,
                         trackColor = Color(0xFFEDEDF2)
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Reorder Level Text
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Reorder Level: ",
@@ -183,18 +88,19 @@ fun LowStockAlertCard(
                             color = Color(0xFF9B9BA5)
                         )
                         Text(
-                            text = item.reorderLevel, // e.g., "100 m"
+                            text = "${item.reorderLevel.toInt()} ${item.unit ?: "pcs"}",
                             fontSize = 13.sp,
-                            color = Color(0xFF1E2238) // Darker text for the value
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1E2238)
                         )
                     }
                 }
 
-                // ── Right Side: Reorder Button (Vertically Centered) ──
+                // Reorder Button
                 OutlinedButton(
                     onClick = onReorderClick,
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.5.dp, Primary), // Blue border
+                    border = BorderStroke(1.5.dp, Primary),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Color.Transparent,
                         contentColor = Primary
@@ -211,19 +117,41 @@ fun LowStockAlertCard(
             }
         }
     )
-
 }
+
 // ─────────────────────────────────────────────
-// LowStockAlertsScreen — full screen
+// Full Screen with Live API Wiring
 // ─────────────────────────────────────────────
 @Composable
 fun LowStockAlertsScreen(
-    onClose: () -> Unit,
-    onReorderClick: (LowStockItem) -> Unit,
-    onCreateNewItem: () -> Unit,
-    onBreadcrumbClick: () -> Unit
+    viewModel: InventoryViewModel = hiltViewModel(),
+    onClose: () -> Unit = {},
+    onReorderClick: (LowStockItemDto) -> Unit = {},
+    onCreateNewItem: () -> Unit = {},
+    onBreadcrumbClick: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
+
+    val lowStockItems by viewModel.lowStockItems.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingLowStock.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.lowStockError.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.fetchLowStockAlerts()
+    }
+
+    val filteredItems = remember(lowStockItems, searchQuery) {
+        if (searchQuery.isBlank()) {
+            lowStockItems
+        } else {
+            lowStockItems.filter {
+                it.name.contains(searchQuery, ignoreCase = true) ||
+                        it.sku.contains(searchQuery, ignoreCase = true) ||
+                        (it.warehouseName?.contains(searchQuery, ignoreCase = true) == true)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -231,22 +159,11 @@ fun LowStockAlertsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 color = whiteBg
             ) {
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        TitleBar("All Orders", onClose = onClose)
-
-                    }
-                }
+                TitleBar("Low Stock Alerts", onClose = onClose)
             }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = Color.Transparent
-        //  floatingActionButton slot removed — FabScaffold handles it now
     ) { padding ->
         FabScaffold(
             modifier = Modifier
@@ -262,23 +179,55 @@ fun LowStockAlertsScreen(
             )
         ) {
             Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
-
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
                     placeholder = "Search Stock Items...",
-                    onFilterClick = {  }
+                    onFilterClick = { }
                 )
-                HorizontalDivider(color = BorderGray)
+                HorizontalDivider(color = dividerColor)
 
-                LazyColumn {
-                    items(dummyLowStockItems) { item ->
-                        LowStockAlertCard(
-                            item = item,
-                            onReorderClick = { onReorderClick(item) }
+                when {
+                    isLoading && lowStockItems.isEmpty() -> {
+                       ListSkeleton()
+                    }
+
+                    errorMessage != null -> {
+                        AppErrorState(
+                            title = "Unable to load stock alerts",
+                            message = errorMessage ?: "Failed to connect to the server.",
+                            onRetry = { viewModel.fetchLowStockAlerts() }
                         )
                     }
-                    item { Spacer(Modifier.height(80.dp)) } // FAB clearance
+
+                    filteredItems.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (searchQuery.isBlank()) "No low stock alerts found." else "No matching items.",
+                                color = mutedText,
+                                fontSize = tokens.bodyMedium
+                            )
+                        }
+                    }
+
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(top = 10.dp, bottom = 90.dp)
+                        ) {
+                            items(filteredItems, key = { it.itemId }) { item ->
+                                LowStockAlertCard(
+                                    item = item,
+                                    onReorderClick = { onReorderClick(item) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

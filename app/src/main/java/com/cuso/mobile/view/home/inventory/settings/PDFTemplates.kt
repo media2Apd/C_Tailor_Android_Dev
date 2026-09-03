@@ -1,8 +1,10 @@
+@file:Suppress("unused", "SpellCheckingInspection", "UNUSED_PARAMETER")
+
 package com.cuso.mobile.view.home.inventory.settings
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,20 +12,24 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.RemoveRedEye
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.R
+import com.cuso.mobile.view.composable.AppUnderlineTabRow
+import com.cuso.mobile.view.composable.dashedBorder
 
 @Composable
 fun PdfTemplatesScreen(
@@ -31,7 +37,8 @@ fun PdfTemplatesScreen(
     onCreateNewTemplate: () -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTemplateIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Invoice", "Payment Receipt", "Sales Order", "Packing Slip")
 
     Column(
@@ -41,28 +48,13 @@ fun PdfTemplatesScreen(
     ) {
         TitleBar(title = "PDF Templates", onClose = onClose)
 
-        ScrollableTabRow(
-            selectedTabIndex = selectedTab,
-            edgePadding = tokens.screenPadding,
-            containerColor = whiteBg,
-            contentColor = Primary,
-            divider = { HorizontalDivider(color = Color(0xFFE5E7EB)) }
-        ) {
-            tabs.forEachIndexed { index, tabName ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = {
-                        Text(
-                            text = tabName,
-                            fontSize = tokens.bodySmall,
-                            fontWeight = if (selectedTab == index) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (selectedTab == index) Primary else Color(0xFF6B7280)
-                        )
-                    }
-                )
-            }
-        }
+        // ── Top Tab Row with Primary Underline Indicator ──
+        AppUnderlineTabRow(
+            tabs = tabs,
+            selectedIndex = selectedTab,
+            onTabSelected = { selectedTab = it },
+            isScrollable = true
+        )
 
         LazyColumn(
             modifier = Modifier
@@ -76,14 +68,19 @@ fun PdfTemplatesScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Invoice Templates", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-                    Text("4 templates · 1 default", fontSize = tokens.caption, color = Color(0xFF9CA3AF))
+                    Text(
+                        "${tabs[selectedTab]} Templates",
+                        fontSize = tokens.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text("4 templates · 1 default", fontSize = tokens.caption, color = close_color)
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Manage ready-to-use invoice template designs and create custom layouts.",
+                    "Manage ready-to-use ${tabs[selectedTab].lowercase()} template designs and create custom layouts.",
                     fontSize = tokens.bodySmall,
-                    color = Color(0xFF6B7280)
+                    color = TextSecondary
                 )
             }
 
@@ -94,30 +91,75 @@ fun PdfTemplatesScreen(
                     shape = RoundedCornerShape(tokens.cardCornerRadius * 0.45f),
                     border = BorderStroke(1.dp, Primary)
                 ) {
-                    Icon(Icons.Default.RemoveRedEye, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
+                    Icon(
+                        Icons.Default.RemoveRedEye,
+                        contentDescription = null,
+                        tint = Primary,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Spacer(Modifier.width(6.dp))
-                    Text("Preview Default Layout", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Primary)
+                    Text(
+                        "Preview Default Layout",
+                        fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Primary
+                    )
                 }
             }
 
+            // ── Standard Invoice Card ──
             item {
-                TemplateCard(name = "Standard Invoice", updatedAgo = "Updated 2 days ago", badge = "DEFAULT", isDefault = true, isSelected = true)
+                TemplateCard(
+                    name = "Standard Invoice",
+                    updatedAgo = "Updated 2 days ago",
+                    badge = "DEFAULT",
+                    isDefault = true,
+                    isSelected = selectedTemplateIndex == 0,
+                    thumbnailRes = R.drawable.ic_standard_invoice,
+                    onSelect = { selectedTemplateIndex = 0 },
+                    onEditLayout = {}
+                )
             }
 
+            // ── Modern Invoice Card ──
             item {
-                TemplateCard(name = "Modern Invoice", updatedAgo = "Updated 1 week ago", badge = "CUSTOM", isDefault = false, accentHeader = true)
+                TemplateCard(
+                    name = "Modern Invoice",
+                    updatedAgo = "Updated 1 week ago",
+                    badge = "CUSTOM",
+                    isDefault = false,
+                    isSelected = selectedTemplateIndex == 1,
+                    thumbnailRes = R.drawable.ic_modern_invoice,
+                    onSelect = { selectedTemplateIndex = 1 },
+                    onEditLayout = {}
+                )
             }
 
+            // ── Compact Invoice Card ──
             item {
-                TemplateCard(name = "Compact Invoice", updatedAgo = "Updated 1 month ago", badge = "CUSTOM", isDefault = false)
+                TemplateCard(
+                    name = "Compact Invoice",
+                    updatedAgo = "Updated 1 month ago",
+                    badge = "CUSTOM",
+                    isDefault = false,
+                    isSelected = selectedTemplateIndex == 2,
+                    thumbnailRes = R.drawable.ic_compact_invoice,
+                    onSelect = { selectedTemplateIndex = 2 },
+                    onEditLayout = {}
+                )
             }
 
+            // ── Create New Template Dashed Button ──
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
-                        .border(1.5.dp, Primary.copy(alpha = 0.5f), RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
+                        .dashedBorder(
+                            color = Primary,
+                            strokeWidth = 1.dp,
+                            shape = RoundedCornerShape(tokens.cardCornerRadius)
+                        )
                         .clickable { onCreateNewTemplate() }
                         .padding(vertical = 24.dp),
                     contentAlignment = Alignment.Center
@@ -126,16 +168,30 @@ fun PdfTemplatesScreen(
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFEEF2FF)),
+                                .clip(RoundedCornerShape(30.dp))
+                                .background(primary_light),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.NoteAdd, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+                            Icon(
+                                painter = painterResource(R.drawable.ic_document),
+                                contentDescription = null,
+                                tint = Primary,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                         Spacer(Modifier.height(10.dp))
-                        Text("Create New Template", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Primary)
+                        Text(
+                            "Create New Template",
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Primary
+                        )
                         Spacer(Modifier.height(2.dp))
-                        Text("Start from scratch or a blank slate.", fontSize = tokens.caption, color = Color(0xFF9CA3AF))
+                        Text(
+                            "Start from scratch or a blank slate.",
+                            fontSize = tokens.caption,
+                            color = close_color
+                        )
                     }
                 }
             }
@@ -148,42 +204,33 @@ fun TemplateCard(
     name: String,
     updatedAgo: String,
     badge: String,
+    thumbnailRes: Int,
     isDefault: Boolean,
     isSelected: Boolean = false,
-    accentHeader: Boolean = false
+    onSelect: () -> Unit = {},
+    onEditLayout: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect() },
         shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
         colors = CardDefaults.cardColors(containerColor = whiteBg),
-        border = BorderStroke(1.dp, if (isSelected) Primary else Color(0xFFE2E8F0))
+        border = BorderStroke(
+            width = if (isSelected) 1.5.dp else 1.dp,
+            color = if (isSelected) Primary else sectionBorder
+        )
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(width = 65.dp, height = 80.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(6.dp))
-                    .background(Color(0xFFF8FAFC))
-                    .padding(6.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(10.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(if (accentHeader) Primary else Color(0xFF94A3B8))
-                    )
-                    Box(modifier = Modifier.fillMaxWidth(0.7f).height(3.dp).background(Color(0xFFCBD5E1)))
-                    Box(modifier = Modifier.fillMaxWidth(0.9f).height(3.dp).background(Color(0xFFE2E8F0)))
-                    Box(modifier = Modifier.fillMaxWidth(0.8f).height(3.dp).background(Color(0xFFE2E8F0)))
-                }
-            }
+            Image(
+                painter = painterResource(id = thumbnailRes),
+                contentDescription = "$name thumbnail",
+                modifier = Modifier.size(width = 65.dp, height = 80.dp)
+            )
 
             Spacer(Modifier.width(14.dp))
 
@@ -193,15 +240,30 @@ fun TemplateCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(name, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                    Text(
+                        text = name,
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
                     if (isSelected) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Selected",
+                            tint = Primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                     } else {
-                        Icon(Icons.Default.MoreVert, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(18.dp))
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Options",
+                            tint = mutedText,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
 
-                Text(updatedAgo, fontSize = tokens.caption, color = Color(0xFF9CA3AF))
+                Text(updatedAgo, fontSize = tokens.caption, color = mutedText)
                 Spacer(Modifier.height(8.dp))
 
                 Row(
@@ -212,14 +274,14 @@ fun TemplateCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
-                            .background(if (isDefault) Color(0xFFDCFCE7) else Color(0xFFF3E8FF))
+                            .background(if (isDefault) greenBg else background_light_purple)
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = badge,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDefault) Color(0xFF16A34A) else Color(0xFF9333EA)
+                            color = if (isDefault) greentext else Primary
                         )
                     }
 
@@ -228,7 +290,7 @@ fun TemplateCard(
                         fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = Primary,
-                        modifier = Modifier.clickable { }
+                        modifier = Modifier.clickable { onEditLayout() }
                     )
                 }
             }

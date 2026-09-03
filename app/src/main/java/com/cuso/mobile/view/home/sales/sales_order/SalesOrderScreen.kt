@@ -64,6 +64,7 @@ import java.util.Locale
 import androidx.compose.ui.text.font.FontWeight
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.*
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.home.formatIndianNumber
 
 
@@ -178,33 +179,11 @@ fun SalesOrderScreen(
                             ListSkeleton()
                         }
                         orderState is OrderUiState.Error -> {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        text = (orderState as OrderUiState.Error).message,
-                                        color = Color.Red,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.padding(horizontal = 32.dp)
-                                    )
-                                    Spacer(Modifier.height(12.dp))
-                                    Button(
-                                        onClick = {
-                                            viewModel.fetchOrders(
-                                                page = 1,
-                                                limit = 10,
-                                                search = searchQuery.takeIf { it.isNotBlank() },
-                                                status = statusFilter.takeIf { it != "all" }
-                                            )
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text("Retry", color = whiteBg)
-                                    }
-                                }
-                            }
+                            AppErrorState(
+                                title = "Failed to load dashboard",
+                                message = "Something went wrong. Please check your connection and try again.",
+                                onRetry = { viewModel.fetchOrders() }
+                            )
                         }
                         orderState is OrderUiState.Success -> {
                             if (orders.isEmpty()) {

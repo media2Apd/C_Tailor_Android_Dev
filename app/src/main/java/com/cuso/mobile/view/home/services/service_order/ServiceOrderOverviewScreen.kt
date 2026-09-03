@@ -12,8 +12,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
@@ -34,7 +32,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -80,6 +77,7 @@ import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.composable.blurScrim
+import com.cuso.mobile.view.composable.AppUnderlineTabRow
 import com.cuso.mobile.view.home.pdfgenerator.OrderReceiptPdfGenerator
 import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 import com.cuso.mobile.view.home.sales.sales_order.toOrderReviewData
@@ -297,68 +295,11 @@ fun ServiceOrderOverviewScreen(
                         .fillMaxSize()
                         .blurScrim(radius = combinedSheetBlur)
                 ) {
-                    Column(modifier = Modifier.background(whiteBg)) {
-                        val selectedIndex = tabs.indexOf(selectedTab)
-                        val indicatorOffset by animateFloatAsState(
-                            targetValue = selectedIndex.toFloat(),
-                            label = "TabIndicatorOffset"
-                        )
-
-                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                            val tabWidth = maxWidth / tabs.size
-
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                tabs.forEach { tab ->
-                                    val isSelected = tab == selectedTab
-
-                                    val animatedTextColor by animateColorAsState(
-                                        targetValue = if (isSelected) TabActive else mutedText,
-                                        label = "TabTextColor"
-                                    )
-
-                                    val animatedScale by animateFloatAsState(
-                                        targetValue = if (isSelected) 1.15f else 1.0f,
-                                        label = "TabTextScale"
-                                    )
-
-                                    Column(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clickable(
-                                                indication = null,
-                                                interactionSource = remember { MutableInteractionSource() }
-                                            ) { selectedTab = tab }
-                                            .padding(vertical = 12.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(
-                                            text = tab,
-                                            fontSize = 13.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = animatedTextColor,
-                                            modifier = Modifier
-                                                .scale(animatedScale)
-                                                .padding(bottom = 4.dp)
-                                        )
-                                        Spacer(Modifier.height(4.dp))
-                                    }
-                                }
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .width(tabWidth * 0.5f)
-                                    .height(3.dp)
-                                    .offset(x = (tabWidth * indicatorOffset) + (tabWidth * 0.25f))
-                                    .background(
-                                        color = TabActive,
-                                        shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
-                                    )
-                            )
-                        }
-                        HorizontalDivider(color = BorderLight)
-                    }
+                    AppUnderlineTabRow(
+                        tabs = tabs,
+                        selectedIndex = tabs.indexOf(selectedTab),
+                        onTabSelected = { index -> selectedTab = tabs[index] }
+                    )
 
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         Box(

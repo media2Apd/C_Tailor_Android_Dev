@@ -76,6 +76,7 @@ import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.ui.theme.yellowBg
 import com.cuso.mobile.view.composable.AccordionSection
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
@@ -491,14 +492,11 @@ private fun PersonalInformationStep(
             }
         }
         is CustomerDetailUiState.Error -> {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(40.dp))
-                Spacer(Modifier.height(8.dp))
-                Text(detailState.message, color = Color.Red, fontSize = tokens.bodyMedium)
-            }
+            AppErrorState(
+                title = "Failed to load dashboard",
+                message = "Something went wrong. Please check your connection and try again.",
+                onRetry = { viewModel.refresh() }
+            )
         }
         is CustomerDetailUiState.Success -> {
             var expandedSection by remember { mutableStateOf("identity") }

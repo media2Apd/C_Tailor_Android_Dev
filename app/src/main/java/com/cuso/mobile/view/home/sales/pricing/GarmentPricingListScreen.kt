@@ -36,6 +36,7 @@ import com.cuso.mobile.model.sales.GarmentPricingListItemDto
 import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
@@ -101,15 +102,11 @@ fun GarmentPricingListScreen(
 
                 }
                 is GarmentPricingListUiState.Error -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(40.dp))
-                            Spacer(Modifier.height(8.dp))
-                            Text(state.message, color = Color.Red, fontSize = 13.sp)
-                            Spacer(Modifier.height(12.dp))
-                            Button(onClick = { viewModel.fetchGarmentPricingList() }) { Text("Retry") }
-                        }
-                    }
+                    AppErrorState(
+                        title = "Failed to load dashboard",
+                        message = "Something went wrong. Please check your connection and try again.",
+                        onRetry = { viewModel.fetchGarmentPricingList() }
+                    )
                 }
                 is GarmentPricingListUiState.Success -> {
                     val uniqueItems = state.items.distinctBy { it.id }   //   NEW — dedupe by id

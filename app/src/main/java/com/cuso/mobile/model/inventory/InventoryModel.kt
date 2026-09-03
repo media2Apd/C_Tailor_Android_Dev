@@ -188,3 +188,113 @@ data class InventoryItemImage(
     val publicId: String = "",
     @SerializedName("_id") val _id: String = ""
 )
+//=================================================================================================
+//low stock alert
+
+// ── Generic Wrapper for Low Stock API ──
+data class LowStockResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("pagination") val pagination: Any? = null,
+    @SerializedName("data") val data: List<LowStockItemDto>? = emptyList(),
+    @SerializedName("message") val message: String? = null
+)
+
+// ── Low Stock Item DTO matching Backend JSON ──
+data class LowStockItemDto(
+    @SerializedName("itemId") val itemId: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("sku") val sku: String,
+    @SerializedName("variantLabel") val variantLabel: String? = null,
+    @SerializedName("warehouseId") val warehouseId: String? = null,
+    @SerializedName("warehouseName") val warehouseName: String? = null,
+    @SerializedName("available") val available: Double = 0.0,
+    @SerializedName("reserved") val reserved: Double = 0.0,
+    @SerializedName("reorderLevel") val reorderLevel: Double = 0.0,
+    @SerializedName("safetyStock") val safetyStock: Double = 0.0,
+    @SerializedName("preferredVendorId") val preferredVendorId: String? = null,
+    @SerializedName("unit") val unit: String? = "pcs",
+    @SerializedName("costPrice") val costPrice: Double = 0.0,
+    @SerializedName("severity") val severity: String = "Critical",
+    @SerializedName("suggestedQty") val suggestedQty: Double = 0.0,
+    @SerializedName("stockUtilizationPercent") val stockUtilizationPercent: Double = 0.0
+)
+
+//==================================================================================================
+
+// ── PO Item Request Entry ──
+data class CreatePoItemRequest(
+    @SerializedName("itemId") val itemId: String,
+    @SerializedName("qty") val qty: Double,
+    @SerializedName("rate") val rate: Double,
+    @SerializedName("taxPercent") val taxPercent: Double = 18.0
+)
+
+// ── Create Purchase Order Request Payload ──
+data class CreatePurchaseOrderRequest(
+    @SerializedName("supplierId") val supplierId: String,
+    @SerializedName("warehouseId") val warehouseId: String,
+    @SerializedName("eta") val eta: String?,
+    @SerializedName("currency") val currency: String = "INR",
+    @SerializedName("poType") val poType: String = "Standard",
+    @SerializedName("items") val items: List<CreatePoItemRequest>,
+    @SerializedName("discount") val discount: Double = 0.0,
+    @SerializedName("shippingCost") val shippingCost: Double = 0.0,
+    @SerializedName("internalNotes") val internalNotes: String? = null
+)
+
+// ── Response Models ──
+data class PoAttachment(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("fileUrl") val fileUrl: String? = null,
+    @SerializedName("publicId") val publicId: String? = null
+)
+
+data class PoItemResponse(
+    @SerializedName("_id") val id: String,
+    @SerializedName("itemId") val itemId: String,
+    @SerializedName("qty") val qty: Double = 0.0,
+    @SerializedName("receivedQty") val receivedQty: Double = 0.0,
+    @SerializedName("billedQty") val billedQty: Double = 0.0,
+    @SerializedName("receiveStatus") val receiveStatus: String = "Not Received",
+    @SerializedName("billStatus") val billStatus: String = "Not Billed",
+    @SerializedName("rate") val rate: Double = 0.0,
+    @SerializedName("taxPercent") val taxPercent: Double = 0.0,
+    @SerializedName("subtotal") val subtotal: Double = 0.0,
+    @SerializedName("taxAmount") val taxAmount: Double = 0.0,
+    @SerializedName("total") val total: Double = 0.0
+)
+
+data class PurchaseOrderData(
+    @SerializedName("_id") val id: String,
+    @SerializedName("poNumber") val poNumber: String,
+    @SerializedName("organizationId") val organizationId: String?,
+    @SerializedName("supplierId") val supplierId: String?,
+    @SerializedName("branchId") val branchId: String?,
+    @SerializedName("warehouseId") val warehouseId: String?,
+    @SerializedName("poDate") val poDate: String?,
+    @SerializedName("eta") val eta: String?,
+    @SerializedName("currency") val currency: String = "INR",
+    @SerializedName("poType") val poType: String = "Standard",
+    @SerializedName("items") val items: List<PoItemResponse> = emptyList(),
+    @SerializedName("subtotal") val subtotal: Double = 0.0,
+    @SerializedName("taxTotal") val taxTotal: Double = 0.0,
+    @SerializedName("discount") val discount: Double = 0.0,
+    @SerializedName("shippingCost") val shippingCost: Double = 0.0,
+    @SerializedName("grandTotal") val grandTotal: Double = 0.0,
+    @SerializedName("orderStatus") val orderStatus: String = "Draft",
+    @SerializedName("receiveStatus") val receiveStatus: String = "Not Received",
+    @SerializedName("billStatus") val billStatus: String = "Not Billed",
+    @SerializedName("paymentStatus") val paymentStatus: String = "Unpaid",
+    @SerializedName("lifecycleStatus") val lifecycleStatus: String = "Open",
+    @SerializedName("internalNotes") val internalNotes: String? = null,
+    @SerializedName("attachments") val attachments: List<PoAttachment> = emptyList(),
+    @SerializedName("isDeleted") val isDeleted: Boolean = false,
+    @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("updatedAt") val updatedAt: String? = null
+)
+
+data class CreatePurchaseOrderResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("data") val data: PurchaseOrderData? = null,
+    @SerializedName("message") val message: String? = null
+)

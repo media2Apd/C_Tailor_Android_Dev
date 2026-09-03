@@ -84,6 +84,7 @@ import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.adaptive_screen.getAdaptiveTokens
 import com.cuso.mobile.database.entities.SalesStatusEntity
+import com.cuso.mobile.model.inventory.LowStockItemDto
 import com.cuso.mobile.model.sales.DashboardStatDto
 import com.cuso.mobile.model.sales.OperationItem
 import com.cuso.mobile.model.login_forgotPassword_resetPassword.Organization
@@ -104,6 +105,7 @@ import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.statLogoBg
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.DashboardSkeleton
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
@@ -115,7 +117,6 @@ import com.cuso.mobile.view.composable.blurScrim
 import com.cuso.mobile.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceItem
 import com.cuso.mobile.view.home.finance.account_payable.suppliers.SupplierRow
 import com.cuso.mobile.view.home.hr.employees.ScreenMode
-import com.cuso.mobile.view.home.inventory.procurement.orders.LowStockItem
 import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 import com.cuso.mobile.view.home.sales.sales_order.toOrderReviewData
 import com.cuso.mobile.view.home.sidebar.FullSideBar
@@ -206,7 +207,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
     // Inventory State
     var selectedInventoryItemId by remember { mutableStateOf<String?>(null) }
-    var selectedLowStockItem by remember { mutableStateOf<LowStockItem?>(null) }
+    var selectedLowStockItem by remember { mutableStateOf<LowStockItemDto?>(null) }
     var selectedItemGroupId by remember { mutableStateOf<String?>(null) }
 
     // HR State
@@ -1451,38 +1452,13 @@ private fun HomeScreenContentBody(
         is DashboardUiState.Loading -> {
             DashboardSkeleton()
         }
+        // ── Replace the old Error block with this: ──
         is DashboardUiState.Error -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Transparent),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = Color.Red,
-                        modifier = Modifier.size(designTokens.iconSize * 2.2f)
-                    )
-                    Spacer(Modifier.height(designTokens.screenPadding * 0.5f))
-                    Text(
-                        "Failed to load dashboard",
-                        color = Color.Red,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = designTokens.bodyMedium
-                    )
-                    Text(
-                        "Something went wrong, Please Try again after sometime",
-                        color = Color.Gray,
-                        fontSize = designTokens.bodySmall
-                    )
-                    Spacer(Modifier.height(designTokens.screenPadding * 0.75f))
-                    Button(onClick = { dashboardViewModel.loadDashboard() }) {
-                        Text("Retry")
-                    }
-                }
-            }
+            AppErrorState(
+                title = "Failed to load dashboard",
+                message = "Something went wrong. Please check your connection and try again.",
+                onRetry = { dashboardViewModel.loadDashboard() }
+            )
         }
         is DashboardUiState.Success -> {
             val data = state.data

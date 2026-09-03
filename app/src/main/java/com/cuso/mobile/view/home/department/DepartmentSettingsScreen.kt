@@ -41,6 +41,7 @@ import com.cuso.mobile.ui.theme.disabled
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.PlanLimits
 import com.cuso.mobile.view.composable.DataCard
@@ -254,17 +255,11 @@ fun DepartmentSettingsScreen(
                                         ListSkeleton()
                                     }
                                     is DepartmentUiState.Error -> {
-                                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(tokens.iconSize * 2.5f))
-                                                Spacer(Modifier.height(tokens.extraPadding / 2))
-                                                Text("Something went wrong, Please try again later", color = Color.Red, fontSize = tokens.bodyMedium)
-                                                Spacer(Modifier.height(tokens.extraPadding))
-                                                Button(onClick = { departmentViewModel.refresh() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)), shape = RoundedCornerShape(8.dp)) {
-                                                    Text("Retry", color = whiteBg, fontSize = tokens.bodyMedium)
-                                                }
-                                            }
-                                        }
+                                        AppErrorState(
+                                            title = "Failed to load department",
+                                            message = "Something went wrong. Please check your connection and try again.",
+                                            onRetry = { departmentViewModel.refresh() }
+                                        )
                                     }
                                     is DepartmentUiState.Success -> {
                                         if (filteredDepartments.isEmpty()) {

@@ -35,22 +35,38 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.model.inventory.LowStockItemDto
+import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.view.home.inventory.items.all_items.StatusBadge
+import com.cuso.mobile.viewmodel.InventoryViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import java.io.File
 
-private val AccentColor = Color(0xFF3D3DFF)
+private val AccentColor = Primary
 private val BorderColor = Color(0xFFE3E4E8)
 private val TitleColor = Color(0xFF111827)
 private val LabelColor = Color(0xFF8A8A99)
 
 enum class PoPriority { NORMAL, URGENT, CRITICAL }
+
+private fun formatDateToIso(dateStr: String): String? {
+    return try {
+        val parts = dateStr.trim().split("-")
+        if (parts.size == 3) {
+            "${parts[2]}-${parts[1]}-${parts[0]}T00:00:00.000Z"
+        } else null
+    } catch (_: Exception) {
+        null
+    }
+}
 
 @Composable
 fun PurchaseOrderHeaderCard(
@@ -76,7 +92,7 @@ fun PurchaseOrderHeaderCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header: Code, Name, Stock Quantity and Status Badge
+            // ── Header: Code, Name, Stock Quantity and Status Badge ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -84,14 +100,15 @@ fun PurchaseOrderHeaderCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.weight(1f, fill = false)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(
                         text = code,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF1E2238)
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF1E2238),
+                        maxLines = 1
                     )
                     Text(
                         text = "•",
@@ -100,10 +117,11 @@ fun PurchaseOrderHeaderCard(
                     )
                     Text(
                         text = name,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         color = Color(0xFF8B8FA3),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false) // 👈 Ellipsizes only the long name
                     )
                     Text(
                         text = "•",
@@ -113,8 +131,10 @@ fun PurchaseOrderHeaderCard(
                     Text(
                         text = stockQty,
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Color(0xFFE53935)
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFFE53935),
+                        maxLines = 1,
+                        softWrap = false // 👈 Prevents vertical wrapping of "15 pcs"
                     )
                 }
 
@@ -129,7 +149,7 @@ fun PurchaseOrderHeaderCard(
                 )
             }
 
-            // Metrics with Vertical Dividers
+            // ── Metrics with Vertical Dividers ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -188,7 +208,7 @@ fun PurchaseOrderHeaderCard(
                 )
             }
 
-            // Stock Utilization Progress Gauge
+            // ── Stock Utilization Progress Gauge ──
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -212,7 +232,7 @@ fun PurchaseOrderHeaderCard(
                 }
 
                 DataCardProgressBar(
-                    progress = utilizationPercent / 100f,
+                    progress = (utilizationPercent / 100f).coerceIn(0f, 1f),
                     progressColor = Color(0xFFE53935),
                     trackColor = Color(0xFFF1F3F5),
                     height = 6.dp
@@ -254,27 +274,43 @@ private fun HeaderStatColumn(
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun CreatePurchaseOrderScreen(
-    onClose: () -> Unit,
-    onCancel: () -> Unit,
-    onCreateOrder: () -> Unit
+    initialItem: LowStockItemDto? = null,
+    viewModel: InventoryViewModel = hiltViewModel(),
+    onClose: () -> Unit = {},
+    onCancel: () -> Unit = {},
+    onCreateOrder: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
     val context = LocalContext.current
+    val isCreating by viewModel.isCreatingPO.collectAsStateWithLifecycle()
+    val fetchedItem by viewModel.reorderItemDetail.collectAsStateWithLifecycle()
+    val isLoadingDetail by viewModel.isLoadingReorderDetail.collectAsStateWithLifecycle()
+
+    val currentItem = fetchedItem ?: initialItem
+
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     var expandedSection by remember { mutableStateOf("supplier") }
 
-    // Supplier & Warehouse
-    var supplier by remember { mutableStateOf("Global Textile Corp") }
+    // Supplier & Warehouse setup
+    var supplierId by remember(currentItem) { mutableStateOf(currentItem?.preferredVendorId ?: "6a8d3d30f7ca518822670495") }
+    var supplierName by remember { mutableStateOf("Global Textile Corp") }
     var supplierExpanded by remember { mutableStateOf(false) }
     val supplierOptions = listOf("Global Textile Corp", "Sunrise Fabrics", "Premium Weavers Co.")
 
-    var warehouse by remember { mutableStateOf("Factory Warehouse (Primary)") }
+    var warehouseId by remember(currentItem) { mutableStateOf(currentItem?.warehouseId ?: "6a8d5643f685905f29057664") }
+    var warehouseName by remember(currentItem) { mutableStateOf(currentItem?.warehouseName ?: "Factory Warehouse (Primary)") }
     var warehouseExpanded by remember { mutableStateOf(false) }
     val warehouseOptions = listOf("Factory Warehouse (Primary)", "Retail Warehouse", "Cold Storage Unit")
 
     // Purchase Details
-    var reorderQty by remember { mutableStateOf("200") }
-    var unitPrice by remember { mutableStateOf("200") }
+    var reorderQty by remember(currentItem) {
+        mutableStateOf(currentItem?.suggestedQty?.toInt()?.takeIf { it > 0 }?.toString() ?: "50")
+    }
+    var unitPrice by remember(currentItem) {
+        mutableStateOf(currentItem?.costPrice?.takeIf { it > 0 }?.toInt()?.toString() ?: "250")
+    }
 
     // Delivery & Notes
     var expectedDelivery by remember { mutableStateOf("") }
@@ -287,7 +323,6 @@ fun CreatePurchaseOrderScreen(
 
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
 
-    // Launcher to select all document & image file formats
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
@@ -296,7 +331,6 @@ fun CreatePurchaseOrderScreen(
         }
     }
 
-    // Camera picture launcher
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success: Boolean ->
@@ -308,7 +342,7 @@ fun CreatePurchaseOrderScreen(
         }
     }
 
-    val totalOrderValue = (reorderQty.toIntOrNull() ?: 0) * (unitPrice.toIntOrNull() ?: 0)
+    val totalOrderValue = (reorderQty.toDoubleOrNull() ?: 0.0) * (unitPrice.toDoubleOrNull() ?: 0.0)
 
     Scaffold(
         topBar = {
@@ -333,240 +367,283 @@ fun CreatePurchaseOrderScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Transparent)
-            ) {
-                // Header Information Card
-                item {
-                    PurchaseOrderHeaderCard(
-                        code = "FAB-ITL-220",
-                        name = "Linen Shirt Fabric",
-                        stockQty = "40M",
-                        variant = "Blue",
-                        category = "Premium Fabric",
-                        reorderLevel = "100M",
-                        suggestedQty = "200M",
-                        utilizationPercent = 40
-                    )
-                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+            if (isLoadingDetail && currentItem == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Primary)
                 }
-
-                // Supplier & Warehouse Section
-                item {
-                    AccordionSection(
-                        title = "Supplier & Warehouse",
-                        expanded = expandedSection == "supplier",
-                        onHeaderClick = {
-                            expandedSection = if (expandedSection == "supplier") "" else "supplier"
-                        }
-                    ) {
-                        FormDropdown(
-                            label = "Supplier",
-                            value = supplier,
-                            expanded = supplierExpanded,
-                            onExpandChange = { supplierExpanded = it },
-                            options = supplierOptions,
-                            onOptionSelected = { supplier = it }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Transparent)
+                ) {
+                    // Header Information Card
+                    item {
+                        PurchaseOrderHeaderCard(
+                            code = currentItem?.sku ?: "FAB-ITL-220",
+                            name = currentItem?.name ?: "Linen Shirt Fabric",
+                            stockQty = "${currentItem?.available?.toInt() ?: 40} ${currentItem?.unit ?: "M"}",
+                            variant = currentItem?.variantLabel ?: "Blue",
+                            category = "Material",
+                            reorderLevel = "${currentItem?.reorderLevel?.toInt() ?: 100} ${currentItem?.unit ?: "M"}",
+                            suggestedQty = "${currentItem?.suggestedQty?.toInt() ?: 200} ${currentItem?.unit ?: "M"}",
+                            utilizationPercent = currentItem?.stockUtilizationPercent?.toInt() ?: 40
                         )
-
                         Spacer(Modifier.height(tokens.screenPadding * 0.8f))
-                        FormDropdown(
-                            label = "Warehouse",
-                            value = warehouse,
-                            expanded = warehouseExpanded,
-                            onExpandChange = { warehouseExpanded = it },
-                            options = warehouseOptions,
-                            onOptionSelected = { warehouse = it }
-                        )
-
-                        Spacer(Modifier.height(10.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = LabelColor,
-                                modifier = Modifier.size(tokens.iconSize * 0.9f)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                "Mumbai   ★ 4.8   Avg 5 days",
-                                fontSize = tokens.caption,
-                                color = LabelColor
-                            )
-                        }
                     }
-                    Spacer(Modifier.height(tokens.screenPadding * 0.6f))
-                }
 
-                // Purchase Details Section
-                item {
-                    AccordionSection(
-                        title = "Purchase Details",
-                        expanded = expandedSection == "purchase",
-                        onHeaderClick = {
-                            expandedSection = if (expandedSection == "purchase") "" else "purchase"
-                        }
-                    ) {
-                        FormLabel("Reorder Quantity (Metres)")
-                        FormTextField(
-                            value = reorderQty,
-                            onValueChange = { reorderQty = it.filter { c -> c.isDigit() } },
-                            placeholder = "Enter reorder quantity",
-                            keyboardType = KeyboardType.Number
-                        )
-
-                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
-                        FormLabel("Unit Price (₹)")
-                        FormTextField(
-                            value = unitPrice,
-                            onValueChange = { unitPrice = it.filter { c -> c.isDigit() } },
-                            placeholder = "Enter unit price",
-                            keyboardType = KeyboardType.Number
-                        )
-
-                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.45f))
-                                .background(Color(0xFFEDEDFB))
-                                .padding(tokens.cardPadding * 0.4f)
+                    // Supplier & Warehouse Section
+                    item {
+                        AccordionSection(
+                            title = "Supplier & Warehouse",
+                            expanded = expandedSection == "supplier",
+                            onHeaderClick = {
+                                expandedSection = if (expandedSection == "supplier") "" else "supplier"
+                            }
                         ) {
-                            Row(
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                modifier = Modifier.fillMaxWidth()
+                            FormDropdown(
+                                label = "Supplier",
+                                value = supplierName,
+                                expanded = supplierExpanded,
+                                onExpandChange = { supplierExpanded = it },
+                                options = supplierOptions,
+                                onOptionSelected = { supplierName = it }
+                            )
+
+                            Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                            FormDropdown(
+                                label = "Warehouse",
+                                value = warehouseName,
+                                expanded = warehouseExpanded,
+                                onExpandChange = { warehouseExpanded = it },
+                                options = warehouseOptions,
+                                onOptionSelected = { warehouseName = it }
+                            )
+
+                            Spacer(Modifier.height(10.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = LabelColor,
+                                    modifier = Modifier.size(tokens.iconSize * 0.9f)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    "Madhavaram   ★ 4.8   Avg 5 days",
+                                    fontSize = tokens.caption,
+                                    color = LabelColor
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(tokens.screenPadding * 0.6f))
+                    }
+
+                    // Purchase Details Section
+                    item {
+                        AccordionSection(
+                            title = "Purchase Details",
+                            expanded = expandedSection == "purchase",
+                            onHeaderClick = {
+                                expandedSection = if (expandedSection == "purchase") "" else "purchase"
+                            }
+                        ) {
+                            FormLabel("Reorder Quantity (${currentItem?.unit ?: "Units"})")
+                            FormTextField(
+                                value = reorderQty,
+                                onValueChange = { reorderQty = it.filter { c -> c.isDigit() } },
+                                placeholder = "Enter reorder quantity",
+                                keyboardType = KeyboardType.Number
+                            )
+
+                            Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                            FormLabel("Unit Price (₹)")
+                            FormTextField(
+                                value = unitPrice,
+                                onValueChange = { unitPrice = it.filter { c -> c.isDigit() } },
+                                placeholder = "Enter unit price",
+                                keyboardType = KeyboardType.Number
+                            )
+
+                            Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.45f))
+                                    .background(Color(0xFFEDEDFB))
+                                    .padding(tokens.cardPadding * 0.4f)
                             ) {
-                                Column {
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column {
+                                        Text(
+                                            "Total Order Value",
+                                            fontSize = tokens.bodySmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = AccentColor
+                                        )
+                                        Text(
+                                            "Excluding Taxes & Shipping",
+                                            fontSize = tokens.label,
+                                            color = LabelColor
+                                        )
+                                    }
                                     Text(
-                                        "Total Order Value",
-                                        fontSize = tokens.bodySmall,
-                                        fontWeight = FontWeight.SemiBold,
+                                        "₹${"%,d".format(totalOrderValue.toLong())}",
+                                        fontSize = tokens.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
                                         color = AccentColor
                                     )
-                                    Text(
-                                        "Excluding Taxes & Shipping",
-                                        fontSize = tokens.label,
-                                        color = LabelColor
-                                    )
                                 }
-                                Text(
-                                    "₹${"%,d".format(totalOrderValue)}",
-                                    fontSize = tokens.bodyLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = AccentColor
-                                )
                             }
                         }
+                        Spacer(Modifier.height(tokens.screenPadding * 0.6f))
                     }
-                    Spacer(Modifier.height(tokens.screenPadding * 0.6f))
-                }
 
-                // Delivery Section
-                item {
-                    AccordionSection(
-                        title = "Delivery",
-                        expanded = expandedSection == "delivery",
-                        onHeaderClick = {
-                            expandedSection = if (expandedSection == "delivery") "" else "delivery"
-                        }
-                    ) {
-                        FormLabel("Expected Delivery")
-                        DatePickerField(
-                            value = expectedDelivery,
-                            onDateSelected = { expectedDelivery = it }
-                        )
-
-                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
-                        FormLabel("Priority")
-                        SegmentedSelector(
-                            options = PoPriority.entries,
-                            selected = priority,
-                            onSelect = { priority = it },
-                            label = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
-                            accentColor = AccentColor,
-                            borderColor = BorderColor,
-                            unselectedTextColor = TitleColor
-                        )
-
-                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
-                    }
-                    Spacer(Modifier.height(tokens.screenPadding * 0.6f))
-                }
-
-                // Additional Notes Section
-                item {
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = tokens.screenPadding)
-                    ) {
-                        FormLabel("Additional Notes")
-                        FormTextArea(
-                            value = notes,
-                            onValueChange = { notes = it },
-                            placeholder = "Specific packaging or handling requirements..."
-                        )
-                        Spacer(Modifier.height(12.dp))
-                    }
-                }
-
-                // Reusable Documentation & Specifications Upload Section
-                item {
-                    ImageUploadSection(
-                        isImage = false,
-                        selectedImages = selectedSpecSheets,
-                        onBrowseClick = {
-                            filePickerLauncher.launch("*/*")
-                        },
-                        onCameraClick = {
-                            if (cameraPermissionState.status.isGranted) {
-                                val tempFile = File.createTempFile("spec_sheet_", ".jpg", context.cacheDir)
-                                capturedImageUri = FileProvider.getUriForFile(
-                                    context,
-                                    "${context.packageName}.fileprovider",
-                                    tempFile
-                                )
-                                capturedImageUri?.let { cameraLauncher.launch(it) }
-                            } else {
-                                cameraPermissionState.launchPermissionRequest()
+                    // Delivery Section
+                    item {
+                        AccordionSection(
+                            title = "Delivery",
+                            expanded = expandedSection == "delivery",
+                            onHeaderClick = {
+                                expandedSection = if (expandedSection == "delivery") "" else "delivery"
                             }
-                        },
-                        onRemoveImage = { item ->
-                            selectedSpecSheets = selectedSpecSheets.filter { it != item }
-                        },
-                        modifier = Modifier.padding(horizontal = tokens.screenPadding),
-                        browseText = "Browse Files",
-                        cameraText = "Camera",
-                        previewHeaderTitle = "ATTACHED SPECIFICATIONS"
-                    )
+                        ) {
+                            FormLabel("Expected Delivery")
+                            DatePickerField(
+                                value = expectedDelivery,
+                                onDateSelected = { expectedDelivery = it }
+                            )
+
+                            Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                            FormLabel("Priority")
+                            SegmentedSelector(
+                                options = PoPriority.entries,
+                                selected = priority,
+                                onSelect = { priority = it },
+                                label = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                                accentColor = AccentColor,
+                                borderColor = BorderColor,
+                                unselectedTextColor = TitleColor
+                            )
+
+                            Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                        }
+                        Spacer(Modifier.height(tokens.screenPadding * 0.6f))
+                    }
+
+                    // Additional Notes Section
+                    item {
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = tokens.screenPadding)
+                        ) {
+                            FormLabel("Additional Notes")
+                            FormTextArea(
+                                value = notes,
+                                onValueChange = { notes = it },
+                                placeholder = "Specific packaging or handling requirements..."
+                            )
+                            Spacer(Modifier.height(12.dp))
+                        }
+                    }
+
+                    // Documentation & Specifications Upload Section
+                    item {
+                        ImageUploadSection(
+                            isImage = false,
+                            selectedImages = selectedSpecSheets,
+                            onBrowseClick = {
+                                filePickerLauncher.launch("*/*")
+                            },
+                            onCameraClick = {
+                                if (cameraPermissionState.status.isGranted) {
+                                    val tempFile = File.createTempFile("spec_sheet_", ".jpg", context.cacheDir)
+                                    capturedImageUri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        tempFile
+                                    )
+                                    capturedImageUri?.let { cameraLauncher.launch(it) }
+                                } else {
+                                    cameraPermissionState.launchPermissionRequest()
+                                }
+                            },
+                            onRemoveImage = { fileItem ->
+                                selectedSpecSheets = selectedSpecSheets.filter { it != fileItem }
+                            },
+                            modifier = Modifier.padding(horizontal = tokens.screenPadding),
+                            browseText = "Browse Files",
+                            cameraText = "Camera",
+                            previewHeaderTitle = "ATTACHED SPECIFICATIONS"
+                        )
+                    }
+
+                    item {
+                        Spacer(Modifier.height(tokens.buttonHeight * 2f))
+                    }
                 }
 
-                // Bottom Space for Floating Action Bar
-                item {
-                    Spacer(Modifier.height(tokens.buttonHeight * 2f))
-                }
+                StepNavigationFab(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .height(tokens.buttonHeight * 1.65f),
+                    showBack = true,
+                    showBackArrow = false,
+                    showTrailingArrow = false,
+                    onBack = onCancel,
+                    backLabel = "Cancel",
+                    backWidthFraction = 0.25f,
+                    trailingAction = TrailingFabAction.Next(
+                        label = if (isCreating) "Creating..." else "Create",
+                        enabled = !isCreating,
+                        onClick = {
+                            val parsedQty = reorderQty.toDoubleOrNull() ?: 0.0
+                            val parsedRate = unitPrice.toDoubleOrNull() ?: 0.0
+
+                            if (parsedQty <= 0 || parsedRate <= 0) {
+                                errorMessage = "Please enter valid quantity and price"
+                                return@Next
+                            }
+
+                            val targetItemId = currentItem?.itemId ?: "6a8c3c548b122b97dd1a7630"
+
+                            viewModel.createPurchaseOrder(
+                                supplierId = supplierId,
+                                warehouseId = warehouseId,
+                                itemId = targetItemId,
+                                qty = parsedQty,
+                                rate = parsedRate,
+                                eta = formatDateToIso(expectedDelivery),
+                                notes = notes,
+                                onSuccess = { po ->
+                                    successMessage = "PO ${po.poNumber} created successfully!"
+                                    onCreateOrder()
+                                },
+                                onError = { error ->
+                                    errorMessage = error
+                                }
+                            )
+                        }
+                    ),
+                    trailingWidthFraction = 0.30f
+                )
             }
-
-            StepNavigationFab(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .height(tokens.buttonHeight * 1.65f),
-                showBack = true,
-                showBackArrow = false,
-                showTrailingArrow = false,
-                onBack = onCancel,
-                backLabel = "Cancel",
-                backWidthFraction = 0.25f,
-                trailingAction = TrailingFabAction.Next(
-                    label = "Create",
-                    onClick = onCreateOrder
-                ),
-                trailingWidthFraction = 0.30f
-            )
         }
+
+        // ── Dynamic Island Notifications ──
+        DynamicIslandSuccess(
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
+
+        DynamicIslandError(
+            message = errorMessage,
+            onDismiss = { errorMessage = null }
+        )
     }
 }
-

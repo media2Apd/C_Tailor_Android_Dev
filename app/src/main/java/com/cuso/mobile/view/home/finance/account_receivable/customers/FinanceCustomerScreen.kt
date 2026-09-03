@@ -25,6 +25,7 @@ import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -144,15 +145,11 @@ fun FinanceCustomerScreen(
                 }
 
                 error != null -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(error ?: "Something went wrong", color = CustRed, fontSize = 13.sp)
-                            Spacer(Modifier.height(12.dp))
-                            Button(onClick = { viewModel.fetchCustomerForFinance() }) {
-                                Text("Retry")
-                            }
-                        }
-                    }
+                    AppErrorState(
+                        title = "Failed to load finance customers",
+                        message = "Something went wrong. Please check your connection and try again.",
+                        onRetry = { viewModel.fetchCustomerForFinance() }
+                    )
                 }
 
                 filteredCustomers.isEmpty() -> {

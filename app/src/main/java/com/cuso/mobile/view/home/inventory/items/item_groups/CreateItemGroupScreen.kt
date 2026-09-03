@@ -9,7 +9,7 @@
     "unusedvariable"
 )
 
-package com.cuso.mobile.view.home.inventory.items
+package com.cuso.mobile.view.home.inventory.items.item_groups
 
 import android.annotation.SuppressLint
 import android.net.Uri
@@ -20,6 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -58,6 +59,8 @@ import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
+import com.cuso.mobile.view.composable.AppButton
+import com.cuso.mobile.view.composable.AppCheckbox
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
@@ -124,22 +127,22 @@ fun CreateItemGroupScreen(
     }
 
     // ── Pricing & Tax ──
-    var costPrice by remember { mutableStateOf("0") }
-    var sellingPrice by remember { mutableStateOf("0") }
+    var costPrice by remember { mutableStateOf("") }
+    var sellingPrice by remember { mutableStateOf("") }
 
     // ── Variant Matrix ──
-    var matrixMode by remember { mutableStateOf("Manual") }
+    var matrixMode by remember { mutableStateOf("") }
     val colorOptions = listOf("Blue")
     val sizeOptions = listOf("M", "L", "XL")
-    val selectedSizes = remember { mutableStateListOf("M", "L") }
+    val selectedSizes = remember { mutableStateListOf("", "") }
 
     // ── Generated Variants ──
     var trackInventory by remember { mutableStateOf(true) }
     var variantSearch by remember { mutableStateOf("") }
     val variants = remember {
         mutableStateListOf(
-            VariantEntry(label = "Item - Blue / M", sku = "ITM-BLUE-M", isExpanded = true),
-            VariantEntry(label = "Item - Blue / L", sku = "ITM-BLUE-L")
+            VariantEntry(label = "", sku = "", isExpanded = true),
+            VariantEntry(label = "", sku = "")
         )
     }
     var itemGroupImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
@@ -151,9 +154,9 @@ fun CreateItemGroupScreen(
             itemGroupImages = itemGroupImages + uris
         }
     }
-    var bulkCost by remember { mutableStateOf("0") }
-    var bulkPrice by remember { mutableStateOf("0") }
-    var bulkReorder by remember { mutableStateOf("0") }
+    var bulkCost by remember { mutableStateOf("") }
+    var bulkPrice by remember { mutableStateOf("") }
+    var bulkReorder by remember { mutableStateOf("") }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -496,11 +499,11 @@ fun CreateItemGroupScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
+                            AppCheckbox(
                                 checked = trackInventory,
-                                onCheckedChange = { trackInventory = it },
-                                colors = CheckboxDefaults.colors(checkedColor = AccentColor)
+                                onCheckedChange = { trackInventory = it }
                             )
+                            Spacer(Modifier.width(10.dp))
                             Text("Track inventory for this group", fontSize = tokens.bodySmall, color = TitleColor)
                         }
                     }
@@ -645,17 +648,22 @@ fun CreateItemGroupScreen(
                     }
 
                     Spacer(Modifier.height(14.dp))
-                    Button(
-                        onClick = {
-                            variants.forEachIndexed { i, v ->
-                                variants[i] = v.copy(cost = bulkCost, price = bulkPrice, reOrderPoint = bulkReorder)
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
-                        modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        Text("Apply To All Variant", color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = tokens.bodyMedium)
+                        AppButton(
+                            onClick = {
+                                variants.forEachIndexed { i, v ->
+                                    variants[i] = v.copy(
+                                        cost = bulkCost,
+                                        price = bulkPrice,
+                                        reOrderPoint = bulkReorder
+                                    )
+                                }
+                            },
+                            text = "Apply to All Variant"
+                        )
                     }
                 }
             }

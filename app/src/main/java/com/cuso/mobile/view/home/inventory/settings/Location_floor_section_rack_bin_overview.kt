@@ -2,34 +2,56 @@
 
 package com.cuso.mobile.view.home.inventory.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.Warehouse
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
-import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
+import com.cuso.mobile.viewmodel.SettingsViewModel
+import com.cuso.mobile.R
 
 // -------------------------------------------------------------
 // Screen 1: Location Structure Overview
 // -------------------------------------------------------------
 @Composable
 fun LocationStructureScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    warehouseId: String = "6a8d5643f685905f29057664",
     onClose: () -> Unit = {},
-    onAddLocation: () -> Unit = {}
+    onAddLocation: () -> Unit = {},
+    onFloorClick: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
+    val floors by viewModel.floors.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingLocationStructure.collectAsStateWithLifecycle()
+
+    LaunchedEffect(warehouseId) {
+        viewModel.fetchFloors(warehouseId)
+    }
+
+    val totalSections = floors.sumOf { it.sectionsCount }
+    val totalRacks = floors.sumOf { it.racksCount }
+    val totalBins = floors.sumOf { it.binsCount }
+
     FabScaffold(
         modifier = Modifier.fillMaxSize().background(Color.Transparent),
         fab = FabConfig(
@@ -41,25 +63,33 @@ fun LocationStructureScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             TitleBar(title = "Location Structure", onClose = onClose)
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = tokens.screenPadding),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    WarehouseDetailCard(
-                        icon = Icons.Default.Warehouse,
-                        title = "Central WH",
-                        subtitle = "WH-001 · Madhavaram",
-                        sequenceOrder = "1",
-                        totalSections = "4",
-                        totalRacks = "32",
-                        totalBins = "483",
-                        showFourGridBoxes = true,
-                        capacityMetrics = listOf("Floor Area" to "5,000 sqft", "Temperature Zone" to "Normal")
-                    )
+            if (isLoading && floors.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    contentPadding = PaddingValues(top = 10.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        WarehouseDetailCard(
+                            icon = R.drawable.ic_hanker,
+                            title = "Central WH",
+                            subtitle = "WH-001 · Madhavaram",
+                            sequenceOrder = "1",
+                            totalSections = totalSections.toString(),
+                            totalRacks = totalRacks.toString(),
+                            totalBins = totalBins.toString(),
+                            showFourGridBoxes = true,
+                            capacityMetrics = listOf(
+                                "Floor Area" to "5,000 sqft",
+                                "Temperature Zone" to "Normal"
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -71,10 +101,19 @@ fun LocationStructureScreen(
 // -------------------------------------------------------------
 @Composable
 fun FloorOverviewScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    warehouseId: String = "6a8d5643f685905f29057664",
     onClose: () -> Unit = {},
     onAddFloor: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
+    val floors by viewModel.floors.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingLocationStructure.collectAsStateWithLifecycle()
+
+    LaunchedEffect(warehouseId) {
+        viewModel.fetchFloors(warehouseId)
+    }
+
     FabScaffold(
         modifier = Modifier.fillMaxSize().background(Color.Transparent),
         fab = FabConfig(
@@ -86,40 +125,35 @@ fun FloorOverviewScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             TitleBar(title = "Floor Overview", onClose = onClose)
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = tokens.screenPadding),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    WarehouseDetailCard(
-                        icon = Icons.Default.Checkroom,
-                        title = "Ground Floor",
-                        status = "ACTIVE",
-                        locationLabel = "Floor",
-                        locationName = "Central WH",
-                        sequenceOrder = "1",
-                        totalSections = "4",
-                        totalRacks = "32",
-                        totalBins = "483",
-                        capacityMetrics = listOf("Storage Type" to "Shelving", "Climate Control" to "AC Standard")
-                    )
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-                item {
-                    WarehouseDetailCard(
-                        icon = Icons.Default.Checkroom,
-                        title = "First Floor",
-                        status = "ACTIVE",
-                        locationLabel = "Floor",
-                        locationName = "Central WH",
-                        sequenceOrder = "1",
-                        totalSections = "4",
-                        totalRacks = "32",
-                        totalBins = "483",
-                        capacityMetrics = listOf("Storage Type" to "Shelving", "Climate Control" to "AC Standard")
-                    )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = tokens.screenPadding),
+                    contentPadding = PaddingValues(top = 10.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(floors, key = { it.id }) { floor ->
+                        WarehouseDetailCard(
+                            icon = R.drawable.ic_hanker,
+                            title = floor.name,
+                            status = floor.status.uppercase(),
+                            locationLabel = "Floor",
+                            locationName = floor.code,
+                            sequenceOrder = floor.sequenceOrder.toString(),
+                            totalSections = floor.sectionsCount.toString(),
+                            totalRacks = floor.racksCount.toString(),
+                            totalBins = floor.binsCount.toString(),
+                            capacityMetrics = listOf(
+                                "Temperature" to (floor.temperatureZone ?: "Normal"),
+                                "Area" to "${floor.floorAreaSqft} sqft"
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -131,17 +165,21 @@ fun FloorOverviewScreen(
 // -------------------------------------------------------------
 @Composable
 fun AddFloorScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    warehouseId: String = "6a8d5643f685905f29057664",
     onClose: () -> Unit = {},
     onSave: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    var floorName by remember { mutableStateOf("Ground") }
-    var floorCode by remember { mutableStateOf("GRD") }
+    val context = LocalContext.current
+
+    var floorName by remember { mutableStateOf("Ground Floor") }
+    var floorCode by remember { mutableStateOf("GF") }
     var sequenceOrder by remember { mutableStateOf("1") }
     var description by remember { mutableStateOf("") }
-    var temperatureZone by remember { mutableStateOf("Normal") }
+    var temperatureZone by remember { mutableStateOf("normal") }
     var floorArea by remember { mutableStateOf("5000") }
-    var maxWeight by remember { mutableStateOf("50000") }
+    var maxWeight by remember { mutableStateOf("20000") }
     var isActive by remember { mutableStateOf(true) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
@@ -160,11 +198,11 @@ fun AddFloorScreen(
                     Spacer(Modifier.height(10.dp))
 
                     FormLabel("Floor Name", isRequired = true)
-                    FormTextField(value = floorName, onValueChange = { floorName = it }, placeholder = "Ground")
+                    FormTextField(value = floorName, onValueChange = { floorName = it }, placeholder = "Ground Floor")
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Floor Code")
-                    FormTextField(value = floorCode, onValueChange = { floorCode = it }, placeholder = "GRD")
+                    FormTextField(value = floorCode, onValueChange = { floorCode = it }, placeholder = "GF")
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Sequence Orders")
@@ -180,7 +218,7 @@ fun AddFloorScreen(
                     Spacer(Modifier.height(10.dp))
 
                     FormLabel("Temperature Zone")
-                    FormTextField(value = temperatureZone, onValueChange = { temperatureZone = it }, placeholder = "Normal")
+                    FormTextField(value = temperatureZone, onValueChange = { temperatureZone = it }, placeholder = "normal")
                 }
 
                 item {
@@ -192,7 +230,7 @@ fun AddFloorScreen(
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Max Weight Capacity (kg)")
-                    FormTextField(value = maxWeight, onValueChange = { maxWeight = it }, placeholder = "50000", keyboardType = KeyboardType.Number)
+                    FormTextField(value = maxWeight, onValueChange = { maxWeight = it }, placeholder = "20000", keyboardType = KeyboardType.Number)
 
                     Spacer(Modifier.height(14.dp))
                     Row(
@@ -215,7 +253,30 @@ fun AddFloorScreen(
             showTrailingArrow = false,
             trailingAction = TrailingFabAction.Update(
                 label = "Save Floor",
-                onClick = onSave
+                onClick = {
+                    if (floorName.isBlank() || floorCode.isBlank()) {
+                        Toast.makeText(context, "Please fill required fields", Toast.LENGTH_SHORT).show()
+                        return@Update
+                    }
+                    viewModel.createFloor(
+                        warehouseId = warehouseId,
+                        name = floorName,
+                        code = floorCode,
+                        sequenceOrder = sequenceOrder.toIntOrNull() ?: 1,
+                        description = description,
+                        temperatureZone = temperatureZone,
+                        floorAreaSqft = floorArea.toDoubleOrNull() ?: 0.0,
+                        maxWeightCapacityKg = maxWeight.toDoubleOrNull() ?: 0.0,
+                        status = if (isActive) "active" else "inactive",
+                        onSuccess = {
+                            Toast.makeText(context, "Floor created successfully!", Toast.LENGTH_SHORT).show()
+                            onSave()
+                        },
+                        onError = { error ->
+                            Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
             ),
             backWidthFraction = 0.35f,
             trailingWidthFraction = 0.55f
@@ -228,10 +289,20 @@ fun AddFloorScreen(
 // -------------------------------------------------------------
 @Composable
 fun SectionOverviewScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    warehouseId: String = "6a8d5643f685905f29057664",
+    floorId: String = "6a8d5762f685905f290576b3",
     onClose: () -> Unit = {},
     onAddSection: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
+    val sections by viewModel.sections.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingLocationStructure.collectAsStateWithLifecycle()
+
+    LaunchedEffect(warehouseId, floorId) {
+        viewModel.fetchSections(warehouseId, floorId)
+    }
+
     FabScaffold(
         modifier = Modifier.fillMaxSize().background(Color.Transparent),
         fab = FabConfig(
@@ -243,40 +314,35 @@ fun SectionOverviewScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             TitleBar(title = "Section Overview", onClose = onClose)
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = tokens.screenPadding),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    WarehouseDetailCard(
-                        icon = Icons.Default.Checkroom,
-                        title = "Menswear",
-                        status = "ACTIVE",
-                        locationLabel = "Floor",
-                        locationName = "Central WH",
-                        sequenceOrder = "1",
-                        linkedCategory = "Menswear",
-                        totalRacks = "32",
-                        totalBins = "483",
-                        capacityMetrics = listOf("Storage Type" to "Shelving", "Climate Control" to "AC Standard")
-                    )
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-                item {
-                    WarehouseDetailCard(
-                        icon = Icons.Default.Checkroom,
-                        title = "Womenswear",
-                        status = "ACTIVE",
-                        locationLabel = "Floor",
-                        locationName = "Central WH",
-                        sequenceOrder = "1",
-                        linkedCategory = "Menswear",
-                        totalRacks = "32",
-                        totalBins = "483",
-                        capacityMetrics = listOf("Storage Type" to "Shelving", "Climate Control" to "AC Standard")
-                    )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = tokens.screenPadding),
+                    contentPadding = PaddingValues(top = 10.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(sections, key = { it.id }) { section ->
+                        WarehouseDetailCard(
+                            icon = R.drawable.ic_hanker,
+                            title = section.name,
+                            status = section.status.uppercase(),
+                            locationLabel = "Section",
+                            locationName = section.code,
+                            sequenceOrder = section.sequenceOrder.toString(),
+                            linkedCategory = section.allowedProductCategories.firstOrNull() ?: "General",
+                            totalRacks = section.racksCount.toString(),
+                            totalBins = section.binsCount.toString(),
+                            capacityMetrics = listOf(
+                                "Storage Type" to (section.storageType ?: "shelving"),
+                                "Climate Control" to (section.climateControl ?: "ac_standard")
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -288,16 +354,22 @@ fun SectionOverviewScreen(
 // -------------------------------------------------------------
 @Composable
 fun AddSectionScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    warehouseId: String = "6a8d5643f685905f29057664",
+    floorId: String = "6a8d5762f685905f290576b3",
     onClose: () -> Unit = {},
     onSave: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    var sectionName by remember { mutableStateOf("Ground") }
-    var sectionCode by remember { mutableStateOf("GRD") }
+    val context = LocalContext.current
+
+    var sectionName by remember { mutableStateOf("Textiles Section") }
+    var sectionCode by remember { mutableStateOf("SEC-A") }
     var sequenceOrder by remember { mutableStateOf("1") }
-    var description by remember { mutableStateOf("") }
-    var allowedCategory by remember { mutableStateOf("All") }
-    var storageType by remember { mutableStateOf("Open Area") }
+    var description by remember { mutableStateOf("Section for fabric and textile items") }
+    var allowedCategory by remember { mutableStateOf("6a8c3b4c8b122b97dd1a75e7") }
+    var storageType by remember { mutableStateOf("shelving") }
+    var climateControl by remember { mutableStateOf("ac_standard") }
     var isActive by remember { mutableStateOf(true) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
@@ -316,11 +388,11 @@ fun AddSectionScreen(
                     Spacer(Modifier.height(10.dp))
 
                     FormLabel("Section Name", isRequired = true)
-                    FormTextField(value = sectionName, onValueChange = { sectionName = it }, placeholder = "Ground")
+                    FormTextField(value = sectionName, onValueChange = { sectionName = it }, placeholder = "Textiles Section")
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Section Code")
-                    FormTextField(value = sectionCode, onValueChange = { sectionCode = it }, placeholder = "GRD")
+                    FormTextField(value = sectionCode, onValueChange = { sectionCode = it }, placeholder = "SEC-A")
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Sequence Orders")
@@ -335,8 +407,8 @@ fun AddSectionScreen(
                     SectionHeader("Category Mapping")
                     Spacer(Modifier.height(10.dp))
 
-                    FormLabel("Allowed Product Category")
-                    FormTextField(value = allowedCategory, onValueChange = { allowedCategory = it }, placeholder = "All")
+                    FormLabel("Allowed Product Category ID")
+                    FormTextField(value = allowedCategory, onValueChange = { allowedCategory = it }, placeholder = "Product Category ID")
                 }
 
                 item {
@@ -344,7 +416,11 @@ fun AddSectionScreen(
                     Spacer(Modifier.height(10.dp))
 
                     FormLabel("Storage Type")
-                    FormTextField(value = storageType, onValueChange = { storageType = it }, placeholder = "Open Area")
+                    FormTextField(value = storageType, onValueChange = { storageType = it }, placeholder = "shelving")
+
+                    Spacer(Modifier.height(8.dp))
+                    FormLabel("Climate Control")
+                    FormTextField(value = climateControl, onValueChange = { climateControl = it }, placeholder = "ac_standard")
 
                     Spacer(Modifier.height(14.dp))
                     Row(
@@ -367,7 +443,31 @@ fun AddSectionScreen(
             showTrailingArrow = false,
             trailingAction = TrailingFabAction.Update(
                 label = "Save Section",
-                onClick = onSave
+                onClick = {
+                    if (sectionName.isBlank() || sectionCode.isBlank()) {
+                        Toast.makeText(context, "Please fill required fields", Toast.LENGTH_SHORT).show()
+                        return@Update
+                    }
+                    viewModel.createSection(
+                        warehouseId = warehouseId,
+                        floorId = floorId,
+                        name = sectionName,
+                        code = sectionCode,
+                        sequenceOrder = sequenceOrder.toIntOrNull() ?: 1,
+                        description = description,
+                        allowedProductCategories = if (allowedCategory.isNotBlank()) listOf(allowedCategory.trim()) else emptyList(),
+                        storageType = storageType,
+                        climateControl = climateControl,
+                        status = if (isActive) "active" else "inactive",
+                        onSuccess = {
+                            Toast.makeText(context, "Section created successfully!", Toast.LENGTH_SHORT).show()
+                            onSave()
+                        },
+                        onError = { error ->
+                            Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
             ),
             backWidthFraction = 0.35f,
             trailingWidthFraction = 0.55f
@@ -380,10 +480,21 @@ fun AddSectionScreen(
 // -------------------------------------------------------------
 @Composable
 fun RackOverviewScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    warehouseId: String = "6a8d5643f685905f29057664",
+    floorId: String = "6a8d5762f685905f290576b3",
+    sectionId: String = "6a8d57f3f685905f290576bf",
     onClose: () -> Unit = {},
     onAddRack: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
+    val racks by viewModel.racks.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingLocationStructure.collectAsStateWithLifecycle()
+
+    LaunchedEffect(warehouseId, floorId, sectionId) {
+        viewModel.fetchRacks(warehouseId, floorId, sectionId)
+    }
+
     FabScaffold(
         modifier = Modifier.fillMaxSize().background(Color.Transparent),
         fab = FabConfig(
@@ -395,40 +506,35 @@ fun RackOverviewScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             TitleBar(title = "Rack Overview", onClose = onClose)
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = tokens.screenPadding),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    WarehouseDetailCard(
-                        icon = Icons.Default.Checkroom,
-                        title = "Rack R - 01",
-                        status = "ACTIVE",
-                        locationLabel = "Section",
-                        locationName = "Central WH",
-                        sequenceOrder = "1",
-                        rackType = "Shelf",
-                        totalRacks = "-",
-                        totalBins = "483",
-                        capacityMetrics = listOf("Max Capacity" to "500 pcs", "Max Weight" to "300 kg")
-                    )
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-                item {
-                    WarehouseDetailCard(
-                        icon = Icons.Default.Checkroom,
-                        title = "Rack R - 02",
-                        status = "ACTIVE",
-                        locationLabel = "Section",
-                        locationName = "Central WH",
-                        sequenceOrder = "1",
-                        rackType = "Shelf",
-                        totalRacks = "-",
-                        totalBins = "483",
-                        capacityMetrics = listOf("Max Capacity" to "500 pcs", "Max Weight" to "300 kg")
-                    )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = tokens.screenPadding),
+                    contentPadding = PaddingValues(top = 10.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(racks, key = { it.id }) { rack ->
+                        WarehouseDetailCard(
+                            icon = R.drawable.ic_hanker,
+                            title = rack.name,
+                            status = rack.status.uppercase(),
+                            locationLabel = "Section",
+                            locationName = rack.code,
+                            sequenceOrder = rack.sequenceOrder.toString(),
+                            rackType = rack.rackType ?: "shelf",
+                            totalRacks = "-",
+                            totalBins = rack.binsCount.toString(),
+                            capacityMetrics = listOf(
+                                "Max Capacity" to "${rack.maxQuantityCapacity} pcs",
+                                "Max Weight" to "${rack.maxWeightCapacityKg} kg"
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -440,17 +546,23 @@ fun RackOverviewScreen(
 // -------------------------------------------------------------
 @Composable
 fun AddRackScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    warehouseId: String = "6a8d5643f685905f29057664",
+    floorId: String = "6a8d5762f685905f290576b3",
+    sectionId: String = "6a8d57f3f685905f290576bf",
     onClose: () -> Unit = {},
     onSave: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    var rackName by remember { mutableStateOf("Ground") }
-    var rackCode by remember { mutableStateOf("GRD") }
+    val context = LocalContext.current
+
+    var rackName by remember { mutableStateOf("Rack A1") }
+    var rackCode by remember { mutableStateOf("RA01") }
     var sequenceOrder by remember { mutableStateOf("1") }
-    var description by remember { mutableStateOf("") }
-    var rackType by remember { mutableStateOf("All") }
-    var maxQty by remember { mutableStateOf("500") }
-    var maxWeight by remember { mutableStateOf("5000") }
+    var description by remember { mutableStateOf("First rack in Textiles Section") }
+    var rackType by remember { mutableStateOf("shelf") }
+    var maxQty by remember { mutableStateOf("1000") }
+    var maxWeight by remember { mutableStateOf("500") }
     var isActive by remember { mutableStateOf(true) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
@@ -469,11 +581,11 @@ fun AddRackScreen(
                     Spacer(Modifier.height(10.dp))
 
                     FormLabel("Rack Name", isRequired = true)
-                    FormTextField(value = rackName, onValueChange = { rackName = it }, placeholder = "Ground")
+                    FormTextField(value = rackName, onValueChange = { rackName = it }, placeholder = "Rack A1")
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Rack Code")
-                    FormTextField(value = rackCode, onValueChange = { rackCode = it }, placeholder = "GRD")
+                    FormTextField(value = rackCode, onValueChange = { rackCode = it }, placeholder = "RA01")
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Sequence Orders")
@@ -489,15 +601,15 @@ fun AddRackScreen(
                     Spacer(Modifier.height(10.dp))
 
                     FormLabel("Rack Type")
-                    FormTextField(value = rackType, onValueChange = { rackType = it }, placeholder = "All")
+                    FormTextField(value = rackType, onValueChange = { rackType = it }, placeholder = "shelf")
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Max Quantity Capacity")
-                    FormTextField(value = maxQty, onValueChange = { maxQty = it }, placeholder = "500", keyboardType = KeyboardType.Number)
+                    FormTextField(value = maxQty, onValueChange = { maxQty = it }, placeholder = "1000", keyboardType = KeyboardType.Number)
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Max Weight Capacity (kg)")
-                    FormTextField(value = maxWeight, onValueChange = { maxWeight = it }, placeholder = "5000", keyboardType = KeyboardType.Number)
+                    FormTextField(value = maxWeight, onValueChange = { maxWeight = it }, placeholder = "500", keyboardType = KeyboardType.Number)
 
                     Spacer(Modifier.height(14.dp))
                     Row(
@@ -520,7 +632,32 @@ fun AddRackScreen(
             showTrailingArrow = false,
             trailingAction = TrailingFabAction.Update(
                 label = "Save Rack",
-                onClick = onSave
+                onClick = {
+                    if (rackName.isBlank() || rackCode.isBlank()) {
+                        Toast.makeText(context, "Please fill required fields", Toast.LENGTH_SHORT).show()
+                        return@Update
+                    }
+                    viewModel.createRack(
+                        warehouseId = warehouseId,
+                        floorId = floorId,
+                        sectionId = sectionId,
+                        name = rackName,
+                        code = rackCode,
+                        sequenceOrder = sequenceOrder.toIntOrNull() ?: 1,
+                        description = description,
+                        rackType = rackType,
+                        maxQuantityCapacity = maxQty.toIntOrNull() ?: 0,
+                        maxWeightCapacityKg = maxWeight.toDoubleOrNull() ?: 0.0,
+                        status = if (isActive) "active" else "inactive",
+                        onSuccess = {
+                            Toast.makeText(context, "Rack created successfully!", Toast.LENGTH_SHORT).show()
+                            onSave()
+                        },
+                        onError = { error ->
+                            Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
             ),
             backWidthFraction = 0.35f,
             trailingWidthFraction = 0.55f
@@ -533,10 +670,20 @@ fun AddRackScreen(
 // -------------------------------------------------------------
 @Composable
 fun BinOverviewScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    warehouseId: String = "",
+    rackId: String = "",
     onClose: () -> Unit = {},
     onAddBin: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
+    val bins by viewModel.bins.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingLocationStructure.collectAsStateWithLifecycle()
+
+    LaunchedEffect(warehouseId, rackId) {
+        viewModel.fetchBins(warehouseId, rackId)
+    }
+
     FabScaffold(
         modifier = Modifier.fillMaxSize().background(Color.Transparent),
         fab = FabConfig(
@@ -548,40 +695,33 @@ fun BinOverviewScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             TitleBar(title = "Bin Overview", onClose = onClose)
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = tokens.screenPadding),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    WarehouseDetailCard(
-                        icon = Icons.Default.Checkroom,
-                        title = "Bin B - 01",
-                        status = "ACTIVE",
-                        locationLabel = "Rack",
-                        locationName = "R - 01",
-                        sequenceOrder = "1",
-                        binType = "Regular",
-                        totalRacks = "-",
-                        totalBins = "483",
-                        capacityMetrics = listOf("Max Capacity" to "500 pcs", "Max Weight" to "300 kg")
-                    )
-                }
-                item {
-                    WarehouseDetailCard(
-                        icon = Icons.Default.Checkroom,
-                        title = "Bin B - 01",
-                        status = "ACTIVE",
-                        locationLabel = "Rack",
-                        locationName = "R - 01",
-                        sequenceOrder = "1",
-                        binType = "Regular",
-                        totalRacks = "-",
-                        totalBins = "483",
-                        capacityMetrics = listOf("Max Capacity" to "500 pcs", "Max Weight" to "300 kg")
-                    )
+            if (isLoading) {
+                    ListSkeleton()
+
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    contentPadding = PaddingValues(top = 10.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(bins, key = { it.id }) { bin ->
+                        WarehouseDetailCard(
+                            icon = R.drawable.ic_hanker,
+                            title = bin.name,
+                            status = bin.status.uppercase(),
+                            locationLabel = "Rack",
+                            locationName = bin.rackDisplayName.ifBlank { bin.rackCode },
+                            sequenceOrder = bin.sequenceOrder.toString(),
+                            binType = bin.binType ?: "regular",
+                            totalRacks = "-",
+                            totalBins =  "-",
+                            capacityMetrics = listOf(
+                                "Max Capacity" to "${bin.maxQuantity} ${bin.defaultUOM ?: "pcs"}",
+                                "Max Weight" to "${bin.maxWeightKg} kg"
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -593,23 +733,30 @@ fun BinOverviewScreen(
 // -------------------------------------------------------------
 @Composable
 fun AddBinScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    warehouseId: String = "6a8d5643f685905f29057664",
+    floorId: String = "6a8d5762f685905f290576b3",
+    sectionId: String = "6a8d57f3f685905f290576bf",
+    rackId: String = "6a8d583bf685905f290576cd",
     onClose: () -> Unit = {},
     onSave: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    var binName by remember { mutableStateOf("Ground") }
-    var binCode by remember { mutableStateOf("GRD") }
+    val context = LocalContext.current
+
+    var binName by remember { mutableStateOf("Bin B01") }
+    var binCode by remember { mutableStateOf("B01") }
     var sequenceOrder by remember { mutableStateOf("1") }
     var description by remember { mutableStateOf("") }
-    var binType by remember { mutableStateOf("All") }
-    var maxQty by remember { mutableStateOf("500") }
-    var maxWeight by remember { mutableStateOf("5000") }
-    var defaultUom by remember { mutableStateOf("Box") }
+    var binType by remember { mutableStateOf("regular") }
+    var maxQty by remember { mutableStateOf("300") }
+    var maxWeight by remember { mutableStateOf("200") }
+    var defaultUom by remember { mutableStateOf("pcs") }
     var isActive by remember { mutableStateOf(true) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         Column(modifier = Modifier.fillMaxSize()) {
-            TitleBar(title = "Bin Rack", onClose = onClose)
+            TitleBar(title = "Add Bin", onClose = onClose)
 
             LazyColumn(
                 modifier = Modifier
@@ -623,11 +770,11 @@ fun AddBinScreen(
                     Spacer(Modifier.height(10.dp))
 
                     FormLabel("Bin Name", isRequired = true)
-                    FormTextField(value = binName, onValueChange = { binName = it }, placeholder = "Ground")
+                    FormTextField(value = binName, onValueChange = { binName = it }, placeholder = "Bin B01")
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Bin Code")
-                    FormTextField(value = binCode, onValueChange = { binCode = it }, placeholder = "GRD")
+                    FormTextField(value = binCode, onValueChange = { binCode = it }, placeholder = "B01")
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Sequence Orders")
@@ -635,7 +782,7 @@ fun AddBinScreen(
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Description (Optional)")
-                    FormTextArea(value = description, onValueChange = { description = it }, placeholder = "Add floor layout or special remarks...")
+                    FormTextArea(value = description, onValueChange = { description = it }, placeholder = "Add layout or special remarks...")
                 }
 
                 item {
@@ -643,7 +790,7 @@ fun AddBinScreen(
                     Spacer(Modifier.height(10.dp))
 
                     FormLabel("Bin Type")
-                    FormTextField(value = binType, onValueChange = { binType = it }, placeholder = "All")
+                    FormTextField(value = binType, onValueChange = { binType = it }, placeholder = "regular")
                 }
 
                 item {
@@ -651,15 +798,15 @@ fun AddBinScreen(
                     Spacer(Modifier.height(10.dp))
 
                     FormLabel("Max Quantity Capacity")
-                    FormTextField(value = maxQty, onValueChange = { maxQty = it }, placeholder = "500", keyboardType = KeyboardType.Number)
+                    FormTextField(value = maxQty, onValueChange = { maxQty = it }, placeholder = "300", keyboardType = KeyboardType.Number)
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Max Weight Capacity (kg)")
-                    FormTextField(value = maxWeight, onValueChange = { maxWeight = it }, placeholder = "5000", keyboardType = KeyboardType.Number)
+                    FormTextField(value = maxWeight, onValueChange = { maxWeight = it }, placeholder = "200", keyboardType = KeyboardType.Number)
 
                     Spacer(Modifier.height(8.dp))
                     FormLabel("Default UOM")
-                    FormTextField(value = defaultUom, onValueChange = { defaultUom = it }, placeholder = "Box")
+                    FormTextField(value = defaultUom, onValueChange = { defaultUom = it }, placeholder = "pcs")
 
                     Spacer(Modifier.height(14.dp))
                     Row(
@@ -682,7 +829,33 @@ fun AddBinScreen(
             showTrailingArrow = false,
             trailingAction = TrailingFabAction.Update(
                 label = "Save Bin",
-                onClick = onSave
+                onClick = {
+                    if (binName.isBlank() || binCode.isBlank()) {
+                        Toast.makeText(context, "Please fill required fields", Toast.LENGTH_SHORT).show()
+                        return@Update
+                    }
+                    viewModel.createBin(
+                        warehouseId = warehouseId,
+                        floorId = floorId,
+                        sectionId = sectionId,
+                        rackId = rackId,
+                        name = binName,
+                        code = binCode,
+                        sequenceOrder = sequenceOrder.toIntOrNull() ?: 1,
+                        binType = binType,
+                        maxQuantity = maxQty.toIntOrNull() ?: 0,
+                        maxWeightKg = maxWeight.toDoubleOrNull() ?: 0.0,
+                        defaultUOM = defaultUom,
+                        status = if (isActive) "active" else "inactive",
+                        onSuccess = {
+                            Toast.makeText(context, "Bin created successfully!", Toast.LENGTH_SHORT).show()
+                            onSave()
+                        },
+                        onError = { error ->
+                            Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
             ),
             backWidthFraction = 0.35f,
             trailingWidthFraction = 0.55f

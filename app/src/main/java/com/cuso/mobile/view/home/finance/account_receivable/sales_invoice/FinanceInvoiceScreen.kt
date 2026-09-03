@@ -63,6 +63,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.core.content.FileProvider
 import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.net.URL
@@ -166,13 +167,11 @@ fun FinanceInvoiceScreen(
                     ListSkeleton()
                 }
                 error != null -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(error ?: "Something went wrong", color = InvRed, fontSize = 13.sp)
-                            Spacer(Modifier.height(12.dp))
-                            Button(onClick = { viewModel.fetchInvoices() }) { Text("Retry") }
-                        }
-                    }
+                    AppErrorState(
+                        title = "Failed to load finance Invoice",
+                        message = "Something went wrong. Please check your connection and try again.",
+                        onRetry = { viewModel.fetchInvoices() }
+                    )
                 }
                 filteredInvoices.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

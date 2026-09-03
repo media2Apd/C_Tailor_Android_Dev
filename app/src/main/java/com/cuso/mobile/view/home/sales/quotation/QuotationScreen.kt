@@ -38,6 +38,7 @@ import com.cuso.mobile.ui.theme.redBg
 import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.view.composable.ActionDropdownMenu
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DeleteModel
@@ -196,9 +197,11 @@ fun QuotationScreen(
                     quotationState is QuotationUiState.Loading -> ListSkeleton()
 
                     quotationState is QuotationUiState.Error -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text((quotationState as QuotationUiState.Error).message, color = Color(0xFFDC2626))
-                        }
+                        AppErrorState(
+                            title = "Failed to load dashboard",
+                            message = "Something went wrong. Please check your connection and try again.",
+                            onRetry = { quotationViewModel.refresh() }
+                        )
                     }
 
                     items.isEmpty() -> {

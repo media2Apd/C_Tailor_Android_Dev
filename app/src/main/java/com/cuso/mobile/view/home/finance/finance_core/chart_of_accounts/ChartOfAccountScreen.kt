@@ -47,6 +47,7 @@ import com.cuso.mobile.ui.theme.greenBg
 import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.DynamicIslandError
@@ -216,30 +217,11 @@ fun ChartOfAccountScreen(
                 }
 
                 errorMessage != null && accounts.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Default.Warning,
-                                null,
-                                tint = Color.Red,
-                                modifier = Modifier.size(tokens.iconSize * 2.4f)
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                "Something went wrong, Please try again later",
-                                color = Color.Red,
-                                fontSize = tokens.bodyMedium
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            Button(
-                                onClick = { financeViewModel.fetchChartOfAccounts() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9)),
-                                shape = RoundedCornerShape(tokens.cardCornerRadius / 2)
-                            ) {
-                                Text("Retry", color = whiteBg, fontSize = tokens.bodyMedium)
-                            }
-                        }
-                    }
+                    AppErrorState(
+                        title = "Failed to load Chart Of accounts",
+                        message = "Something went wrong. Please check your connection and try again.",
+                        onRetry = { financeViewModel.fetchChartOfAccounts() }
+                    )
                 }
 
                 else -> {

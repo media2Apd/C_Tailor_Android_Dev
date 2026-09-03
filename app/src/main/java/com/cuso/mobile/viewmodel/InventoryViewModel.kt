@@ -9,11 +9,16 @@
 package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
+import com.cuso.mobile.model.inventory.CreatePoItemRequest
+import com.cuso.mobile.model.inventory.CreatePurchaseOrderRequest
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.InventoryItemviewone
 import com.cuso.mobile.model.inventory.InventoryPagination
+import com.cuso.mobile.model.inventory.LowStockItemDto
+import com.cuso.mobile.model.inventory.PurchaseOrderData
 import com.cuso.mobile.repository.InventoryRepository
 import com.cuso.mobile.utils.launchBusy
+import com.google.gson.JsonParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -33,14 +38,31 @@ enum class ItemSection {
     ITEM_IDENTITY, PRODUCT_IMAGES, PHYSICAL_ATTRIBUTES, TAX_INFO, SALES_INFO, PURCHASE_INFO
 }
 
-/**
- * InventoryViewModel - Handles inventory item listing with infinite scroll pagination
- * and item detail operations.
- */
 @HiltViewModel
 class InventoryViewModel @Inject constructor(
     private val inventoryRepository: InventoryRepository
 ) : ViewModel() {
+
+    // ── Helper to extract clean message string from JSON error response ──
+    private fun extractErrorMessage(raw: String?): String {
+        if (raw.isNullOrBlank()) return "An unexpected error occurred"
+        val trimmed = raw.trim()
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            try {
+                val json = JsonParser.parseString(trimmed)
+                if (json.isJsonObject) {
+                    val obj = json.asJsonObject
+                    if (obj.has("message") && !obj.get("message").isJsonNull) {
+                        return obj.get("message").asString
+                    }
+                    if (obj.has("error") && !obj.get("error").isJsonNull) {
+                        return obj.get("error").asString
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+        return trimmed
+    }
 
     // ── Inventory Items: List & Pagination State ──
     private val _inventoryItems = MutableStateFlow<List<InventoryItem>>(emptyList())
@@ -68,9 +90,6 @@ class InventoryViewModel @Inject constructor(
     private var activeInventoryStatus: String? = null
     private var fetchInventoryJob: Job? = null
 
-    /**
-     * Initial fetch or filter search for inventory items (resets pagination back to page 1)
-     */
     fun fetchInventoryItems(
         page: Int = 1,
         limit: Int = 10,
@@ -107,9 +126,6 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Loads the next page of inventory items and appends them to the current list
-     */
     fun loadMoreInventoryItems(limit: Int = 10) {
         if (_isLoadingMoreInventoryItems.value || _isLoadingInventoryItems.value || !_canLoadMoreInventoryItems.value) {
             return
@@ -132,7 +148,7 @@ class InventoryViewModel @Inject constructor(
                     val pagination = response.pagination
 
                     if (newItems.isNotEmpty()) {
-                        _inventoryItems.value = _inventoryItems.value + newItems
+                        _inventoryItems.value += newItems
                         _currentInventoryPage.value = nextPage
                         _inventoryPagination.value = pagination
 
@@ -142,17 +158,12 @@ class InventoryViewModel @Inject constructor(
                         _canLoadMoreInventoryItems.value = false
                     }
                 },
-                onFailure = {
-                    // Retain load status so the user can re-trigger on scroll
-                }
+                onFailure = { }
             )
             _isLoadingMoreInventoryItems.value = false
         }
     }
 
-    /**
-     * Helper to refresh list from page 1 while preserving current search & status filters
-     */
     fun refreshInventoryItems() {
         fetchInventoryItems(page = 1, search = activeInventorySearch, status = activeInventoryStatus)
     }
@@ -161,7 +172,7 @@ class InventoryViewModel @Inject constructor(
         _inventoryError.value = null
     }
 
-    // ── Inventory Item: View One (details bottom sheet) ──
+    // ── Inventory Item: View One ──
     private val _viewOneItem = MutableStateFlow<InventoryItemviewone?>(null)
     val viewOneItem: StateFlow<InventoryItemviewone?> = _viewOneItem.asStateFlow()
 
@@ -178,7 +189,7 @@ class InventoryViewModel @Inject constructor(
         updateCreateItemForm { it.copy(imageUri = uri) }
     }
 
-    // ── Inventory Item: single item detail ──
+    // ── Inventory Item Detail ──
     private val _selectedItem = MutableStateFlow<InventoryItem?>(null)
     val selectedItem: StateFlow<InventoryItem?> = _selectedItem.asStateFlow()
 
@@ -216,7 +227,7 @@ class InventoryViewModel @Inject constructor(
         _itemDetailError.value = null
     }
 
-    // ── Inventory Items: recent ──
+    // ── Recent Items ──
     private val _recentItems = MutableStateFlow<List<InventoryItem>>(emptyList())
     val recentItems: StateFlow<List<InventoryItem>> = _recentItems.asStateFlow()
 
@@ -240,7 +251,7 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    // ── Inventory Item: adjust stock ──
+    // ── Adjust Stock ──
     private val _isAdjustingStock = MutableStateFlow(false)
     val isAdjustingStock: StateFlow<Boolean> = _isAdjustingStock.asStateFlow()
 
@@ -355,6 +366,113 @@ class InventoryViewModel @Inject constructor(
                 onFailure = { e -> CreateItemUiState.Error(e.message ?: "Failed to create item") }
             )
         }
+    }
+
+    // ── Low Stock Alerts State ──
+    private val _lowStockItems = MutableStateFlow<List<LowStockItemDto>>(emptyList())
+    val lowStockItems: StateFlow<List<LowStockItemDto>> = _lowStockItems.asStateFlow()
+
+    private val _isLoadingLowStock = MutableStateFlow(false)
+    val isLoadingLowStock: StateFlow<Boolean> = _isLoadingLowStock.asStateFlow()
+
+    private val _lowStockError = MutableStateFlow<String?>(null)
+    val lowStockError: StateFlow<String?> = _lowStockError.asStateFlow()
+
+    fun fetchLowStockAlerts(warehouseId: String? = null) {
+        launchBusy {
+            _isLoadingLowStock.value = true
+            _lowStockError.value = null
+            val result = inventoryRepository.getLowStockAlerts(warehouseId)
+            _isLoadingLowStock.value = false
+            result.onSuccess { list ->
+                _lowStockItems.value = list
+            }.onFailure { error ->
+                _lowStockError.value = error.message ?: "Failed to load low stock alerts"
+            }
+        }
+    }
+
+    private val _isCreatingPO = MutableStateFlow(false)
+    val isCreatingPO: StateFlow<Boolean> = _isCreatingPO.asStateFlow()
+
+    private val _createPOError = MutableStateFlow<String?>(null)
+    val createPOError: StateFlow<String?> = _createPOError.asStateFlow()
+
+    fun createPurchaseOrder(
+        supplierId: String,
+        warehouseId: String,
+        itemId: String,
+        qty: Double,
+        rate: Double,
+        eta: String?,
+        notes: String?,
+        onSuccess: (PurchaseOrderData) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        launchBusy {
+            _isCreatingPO.value = true
+            _createPOError.value = null
+
+            val poItem = CreatePoItemRequest(
+                itemId = itemId,
+                qty = qty,
+                rate = rate,
+                taxPercent = 18.0
+            )
+
+            val request = CreatePurchaseOrderRequest(
+                supplierId = supplierId,
+                warehouseId = warehouseId,
+                eta = eta,
+                items = listOf(poItem),
+                internalNotes = notes?.takeIf { it.isNotBlank() }
+            )
+
+            val result = inventoryRepository.createPurchaseOrder(request)
+            _isCreatingPO.value = false
+
+            result.onSuccess { data ->
+                onSuccess(data)
+            }.onFailure { error ->
+                val clean = extractErrorMessage(error.message)
+                _createPOError.value = clean
+                onError(clean)
+            }
+        }
+    }
+
+    // ── Single Low Stock Item Detail for PO Creation ──
+    private val _reorderItemDetail = MutableStateFlow<LowStockItemDto?>(null)
+    val reorderItemDetail: StateFlow<LowStockItemDto?> = _reorderItemDetail.asStateFlow()
+
+    private val _isLoadingReorderDetail = MutableStateFlow(false)
+    val isLoadingReorderDetail: StateFlow<Boolean> = _isLoadingReorderDetail.asStateFlow()
+
+    private val _reorderDetailError = MutableStateFlow<String?>(null)
+    val reorderDetailError: StateFlow<String?> = _reorderDetailError.asStateFlow()
+
+    fun fetchLowStockItemDetail(itemId: String, warehouseId: String) {
+        launchBusy {
+            _isLoadingReorderDetail.value = true
+            _reorderDetailError.value = null
+            val result = inventoryRepository.getLowStockItemDetail(itemId, warehouseId)
+            _isLoadingReorderDetail.value = false
+
+            result.onSuccess { item ->
+                _reorderItemDetail.value = item
+            }.onFailure { error ->
+                _reorderDetailError.value = error.message ?: "Failed to fetch reorder item"
+            }
+        }
+    }
+
+    fun setReorderItemDirectly(item: LowStockItemDto?) {
+        _reorderItemDetail.value = item
+    }
+
+    fun clearReorderItemDetail() {
+        _reorderItemDetail.value = null
+        _reorderDetailError.value = null
     }
 
     private fun generateSku(itemName: String): String {

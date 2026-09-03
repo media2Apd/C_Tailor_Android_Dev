@@ -2,6 +2,9 @@
 
 package com.cuso.mobile.model.login_forgotPassword_resetPassword
 
+import com.google.gson.JsonElement
+import com.google.gson.annotations.SerializedName
+
 data class LoginData(
     val user: User,
     val tokens: Tokens
@@ -131,7 +134,7 @@ data class Plan(
     val departmentLimit: Int,
     val orderLimit: Int,
     val employeeLimit: Int,
-    val features: List<String>,
+    @SerializedName("features") val features: List<JsonElement>? = emptyList(),
     val isActive: Boolean,
     val createdAt: String,
     val updatedAt: String,

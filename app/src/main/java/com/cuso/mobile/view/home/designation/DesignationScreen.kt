@@ -39,6 +39,7 @@ import com.cuso.mobile.ui.theme.disabled
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCardStat
 import com.cuso.mobile.view.composable.DataCardStatsRow
@@ -217,24 +218,11 @@ fun DesignationScreen(
                                 when (uiState) {
                                     is DesignationUiState.Loading -> ListSkeleton()
                                     is DesignationUiState.Error -> {
-                                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(
-                                                    Icons.Default.Warning,
-                                                    null,
-                                                    tint = Color.Red,
-                                                    modifier = Modifier.size(tokens.iconSize * 2.6f)
-                                                )
-                                                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
-                                                Text("Something went wrong", fontSize = tokens.bodyMedium, color = Color.Red)
-                                                Button(
-                                                    onClick = { viewModel.loadDesignations() },
-                                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                                                ) {
-                                                    Text("Retry", fontSize = tokens.bodyMedium)
-                                                }
-                                            }
-                                        }
+                                        AppErrorState(
+                                            title = "Failed to load designation",
+                                            message = "Something went wrong. Please check your connection and try again.",
+                                            onRetry = { viewModel.loadDesignations() }
+                                        )
                                     }
                                     is DesignationUiState.Success -> {
                                         if (filteredDesignations.isEmpty()) {

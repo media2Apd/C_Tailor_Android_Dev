@@ -3,8 +3,8 @@
 package com.cuso.mobile.view.home.inventory.settings
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -17,7 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,7 +55,7 @@ fun HeaderAddButton(
 
 @Composable
 fun WarehouseDetailCard(
-    icon: ImageVector,
+    icon: Int,
     title: String,
     subtitle: String? = null,
     status: String? = null,
@@ -75,123 +75,213 @@ fun WarehouseDetailCard(
 ) {
     val tokens = LocalAppTokens.current
 
-    Column(
+    // ── Outer Card matching Image 1 ──
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 14.dp)
+            .padding(vertical = 3.dp),
+        color = whiteBg,
     ) {
-        // Header Row: Icon + Title/Subtitle + Status + Edit / Menu
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
+            // ── Header Row: Icon + Title/Subtitle + Status + Edit/Menu ──
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFEEF2FF)),
-                    contentAlignment = Alignment.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
-                }
-                Column {
-                    Text(title, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                    if (subtitle != null) {
-                        Text(subtitle, fontSize = tokens.caption, color = Color(0xFF6B7280))
+                    // ── Rounded Soft-Lilac Background Box for Hanger Icon ──
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFEFF2FE)), // Exact soft tint from design
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
-                    if (status != null) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFDCFCE7))
-                                .padding(horizontal = 6.dp, vertical = 1.dp)
-                        ) {
-                            Text(status, fontSize = 9.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Bold)
+
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = title,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E293B)
+                        )
+                        if (subtitle != null) {
+                            Text(
+                                text = subtitle,
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                        if (status != null) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFFDCFCE7))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = status,
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF16A34A),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = onEditClick,
-                    modifier = Modifier.height(28.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                    shape = RoundedCornerShape(6.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF6B7280), modifier = Modifier.size(12.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Edit", fontSize = tokens.caption, color = Color(0xFF374151))
-                }
-                IconButton(onClick = onMenuClick, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.MoreVert, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(18.dp))
+                    OutlinedButton(
+                        onClick = onEditClick,
+                        modifier = Modifier.height(30.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF475569))
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = null,
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "Edit",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF475569)
+                        )
+                    }
+                    IconButton(onClick = onMenuClick, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = null,
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
-        }
 
-        Spacer(Modifier.height(10.dp))
-        HorizontalDivider(color = Color(0xFFF1F5F9))
-        Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(thickness = 1.dp, color = Color(0xFFF1F5F9))
+            Spacer(Modifier.height(12.dp))
 
-        if (showFourGridBoxes) {
-            // 4-Box Grid layout (Location Structure Screen)
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (showFourGridBoxes) {
+                // 4-Box Grid layout (Location Structure Screen)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        MetricBox(
+                            title = "Sequence Order",
+                            value = sequenceOrder,
+                            modifier = Modifier.weight(1f)
+                        )
+                        MetricBox(
+                            title = "Total Sections",
+                            value = totalSections ?: "-",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        MetricBox(
+                            title = "Total Racks",
+                            value = totalRacks,
+                            modifier = Modifier.weight(1f)
+                        )
+                        MetricBox(
+                            title = "Total Bins",
+                            value = totalBins,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            } else {
+                // Key-Value List layout (Floor, Section, Rack, Bin Screens)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (locationName != null) {
+                        MetricRow(locationLabel, locationName)
+                    }
+                    MetricRow("Sequence Order", sequenceOrder)
+                    if (totalSections != null) {
+                        MetricRow("Total Sections", totalSections)
+                    }
+                    if (linkedCategory != null) {
+                        MetricRow("Linked Category", linkedCategory)
+                    }
+                    if (rackType != null) {
+                        MetricRow("Rack Type", rackType)
+                    }
+                    if (binType != null) {
+                        MetricRow("Bin Type", binType)
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                // 2 Metric Boxes
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    MetricBox(title = "Sequence Order", value = sequenceOrder, modifier = Modifier.weight(1f))
-                    MetricBox(title = "Total Sections", value = totalSections ?: "-", modifier = Modifier.weight(1f))
+                    MetricBox(
+                        title = "Total Racks",
+                        value = totalRacks,
+                        modifier = Modifier.weight(1f)
+                    )
+                    MetricBox(
+                        title = "Total Bins",
+                        value = totalBins,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    MetricBox(title = "Total Racks", value = totalRacks, modifier = Modifier.weight(1f))
-                    MetricBox(title = "Total Bins", value = totalBins, modifier = Modifier.weight(1f))
-                }
-            }
-        } else {
-            // Key-Value Stack layout (Floor, Section, Rack, Bin Screens)
-            if (locationName != null) {
-                MetricRow(locationLabel, locationName)
-            }
-            MetricRow("Sequence Order", sequenceOrder)
-            if (totalSections != null) {
-                MetricRow("Total Sections", totalSections)
-            }
-            if (linkedCategory != null) {
-                MetricRow("Linked Category", linkedCategory)
-            }
-            if (rackType != null) {
-                MetricRow("Rack Type", rackType)
-            }
-            if (binType != null) {
-                MetricRow("Bin Type", binType)
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(thickness = 1.dp, color = Color(0xFFF1F5F9))
+            Spacer(Modifier.height(12.dp))
 
-            // 2 Metric Boxes at bottom
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricBox(title = "Total Racks", value = totalRacks, modifier = Modifier.weight(1f))
-                MetricBox(title = "Total Bins", value = totalBins, modifier = Modifier.weight(1f))
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // Capacity Summary
-        Text("CAPACITY SUMMARY", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6B7280))
-        Spacer(Modifier.height(6.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            capacityMetrics.forEach { (label, value) ->
-                Column {
-                    Text(label, fontSize = tokens.caption, color = Color(0xFF9CA3AF))
-                    Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+            // ── Capacity Summary Section ──
+            Text(
+                text = "CAPACITY SUMMARY",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF64748B),
+                letterSpacing = 0.5.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                capacityMetrics.forEach { (label, value) ->
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = label,
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                        Text(
+                            text = value,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1E293B)
+                        )
+                    }
                 }
             }
         }
@@ -200,31 +290,46 @@ fun WarehouseDetailCard(
 
 @Composable
 private fun MetricBox(title: String, value: String, modifier: Modifier = Modifier) {
-    val tokens = LocalAppTokens.current
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFF8FAFC))
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFFF8FAFC)) // Soft background for count boxes
+            .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
-        Column {
-            Text(title, fontSize = tokens.caption, color = Color(0xFF6B7280))
-            Spacer(Modifier.height(2.dp))
-            Text(value, fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = title,
+                fontSize = 11.sp,
+                color = Color(0xFF64748B),
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = value,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E293B)
+            )
         }
     }
 }
 
 @Composable
 private fun MetricRow(label: String, value: String) {
-    val tokens = LocalAppTokens.current
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = tokens.bodySmall, color = Color(0xFF6B7280))
-        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = Color(0xFF64748B)
+        )
+        Text(
+            text = value,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF1E293B)
+        )
     }
 }

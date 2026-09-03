@@ -21,6 +21,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,8 +30,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Badge
-import androidx.compose.material.icons.outlined.Business
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -46,6 +45,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,13 +57,19 @@ import com.cuso.mobile.model.settings.UpdateOrganizationRequest
 import com.cuso.mobile.model.settings.UpdateOrganizationSettings
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.TextPrimary
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.close_color
 import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.redText
+import com.cuso.mobile.ui.theme.sectionBorder
 import com.cuso.mobile.ui.theme.statLogoBg
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AppErrorState
+import com.cuso.mobile.view.composable.AppUnderlineTabRow
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.CountryAndStatePicker
 import com.cuso.mobile.view.composable.DynamicIslandError
@@ -71,9 +77,7 @@ import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormTextField
 import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.composable.SettingsTabs
 import com.cuso.mobile.view.composable.StepNavigationFab
-import com.cuso.mobile.view.composable.TabItem
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.composable.dashedBorder
 import com.cuso.mobile.view.organization.OrgOptions
@@ -138,16 +142,7 @@ fun SettingsScreen(
     val tokens = LocalAppTokens.current
 
     // ── Define tabs with icons ──
-    val tabs = listOf(
-        TabItem(
-            label = "Profile",
-            icon = Icons.Outlined.Badge
-        ),
-        TabItem(
-            label = "Localization",
-            icon = Icons.Outlined.Business
-        )
-    )
+    val tabs = listOf("Profile", "Localization")
 
     val authViewModel: Authenticate = hiltViewModel()
     val tokensEntity by authViewModel.tokens.collectAsStateWithLifecycle()
@@ -179,25 +174,12 @@ fun SettingsScreen(
             }
         }
 
-        // ── Reusable Tabs (centered + width-capped on tablet) ──
+        // ── Reusable Underline Tab Row ──
         AdaptiveWidthContainer(tokens = tokens) {
-            SettingsTabs(
+            AppUnderlineTabRow(
                 tabs = tabs,
                 selectedIndex = selectedTab,
-                onTabSelected = { selectedTab = it },
-                modifier = Modifier.padding(
-                    horizontal = tokens.screenPadding,
-                    vertical = tokens.extraPadding
-                ),
-                containerColor = whiteBg,
-                selectedBackgroundColor = Color(0xFFEEF0FF),
-                selectedTextColor = Primary,
-                unselectedTextColor = TextSecondary,
-                selectedIconColor = Primary,
-                unselectedIconColor = TextSecondary,
-                borderColor = grey_border,
-                cornerRadius = 12.dp,
-                selectedCornerRadius = 10.dp
+                onTabSelected = { selectedTab = it }
             )
         }
 
@@ -560,9 +542,13 @@ fun ProfileTab(
         }
 
         is ProfileUiState.Error -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(state.message, color = Color.Red)
-            }
+            AppErrorState(
+                title = "Unable to load organization",
+                message = "We couldn't retrieve your organization profile. Please try again.",
+                onRetry = {
+                    if (token.isNotEmpty()) viewModel.loadOrganization(token)
+                }
+            )
         }
 
         is ProfileUiState.Success -> {
@@ -685,51 +671,47 @@ fun ProfileTab(
                         AdaptiveWidthContainer(tokens = tokens) {
                             Column(
                                 Modifier.fillMaxWidth()
+                                    .background(whiteBg)
                             ) {
                                 if (stats != null) {
                                     Spacer(Modifier.height(8.dp))
-                                    HorizontalDivider(color = OrgTheme.Divider)
 
                                     val plan = state.data.organization.plan
-                                    Row(
-                                        Modifier.fillMaxWidth()
-                                            .background(whiteBg)
-                                            .padding(horizontal = tokens.screenPadding + 4.dp, vertical = 10.dp)
-                                    ) {
-                                        Text(
-                                            "Subscription Usage",
-                                            fontSize = tokens.h2,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = OrgTheme.TextPrimary
-                                        )
-                                    }
-                                    Spacer(Modifier.height(16.dp))
-
-                                    Row(
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = tokens.extraPadding),
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                            .padding(horizontal = tokens.screenPadding),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        SubscriptionRing(
-                                            modifier = Modifier.weight(1f),
+                                        Row(Modifier.fillMaxWidth()
+                                            .padding(vertical = 10.dp)
+                                            ) {
+                                            Text(
+                                                "Subscription Usage",
+                                                fontSize = 16.sp,
+                                                color = title_color,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                        HorizontalDivider(color = sectionBorder)
+
+                                        SubscriptionUsageCard(
                                             label = "Orders",
                                             used = 0,
                                             limit = plan?.orderLimit ?: 100
                                         )
-                                        SubscriptionRing(
-                                            modifier = Modifier.weight(1f),
+
+                                        SubscriptionUsageCard(
                                             label = "Employees",
                                             used = org.activeMembers,
-                                            limit = plan?.employeeLimit
-                                                ?: org.totalMembers.coerceAtLeast(1)
+                                            limit = plan?.employeeLimit ?: org.totalMembers.coerceAtLeast(1)
                                         )
-                                        SubscriptionRing(
-                                            modifier = Modifier.weight(1f),
+
+                                        SubscriptionUsageCard(
                                             label = "Branches",
                                             used = stats.totalBranches,
-                                            limit = plan?.branchLimit
-                                                ?: stats.totalBranches.coerceAtLeast(1)
+                                            limit = plan?.branchLimit ?: stats.totalBranches.coerceAtLeast(1),
+                                            subtitle = "Usage across your plan limits"
                                         )
                                     }
                                     Spacer(Modifier.height(35.dp))
@@ -1057,70 +1039,122 @@ fun LocalizationTab(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Subscription Ring
+// Subscription Usage Card
 // ─────────────────────────────────────────────────────────────
 @Composable
-fun SubscriptionRing(
+fun SubscriptionUsageCard(
     modifier: Modifier = Modifier,
     label: String,
     used: Int,
-    limit: Int
+    limit: Int,
+    subtitle: String? = null
 ) {
     val tokens = LocalAppTokens.current
-    val ringDiameter = if (tokens.isTablet) 110.dp else 90.dp
-
     val pct = if (limit > 0) (used.toFloat() / limit) else 0f
     val remaining = (limit - used).coerceAtLeast(0)
+    val isLimitReached = pct >= 1f
+
     val ringColor = when {
-        pct >= 1f    -> Color(0xFFE24B4A)
-        pct >= 0.75f -> Color(0xFFEDA100)
-        else         -> Color(0xFF2A78D6)
+        isLimitReached -> redText             // Red at 100%
+        else           -> Primary
     }
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = modifier
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
+        border = BorderStroke(1.dp, sectionBorder)
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(ringDiameter)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val stroke = 10.dp.toPx()
-                val radius = (size.minDimension - stroke) / 2
-                val topLeft = Offset(stroke / 2, stroke / 2)
-                val arcSize = Size(radius * 2, radius * 2)
-                drawArc(
-                    color = Color(0xFFE1E0D9),
-                    startAngle = 0f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    topLeft = topLeft,
-                    size = arcSize,
-                    style = Stroke(width = stroke, cap = StrokeCap.Round)
-                )
-                if (pct > 0f) {
+            // ── Left: Circular Ring ──
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(54.dp)
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val stroke = 5.dp.toPx()
+                    val radius = (size.minDimension - stroke) / 2
+                    val topLeft = Offset(stroke / 2, stroke / 2)
+                    val arcSize = Size(radius * 2, radius * 2)
+
+                    // Track background circle
                     drawArc(
-                        color = ringColor,
-                        startAngle = -90f,
-                        sweepAngle = 360f * pct.coerceAtMost(1f),
+                        color = Color(0xFFEEF2F6),
+                        startAngle = 0f,
+                        sweepAngle = 360f,
                         useCenter = false,
                         topLeft = topLeft,
                         size = arcSize,
                         style = Stroke(width = stroke, cap = StrokeCap.Round)
                     )
+
+                    // Active progress sweep
+                    if (pct > 0f) {
+                        drawArc(
+                            color = ringColor,
+                            startAngle = -90f,
+                            sweepAngle = 360f * pct.coerceAtMost(1f),
+                            useCenter = false,
+                            topLeft = topLeft,
+                            size = arcSize,
+                            style = Stroke(width = stroke, cap = StrokeCap.Round)
+                        )
+                    }
+                }
+
+                Text(
+                    text = "${(pct * 100).roundToInt()}%",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            }
+
+            Spacer(Modifier.width(16.dp))
+
+            // ── Middle: Label & Subtitle ──
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Spacer(Modifier.height(2.dp))
+
+                if (isLimitReached) {
+                    Text(
+                        text = "0 remaining",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = redText
+                    )
+                    Text(
+                        text = subtitle ?: "Usage across your plan limits",
+                        fontSize = 11.sp,
+                        color = close_color
+                    )
+                } else {
+                    Text(
+                        text = "$remaining remaining",
+                        fontSize = 13.sp,
+                        color = close_color
+                    )
                 }
             }
+
+            // ── Right: Usage Ratio ──
             Text(
-                text = "${(pct * 100).roundToInt()}%",
-                fontSize = tokens.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = OrgTheme.TextPrimary
+                text = "$used / $limit",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
             )
         }
-        Text(text = label, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = OrgTheme.TextPrimary)
-        Text(text = "$used / $limit", fontSize = tokens.caption, color = OrgTheme.TextSecondary)
-        Text(text = "$remaining remaining", fontSize = tokens.caption, color = OrgTheme.mutedText)
     }
 }

@@ -108,6 +108,7 @@ import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.title_font
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.mobile.view.composable.SettingsTabs
 import com.cuso.mobile.view.composable.TabItem
@@ -1782,21 +1783,11 @@ fun LeadScreenContent(
                             ListSkeleton()
                         }
                         tableError != null -> {
-                            Box(
-                                modifier = Modifier.fillMaxSize().background(whiteBg, RoundedCornerShape(12.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
-                                    Spacer(Modifier.height(8.dp))
-                                    Text("Error loading leads", fontSize = tokens.bodyMedium, color = Color.Red, fontWeight = FontWeight.Bold)
-                                    Text("Something went wrong, Please try again after sometime", fontSize = tokens.bodyMedium, color = Color.Gray)
-                                    Spacer(Modifier.height(12.dp))
-                                    Button(onClick = { salesViewModel.fetchTableLeads() }) {
-                                        Text("Retry", fontSize = tokens.bodyMedium)
-                                    }
-                                }
-                            }
+                            AppErrorState(
+                                title = "Failed to load Leads",
+                                message = "Something went wrong. Please check your connection and try again.",
+                                onRetry = { salesViewModel.fetchTableLeads() }
+                            )
                         }
                         filteredLeads.isEmpty() -> {
                             Box(

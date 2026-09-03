@@ -7,6 +7,7 @@ import com.cuso.mobile.network.auth.AuthApiService
 import com.cuso.mobile.network.finance.FinanceApiService
 import com.cuso.mobile.network.hr.HrApiService
 import com.cuso.mobile.network.inventory.InventoryApiService
+import com.cuso.mobile.network.inventory.settings.InventorySettingsApiService
 import com.cuso.mobile.network.organization.OrganizationApiService
 import com.cuso.mobile.network.sales.SalesCustomerApiService
 import com.cuso.mobile.network.sales.SalesLeadApiService
@@ -29,7 +30,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "http://192.168.88.12:5000"
+    private const val BASE_URL = "http://192.168.88.25:5000"
 //     private const val BASE_URL = "https://cuso-tailor-production.onrender.com"
 
     // ---------------------------------------------------------
@@ -129,5 +130,11 @@ object NetworkModule {
     @Singleton
     fun provideSettingsApiService(retrofit: Retrofit): SalesSettingsApiService {
         return retrofit.create(SalesSettingsApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideInventorySettingsApiService(retrofit: Retrofit): InventorySettingsApiService {
+        return retrofit.create(InventorySettingsApiService::class.java)
     }
 }

@@ -89,20 +89,11 @@ fun ServiceStatusDetailScreen(
                 ListSkeleton()
             }
             is OrderViewUiState.Error -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Warning, null, tint = redText, modifier = Modifier.size(40.dp))
-                        Spacer(Modifier.height(12.dp))
-                        Text(state.message, color = redText, fontSize = tokens.bodySmall)
-                        Spacer(Modifier.height(16.dp))
-                        Button(
-                            onClick = { viewModel.getOrdersView(orderId) },
-                            colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                        ) {
-                            Text("Retry", fontSize = tokens.bodyMedium, color = whiteBg)
-                        }
-                    }
-                }
+                AppErrorState(
+                    title = "Failed to load dashboard",
+                    message = "Something went wrong. Please check your connection and try again.",
+                    onRetry = { viewModel.getOrdersView(orderId) }
+                )
             }
             is OrderViewUiState.Success -> {
                 ServiceStatusDetailContent(

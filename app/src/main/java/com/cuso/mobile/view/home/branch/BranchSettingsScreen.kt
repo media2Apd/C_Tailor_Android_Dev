@@ -42,6 +42,7 @@ import com.cuso.mobile.ui.theme.disabled
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -240,34 +241,11 @@ fun BranchSettingsScreen(
                                 when (uiState) {
                                     is BranchUiState.Loading -> ListSkeleton()
                                     is BranchUiState.Error -> {
-                                        Box(
-                                            Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(
-                                                    Icons.Default.Warning,
-                                                    null,
-                                                    tint = Color.Red,
-                                                    modifier = Modifier.size(48.dp)
-                                                )
-                                                Spacer(Modifier.height(8.dp))
-                                                Text(
-                                                    "Something went wrong, Please try again later",
-                                                    color = Color.Red
-                                                )
-                                                Spacer(Modifier.height(12.dp))
-                                                Button(
-                                                    onClick = { branchViewModel.refresh() },
-                                                    colors = ButtonDefaults.buttonColors(
-                                                        containerColor = Color(0xFF3B3BF9)
-                                                    ),
-                                                    shape = RoundedCornerShape(8.dp)
-                                                ) {
-                                                    Text("Retry", color = whiteBg)
-                                                }
-                                            }
-                                        }
+                                        AppErrorState(
+                                            title = "Failed to load branch",
+                                            message = "Something went wrong. Please check your connection and try again.",
+                                            onRetry = { branchViewModel.refresh() }
+                                        )
                                     }
 
                                     is BranchUiState.Success -> {

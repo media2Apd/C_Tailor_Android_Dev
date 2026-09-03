@@ -39,6 +39,7 @@ import com.cuso.mobile.model.finance.JournalEntryItem
 import com.cuso.mobile.model.finance.JournalEntryLineRequest
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.view.composable.AccordionSection
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.BackFabButton
 import com.cuso.mobile.view.composable.DatePickerField
 import com.cuso.mobile.view.composable.FormDropdown
@@ -296,11 +297,10 @@ fun JournalEntryFormScreen(
             ListSkeleton()
         }
         if (isPrefillMode && journalDetailError != null) {
-            Text(
-                journalDetailError ?: "Failed to load journal entry",
-                color = RedText,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(16.dp)
+            AppErrorState(
+                title = "Failed to load Journal entry form",
+                message = "Something went wrong. Please check your connection and try again.",
+                onRetry = {  }
             )
         }
 

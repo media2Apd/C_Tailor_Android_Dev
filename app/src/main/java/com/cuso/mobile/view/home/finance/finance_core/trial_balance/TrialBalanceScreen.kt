@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.finance.TrialBalanceItem
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.TitleBar
@@ -131,35 +132,11 @@ fun TrialBalanceScreen(
 
             // Error state with retry option
             errorMessage != null && items.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = RedText,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = errorMessage ?: "Something went wrong",
-                            color = RedText,
-                            fontSize = 14.sp
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = { financeViewModel.fetchTrialBalance() },
-                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Retry", color = whiteBg, fontSize = 14.sp)
-                        }
-                    }
-                }
+                AppErrorState(
+                    title = "Failed to load trial balance",
+                    message = "Something went wrong. Please check your connection and try again.",
+                    onRetry = { financeViewModel.fetchTrialBalance() }
+                )
             }
 
             // Empty state

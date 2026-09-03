@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package com.cuso.mobile.view.home.inventory.items
+package com.cuso.mobile.view.home.inventory.items.item_groups
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -96,7 +96,6 @@ fun AllItemGroupScreen(
 
 
             // ── Search + Filter ──
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
@@ -106,7 +105,7 @@ fun AllItemGroupScreen(
                     textSecondaryColor = MutedColor,
                     onFilterClick = { /* static — no-op */ }
                 )
-            }
+
 
             HorizontalDivider(color = title_border)
 

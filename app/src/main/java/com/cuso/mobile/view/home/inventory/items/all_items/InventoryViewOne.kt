@@ -39,6 +39,7 @@ import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.SettingsTabs
 import com.cuso.mobile.view.composable.TabItem
@@ -121,14 +122,11 @@ fun InventoryViewOne(
                         }
 
                         errorMessage != null -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = tokens.screenPadding * 2.5f, horizontal = tokens.screenPadding),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(errorMessage, color = RedText, textAlign = TextAlign.Center)
-                            }
+                            AppErrorState(
+                                title = "Failed to load inventory",
+                                message = "Something went wrong. Please check your connection and try again.",
+                                onRetry = {  }
+                            )
                         }
 
                         item != null -> {

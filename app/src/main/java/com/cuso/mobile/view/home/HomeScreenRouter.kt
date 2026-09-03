@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.cuso.mobile.model.inventory.LowStockItemDto
 import com.cuso.mobile.model.sales.CustomerItem
 import com.cuso.mobile.model.settings.SegmentItem
 import com.cuso.mobile.view.home.branch.BranchSettingsScreen
@@ -42,15 +43,14 @@ import com.cuso.mobile.view.home.hr.attendance.AttendanceScreen
 import com.cuso.mobile.view.home.hr.employees.AllEmployeesScreen
 import com.cuso.mobile.view.home.hr.employees.EmployeeOnboardingScreen
 import com.cuso.mobile.view.home.hr.employees.ScreenMode
-import com.cuso.mobile.view.home.inventory.items.AllItemGroupScreen
-import com.cuso.mobile.view.home.inventory.items.CreateItemGroupScreen
+import com.cuso.mobile.view.home.inventory.items.item_groups.AllItemGroupScreen
+import com.cuso.mobile.view.home.inventory.items.item_groups.CreateItemGroupScreen
 import com.cuso.mobile.view.home.inventory.items.all_items.AdjustmentType
 import com.cuso.mobile.view.home.inventory.items.all_items.CreateItemScreen
 import com.cuso.mobile.view.home.inventory.items.all_items.InventoryScreen
 import com.cuso.mobile.view.home.inventory.items.all_items.InventoryViewOne
 import com.cuso.mobile.view.home.inventory.procurement.orders.CreatePurchaseOrderScreen
 import com.cuso.mobile.view.home.inventory.procurement.orders.LowStockAlertsScreen
-import com.cuso.mobile.view.home.inventory.procurement.orders.LowStockItem
 import com.cuso.mobile.view.home.inventory.settings.AddBinScreen
 import com.cuso.mobile.view.home.inventory.settings.AddFloorScreen
 import com.cuso.mobile.view.home.inventory.settings.AddRackScreen
@@ -161,8 +161,8 @@ fun HomeScreenRouter(
     onPurchaseInvoiceSelected: (PurchaseInvoiceItem?) -> Unit,
     selectedInventoryItemId: String?,
     onInventoryItemIdSelected: (String?) -> Unit,
-    selectedLowStockItem: LowStockItem?,
-    onLowStockItemSelected: (LowStockItem?) -> Unit,
+    selectedLowStockItem: LowStockItemDto?,
+    onLowStockItemSelected: (LowStockItemDto?) -> Unit,
     selectedItemGroupId: String?,
     onItemGroupIdSelected: (String?) -> Unit,
     employeeScreenMode: ScreenMode,
@@ -317,38 +317,48 @@ fun HomeScreenRouter(
             onClose = onGoBack,
             onCreateNewTemplate = { onShowComingSoon("Create Template Coming Soon") }
         )
+        // ── Inventory Location Structure Routes ──
         "inventory_location_structure" -> LocationStructureScreen(
             onClose = onGoBack,
-            onAddLocation = { onNavigate("inventory_add_floor") }
+            onAddLocation = { onNavigate("inventory_add_floor") },
+            onFloorClick = { onNavigate("inventory_floor_overview") }
         )
+
         "inventory_floor_overview" -> FloorOverviewScreen(
             onClose = onGoBack,
             onAddFloor = { onNavigate("inventory_add_floor") }
         )
+
         "inventory_add_floor" -> AddFloorScreen(
             onClose = onGoBack,
             onSave = onGoBack
         )
+
         "inventory_section_overview" -> SectionOverviewScreen(
             onClose = onGoBack,
             onAddSection = { onNavigate("inventory_add_section") }
         )
+
         "inventory_add_section" -> AddSectionScreen(
             onClose = onGoBack,
             onSave = onGoBack
         )
+
         "inventory_rack_overview" -> RackOverviewScreen(
             onClose = onGoBack,
             onAddRack = { onNavigate("inventory_add_rack") }
         )
+
         "inventory_add_rack" -> AddRackScreen(
             onClose = onGoBack,
             onSave = onGoBack
         )
+
         "inventory_bin_overview" -> BinOverviewScreen(
             onClose = onGoBack,
             onAddBin = { onNavigate("inventory_add_bin") }
         )
+
         "inventory_add_bin" -> AddBinScreen(
             onClose = onGoBack,
             onSave = onGoBack
@@ -933,30 +943,43 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
-        "inventory_low_stock_alerts" -> LowStockAlertsScreen(
-            onClose = onGoBack,
-            onReorderClick = { item ->
-                onLowStockItemSelected(item)
-                onNavigate("inventory_create_purchase_order")
-            },
-            onCreateNewItem = { onNavigate("inventory_create_purchase_order") },
-            onBreadcrumbClick = { onOpenModulesPanel("Inventory") }
-        )
-        "inventory_create_purchase_order" -> CreatePurchaseOrderScreen(
-            onClose = {
-                onLowStockItemSelected(null)
-                onGoBack()
-            },
-            onCancel = {
-                onLowStockItemSelected(null)
-                onGoBack()
-            },
-            onCreateOrder = {
-                onLowStockItemSelected(null)
-                onGoBack()
-                onGoBack()
-            }
-        )
+        "inventory_low_stock_alerts" -> {
+            val inventoryViewModel: InventoryViewModel = hiltViewModel()
+            LowStockAlertsScreen(
+                onClose = onGoBack,
+                onReorderClick = { item ->
+                    onLowStockItemSelected(item)
+                    // Trigger API call for specific itemId + warehouseId
+                    if (item.warehouseId != null) {
+                        inventoryViewModel.fetchLowStockItemDetail(item.itemId, item.warehouseId)
+                    } else {
+                        inventoryViewModel.setReorderItemDirectly(item)
+                    }
+                    onNavigate("inventory_create_purchase_order")
+                },
+                onCreateNewItem = { onNavigate("inventory_create_item") },
+                onBreadcrumbClick = { onOpenModulesPanel("Inventory") }
+            )
+        }
+
+        "inventory_create_purchase_order" -> {
+            CreatePurchaseOrderScreen(
+                initialItem = selectedLowStockItem,
+                onClose = {
+                    onLowStockItemSelected(null)
+                    onGoBack()
+                },
+                onCancel = {
+                    onLowStockItemSelected(null)
+                    onGoBack()
+                },
+                onCreateOrder = {
+                    onLowStockItemSelected(null)
+                    onGoBack()
+                }
+            )
+        }
+
         "inventory_item_groups" -> AllItemGroupScreen(
             onDismiss = onGoBack,
             onAddItemGroup = { onNavigate("inventory_create_item_group") },

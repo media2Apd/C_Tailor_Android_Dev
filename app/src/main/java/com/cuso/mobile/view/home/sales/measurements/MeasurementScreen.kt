@@ -65,6 +65,7 @@ import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.ui.theme.yellowBg
 import com.cuso.mobile.ui.theme.yellowText
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
@@ -158,28 +159,11 @@ fun MeasurementsScreen(
                 }
 
                 is MeasurementsUiState.Error -> {
-                    Box(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(48.dp))
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                text = state.message,
-                                color = Color.Red,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 32.dp)
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            Button(
-                                onClick = { viewModel.loadMeasurements() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B3BF9))
-                            ) {
-                                Text("Retry", color = whiteBg)
-                            }
-                        }
-                    }
+                    AppErrorState(
+                        title = "Failed to load Measurement",
+                        message = "Something went wrong. Please check your connection and try again.",
+                        onRetry = { viewModel.loadMeasurements() }
+                    )
                 }
 
                 is MeasurementsUiState.Success -> {

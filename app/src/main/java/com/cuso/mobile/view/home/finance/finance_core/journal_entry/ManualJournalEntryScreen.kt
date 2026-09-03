@@ -29,6 +29,7 @@ import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.orangeBg
 import com.cuso.mobile.ui.theme.orangeText
 import com.cuso.mobile.ui.theme.title_border
+import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.FabConfig
@@ -200,9 +201,11 @@ fun ManualJournalEntryScreen(
                         ListSkeleton()
                     }
                     errorMessage != null && filteredEntries.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(text = errorMessage ?: "Something went wrong", color = Color.Red)
-                        }
+                        AppErrorState(
+                            title = "Failed to load manual journal entry",
+                            message = "Something went wrong. Please check your connection and try again.",
+                            onRetry = {  }
+                        )
                     }
                     filteredEntries.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

@@ -1,8 +1,11 @@
 package com.cuso.mobile.repository
 
+import com.cuso.mobile.model.inventory.CreatePurchaseOrderRequest
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.InventoryItemListResponse
 import com.cuso.mobile.model.inventory.InventoryItemviewone
+import com.cuso.mobile.model.inventory.LowStockItemDto
+import com.cuso.mobile.model.inventory.PurchaseOrderData
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.cuso.mobile.network.inventory.InventoryApiService
@@ -217,4 +220,55 @@ class InventoryRepository @Inject constructor(
         }
     }
 
+    //low stock alert
+    suspend fun getLowStockAlerts(warehouseId: String? = null): Result<List<LowStockItemDto>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getLowStockAlerts(accessToken, csrfToken, warehouseId)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.data ?: emptyList())
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch low stock alerts"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createPurchaseOrder(request: CreatePurchaseOrderRequest): Result<PurchaseOrderData> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.createPurchaseOrder(accessToken, csrfToken, request)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to create purchase order"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getLowStockItemDetail(
+        itemId: String,
+        warehouseId: String
+    ): Result<LowStockItemDto> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getLowStockItemDetail(accessToken, csrfToken, itemId, warehouseId)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch item details"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

@@ -121,7 +121,7 @@ fun PurchaseOrderHeaderCard(
                         color = Color(0xFF8B8FA3),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false) // 👈 Ellipsizes only the long name
+                        modifier = Modifier.weight(1f, fill = false) //  Ellipsizes only the long name
                     )
                     Text(
                         text = "•",
@@ -134,7 +134,7 @@ fun PurchaseOrderHeaderCard(
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFFE53935),
                         maxLines = 1,
-                        softWrap = false // 👈 Prevents vertical wrapping of "15 pcs"
+                        softWrap = false //  Prevents vertical wrapping of "15 pcs"
                     )
                 }
 

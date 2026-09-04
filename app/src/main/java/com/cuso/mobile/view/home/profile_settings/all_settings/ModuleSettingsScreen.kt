@@ -73,6 +73,7 @@ fun ModuleSettingsScreen(
     onNavigateBinOverview: () -> Unit = { onNavigateToModule("inventory_bin_overview") },
     onConfigureLogistics: () -> Unit = { onNavigateToModule("logistics_delivery") },
     onConfigureServices: () -> Unit = { onNavigateToModule("services_service_status") },
+    onNavigateServiceTemplates: () -> Unit = { onNavigateToModule("services_service_templates") },
     onConfigureHR: () -> Unit = { onNavigateToModule("hr_all_employees") },
     onConfigureIT: () -> Unit = {},
     onConfigureLegal: () -> Unit = {},
@@ -178,6 +179,9 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.services,
                 tags = listOf("Service Orders", "Workflow", "Status Rules"),
                 isConfigured = true,
+                subItems = listOf(
+                    ModuleSubItem(title = "Service Templates", onClick = onNavigateServiceTemplates)
+                ),
                 onConfigure = onConfigureServices
             ),
             ModuleSettingItem(
@@ -269,7 +273,8 @@ fun ModuleSettingsScreen(
 
 @Composable
 fun ModuleSettingCard(module: ModuleSettingItem) {
-    var isExpanded by remember { mutableStateOf(module.subItems.isNotEmpty()) }
+    // Default-ah close (false) ஆக வைக்கப்பட்டுள்ளது
+    var isExpanded by remember { mutableStateOf(false) }
 
     val statusBg = if (module.isConfigured) Color(0xFFE6F7ED) else Color(0xFFFEF3C7)
     val statusTextColor = if (module.isConfigured) Color(0xFF10B981) else Color(0xFFD97706)

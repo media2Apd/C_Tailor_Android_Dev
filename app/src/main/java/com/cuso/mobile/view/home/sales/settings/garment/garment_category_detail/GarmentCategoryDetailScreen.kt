@@ -43,6 +43,7 @@ import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.SettingsViewModel
+
 enum class GarmentConfigStep {
     GARMENT_LIST,
     GARMENT_PROFILE,
@@ -85,7 +86,7 @@ fun GarmentCategoryDetailScreen(
 ) {
     var currentStep by remember { mutableStateOf(GarmentConfigStep.GARMENT_LIST) }
     var selectedStyle by remember { mutableStateOf<GarmentStyleItem?>(null) }
-    var isConfigurationActive by remember { mutableStateOf(false) }
+    var isConfigurationActive by remember { mutableStateOf(true) }
 
     // In-memory list of measurement fields for active style configuration
     val activeMeasurementFields = remember { mutableStateListOf<StyleMeasurementFieldEntry>() }
@@ -157,7 +158,7 @@ fun GarmentCategoryDetailScreen(
                 onAddGarmentCategoryClick = onAddGarmentCategoryClick,
                 onConfigureGarmentClick = { styleItem ->
                     selectedStyle = styleItem
-                    isConfigurationActive = styleItem.isActive
+                    isConfigurationActive = styleItem.status.equals("ACTIVE", ignoreCase = true)
                     activeMeasurementFields.clear()
                     activeMeasurementFields.addAll(mergeAllMeasurementFields(styleItem))
                     viewModel.fetchGarmentCategoryById(styleItem.id)
@@ -343,9 +344,10 @@ private fun GarmentCategoryListView(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(styles, key = { it.id }) { item ->
-                        val statusText = if (item.isActive) "ACTIVE" else "DRAFT"
-                        val statusBg = if (item.isActive) greenBg else yellowBg
-                        val statusTextColor = if (item.isActive) darkGreenBg else yellowText
+                        val isActive = item.status.equals("ACTIVE", ignoreCase = true)
+                        val statusText = if (isActive) "ACTIVE" else "DRAFT"
+                        val statusBg = if (isActive) greenBg else yellowBg
+                        val statusTextColor = if (isActive) darkGreenBg else yellowText
                         val fieldsCount = item.measurementFields.size
                         val requiredCount = item.measurementFields.count { it.isRequired }
                         val charge = item.stitchingCharge.toInt()
@@ -429,6 +431,7 @@ private fun GarmentCategoryListView(
         }
     }
 }
+
 // Helper to merge fields from both category and parent garment without duplicates
 fun mergeAllMeasurementFields(styleItem: GarmentStyleItem): List<StyleMeasurementFieldEntry> {
     val mergedList = mutableListOf<StyleMeasurementFieldEntry>()
@@ -452,6 +455,7 @@ fun mergeAllMeasurementFields(styleItem: GarmentStyleItem): List<StyleMeasuremen
 
     return mergedList
 }
+
 // ─────────────────────────────────────────────────────────────
 // Garment Profile Config Screen
 // ─────────────────────────────────────────────────────────────
@@ -461,7 +465,7 @@ fun GarmentProfileConfigScreen(
     activeFields: MutableList<StyleMeasurementFieldEntry> = remember { mutableStateListOf() },
     styleId: String? = garmentStyle?.id,
     profileTitle: String = garmentStyle?.displayName ?: garmentStyle?.name ?: "Garment Profile",
-    isActive: Boolean = garmentStyle?.isActive ?: false,
+    isActive: Boolean = garmentStyle?.status.equals("ACTIVE", ignoreCase = true),
     viewModel: SettingsViewModel = hiltViewModel(),
     groupsList: List<MeasurementGroupItem> = emptyList(),
     onClose: () -> Unit,
@@ -513,8 +517,9 @@ fun GarmentProfileConfigScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            val badgeColor = if (currentEffectiveStyle?.isActive == true) Color(0xFF10B981) else Color(0xFFF59E0B)
-                            val badgeText = if (currentEffectiveStyle?.isActive == true) "ACTIVE CONFIGURATION" else "DRAFT MODE"
+                            val isEffectiveActive = currentEffectiveStyle?.status.equals("ACTIVE", ignoreCase = true)
+                            val badgeColor = if (isEffectiveActive) Color(0xFF10B981) else Color(0xFFF59E0B)
+                            val badgeText = if (isEffectiveActive) "ACTIVE CONFIGURATION" else "DRAFT MODE"
                             Box(
                                 modifier = Modifier
                                     .size(6.dp)
@@ -1764,5 +1769,3 @@ fun DeleteMeasurementFieldDialog(
         }
     }
 }
-
-

@@ -52,7 +52,7 @@ import com.cuso.mobile.view.organization.OrganizationProfile
 import com.cuso.mobile.view.home.HomeScreen
 import com.cuso.mobile.view.home.sales.lead.LeadScreenContent
 import com.cuso.mobile.view.home.OrderFlowNavigator
-import com.cuso.mobile.view.home.profile_settings.SettingsScreen
+import com.cuso.mobile.view.home.profile_settings.setup_pages.SettingsScreen
 import com.cuso.mobile.view.home.branch.BranchSettingsScreen
 import com.cuso.mobile.view.home.sales.sales_order.SalesOrderScreen
 import com.cuso.mobile.view.home.department.DepartmentSettingsScreen

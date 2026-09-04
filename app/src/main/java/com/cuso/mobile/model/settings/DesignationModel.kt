@@ -21,7 +21,7 @@ data class DesignationListResponse(
 data class DesignationCreateRequest(
     val name: String,
     val code: String,
-    val description: String
+    val description: String?
 )
 
 data class DesignationCreateResponse(

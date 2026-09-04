@@ -459,6 +459,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "services_service_request",
             "create_request",
             "review_services",
+            "services_service_templates",
+            "services_create_service_template",
 
             // ── Reports ──
             "reports_sales",

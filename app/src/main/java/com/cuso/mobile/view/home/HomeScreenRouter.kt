@@ -69,7 +69,7 @@ import com.cuso.mobile.view.home.logistics.order_tracking.OrderTrackingScreen
 import com.cuso.mobile.view.home.logistics.order_tracking.TrackingOverviewScreen
 import com.cuso.mobile.view.home.opening_balance.OpeningBalancesScreen
 import com.cuso.mobile.view.home.profile_settings.ProfileSettingsScreen
-import com.cuso.mobile.view.home.profile_settings.SettingsScreen
+import com.cuso.mobile.view.home.profile_settings.setup_pages.SettingsScreen
 import com.cuso.mobile.view.home.profile_settings.all_settings.ModuleSettingsScreen
 import com.cuso.mobile.view.home.profile_settings.all_settings.SettingsOverviewScreen
 import com.cuso.mobile.view.home.reports.finance.FinanceReportPage
@@ -118,6 +118,8 @@ import com.cuso.mobile.view.home.services.service_status.delay_rework.DelayRewor
 import com.cuso.mobile.view.home.services.service_status.service_delivery.ServiceDeliveryStatusScreen
 import com.cuso.mobile.view.home.services.service_status.status.ServiceStatusDetailScreen
 import com.cuso.mobile.view.home.services.service_status.status.ServiceStatusScreen
+import com.cuso.mobile.view.home.services.settings.CreateServiceTemplateWizardScreen
+import com.cuso.mobile.view.home.services.settings.ServiceTemplateListScreen
 import com.cuso.mobile.view.home.warehouse.WarehouseSettingsScreen
 import com.cuso.mobile.viewmodel.*
 
@@ -285,7 +287,6 @@ fun HomeScreenRouter(
             onConfigureMarketing = { onShowComingSoon("Marketing Settings Coming Soon") },
             onConfigureFinance = { onSafeNavigate("finance_chart_of_accounts") },
             onConfigureInventory = { onSafeNavigate("inventory_allocation_rules") },
-            // Inventory 7 Sub-routes linked to new screens
             onNavigateAllocationRules = { onSafeNavigate("inventory_allocation_rules") },
             onNavigatePdfTemplates = { onSafeNavigate("inventory_pdf_templates") },
             onNavigateLocationStructure = { onSafeNavigate("inventory_location_structure") },
@@ -295,6 +296,7 @@ fun HomeScreenRouter(
             onNavigateBinOverview = { onSafeNavigate("inventory_bin_overview") },
             onConfigureLogistics = { onSafeNavigate("logistics_delivery") },
             onConfigureServices = { onSafeNavigate("services_service_status") },
+            onNavigateServiceTemplates = { onSafeNavigate("services_service_templates") },
             onConfigureHR = { onSafeNavigate("hr_all_employees") },
             onConfigureIT = { onShowComingSoon("IT Settings Coming Soon") },
             onConfigureLegal = { onShowComingSoon("Legal Settings Coming Soon") },
@@ -1208,6 +1210,22 @@ fun HomeScreenRouter(
                 onFeedbackIdSelected(null)
                 onGoBack()
             }
+        )
+        // ─────────────────────────────────────────────────────────────
+        // Service settings
+        // ─────────────────────────────────────────────────────────────
+        // ── Service Templates Navigation Routes ──
+        "services_service_templates" -> ServiceTemplateListScreen(
+            onClose = onGoBack,
+            onAddNewTemplate = { onNavigate("services_create_service_template") },
+            onViewTemplate = { template ->
+                onNavigate("services_view_service_template")
+            }
+        )
+
+        "services_create_service_template" -> CreateServiceTemplateWizardScreen(
+            onClose = onGoBack,
+            onTemplateCreated = onGoBack
         )
 
         // ─────────────────────────────────────────────────────────────

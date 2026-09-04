@@ -4,6 +4,7 @@ package com.cuso.mobile.view.home.sales.settings.garment
 
 import android.annotation.SuppressLint
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,6 +31,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.model.settings.GarmentItem
 import com.cuso.mobile.model.settings.SegmentItem
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.DynamicIslandError
@@ -49,7 +51,10 @@ fun SalesSettingsScreen(
     onMenuClick: () -> Unit = {},
     onAddSegmentClick: () -> Unit = {},
     onEditSegmentClick: (SegmentItem) -> Unit = {},
+    onToggleSegmentStatusClick: (SegmentItem, String) -> Unit = { _, _ -> },
     onAddGarmentClick: () -> Unit = {},
+    onEditGarmentClick: (GarmentItem) -> Unit = {},
+    onCommonMeasurementsClick: (GarmentItem) -> Unit = {},
     onConfigureGarmentClick: (segmentId: String, garmentId: String, garmentTitle: String) -> Unit = { _, _, _ -> },
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -57,7 +62,10 @@ fun SalesSettingsScreen(
         onClose = onClose,
         onAddSegmentClick = onAddSegmentClick,
         onEditSegmentClick = onEditSegmentClick,
+        onToggleSegmentStatusClick = onToggleSegmentStatusClick,
         onAddGarmentClick = onAddGarmentClick,
+        onEditGarmentClick = onEditGarmentClick,
+        onCommonMeasurementsClick = onCommonMeasurementsClick,
         onConfigureGarmentClick = onConfigureGarmentClick,
         viewModel = viewModel
     )
@@ -69,7 +77,10 @@ fun GarmentTypeContent(
     onClose: () -> Unit = {},
     onAddSegmentClick: () -> Unit = {},
     onEditSegmentClick: (SegmentItem) -> Unit = {},
+    onToggleSegmentStatusClick: (SegmentItem, String) -> Unit = { _, _ -> },
     onAddGarmentClick: () -> Unit = {},
+    onEditGarmentClick: (GarmentItem) -> Unit = {},
+    onCommonMeasurementsClick: (GarmentItem) -> Unit = {},
     onConfigureGarmentClick: (segmentId: String, garmentId: String, garmentTitle: String) -> Unit = { _, _, _ -> },
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -87,6 +98,10 @@ fun GarmentTypeContent(
     var selectedSegmentIndex by remember { mutableIntStateOf(0) }
     var menuExpandedSegmentId by remember { mutableStateOf<String?>(null) }
     var segmentToDelete by remember { mutableStateOf<SegmentItem?>(null) }
+    var garmentToDelete by remember { mutableStateOf<GarmentItem?>(null) }
+
+    var segmentToToggleStatus by remember { mutableStateOf<SegmentItem?>(null) }
+    var garmentToToggleStatus by remember { mutableStateOf<GarmentItem?>(null) }
 
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -108,13 +123,11 @@ fun GarmentTypeContent(
         }
     }
 
-    // Currently Selected Segment
     val selectedSegment = if (segments.isNotEmpty()) {
         val safeIndex = selectedSegmentIndex.coerceIn(0, segments.size - 1)
         segments[safeIndex]
     } else null
 
-    // Filter garments based on applicableSegments array matching the selected segment
     val filteredGarments = remember(garments, selectedSegment, searchQuery) {
         garments.filter { garment ->
             val matchesSegment = if (selectedSegment == null) true else {
@@ -195,6 +208,7 @@ fun GarmentTypeContent(
 
                                         if (isSelected) {
                                             Spacer(Modifier.width(4.dp))
+
                                             Box {
                                                 Box(
                                                     modifier = Modifier
@@ -244,6 +258,26 @@ fun GarmentTypeContent(
                                                         onClick = {
                                                             menuExpandedSegmentId = null
                                                             segmentToDelete = segmentItem
+                                                        }
+                                                    )
+
+                                                    val statusActionText = when (segmentItem.status?.lowercase()) {
+                                                        "active" -> "Inactive"
+                                                        "draft", "inactive" -> "Active"
+                                                        else -> "Active"
+                                                    }
+
+                                                    DropdownMenuItem(
+                                                        text = {
+                                                            Text(
+                                                                text = statusActionText,
+                                                                fontSize = tokens.bodyMedium,
+                                                                color = title_color
+                                                            )
+                                                        },
+                                                        onClick = {
+                                                            menuExpandedSegmentId = null
+                                                            segmentToToggleStatus = segmentItem
                                                         }
                                                     )
                                                 }
@@ -321,24 +355,34 @@ fun GarmentTypeContent(
                             items = filteredGarments,
                             key = { _, item -> item.id }
                         ) { _, item ->
-                            val configuredStatus = if (item.measurementFields.isNotEmpty()) "CONFIGURED" else "NOT STARTED"
                             val fieldsCount = item.measurementFields.size
                             val measurementsCount = item.measurementFields.count { it.isRequired }
+                            val subtitleText = "$fieldsCount Fields · $measurementsCount Measurements"
 
-                            // Inside GarmentTypeContent LazyColumn items:
                             GarmentCategoryCard(
                                 title = item.displayName ?: item.name,
-                                subtitle = "${item.measurementFields.size} Fields",
-                                status = if (item.measurementFields.isNotEmpty()) "CONFIGURED" else "NOT STARTED",
+                                subtitle = subtitleText,
                                 iconRes = R.drawable.ic_shirts,
+                                garmentStatus = item.status,
                                 onConfigureClick = {
-                                    // Ensure selectedSegment and item.id are not null
                                     val segId = selectedSegment?.id ?: ""
                                     val garmId = item.id
                                     val title = "${selectedSegment?.name.orEmpty()} ${item.displayName ?: item.name}".trim()
 
                                     Log.d("NAV_PARAM", "Clicked segmentId: $segId, garmentId: $garmId")
                                     onConfigureGarmentClick(segId, garmId, title)
+                                },
+                                onCommonMeasurementsClick = {
+                                    onCommonMeasurementsClick(item)
+                                },
+                                onEditGarmentClick = {
+                                    onEditGarmentClick(item)
+                                },
+                                onRemoveGarmentClick = {
+                                    garmentToDelete = item
+                                },
+                                onToggleGarmentStatusClick = {
+                                    garmentToToggleStatus = item
                                 }
                             )
                         }
@@ -347,7 +391,52 @@ fun GarmentTypeContent(
             }
         }
 
-        // Delete Confirmation Dialog
+        // Delete Garment Confirmation Dialog
+        garmentToDelete?.let { garment ->
+            AlertDialog(
+                onDismissRequest = { garmentToDelete = null },
+                containerColor = whiteBg,
+                title = {
+                    Text(
+                        text = "Remove Garment",
+                        fontSize = tokens.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = title_color
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Are you sure you want to remove \"${garment.displayName ?: garment.name}\"?",
+                        fontSize = tokens.bodyMedium,
+                        color = TextSecondary
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            garmentToDelete = null
+                            successMessage = "Garment removed successfully"
+                        }
+                    ) {
+                        Text(
+                            text = "Remove",
+                            color = redText,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { garmentToDelete = null }) {
+                        Text(
+                            text = "Cancel",
+                            color = TextSecondary
+                        )
+                    }
+                }
+            )
+        }
+
+        // Delete Segment Confirmation Dialog
         segmentToDelete?.let { segment ->
             AlertDialog(
                 onDismissRequest = { segmentToDelete = null },
@@ -402,6 +491,57 @@ fun GarmentTypeContent(
             )
         }
 
+        segmentToToggleStatus?.let { segment ->
+            val isCurrentlyActive = segment.status?.equals("active", ignoreCase = true) == true
+            val newStatus = if (isCurrentlyActive) "Inactive" else "Active"
+
+            ToggleSegmentStatusDialog(
+                isActivating = !isCurrentlyActive,
+                segmentName = segment.name,
+                entityLabel = "Segment",
+                onDismiss = { segmentToToggleStatus = null },
+                onConfirm = {
+                    segmentToToggleStatus = null
+                    viewModel.changeSegmentStatus(
+                        id = segment.id,
+                        status = newStatus,
+                        onSuccess = { msg ->
+                            successMessage = msg
+                            onToggleSegmentStatusClick(segment, newStatus)
+                        },
+                        onError = { err ->
+                            errorMessage = ErrorMapper.map(err)
+                        }
+                    )
+                }
+            )
+        }
+
+        garmentToToggleStatus?.let { garment ->
+            val isCurrentlyActive = garment.status?.equals("active", ignoreCase = true) == true
+            val newStatus = if (isCurrentlyActive) "Inactive" else "Active"
+
+            ToggleSegmentStatusDialog(
+                isActivating = !isCurrentlyActive,
+                segmentName = garment.displayName ?: garment.name,
+                entityLabel = "Garment",
+                onDismiss = { garmentToToggleStatus = null },
+                onConfirm = {
+                    garmentToToggleStatus = null
+                    viewModel.changeGarmentStatus(
+                        id = garment.id,
+                        status = newStatus,
+                        onSuccess = { msg ->
+                            successMessage = msg
+                        },
+                        onError = { err ->
+                            errorMessage = ErrorMapper.map(err)
+                        }
+                    )
+                }
+            )
+        }
+
         DynamicIslandSuccess(
             message = successMessage,
             onDismiss = { successMessage = null }
@@ -414,15 +554,110 @@ fun GarmentTypeContent(
     }
 }
 
+// ─────────────────────────────────────────────────────────────
+// Toggle Segment Status Confirmation Dialog
+// ─────────────────────────────────────────────────────────────
+@Composable
+fun ToggleSegmentStatusDialog(
+    isActivating: Boolean,
+    segmentName: String,
+    entityLabel: String = "Segment",
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    val dialogTitle = if (isActivating) "Activate $entityLabel?" else "Deactivate $entityLabel?"
+    val dialogMessage = if (isActivating) {
+        "Activating \"$segmentName\" will make it available for use across the app."
+    } else {
+        "Deactivating \"$segmentName\" will hide it from selection until reactivated."
+    }
+    val confirmLabel = if (isActivating) "Activate" else "Deactivate"
+    val confirmColor = if (isActivating) darkGreenBg else redText
+
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White,
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .padding(vertical = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = dialogTitle,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = title_color,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    text = dialogMessage,
+                    fontSize = 12.sp,
+                    color = TextSecondary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    lineHeight = 17.sp
+                )
+
+                Spacer(Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                    ) {
+                        Text("Cancel", color = title_color, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
+
+                    Button(
+                        onClick = onConfirm,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = confirmColor),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                    ) {
+                        Text(confirmLabel, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+// ─────────────────────────────────────────────────────────────
+//  GarmentCategoryCard
+// ─────────────────────────────────────────────────────────────
 @Composable
 fun GarmentCategoryCard(
     title: String,
     subtitle: String,
-    status: String,
     iconRes: Int,
-    onConfigureClick: () -> Unit
+    garmentStatus: String? = null,
+    onConfigureClick: () -> Unit,
+    onCommonMeasurementsClick: () -> Unit = {},
+    onEditGarmentClick: () -> Unit = {},
+    onRemoveGarmentClick: () -> Unit = {},
+    onToggleGarmentStatusClick: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
+    var menuExpanded by remember { mutableStateOf(false) }
 
     Card(
         shape = RoundedCornerShape(tokens.cardCornerRadius),
@@ -440,6 +675,7 @@ fun GarmentCategoryCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Icon Box
                 Box(
                     modifier = Modifier
                         .size(tokens.fieldHeight)
@@ -456,6 +692,7 @@ fun GarmentCategoryCard(
 
                 Spacer(Modifier.width(12.dp))
 
+                // Title and Subtitle
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
@@ -471,13 +708,93 @@ fun GarmentCategoryCard(
                     )
                 }
 
-                Spacer(Modifier.width(8.dp))
+                // 3-dot More Options Menu
+                Box {
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Garment Options",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
 
-                CategoryStatusBadge(status = status)
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        containerColor = whiteBg,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Common Measurements",
+                                    fontSize = tokens.bodyMedium,
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onCommonMeasurementsClick()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Edit Garment",
+                                    fontSize = tokens.bodyMedium,
+                                    color = TextPrimary
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onEditGarmentClick()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Remove Garment",
+                                    fontSize = tokens.bodyMedium,
+                                    color = TextPrimary
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onRemoveGarmentClick()
+                            }
+                        )
+
+                        val statusActionText = when (garmentStatus?.lowercase()) {
+                            "active" -> "Inactive"
+                            "draft", "inactive" -> "Active"
+                            else -> "Active"
+                        }
+
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = statusActionText,
+                                    fontSize = tokens.bodyMedium,
+                                    color = title_color
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onToggleGarmentStatusClick()
+                            }
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(10.dp))
 
+            // Configure Link
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))

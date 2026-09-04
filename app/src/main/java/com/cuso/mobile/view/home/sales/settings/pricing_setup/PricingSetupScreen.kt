@@ -120,7 +120,8 @@ fun PricingSetupScreen(
         }
     ) { padding ->
         FabScaffold(
-            fab = fabConfig,
+            fab = null,
+//            fab=fabConfig,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)

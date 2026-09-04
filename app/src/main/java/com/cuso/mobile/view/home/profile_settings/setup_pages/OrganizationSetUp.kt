@@ -14,7 +14,7 @@
     "VariableNeverRead"
 )
 
-package com.cuso.mobile.view.home.profile_settings
+package com.cuso.mobile.view.home.profile_settings.setup_pages
 
 import android.content.Context
 import android.net.Uri

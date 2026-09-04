@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -57,6 +58,7 @@ private val LabelColor = Color(0xFF8A8A99)
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun FormDropdown(
+    modifier: Modifier = Modifier,
     label: String? = null,
     value: String = "",
     expanded: Boolean,
@@ -77,22 +79,14 @@ fun FormDropdown(
     val isAppBusy by AppLoadingManager.busyState.collectAsState()
     val effectiveEnabled = enabled && !isAppBusy
 
-    if (!label.isNullOrEmpty()) {
-        FormLabel(label, isRequired)
-    } else {
-        Spacer(Modifier.height(tokens.screenPadding * 0.375f))
-    }
-
     val density = LocalDensity.current
     var triggerWidthPx by remember { mutableIntStateOf(0) }
 
-    // Dropdown arrow rotation animation
     val arrowRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
         label = "DropdownArrowRotation"
     )
 
-    // Compute display text based on selection mode
     val displayText = remember(value, isMultiSelect, selectedOptions) {
         when {
             isMultiSelect -> {
@@ -109,111 +103,125 @@ fun FormDropdown(
         }
     }
 
-    Box {
-        // Trigger Box
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .onGloballyPositioned { coordinates -> triggerWidthPx = coordinates.size.width }
-                .height(tokens.fieldHeight)
-                .background(
-                    if (effectiveEnabled) whiteBg else light_grey,
-                    RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                )
-                .border(
-                    1.dp,
-                    if (isError) redText else grey_border,
-                    RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                )
-                .clickable(enabled = effectiveEnabled) { onExpandChange(!expanded) }
-                .padding(horizontal = tokens.cardPadding * 0.6f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = displayText,
-                fontSize = tokens.bodySmall,
-                maxLines = maxLines,
-                overflow = TextOverflow.Ellipsis,
-                color = when {
-                    !effectiveEnabled -> Color(0xFF9CA3AF)
-                    displayText == "Select an option" || displayText == "Select options" -> Color(0xFF9CA3AF)
-                    else -> Color(0xFF374151)
-                },
-                modifier = Modifier.weight(1f, fill = false)
-            )
-
-            Spacer(Modifier.width(tokens.cardPadding * 0.3f))
-
-            Icon(
-                Icons.Default.KeyboardArrowDown,
-                contentDescription = null,
-                tint = if (effectiveEnabled) Color.Gray else Color(0xFFD1D5DB),
-                modifier = Modifier.graphicsLayer { rotationZ = arrowRotation }
-            )
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        if (!label.isNullOrEmpty()) {
+            FormLabel(text = label, isRequired = isRequired)
         }
 
-        // Dropdown Menu
-        if (effectiveEnabled) {
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { onExpandChange(false) },
-                containerColor = whiteBg,
-                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
+        Box {
+            Row(
                 modifier = Modifier
-                    .width(with(density) { triggerWidthPx.toDp() })
-                    .heightIn(max = tokens.fieldHeight * 5f)
+                    .fillMaxWidth()
+                    .onGloballyPositioned { coordinates -> triggerWidthPx = coordinates.size.width }
+                    .height(tokens.fieldHeight)
+                    .background(
+                        if (effectiveEnabled) whiteBg else light_grey,
+                        RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                    )
+                    .border(
+                        1.dp,
+                        if (isError) redText else grey_border,
+                        RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                    )
+                    .clickable(enabled = effectiveEnabled) { onExpandChange(!expanded) }
+                    .padding(horizontal = tokens.cardPadding * 0.6f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                options.forEach { option ->
-                    if (isMultiSelect) {
-                        val isSelected = selectedOptions.contains(option)
-                        // Multi-select row with background highlighting (No Checkbox)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(if (isSelected) disabled else Color.Transparent)
-                                .clickable {
-                                    val updatedList = if (isSelected) {
-                                        selectedOptions - option
-                                    } else {
-                                        selectedOptions + option
+                Text(
+                    text = displayText,
+                    fontSize = tokens.bodySmall,
+                    maxLines = maxLines,
+                    overflow = TextOverflow.Ellipsis,
+                    color = when {
+                        !effectiveEnabled -> Color(0xFF9CA3AF)
+                        displayText == "Select an option" || displayText == "Select options" -> Color(0xFF9CA3AF)
+                        else -> Color(0xFF374151)
+                    },
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+
+                Spacer(Modifier.width(tokens.cardPadding * 0.3f))
+
+                Icon(
+                    Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = if (effectiveEnabled) Color.Gray else Color(0xFFD1D5DB),
+                    modifier = Modifier.graphicsLayer { rotationZ = arrowRotation }
+                )
+            }
+
+            if (effectiveEnabled) {
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { onExpandChange(false) },
+                    containerColor = whiteBg,
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
+                    modifier = Modifier
+                        .width(with(density) { triggerWidthPx.toDp() })
+                        .heightIn(max = tokens.fieldHeight * 5f)
+                ) {
+                    options.forEach { option ->
+                        if (isMultiSelect) {
+                            val isSelected = selectedOptions.contains(option)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(if (isSelected) disabled else Color.Transparent)
+                                    .clickable {
+                                        val updatedList = if (isSelected) {
+                                            selectedOptions - option
+                                        } else {
+                                            selectedOptions + option
+                                        }
+                                        onMultiOptionSelected(updatedList)
                                     }
-                                    onMultiOptionSelected(updatedList)
-                                }
-                                .padding(
-                                    horizontal = tokens.cardPadding * 0.6f,
-                                    vertical = tokens.screenPadding * 0.5f
-                                ),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
+                                    .padding(
+                                        horizontal = tokens.cardPadding * 0.6f,
+                                        vertical = tokens.screenPadding * 0.5f
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = option,
+                                    fontSize = tokens.bodyMedium,
+                                    color = if (isSelected) Primary else Color(0xFF374151),
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                )
+                            }
+                        } else {
                             Text(
                                 text = option,
                                 fontSize = tokens.bodyMedium,
-                                color = if (isSelected) Primary else Color(0xFF374151),
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                color = Color(0xFF374151),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onOptionSelected(option)
+                                        onExpandChange(false)
+                                    }
+                                    .padding(
+                                        horizontal = tokens.cardPadding * 0.6f,
+                                        vertical = tokens.screenPadding * 0.5f
+                                    )
                             )
                         }
-                    } else {
-                        // Single-select row
-                        Text(
-                            text = option,
-                            fontSize = tokens.bodyMedium,
-                            color = Color(0xFF374151),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onOptionSelected(option)
-                                    onExpandChange(false)
-                                }
-                                .padding(
-                                    horizontal = tokens.cardPadding * 0.6f,
-                                    vertical = tokens.screenPadding * 0.5f
-                                )
-                        )
                     }
                 }
             }
+        }
+
+        if (isError && !errorMessage.isNullOrBlank()) {
+            Text(
+                text = errorMessage,
+                fontSize = tokens.label,
+                color = redText,
+                modifier = Modifier.padding(start = 4.dp)
+            )
         }
     }
 }

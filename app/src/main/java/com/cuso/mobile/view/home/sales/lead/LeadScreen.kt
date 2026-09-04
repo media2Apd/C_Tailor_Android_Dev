@@ -153,19 +153,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.collections.get
 import kotlin.text.ifEmpty
 
-// ─────────────────────────────────────────────────────────────
-// Reusable "Lead Form" UI kit
-// All font sizes / screen-level paddings now come from
-// LocalAppTokens.current (AppDesignTokens) instead of hardcoded sp/dp,
-// so this whole module scales across compact / medium / expanded windows.
-// ─────────────────────────────────────────────────────────────
-
-/**
- * Single source of truth for what the lead form screen is doing.
- * CREATE -> blank form, "Create Lead" button, POST call
- * VIEW   -> read-only fields, "Edit Lead" trailing FAB, no API write
- * EDIT   -> editable fields (prefilled), "Update Lead" trailing FAB, PATCH call
- */
 enum class LeadFormMode {
     CREATE, VIEW, EDIT
 }
@@ -382,12 +369,6 @@ private fun validateLeadFields(
     return "Missing: ${missing.first()}" + if (missing.size > 1) " (+${missing.size - 1} more)" else ""
 }
 
-// ─────────────────────────────────────────────────────────────
-//   Lead → Order local mapping (no API call).
-//   Takes whatever is currently filled in on the form and turns
-//   it directly into an OrderReviewData that CreateOrderScreen
-//   already knows how to prefill itself from.
-// ─────────────────────────────────────────────────────────────
 private fun buildOrderReviewDataFromLead(
     leadId: String,
     fullName: String,
@@ -444,17 +425,14 @@ private fun buildOrderReviewDataFromLead(
     )
 }
 
-// ─────────────────────────────────────────────────────────────
-// LeadFormScreen — single screen for Create / View / Edit
-// ─────────────────────────────────────────────────────────────
 @SuppressLint("AutoboxingStateCreation")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LeadFormScreen(
     mode: LeadFormMode,
     onBack: () -> Unit,
-    onEditRequested: () -> Unit = {},          // used only in VIEW mode ("Edit Lead" FAB)
-    onConvertToOrder: (OrderReviewData) -> Unit = {}  // used only in EDIT mode
+    onEditRequested: () -> Unit = {},
+    onConvertToOrder: (OrderReviewData) -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
     val salesViewModel: SalesViewModel = hiltViewModel()
@@ -463,7 +441,6 @@ fun LeadFormScreen(
     val isView = mode == LeadFormMode.VIEW
     val isEdit = mode == LeadFormMode.EDIT
 
-    // ---- Source lead (null for CREATE, populated for VIEW/EDIT) ----
     val selectedLead by salesViewModel.selectedLead.collectAsStateWithLifecycle()
     val isLoadingLead by salesViewModel.isLoadingLeadDetails.collectAsStateWithLifecycle()
     val leadDetailsError by salesViewModel.leadDetailsError.collectAsStateWithLifecycle()
@@ -477,7 +454,6 @@ fun LeadFormScreen(
     val salesStatuses by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
 
-    // 1. Initial Garments list
     val initialGarmentNames = remember(l?.garments, garmentCategories) {
         if (!l?.garments.isNullOrBlank() && garmentCategories.isNotEmpty()) {
             val ids = l.garments.split(",").filter { it.isNotBlank() }
@@ -494,14 +470,11 @@ fun LeadFormScreen(
         if (!isCreate && salesStatuses.isEmpty()) salesViewModel.fetchSalesData()
     }
 
-    // VIEW / EDIT need the lead to already be loaded (LeadScreenContent calls
-    // fetchLeadDetails before navigating in). If it's missing, bail out.
     if (!isCreate && l == null && !isLoadingLead && leadDetailsError == null) {
         LaunchedEffect(Unit) { onBack() }
         return
     }
 
-    // Only show full screen loader on initial entry when lead data is not yet in memory
     if (!isCreate && l == null && isLoadingLead) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -535,7 +508,6 @@ fun LeadFormScreen(
         return
     }
 
-    // ---- Field state, seeded from `l` when present, blank for CREATE ----
     var leadSource        by remember { mutableStateOf(l?.source ?: "") }
     var enquiryDate       by remember { mutableStateOf(l?.let { formatLeadDate(it.enquiryDate) } ?: "") }
     var leadOwner         by remember { mutableStateOf(l?.leadOwner ?: "") }
@@ -577,7 +549,6 @@ fun LeadFormScreen(
     var assignedStaffExpanded    by remember { mutableStateOf(false) }
     var priorityExpanded         by remember { mutableStateOf(false) }
 
-    // VIEW defaults to Lead Info expanded, everything else collapsed (matches old ViewLeadScreen / EditLeadScreen)
     var expandedSection by remember { mutableStateOf("lead_info") }
 
     var errorField by remember { mutableStateOf<String?>(null) }
@@ -613,7 +584,7 @@ fun LeadFormScreen(
     val staffDisplayList   = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
     val staffIdMap         = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
     val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == (if (isEdit) assignedStaff else leadOwner) }?.key
-        ?: (if (isCreate) "" else "")
+        ?: ""
     val leadOwnerLabel     = staffIdMap.entries.firstOrNull { it.value == leadOwner }?.key ?: ""
     val assignedStaffLabel = staffIdMap.entries.firstOrNull { it.value == assignedStaff }?.key ?: ""
 
@@ -622,7 +593,6 @@ fun LeadFormScreen(
     val garmentIdMap       = garmentCategories.associate { it.categoryId.categoryName to it.id }
     val garmentOptions     = garmentCategories.map { it.categoryId.categoryName }
 
-    // Prefill garment chips from the lead once categories are loaded (VIEW + EDIT).
     LaunchedEffect(l?.garments, garmentCategories) {
         if (!isCreate && garmentCategories.isNotEmpty() && !l?.garments.isNullOrBlank()) {
             val ids = l.garments.split(",").filter { it.isNotBlank() }
@@ -652,16 +622,9 @@ fun LeadFormScreen(
     }
 
     fun buildRequest(): CreateLeadFormRequest {
-        /**
-         * Helper function to safely convert date strings to ISO format.
-         * If the [toIsoDate] utility returns an empty string (which can happen if the
-         * input is already in ISO format or the format is unrecognized), it returns
-         * the original [dateStr] to prevent sending empty values to the API.
-         */
         fun safeIsoDate(dateStr: String): String {
             return if (dateStr.isNotBlank()) {
                 val converted = dateStr.toIsoDate()
-                // If conversion results in an empty string, fallback to the original value
                 converted.ifBlank { dateStr }
             } else {
                 ""
@@ -673,13 +636,9 @@ fun LeadFormScreen(
             enquiryType = enquiryType,
             estimatedQuantity = estimatedQuantity.toIntOrNull() ?: 0,
             budgetRange = BudgetRange(min = budgetRange.toInt(), max = 250000),
-            // Map selected category display names back to their respective database IDs
             garments = selectedGarmentCategories.mapNotNull { garmentIdMap[it] },
-
-            // Safely convert primary lead dates
             enquiryDate = safeIsoDate(enquiryDate),
             requiredDate = safeIsoDate(requiredDate),
-
             source = leadSource,
             leadOwner = leadOwner,
             person = LeadPerson(
@@ -687,7 +646,6 @@ fun LeadFormScreen(
                 phone = phone,
                 email = email,
                 gender = gender,
-                // Safely convert date of birth
                 dob = safeIsoDate(dob)
             ),
             contact = LeadContact(
@@ -698,7 +656,6 @@ fun LeadFormScreen(
             ),
             appointment = LeadAppointment(
                 isRequired = appointmentRequired,
-                // Safely convert appointment related dates if required
                 date = if (appointmentRequired) safeIsoDate(appointmentDate) else null,
                 time = if (appointmentRequired) appointmentTime.takeIf { it.isNotBlank() } else null,
                 assignedStaff = assignedStaff.takeIf { it.isNotBlank() },
@@ -710,7 +667,6 @@ fun LeadFormScreen(
             notes = buildList {
                 if (internalNotes.isNotBlank()) add(LeadNote(internalNotes, "internal"))
                 if (customerNotes.isNotBlank()) add(LeadNote(customerNotes, "customer"))
-                // During edit mode, if both notes are blank, provide a default placeholder
                 if (isEdit && internalNotes.isBlank() && customerNotes.isBlank()) {
                     add(LeadNote("-", "internal"))
                 }
@@ -718,7 +674,7 @@ fun LeadFormScreen(
             occasion = if (isEdit) l?.occasion ?: occasion else occasion
         )
     }
-    // ---- Mode-aware submit: CREATE -> createLead, EDIT -> updateLeadById ----
+
     fun submitLead() {
         val baseFields = buildList {
             add(ValidationField("leadSource", leadSource, "Lead Source is required"))
@@ -799,7 +755,6 @@ fun LeadFormScreen(
         }
     }
 
-
     LaunchedEffect(updateState) {
         if (!isEdit) return@LaunchedEffect
         when (val state = updateState) {
@@ -808,13 +763,10 @@ fun LeadFormScreen(
                 salesViewModel.fetchTableLeads()
 
                 delay(1200)
-
-                // Reset update state first so it doesn't re-trigger
                 salesViewModel.resetUpdateState()
 
-                // Refresh the lead details for the View screen
                 l?.id?.let { leadId ->
-                    salesViewModel.fetchLeadDetails(leadId) { /* Refresh completed */ }
+                    salesViewModel.fetchLeadDetails(leadId) { }
                 }
 
                 onBack()
@@ -827,7 +779,6 @@ fun LeadFormScreen(
         }
     }
 
-    // Synchronize form fields whenever the selected lead data updates
     LaunchedEffect(l) {
         if (l != null) {
             leadSource = l.source
@@ -860,7 +811,6 @@ fun LeadFormScreen(
         }
     }
 
-    // ---- Mode-aware chrome text ----
     val screenTitle = when (mode) {
         LeadFormMode.CREATE -> "Create Lead"
         LeadFormMode.VIEW -> "View Lead"
@@ -919,9 +869,12 @@ fun LeadFormScreen(
                                     ViewFieldValue("Lead Status", leadStatus.ifEmpty { "—" })
                                 } else {
                                     FormDropdown(
-                                        "Lead Source", leadSource.ifEmpty { "Select an option" },
-                                        leadSourceExpanded, { leadSourceExpanded = it },
-                                        leadSourceOptions, { leadSource = it },
+                                        label = "Lead Source",
+                                        value = leadSource.ifEmpty { "Select an option" },
+                                        expanded = leadSourceExpanded,
+                                        onExpandChange = { leadSourceExpanded = it },
+                                        options = leadSourceOptions,
+                                        onOptionSelected = { leadSource = it },
                                         isRequired = true,
                                         isError = errorField == "leadSource",
                                         errorMessage = if (errorField == "leadSource") "Lead Source is required" else null
@@ -935,24 +888,24 @@ fun LeadFormScreen(
                                     )
                                     Spacer(Modifier.height(14.dp))
                                     FormDropdown(
-                                        "Lead Owner",
-                                        leadOwnerLabel.ifEmpty { if (isLoadingStaff) "Loading staff..." else "Select an option" },
-                                        leadOwnerExpanded,
-                                        { leadOwnerExpanded = it },
-                                        staffDisplayList,
-                                        { label -> leadOwner = staffIdMap[label] ?: "" },
+                                        label = "Lead Owner",
+                                        value = leadOwnerLabel.ifEmpty { if (isLoadingStaff) "Loading staff..." else "Select an option" },
+                                        expanded = leadOwnerExpanded,
+                                        onExpandChange = { leadOwnerExpanded = it },
+                                        options = staffDisplayList,
+                                        onOptionSelected = { label -> leadOwner = staffIdMap[label] ?: "" },
                                         isRequired = true,
                                         isError = errorField == "leadOwner",
                                         errorMessage = if (errorField == "leadOwner") "Lead Owner is required" else null
                                     )
                                     Spacer(Modifier.height(14.dp))
                                     FormDropdown(
-                                        "Lead Status",
-                                        leadStatus.ifEmpty { "Select an option" },
-                                        leadStatusExpanded,
-                                        { leadStatusExpanded = it },
-                                        statusOptions,
-                                        { leadStatus = it },
+                                        label = "Lead Status",
+                                        value = leadStatus.ifEmpty { "Select an option" },
+                                        expanded = leadStatusExpanded,
+                                        onExpandChange = { leadStatusExpanded = it },
+                                        options = statusOptions,
+                                        onOptionSelected = { leadStatus = it },
                                         isRequired = true,
                                         isError = errorField == "leadStatus",
                                         errorMessage = if (errorField == "leadStatus") "Lead Status is required" else null
@@ -1044,12 +997,12 @@ fun LeadFormScreen(
                                     if (customerType == "Individual") {
                                         Spacer(Modifier.height(14.dp))
                                         FormDropdown(
-                                            "Gender",
-                                            gender.ifEmpty { "Select an option" },
-                                            genderExpanded,
-                                            { genderExpanded = it },
-                                            genderOptions,
-                                            { gender = it }
+                                            label = "Gender",
+                                            value = gender.ifEmpty { "Select an option" },
+                                            expanded = genderExpanded,
+                                            onExpandChange = { genderExpanded = it },
+                                            options = genderOptions,
+                                            onOptionSelected = { gender = it }
                                         )
                                         Spacer(Modifier.height(14.dp))
                                         FormLabel("Date of Birth")
@@ -1084,14 +1037,13 @@ fun LeadFormScreen(
                                     FormTextField(value = city, onValueChange = { city = it })
                                     Spacer(Modifier.height(14.dp))
                                     FormDropdown(
-                                        "Preferred Contact Method",
-                                        preferredContact.ifEmpty { "Select an option" },
-                                        preferredContactExpanded,
-                                        { preferredContactExpanded = it },
-                                        preferredContactOptions,
-                                        { preferredContact = it },
-                                        isRequired = true,
-
+                                        label = "Preferred Contact Method",
+                                        value = preferredContact.ifEmpty { "Select an option" },
+                                        expanded = preferredContactExpanded,
+                                        onExpandChange = { preferredContactExpanded = it },
+                                        options = preferredContactOptions,
+                                        onOptionSelected = { preferredContact = it },
+                                        isRequired = true
                                     )
                                 }
                             }
@@ -1153,12 +1105,12 @@ fun LeadFormScreen(
                                     ViewFieldValue("Occasion", occasion.ifEmpty { "—" })
                                 } else {
                                     FormDropdown(
-                                        "Enquiry Type",
-                                        enquiryType.ifEmpty { "Select an option" },
-                                        enquiryTypeExpanded,
-                                        { enquiryTypeExpanded = it },
-                                        enquiryTypeOptions,
-                                        { enquiryType = it },
+                                        label = "Enquiry Type",
+                                        value = enquiryType.ifEmpty { "Select an option" },
+                                        expanded = enquiryTypeExpanded,
+                                        onExpandChange = { enquiryTypeExpanded = it },
+                                        options = enquiryTypeOptions,
+                                        onOptionSelected = { enquiryType = it },
                                         isError = errorField == "enquiryType",
                                         errorMessage = if (errorField == "enquiryType") "Enquiry Type is required" else null
                                     )
@@ -1312,12 +1264,12 @@ fun LeadFormScreen(
                                         TimePickerField(value = appointmentTime, onTimeSelected = { appointmentTime = it })
                                         Spacer(Modifier.height(14.dp))
                                         FormDropdown(
-                                            "Assigned Staff",
-                                            assignedStaffLabel.ifEmpty { if (isLoadingStaff) "Loading staff..." else "Select an option" },
-                                            assignedStaffExpanded && !isLoadingStaff,
-                                            { assignedStaffExpanded = it },
-                                            staffDisplayList,
-                                            { label -> assignedStaff = staffIdMap[label] ?: "" },
+                                            label = "Assigned Staff",
+                                            value = assignedStaffLabel.ifEmpty { if (isLoadingStaff) "Loading staff..." else "Select an option" },
+                                            expanded = assignedStaffExpanded && !isLoadingStaff,
+                                            onExpandChange = { assignedStaffExpanded = it },
+                                            options = staffDisplayList,
+                                            onOptionSelected = { label -> assignedStaff = staffIdMap[label] ?: "" },
                                             isError = errorField == "assignedStaff",
                                             errorMessage = if (errorField == "assignedStaff") "Assigned Staff is required" else null
                                         )
@@ -1326,12 +1278,12 @@ fun LeadFormScreen(
                                         DatePickerField(value = followUpDate, onDateSelected = { followUpDate = it })
                                         Spacer(Modifier.height(14.dp))
                                         FormDropdown(
-                                            "Priority",
-                                            priority.ifEmpty { "Select an option" },
-                                            priorityExpanded,
-                                            { priorityExpanded = it },
-                                            priorityOptions,
-                                            { priority = it },
+                                            label = "Priority",
+                                            value = priority.ifEmpty { "Select an option" },
+                                            expanded = priorityExpanded,
+                                            onExpandChange = { priorityExpanded = it },
+                                            options = priorityOptions,
+                                            onOptionSelected = { priority = it },
                                             isRequired = true,
                                             isError = errorField == "priority",
                                             errorMessage = if (errorField == "priority") "Priority is required" else null
@@ -1359,13 +1311,13 @@ fun LeadFormScreen(
                                     FormLabel("Internal Notes")
                                     FormTextArea(
                                         value = internalNotes,
-                                        onValueChange = {internalNotes = it}
+                                        onValueChange = { internalNotes = it }
                                     )
                                     Spacer(Modifier.height(14.dp))
                                     FormLabel("Customer Notes")
                                     FormTextArea(
                                         value = customerNotes,
-                                        onValueChange = {customerNotes = it}
+                                        onValueChange = { customerNotes = it }
                                     )
                                 }
                             }
@@ -1455,12 +1407,6 @@ fun LeadFormScreen(
             message = successMessage,
             onDismiss = { successMessage = null }
         )
-
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = validationError,
-            onDismiss = { validationError = null }
-        )
     }
 
     if (isEdit && showConvertDialog) {
@@ -1490,11 +1436,6 @@ fun LeadFormScreen(
     }
 }
 
-
-
-// ─────────────────────────────────────────────────────────────
-// LeadScreenContent — unchanged (list screen, unrelated to form merge)
-// ─────────────────────────────────────────────────────────────
 @Composable
 fun LeadScreenContent(
     onCreateLead: () -> Unit = {},
@@ -1622,7 +1563,6 @@ fun LeadScreenContent(
                 personName.contains(searchQuery, ignoreCase = true) ||
                 enquiryType.contains(searchQuery, ignoreCase = true)
 
-        // 2. Status Match
         val statusName = when (val status = lead.status) {
             is String -> status
             is Map<*, *> -> (status["name"] as? String) ?: ""
@@ -1633,20 +1573,17 @@ fun LeadScreenContent(
         val matchesStatus = selectedStatusLabels.isEmpty() ||
                 selectedStatusLabels.any { it.equals(statusName, ignoreCase = true) }
 
-        // 3. Source Match
         val selectedSourceLabels = filterSections.find { it.title == "Source" }
             ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
         val matchesSource = selectedSourceLabels.isEmpty() ||
                 selectedSourceLabels.any { it.equals(lead.source, ignoreCase = true) }
 
-        // 4. Garments Match
         val garmentName = getGarmentName(lead)
         val selectedGarmentLabels = filterSections.find { it.title == "Garments" }
             ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
         val matchesGarments = selectedGarmentLabels.isEmpty() ||
                 selectedGarmentLabels.any { it.equals(garmentName, ignoreCase = true) }
 
-        // 5. Amount Range Match (null-safe budget check)
         val minAmountFilter = filterSections.find { it.title == "Amount Range" }?.minAmount?.toIntOrNull()
         val maxAmountFilter = filterSections.find { it.title == "Amount Range" }?.maxAmount?.toIntOrNull()
         val leadMinBudget = lead.budgetRange.min
@@ -1654,7 +1591,6 @@ fun LeadScreenContent(
         val matchesAmount = (minAmountFilter == null || leadMaxBudget >= minAmountFilter) &&
                 (maxAmountFilter == null || leadMinBudget <= maxAmountFilter)
 
-        // 6. Priority Match
         val selectedPriority = filterSections.find { it.title == "Priority" }
             ?.options
             ?.find { it.isSelected }
@@ -1670,7 +1606,6 @@ fun LeadScreenContent(
             }
         }
 
-        // 7. Sales Person Match
         val selectedStaffIds = filterSections.find { it.title == "Sales Person" }
             ?.options?.filter { it.isSelected }?.map { it.id } ?: emptyList()
         val assignedStaffId = lead.appointment?.assignedStaff
@@ -1764,7 +1699,6 @@ fun LeadScreenContent(
                 }
 
                 Column(modifier = Modifier.fillMaxWidth()) {
-
                     SearchFilterBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
@@ -1956,9 +1890,6 @@ fun ViewFieldValue(label: String, value: String?) {
     HorizontalDivider(color = Color(0xFFF5F5F5), modifier = Modifier.padding(top = 4.dp))
 }
 
-// ─────────────────────────────────────────────────────────────
-// Reusable Budget Range Slider
-// ─────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BudgetRangeSlider(

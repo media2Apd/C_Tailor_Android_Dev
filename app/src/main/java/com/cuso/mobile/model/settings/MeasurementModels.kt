@@ -1,5 +1,6 @@
 package com.cuso.mobile.model.settings
 
+import com.cuso.mobile.model.sales.PaginationInfo
 import com.google.gson.annotations.SerializedName
 
 // ── Measurement Field List Response ──

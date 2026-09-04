@@ -120,7 +120,7 @@ fun StatusBadge(
         modifier = modifier
             .clip(RoundedCornerShape(cornerRadius))
             .background(bgColor)
-            .padding(horizontal = 10.dp, vertical = 0.dp),
+            .padding(horizontal = 10.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (showDot) {
@@ -249,6 +249,7 @@ fun <T> DataCard(
     content: (@Composable () -> Unit)? = null,
     showDateIcon: Boolean = true,
     showActionsInHeader: Boolean = false,
+    showHeaderDivider: Boolean = false,
     showDivider: Boolean = true
 ) {
     val tokens = LocalAppTokens.current
@@ -290,7 +291,7 @@ fun <T> DataCard(
                 .let { m -> if (containerBrush != null) m.background(containerBrush) else m }
                 .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
         ) {
-            // --- 1. Top Header Row: Shown when eyebrow / dateText / non-inline badge exists ---
+            // Header Row: Displayed when eyebrow, date, or header action icons are defined
             if (showHeaderRow) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -338,10 +339,10 @@ fun <T> DataCard(
                 Spacer(Modifier.height(6.dp))
             }
 
-            // --- 2. Main Identity Row: Image + Title/Subtitle + Inline Badge + Actions ---
+            // Primary Identity Row: Image, Title, Subtitle, Inline Badge, and Actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 if (image != null) {
                     val avatarSize = if (tokens.isTablet) image.size * 1.2f else image.size
@@ -365,7 +366,7 @@ fun <T> DataCard(
                     if (formattedTitle != null) {
                         Text(
                             text = formattedTitle,
-                            fontSize = tokens.bodyMedium,
+                            fontSize = 17.sp,
                             fontWeight = titleFontWeight,
                             color = titleColor,
                             maxLines = 1,
@@ -378,14 +379,13 @@ fun <T> DataCard(
                         Text(
                             text = subtitle,
                             fontSize = tokens.caption,
-                            color = Color(0xFF6B7280),
+                            color = Color(0xFF64748B),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                // Inline badge (e.g. Active with dot) on the same line
                 if (topBadgeText != null && topBadgeInline) {
                     Spacer(Modifier.width(8.dp))
                     StatusBadge(
@@ -398,7 +398,6 @@ fun <T> DataCard(
                     )
                 }
 
-                // Action Menu on the same line
                 if (actions.isNotEmpty() && !showActionsInHeader) {
                     Spacer(Modifier.width(6.dp))
                     ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = actions)
@@ -412,15 +411,23 @@ fun <T> DataCard(
                 }
             }
 
-            // --- 3. Restored Multi-mode Footer System ---
-            if (footerFields.isNotEmpty() || footerTags.isNotEmpty() || trailingText != null) {
+            // Divider separating the identity section from content body
+            if (showHeaderDivider) {
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+            }
+
+            // Custom Content Slot
+            if (content != null) {
+                Spacer(Modifier.height(10.dp))
+                content()
+            } else if (footerFields.isNotEmpty() || footerTags.isNotEmpty() || trailingText != null) {
                 Spacer(Modifier.height(10.dp))
 
                 val columnFields = footerFields.filter { it.asColumn || footerAsColumns }
                 val rowFields = footerFields.filter { (it.asRow || footerAsRows) && !it.asColumn && !footerAsColumns }
                 val plainFields = footerFields.filter { !it.asRow && !it.asColumn && !footerAsRows && !footerAsColumns }
 
-                // Mode 1: Column format (Left & Right vertical stacks)
                 if (columnFields.isNotEmpty()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -455,7 +462,6 @@ fun <T> DataCard(
                     }
                 }
 
-                // Mode 2: Row format (Horizontal Label-on-Left, Value-on-Right lines for Customer/Invoice screens)
                 if (rowFields.isNotEmpty()) {
                     Column(
                         modifier = Modifier.padding(top = if (columnFields.isNotEmpty()) 8.dp else 0.dp),
@@ -485,7 +491,6 @@ fun <T> DataCard(
                     }
                 }
 
-                // Mode 3: Plain fields (Left side list) + Footer Tags / Trailing Text on Right
                 if (plainFields.isNotEmpty() || footerTags.isNotEmpty() || trailingText != null) {
                     Row(
                         modifier = Modifier
@@ -549,11 +554,6 @@ fun <T> DataCard(
                         }
                     }
                 }
-            }
-
-            if (content != null) {
-                Spacer(Modifier.height(10.dp))
-                content()
             }
         }
     }

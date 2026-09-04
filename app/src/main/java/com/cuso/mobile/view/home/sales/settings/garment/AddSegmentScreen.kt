@@ -51,8 +51,7 @@ fun AddSegmentScreen(
     var segmentCode by remember { mutableStateOf(activeSegment?.code ?: "") }
     var description by remember { mutableStateOf(activeSegment?.description ?: "") }
     var displayOrder by remember { mutableStateOf(activeSegment?.displayOrder?.toString() ?: "5") }
-    var isActiveStatus by remember { mutableStateOf(activeSegment?.isActive ?: true) }
-
+    var status by remember { mutableStateOf(activeSegment?.status ?: "Active") }
     // Pre-fill form fields whenever segment data is available
     LaunchedEffect(activeSegment) {
         activeSegment?.let { segment ->
@@ -60,7 +59,7 @@ fun AddSegmentScreen(
             segmentCode = segment.code
             description = segment.description ?: ""
             displayOrder = segment.displayOrder.toString()
-            isActiveStatus = segment.isActive
+            status = segment.status ?: "Active"
         }
     }
 
@@ -189,7 +188,7 @@ fun AddSegmentScreen(
                             code = segmentCode.ifBlank { segmentName.trim().uppercase().replace(" ", "_") },
                             description = description,
                             displayOrder = displayOrder.toIntOrNull() ?: 0,
-                            isActive = isActiveStatus,
+                            status = status,
                             onSuccess = {
                                 successMessage = "Segment updated successfully"
                                 onSegmentSaved()
@@ -204,8 +203,7 @@ fun AddSegmentScreen(
                             code = segmentCode.ifBlank { segmentName.trim().uppercase().replace(" ", "_") },
                             description = description,
                             displayOrder = displayOrder.toIntOrNull() ?: 0,
-                            isActive = isActiveStatus,
-                            onSuccess = {
+                            status = status.equals("Active", ignoreCase = true),                            onSuccess = {
                                 successMessage = "Segment created successfully"
                                 onSegmentSaved()
                             },

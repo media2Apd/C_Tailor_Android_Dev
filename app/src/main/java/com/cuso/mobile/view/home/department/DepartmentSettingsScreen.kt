@@ -8,13 +8,14 @@
 )
 package com.cuso.mobile.view.home.department
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,59 +23,60 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
-import com.cuso.mobile.model.settings.DepartmentItem
 import com.cuso.mobile.model.sales.StaffDto
+import com.cuso.mobile.model.settings.DepartmentItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
-import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextSecondary
-import com.cuso.mobile.ui.theme.disabled
+import com.cuso.mobile.ui.theme.close_color
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AppErrorState
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
-import com.cuso.mobile.view.composable.PlanLimits
 import com.cuso.mobile.view.composable.DataCard
-import com.cuso.mobile.view.composable.DataCardStat
-import com.cuso.mobile.view.composable.DataCardStatsRow
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
-import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextField
-import com.cuso.mobile.view.composable.FabConfig
-import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.PlanLimitDialog
+import com.cuso.mobile.view.composable.PlanLimits
 import com.cuso.mobile.view.composable.SearchFilterBar
-import com.cuso.mobile.view.home.sales.lead.MiniSwitch
+import com.cuso.mobile.view.composable.SheetValue
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.view.composable.blurScrim
+import com.cuso.mobile.viewmodel.BranchViewModel
 import com.cuso.mobile.viewmodel.DepartmentUiState
+import com.cuso.mobile.viewmodel.DepartmentUpdateUiState
 import com.cuso.mobile.viewmodel.DepartmentViewModel
 import com.cuso.mobile.viewmodel.DesignationCreateState
-import com.cuso.mobile.viewmodel.DepartmentUpdateUiState
 import com.cuso.mobile.viewmodel.ProfileUiState
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.SalesViewModel
-import com.cuso.mobile.view.composable.SheetValue
-import com.cuso.mobile.view.composable.SmoothBottomSheet
-import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.composable.blurScrim
 
-// ─────────────────────────────────────────────────────────────
-// DepartmentSettingsScreen - Updated to match BranchSettingsScreen's
-// blur/scrim reset pattern + DynamicIsland topmost layering
-// ─────────────────────────────────────────────────────────────
+enum class DepartmentScreenMode {
+    LIST, FORM
+}
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -83,19 +85,19 @@ fun DepartmentSettingsScreen(
     onMenuClick: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
-    // Adaptive design tokens, provided higher up in the composition tree
+    var currentScreenMode by remember { mutableStateOf(DepartmentScreenMode.LIST) }
     val tokens = LocalAppTokens.current
 
     val departmentViewModel: DepartmentViewModel = hiltViewModel()
     val salesViewModel: SalesViewModel = hiltViewModel()
     val profileViewModel: ProfileViewModel = hiltViewModel()
+    val branchViewModel: BranchViewModel = hiltViewModel()
 
     var addSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var editingDepartment by remember { mutableStateOf<DepartmentItem?>(null) }
     var editSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var showPlanLimitDialog by remember { mutableStateOf(false) }
 
-    // Separate blur/scrim state per sheet, same pattern as BranchSettingsScreen
     var addSheetBlur by remember { mutableStateOf(0.dp) }
     var addSheetScrim by remember { mutableFloatStateOf(0f) }
     var editSheetBlur by remember { mutableStateOf(0.dp) }
@@ -109,6 +111,7 @@ fun DepartmentSettingsScreen(
 
     val uiState by departmentViewModel.uiState.collectAsStateWithLifecycle()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
+    val branchUiState by branchViewModel.uiState.collectAsStateWithLifecycle()
     val createState by departmentViewModel.createState.collectAsStateWithLifecycle()
     val updateState by departmentViewModel.updateState.collectAsStateWithLifecycle()
     val profileUiState by profileViewModel.uiState.collectAsStateWithLifecycle()
@@ -116,13 +119,13 @@ fun DepartmentSettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    //   Dynamic Island messages (replaces snackbar for success/error)
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         departmentViewModel.loadDepartments()
         salesViewModel.fetchStaff()
+        branchViewModel.loadBranches()
         profileViewModel.loadOrganization("")
     }
 
@@ -145,9 +148,7 @@ fun DepartmentSettingsScreen(
     LaunchedEffect(createState) {
         when (val state = createState) {
             is DesignationCreateState.Success -> {
-                addSheetBlur = 0.dp        // ← reset BEFORE the sheet disappears
-                addSheetScrim = 0f
-                addSheetState = SheetValue.Hidden
+                currentScreenMode = DepartmentScreenMode.LIST
                 departmentViewModel.resetCreateState()
                 departmentViewModel.loadDepartments()
                 successMessage = "Department created successfully"
@@ -156,9 +157,6 @@ fun DepartmentSettingsScreen(
                 departmentViewModel.resetCreateState()
                 val isLimitError = state.message.contains("limit", true) || state.message.contains("exceed", true) || state.message.contains("maximum", true)
                 if (isLimitError && isDepartmentLimitReached) {
-                    addSheetBlur = 0.dp
-                    addSheetScrim = 0f
-                    addSheetState = SheetValue.Hidden
                     showPlanLimitDialog = true
                 } else {
                     errorMessage = state.message
@@ -171,9 +169,7 @@ fun DepartmentSettingsScreen(
     LaunchedEffect(updateState) {
         when (val state = updateState) {
             is DepartmentUpdateUiState.Success -> {
-                editSheetBlur = 0.dp       // ← reset BEFORE editingDepartment = null destroys the sheet
-                editSheetScrim = 0f
-                editSheetState = SheetValue.Hidden
+                currentScreenMode = DepartmentScreenMode.LIST
                 editingDepartment = null
                 departmentViewModel.resetUpdateState()
                 departmentViewModel.loadDepartments()
@@ -194,9 +190,7 @@ fun DepartmentSettingsScreen(
     val totalPages = maxOf(1, if (filteredDepartments.isNotEmpty()) (filteredDepartments.size + itemsPerPage - 1) / itemsPerPage else 1)
     val pagedDepartments = filteredDepartments.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
 
-    // ── OUTER Box — holds Scaffold + topmost Dynamic Island banners ────
     Box(Modifier.fillMaxSize()) {
-
         Scaffold(
             topBar = {
                 TitleBar("Department", onClose = onBack)
@@ -205,154 +199,254 @@ fun DepartmentSettingsScreen(
             contentWindowInsets = WindowInsets(0, 0, 0, 0)
         ) { padding ->
 
-            //   OUTER wrapper Box — holds list content + both bottom sheets.
-            //   Order inside this Box controls draw/z-order in Compose:
-            //   whatever is declared LAST is drawn on TOP.
             Box(modifier = Modifier.fillMaxSize()) {
-
-                // ── Layer 1: main list content + plan limit dialog ──────
-                Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
-
-                    FabScaffold(
-                        fab = FabConfig(
-                            label = "Add Department",
-                            icon = Icons.Default.Add,
-                            onClick = {
-                                if (planLimits != null && isDepartmentLimitReached) {
-                                    showPlanLimitDialog = true
-                                } else {
-                                    addSheetState = SheetValue.Expanded
-                                }
-                            }
-                        ),
-                        fabVisible = !isAnySheetOpen,
-                        snackbarHostState = snackbarHostState
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(padding)
-                                .background(Color.Transparent)
-                                .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))   // Blurs only this body content
-                        ) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-
-                                SearchFilterBar(
-                                    query = searchQuery,
-                                    onQueryChange = { searchQuery = it },
-                                    placeholder = "Search Departments...",
-                                    accentColor = BluePrimary,
-                                    borderColor = BorderGray,
-                                    textSecondaryColor = TextSecondary,
-                                    onFilterClick = { }
-                                )
-                            }
-                            HorizontalDivider(color = title_border)
-
-                            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                                when (val state = uiState) {
-                                    is DepartmentUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        ListSkeleton()
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Transparent)
+                ) {
+                    when (currentScreenMode) {
+                        DepartmentScreenMode.LIST -> {
+                            FabScaffold(
+                                fab = FabConfig(
+                                    label = "Add Department",
+                                    icon = Icons.Default.Add,
+                                    onClick = {
+                                        if (planLimits != null && isDepartmentLimitReached) {
+                                            showPlanLimitDialog = true
+                                        } else {
+                                            editingDepartment = null
+                                            currentScreenMode = DepartmentScreenMode.FORM
+                                        }
                                     }
-                                    is DepartmentUiState.Error -> {
-                                        AppErrorState(
-                                            title = "Failed to load department",
-                                            message = "Something went wrong. Please check your connection and try again.",
-                                            onRetry = { departmentViewModel.refresh() }
+                                ),
+                                fabVisible = !isAnySheetOpen,
+                                snackbarHostState = snackbarHostState
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(padding)
+                                        .background(Color.Transparent)
+                                        .blurScrim(addSheetBlur.coerceAtLeast(editSheetBlur))
+                                ) {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        SearchFilterBar(
+                                            query = searchQuery,
+                                            onQueryChange = { searchQuery = it },
+                                            placeholder = "Search Departments...",
+                                            accentColor = BluePrimary,
+                                            borderColor = BorderGray,
+                                            textSecondaryColor = TextSecondary,
+                                            onFilterClick = { }
                                         )
                                     }
-                                    is DepartmentUiState.Success -> {
-                                        if (filteredDepartments.isEmpty()) {
-                                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    Icon(Icons.Default.Groups, null, tint = Color.LightGray, modifier = Modifier.size(tokens.iconSize * 2.5f))
-                                                    Spacer(Modifier.height(tokens.extraPadding / 2))
-                                                    Text(if (searchQuery.isNotBlank()) "No matching departments found" else "No departments found", color = Color.Gray, fontSize = tokens.bodyMedium)
-                                                }
+                                    HorizontalDivider(color = title_border)
+
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f)
+                                    ) {
+                                        when (val state = uiState) {
+                                            is DepartmentUiState.Loading -> Box(
+                                                Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                ListSkeleton()
                                             }
-                                        } else {
-                                            Column(modifier = Modifier.fillMaxSize()) {
-                                                LazyColumn(
-                                                    modifier = Modifier.fillMaxWidth().weight(1f),
-                                                ) {
-                                                    items(pagedDepartments) { department ->
-                                                        val (badgeText, badgeColor) = if (department.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
-                                                        DataCard(
-                                                            item = department,
-                                                            titleFontWeight = FontWeight.SemiBold,
-                                                            titleColor = title_color,
-                                                            smalltitle = "${department.name}  .  Department",
-                                                            topBadgeText = badgeText,
-                                                            topBadgeTextColor = badgeColor,
-                                                            topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-                                                            topBadgeInline = true,
-                                                            actions = listOf(
-                                                                MenuAction("Edit", Icons.Default.Edit) {
-                                                                    editingDepartment = department
-                                                                    editSheetState = SheetValue.Expanded
-                                                                },
-                                                                MenuAction("View Teams", Icons.Default.Visibility) { }
-                                                            ),
-                                                            content = {
-                                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                    Box(
-                                                                        modifier = Modifier
-                                                                            .size(tokens.iconSize + 6.dp)
-                                                                            .clip(CircleShape)
-                                                                            .background(Color(0xFFF3E8FF)),
-                                                                        contentAlignment = Alignment.Center
-                                                                    ) {
-                                                                        Text(
-                                                                            text = headNameFor(department, staffList).firstOrNull()?.uppercase() ?: "?",
-                                                                            fontSize = tokens.caption,
-                                                                            fontWeight = FontWeight.SemiBold,
-                                                                            color = Color(0xFF7C3AED)
-                                                                        )
-                                                                    }
-                                                                    Spacer(Modifier.width(tokens.extraPadding / 2))
-                                                                    Text(
-                                                                        text = headNameFor(department, staffList),
-                                                                        fontSize = tokens.bodySmall,
-                                                                        color = Color(0xFF111827)
-                                                                    )
-                                                                }
 
-                                                                Spacer(Modifier.height(tokens.extraPadding))
+                                            is DepartmentUiState.Error -> {
+                                                AppErrorState(
+                                                    title = "Failed to load department",
+                                                    message = "Something went wrong. Please check your connection and try again.",
+                                                    onRetry = { departmentViewModel.refresh() }
+                                                )
+                                            }
 
-                                                                DataCardStatsRow(
-                                                                    stats = listOf(
-                                                                        DataCardStat(
-                                                                            label = "Employees",
-                                                                            value = "${department.totalEmployees}"
-                                                                        ),
-                                                                        DataCardStat(label = "Teams", value = "null"),
-                                                                        DataCardStat(label = "Code", value = "null")
-                                                                    )
-                                                                )
-                                                            }
-                                                        )
-                                                    }
-                                                }
-                                                Box(modifier = Modifier.fillMaxWidth().background(whiteBg, RoundedCornerShape(topStart = tokens.cardCornerRadius, topEnd = tokens.cardCornerRadius))) {
-                                                    Column {
-                                                        HorizontalDivider(color = title_border)
-                                                        Row(
-                                                            modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.SpaceBetween
-                                                        ) {
-                                                            Text(
-                                                                "Showing ${if (filteredDepartments.isEmpty()) 0 else (currentPage - 1) * itemsPerPage + 1} - ${minOf(currentPage * itemsPerPage, filteredDepartments.size)} of ${filteredDepartments.size}",
-                                                                fontSize = tokens.bodySmall, color = Color(0xFF6B7280)
+                                            is DepartmentUiState.Success -> {
+                                                if (filteredDepartments.isEmpty()) {
+                                                    Box(
+                                                        Modifier.fillMaxSize(),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                            Icon(
+                                                                Icons.Default.Groups,
+                                                                null,
+                                                                tint = Color.LightGray,
+                                                                modifier = Modifier.size(tokens.iconSize * 2.5f)
                                                             )
-                                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding / 2)) {
-                                                                IconButton(onClick = { if (currentPage > 1) currentPage-- }, enabled = currentPage > 1, modifier = Modifier.size(tokens.iconSize + 10.dp)) {
-                                                                    Icon(Icons.Default.ChevronLeft, "Previous", tint = if (currentPage > 1) Color(0xFF374151) else Color(0xFFD1D5DB))
-                                                                }
-                                                                Text("$currentPage - $totalPages", fontSize = tokens.bodySmall, color = Color(0xFF374151))
-                                                                IconButton(onClick = { if (currentPage < totalPages) currentPage++ }, enabled = currentPage < totalPages, modifier = Modifier.size(tokens.iconSize + 10.dp)) {
-                                                                    Icon(Icons.Default.ChevronRight, "Next", tint = if (currentPage < totalPages) Color(0xFF374151) else Color(0xFFD1D5DB))
-                                                                }
+                                                            Spacer(Modifier.height(tokens.extraPadding / 2))
+                                                            Text(
+                                                                if (searchQuery.isNotBlank()) "No matching departments found" else "No departments found",
+                                                                color = Color.Gray,
+                                                                fontSize = tokens.bodyMedium
+                                                            )
+                                                        }
+                                                    }
+                                                } else {
+                                                    Column(modifier = Modifier.fillMaxSize()) {
+                                                        LazyColumn(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .weight(1f),
+                                                        ) {
+                                                            items(pagedDepartments) { department ->
+                                                                DataCard(
+                                                                    item = department,
+                                                                    title = department.name,
+                                                                    titleColor = Color(0xFF0F172A),
+                                                                    subtitle = "not found",
+                                                                    topBadgeText = if (department.status) "Active" else "Inactive",
+                                                                    topBadgeTextColor = if (department.status) Color(0xFF16A34A) else Color(0xFF6B7280),
+                                                                    topBadgeBgColor = if (department.status) Color(0xFFDCFCE7) else Color(0xFFF1F5F9),
+                                                                    topBadgeShowDot = false,
+                                                                    topBadgeInline = true,
+                                                                    showHeaderDivider = true,
+                                                                    actions = listOf(
+                                                                        MenuAction(
+                                                                            "Edit",
+                                                                            Icons.Default.Edit
+                                                                        ) {
+                                                                            editingDepartment = department
+                                                                            currentScreenMode = DepartmentScreenMode.FORM
+                                                                        },
+                                                                        MenuAction(
+                                                                            "View Teams",
+                                                                            Icons.Default.Visibility
+                                                                        ) { }
+                                                                    ),
+                                                                    content = {
+                                                                        val iconColor = Color(0xFF64748B)
+                                                                        val textBodyColor = Color(0xFF334155)
+
+                                                                        Column(
+                                                                            modifier = Modifier.fillMaxWidth(),
+                                                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                                        ) {
+                                                                            // Head Row
+                                                                            Row(
+                                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                                            ) {
+                                                                                Icon(
+                                                                                    painter = painterResource(R.drawable.ic_person),
+                                                                                    contentDescription = null,
+                                                                                    tint = iconColor,
+                                                                                    modifier = Modifier.size(18.dp)
+                                                                                )
+                                                                                Text(
+                                                                                    text = buildAnnotatedString {
+                                                                                        withStyle(
+                                                                                            SpanStyle(
+                                                                                                color = Color(0xFF64748B),
+                                                                                                fontWeight = FontWeight.Normal
+                                                                                            )
+                                                                                        ) {
+                                                                                            append("Head: ")
+                                                                                        }
+                                                                                        withStyle(
+                                                                                            SpanStyle(
+                                                                                                color = Color(0xFF0F172A),
+                                                                                                fontWeight = FontWeight.SemiBold
+                                                                                            )
+                                                                                        ) {
+                                                                                            append(
+                                                                                                headNameFor(
+                                                                                                    department,
+                                                                                                    staffList
+                                                                                                )
+                                                                                            )
+                                                                                        }
+                                                                                    },
+                                                                                    fontSize = 14.sp
+                                                                                )
+                                                                            }
+
+                                                                            // Branch Location Row
+                                                                            Row(
+                                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                                            ) {
+                                                                                Icon(
+                                                                                    painter = painterResource(R.drawable.ic_location),
+                                                                                    contentDescription = null,
+                                                                                    tint = iconColor,
+                                                                                    modifier = Modifier.size(18.dp)
+                                                                                )
+                                                                                Text(
+                                                                                    text = "Not found",
+                                                                                    fontSize = 14.sp,
+                                                                                    color = textBodyColor,
+                                                                                    maxLines = 1,
+                                                                                    overflow = TextOverflow.Ellipsis
+                                                                                )
+                                                                            }
+
+                                                                            // Employees & Teams Row
+                                                                            Row(
+                                                                                modifier = Modifier.fillMaxWidth(),
+                                                                                verticalAlignment = Alignment.CenterVertically
+                                                                            ) {
+                                                                                Row(
+                                                                                    modifier = Modifier.weight(1f),
+                                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                                                ) {
+                                                                                    Icon(
+                                                                                        painter = painterResource(R.drawable.ic_users),
+                                                                                        contentDescription = null,
+                                                                                        tint = iconColor,
+                                                                                        modifier = Modifier.size(18.dp)
+                                                                                    )
+                                                                                    Text(
+                                                                                        text = "${department.totalEmployees} Employees",
+                                                                                        fontSize = 14.sp,
+                                                                                        color = textBodyColor
+                                                                                    )
+                                                                                }
+
+                                                                                Row(
+                                                                                    modifier = Modifier.weight(1f),
+                                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                                                ) {
+                                                                                    Icon(
+                                                                                        painter = painterResource(R.drawable.ic_shopping_bag),
+                                                                                        contentDescription = null,
+                                                                                        tint = iconColor,
+                                                                                        modifier = Modifier.size(18.dp)
+                                                                                    )
+                                                                                    Text(
+                                                                                        text = "Teams",
+                                                                                        fontSize = 14.sp,
+                                                                                        color = textBodyColor
+                                                                                    )
+                                                                                }
+                                                                            }
+
+                                                                            // View Teams Action
+                                                                            Box(
+                                                                                modifier = Modifier.fillMaxWidth(),
+                                                                                contentAlignment = Alignment.CenterEnd
+                                                                            ) {
+                                                                                Text(
+                                                                                    text = "View Teams",
+                                                                                    fontSize = 14.sp,
+                                                                                    fontWeight = FontWeight.Medium,
+                                                                                    color = Color(0xFF4F46E5),
+                                                                                    modifier = Modifier
+                                                                                        .clickable(
+                                                                                            indication = null,
+                                                                                            interactionSource = remember { MutableInteractionSource() }
+                                                                                        ) { }
+                                                                                        .padding(top = 2.dp)
+                                                                                )
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                )
                                                             }
                                                         }
                                                     }
@@ -363,6 +457,43 @@ fun DepartmentSettingsScreen(
                                 }
                             }
                         }
+                        DepartmentScreenMode.FORM -> {
+                            val branches = (branchUiState as? com.cuso.mobile.viewmodel.BranchUiState.Success)?.branches ?: emptyList()
+
+                            AddDepartmentPage(
+                                department = editingDepartment,
+                                staffList = staffList,
+                                branchList = branches,
+                                isLoading = if (editingDepartment != null) isUpdating else isCreating,
+                                onBack = {
+                                    currentScreenMode = DepartmentScreenMode.LIST
+                                    editingDepartment = null
+                                    departmentViewModel.resetCreateState()
+                                    departmentViewModel.resetUpdateState()
+                                },
+                                onSubmit = { name, description, departmentHead, branchId, status ->
+                                    if (editingDepartment != null) {
+                                        departmentViewModel.updateDepartment(
+                                            id = editingDepartment!!._id,
+                                            name = name,
+                                            description = description,
+                                            departmentHead = departmentHead,
+                                            status = status
+                                        )
+                                    } else {
+                                        if (isDepartmentLimitReached) {
+                                            showPlanLimitDialog = true
+                                            return@AddDepartmentPage
+                                        }
+                                        departmentViewModel.createDepartment(
+                                            name = name,
+                                            description = description,
+                                            departmentHead = departmentHead
+                                        )
+                                    }
+                                }
+                            )
+                        }
                     }
 
                     if (showPlanLimitDialog) {
@@ -370,134 +501,13 @@ fun DepartmentSettingsScreen(
                             title = "Plan Limit Reached",
                             message = "Department limit exceeded ($currentDepartments/${planLimits?.departmentLimit ?: 0}). Upgrade your plan to add more departments.",
                             onDismiss = { showPlanLimitDialog = false },
-                            onUpgrade = { /* navigate to upgrade screen */ }
-                        )
-                    }
-                }
-
-                // ── Layer 2: Add Department BottomSheet ─────────────────
-                SmoothBottomSheet(
-                    state = addSheetState,
-                    onStateChange = { newState ->
-                        addSheetState = newState
-                        if (newState == SheetValue.Hidden) {
-                            addSheetBlur = 0.dp
-                            addSheetScrim = 0f
-                            departmentViewModel.resetCreateState()
-                        }
-                    },
-                    peekHeight = 200.dp,
-                    topInset = 66.dp,   // Matches TitleBar height, same as BranchSettingsScreen's topInset
-                    sheetBackgroundColor = whiteBg,
-                    collapsedCornerRadius = tokens.cardCornerRadius,
-                    dragCloseEnabled = true,
-                    scrollableContent = true,
-                    onDismissRequest = {
-                        addSheetBlur = 0.dp
-                        addSheetScrim = 0f
-                        addSheetState = SheetValue.Hidden
-                        departmentViewModel.resetCreateState()
-                    },
-                    onBlurScrimChange = { r, s ->
-                        // Ignore stale/late callbacks that fire after we've already
-                        // force-reset to 0 on close — prevents the blur getting stuck.
-                        if (addSheetState != SheetValue.Hidden) {
-                            addSheetBlur = r
-                            addSheetScrim = s
-                        }
-                    }
-                ) {
-                    AddDepartmentSheetContent(
-                        staffList = staffList,
-                        isLoading = isCreating,
-                        onDismiss = {
-                            addSheetBlur = 0.dp
-                            addSheetScrim = 0f
-                            addSheetState = SheetValue.Hidden
-                            departmentViewModel.resetCreateState()
-                        },
-                        onCreate = { request ->
-                            if (isDepartmentLimitReached) {
-                                addSheetBlur = 0.dp
-                                addSheetScrim = 0f
-                                addSheetState = SheetValue.Hidden
-                                showPlanLimitDialog = true
-                                return@AddDepartmentSheetContent
-                            }
-                            departmentViewModel.createDepartment(
-                                name = request.name,
-                                description = request.description,
-                                departmentHead = request.departmentHead
-                            )
-                        }
-                    )
-                }
-
-                // ── Layer 3: Edit Department BottomSheet ─────────────────
-                editingDepartment?.let { department ->
-                    SmoothBottomSheet(
-                        state = editSheetState,
-                        onStateChange = { newState ->
-                            editSheetState = newState
-                            if (newState == SheetValue.Hidden) {
-                                editSheetBlur = 0.dp
-                                editSheetScrim = 0f
-                                editingDepartment = null
-                                departmentViewModel.resetUpdateState()
-                            }
-                        },
-                        peekHeight = 200.dp,
-                        topInset = 66.dp,
-                        sheetBackgroundColor = Primary_background,
-                        collapsedCornerRadius = tokens.cardCornerRadius,
-                        dragCloseEnabled = true,
-                        scrollableContent = true,
-                        onDismissRequest = {
-                            editSheetBlur = 0.dp
-                            editSheetScrim = 0f
-                            editSheetState = SheetValue.Hidden
-                            editingDepartment = null
-                            departmentViewModel.resetUpdateState()
-                        },
-                        onBlurScrimChange = { r, s ->
-                            // Ignore stale/late callbacks that fire after we've already
-                            // force-reset to 0 on close — prevents the blur getting stuck.
-                            if (editSheetState != SheetValue.Hidden) {
-                                editSheetBlur = r
-                                editSheetScrim = s
-                            }
-                        }
-                    ) {
-                        EditDepartmentSheetContent(
-                            department = department,
-                            staffList = staffList,
-                            isLoading = isUpdating,
-                            onDismiss = {
-                                editSheetBlur = 0.dp
-                                editSheetScrim = 0f
-                                editSheetState = SheetValue.Hidden
-                                editingDepartment = null
-                                departmentViewModel.resetUpdateState()
-                            },
-                            onUpdate = { name, description, departmentHead, status ->
-                                departmentViewModel.updateDepartment(
-                                    id = department._id,
-                                    name = name,
-                                    description = description,
-                                    departmentHead = departmentHead,
-                                    status = status
-                                )
-                            }
+                            onUpgrade = { }
                         )
                     }
                 }
             }
         }
 
-        // ── Layer 4 (TOPMOST): Dynamic Island success/error banners ─
-        //   Declared LAST so they always draw above the list, both
-        //   bottom sheets, and their blur scrims — never cropped or
-        //   hidden behind a closing sheet's blur.
         DynamicIslandSuccess(
             modifier = Modifier.align(Alignment.TopCenter),
             message = successMessage,
@@ -512,297 +522,173 @@ fun DepartmentSettingsScreen(
 }
 
 // ─────────────────────────────────────────────────────────────
-// AddDepartmentSheetContent
+// AddDepartmentPage (Unified Add & Edit Page)
 // ─────────────────────────────────────────────────────────────
 
 @Composable
-fun AddDepartmentSheetContent(
+fun AddDepartmentPage(
+    department: DepartmentItem? = null,
     staffList: List<StaffDto>,
+    branchList: List<com.cuso.mobile.model.settings.BranchItem> = emptyList(),
     isLoading: Boolean = false,
-    onDismiss: () -> Unit,
-    onCreate: (DepartmentRequest) -> Unit
+    onBack: () -> Unit,
+    onSubmit: (name: String, description: String, departmentHead: String, branchId: String, status: Boolean) -> Unit
 ) {
-    val tokens = LocalAppTokens.current
+    val isEditMode = department != null
 
-    var departmentName by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var selectedStaff by remember { mutableStateOf("") }
+    var departmentName by remember(department) { mutableStateOf(department?.name ?: "") }
+    var description by remember(department) { mutableStateOf(department?.description ?: "") }
+    var selectedStaff by remember(department) { mutableStateOf(department?.departmentHeadId ?: "") }
+    var selectedBranch by remember(department) { mutableStateOf("") }
+    var status by remember(department) { mutableStateOf(department?.status ?: true) }
+
     var staffExpanded by remember { mutableStateOf(false) }
+    var branchExpanded by remember { mutableStateOf(false) }
 
     var nameError by remember { mutableStateOf(false) }
     var departmentHeadError by remember { mutableStateOf(false) }
 
     val staffDisplayList = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
     val staffIdMap = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
-    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: "Select an option"
+    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: ""
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = tokens.screenPadding)
-            .padding(bottom = tokens.screenPadding),
-        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                "Add New Department",
-                fontSize = tokens.h2,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
-            )
-            Text(
-                "Create a new department in your organization",
-                fontSize = tokens.bodySmall,
-                color = Color(0xFF6B7280)
-            )
-        }
+    val branchDisplayList = branchList.map { it.name ?: "" }
+    val branchIdMap = branchList.associate { (it.name ?: "") to it.id }
+    val selectedBranchLabel = branchIdMap.entries.firstOrNull { it.value == selectedBranch }?.key ?: ""
 
-        Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
-
-        Column {
-            FormLabel("Department Name", isRequired = true)
-            FormTextField(
-                value = departmentName,
-                onValueChange = { departmentName = it; nameError = false },
-                placeholder = "Enter department name",
-                isError = nameError,
-                errorMessage = "Department name is required"
-            )
-        }
-
-        Column {
-            FormLabel("Description")
-            FormTextField(
-                value = description,
-                onValueChange = { description = it },
-                placeholder = "Enter description"
-            )
-        }
-
-        FormDropdown(
-            label = "Department Head",
-            value = selectedStaffLabel,
-            expanded = staffExpanded,
-            onExpandChange = { expanded ->
-                if (staffList.isNotEmpty() || !expanded) staffExpanded = expanded
-            },
-            options = staffDisplayList,
-            onOptionSelected = { label ->
-                selectedStaff = staffIdMap[label] ?: ""
-                departmentHeadError = false
-            },
-            isRequired = true,
-            isError = departmentHeadError,
-            errorMessage = "Please select a department head"
-        )
-
-        Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding),
-            verticalAlignment = Alignment.CenterVertically
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFFBFBFB))
         ) {
-            OutlinedButton(
-                onClick = onDismiss,
-                modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF374151)
-                ),
-                border = BorderStroke(1.dp, Color(0xFFD1D5DB))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
             ) {
-                Text("Cancel", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium)
+                TitleBar(
+                    if (isEditMode) "Edit Department" else "Add New Department",
+                    onClose = onBack
+                )
+                HorizontalDivider(color = title_border)
             }
 
-            Button(
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 20.dp)
+                    .padding(bottom = 90.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 1. Department Name
+                Column {
+                    FormLabel("Department Name", isRequired = true)
+                    FormTextField(
+                        value = departmentName,
+                        onValueChange = {
+                            departmentName = it
+                            nameError = false
+                        },
+                        placeholder = "Enter department name",
+                        isError = nameError,
+                        errorMessage = if (nameError) "Department name is required" else null
+                    )
+                }
+
+//                Column {
+//                    FormLabel("Description")
+//                    FormTextField(
+//                        value = description,
+//                        onValueChange = { description = it },
+//                        placeholder = "Enter description"
+//                    )
+//                }
+
+                // 2. Department Head Dropdown
+                Column {
+                    FormLabel("Department Head", isRequired = true)
+                    FormDropdown(
+                        value = selectedStaffLabel,
+                        expanded = staffExpanded,
+                        onExpandChange = { expanded ->
+                            if (staffList.isNotEmpty() || !expanded) staffExpanded = expanded
+                        },
+                        options = staffDisplayList,
+                        onOptionSelected = { label ->
+                            selectedStaff = staffIdMap[label] ?: ""
+                            departmentHeadError = false
+                        },
+                        isRequired = false
+                    )
+                }
+
+                // 3. Branch Name Dropdown
+                Column {
+                    FormLabel("Branch Name")
+                    FormDropdown(
+                        value = selectedBranchLabel,
+                        expanded = branchExpanded,
+                        onExpandChange = { expanded ->
+                            if (branchList.isNotEmpty() || !expanded) branchExpanded = expanded
+                        },
+                        options = branchDisplayList,
+                        onOptionSelected = { label ->
+                            selectedBranch = branchIdMap[label] ?: ""
+                        },
+                        isRequired = false
+                    )
+                }
+
+//                if (isEditMode) {
+//                    Row(
+//                        verticalAlignment = Alignment.CenterVertically,
+//                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+//                        modifier = Modifier.padding(top = 4.dp)
+//                    ) {
+//                        MiniSwitch(
+//                            checked = status,
+//                            onCheckedChange = { status = it }
+//                        )
+//                        Column {
+//                            Text(
+//                                text = if (status) "Active" else "Inactive",
+//                                fontSize = 14.sp,
+//                                fontWeight = FontWeight.Medium,
+//                                color = Color(0xFF374151)
+//                            )
+//                            Text(
+//                                text = if (status) "Department is active" else "Department is inactive",
+//                                fontSize = 12.sp,
+//                                color = Color(0xFF9CA3AF)
+//                            )
+//                        }
+//                    }
+//                }
+            }
+        }
+
+        StepNavigationFab(
+            showBack = true,
+            onBack = onBack,
+            backLabel = "Cancel",
+            showBackArrow = false,
+            showTrailingArrow = false,
+            trailingAction = TrailingFabAction.Update(
+                isLoading = isLoading,
+                label = if (isEditMode) "Update Department" else "Add Department",
                 onClick = {
                     var hasError = false
                     if (departmentName.isBlank()) {
                         nameError = true
                         hasError = true
                     }
-                    if (selectedStaff.isEmpty()) {
-                        departmentHeadError = true
-                        hasError = true
-                    }
-                    if (hasError) return@Button
+                    if (hasError) return@Update
 
-                    onCreate(
-                        DepartmentRequest(
-                            name = departmentName,
-                            description = description,
-                            departmentHead = selectedStaff
-                        )
-                    )
-                },
-                modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Primary,
-                    disabledContainerColor = disabled
-                ),
-                enabled = !isLoading
-            ) {
-                if (isLoading) {
-                    CirculerProgressIndicatorSmall()
-                } else {
-                    Text("Create ", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = whiteBg)
+                    onSubmit(departmentName, description, selectedStaff, selectedBranch, status)
                 }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// EditDepartmentSheetContent
-// ─────────────────────────────────────────────────────────────
-
-@Composable
-fun EditDepartmentSheetContent(
-    department: DepartmentItem,
-    staffList: List<StaffDto>,
-    isLoading: Boolean = false,
-    onDismiss: () -> Unit,
-    onUpdate: (name: String, description: String?, departmentHead: String?, status: Boolean?) -> Unit
-) {
-    val tokens = LocalAppTokens.current
-
-    var departmentName by remember { mutableStateOf(department.name) }
-    var description by remember { mutableStateOf(department.description ?: "") }
-    var selectedStaff by remember { mutableStateOf(department.departmentHeadId ?: "") }
-    var status by remember { mutableStateOf(department.status) }
-    var staffExpanded by remember { mutableStateOf(false) }
-
-    val staffDisplayList = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
-    val staffIdMap = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
-    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: "Select an option"
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = tokens.screenPadding)
-            .padding(bottom = tokens.screenPadding),
-        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                "Edit Department",
-                fontSize = tokens.h2,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
             )
-            Text(
-                "Update department information",
-                fontSize = tokens.bodySmall,
-                color = Color(0xFF6B7280)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
-
-        Column {
-            FormLabel("Department Name", isRequired = true)
-            FormTextField(
-                value = departmentName,
-                onValueChange = { departmentName = it },
-                placeholder = "Enter department name"
-            )
-        }
-
-        Column {
-            FormLabel("Description")
-            FormTextField(
-                value = description,
-                onValueChange = { description = it },
-                placeholder = "Enter description"
-            )
-        }
-
-        FormDropdown(
-            label = "Department Head",
-            value = selectedStaffLabel,
-            expanded = staffExpanded,
-            onExpandChange = { expanded ->
-                if (staffList.isNotEmpty() || !expanded) staffExpanded = expanded
-            },
-            options = staffDisplayList,
-            onOptionSelected = { label ->
-                selectedStaff = staffIdMap[label] ?: ""
-            },
-            isRequired = false
         )
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-        ) {
-            MiniSwitch(
-                checked = status,
-                onCheckedChange = { status = it }
-            )
-            Column {
-                Text(
-                    if (status) "Active" else "Inactive",
-                    fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF374151)
-                )
-                Text(
-                    if (status) "Department is active" else "Department is inactive",
-                    fontSize = tokens.label,
-                    color = Color(0xFF9CA3AF)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedButton(
-                onClick = onDismiss,
-                modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF374151)
-                ),
-                border = BorderStroke(1.dp, Color(0xFFD1D5DB))
-            ) {
-                Text("Cancel", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium)
-            }
-
-            Button(
-                onClick = {
-                    onUpdate(
-                        departmentName,
-                        description.ifEmpty { null },
-                        selectedStaff.ifEmpty { null },
-                        status
-                    )
-                },
-                modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BluePrimary,
-                    disabledContainerColor = BluePrimary.copy(alpha = 0.6f)
-                ),
-                enabled = !isLoading
-            ) {
-                if (isLoading) {
-                    CirculerProgressIndicatorSmall()
-                } else {
-                    Text("Update ", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = whiteBg)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
     }
 }
 

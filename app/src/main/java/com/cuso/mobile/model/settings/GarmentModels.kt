@@ -5,7 +5,21 @@ import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
 import java.lang.reflect.Type
 
-// ── Garment List Response (GET /api/sales/garments/view-all) ──
+data class UpdateSegmentRequest(
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("displayName")
+    val displayName: String = name,
+    @SerializedName("code")
+    val code: String,
+    @SerializedName("description")
+    val description: String? = null,
+    @SerializedName("displayOrder")
+    val displayOrder: Int = 1,
+    @SerializedName("status")
+    val status: String = "Active"
+)
+
 data class GarmentListResponse(
     @SerializedName("success")
     val success: Boolean,
@@ -17,7 +31,19 @@ data class GarmentListResponse(
     val message: String? = null
 )
 
-// ── Segment Reference Model inside Garment ──
+data class ChangeGarmentStatusRequest(
+    val status: String
+)
+
+data class ChangeGarmentStatusResponse(
+    @SerializedName("success")
+    val success: Boolean,
+    @SerializedName("message")
+    val message: String,
+    @SerializedName("data")
+    val data: GarmentItem? = null
+)
+
 @JsonAdapter(ApplicableSegmentDeserializer::class)
 data class ApplicableSegmentDto(
     @SerializedName("_id", alternate = ["id"])
@@ -42,8 +68,8 @@ class ApplicableSegmentDeserializer : JsonDeserializer<ApplicableSegmentDto?> {
                 val id = obj.get("_id")?.asString ?: obj.get("id")?.asString
                 ApplicableSegmentDto(
                     id = id,
-                    name = obj.get("name")?.asString,
-                    displayName = obj.get("displayName")?.asString
+                    name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString,
+                    displayName = obj.get("displayName")?.takeIf { !it.isJsonNull }?.asString
                 )
             }
             json.isJsonPrimitive && json.asJsonPrimitive.isString -> {
@@ -54,7 +80,6 @@ class ApplicableSegmentDeserializer : JsonDeserializer<ApplicableSegmentDto?> {
     }
 }
 
-// ── Measurement Field Reference ──
 @JsonAdapter(MeasurementFieldDetailDeserializer::class)
 data class MeasurementFieldDetailDto(
     @SerializedName("_id", alternate = ["id"])
@@ -83,9 +108,9 @@ class MeasurementFieldDetailDeserializer : JsonDeserializer<MeasurementFieldDeta
                 val id = obj.get("_id")?.asString ?: obj.get("id")?.asString
                 MeasurementFieldDetailDto(
                     id = id,
-                    name = obj.get("name")?.asString,
-                    displayName = obj.get("displayName")?.asString,
-                    inputType = obj.get("inputType")?.asString,
+                    name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString,
+                    displayName = obj.get("displayName")?.takeIf { !it.isJsonNull }?.asString,
+                    inputType = obj.get("inputType")?.takeIf { !it.isJsonNull }?.asString,
                     unit = if (obj.has("unit") && !obj.get("unit").isJsonNull) obj.get("unit").asString else null
                 )
             }
@@ -97,7 +122,6 @@ class MeasurementFieldDetailDeserializer : JsonDeserializer<MeasurementFieldDeta
     }
 }
 
-// ── Measurement Field Mapping Entry in Garment ──
 data class GarmentMeasurementFieldItem(
     @SerializedName("fieldId", alternate = ["field", "fieldDetail"])
     val field: MeasurementFieldDetailDto? = null,
@@ -109,7 +133,6 @@ data class GarmentMeasurementFieldItem(
     val id: String? = null
 )
 
-// ── Garment Item Model ──
 data class GarmentItem(
     @SerializedName("_id", alternate = ["id"])
     val id: String,
@@ -137,8 +160,10 @@ data class GarmentItem(
     val imagePublicId: String? = null,
     @SerializedName("isSystemDefined")
     val isSystemDefined: Boolean = false,
-    @SerializedName("isActive")
-    val isActive: Boolean = true,
+    @SerializedName("status")
+    val status: String? = null,
+    @SerializedName("mappedCategoriesCount")
+    val mappedCategoriesCount: Int = 0,
     @SerializedName("createdBy")
     val createdBy: UserMetaDto? = null,
     @SerializedName("updatedBy")
@@ -151,46 +176,13 @@ data class GarmentItem(
     val v: Int? = null
 )
 
-// ── Create/Update Garment Request ──
-data class CreateGarmentRequest(
-    @SerializedName("name")
-    val name: String,
-    @SerializedName("displayName")
-    val displayName: String = name,
-    @SerializedName("code")
-    val code: String,
-    @SerializedName("description")
-    val description: String? = null,
-    @SerializedName("applicableSegments")
-    val applicableSegments: List<String> = emptyList(),
-    @SerializedName("baseStitchingCharge")
-    val baseStitchingCharge: Double = 0.0,
-    @SerializedName("isCustomStitchable")
-    val isCustomStitchable: Boolean = true
-)
-
-// ── Create Garment Response ──
-data class CreateGarmentResponse(
-    @SerializedName("success")
-    val success: Boolean,
-    @SerializedName("message")
-    val message: String? = null,
-    @SerializedName("data")
-    val data: GarmentItem? = null
-)
-
-// ── Garment Style List Response ──
-data class GarmentStyleListResponse(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("pagination") val pagination: PaginationInfo?,
-    @SerializedName("data") val data: List<GarmentStyleItem>
-)
-
-data class PaginationInfo(
-    @SerializedName("page") val page: Int,
-    @SerializedName("limit") val limit: Int,
-    @SerializedName("total") val total: Int,
-    @SerializedName("totalPages") val totalPages: Int
+data class GarmentImageDto(
+    @SerializedName("_id", alternate = ["id"])
+    val id: String? = null,
+    @SerializedName("url", alternate = ["imageUrl"])
+    val url: String? = null,
+    @SerializedName("isPrimary")
+    val isPrimary: Boolean? = null
 )
 
 data class GarmentStyleItem(
@@ -206,12 +198,13 @@ data class GarmentStyleItem(
     @SerializedName("sleeveStyle") val sleeveStyle: String? = null,
     @SerializedName("measurementFields") val measurementFields: List<StyleMeasurementFieldEntry> = emptyList(),
     @SerializedName("customFields") val customFields: List<StyleCustomFieldEntry> = emptyList(),
-    @SerializedName("images") val images: List<String> = emptyList(),
+    @SerializedName("imageUrl") val imageUrl: String? = null,
+    @SerializedName("images") val images: List<GarmentImageDto> = emptyList(),
     @SerializedName("stitchingCharge") val stitchingCharge: Double = 0.0,
     @SerializedName("isStitchingTaxable") val isStitchingTaxable: Boolean = false,
     @SerializedName("stitchingTaxGroupId", alternate = ["stitchingTaxGroup", "taxGroup"]) val stitchingTaxGroup: StyleTaxGroup? = null,
     @SerializedName("isCustomStitchable") val isCustomStitchable: Boolean = true,
-    @SerializedName("isActive") val isActive: Boolean = true,
+    @SerializedName("status") val status: String = "Active",
     @SerializedName("createdAt") val createdAt: String? = null,
     @SerializedName("updatedAt") val updatedAt: String? = null
 )
@@ -246,7 +239,6 @@ class StyleSegmentDeserializer : JsonDeserializer<StyleSegment?> {
     }
 }
 
-// ── Parent Garment inside Category Style ──
 @JsonAdapter(StyleGarmentParentDeserializer::class)
 data class StyleGarmentParent(
     @SerializedName("_id", alternate = ["id"]) val id: String,
@@ -268,7 +260,6 @@ class StyleGarmentParentDeserializer : JsonDeserializer<StyleGarmentParent?> {
                 val obj = json.asJsonObject
                 val id = obj.get("_id")?.asString ?: obj.get("id")?.asString ?: return null
 
-                // Parse measurementFields inside garmentId
                 val measurementFieldsList: List<StyleMeasurementFieldEntry> = if (obj.has("measurementFields") && obj.get("measurementFields").isJsonArray) {
                     val fieldsArray = obj.getAsJsonArray("measurementFields")
                     context?.deserialize(fieldsArray, object : com.google.gson.reflect.TypeToken<List<StyleMeasurementFieldEntry>>() {}.type) ?: emptyList()
@@ -318,14 +309,44 @@ data class StyleTaxGroup(
     @SerializedName("totalRate") val totalRate: Double
 )
 
-// ── Measurement Field Entry for Style Update ──
 data class StyleMeasurementFieldEntryRequest(
     @SerializedName("fieldId") val fieldId: String,
     @SerializedName("isRequired") val isRequired: Boolean = false,
     @SerializedName("displayOrder") val displayOrder: Int = 1
 )
 
-// ── Create / Update Garment Category (Style) Request ──
+data class CreateGarmentRequest(
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("displayName")
+    val displayName: String = name,
+    @SerializedName("code")
+    val code: String,
+    @SerializedName("description")
+    val description: String? = null,
+    @SerializedName("applicableSegments")
+    val applicableSegments: List<String> = emptyList(),
+    @SerializedName("isCustomStitchable")
+    val isCustomStitchable: Boolean = true,
+    @SerializedName("status")
+    val status: String = "Active"
+)
+
+data class CreateGarmentResponse(
+    @SerializedName("success")
+    val success: Boolean,
+    @SerializedName("message")
+    val message: String? = null,
+    @SerializedName("data")
+    val data: GarmentItem? = null
+)
+
+data class GarmentStyleListResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("pagination") val pagination: PaginationDto?,
+    @SerializedName("data") val data: List<GarmentStyleItem>
+)
+
 data class CreateGarmentStyleRequest(
     @SerializedName("name") val name: String,
     @SerializedName("displayName") val displayName: String = name,
@@ -339,7 +360,8 @@ data class CreateGarmentStyleRequest(
     @SerializedName("stitchingCharge") val stitchingCharge: Double = 0.0,
     @SerializedName("isStitchingTaxable") val isStitchingTaxable: Boolean = false,
     @SerializedName("stitchingTaxGroupId") val stitchingTaxGroupId: String? = null,
-    @SerializedName("isCustomStitchable") val isCustomStitchable: Boolean = true
+    @SerializedName("isCustomStitchable") val isCustomStitchable: Boolean = true,
+    @SerializedName("status") val status: String = "Active"
 )
 
 data class UpdateGarmentStyleRequest(
@@ -355,23 +377,21 @@ data class UpdateGarmentStyleRequest(
     @SerializedName("stitchingCharge") val stitchingCharge: Double = 0.0,
     @SerializedName("isStitchingTaxable") val isStitchingTaxable: Boolean = false,
     @SerializedName("stitchingTaxGroupId") val stitchingTaxGroupId: String? = null,
-    @SerializedName("isCustomStitchable") val isCustomStitchable: Boolean = true
+    @SerializedName("isCustomStitchable") val isCustomStitchable: Boolean = true,
+    @SerializedName("status") val status: String = "Active"
 )
 
-// ── Single Garment Style Response (Create & Update) ──
 data class GarmentStyleDetailResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("message") val message: String? = null,
     @SerializedName("data") val data: GarmentStyleItem? = null
 )
 
-// ── Delete Garment Style Response ──
 data class DeleteGarmentStyleResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("message") val message: String? = null
 )
 
-// ── Create Measurement Field Request ──
 data class CreateMeasurementFieldRequest(
     @SerializedName("name") val name: String,
     @SerializedName("displayName") val displayName: String = name,
@@ -383,10 +403,10 @@ data class CreateMeasurementFieldRequest(
     @SerializedName("unit") val unit: String? = "inch",
     @SerializedName("minValue") val minValue: Double? = null,
     @SerializedName("maxValue") val maxValue: Double? = null,
-    @SerializedName("options") val options: List<String> = emptyList()
+    @SerializedName("options") val options: List<String> = emptyList(),
+    @SerializedName("status") val status: String = "Active"
 )
 
-// ── Single Measurement Field Response ──
 data class MeasurementFieldDetailResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("message") val message: String? = null,

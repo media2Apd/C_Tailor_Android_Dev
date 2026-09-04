@@ -1,5 +1,9 @@
 package com.cuso.mobile.network.sales.settings
 
+import com.cuso.mobile.model.settings.ChangeGarmentStatusRequest
+import com.cuso.mobile.model.settings.ChangeGarmentStatusResponse
+import com.cuso.mobile.model.settings.ChangeSegmentStatusRequest
+import com.cuso.mobile.model.settings.ChangeSegmentStatusResponse
 import com.cuso.mobile.model.settings.CreateGarmentRequest
 import com.cuso.mobile.model.settings.CreateGarmentResponse
 import com.cuso.mobile.model.settings.CreateGarmentStyleRequest
@@ -22,6 +26,7 @@ import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -71,7 +76,7 @@ interface SalesSettingsApiService {
     ): Response<DeleteSegmentResponse>
 
     // ── Garment Endpoints ──
-    @GET("api/sales/garments/view-all")
+    @GET("/api/sales/garments/view-all")
     suspend fun getGarments(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -80,7 +85,7 @@ interface SalesSettingsApiService {
     ): Response<GarmentListResponse>
 
     //create new garment
-    @POST("api/sales/garments/create")
+    @POST("/api/sales/garments/create")
     suspend fun createGarment(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -161,4 +166,20 @@ interface SalesSettingsApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") fieldId: String
     ): Response<DeactivateMeasurementFieldResponse>
+
+    @PATCH("/api/sales/segments/change-status/{id}")
+    suspend fun changeSegmentStatus(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: ChangeSegmentStatusRequest
+    ): Response<ChangeSegmentStatusResponse>
+
+    @PATCH("/api/sales/garments/change-status/{id}")
+    suspend fun changeGarmentStatus(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: ChangeGarmentStatusRequest
+    ): Response<ChangeGarmentStatusResponse>
 }

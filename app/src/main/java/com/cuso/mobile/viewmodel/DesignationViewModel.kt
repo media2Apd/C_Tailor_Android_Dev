@@ -64,7 +64,7 @@ class DesignationViewModel @Inject constructor(
     }
 
     // ── Create Designation ──
-    fun createDesignation(name: String, code: String, description: String) {
+    fun createDesignation(name: String, code: String, description: String?) {
         launchBusy {
             _createState.value = DesignationCreateState.Loading
             repository.createDesignation(DesignationCreateRequest(name, code, description))

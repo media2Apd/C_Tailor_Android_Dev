@@ -6,6 +6,10 @@ import com.cuso.mobile.database.entities.GarmentMeasurement
 import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.model.settings.BaseInventoryResponse
 import com.cuso.mobile.model.settings.BinItem
+import com.cuso.mobile.model.settings.ChangeGarmentStatusRequest
+import com.cuso.mobile.model.settings.ChangeGarmentStatusResponse
+import com.cuso.mobile.model.settings.ChangeSegmentStatusRequest
+import com.cuso.mobile.model.settings.ChangeSegmentStatusResponse
 import com.cuso.mobile.model.settings.CreateBinRequest
 import com.cuso.mobile.model.settings.CreateFloorRequest
 import com.cuso.mobile.model.settings.CreateGarmentRequest
@@ -486,6 +490,40 @@ class SettingsRepository @Inject constructor(
             } else {
                 val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch bins"
                 Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun changeSegmentStatus(
+        id: String,
+        request: ChangeSegmentStatusRequest
+    ): Result<ChangeSegmentStatusResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.changeSegmentStatus(accessToken, csrfToken, id, request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to change segment status"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun changeGarmentStatus(
+        id: String,
+        request: ChangeGarmentStatusRequest
+    ): Result<ChangeGarmentStatusResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.changeGarmentStatus(accessToken,csrfToken,id, request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to change garment status"))
             }
         } catch (e: Exception) {
             Result.failure(e)

@@ -4,7 +4,6 @@ package com.cuso.mobile.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.database.entities.GarmentMeasurement
-import com.cuso.mobile.model.inventory.*
 import com.cuso.mobile.model.sales.myOrganizationResponse
 import com.cuso.mobile.model.settings.*
 import com.cuso.mobile.repository.AuthRepository
@@ -121,6 +120,13 @@ class SettingsViewModel @Inject constructor(
 
     private val _isLoadingLocationStructure = MutableStateFlow(false)
     val isLoadingLocationStructure: StateFlow<Boolean> = _isLoadingLocationStructure.asStateFlow()
+
+    //change status
+    private val _isChangingSegmentStatus = MutableStateFlow(false)
+    val isChangingSegmentStatus: StateFlow<Boolean> = _isChangingSegmentStatus.asStateFlow()
+
+    private val _isChangingGarmentStatus = MutableStateFlow(false)
+    val isChangingGarmentStatus: StateFlow<Boolean> = _isChangingGarmentStatus.asStateFlow()
 
     // Helper to extract clean message string from JSON error response
     private fun extractErrorMessage(raw: String?): String {
@@ -259,7 +265,7 @@ class SettingsViewModel @Inject constructor(
         code: String,
         description: String?,
         displayOrder: Int,
-        isActive: Boolean,
+        status: Boolean,
         onSuccess: (CreateSegmentResponse) -> Unit,
         onError: (String) -> Unit
     ) {
@@ -296,7 +302,7 @@ class SettingsViewModel @Inject constructor(
         code: String,
         description: String?,
         displayOrder: Int,
-        isActive: Boolean,
+        status: String?,
         onSuccess: (CreateSegmentResponse) -> Unit,
         onError: (String) -> Unit
     ) {
@@ -310,7 +316,7 @@ class SettingsViewModel @Inject constructor(
                 code = code.trim().uppercase(),
                 description = description?.takeIf { it.isNotBlank() },
                 displayOrder = displayOrder,
-                isActive = isActive
+                status = status ?: ""
             )
 
             val result = settingsRepository.updateSegment(id, request)
@@ -400,7 +406,6 @@ class SettingsViewModel @Inject constructor(
         code: String,
         description: String?,
         applicableSegmentIds: List<String>,
-        baseStitchingCharge: Double,
         onSuccess: (CreateGarmentResponse) -> Unit,
         onError: (String) -> Unit
     ) {
@@ -414,7 +419,6 @@ class SettingsViewModel @Inject constructor(
                 code = code.trim().uppercase(),
                 description = description?.takeIf { it.isNotBlank() },
                 applicableSegments = applicableSegmentIds,
-                baseStitchingCharge = baseStitchingCharge,
                 isCustomStitchable = true
             )
 
@@ -964,6 +968,61 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
+
+    //change status
+    fun changeSegmentStatus(
+        id: String,
+        status: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        launchBusy {
+            _isChangingSegmentStatus.value = true
+            _segmentError.value = null
+
+            val request = ChangeSegmentStatusRequest(status = status)
+            val result = settingsRepository.changeSegmentStatus(id, request)
+            _isChangingSegmentStatus.value = false
+
+            if (result.isSuccess) {
+                val response = result.getOrNull()
+                fetchSegments()
+                onSuccess(response?.message ?: "Segment status updated successfully")
+            } else {
+                val error = extractErrorMessage(result.exceptionOrNull()?.message)
+                _segmentError.value = error
+                onError(error)
+            }
+        }
+    }
+
+    fun changeGarmentStatus(
+        id: String,
+        status: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        launchBusy {
+            _isChangingGarmentStatus.value = true
+            _garmentError.value = null
+
+            val request = ChangeGarmentStatusRequest(status = status)
+            val result = settingsRepository.changeGarmentStatus(id, request)
+            _isChangingGarmentStatus.value = false
+
+            if (result.isSuccess) {
+                val response = result.getOrNull()
+                fetchGarments()
+                onSuccess(response?.message ?: "Garment status updated successfully")
+            } else {
+                val error = extractErrorMessage(result.exceptionOrNull()?.message)
+                _garmentError.value = error
+                onError(error)
+            }
+        }
+    }
+
+
 
     fun clearSelectedStyleDetail() {
         _selectedStyleDetail.value = null

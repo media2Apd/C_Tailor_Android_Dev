@@ -5,8 +5,6 @@ package com.cuso.mobile.view.home.sales.settings.garment
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -14,12 +12,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
-import com.cuso.mobile.ui.theme.*
+import com.cuso.mobile.model.settings.GarmentItem
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.ErrorMapper
@@ -34,15 +31,17 @@ import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.viewmodel.SettingsViewModel
 
 // ─────────────────────────────────────────────────────────────
-// 1. Add New Garment Screen
+// 1. Add / Edit Garment Screen
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun AddNewGarmentScreen(
+    garmentToEdit: GarmentItem? = null,
     onClose: () -> Unit = {},
     onGarmentCreated: () -> Unit = onClose,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
+    val isEditMode = garmentToEdit != null
 
     // Observe available segments from ViewModel
     val segments by viewModel.segments.collectAsState()
@@ -53,16 +52,17 @@ fun AddNewGarmentScreen(
         }
     }
 
-    var garmentName by remember { mutableStateOf("") }
-    var garmentCode by remember { mutableStateOf("") }
-    var baseStitchingCharge by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
+    var garmentName by remember(garmentToEdit) { mutableStateOf(garmentToEdit?.displayName ?: garmentToEdit?.name ?: "") }
+    var garmentCode by remember(garmentToEdit) { mutableStateOf(garmentToEdit?.code ?: "") }
+    var description by remember(garmentToEdit) { mutableStateOf(garmentToEdit?.description ?: "") }
 
-    // Multi-segment selection state
+    // Multi-segment selection state with explicit <List<String>> type
     var segmentExpanded by remember { mutableStateOf(false) }
-    var selectedSegmentIds by remember { mutableStateOf<List<String>>(emptyList()) }
+    var selectedSegmentIds by remember(garmentToEdit, segments) {
+        mutableStateOf<List<String>>(garmentToEdit?.applicableSegments?.mapNotNull { it.id } ?: emptyList())
+    }
 
-    val selectedSegmentNames = remember(selectedSegmentIds, segments) {
+    val selectedSegmentNames: List<String> = remember(selectedSegmentIds, segments) {
         segments.filter { it.id in selectedSegmentIds }.map { it.name }
     }
 
@@ -84,7 +84,9 @@ fun AddNewGarmentScreen(
     // Helper function to generate uppercase code from garment name
     fun updateGarmentCodeFromName(name: String) {
         garmentName = name
-        garmentCode = name.trim().uppercase().replace("\\s+".toRegex(), "_")
+        if (!isEditMode) {
+            garmentCode = name.trim().uppercase().replace("\\s+".toRegex(), "_")
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -92,7 +94,7 @@ fun AddNewGarmentScreen(
             containerColor = Color.Transparent,
             topBar = {
                 TitleBar(
-                    title = "Add New Garment",
+                    title = if (isEditMode) "Edit Garment" else "Add New Garment",
                     onClose = onClose
                 )
             },
@@ -108,7 +110,7 @@ fun AddNewGarmentScreen(
             ) {
                 Spacer(Modifier.height(4.dp))
 
-                // Garment Name Field with Real-Time Capitalized Code Generation
+                // Garment Name Field
                 Column {
                     FormLabel(text = "Garment Name", isRequired = true)
                     FormTextField(
@@ -117,19 +119,6 @@ fun AddNewGarmentScreen(
                             updateGarmentCodeFromName(newName)
                         },
                         placeholder = "Enter Garment name here"
-                    )
-                }
-
-                // Garment Code Field (Automatically populated in uppercase)
-                Column {
-                    FormLabel(text = "Garment Code")
-                    FormTextField(
-                        value = garmentCode,
-                        onValueChange = { newCode ->
-                            garmentCode = newCode.uppercase().replace("\\s+".toRegex(), "_")
-                        },
-                        placeholder = "Garment Code will be automatically generated",
-                        enabled = false
                     )
                 }
 
@@ -145,24 +134,9 @@ fun AddNewGarmentScreen(
                         onMultiOptionSelected = { chosenNames ->
                             selectedSegmentIds = segments
                                 .filter { it.name in chosenNames }
-                                .map { it.id }
+                                .mapNotNull { it.id }
                         },
                         isRequired = true
-                    )
-                }
-
-                // Base Stitching Charge Field
-                Column {
-                    FormLabel(text = "Base Stitching Charge (₹)")
-                    FormTextField(
-                        value = baseStitchingCharge,
-                        onValueChange = { input ->
-                            if (input.all { it.isDigit() }) {
-                                baseStitchingCharge = input
-                            }
-                        },
-                        placeholder = "Enter base stitching charge",
-                        keyboardType = KeyboardType.Number
                     )
                 }
 
@@ -210,7 +184,7 @@ fun AddNewGarmentScreen(
             showBackArrow = false,
             showTrailingArrow = false,
             trailingAction = TrailingFabAction.Next(
-                label = "Create Garment",
+                label = if (isEditMode) "Update Garment" else "Create Garment",
                 onClick = {
                     if (garmentName.isBlank()) {
                         errorMessage = "Please enter a garment name"
@@ -224,16 +198,14 @@ fun AddNewGarmentScreen(
                     val finalCode = garmentCode.ifBlank {
                         garmentName.trim().uppercase().replace("\\s+".toRegex(), "_")
                     }
-                    val stitchingCharge = baseStitchingCharge.toDoubleOrNull() ?: 0.0
 
                     viewModel.createGarment(
                         name = garmentName,
                         code = finalCode,
                         description = description,
                         applicableSegmentIds = selectedSegmentIds,
-                        baseStitchingCharge = stitchingCharge,
-                        onSuccess = { response ->
-                            successMessage = "Garment created successfully"
+                        onSuccess = { _ ->
+                            successMessage = if (isEditMode) "Garment updated successfully" else "Garment created successfully"
                             onGarmentCreated()
                         },
                         onError = { error ->

@@ -77,7 +77,7 @@ interface FinanceApiService {
         @Path("id") id: String
     ): Response<CreateChartOfAccountResponse>
 
-    @GET("api/reports/trial-balance")
+    @GET("/api/reports/trial-balance")
     suspend fun getTrialBalance(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
@@ -107,7 +107,7 @@ interface FinanceApiService {
         @Body request: CreateJournalEntryRequest
     ): Response<CreateJournalEntryResponse>
 
-    @GET("api/finance/journal-entries/view-one/{id}")
+    @GET("/api/finance/journal-entries/view-one/{id}")
     suspend fun getJournalEntryDetail(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -122,7 +122,7 @@ interface FinanceApiService {
         @Body request: UpdateJournalEntryRequest
     ): Response<UpdateJournalEntryResponse>
 
-    @DELETE("api/finance/journal-entries/delete-one/{id}")
+    @DELETE("/api/finance/journal-entries/delete-one/{id}")
     suspend fun deleteJournalEntry(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -139,7 +139,7 @@ interface FinanceApiService {
         @Query("status") status: String? = null
     ): Response<ExpenseListResponse>
 
-    @GET("api/finance/expenses/{id}")
+    @GET("/api/finance/expenses/{id}")
     suspend fun getExpenseViewOne(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,

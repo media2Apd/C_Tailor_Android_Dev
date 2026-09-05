@@ -60,6 +60,7 @@ fun ModuleSettingsScreen(
     onConfigureHome: () -> Unit = { onNavigateToModule("home") },
     onConfigureSales: () -> Unit = { onNavigateToModule("sales_garment_type") },
     onConfigureSalesPricing: () -> Unit = { onNavigateToModule("sales_garment_pricing_setup") },
+    onNavigateMeasurementList: () -> Unit = { onNavigateToModule("sales_measurement_list") },
     onConfigureMarketing: () -> Unit = {},
     onConfigureFinance: () -> Unit = { onNavigateToModule("finance_chart_of_accounts") },
     onConfigureInventory: () -> Unit = { onNavigateToModule("inventory_allocation_rules") },
@@ -123,7 +124,8 @@ fun ModuleSettingsScreen(
                 isConfigured = true,
                 subItems = listOf(
                     ModuleSubItem(title = "Garment", onClick = onConfigureSales),
-                    ModuleSubItem(title = "Garment Pricing", onClick = onConfigureSalesPricing)
+                    ModuleSubItem(title = "Garment Pricing", onClick = onConfigureSalesPricing),
+                    ModuleSubItem(title = "Measurement List", onClick = onNavigateMeasurementList)
                 ),
                 onConfigure = onConfigureSales
             ),

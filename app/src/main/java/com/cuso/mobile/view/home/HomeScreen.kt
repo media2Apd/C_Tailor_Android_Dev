@@ -362,6 +362,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "sales_add_garment_pricing",
             "sales_add_fabric_pricing",
             "sales_add_work_pricing",
+            "sales_measurement_list",
 
             // ── Sales ──
             "sales_lead",

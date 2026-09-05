@@ -15,7 +15,7 @@ interface SalesCustomerApiService {
         @Query("type") type: String? = null
     ): Response<CustomerListResponse>
 
-    @GET("api/customers")
+    @GET("/api/customers")
     suspend fun getCustomersV2(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -25,7 +25,7 @@ interface SalesCustomerApiService {
         @Query("type") type: String? = null
     ): Response<CustomerListResponseV2>
 
-    @GET("api/customers/{id}")
+    @GET("/api/customers/{id}")
     suspend fun getCustomerDetailV2(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,

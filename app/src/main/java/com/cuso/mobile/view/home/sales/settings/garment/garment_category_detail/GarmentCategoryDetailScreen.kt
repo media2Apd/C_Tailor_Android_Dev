@@ -156,6 +156,8 @@ fun GarmentCategoryDetailScreen(
                 isLoading = isLoading,
                 onClose = onClose,
                 onAddGarmentCategoryClick = onAddGarmentCategoryClick,
+                segmentId = segmentId,
+                garmentId = garmentId,
                 onConfigureGarmentClick = { styleItem ->
                     selectedStyle = styleItem
                     isConfigurationActive = styleItem.status.equals("ACTIVE", ignoreCase = true)
@@ -278,17 +280,20 @@ fun GarmentCategoryDetailScreen(
         onDismiss = { viewModel.clearErrorMessage() }
     )
 }
-
 @Composable
-private fun GarmentCategoryListView(
+ fun GarmentCategoryListView(
     categoryTitle: String,
     styles: List<GarmentStyleItem>,
     isLoading: Boolean,
     onClose: () -> Unit,
     onAddGarmentCategoryClick: () -> Unit,
-    onConfigureGarmentClick: (GarmentStyleItem) -> Unit
+    onConfigureGarmentClick: (GarmentStyleItem) -> Unit,
+    segmentId: String? = null,
+    garmentId: String? = null
 ) {
+    val viewModel: SettingsViewModel = hiltViewModel()
     val tokens = LocalAppTokens.current
+    var expandedCardMenuId by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -319,9 +324,7 @@ private fun GarmentCategoryListView(
             }
 
             if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Primary)
-                }
+                ListSkeleton()
             } else if (styles.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -382,17 +385,71 @@ private fun GarmentCategoryListView(
                                         }
                                     }
 
-                                    Box(
-                                        modifier = Modifier
-                                            .background(statusBg, RoundedCornerShape(6.dp))
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        Text(
-                                            text = statusText,
-                                            color = statusTextColor,
-                                            fontSize = tokens.label,
-                                            fontWeight = FontWeight.Bold
-                                        )
+                                        // Status Badge
+                                        Box(
+                                            modifier = Modifier
+                                                .background(statusBg, RoundedCornerShape(6.dp))
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Text(
+                                                text = statusText,
+                                                color = statusTextColor,
+                                                fontSize = tokens.label,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+
+                                        // 3-Dot More Menu
+                                        Box {
+                                            IconButton(
+                                                onClick = { expandedCardMenuId = item.id },
+                                                modifier = Modifier.size(28.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.MoreVert,
+                                                    contentDescription = "Options",
+                                                    tint = iconMuted,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+
+                                            DropdownMenu(
+                                                expanded = expandedCardMenuId == item.id,
+                                                onDismissRequest = { expandedCardMenuId = null },
+                                                containerColor = whiteBg
+                                            ) {
+                                                val isCurrentActive = item.status.equals("ACTIVE", ignoreCase = true)
+                                                val actionLabel = when {
+                                                    isCurrentActive -> "Deactivate"
+                                                    item.status.equals("DRAFT", ignoreCase = true) -> "Make Active"
+                                                    else -> "Activate"
+                                                }
+
+                                                DropdownMenuItem(
+                                                    text = {
+                                                        Text(
+                                                            text = actionLabel,
+                                                            fontSize = 13.sp,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = if (isCurrentActive) redText else darkGreenBg
+                                                        )
+                                                    },
+                                                    onClick = {
+                                                        expandedCardMenuId = null
+                                                        viewModel.changeGarmentCategoryStatus(
+                                                            categoryId = item.id,
+                                                            currentStatus = item.status,
+                                                            segmentId = segmentId,
+                                                            garmentId = garmentId
+                                                        )
+                                                    }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
 
@@ -519,7 +576,7 @@ fun GarmentProfileConfigScreen(
                         ) {
                             val isEffectiveActive = currentEffectiveStyle?.status.equals("ACTIVE", ignoreCase = true)
                             val badgeColor = if (isEffectiveActive) Color(0xFF10B981) else Color(0xFFF59E0B)
-                            val badgeText = if (isEffectiveActive) "ACTIVE CONFIGURATION" else "DRAFT MODE"
+                            val badgeText = if (isEffectiveActive) "ACTIVE MODE" else "DRAFT MODE"
                             Box(
                                 modifier = Modifier
                                     .size(6.dp)
@@ -721,10 +778,11 @@ fun GarmentProfileConfigScreen(
                                             }
                                             DropdownMenu(
                                                 expanded = expandedMenuFieldId == (fieldEntry.id ?: fieldDetail?.id),
-                                                onDismissRequest = { expandedMenuFieldId = null }
+                                                onDismissRequest = { expandedMenuFieldId = null },
+                                                containerColor = whiteBg
                                             ) {
                                                 DropdownMenuItem(
-                                                    text = { Text("Delete", color = redText) },
+                                                    text = { Text("Delete", color = title_color) },
                                                     onClick = {
                                                         expandedMenuFieldId = null
                                                         fieldToDelete = fieldEntry
@@ -1093,6 +1151,7 @@ fun CreateMeasurementFieldScreen(
     var displayLabel by remember { mutableStateOf("") }
     var fieldCode by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var groupName by remember { mutableStateOf("") }
 
     var fieldTypeExpanded by remember { mutableStateOf(false) }
     var selectedFieldType by remember { mutableStateOf("") }
@@ -1182,6 +1241,15 @@ fun CreateMeasurementFieldScreen(
 
                 Spacer(Modifier.height(12.dp))
 
+                FormLabel(text = "Group Name", isRequired = false)
+                FormTextField(
+                    value = groupName,
+                    onValueChange = { groupName = it },
+                    placeholder = "e.g., Upper Body"
+                )
+
+                Spacer(Modifier.height(12.dp))
+
                 FormLabel(text = "Description", isRequired = false)
                 FormTextArea(
                     value = description,
@@ -1196,8 +1264,8 @@ fun CreateMeasurementFieldScreen(
                 SectionHeader("Section 2 - Field Configuration")
                 Spacer(Modifier.height(14.dp))
 
+                FormLabel(text = "Field Type")
                 FormDropdown(
-                    label = "Field Type",
                     value = selectedFieldType,
                     expanded = fieldTypeExpanded,
                     onExpandChange = { fieldTypeExpanded = it },
@@ -1207,8 +1275,8 @@ fun CreateMeasurementFieldScreen(
 
                 Spacer(Modifier.height(12.dp))
 
+                FormLabel(text = "Unit")
                 FormDropdown(
-                    label = "Unit",
                     value = selectedUnit,
                     expanded = unitExpanded,
                     onExpandChange = { unitExpanded = it },
@@ -1295,8 +1363,8 @@ fun CreateMeasurementFieldScreen(
 
                 Spacer(Modifier.height(16.dp))
 
+                FormLabel(text = "Dependent Field")
                 FormDropdown(
-                    label = "Dependent Field",
                     value = selectedDependentField.ifEmpty { "Select trigger field" },
                     expanded = dependentFieldExpanded,
                     onExpandChange = { dependentFieldExpanded = it },
@@ -1306,8 +1374,8 @@ fun CreateMeasurementFieldScreen(
 
                 Spacer(Modifier.height(16.dp))
 
+                FormLabel(text = "Condition")
                 FormDropdown(
-                    label = "Condition",
                     value = selectedCondition.ifEmpty { "Select condition" },
                     expanded = conditionExpanded,
                     onExpandChange = { conditionExpanded = it },
@@ -1392,6 +1460,7 @@ fun CreateMeasurementFieldScreen(
                         name = fieldName,
                         displayName = displayLabel.ifBlank { fieldName },
                         code = finalCode,
+                        grpName = groupName,
                         description = description,
                         inputType = selectedFieldType,
                         unit = selectedUnit,

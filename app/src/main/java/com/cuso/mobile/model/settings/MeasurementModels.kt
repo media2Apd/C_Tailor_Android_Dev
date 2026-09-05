@@ -11,6 +11,12 @@ data class MeasurementFieldListResponse(
     @SerializedName("message") val message: String? = null
 )
 
+data class MeasurementResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("pagination") val pagination: PaginationInfo,
+    @SerializedName("data") val data: List<MeasurementFieldItem>
+)
+
 // ── Measurement Field Item Model ──
 data class MeasurementFieldItem(
     @SerializedName("_id") val id: String,
@@ -27,7 +33,8 @@ data class MeasurementFieldItem(
     @SerializedName("maxValue") val maxValue: Double? = null,
     @SerializedName("options") val options: List<String> = emptyList(),
     @SerializedName("isSystemDefined") val isSystemDefined: Boolean = false,
-    @SerializedName("isActive") val isActive: Boolean = true,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("isActive") val isActive: Boolean,
     @SerializedName("createdAt") val createdAt: String? = null,
     @SerializedName("updatedAt") val updatedAt: String? = null
 )

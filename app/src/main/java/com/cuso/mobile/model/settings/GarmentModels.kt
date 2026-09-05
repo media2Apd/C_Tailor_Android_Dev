@@ -185,6 +185,11 @@ data class GarmentImageDto(
     val isPrimary: Boolean? = null
 )
 
+data class ChangeGarmentCategoryStatusResponse(
+    val success: Boolean,
+    val message: String,
+    val data: GarmentStyleItem
+)
 data class GarmentStyleItem(
     @SerializedName("_id", alternate = ["id"]) val id: String,
     @SerializedName("organizationId") val organizationId: String? = null,
@@ -378,7 +383,7 @@ data class UpdateGarmentStyleRequest(
     @SerializedName("isStitchingTaxable") val isStitchingTaxable: Boolean = false,
     @SerializedName("stitchingTaxGroupId") val stitchingTaxGroupId: String? = null,
     @SerializedName("isCustomStitchable") val isCustomStitchable: Boolean = true,
-    @SerializedName("status") val status: String = "Active"
+    @SerializedName("status") val status: String? = null
 )
 
 data class GarmentStyleDetailResponse(
@@ -396,6 +401,7 @@ data class CreateMeasurementFieldRequest(
     @SerializedName("name") val name: String,
     @SerializedName("displayName") val displayName: String = name,
     @SerializedName("code") val code: String,
+    @SerializedName("groupName") val groupName: String,
     @SerializedName("description") val description: String? = null,
     @SerializedName("inputType") val inputType: String = "Number",
     @SerializedName("inputCount") val inputCount: Int = 1,
@@ -411,4 +417,44 @@ data class MeasurementFieldDetailResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("message") val message: String? = null,
     @SerializedName("data") val data: MeasurementFieldItem? = null
+)
+
+//view one
+data class GarmentDetailResponse(
+    val success: Boolean,
+    val data: GarmentDetail
+)
+
+data class GarmentDetail(
+    val _id: String,
+    val name: String,
+    val displayName: String?,
+    val code: String,
+    val description: String?,
+    val baseStitchingCharge: Double,
+    val status: String,
+    val applicableSegments: List<ApplicableSegment>
+)
+
+data class ApplicableSegment(
+    val _id: String,
+    val name: String,
+    val displayName: String
+)
+//update garment basic price
+/**
+ * Request model to update only the basic pricing and status of a garment
+ */
+data class UpdateGarmentBasicPriceRequest(
+    @SerializedName("baseStitchingCharge") val baseStitchingCharge: Double,
+    @SerializedName("isActive") val isActive: Boolean
+)
+
+/**
+ * Main response wrapper for the update API
+ */
+data class UpdateGarmentBasicPriceResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String?,
+    @SerializedName("data") val data: GarmentItem?
 )

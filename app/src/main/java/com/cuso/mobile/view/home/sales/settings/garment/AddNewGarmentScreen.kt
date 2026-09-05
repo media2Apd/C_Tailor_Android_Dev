@@ -335,7 +335,7 @@ fun AddNewGarmentCategoryScreen(
             showBackArrow = false,
             showTrailingArrow = false,
             trailingAction = TrailingFabAction.Next(
-                label = if (isCreating) "Creating..." else "Create Garment Category",
+                label = if (isCreating) "Creating..." else "Create",
                 onClick = {
                     if (isCreating) return@Next
 

@@ -3,6 +3,14 @@
 package com.cuso.mobile.di
 
 import android.util.Log
+import com.cuso.mobile.model.settings.WorkPricingCategory
+import com.cuso.mobile.model.settings.WorkPricingCategoryDeserializer
+import com.cuso.mobile.model.settings.WorkPricingGarment
+import com.cuso.mobile.model.settings.WorkPricingGarmentDeserializer
+import com.cuso.mobile.model.settings.WorkPricingSegment
+import com.cuso.mobile.model.settings.WorkPricingSegmentDeserializer
+import com.cuso.mobile.model.settings.WorkPricingTaxGroup
+import com.cuso.mobile.model.settings.WorkPricingTaxGroupDeserializer
 import com.cuso.mobile.network.auth.AuthApiService
 import com.cuso.mobile.network.finance.FinanceApiService
 import com.cuso.mobile.network.hr.HrApiService
@@ -16,6 +24,8 @@ import com.cuso.mobile.network.sales.SalesOrderApiService
 import com.cuso.mobile.network.sales.SalesPricingApiService
 import com.cuso.mobile.network.sales.settings.SalesSettingsApiService
 import com.cuso.mobile.network.user.UserApiService
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -30,7 +40,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "http://192.168.88.12:5000"
+    private const val BASE_URL = "http://192.168.88.7:5000"
 //     private const val BASE_URL = "https://cuso-tailor-production.onrender.com"
 
     // ---------------------------------------------------------
@@ -59,11 +69,22 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(client: OkHttpClient): Retrofit {
+    fun provideGson(): Gson {
+        return GsonBuilder()
+            .registerTypeAdapter(WorkPricingSegment::class.java, WorkPricingSegmentDeserializer())
+            .registerTypeAdapter(WorkPricingGarment::class.java, WorkPricingGarmentDeserializer())
+            .registerTypeAdapter(WorkPricingCategory::class.java, WorkPricingCategoryDeserializer())
+            .registerTypeAdapter(WorkPricingTaxGroup::class.java, WorkPricingTaxGroupDeserializer())
+            .create()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(client: OkHttpClient, gson: Gson): Retrofit {
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
 

@@ -58,21 +58,21 @@ interface InventoryApiService {
     @GET("/api/inventory/low-stock-alert/view-all")
     suspend fun getLowStockAlerts(
         @Header("Authorization") token: String,
-        @Header("x-csrf-token") csrfToken: String,
+        @Header("X-CSRF-Token") csrfToken: String,
         @Query("warehouseId") warehouseId: String? = null
     ): Response<LowStockResponse>
 
     @POST("/api/inventory/low-stock-alert/reorder")
     suspend fun createPurchaseOrder(
         @Header("Authorization") token: String,
-        @Header("x-csrf-token") csrfToken: String,
+        @Header("X-CSRF-Token") csrfToken: String,
         @Body request: CreatePurchaseOrderRequest
     ): Response<CreatePurchaseOrderResponse>
 
     @GET("/api/inventory/low-stock-alert/detail/{itemId}/{warehouseId}")
     suspend fun getLowStockItemDetail(
         @Header("Authorization") token: String,
-        @Header("x-csrf-token") csrfToken: String,
+        @Header("X-CSRF-Token") csrfToken: String,
         @Path("itemId") itemId: String,
         @Path("warehouseId") warehouseId: String
     ): Response<BinItem.LowStockDetailResponse>

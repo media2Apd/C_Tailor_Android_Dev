@@ -81,14 +81,15 @@ fun StepNavigationFab(
     backWidthFraction: Float? = null,
     trailingWidthFraction: Float? = null,
     showBackArrow: Boolean = true,
-    showTrailingArrow: Boolean = true
+    showTrailingArrow: Boolean = true,
+    isLoading: Boolean = false
 ) {
     Box(modifier.fillMaxSize()) {
         if (showBack) {
             BackFabButton(
                 onClick = onBack,
                 label = backLabel,
-                enabled = backEnabled,
+                enabled = backEnabled && !isLoading, // Disable back while loading
                 showArrow = showBackArrow,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -98,8 +99,15 @@ fun StepNavigationFab(
         }
 
         if (trailingAction != null) {
+            // If the action is "Update", we sync the top-level isLoading with the action's isLoading
+            val finalAction = if (trailingAction is TrailingFabAction.Update) {
+                trailingAction.copy(isLoading = isLoading)
+            } else {
+                trailingAction
+            }
+
             TrailingFabButton(
-                action = trailingAction,
+                action = finalAction,
                 showArrow = showTrailingArrow,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)

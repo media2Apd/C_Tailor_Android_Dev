@@ -12,6 +12,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -25,8 +26,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.R
@@ -565,74 +569,140 @@ fun ToggleSegmentStatusDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    val dialogTitle = if (isActivating) "Activate $entityLabel?" else "Deactivate $entityLabel?"
-    val dialogMessage = if (isActivating) {
-        "Activating \"$segmentName\" will make it available for use across the app."
-    } else {
-        "Deactivating \"$segmentName\" will hide it from selection until reactivated."
-    }
-    val confirmLabel = if (isActivating) "Activate" else "Deactivate"
-    val confirmColor = if (isActivating) darkGreenBg else redText
+    // UI Configuration based on status
+    val mainColor = if (isActivating) Color(0xFF3B32D1) else Color(0xFFD97706) // Blue vs Amber
+    val iconBg = if (isActivating) Color(0xFFF0F2FF) else Color(0xFFFEF3C7)
+    val iconRes = if (isActivating) R.drawable.ic_tick_2 else R.drawable.ic_amber
 
-    androidx.compose.ui.window.Dialog(
+    val dialogTitle = if (isActivating) "Activate Configuration?" else "Deactivate $entityLabel?"
+    val confirmLabel = if (isActivating) "Activate" else "Deactivate"
+
+    val dialogMessage = if (isActivating) {
+        "This will make the $entityLabel configuration for $segmentName active. All new orders will use this configuration immediately."
+    } else {
+        "Deactivating this $entityLabel will remove it from all active configurations. Data collected using this field will no longer be accessible."
+    }
+
+    val warningMessage = if (isActivating) {
+        "This action cannot be undone without creating a new revision."
+    } else {
+        "Note: Existing records using this $entityLabel will be archived."
+    }
+
+    Dialog(
         onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(24.dp),
             color = Color.White,
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .padding(vertical = 24.dp)
+                .fillMaxWidth(0.9f)
+                .wrapContentHeight()
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Top Circular Icon
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(iconBg, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = iconRes),
+                        contentDescription = null,
+                        tint = mainColor,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                // Title
                 Text(
                     text = dialogTitle,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = title_color,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827),
+                    textAlign = TextAlign.Center
                 )
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
 
+                // Main Description
                 Text(
                     text = dialogMessage,
-                    fontSize = 12.sp,
-                    color = TextSecondary,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    lineHeight = 17.sp
+                    fontSize = 14.sp,
+                    color = Color(0xFF6B7280),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
                 )
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(24.dp))
 
+                // Yellow Warning Box
+                Surface(
+                    color = Color(0xFFFFFBEB),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(id = if (isActivating) R.drawable.ic_amber else R.drawable.ic_info),
+                            contentDescription = null,
+                            tint = Color(0xFFD97706),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = warningMessage,
+                            fontSize = 13.sp,
+                            color = Color(0xFF92400E),
+                            lineHeight = 18.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                // Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
                         modifier = Modifier
                             .weight(1f)
-                            .height(42.dp)
+                            .height(48.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF4B5563))
                     ) {
-                        Text("Cancel", color = title_color, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     }
 
                     Button(
                         onClick = onConfirm,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = confirmColor),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = mainColor),
                         modifier = Modifier
                             .weight(1f)
-                            .height(42.dp)
+                            .height(48.dp)
                     ) {
-                        Text(confirmLabel, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = confirmLabel,
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
@@ -658,6 +728,11 @@ fun GarmentCategoryCard(
 ) {
     val tokens = LocalAppTokens.current
     var menuExpanded by remember { mutableStateOf(false) }
+
+    val isActive = garmentStatus?.equals("active", ignoreCase = true) == true
+    val statusText = if (isActive) "ACTIVE" else "INACTIVE"
+    val statusBg = if (isActive) greenBg else yellowBg
+    val statusTextColor = if (isActive) darkGreenBg else yellowText
 
     Card(
         shape = RoundedCornerShape(tokens.cardCornerRadius),
@@ -708,7 +783,22 @@ fun GarmentCategoryCard(
                     )
                 }
 
-                // 3-dot More Options Menu
+                if (!garmentStatus.isNullOrBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .background(statusBg, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = statusText,
+                            color = statusTextColor,
+                            fontSize = tokens.label,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(Modifier.width(4.dp))
+                }
+
                 Box {
                     IconButton(
                         onClick = { menuExpanded = true },

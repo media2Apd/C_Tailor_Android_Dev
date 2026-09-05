@@ -99,6 +99,7 @@ import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.
 import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.ConfigurationPreviewScreen
 import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.CreateMeasurementFieldScreen
 import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.GarmentProfileConfigScreen
+import com.cuso.mobile.view.home.sales.settings.measurement_list.MeasurementListScreen
 import com.cuso.mobile.view.home.sales.settings.pricing_setup.AddFabricPriceScreen
 import com.cuso.mobile.view.home.sales.settings.pricing_setup.AddNewGarmentPricingScreen
 import com.cuso.mobile.view.home.sales.settings.pricing_setup.AddWorkPricingScreen
@@ -622,6 +623,10 @@ fun HomeScreenRouter(
             onPaymentClick = { onNavigate("payment_detail") }
         )
         "payment_detail" -> PaymentInformationScreen(onClose = onGoBack)
+
+        // ─────────────────────────────────────────────────────────────
+        //  SALES SETTINGS
+        // ─────────────────────────────────────────────────────────────
         "sales_settings" -> SalesSettingsScreen(
             navController = navController,
             onClose = onGoBack,
@@ -737,23 +742,62 @@ fun HomeScreenRouter(
         )
         "sales_garment_pricing_setup" -> PricingSetupScreen(
             onClose = onGoBack,
-            onAddGarmentPricing = { onNavigate("sales_add_garment_pricing") },
+            onAddGarmentPricing = {
+                onEditingPricingIdChange(null) // Ensure Add mode
+                onNavigate("sales_add_garment_pricing")
+            },
             onAddFabricPricing = { onNavigate("sales_add_fabric_pricing") },
-            onAddWorkPricing = { onNavigate("sales_add_work_pricing") },
-            onEditGarmentPricing = { onNavigate("sales_add_garment_pricing") }
+            onAddWorkPricing = {
+                onEditingPricingIdChange(null) // Ensure Add mode
+                onNavigate("sales_add_work_pricing")
+            },
+            // Pass the ID to the router state when editing
+            onEditGarmentPricing = { id ->
+                onEditingPricingIdChange(id)
+                onNavigate("sales_add_garment_pricing")
+            },
+            onEditWorkPricing = { id ->
+                onEditingPricingIdChange(id)
+                onNavigate("sales_add_work_pricing")
+            }
         )
         "sales_add_garment_pricing" -> AddNewGarmentPricingScreen(
-            onClose = onGoBack,
-            onSaveSuccess = onGoBack
+            garmentId = editingPricingId, // Use the shared state ID
+            onClose = {
+                onEditingPricingIdChange(null) // Clear ID on close
+                onGoBack()
+            },
+            onSaveSuccess = {
+                onEditingPricingIdChange(null) // Clear ID on success
+                onGoBack()
+            }
         )
         "sales_add_fabric_pricing" -> AddFabricPriceScreen(
             onClose = onGoBack,
             onSaveSuccess = onGoBack
         )
         "sales_add_work_pricing" -> AddWorkPricingScreen(
-            onClose = onGoBack,
-            onSaveSuccess = onGoBack
+            workId = editingPricingId, // Use the shared state ID
+            onClose = {
+                onEditingPricingIdChange(null) // Clear ID on close
+                onGoBack()
+            },
+            onSaveSuccess = {
+                onEditingPricingIdChange(null) // Clear ID on success
+                onGoBack()
+            }
         )
+
+        // Add this inside HomeScreenRouter when(screen) block:
+
+        "sales_measurement_list" -> {
+            MeasurementListScreen(
+                onClose = onGoBack,
+                onAddMeasurement = { onNavigate("sales_create_measurement_field") },
+                viewModel = settingsViewModel
+            )
+        }
+
 
         // ─────────────────────────────────────────────────────────────
         // 4. FINANCE MODULE

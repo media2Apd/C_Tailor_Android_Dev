@@ -23,6 +23,7 @@ import com.cuso.mobile.model.settings.CreateSegmentResponse
 import com.cuso.mobile.model.settings.DeactivateMeasurementFieldResponse
 import com.cuso.mobile.model.settings.DeleteSegmentResponse
 import com.cuso.mobile.model.settings.FloorItem
+import com.cuso.mobile.model.settings.GarmentDetail
 import com.cuso.mobile.model.settings.GarmentItem
 import com.cuso.mobile.model.settings.GarmentStyleItem
 import com.cuso.mobile.model.settings.GetBinsResponse // 👈 Added
@@ -30,7 +31,13 @@ import com.cuso.mobile.model.settings.MeasurementFieldItem
 import com.cuso.mobile.model.settings.RackItem
 import com.cuso.mobile.model.settings.SectionItem
 import com.cuso.mobile.model.settings.SegmentItem
+import com.cuso.mobile.model.settings.UpdateGarmentBasicPriceRequest
+import com.cuso.mobile.model.settings.UpdateGarmentBasicPriceResponse
 import com.cuso.mobile.model.settings.UpdateGarmentStyleRequest
+import com.cuso.mobile.model.settings.WorkPricingDetail
+import com.cuso.mobile.model.settings.WorkPricingItem
+import com.cuso.mobile.model.settings.WorkPricingRequest
+import com.cuso.mobile.model.settings.WorkPricingResponse
 import com.cuso.mobile.network.inventory.settings.InventorySettingsApiService
 import com.cuso.mobile.network.sales.settings.SalesSettingsApiService
 import kotlinx.coroutines.flow.Flow
@@ -524,6 +531,122 @@ class SettingsRepository @Inject constructor(
                 Result.success(response.body()!!)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed to change garment status"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun changeGarmentCategoryStatus(
+        categoryId: String,
+        newStatus: String
+    ): Result<GarmentStyleItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.changeGarmentCategoryStatus(
+                token = accessToken,
+                csrfToken = csrfToken,
+                categoryId = categoryId,
+                request = mapOf("status" to newStatus)
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to update status"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun fetchWorkPricing(segmentId: String?, status: String?): Result<List<WorkPricingItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.getWorkPricing(token = accessToken, csrfToken = csrfToken,segmentId = segmentId, status = status)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception("Error fetching work pricing"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getGarmentDetail(id: String): Result<GarmentDetail> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.getGarmentDetail(accessToken, csrfToken,id)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception("Failed to fetch garment details"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Updates garment basic pricing in the remote database
+     */
+    suspend fun updateGarmentBasicPrice(
+        id: String,
+        request: UpdateGarmentBasicPriceRequest
+    ): Result<UpdateGarmentBasicPriceResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.updateGarmentBasicPrice(accessToken, csrfToken, id, request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Failed to update pricing: ${response.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getWorkPricingViewOne(id: String): Result<WorkPricingDetail> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.getWorkPricingViewOne(accessToken, csrfToken, id)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception("Failed to fetch work pricing details"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createWorkPricing(request: WorkPricingRequest): Result<WorkPricingResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.createWorkPricing(accessToken, csrfToken, request)
+            if (response.isSuccessful && response.body() != null) Result.success(response.body()!!)
+            else Result.failure(Exception("Error: ${response.code()}"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun updateWorkPricing(id: String, request: WorkPricingRequest): Result<WorkPricingResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.updateWorkPricing(accessToken, csrfToken, id, request)
+            if (response.isSuccessful && response.body() != null) Result.success(response.body()!!)
+            else Result.failure(Exception(response.errorBody()?.string() ?: "Update failed"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun changeWorkPricingStatus(id: String, status: String): Result<WorkPricingItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.changeWorkPricingStatus(accessToken, csrfToken, id, mapOf("status" to status))
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception(response.body()?.message ?: "Update Failed"))
             }
         } catch (e: Exception) {
             Result.failure(e)

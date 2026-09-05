@@ -128,6 +128,11 @@ class SettingsViewModel @Inject constructor(
     private val _isChangingGarmentStatus = MutableStateFlow(false)
     val isChangingGarmentStatus: StateFlow<Boolean> = _isChangingGarmentStatus.asStateFlow()
 
+    // --- Action States (Create/Update) ---
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+
+
     // Helper to extract clean message string from JSON error response
     private fun extractErrorMessage(raw: String?): String {
         if (raw.isNullOrBlank()) return "An unexpected error occurred"
@@ -578,6 +583,7 @@ class SettingsViewModel @Inject constructor(
         name: String,
         displayName: String,
         code: String,
+        grpName: String,
         description: String?,
         inputType: String,
         unit: String?,
@@ -595,6 +601,7 @@ class SettingsViewModel @Inject constructor(
                 name = name.trim(),
                 displayName = displayName.trim(),
                 code = code.trim().uppercase(),
+                groupName = grpName,
                 description = description?.takeIf { it.isNotBlank() },
                 inputType = inputType,
                 unit = unit,
@@ -1022,7 +1029,212 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun changeGarmentCategoryStatus(
+        categoryId: String,
+        currentStatus: String,
+        segmentId: String? = null,
+        garmentId: String? = null,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        val nextStatus = when (currentStatus.lowercase()) {
+            "active" -> "Inactive"
+            "draft", "inactive" -> "Active"
+            else -> "Active"
+        }
 
+        viewModelScope.launch {
+            _isLoadingStyles.value = true
+            val result = settingsRepository.changeGarmentCategoryStatus(categoryId, nextStatus)
+            _isLoadingStyles.value = false
+
+            result.fold(
+                onSuccess = { updatedItem ->
+                    _garmentStyles.value = _garmentStyles.value.map {
+                        if (it.id == categoryId) it.copy(status = nextStatus) else it
+                    }
+                    onSuccess("Status successfully updated to $nextStatus")
+                },
+                onFailure = { error ->
+                    _errorMessage.value = error.localizedMessage ?: "Failed to update status"
+                    onError(error.localizedMessage ?: "Failed to update status")
+                }
+            )
+        }
+    }
+
+    private val _workPricingList = MutableStateFlow<List<WorkPricingItem>>(emptyList())
+    val workPricingList = _workPricingList.asStateFlow()
+
+    private val _isLoadingWorkPricing = MutableStateFlow(false)
+    val isLoadingWorkPricing = _isLoadingWorkPricing.asStateFlow()
+
+    fun fetchWorkPricing(segmentId: String? = null, status: String? = "Active") {
+        viewModelScope.launch {
+            _isLoadingWorkPricing.value = true
+            settingsRepository.fetchWorkPricing(segmentId, status )
+                .onSuccess { list -> _workPricingList.value = list }
+                .onFailure { /* Handle error */ }
+            _isLoadingWorkPricing.value = false
+        }
+    }
+
+    // Holds the detail of the garment selected for editing
+    private val _selectedGarment = MutableStateFlow<GarmentDetail?>(null)
+    val selectedGarment = _selectedGarment.asStateFlow()
+
+    // Loading state for the detail API
+    private val _isFetchingDetail = MutableStateFlow(false)
+    val isFetchingDetail = _isFetchingDetail.asStateFlow()
+
+    /**
+     * Fetches garment data and updates the state flow
+     */
+    fun fetchGarmentDetail(id: String) {
+        viewModelScope.launch {
+            _isFetchingDetail.value = true
+            settingsRepository.getGarmentDetail(id).onSuccess { detail ->
+                _selectedGarment.value = detail
+            }.onFailure {
+                // Error handling can be added here
+            }
+            _isFetchingDetail.value = false
+        }
+    }
+
+    private val _isUpdatingPrice = MutableStateFlow(false)
+    val isUpdatingPrice = _isUpdatingPrice.asStateFlow()
+
+    /**
+     * Calls the repository to update garment pricing and refreshes the list on success
+     */
+    fun updateGarmentBasicPrice(
+        id: String,
+        price: Double,
+        isActive: Boolean,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isUpdatingPrice.value = true
+            val request = UpdateGarmentBasicPriceRequest(
+                baseStitchingCharge = price,
+                isActive = isActive
+            )
+
+            settingsRepository.updateGarmentBasicPrice(id, request)
+                .onSuccess { response ->
+                    fetchGarments() // Refresh the list
+                    onSuccess(response.message ?: "Pricing updated successfully")
+                }
+                .onFailure { error ->
+                    onError(error.message ?: "Failed to update pricing")
+                }
+            _isUpdatingPrice.value = false
+        }
+    }
+
+    // Add to SettingsViewModel
+    private val _selectedWorkDetail = MutableStateFlow<WorkPricingDetail?>(null)
+    val selectedWorkDetail = _selectedWorkDetail.asStateFlow()
+
+    private val _isFetchingWorkDetail = MutableStateFlow(false)
+    val isFetchingWorkDetail = _isFetchingWorkDetail.asStateFlow()
+
+    /**
+     * Fetches specific work pricing details by ID for editing purposes
+     */
+    fun fetchWorkPricingDetail(id: String) {
+        viewModelScope.launch {
+            _isFetchingWorkDetail.value = true
+            settingsRepository.getWorkPricingViewOne(id).onSuccess {
+                _selectedWorkDetail.value = it
+            }.onFailure {
+                _errorMessage.value = "Unable to load pricing details"
+            }
+            _isFetchingWorkDetail.value = false
+        }
+    }
+
+    /**
+     * Submits a request to create a new work pricing entry.
+     */
+    fun createWorkPricing(
+        request: WorkPricingRequest,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSaving.value = true
+            _errorMessage.value = null
+
+            val result = settingsRepository.createWorkPricing(request)
+
+            result.onSuccess { response ->
+                fetchWorkPricing(request.segmentId) // Refresh list
+                onSuccess(response.message ?: "Work pricing created successfully")
+            }.onFailure { exception ->
+                val cleanError = extractErrorMessage(exception.message)
+                _errorMessage.value = cleanError
+                onError(cleanError)
+            }
+            _isSaving.value = false
+        }
+    }
+
+    // In SettingsViewModel
+
+    fun updateWorkPricing(
+        id: String,
+        request: WorkPricingRequest,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSaving.value = true
+            settingsRepository.updateWorkPricing(id, request)
+                .onSuccess { response ->
+                    fetchWorkPricing(request.segmentId) // Optional: Refresh the list
+                    onSuccess(response.message ?: "Update successful")
+                }
+                .onFailure { error ->
+                    onError(extractErrorMessage(error.message))
+                }
+            _isSaving.value = false
+        }
+    }
+
+    // SettingsViewModel.kt - Add these
+    fun changeWorkPricingStatus(item: WorkPricingItem) {
+        val newStatus = if (item.status.equals("Active", ignoreCase = true)) "Inactive" else "Active"
+
+        viewModelScope.launch {
+            settingsRepository.changeWorkPricingStatus(item.id, newStatus).onSuccess { updatedItem ->
+                // Update the local list to reflect changes immediately
+                val updatedList = _workPricingList.value.map {
+                    if (it.id == updatedItem.id) updatedItem else it
+                }
+                _workPricingList.value = updatedList
+            }.onFailure {
+                // Handle error (Show toast or snackbar)
+            }
+        }
+    }
+
+    /**
+     * Resets the selected work detail state
+     */
+    fun clearWorkPricingDetail() {
+        _selectedWorkDetail.value = null
+        _errorMessage.value = null
+    }
+
+    /**
+     * Clears the selected garment state when exiting the form
+     */
+    fun clearSelectedGarment() {
+        _selectedGarment.value = null
+    }
 
     fun clearSelectedStyleDetail() {
         _selectedStyleDetail.value = null

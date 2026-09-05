@@ -13,7 +13,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.model.settings.WorkPricingRequest
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
@@ -25,169 +27,210 @@ import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.SettingsViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun AddWorkPricingScreen(
+    workId: String? = null,
     viewModel: SettingsViewModel = hiltViewModel(),
     onClose: () -> Unit = {},
     onSaveSuccess: () -> Unit = onClose
 ) {
     val tokens = LocalAppTokens.current
+    val scope = rememberCoroutineScope()
 
-    // Segments state from ViewModel
-    val segments by viewModel.segments.collectAsState()
+    // --- State Observables ---
+    val segments by viewModel.segments.collectAsStateWithLifecycle()
+    val garments by viewModel.garments.collectAsStateWithLifecycle()
+    val garmentStyles by viewModel.garmentStyles.collectAsStateWithLifecycle()
+    val workDetail by viewModel.selectedWorkDetail.collectAsStateWithLifecycle()
+    val isFetchingDetail by viewModel.isFetchingWorkDetail.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
-        viewModel.fetchSegments()
-    }
-
-    val segmentOptions = segments.map { it.name }
-
+    // --- Form State ---
     var workType by remember { mutableStateOf("") }
-
-    var segmentExpanded by remember { mutableStateOf(false) }
     var selectedSegment by remember { mutableStateOf("") }
-
-    LaunchedEffect(segmentOptions) {
-        if (selectedSegment.isEmpty() && segmentOptions.isNotEmpty()) {
-            selectedSegment = segmentOptions.first()
-        }
-    }
-
-    var garmentExpanded by remember { mutableStateOf(false) }
     var selectedGarment by remember { mutableStateOf("") }
-    val garmentOptions = listOf("Mens Shirt", "Women's Blouse", "Lehenga", "Trouser")
-
-    var variantExpanded by remember { mutableStateOf(false) }
     var selectedVariant by remember { mutableStateOf("") }
-    val variantOptions = listOf("Full Sleeve", "Half Sleeve", "Standard")
-
     var baseWorkPrice by remember { mutableStateOf("") }
     var isStatusActive by remember { mutableStateOf(true) }
+
+    var segmentExpanded by remember { mutableStateOf(false) }
+    var garmentExpanded by remember { mutableStateOf(false) }
+    var variantExpanded by remember { mutableStateOf(false) }
 
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val scrollState = rememberScrollState()
+    // --- Initial Fetch ---
+    LaunchedEffect(Unit) {
+        viewModel.fetchSegments()
+        viewModel.fetchGarments()
+        if (workId != null) {
+            viewModel.fetchWorkPricingDetail(workId)
+        }
+    }
+
+    // Populate fields when editing
+    LaunchedEffect(workDetail) {
+        workDetail?.let { detail ->
+            workType = detail.workType
+            selectedSegment = detail.segment?.name ?: ""
+            selectedGarment = detail.garment?.name ?: ""
+            selectedVariant = detail.garmentCategory?.displayName ?: detail.garmentCategory?.name ?: ""
+            baseWorkPrice = detail.basePrice.toString()
+            isStatusActive = detail.status.equals("Active", ignoreCase = true)
+        }
+    }
+
+    // Fetch variants based on selection
+    LaunchedEffect(selectedSegment, selectedGarment) {
+        val segId = segments.find { it.name == selectedSegment }?.id
+        val garId = garments.find { it.name == selectedGarment }?.id
+        if (segId != null && garId != null) {
+            viewModel.fetchGarmentStyles(segId, garId)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 TitleBar(
-                    title = "Add Work Pricing",
-                    onClose = onClose
+                    title = if (workId == null) "Add Work Pricing" else "Edit Work Pricing",
+                    onClose = {
+                        viewModel.clearWorkPricingDetail()
+                        onClose()
+                    }
                 )
             }
         ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
-                    .padding(bottom = 100.dp)
-            ) {
-                // Section 1: Select Work Type
-                SectionHeader("1.Select Work Type")
-                Spacer(Modifier.height(14.dp))
-
-                FormLabel(text = "Work Type", isRequired = false)
-                FormTextField(
-                    value = workType,
-                    onValueChange = { workType = it },
-                    placeholder = "Enter Work Type"
-                )
-
-                Spacer(Modifier.height(24.dp))
-
-                // Section 2: Garment Details
-                SectionHeader("2.Garment Details")
-
-                Spacer(Modifier.height(14.dp))
-
-                FormDropdown(
-                    label = "Gender Segment",
-                    value = selectedSegment,
-                    expanded = segmentExpanded,
-                    onExpandChange = { segmentExpanded = it },
-                    options = segmentOptions,
-                    onOptionSelected = { selectedSegment = it }
-                )
-
-                Spacer(Modifier.height(14.dp))
-
-                FormDropdown(
-                    label = "Garment",
-                    value = selectedGarment,
-                    expanded = garmentExpanded,
-                    onExpandChange = { garmentExpanded = it },
-                    options = garmentOptions,
-                    onOptionSelected = { selectedGarment = it }
-                )
-
-                Spacer(Modifier.height(14.dp))
-
-                FormDropdown(
-                    label = "Variant",
-                    value = selectedVariant,
-                    expanded = variantExpanded,
-                    onExpandChange = { variantExpanded = it },
-                    options = variantOptions,
-                    onOptionSelected = { selectedVariant = it }
-                )
-
-                Spacer(Modifier.height(24.dp))
-
-                // Section 3: Pricing & Status
-                SectionHeader("3.Pricing & Status")
-                Spacer(Modifier.height(14.dp))
-
-                FormLabel(text = "Base Work Price", isRequired = false)
-                FormTextField(
-                    value = baseWorkPrice,
-                    onValueChange = { baseWorkPrice = it },
-                    placeholder = "₹600",
-                    keyboardType = KeyboardType.Number
-                )
-
-                Spacer(Modifier.height(18.dp))
-
-                // Status Switch
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            if (isFetchingDetail) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Primary)
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
+                        .padding(bottom = 100.dp)
                 ) {
-                    Text(
-                        text = "Status",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = title_color
+                    SectionHeader("1.Select Work Type")
+                    FormLabel(text = "Work Type")
+                    FormTextField(
+                        value = workType,
+                        onValueChange = { workType = it },
+                        placeholder = "Enter Work Type"
                     )
-                    MiniSwitch(
-                        checked = isStatusActive,
-                        onCheckedChange = { isStatusActive = it }
+
+                    Spacer(Modifier.height(24.dp))
+                    SectionHeader("2.Garment Details")
+
+                    FormLabel(text = "Gender Segment")
+                    FormDropdown(
+                        value = selectedSegment,
+                        expanded = segmentExpanded,
+                        onExpandChange = { segmentExpanded = it },
+                        options = segments.map { it.name },
+                        onOptionSelected = {
+                            selectedSegment = it
+                            selectedVariant = ""
+                        }
                     )
+
+                    Spacer(Modifier.height(14.dp))
+                    FormLabel(text = "Garment")
+                    FormDropdown(
+                        value = selectedGarment,
+                        expanded = garmentExpanded,
+                        onExpandChange = { garmentExpanded = it },
+                        options = garments.map { it.name },
+                        onOptionSelected = {
+                            selectedGarment = it
+                            selectedVariant = ""
+                        }
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+                    FormLabel(text = "Variant")
+                    FormDropdown(
+                        value = selectedVariant,
+                        expanded = variantExpanded,
+                        onExpandChange = { variantExpanded = it },
+                        options = garmentStyles.map { it.displayName ?: it.name },
+                        onOptionSelected = { selectedVariant = it }
+                    )
+
+                    Spacer(Modifier.height(24.dp))
+                    SectionHeader("3.Pricing & Status")
+
+                    FormLabel(text = "Base Work Price")
+                    FormTextField(
+                        value = baseWorkPrice,
+                        onValueChange = { baseWorkPrice = it },
+                        placeholder = "₹600",
+                        keyboardType = KeyboardType.Number
+                    )
+
+                    Spacer(Modifier.height(18.dp))
+                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                        Text(text = "Status", fontSize = 13.sp, color = title_color)
+                        MiniSwitch(checked = isStatusActive, onCheckedChange = { isStatusActive = it })
+                    }
                 }
             }
         }
 
-        // Floating Bottom Navigation FAB
         StepNavigationFab(
             showBack = true,
-            backLabel = "Cancel",
-            showBackArrow = false,
             onBack = onClose,
             trailingAction = TrailingFabAction.Update(
-                label = "Save Work Pricing",
+                label = if (workId == null) "Save Work Pricing" else "Update Pricing",
                 onClick = {
-                    successMessage = "Work pricing saved successfully"
-                    onSaveSuccess()
+                    val segmentId = segments.find { it.name == selectedSegment }?.id
+                    val garmentId = garments.find { it.name == selectedGarment }?.id
+                    val variantId = garmentStyles.find { (it.displayName ?: it.name) == selectedVariant }?.id
+
+                    if (workType.isBlank() || segmentId == null || garmentId == null || baseWorkPrice.isBlank()) {
+                        errorMessage = "Please fill in all required fields"
+                        return@Update
+                    }
+
+                    val request = WorkPricingRequest(
+                        workType = workType,
+                        segmentId = segmentId,
+                        garmentId = garmentId,
+                        garmentCategoryId = variantId,
+                        basePrice = baseWorkPrice.toDoubleOrNull() ?: 0.0,
+                        status = if (isStatusActive) "Active" else "Inactive",
+                        isTaxable = false
+                    )
+
+                    if (workId == null) {
+                        viewModel.createWorkPricing(
+                            request = request,
+                            onSuccess = { msg ->
+                                successMessage = msg
+                                scope.launch { delay(1000); onSaveSuccess() }
+                            },
+                            onError = { errorMessage = it }
+                        )
+                    } else {
+                        viewModel.updateWorkPricing(
+                            id = workId,
+                            request = request,
+                            onSuccess = { msg ->
+                                successMessage = msg
+                                scope.launch { delay(1000); onSaveSuccess() }
+                            },
+                            onError = { errorMessage = it }
+                        )
+                    }
                 }
-            ),
-            showTrailingArrow = false
+            )
         )
 
         DynamicIslandSuccess(
@@ -203,7 +246,7 @@ fun AddWorkPricingScreen(
 }
 
 @Composable
-fun SectionHeader(text:String){
+fun SectionHeader(text: String) {
     Row(
         Modifier.fillMaxWidth()
             .padding(vertical = 10.dp)

@@ -136,3 +136,55 @@ data class DeleteItemGroupResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("message") val message: String? = null
 )
+
+// =============================================================================
+// ITEM GROUP VIEW ONE MODELS
+// =============================================================================
+
+data class ItemGroupViewOneResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("data") val data: ItemGroupViewOneData? = null
+)
+
+data class ItemGroupViewOneData(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("organizationId") val organizationId: String? = null,
+    @SerializedName("name") val name: String = "",
+    @SerializedName("groupCode") val groupCode: String? = null,
+    @SerializedName("unit") val unit: String? = null,
+    @SerializedName("productType") val productType: String? = null,
+    @SerializedName("type") val type: String? = null,
+    @SerializedName("fabric") val fabric: Boolean = false,
+    @SerializedName("fabricType") val fabricType: String? = null,
+    @SerializedName("categoryId") val categoryId: String? = null,
+    @SerializedName("subCategoryId") val subCategoryId: String? = null,
+    @SerializedName("brand") val brand: String? = null,
+    @SerializedName("manufacturer") val manufacturer: String? = null,
+    @SerializedName("shortDescription") val shortDescription: String? = null,
+    @SerializedName("longDescription") val longDescription: String? = null,
+    @SerializedName("variantAttributes") val variantAttributes: List<VariantAttributeDto> = emptyList(),
+    @SerializedName("variantCount") val variantCount: Int = 0,
+    @SerializedName("pricing") val pricing: PricingDto? = null,
+    @SerializedName("pricingTax") val pricingTax: PricingTaxDto? = null,
+    @SerializedName("media") val media: MediaDto? = null,
+    @SerializedName("status") val status: String = "active",
+    @SerializedName("variants") val variants: List<ItemGroupVariantDto> = emptyList(),
+    @SerializedName("averageCost") val averageCost: Double? = 0.0,
+    @SerializedName("averageSellingPrice") val averageSellingPrice: Double? = 0.0,
+    @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("updatedAt") val updatedAt: String? = null
+)
+
+data class ItemGroupVariantDto(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("name") val name: String = "",
+    @SerializedName("sku") val sku: String = "",
+    @SerializedName("barcode") val barcode: String? = null,
+    @SerializedName("costPrice") val costPrice: Double = 0.0,
+    @SerializedName("sellingPrice") val sellingPrice: Double = 0.0,
+    @SerializedName("reorderLevel") val reorderLevel: Int = 0,
+    @SerializedName("safetyStock") val safetyStock: Int = 0,
+    @SerializedName("status") val status: String = "active",
+    @SerializedName("variantLabel") val variantLabel: String? = null,
+    @SerializedName("variantSelections") val variantSelections: List<VariantSelection> = emptyList()
+)

@@ -15,6 +15,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.mobile.model.inventory.AdjustStockQuantityRequest
 import com.cuso.mobile.model.inventory.CreateInventoryItemResponse
 import com.cuso.mobile.model.inventory.CreateItemGroupRequest
 import com.cuso.mobile.model.inventory.CreatePoItemRequest
@@ -23,9 +24,12 @@ import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.InventoryItemviewone
 import com.cuso.mobile.model.inventory.InventoryPagination
 import com.cuso.mobile.model.inventory.ItemGroupDto
+import com.cuso.mobile.model.inventory.ItemGroupViewOneData
 import com.cuso.mobile.model.inventory.LowStockItemDto
 import com.cuso.mobile.model.inventory.PhysicalAttributes
 import com.cuso.mobile.model.inventory.PurchaseOrderData
+import com.cuso.mobile.model.inventory.StockAdjustmentData
+import com.cuso.mobile.model.inventory.TransferStockRequest
 import com.cuso.mobile.model.inventory.VariantSelection
 import com.cuso.mobile.repository.InventoryRepository
 import com.cuso.mobile.utils.launchBusy
@@ -144,6 +148,13 @@ class InventoryViewModel @Inject constructor(
 
     private val _createItemGroupSuccess = MutableStateFlow<String?>(null)
     val createItemGroupSuccess: StateFlow<String?> = _createItemGroupSuccess.asStateFlow()
+
+    // ── Item Group View One State ──
+    private val _selectedItemGroupDetail = MutableStateFlow<ItemGroupViewOneData?>(null)
+    val selectedItemGroupDetail: StateFlow<ItemGroupViewOneData?> = _selectedItemGroupDetail.asStateFlow()
+
+    private val _isLoadingItemGroupDetail = MutableStateFlow(false)
+    val isLoadingItemGroupDetail: StateFlow<Boolean> = _isLoadingItemGroupDetail.asStateFlow()
 
     // ── Delete State ──
     private val _deleteItemGroupSuccess = MutableStateFlow<String?>(null)
@@ -270,6 +281,30 @@ class InventoryViewModel @Inject constructor(
     private val _createItemUiState = MutableStateFlow<CreateItemUiState>(CreateItemUiState.Idle)
     val createItemUiState: StateFlow<CreateItemUiState> = _createItemUiState.asStateFlow()
 
+    // -------------------------------------------------------------------------
+    // 9. Stock Adjustments & Transfer History State
+    // -------------------------------------------------------------------------
+    private val _validAdjustmentReasons = MutableStateFlow<List<String>>(emptyList())
+    val validAdjustmentReasons: StateFlow<List<String>> = _validAdjustmentReasons.asStateFlow()
+
+    private val _stockAdjustmentsList = MutableStateFlow<List<StockAdjustmentData>>(emptyList())
+    val stockAdjustmentsList: StateFlow<List<StockAdjustmentData>> = _stockAdjustmentsList.asStateFlow()
+
+    private val _selectedAdjustmentDetail = MutableStateFlow<StockAdjustmentData?>(null)
+    val selectedAdjustmentDetail: StateFlow<StockAdjustmentData?> = _selectedAdjustmentDetail.asStateFlow()
+
+    private val _isLoadingAdjustments = MutableStateFlow(false)
+    val isLoadingAdjustments: StateFlow<Boolean> = _isLoadingAdjustments.asStateFlow()
+
+    private val _isSubmittingAdjustment = MutableStateFlow(false)
+    val isSubmittingAdjustment: StateFlow<Boolean> = _isSubmittingAdjustment.asStateFlow()
+
+    private val _adjustmentSuccessMessage = MutableStateFlow<String?>(null)
+    val adjustmentSuccessMessage: StateFlow<String?> = _adjustmentSuccessMessage.asStateFlow()
+
+    private val _adjustmentErrorMessage = MutableStateFlow<String?>(null)
+    val adjustmentErrorMessage: StateFlow<String?> = _adjustmentErrorMessage.asStateFlow()
+
     // =========================================================================
     // INIT
     // =========================================================================
@@ -379,6 +414,54 @@ class InventoryViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Fetch single item group by ID for prefilling/editing.
+     */
+    fun fetchItemGroupViewOne(id: String, onLoaded: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoadingItemGroupDetail.value = true
+            val result = inventoryRepository.getInventoryItemGroupViewOne(id)
+            _isLoadingItemGroupDetail.value = false
+
+            result.onSuccess { data ->
+                _selectedItemGroupDetail.value = data
+                onLoaded()
+            }.onFailure { error ->
+                _uiState.update { it.copy(errorMessage = extractErrorMessage(error.message)) }
+            }
+        }
+    }
+
+    /**
+     * Update an existing item group.
+     */
+//    fun updateItemGroup(
+//        id: String,
+//        request: CreateItemGroupRequest,
+//        onSuccessCallback: () -> Unit
+//    ) {
+//        viewModelScope.launch {
+//            _isCreatingItemGroup.value = true
+//            _createItemGroupError.value = null
+//            _createItemGroupSuccess.value = null
+//
+//            val result = inventoryRepository.updateItemGroup(id, request)
+//            _isCreatingItemGroup.value = false
+//
+//            result.onSuccess {
+//                _createItemGroupSuccess.value = "Item Group updated successfully!"
+//                loadItemGroups()
+//                onSuccessCallback()
+//            }.onFailure { error ->
+//                _createItemGroupError.value = extractErrorMessage(error.message)
+//            }
+//        }
+//    }
+
+    fun clearSelectedItemGroupDetail() {
+        _selectedItemGroupDetail.value = null
     }
 
     fun clearDeleteSuccessMessage() {
@@ -861,6 +944,145 @@ class InventoryViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    // =========================================================================
+    // STOCK ADJUSTMENT ACTIONS
+    // =========================================================================
+
+    /**
+     * Fetch valid adjustment reasons.
+     */
+    fun fetchValidAdjustmentReasons() {
+        viewModelScope.launch {
+            inventoryRepository.getValidAdjustmentReasons().onSuccess { reasons ->
+                _validAdjustmentReasons.value = reasons
+            }
+        }
+    }
+
+    /**
+     * Submit Increase or Decrease Stock Adjustment.
+     */
+    fun submitStockAdjustment(
+        request: AdjustStockQuantityRequest,
+        onSuccess: (StockAdjustmentData) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingAdjustment.value = true
+            _adjustmentErrorMessage.value = null
+            _adjustmentSuccessMessage.value = null
+
+            val result = inventoryRepository.adjustStockQuantity(request)
+            _isSubmittingAdjustment.value = false
+
+            result.onSuccess { data ->
+                _adjustmentSuccessMessage.value = "Stock adjusted successfully (${data.adjustmentCode})"
+                refreshInventoryItems()
+                onSuccess(data)
+            }.onFailure { error ->
+                _adjustmentErrorMessage.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    /**
+     * Submit Stock Transfer between Warehouses/Bins.
+     */
+    fun submitStockTransfer(
+        request: TransferStockRequest,
+        onSuccess: (StockAdjustmentData) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingAdjustment.value = true
+            _adjustmentErrorMessage.value = null
+            _adjustmentSuccessMessage.value = null
+
+            val result = inventoryRepository.transferStock(request)
+            _isSubmittingAdjustment.value = false
+
+            result.onSuccess { data ->
+                _adjustmentSuccessMessage.value = "Stock transferred successfully (${data.adjustmentCode})"
+                refreshInventoryItems()
+                onSuccess(data)
+            }.onFailure { error ->
+                _adjustmentErrorMessage.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    /**
+     * Reverse a previous adjustment record.
+     */
+    fun reverseAdjustment(
+        adjustmentId: String,
+        reason: String? = "Other",
+        notes: String? = null,
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingAdjustment.value = true
+            _adjustmentErrorMessage.value = null
+            _adjustmentSuccessMessage.value = null
+
+            val result = inventoryRepository.reverseStockAdjustment(adjustmentId, reason, notes)
+            _isSubmittingAdjustment.value = false
+
+            result.onSuccess {
+                _adjustmentSuccessMessage.value = "Adjustment reversed successfully"
+                fetchStockAdjustmentsList()
+                refreshInventoryItems()
+                onSuccess()
+            }.onFailure { error ->
+                _adjustmentErrorMessage.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    /**
+     * Fetch the list of past adjustments.
+     */
+    fun fetchStockAdjustmentsList(
+        page: Int = 1,
+        limit: Int = 20,
+        itemId: String? = null,
+        warehouseId: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingAdjustments.value = true
+            _adjustmentErrorMessage.value = null
+
+            val result = inventoryRepository.getStockAdjustmentsList(page, limit, itemId, warehouseId)
+            _isLoadingAdjustments.value = false
+
+            result.onSuccess { response ->
+                _stockAdjustmentsList.value = response.data
+            }.onFailure { error ->
+                _adjustmentErrorMessage.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    /**
+     * Fetch a single adjustment record by ID.
+     */
+    fun fetchStockAdjustmentById(id: String) {
+        viewModelScope.launch {
+            _isLoadingAdjustments.value = true
+            val result = inventoryRepository.getStockAdjustmentById(id)
+            _isLoadingAdjustments.value = false
+
+            result.onSuccess { data ->
+                _selectedAdjustmentDetail.value = data
+            }.onFailure { error ->
+                _adjustmentErrorMessage.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    fun clearAdjustmentAlerts() {
+        _adjustmentSuccessMessage.value = null
+        _adjustmentErrorMessage.value = null
     }
 
     // =========================================================================

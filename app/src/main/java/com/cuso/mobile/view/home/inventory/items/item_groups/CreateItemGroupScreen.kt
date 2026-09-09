@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -71,7 +73,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
@@ -109,10 +111,6 @@ import com.cuso.mobile.viewmodel.InventoryViewModel
 import com.cuso.mobile.viewmodel.SettingsViewModel
 import java.util.UUID
 
-// =============================================================================
-// SCREEN DATA MODELS
-// =============================================================================
-
 data class AttributeEntry(
     val id: String = UUID.randomUUID().toString(),
     val attributeType: String = "",
@@ -130,10 +128,6 @@ data class VariantEntry(
     var isExpanded: Boolean = false
 )
 
-// =============================================================================
-// MAIN COMPOSABLE
-// =============================================================================
-
 @Composable
 fun CreateItemGroupScreen(
     inventoryViewModel: InventoryViewModel = hiltViewModel(),
@@ -141,17 +135,14 @@ fun CreateItemGroupScreen(
     onDismiss: () -> Unit = {},
     onSaveSuccess: () -> Unit = {}
 ) {
-    // ── Adaptive Tokens & UI Setup ──
     val tokens = LocalAppTokens.current
-    val fieldShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
 
-    // ── Load Live Categories ──
     LaunchedEffect(Unit) {
         settingsViewModel.fetchProductCategories()
     }
     val productCategories by settingsViewModel.productCategories.collectAsState()
+    val editDetail by inventoryViewModel.selectedItemGroupDetail.collectAsState()
 
-    // ── ViewModel State Observers ──
     val isCreating by inventoryViewModel.isCreatingItemGroup.collectAsState()
     val successMessage by inventoryViewModel.createItemGroupSuccess.collectAsState()
     val errorMessage by inventoryViewModel.createItemGroupError.collectAsState()
@@ -160,44 +151,29 @@ fun CreateItemGroupScreen(
     var confirmationSuccessMessage by remember { mutableStateOf<String?>(null) }
     var expandedSection by remember { mutableStateOf("Item Group Information") }
 
-    // ── Form State 1: Item Group Information ──
+    val isEditMode = editDetail != null
+
+    // Form Field States
     var itemGroupName by remember { mutableStateOf("") }
-    var unit by remember { mutableStateOf("Pieces") }
+    var unit by remember { mutableStateOf("Select Piece") }
     var unitExpanded by remember { mutableStateOf(false) }
     var description by remember { mutableStateOf("") }
-
-    // ── Form State 2: Classification ──
     var brand by remember { mutableStateOf("Select Brand") }
     var brandExpanded by remember { mutableStateOf(false) }
-
-    // Category Selection State
     var selectedCategoryName by remember { mutableStateOf("Select Category") }
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
     var categoryExpanded by remember { mutableStateOf(false) }
-
     var status by remember { mutableStateOf(true) }
     var itemGroupImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
-    // ── Form State 3: Attributes Input ──
-    val attributesList = remember {
-        mutableStateListOf(
-            AttributeEntry(attributeType = "Color", values = listOf("Blue")),
-            AttributeEntry(attributeType = "Size", values = listOf("M", "L", "XL"))
-        )
-    }
-
-    // Confirmed attributes snapshot
+    val attributesList = remember { mutableStateListOf<AttributeEntry>() }
     val confirmedAttributes = remember { mutableStateListOf<AttributeEntry>() }
 
-    // ── Form State 4: Pricing & Tax ──
     var costPrice by remember { mutableStateOf("") }
     var sellingPrice by remember { mutableStateOf("") }
-
-    // ── Form State 5: Variant Matrix ──
-    var matrixMode by remember { mutableStateOf("Manual") }
+    var matrixMode by remember { mutableStateOf("") }
     val selectedMatrixValues = remember { mutableStateMapOf<String, MutableList<String>>() }
 
-    // ── Form State 6: Generated Variants ──
     var trackInventory by remember { mutableStateOf(true) }
     var variantSearch by remember { mutableStateOf("") }
     val variants = remember { mutableStateListOf<VariantEntry>() }
@@ -214,9 +190,61 @@ fun CreateItemGroupScreen(
         }
     }
 
-    // =========================================================================
-    // HELPER: REGENERATE VARIANTS FROM MATRIX SELECTIONS
-    // =========================================================================
+    // Prefill data for Edit Mode
+    LaunchedEffect(editDetail) {
+        editDetail?.let { detail ->
+            itemGroupName = detail.name
+            unit = detail.unit ?: "Pieces"
+            brand = detail.brand ?: "Select Brand"
+            description = detail.longDescription ?: detail.shortDescription.orEmpty()
+            status = detail.status.equals("active", ignoreCase = true)
+            selectedCategoryId = detail.categoryId
+
+            costPrice = (detail.pricingTax?.costPrice ?: detail.pricing?.costPrice)?.takeIf { it > 0 }?.toString() ?: ""
+            sellingPrice = (detail.pricingTax?.sellingPrice ?: detail.pricing?.sellingPrice)?.takeIf { it > 0 }?.toString() ?: ""
+
+            attributesList.clear()
+            confirmedAttributes.clear()
+            selectedMatrixValues.clear()
+
+            detail.variantAttributes.forEach { attr ->
+                val entry = AttributeEntry(
+                    attributeType = attr.name,
+                    values = attr.values
+                )
+                attributesList.add(entry)
+                confirmedAttributes.add(entry)
+                selectedMatrixValues[attr.name] = attr.values.toMutableList()
+            }
+
+            variants.clear()
+            detail.variants.forEach { v ->
+                variants.add(
+                    VariantEntry(
+                        id = v.id,
+                        label = v.variantLabel ?: v.name,
+                        sku = v.sku,
+                        cost = if (v.costPrice > 0) v.costPrice.toString() else "0",
+                        price = if (v.sellingPrice > 0) v.sellingPrice.toString() else "0",
+                        reOrderPoint = v.reorderLevel.toString(),
+                        isActive = v.status.equals("active", ignoreCase = true),
+                        isExpanded = false
+                    )
+                )
+            }
+        }
+    }
+
+    // Match category display name
+    LaunchedEffect(selectedCategoryId, productCategories) {
+        selectedCategoryId?.let { catId ->
+            val match = productCategories.find { it.id == catId }
+            if (match != null) {
+                selectedCategoryName = match.name
+            }
+        }
+    }
+
     fun recalculateVariants() {
         val activeAttributes = confirmedAttributes.filter {
             it.attributeType.isNotBlank() && (selectedMatrixValues[it.attributeType]?.isNotEmpty() == true)
@@ -227,7 +255,6 @@ fun CreateItemGroupScreen(
             return
         }
 
-        // Generate Cartesian product of selected values
         var combinations = listOf<List<String>>()
         activeAttributes.forEach { attribute ->
             val values = selectedMatrixValues[attribute.attributeType] ?: emptyList()
@@ -240,7 +267,6 @@ fun CreateItemGroupScreen(
             }
         }
 
-        // Update variants state
         variants.clear()
         combinations.forEach { combo ->
             val label = combo.joinToString(" / ")
@@ -262,9 +288,6 @@ fun CreateItemGroupScreen(
         }
     }
 
-    // =========================================================================
-    // ACTION: CONFIRM ATTRIBUTES
-    // =========================================================================
     val onConfirmAttributes = {
         val validEntries = attributesList.filter {
             it.attributeType.isNotBlank() && it.values.isNotEmpty()
@@ -287,9 +310,6 @@ fun CreateItemGroupScreen(
         }
     }
 
-    // =========================================================================
-    // ACTION: SUBMIT ITEM GROUP
-    // =========================================================================
     val onSubmit = {
         if (itemGroupName.isBlank()) {
             validationError = "Please enter an Item Group Name"
@@ -319,16 +339,32 @@ fun CreateItemGroupScreen(
                 status = if (status) "active" else "inactive"
             )
 
-            inventoryViewModel.createItemGroup(
-                request = request,
-                onSuccessCallback = onSaveSuccess
-            )
+            if (isEditMode && editDetail != null) {
+//                inventoryViewModel.updateItemGroup(
+//                    id = editDetail!!.id,
+//                    request = request,
+//                    onSuccessCallback = {
+//                        inventoryViewModel.clearSelectedItemGroupDetail()
+//                        onSaveSuccess()
+//                    }
+//                )
+            } else {
+                inventoryViewModel.createItemGroup(
+                    request = request,
+                    onSuccessCallback = {
+                        inventoryViewModel.clearSelectedItemGroupDetail()
+                        onSaveSuccess()
+                    }
+                )
+            }
         }
     }
 
-    // =========================================================================
-    // ROOT UI
-    // =========================================================================
+    val handleDismiss = {
+        inventoryViewModel.clearSelectedItemGroupDetail()
+        onDismiss()
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -336,10 +372,13 @@ fun CreateItemGroupScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Header Bar
-            TitleBar("Create Item Group", onClose = onDismiss)
+            TitleBar(
+                title = if (isEditMode) "Edit Item Group" else "Create Item Group",
+                onClose = handleDismiss
+            )
             HorizontalDivider(color = title_border, thickness = 1.dp)
 
-            // Scrollable Form Content
+            // Scrollable Sections
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -368,7 +407,7 @@ fun CreateItemGroupScreen(
                         value = unit,
                         expanded = unitExpanded,
                         onExpandChange = { unitExpanded = it },
-                        options = listOf("Pieces", "Meters", "Centimeters", "Inches", "Kilograms", "Grams", "Liters", "Millimeters", "Boxes", "Packs", "Pairs", "Dozens", "Rolls", "Bundles", "Sets"),
+                        options = listOf("Pieces", "Meters", "Centimeters", "Inches", "Kilograms", "Grams", "Liters", "Boxes", "Packs", "Pairs", "Rolls"),
                         onOptionSelected = { unit = it }
                     )
 
@@ -396,37 +435,26 @@ fun CreateItemGroupScreen(
                         value = brand,
                         expanded = brandExpanded,
                         onExpandChange = { brandExpanded = it },
-                        options = listOf("Brand A", "Brand B", "Brand C"),
+                        options = listOf("Rajasthani", "Brand A", "Brand B", "Brand C"),
                         onOptionSelected = { brand = it }
                     )
 
                     Spacer(Modifier.height(tokens.extraPadding))
-
-                    // ── Dynamic Live Category Dropdown ──
                     FormLabel("Category")
                     FormDropdown(
                         value = selectedCategoryName,
                         expanded = categoryExpanded,
                         onExpandChange = { categoryExpanded = it },
-                        options = if (productCategories.isEmpty()) {
-                            listOf("No Categories Available")
-                        } else {
-                            productCategories.map { it.name }
-                        },
+                        options = if (productCategories.isEmpty()) listOf("No Categories Available") else productCategories.map { it.name },
                         onOptionSelected = { categoryName ->
                             selectedCategoryName = categoryName
-                            val matchedCategory = productCategories.find { it.name == categoryName }
-                            selectedCategoryId = matchedCategory?.id
+                            val matched = productCategories.find { it.name == categoryName }
+                            selectedCategoryId = matched?.id
                         }
                     )
 
                     Spacer(Modifier.height(tokens.extraPadding))
-                    Text(
-                        "Item Group Image",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = TextSecondary
-                    )
+                    Text("Item Group Image", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextSecondary)
                     Spacer(Modifier.height(8.dp))
 
                     ImageUploadSection(
@@ -447,12 +475,7 @@ fun CreateItemGroupScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            "Status",
-                            fontSize = tokens.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = TextPrimary
-                        )
+                        Text("Status", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = if (status) "Active" else "Inactive",
@@ -479,13 +502,15 @@ fun CreateItemGroupScreen(
                     }
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
+                            .background(whiteBg),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
-                                .background(light_grey, RoundedCornerShape(6.dp))
+                                .background(whiteBg, RoundedCornerShape(6.dp))
+                                .border(1.dp, BorderGray, RoundedCornerShape(6.dp))
                                 .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
                             Text("Max 3 Attributes", fontSize = tokens.label, color = TextSecondary)
@@ -503,7 +528,7 @@ fun CreateItemGroupScreen(
 
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Add attribute types (e.g. Color, Size) and values, then tap 'Confirm Attributes'.",
+                        "Add attribute types and values, then tap 'Confirm Attributes'.",
                         fontSize = tokens.caption,
                         color = TextSecondary
                     )
@@ -513,8 +538,6 @@ fun CreateItemGroupScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(PanelBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                                .padding(tokens.cardPadding * 0.5f)
                         ) {
                             Column {
                                 Row(
@@ -537,12 +560,7 @@ fun CreateItemGroupScreen(
                                     placeholder = "e.g. Color, Size"
                                 )
                                 Spacer(Modifier.height(12.dp))
-                                Text(
-                                    "Values",
-                                    fontSize = tokens.bodySmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = TextSecondary
-                                )
+                                Text("Values", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextSecondary)
                                 Spacer(Modifier.height(6.dp))
                                 AttributeValuesInput(
                                     values = entry.values,
@@ -584,12 +602,7 @@ fun CreateItemGroupScreen(
                         placeholder = "₹0",
                         keyboardType = KeyboardType.Number
                     )
-                    Text(
-                        "Default cost for all generated variants",
-                        fontSize = tokens.label,
-                        color = TextSecondary,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                    Text("Default cost for all generated variants", fontSize = tokens.label, color = TextSecondary, modifier = Modifier.padding(top = 4.dp))
 
                     Spacer(Modifier.height(tokens.extraPadding))
                     FormLabel("Selling Price (Default)")
@@ -602,12 +615,7 @@ fun CreateItemGroupScreen(
                         placeholder = "₹0",
                         keyboardType = KeyboardType.Number
                     )
-                    Text(
-                        "Default selling price for all generated variants",
-                        fontSize = tokens.label,
-                        color = TextSecondary,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                    Text("Default selling price for all generated variants", fontSize = tokens.label, color = TextSecondary, modifier = Modifier.padding(top = 4.dp))
                 }
 
                 // ── 5. Variant Matrix ──
@@ -626,17 +634,13 @@ fun CreateItemGroupScreen(
                                 .padding(vertical = tokens.extraPadding),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                "Please add and confirm attributes in the section above to configure matrix.",
-                                fontSize = tokens.bodySmall,
-                                color = TextSecondary
-                            )
+                            Text("Please add and confirm attributes above to configure matrix.", fontSize = tokens.bodySmall, color = TextSecondary)
                         }
                     } else {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, BorderGray, fieldShape)
+                                .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                                 .padding(3.dp)
                         ) {
                             listOf("Manual", "Auto All").forEach { option ->
@@ -644,10 +648,7 @@ fun CreateItemGroupScreen(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .background(
-                                            if (isSelected) background_light_purple else Color.Transparent,
-                                            RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                                        )
+                                        .background(if (isSelected) background_light_purple else Color.Transparent, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                                         .clickable {
                                             matrixMode = option
                                             if (option == "Auto All") {
@@ -660,12 +661,7 @@ fun CreateItemGroupScreen(
                                         .padding(vertical = 9.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        option,
-                                        color = if (isSelected) Primary else TextSecondary,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                        fontSize = tokens.bodySmall
-                                    )
+                                    Text(option, color = if (isSelected) Primary else TextSecondary, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium, fontSize = tokens.bodySmall)
                                 }
                             }
                         }
@@ -679,34 +675,17 @@ fun CreateItemGroupScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    attribute.attributeType,
-                                    fontSize = tokens.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = TextPrimary
-                                )
+                                Text(attribute.attributeType, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                                 Row {
-                                    Text(
-                                        "Select All",
-                                        fontSize = tokens.caption,
-                                        color = Primary,
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.clickable {
-                                            selectedMatrixValues[attribute.attributeType] = attribute.values.toMutableList()
-                                            recalculateVariants()
-                                        }
-                                    )
+                                    Text("Select All", fontSize = tokens.caption, color = Primary, fontWeight = FontWeight.Medium, modifier = Modifier.clickable {
+                                        selectedMatrixValues[attribute.attributeType] = attribute.values.toMutableList()
+                                        recalculateVariants()
+                                    })
                                     Spacer(Modifier.width(12.dp))
-                                    Text(
-                                        "Clear All",
-                                        fontSize = tokens.caption,
-                                        color = TextSecondary,
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.clickable {
-                                            selectedMatrixValues[attribute.attributeType] = mutableListOf()
-                                            recalculateVariants()
-                                        }
-                                    )
+                                    Text("Clear All", fontSize = tokens.caption, color = TextSecondary, fontWeight = FontWeight.Medium, modifier = Modifier.clickable {
+                                        selectedMatrixValues[attribute.attributeType] = mutableListOf()
+                                        recalculateVariants()
+                                    })
                                 }
                             }
 
@@ -752,11 +731,7 @@ fun CreateItemGroupScreen(
                                 .padding(vertical = tokens.extraPadding),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                "No variants generated. Please confirm attributes and select values in the matrix.",
-                                fontSize = tokens.bodySmall,
-                                color = TextSecondary
-                            )
+                            Text("No variants generated. Please confirm attributes in the matrix.", fontSize = tokens.bodySmall, color = TextSecondary)
                         }
                     } else {
                         Row(
@@ -765,10 +740,7 @@ fun CreateItemGroupScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                AppCheckbox(
-                                    checked = trackInventory,
-                                    onCheckedChange = { trackInventory = it }
-                                )
+                                AppCheckbox(checked = trackInventory, onCheckedChange = { trackInventory = it })
                                 Spacer(Modifier.width(10.dp))
                                 Text("Track inventory for this group", fontSize = tokens.bodySmall, color = TextPrimary)
                             }
@@ -784,12 +756,7 @@ fun CreateItemGroupScreen(
                             contentAlignment = Alignment.CenterStart
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Filled.Search,
-                                    contentDescription = null,
-                                    tint = mutedText,
-                                    modifier = Modifier.size(tokens.iconSize * 0.9f)
-                                )
+                                Icon(Icons.Filled.Search, contentDescription = null, tint = mutedText, modifier = Modifier.size(tokens.iconSize * 0.9f))
                                 Spacer(Modifier.width(8.dp))
                                 BasicTextField(
                                     value = variantSearch,
@@ -827,12 +794,7 @@ fun CreateItemGroupScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        variant.label,
-                                        fontSize = tokens.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = TextPrimary
-                                    )
+                                    Text(variant.label, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                                     Icon(
                                         if (variant.isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                                         contentDescription = null,
@@ -895,19 +857,9 @@ fun CreateItemGroupScreen(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier.clickable { variants.removeAt(index) }
                                             ) {
-                                                Icon(
-                                                    Icons.Filled.Delete,
-                                                    contentDescription = null,
-                                                    tint = redText,
-                                                    modifier = Modifier.size(tokens.iconSize * 0.8f)
-                                                )
+                                                Icon(Icons.Filled.Delete, contentDescription = null, tint = redText, modifier = Modifier.size(tokens.iconSize * 0.8f))
                                                 Spacer(Modifier.width(4.dp))
-                                                Text(
-                                                    "Delete Variant",
-                                                    fontSize = tokens.bodySmall,
-                                                    color = redText,
-                                                    fontWeight = FontWeight.Medium
-                                                )
+                                                Text("Delete Variant", fontSize = tokens.bodySmall, color = redText, fontWeight = FontWeight.Medium)
                                             }
                                         }
                                         Spacer(Modifier.height(10.dp))
@@ -916,42 +868,21 @@ fun CreateItemGroupScreen(
                             }
                         }
 
-                        // Bulk update section
                         Spacer(Modifier.height(tokens.extraPadding))
-                        Text(
-                            "Bulk Update",
-                            fontSize = tokens.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
-                        )
+                        Text("Bulk Update", fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                         Spacer(Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Column(modifier = Modifier.weight(1f)) {
                                 FormLabel("Cost")
-                                FormTextField(
-                                    value = bulkCost,
-                                    onValueChange = { bulkCost = it },
-                                    placeholder = "₹0",
-                                    keyboardType = KeyboardType.Number
-                                )
+                                FormTextField(value = bulkCost, onValueChange = { bulkCost = it }, placeholder = "₹0", keyboardType = KeyboardType.Number)
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 FormLabel("Price")
-                                FormTextField(
-                                    value = bulkPrice,
-                                    onValueChange = { bulkPrice = it },
-                                    placeholder = "₹0",
-                                    keyboardType = KeyboardType.Number
-                                )
+                                FormTextField(value = bulkPrice, onValueChange = { bulkPrice = it }, placeholder = "₹0", keyboardType = KeyboardType.Number)
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 FormLabel("Re-Order Point")
-                                FormTextField(
-                                    value = bulkReorder,
-                                    onValueChange = { bulkReorder = it },
-                                    placeholder = "0",
-                                    keyboardType = KeyboardType.Number
-                                )
+                                FormTextField(value = bulkReorder, onValueChange = { bulkReorder = it }, placeholder = "0", keyboardType = KeyboardType.Number)
                             }
                         }
 
@@ -978,19 +909,18 @@ fun CreateItemGroupScreen(
             }
         }
 
-        // ── Floating Action Buttons ──
+        // Floating Action Buttons (Save vs Update)
         StepNavigationFab(
             showBack = true,
-            onBack = onDismiss,
+            onBack = handleDismiss,
             showBackArrow = false,
             backLabel = "Cancel",
             trailingAction = TrailingFabAction.Update(
-                label = if (isCreating) "Saving..." else "Save Item Group",
+                label = if (isCreating) "Saving..." else if (isEditMode) "Update Item Group" else "Save Item Group",
                 onClick = { if (!isCreating) onSubmit() }
             )
         )
 
-        // ── Dynamic Island Notifications ──
         DynamicIslandSuccess(
             message = successMessage ?: confirmationSuccessMessage,
             onDismiss = {
@@ -1010,10 +940,9 @@ fun CreateItemGroupScreen(
 }
 
 // =============================================================================
-// ATTRIBUTE VALUES CHIP INPUT
+// ATTRIBUTE VALUES CHIP INPUT (WRAPS CONTENT TIGHTLY)
 // =============================================================================
 
-@SuppressLint("RememberInComposition")
 @Composable
 private fun AttributeValuesInput(
     values: List<String>,
@@ -1021,74 +950,89 @@ private fun AttributeValuesInput(
     tokens: AppDesignTokens
 ) {
     var inputText by remember { mutableStateOf("") }
-    var isFocused by remember { mutableStateOf(false) }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(whiteBg)
-            .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
-            .padding(8.dp)
+            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+            .border(
+                width = 1.dp,
+                color = BorderGray,
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+            )
+            .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalSpacing = 6.dp,
             verticalSpacing = 6.dp
         ) {
+            // Chips only wrap text content tightly
             values.forEach { value ->
                 Box(
                     modifier = Modifier
-                        .background(primary_light, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .wrapContentSize()
+                        .background(
+                            color = background_light_purple,
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = Primary.copy(alpha = 0.25f),
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
                         Text(
-                            value,
+                            text = value,
                             fontSize = tokens.bodySmall,
                             color = Primary,
                             fontWeight = FontWeight.Medium
                         )
-                        Spacer(Modifier.width(4.dp))
+                        Spacer(Modifier.width(6.dp))
                         Icon(
-                            Icons.Filled.Close,
+                            imageVector = Icons.Filled.Close,
                             contentDescription = "Remove",
-                            tint = Primary,
+                            tint = Primary.copy(alpha = 0.7f),
                             modifier = Modifier
-                                .size(12.dp)
+                                .size(16.dp)
                                 .clickable { onValuesChange(values - value) }
                         )
                     }
                 }
             }
 
+            // Compact Inline "Add.." Input
             Box(
                 modifier = Modifier
-                    .background(
-                        if (isFocused) whiteBg else Color.Transparent,
-                        RoundedCornerShape(6.dp)
-                    )
-                    .padding(horizontal = 4.dp, vertical = 4.dp)
+                    .height(28.dp)
+                    .padding(horizontal = 4.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
                 BasicTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
-                    modifier = Modifier
-                        .width(120.dp)
-                        .focusRequester(FocusRequester()),
+                    modifier = Modifier.widthIn(min = 45.dp, max = 80.dp),
                     singleLine = true,
                     textStyle = TextStyle(
                         fontSize = tokens.bodySmall,
                         color = TextPrimary
                     ),
-                    decorationBox = { inner ->
-                        if (inputText.isEmpty() && !isFocused) {
-                            Text(
-                                "Add..",
-                                fontSize = tokens.bodySmall,
-                                color = mutedText
-                            )
+                    decorationBox = { innerTextField ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (inputText.isEmpty()) {
+                                Text(
+                                    text = "Add..",
+                                    fontSize = tokens.bodySmall,
+                                    color = mutedText
+                                )
+                            }
+                            innerTextField()
                         }
-                        inner()
                     },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(
@@ -1106,7 +1050,7 @@ private fun AttributeValuesInput(
 }
 
 // =============================================================================
-// FLOW ROW LAYOUT HELPER
+// FLOW ROW HELPER (WITH minWidth = 0 TO PREVENT FULL-WIDTH STRETCH)
 // =============================================================================
 
 @Composable
@@ -1123,13 +1067,16 @@ fun FlowRow(
         val hSpacing = horizontalSpacing.roundToPx()
         val vSpacing = verticalSpacing.roundToPx()
 
-        var currentX = 0
-        var currentY = 0
-        var rowMaxHeight = 0
-        val placeables = measurables.map { it.measure(constraints) }
+        //  Crucial: Reset minWidth to 0 so child chips wrap content
+        val childConstraints = constraints.copy(minWidth = 0, minHeight = 0)
+        val placeables = measurables.map { it.measure(childConstraints) }
+
         val rows = mutableListOf<List<Placeable>>()
         val rowHeights = mutableListOf<Int>()
         var currentRow = mutableListOf<Placeable>()
+        var currentX = 0
+        var currentY = 0
+        var rowMaxHeight = 0
 
         placeables.forEach { placeable ->
             if (currentX + placeable.width > constraints.maxWidth && currentRow.isNotEmpty()) {
@@ -1150,7 +1097,9 @@ fun FlowRow(
             rowHeights.add(rowMaxHeight)
         }
 
-        layout(constraints.maxWidth, currentY + (rowHeights.lastOrNull() ?: 0)) {
+        val totalHeight = currentY + (rowHeights.lastOrNull() ?: 0)
+
+        layout(constraints.maxWidth, totalHeight) {
             var y = 0
             rows.forEachIndexed { index, row ->
                 var x = 0

@@ -30,7 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.inventory.ItemGroupDto
@@ -66,32 +66,24 @@ fun AllItemGroupScreen(
     onEdit: (String) -> Unit = {},
     onBreadCrumbClick: () -> Unit = {}
 ) {
-    // =========================================================================
-    // DESIGN TOKENS & STATE COLLECTORS
-    // =========================================================================
     val tokens = LocalAppTokens.current
     val uiState by viewModel.uiState.collectAsState()
     val deleteSuccessMessage by viewModel.deleteItemGroupSuccess.collectAsState()
 
     var displayedErrorMessage by remember { mutableStateOf<String?>(null) }
-
-    // State for Delete Confirmation Dialog
     var itemGroupToDelete by remember { mutableStateOf<ItemGroupDto?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Synchronize ViewModel errors
+    // Sync error state
     LaunchedEffect(uiState.errorMessage) {
         displayedErrorMessage = uiState.errorMessage
     }
 
-    // Refresh list on initial screen load
+    // Refresh list on load
     LaunchedEffect(Unit) {
         viewModel.refreshItemGroups()
     }
 
-    // =========================================================================
-    // ROOT UI WITH ADAPTIVE SCAFFOLD
-    // =========================================================================
     FabScaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -99,15 +91,14 @@ fun AllItemGroupScreen(
         fab = FabConfig(
             label = "Create item group",
             icon = Icons.Default.Add,
-            onClick = onAddItemGroup
+            onClick = {
+                viewModel.clearSelectedItemGroupDetail()
+                onAddItemGroup()
+            }
         )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-
-            // ── Main Screen Content ──
-            Column(
-                modifier = Modifier.fillMaxSize()
-            ) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 // Header Bar
                 Row(modifier = Modifier.fillMaxWidth()) {
                     TitleBar(
@@ -119,19 +110,17 @@ fun AllItemGroupScreen(
                 // Search Bar
                 SearchFilterBar(
                     query = uiState.searchQuery,
-                    onQueryChange = { query ->
-                        viewModel.onSearchQueryChanged(query)
-                    },
+                    onQueryChange = { query -> viewModel.onSearchQueryChanged(query) },
                     placeholder = "Search Item Group...",
                     accentColor = Primary,
                     borderColor = BorderGray,
                     textSecondaryColor = mutedText,
-                    onFilterClick = { /* Optional Filter callback */ }
+                    onFilterClick = { }
                 )
 
                 HorizontalDivider(color = title_border, thickness = 1.dp)
 
-                // List, Skeleton Loading, or Empty View
+                // List Content Area
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -149,7 +138,11 @@ fun AllItemGroupScreen(
                                 itemGroups = uiState.filteredList,
                                 tokens = tokens,
                                 onView = onView,
-                                onEdit = onEdit,
+                                onEdit = { id ->
+                                    viewModel.fetchItemGroupViewOne(id) {
+                                        onEdit(id)
+                                    }
+                                },
                                 onDelete = { group ->
                                     itemGroupToDelete = group
                                     showDeleteDialog = true
@@ -160,7 +153,7 @@ fun AllItemGroupScreen(
                 }
             }
 
-            // ── Delete Confirmation Dialog (DeleteModel) ──
+            // Delete Confirmation Dialog
             if (showDeleteDialog && itemGroupToDelete != null) {
                 DeleteModel(
                     title = "Delete Item Group",
@@ -170,16 +163,14 @@ fun AllItemGroupScreen(
                         itemGroupToDelete = null
                     },
                     onDelete = {
-                        itemGroupToDelete?.let { group ->
-                            viewModel.deleteItemGroup(id = group.id)
-                        }
+                        itemGroupToDelete?.let { group -> viewModel.deleteItemGroup(id = group.id) }
                         showDeleteDialog = false
                         itemGroupToDelete = null
                     }
                 )
             }
 
-            // ── Dynamic Island Notifications ──
+            // Dynamic Island Notifications
             DynamicIslandSuccess(
                 message = deleteSuccessMessage,
                 onDismiss = { viewModel.clearDeleteSuccessMessage() }
@@ -192,10 +183,6 @@ fun AllItemGroupScreen(
         }
     }
 }
-
-// =========================================================================
-// ITEM GROUP LIST COMPOSABLE
-// =========================================================================
 
 @Composable
 private fun ItemGroupListView(
@@ -210,12 +197,10 @@ private fun ItemGroupListView(
         contentPadding = PaddingValues(vertical = tokens.extraPadding)
     ) {
         items(items = itemGroups, key = { it.id }) { group ->
-            // Extract formatted attribute summary
             val attributesSummary = group.variantAttributes
                 .joinToString(", ") { it.name }
                 .ifBlank { "No attributes" }
 
-            // Extract formatted creation date
             val formattedDate = formatIsoDate(group.createdAt)
 
             DataCard(
@@ -267,10 +252,6 @@ private fun ItemGroupListView(
     }
 }
 
-// =========================================================================
-// EMPTY STATE COMPOSABLE
-// =========================================================================
-
 @Composable
 private fun EmptyStateView(tokens: AppDesignTokens) {
     Box(
@@ -285,13 +266,6 @@ private fun EmptyStateView(tokens: AppDesignTokens) {
     }
 }
 
-// =========================================================================
-// HELPER FUNCTIONS
-// =========================================================================
-
-/**
- * Parses and formats ISO 8601 date strings to a readable format (e.g. "20 Jul 2026").
- */
 private fun formatIsoDate(isoDate: String?): String {
     if (isoDate.isNullOrBlank()) return ""
     return try {

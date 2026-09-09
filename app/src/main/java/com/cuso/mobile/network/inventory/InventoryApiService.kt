@@ -1,6 +1,8 @@
 package com.cuso.mobile.network.inventory
 
+import com.cuso.mobile.model.inventory.AdjustStockQuantityRequest
 import com.cuso.mobile.model.inventory.AdjustStockRequest
+import com.cuso.mobile.model.inventory.AdjustmentReasonsResponse
 import com.cuso.mobile.model.inventory.CreateInventoryItemResponse
 import com.cuso.mobile.model.inventory.CreateItemGroupRequest
 import com.cuso.mobile.model.inventory.CreateItemGroupResponse
@@ -11,7 +13,12 @@ import com.cuso.mobile.model.inventory.InventoryItemDetailResponse
 import com.cuso.mobile.model.inventory.InventoryItemListResponse
 import com.cuso.mobile.model.inventory.InventoryViewOneResponse
 import com.cuso.mobile.model.inventory.ItemGroupListResponse
+import com.cuso.mobile.model.inventory.ItemGroupViewOneResponse
 import com.cuso.mobile.model.inventory.LowStockResponse
+import com.cuso.mobile.model.inventory.ReverseAdjustmentRequest
+import com.cuso.mobile.model.inventory.StockAdjustmentDetailResponse
+import com.cuso.mobile.model.inventory.StockAdjustmentListResponse
+import com.cuso.mobile.model.inventory.TransferStockRequest
 import com.cuso.mobile.model.inventory.UpdateInventoryItemResponse
 import com.cuso.mobile.model.settings.BinItem
 import okhttp3.MultipartBody
@@ -130,6 +137,16 @@ interface InventoryApiService {
     ): Response<ItemGroupListResponse>
 
     /**
+     * Get paginated item groups view one.
+     */
+    @GET("/api/inventory/item-group/view-one/{id}")
+    suspend fun getInventoryItemGroupViewOne(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<ItemGroupViewOneResponse>
+
+    /**
      * Get paginated item groups create.
      */
     @POST("/api/inventory/item-group/create")
@@ -183,4 +200,61 @@ interface InventoryApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Body request: CreatePurchaseOrderRequest
     ): Response<CreatePurchaseOrderResponse>
+
+
+    // =========================================================================
+    // 4. STOCK ADJUSTMENTS & TRANSFERS
+    // =========================================================================
+
+    // --- 4.1 Valid Reasons ---
+    @GET("/api/inventory/stock-adjustment/reasons")
+    suspend fun getValidAdjustmentReasons(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<AdjustmentReasonsResponse>
+
+    // --- 4.2 Adjust Stock (Increase / Decrease) ---
+    @POST("/api/inventory/stock-adjustment/adjust")
+    suspend fun adjustStockQuantity(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: AdjustStockQuantityRequest
+    ): Response<StockAdjustmentDetailResponse>
+
+    // --- 4.3 Transfer Stock ---
+    @POST("/api/inventory/stock-adjustment/transfer")
+    suspend fun transferStock(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: TransferStockRequest
+    ): Response<StockAdjustmentDetailResponse>
+
+    // --- 4.4 Reverse Adjustment ---
+    @POST("/api/inventory/stock-adjustment/reverse/{adjustmentId}")
+    suspend fun reverseStockAdjustment(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("adjustmentId") adjustmentId: String,
+        @Body request: ReverseAdjustmentRequest = ReverseAdjustmentRequest()
+    ): Response<StockAdjustmentDetailResponse>
+
+    // --- 4.5 List Adjustments (Paginated) ---
+    @GET("/api/inventory/stock-adjustment/view-all")
+    suspend fun getStockAdjustmentsList(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+        @Query("itemId") itemId: String? = null,
+        @Query("warehouseId") warehouseId: String? = null
+    ): Response<StockAdjustmentListResponse>
+
+    // --- 4.6 Get Single Adjustment by ID ---
+    @GET("/api/inventory/stock-adjustment/view-one/{id}")
+    suspend fun getStockAdjustmentById(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<StockAdjustmentDetailResponse>
+
 }

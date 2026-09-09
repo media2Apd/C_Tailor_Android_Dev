@@ -51,6 +51,7 @@ import com.cuso.mobile.view.home.inventory.items.all_items.AdjustmentType
 import com.cuso.mobile.view.home.inventory.items.all_items.CreateItemScreen
 import com.cuso.mobile.view.home.inventory.items.all_items.InventoryScreen
 import com.cuso.mobile.view.home.inventory.items.all_items.InventoryViewOne
+import com.cuso.mobile.view.home.inventory.items.item_groups.ItemGroupDetailScreen
 import com.cuso.mobile.view.home.inventory.procurement.orders.CreatePurchaseOrderScreen
 import com.cuso.mobile.view.home.inventory.procurement.orders.LowStockAlertsScreen
 import com.cuso.mobile.view.home.inventory.settings.AddBinScreen
@@ -1106,7 +1107,7 @@ fun HomeScreenRouter(
             onAddItemGroup = { onNavigate("inventory_create_item_group") },
             onView = { groupId ->
                 onItemGroupIdSelected(groupId)
-                // Navigate to view details if needed
+                onNavigate("inventory_item_group_detail")
             },
             onEdit = { groupId ->
                 onItemGroupIdSelected(groupId)
@@ -1114,6 +1115,24 @@ fun HomeScreenRouter(
             },
             onBreadCrumbClick = { onOpenModulesPanel("Inventory") }
         )
+
+        "inventory_item_group_detail" -> {
+            selectedItemGroupId?.let { id ->
+                ItemGroupDetailScreen(
+                    itemGroupId = id,
+                    onClose = {
+                        onItemGroupIdSelected(null)
+                        onGoBack()
+                    },
+                    onEdit = { groupId ->
+                        onItemGroupIdSelected(groupId)
+                        onNavigate("inventory_create_item_group")
+                    },
+                    onAdjustStock = { /* Handle Adjust Stock action */ },
+                    onExportPdf = { /* Handle PDF export */ }
+                )
+            } ?: run { onGoBack() }
+        }
 
         "inventory_create_item_group" -> CreateItemGroupScreen(
             onDismiss = {

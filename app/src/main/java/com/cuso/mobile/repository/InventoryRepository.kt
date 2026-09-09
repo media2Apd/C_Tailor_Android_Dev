@@ -3,6 +3,7 @@ package com.cuso.mobile.repository
 import android.content.Context
 import android.net.Uri
 import com.cuso.mobile.database.dao.TokensDao
+import com.cuso.mobile.model.inventory.AdjustStockQuantityRequest
 import com.cuso.mobile.model.inventory.AdjustStockRequest
 import com.cuso.mobile.model.inventory.CreateInventoryItemResponse
 import com.cuso.mobile.model.inventory.CreateItemGroupRequest
@@ -12,8 +13,13 @@ import com.cuso.mobile.model.inventory.InventoryItemListResponse
 import com.cuso.mobile.model.inventory.InventoryItemviewone
 import com.cuso.mobile.model.inventory.ItemGroupDto
 import com.cuso.mobile.model.inventory.ItemGroupListResponse
+import com.cuso.mobile.model.inventory.ItemGroupViewOneData
 import com.cuso.mobile.model.inventory.LowStockItemDto
 import com.cuso.mobile.model.inventory.PurchaseOrderData
+import com.cuso.mobile.model.inventory.ReverseAdjustmentRequest
+import com.cuso.mobile.model.inventory.StockAdjustmentData
+import com.cuso.mobile.model.inventory.StockAdjustmentListResponse
+import com.cuso.mobile.model.inventory.TransferStockRequest
 import com.cuso.mobile.model.inventory.UpdateInventoryItemResponse
 import com.cuso.mobile.network.inventory.InventoryApiService
 import kotlinx.coroutines.Dispatchers
@@ -319,6 +325,49 @@ class InventoryRepository @Inject constructor(
                 Result.failure(e)
             }
         }
+    /**
+     * Fetch single item group details with its variants.
+     */
+    suspend fun getInventoryItemGroupViewOne(id: String): Result<ItemGroupViewOneData> =
+        withContext(Dispatchers.IO) {
+            try {
+                val (accessToken, csrfToken) = getAuthHeaders()
+                val response = inventoryApi.getInventoryItemGroupViewOne(accessToken, csrfToken, id)
+                val body = response.body()
+
+                if (response.isSuccessful && body?.success == true && body.data != null) {
+                    Result.success(body.data)
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch item group details"
+                    Result.failure(Exception(errorMsg))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    /**
+     * Update an existing item group.
+     */
+//    suspend fun updateItemGroup(
+//        id: String,
+//        request: CreateItemGroupRequest
+//    ): Result<ItemGroupDto> = withContext(Dispatchers.IO) {
+//        try {
+//            val (accessToken, csrfToken) = getAuthHeaders()
+//            val response = inventoryApi.updateItemGroup(accessToken, csrfToken, id, request)
+//            val body = response.body()
+//
+//            if (response.isSuccessful && body?.success == true) {
+//                Result.success(body.data)
+//            } else {
+//                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to update item group"
+//                Result.failure(Exception(errorMsg))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
 
     /**
      * Delete an item group by ID with categoryId header.
@@ -454,6 +503,137 @@ class InventoryRepository @Inject constructor(
             MultipartBody.Part.createFormData(MULTIPART_IMAGE_FIELD, tempFile.name, requestBody)
         } catch (_: Exception) {
             null
+        }
+    }
+
+    // =========================================================================
+    // STOCK ADJUSTMENTS & TRANSFERS
+    // =========================================================================
+
+    /**
+     * Fetch the list of valid stock adjustment reasons from backend.
+     */
+    suspend fun getValidAdjustmentReasons(): Result<List<String>> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getValidAdjustmentReasons(accessToken, csrfToken)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to load adjustment reasons")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Adjust stock quantity (Increase or Decrease).
+     */
+    suspend fun adjustStockQuantity(
+        request: AdjustStockQuantityRequest
+    ): Result<StockAdjustmentData> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.adjustStockQuantity(accessToken, csrfToken, request)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to adjust stock")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Transfer stock between warehouses / bins.
+     */
+    suspend fun transferStock(
+        request: TransferStockRequest
+    ): Result<StockAdjustmentData> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.transferStock(accessToken, csrfToken, request)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to transfer stock")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Reverse a previous stock adjustment.
+     */
+    suspend fun reverseStockAdjustment(
+        adjustmentId: String,
+        reason: String? = "Other",
+        notes: String? = null
+    ): Result<StockAdjustmentData> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val request = ReverseAdjustmentRequest(reason = reason, notes = notes)
+            val response = inventoryApi.reverseStockAdjustment(accessToken, csrfToken, adjustmentId, request)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to reverse adjustment")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get paginated history of stock adjustments.
+     */
+    suspend fun getStockAdjustmentsList(
+        page: Int = 1,
+        limit: Int = 20,
+        itemId: String? = null,
+        warehouseId: String? = null
+    ): Result<StockAdjustmentListResponse> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getStockAdjustmentsList(accessToken, csrfToken, page, limit, itemId, warehouseId)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to fetch adjustment history")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get single adjustment detail by ID.
+     */
+    suspend fun getStockAdjustmentById(id: String): Result<StockAdjustmentData> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getStockAdjustmentById(accessToken, csrfToken, id)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to fetch adjustment details")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

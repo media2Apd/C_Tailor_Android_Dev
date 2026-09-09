@@ -38,6 +38,8 @@ import com.cuso.mobile.view.home.finance.finance_core.chart_of_accounts.ChartOfA
 import com.cuso.mobile.view.home.finance.finance_core.journal_entry.ManualJournalEntryScreen
 import com.cuso.mobile.view.home.finance.finance_core.trial_balance.LedgerScreen
 import com.cuso.mobile.view.home.finance.finance_core.trial_balance.TrialBalanceScreen
+import com.cuso.mobile.view.home.finance.settings.AddGstSettingsScreen
+import com.cuso.mobile.view.home.finance.settings.GstSettingsOverviewScreen
 import com.cuso.mobile.view.home.hr.attendance.AttendanceDetailScreen
 import com.cuso.mobile.view.home.hr.attendance.AttendanceScreen
 import com.cuso.mobile.view.home.hr.employees.AllEmployeesScreen
@@ -134,7 +136,6 @@ fun HomeScreenRouter(
     customerViewModel: CustomerViewModel,
     settingsViewModel: SettingsViewModel,
     authViewModel: Authenticate,
-    // Navigation Callbacks
     onNavigate: (String) -> Unit,
     onSafeNavigate: (String) -> Unit,
     onGoBack: () -> Unit,
@@ -142,7 +143,6 @@ fun HomeScreenRouter(
     onOpenModulesPanel: (String) -> Unit,
     onShowComingSoon: (String) -> Unit,
     onSalesSettingsModeChange: (Boolean) -> Unit,
-    // Screen States
     selectedCustomer: CustomerItem?,
     onCustomerSelected: (CustomerItem?) -> Unit,
     selectedOrderId: String?,
@@ -320,7 +320,6 @@ fun HomeScreenRouter(
             onClose = onGoBack,
             onCreateNewTemplate = { onShowComingSoon("Create Template Coming Soon") }
         )
-        // ── Inventory Location Structure Routes ──
         "inventory_location_structure" -> LocationStructureScreen(
             onClose = onGoBack,
             onAddLocation = { onNavigate("inventory_add_floor") },
@@ -328,44 +327,120 @@ fun HomeScreenRouter(
         )
 
         "inventory_floor_overview" -> FloorOverviewScreen(
+            viewModel = settingsViewModel,
             onClose = onGoBack,
-            onAddFloor = { onNavigate("inventory_add_floor") }
+            onAddFloor = {
+                settingsViewModel.clearSelectedFloorForEdit()
+                onNavigate("inventory_add_floor")
+            },
+            onEditFloor = { floor ->
+                settingsViewModel.setSelectedFloorForEdit(floor)
+                onNavigate("inventory_add_floor")
+            }
         )
 
-        "inventory_add_floor" -> AddFloorScreen(
-            onClose = onGoBack,
-            onSave = onGoBack
-        )
+        "inventory_add_floor" -> {
+            val selectedFloor by settingsViewModel.selectedFloorForEdit.collectAsStateWithLifecycle()
+            AddFloorScreen(
+                floorItem = selectedFloor,
+                viewModel = settingsViewModel,
+                onClose = {
+                    settingsViewModel.clearSelectedFloorForEdit()
+                    onGoBack()
+                },
+                onSave = {
+                    settingsViewModel.clearSelectedFloorForEdit()
+                    onGoBack()
+                }
+            )
+        }
 
         "inventory_section_overview" -> SectionOverviewScreen(
+            viewModel = settingsViewModel,
             onClose = onGoBack,
-            onAddSection = { onNavigate("inventory_add_section") }
+            onAddSection = {
+                settingsViewModel.clearSelectedSectionForEdit()
+                onNavigate("inventory_add_section")
+            },
+            onEditSection = { section ->
+                settingsViewModel.setSelectedSectionForEdit(section)
+                onNavigate("inventory_add_section")
+            }
         )
 
-        "inventory_add_section" -> AddSectionScreen(
-            onClose = onGoBack,
-            onSave = onGoBack
-        )
+        "inventory_add_section" -> {
+            val selectedSection by settingsViewModel.selectedSectionForEdit.collectAsStateWithLifecycle()
+            AddSectionScreen(
+                sectionItem = selectedSection,
+                viewModel = settingsViewModel,
+                onClose = {
+                    settingsViewModel.clearSelectedSectionForEdit()
+                    onGoBack()
+                },
+                onSave = {
+                    settingsViewModel.clearSelectedSectionForEdit()
+                    onGoBack()
+                }
+            )
+        }
 
         "inventory_rack_overview" -> RackOverviewScreen(
+            viewModel = settingsViewModel,
             onClose = onGoBack,
-            onAddRack = { onNavigate("inventory_add_rack") }
+            onAddRack = {
+                settingsViewModel.clearSelectedRackForEdit()
+                onNavigate("inventory_add_rack")
+            },
+            onEditRack = { rack ->
+                settingsViewModel.setSelectedRackForEdit(rack)
+                onNavigate("inventory_add_rack")
+            }
         )
 
-        "inventory_add_rack" -> AddRackScreen(
-            onClose = onGoBack,
-            onSave = onGoBack
-        )
+        "inventory_add_rack" -> {
+            val selectedRack by settingsViewModel.selectedRackForEdit.collectAsStateWithLifecycle()
+            AddRackScreen(
+                rackItem = selectedRack,
+                viewModel = settingsViewModel,
+                onClose = {
+                    settingsViewModel.clearSelectedRackForEdit()
+                    onGoBack()
+                },
+                onSave = {
+                    settingsViewModel.clearSelectedRackForEdit()
+                    onGoBack()
+                }
+            )
+        }
 
         "inventory_bin_overview" -> BinOverviewScreen(
+            viewModel = settingsViewModel,
             onClose = onGoBack,
-            onAddBin = { onNavigate("inventory_add_bin") }
+            onAddBin = {
+                settingsViewModel.clearSelectedBinForEdit()
+                onNavigate("inventory_add_bin")
+            },
+            onEditBin = { bin ->
+                settingsViewModel.setSelectedBinForEdit(bin)
+                onNavigate("inventory_add_bin")
+            }
         )
 
-        "inventory_add_bin" -> AddBinScreen(
-            onClose = onGoBack,
-            onSave = onGoBack
-        )
+        "inventory_add_bin" -> {
+            val selectedBin by settingsViewModel.selectedBinForEdit.collectAsStateWithLifecycle()
+            AddBinScreen(
+                binItem = selectedBin,
+                viewModel = settingsViewModel,
+                onClose = {
+                    settingsViewModel.clearSelectedBinForEdit()
+                    onGoBack()
+                },
+                onSave = {
+                    settingsViewModel.clearSelectedBinForEdit()
+                    onGoBack()
+                }
+            )
+        }
 
         // ─────────────────────────────────────────────────────────────
         // 3. SALES MODULE
@@ -1029,24 +1104,44 @@ fun HomeScreenRouter(
         "inventory_item_groups" -> AllItemGroupScreen(
             onDismiss = onGoBack,
             onAddItemGroup = { onNavigate("inventory_create_item_group") },
-            onView = { groupId -> onItemGroupIdSelected(groupId) },
+            onView = { groupId ->
+                onItemGroupIdSelected(groupId)
+                // Navigate to view details if needed
+            },
             onEdit = { groupId ->
                 onItemGroupIdSelected(groupId)
                 onNavigate("inventory_create_item_group")
             },
-            onDelete = { },
             onBreadCrumbClick = { onOpenModulesPanel("Inventory") }
         )
+
         "inventory_create_item_group" -> CreateItemGroupScreen(
             onDismiss = {
                 onItemGroupIdSelected(null)
                 onGoBack()
             },
-            onSave = {
+            onSaveSuccess = {
                 onItemGroupIdSelected(null)
                 onGoBack()
             }
         )
+        // ─────────────────────────────────────────────────────────────
+        // Finance Settings
+        // ─────────────────────────────────────────────────────────────
+        // ── Finance GST Settings Routes ──
+        "finance_gst_settings" -> GstSettingsOverviewScreen(
+            onClose = onGoBack,
+            onAddGst = { onNavigate("finance_add_gst") },
+            onEditGst = { gstItem ->
+                onNavigate("finance_add_gst")
+            }
+        )
+
+        "finance_add_gst" -> AddGstSettingsScreen(
+            onClose = onGoBack,
+            onSave = onGoBack
+        )
+
 
         // ─────────────────────────────────────────────────────────────
         // 6. HR MODULE

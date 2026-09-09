@@ -4,6 +4,7 @@ package com.cuso.mobile.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.database.entities.GarmentMeasurement
+import com.cuso.mobile.model.inventory.ProductCategoryItem
 import com.cuso.mobile.model.sales.myOrganizationResponse
 import com.cuso.mobile.model.settings.*
 import com.cuso.mobile.repository.AuthRepository
@@ -28,7 +29,10 @@ class SettingsViewModel @Inject constructor(
 
     private var fetchJob: Job? = null
 
-    // ── Organization State ──
+    // ===========================================================
+    // 1. ORGANIZATION STATE
+    // ===========================================================
+
     private val _organization = MutableStateFlow<myOrganizationResponse?>(null)
     val organization: StateFlow<myOrganizationResponse?> = _organization.asStateFlow()
 
@@ -38,7 +42,10 @@ class SettingsViewModel @Inject constructor(
     private val _organizationError = MutableStateFlow<String?>(null)
     val organizationError: StateFlow<String?> = _organizationError.asStateFlow()
 
-    // ── Segments List State ──
+    // ===========================================================
+    // 2. SEGMENTS STATE
+    // ===========================================================
+
     private val _segments = MutableStateFlow<List<SegmentItem>>(emptyList())
     val segments: StateFlow<List<SegmentItem>> = _segments.asStateFlow()
 
@@ -48,21 +55,25 @@ class SettingsViewModel @Inject constructor(
     private val _segmentsError = MutableStateFlow<String?>(null)
     val segmentsError: StateFlow<String?> = _segmentsError.asStateFlow()
 
-    // ── Create Segment State ──
     private val _isCreatingSegment = MutableStateFlow(false)
     val isCreatingSegment: StateFlow<Boolean> = _isCreatingSegment.asStateFlow()
 
     private val _segmentError = MutableStateFlow<String?>(null)
     val segmentError: StateFlow<String?> = _segmentError.asStateFlow()
 
-    // ── View One Segment State ──
     private val _selectedSegmentDetail = MutableStateFlow<SegmentItem?>(null)
     val selectedSegmentDetail: StateFlow<SegmentItem?> = _selectedSegmentDetail.asStateFlow()
 
     private val _isLoadingSegmentDetail = MutableStateFlow(false)
     val isLoadingSegmentDetail: StateFlow<Boolean> = _isLoadingSegmentDetail.asStateFlow()
 
-    // ── Garments List State ──
+    private val _isChangingSegmentStatus = MutableStateFlow(false)
+    val isChangingSegmentStatus: StateFlow<Boolean> = _isChangingSegmentStatus.asStateFlow()
+
+    // ===========================================================
+    // 3. GARMENTS STATE
+    // ===========================================================
+
     private val _garments = MutableStateFlow<List<GarmentItem>>(emptyList())
     val garments: StateFlow<List<GarmentItem>> = _garments.asStateFlow()
 
@@ -72,24 +83,37 @@ class SettingsViewModel @Inject constructor(
     private val _garmentsError = MutableStateFlow<String?>(null)
     val garmentsError: StateFlow<String?> = _garmentsError.asStateFlow()
 
-    // ── Garment Mutation State ──
     private val _isCreatingGarment = MutableStateFlow(false)
     val isCreatingGarment: StateFlow<Boolean> = _isCreatingGarment.asStateFlow()
 
     private val _garmentError = MutableStateFlow<String?>(null)
     val garmentError: StateFlow<String?> = _garmentError.asStateFlow()
 
-    // ── Garment category (Styles) State ──
+    private val _isChangingGarmentStatus = MutableStateFlow(false)
+    val isChangingGarmentStatus: StateFlow<Boolean> = _isChangingGarmentStatus.asStateFlow()
+
+    private val _selectedGarment = MutableStateFlow<GarmentDetail?>(null)
+    val selectedGarment = _selectedGarment.asStateFlow()
+
+    private val _isFetchingDetail = MutableStateFlow(false)
+    val isFetchingDetail = _isFetchingDetail.asStateFlow()
+
+    private val _isUpdatingPrice = MutableStateFlow(false)
+    val isUpdatingPrice = _isUpdatingPrice.asStateFlow()
+
+    // ===========================================================
+    // 4. GARMENT STYLES / CATEGORIES STATE
+    // ===========================================================
+
     private val _garmentStyles = MutableStateFlow<List<GarmentStyleItem>>(emptyList())
     val garmentStyles: StateFlow<List<GarmentStyleItem>> = _garmentStyles.asStateFlow()
 
     private val _isLoadingStyles = MutableStateFlow(false)
     val isLoadingStyles: StateFlow<Boolean> = _isLoadingStyles.asStateFlow()
 
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+    private val _isCreatingStyle = MutableStateFlow(false)
+    val isCreatingStyle: StateFlow<Boolean> = _isCreatingStyle.asStateFlow()
 
-    // ── Selected Garment & Segment For Detail Screen ──
     private val _selectedSegmentIdForStyle = MutableStateFlow<String?>(null)
     val selectedSegmentIdForStyle: StateFlow<String?> = _selectedSegmentIdForStyle.asStateFlow()
 
@@ -99,15 +123,53 @@ class SettingsViewModel @Inject constructor(
     private val _selectedGarmentTitleForStyle = MutableStateFlow("Garment Categories")
     val selectedGarmentTitleForStyle: StateFlow<String> = _selectedGarmentTitleForStyle.asStateFlow()
 
-    // ── Room DB Local Measurements State ──
+    private val _selectedStyleDetail = MutableStateFlow<GarmentStyleItem?>(null)
+    val selectedStyleDetail: StateFlow<GarmentStyleItem?> = _selectedStyleDetail.asStateFlow()
+
+    private val _isLoadingStyleDetail = MutableStateFlow(false)
+    val isLoadingStyleDetail: StateFlow<Boolean> = _isLoadingStyleDetail.asStateFlow()
+
+    // ===========================================================
+    // 5. MEASUREMENT FIELDS & LOCAL STATE
+    // ===========================================================
+
+    private val _measurementFields = MutableStateFlow<List<MeasurementFieldItem>>(emptyList())
+    val measurementFields: StateFlow<List<MeasurementFieldItem>> = _measurementFields.asStateFlow()
+
+    private val _isLoadingMeasurementFields = MutableStateFlow(false)
+    val isLoadingMeasurementFields: StateFlow<Boolean> = _isLoadingMeasurementFields.asStateFlow()
+
+    private val _isDeactivatingField = MutableStateFlow(false)
+    val isDeactivatingField = _isDeactivatingField.asStateFlow()
+
     private val _localMeasurements = MutableStateFlow<List<GarmentMeasurement>>(emptyList())
     val localMeasurements: StateFlow<List<GarmentMeasurement>> = _localMeasurements.asStateFlow()
 
-    // ==========================================
-    // ── Inventory Location Structure States ──
-    // ==========================================
-    private val _floors = MutableStateFlow<List<FloorItem>>(emptyList())
-    val floors: StateFlow<List<FloorItem>> = _floors.asStateFlow()
+    // ===========================================================
+    // 6. WORK PRICING STATE
+    // ===========================================================
+
+    private val _workPricingList = MutableStateFlow<List<WorkPricingItem>>(emptyList())
+    val workPricingList = _workPricingList.asStateFlow()
+
+    private val _isLoadingWorkPricing = MutableStateFlow(false)
+    val isLoadingWorkPricing = _isLoadingWorkPricing.asStateFlow()
+
+    private val _selectedWorkDetail = MutableStateFlow<WorkPricingDetail?>(null)
+    val selectedWorkDetail = _selectedWorkDetail.asStateFlow()
+
+    private val _isFetchingWorkDetail = MutableStateFlow(false)
+    val isFetchingWorkDetail = _isFetchingWorkDetail.asStateFlow()
+
+    // ===========================================================
+    // 7. INVENTORY LOCATION STRUCTURE STATE
+    // ===========================================================
+
+    private val _productCategories = MutableStateFlow<List<ProductCategoryItem>>(emptyList())
+    val productCategories: StateFlow<List<ProductCategoryItem>> = _productCategories.asStateFlow()
+
+    private val _floors = MutableStateFlow<List<FloorItemSettings>>(emptyList())
+    val floors: StateFlow<List<FloorItemSettings>> = _floors.asStateFlow()
 
     private val _sections = MutableStateFlow<List<SectionItem>>(emptyList())
     val sections: StateFlow<List<SectionItem>> = _sections.asStateFlow()
@@ -121,19 +183,79 @@ class SettingsViewModel @Inject constructor(
     private val _isLoadingLocationStructure = MutableStateFlow(false)
     val isLoadingLocationStructure: StateFlow<Boolean> = _isLoadingLocationStructure.asStateFlow()
 
-    //change status
-    private val _isChangingSegmentStatus = MutableStateFlow(false)
-    val isChangingSegmentStatus: StateFlow<Boolean> = _isChangingSegmentStatus.asStateFlow()
+    private val _floorErrorMessage = MutableStateFlow<String?>(null)
+    val floorErrorMessage: StateFlow<String?> = _floorErrorMessage.asStateFlow()
 
-    private val _isChangingGarmentStatus = MutableStateFlow(false)
-    val isChangingGarmentStatus: StateFlow<Boolean> = _isChangingGarmentStatus.asStateFlow()
+    private var floorCurrentPage = 1
+    private var isFloorEndReached = false
+    private val _isPaginatingFloors = MutableStateFlow(false)
+    val isPaginatingFloors: StateFlow<Boolean> = _isPaginatingFloors.asStateFlow()
 
-    // --- Action States (Create/Update) ---
+    private var sectionCurrentPage = 1
+    private var isSectionEndReached = false
+    private val _isPaginatingSections = MutableStateFlow(false)
+    val isPaginatingSections: StateFlow<Boolean> = _isPaginatingSections.asStateFlow()
+
+    private var rackCurrentPage = 1
+    private var isRackEndReached = false
+    private val _isPaginatingRacks = MutableStateFlow(false)
+    val isPaginatingRacks: StateFlow<Boolean> = _isPaginatingRacks.asStateFlow()
+
+    private var binCurrentPage = 1
+    private var isBinEndReached = false
+    private val _isPaginatingBins = MutableStateFlow(false)
+    val isPaginatingBins: StateFlow<Boolean> = _isPaginatingBins.asStateFlow()
+
+    // Edit Selected States
+    private val _selectedFloorForEdit = MutableStateFlow<FloorItemSettings?>(null)
+    val selectedFloorForEdit: StateFlow<FloorItemSettings?> = _selectedFloorForEdit.asStateFlow()
+
+    private val _selectedSectionForEdit = MutableStateFlow<SectionItem?>(null)
+    val selectedSectionForEdit: StateFlow<SectionItem?> = _selectedSectionForEdit.asStateFlow()
+
+    private val _selectedRackForEdit = MutableStateFlow<RackItem?>(null)
+    val selectedRackForEdit: StateFlow<RackItem?> = _selectedRackForEdit.asStateFlow()
+
+    private val _selectedBinForEdit = MutableStateFlow<BinItem?>(null)
+    val selectedBinForEdit: StateFlow<BinItem?> = _selectedBinForEdit.asStateFlow()
+
+    // Generic Action & Dynamic Message States
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    // Helper to extract clean message string from JSON error response
+    private val _dynamicSuccessMessage = MutableStateFlow<String?>(null)
+    val dynamicSuccessMessage: StateFlow<String?> = _dynamicSuccessMessage.asStateFlow()
+
+    private val _dynamicErrorMessage = MutableStateFlow<String?>(null)
+    val dynamicErrorMessage: StateFlow<String?> = _dynamicErrorMessage.asStateFlow()
+
+    // ===========================================================
+    // 8. UTILITY & MESSAGE METHODS
+    // ===========================================================
+
+    fun showSuccess(msg: String) {
+        _dynamicSuccessMessage.value = msg
+    }
+
+    fun showError(msg: String) {
+        _dynamicErrorMessage.value = msg
+    }
+
+    fun clearSuccessMessage() {
+        _dynamicSuccessMessage.value = null
+    }
+
+    fun clearDynamicErrorMessage() {
+        _dynamicErrorMessage.value = null
+    }
+
+    fun clearErrorMessage() {
+        _errorMessage.value = null
+    }
+
     private fun extractErrorMessage(raw: String?): String {
         if (raw.isNullOrBlank()) return "An unexpected error occurred"
         val trimmed = raw.trim()
@@ -154,62 +276,17 @@ class SettingsViewModel @Inject constructor(
         return trimmed
     }
 
-    fun setSelectedGarmentForDetail(segmentId: String?, garmentId: String?, title: String) {
-        _selectedSegmentIdForStyle.value = segmentId
-        _selectedGarmentIdForStyle.value = garmentId
-        _selectedGarmentTitleForStyle.value = title
-        fetchGarmentStyles(segmentId = segmentId, garmentId = garmentId)
-    }
-
-    fun loadLocalMeasurements(categoryId: String) {
-        viewModelScope.launch {
-            settingsRepository.getLocalMeasurements(categoryId).collect { garment ->
-                _localMeasurements.value = garment?.measurements ?: emptyList()
-            }
-        }
-    }
-
-    private val _isDeactivatingField = MutableStateFlow(false)
-    val isDeactivatingField = _isDeactivatingField.asStateFlow()
-
-    fun saveSelectedFieldsToLocal(
-        categoryId: String,
-        categoryName: String,
-        selectedFields: List<MeasurementFieldItem>,
-        onComplete: () -> Unit
-    ) {
-        viewModelScope.launch {
-            val current = _localMeasurements.value.toMutableList()
-            val existingIds = current.map { it.id }.toSet()
-
-            selectedFields.forEach { item ->
-                if (!existingIds.contains(item.id)) {
-                    current.add(
-                        GarmentMeasurement(
-                            id = item.id,
-                            label = item.displayName ?: item.name,
-                            unit = item.unit ?: "inch",
-                            inputType = item.inputType,
-                            isRequired = false,
-                            displayOrder = current.size + 1
-                        )
-                    )
-                }
-            }
-
-            settingsRepository.saveSelectedFieldsToRoom(categoryId, categoryName, current)
-            _localMeasurements.value = current
+    fun logout(onComplete: () -> Unit) {
+        launchBusy {
+            sessionManager.logout()
+            clearOrganization()
             onComplete()
         }
     }
 
-    fun removeLocalMeasurementField(categoryId: String, fieldId: String) {
-        viewModelScope.launch {
-            val updated = _localMeasurements.value.filter { it.id != fieldId }
-            settingsRepository.deleteLocalMeasurementField(categoryId, fieldId, _localMeasurements.value)
-            _localMeasurements.value = updated
-        }
-    }
+    // ===========================================================
+    // 9. ORGANIZATION ACTIONS
+    // ===========================================================
 
     fun fetchMyOrganization(token: String) {
         launchBusy {
@@ -230,14 +307,21 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun clearOrganization() {
+        _organization.value = null
+        _organizationError.value = null
+    }
+
+    // ===========================================================
+    // 10. SEGMENT ACTIONS
+    // ===========================================================
+
     fun fetchSegments() {
         launchBusy {
             _isLoadingSegments.value = true
             _segmentsError.value = null
-
             val result = settingsRepository.getSegments()
             _isLoadingSegments.value = false
-
             if (result.isSuccess) {
                 _segments.value = result.getOrDefault(emptyList()).sortedBy { it.displayOrder }
             } else {
@@ -251,7 +335,6 @@ class SettingsViewModel @Inject constructor(
             _isLoadingSegmentDetail.value = true
             val result = settingsRepository.getSegmentById(id)
             _isLoadingSegmentDetail.value = false
-
             if (result.isSuccess) {
                 _selectedSegmentDetail.value = result.getOrNull()
             } else {
@@ -260,9 +343,8 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun clearOrganization() {
-        _organization.value = null
-        _organizationError.value = null
+    fun clearSelectedSegmentDetail() {
+        _selectedSegmentDetail.value = null
     }
 
     fun createSegment(
@@ -290,9 +372,7 @@ class SettingsViewModel @Inject constructor(
             _isCreatingSegment.value = false
 
             if (result.isSuccess) {
-                result.getOrNull()?.let { response ->
-                    onSuccess(response)
-                }
+                result.getOrNull()?.let { response -> onSuccess(response) }
             } else {
                 val error = result.exceptionOrNull()?.message ?: "Failed to create segment"
                 _segmentError.value = error
@@ -358,14 +438,45 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun changeSegmentStatus(
+        id: String,
+        status: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        launchBusy {
+            _isChangingSegmentStatus.value = true
+            _segmentError.value = null
+
+            val request = ChangeSegmentStatusRequest(status = status)
+            val result = settingsRepository.changeSegmentStatus(id, request)
+            _isChangingSegmentStatus.value = false
+
+            if (result.isSuccess) {
+                val response = result.getOrNull()
+                fetchSegments()
+                val msg = response?.message ?: "Segment status updated successfully"
+                showSuccess(msg)
+                onSuccess(msg)
+            } else {
+                val error = extractErrorMessage(result.exceptionOrNull()?.message)
+                _segmentError.value = error
+                showError(error)
+                onError(error)
+            }
+        }
+    }
+
+    // ===========================================================
+    // 11. GARMENT ACTIONS
+    // ===========================================================
+
     fun fetchGarments() {
         launchBusy {
             _isLoadingGarments.value = true
             _garmentsError.value = null
-
             val result = settingsRepository.getGarments()
             _isLoadingGarments.value = false
-
             if (result.isSuccess) {
                 _garments.value = result.getOrDefault(emptyList())
             } else {
@@ -374,36 +485,21 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun fetchGarmentStyles(segmentId: String?, garmentId: String?) {
-        fetchJob?.cancel()
-        fetchJob = viewModelScope.launch {
-            _garmentStyles.value = emptyList()
-            _isLoadingStyles.value = true
-            _errorMessage.value = null
-
-            val normSegmentId = segmentId?.trim()?.takeIf { it.isNotBlank() }
-            val normGarmentId = garmentId?.trim()?.takeIf { it.isNotBlank() }
-
-            settingsRepository.getGarmentStyles(
-                segmentId = normSegmentId,
-                garmentId = normGarmentId
-            ).collect { result ->
-                _isLoadingStyles.value = false
-                result.onSuccess { list ->
-                    _garmentStyles.value = list.filter { item ->
-                        val itemSegmentId = item.segment?.id?.trim()
-                        val itemGarmentId = item.garment?.id?.trim()
-
-                        val matchSegment = normSegmentId == null || itemSegmentId == normSegmentId
-                        val matchGarment = normGarmentId == null || itemGarmentId == normGarmentId
-
-                        matchSegment && matchGarment
-                    }
-                }.onFailure { exception ->
-                    _errorMessage.value = exception.localizedMessage ?: "Failed to fetch styles"
-                }
+    fun fetchGarmentDetail(id: String) {
+        viewModelScope.launch {
+            _isFetchingDetail.value = true
+            settingsRepository.getGarmentDetail(id).onSuccess { detail ->
+                _selectedGarment.value = detail
+            }.onFailure { exception ->
+                val clean = extractErrorMessage(exception.message)
+                showError(clean)
             }
+            _isFetchingDetail.value = false
         }
+    }
+
+    fun clearSelectedGarment() {
+        _selectedGarment.value = null
     }
 
     fun createGarment(
@@ -431,9 +527,7 @@ class SettingsViewModel @Inject constructor(
             _isCreatingGarment.value = false
 
             if (result.isSuccess) {
-                result.getOrNull()?.let { response ->
-                    onSuccess(response)
-                }
+                result.getOrNull()?.let { response -> onSuccess(response) }
             } else {
                 val error = result.exceptionOrNull()?.message ?: "Failed to create garment"
                 _garmentError.value = error
@@ -442,8 +536,125 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    private val _isCreatingStyle = MutableStateFlow(false)
-    val isCreatingStyle: StateFlow<Boolean> = _isCreatingStyle.asStateFlow()
+    fun changeGarmentStatus(
+        id: String,
+        status: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        launchBusy {
+            _isChangingGarmentStatus.value = true
+            _garmentError.value = null
+
+            val request = ChangeGarmentStatusRequest(status = status)
+            val result = settingsRepository.changeGarmentStatus(id, request)
+            _isChangingGarmentStatus.value = false
+
+            if (result.isSuccess) {
+                val response = result.getOrNull()
+                fetchGarments()
+                val msg = response?.message ?: "Garment status updated successfully"
+                showSuccess(msg)
+                onSuccess(msg)
+            } else {
+                val error = extractErrorMessage(result.exceptionOrNull()?.message)
+                _garmentError.value = error
+                showError(error)
+                onError(error)
+            }
+        }
+    }
+
+    fun updateGarmentBasicPrice(
+        id: String,
+        price: Double,
+        isActive: Boolean,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isUpdatingPrice.value = true
+            val request = UpdateGarmentBasicPriceRequest(
+                baseStitchingCharge = price,
+                isActive = isActive
+            )
+
+            settingsRepository.updateGarmentBasicPrice(id, request)
+                .onSuccess { response ->
+                    fetchGarments()
+                    val msg = response.message ?: "Pricing updated successfully"
+                    showSuccess(msg)
+                    onSuccess(msg)
+                }
+                .onFailure { error ->
+                    val clean = extractErrorMessage(error.message)
+                    showError(clean)
+                    onError(clean)
+                }
+            _isUpdatingPrice.value = false
+        }
+    }
+
+    // ===========================================================
+    // 12. GARMENT STYLES / CATEGORIES ACTIONS
+    // ===========================================================
+
+    fun setSelectedGarmentForDetail(segmentId: String?, garmentId: String?, title: String) {
+        _selectedSegmentIdForStyle.value = segmentId
+        _selectedGarmentIdForStyle.value = garmentId
+        _selectedGarmentTitleForStyle.value = title
+        fetchGarmentStyles(segmentId = segmentId, garmentId = garmentId)
+    }
+
+    fun fetchGarmentStyles(segmentId: String?, garmentId: String?) {
+        fetchJob?.cancel()
+        fetchJob = viewModelScope.launch {
+            _garmentStyles.value = emptyList()
+            _isLoadingStyles.value = true
+            _errorMessage.value = null
+
+            val normSegmentId = segmentId?.trim()?.takeIf { it.isNotBlank() }
+            val normGarmentId = garmentId?.trim()?.takeIf { it.isNotBlank() }
+
+            settingsRepository.getGarmentStyles(
+                segmentId = normSegmentId,
+                garmentId = normGarmentId
+            ).collect { result ->
+                _isLoadingStyles.value = false
+                result.onSuccess { list ->
+                    _garmentStyles.value = list.filter { item ->
+                        val itemSegmentId = item.segment?.id?.trim()
+                        val itemGarmentId = item.garment?.id?.trim()
+                        val matchSegment = normSegmentId == null || itemSegmentId == normSegmentId
+                        val matchGarment = normGarmentId == null || itemGarmentId == normGarmentId
+                        matchSegment && matchGarment
+                    }
+                }.onFailure { exception ->
+                    _errorMessage.value = exception.localizedMessage ?: "Failed to fetch styles"
+                }
+            }
+        }
+    }
+
+    fun fetchGarmentCategoryById(id: String) {
+        launchBusy {
+            _isLoadingStyleDetail.value = true
+            _errorMessage.value = null
+
+            val result = settingsRepository.getGarmentCategoryById(id)
+            _isLoadingStyleDetail.value = false
+
+            result.onSuccess { item ->
+                _selectedStyleDetail.value = item
+            }.onFailure { error ->
+                _errorMessage.value = error.message ?: "Failed to fetch garment category"
+            }
+        }
+    }
+
+    fun clearSelectedStyleDetail() {
+        _selectedStyleDetail.value = null
+    }
 
     fun createGarmentStyle(
         name: String,
@@ -476,8 +687,7 @@ class SettingsViewModel @Inject constructor(
                 styleTags = styleTags,
                 sleeveStyle = sleeveStyle,
                 stitchingCharge = stitchingCharge,
-                isCustomStitchable = isCustomStitchable,
-//                isActive = true
+                isCustomStitchable = isCustomStitchable
             )
 
             val result = settingsRepository.createGarmentStyle(request)
@@ -517,12 +727,10 @@ class SettingsViewModel @Inject constructor(
                 sku = sku,
                 description = description?.takeIf { it.isNotBlank() },
                 segmentId = segmentId,
-//                garmentId = garmentId,
                 styleTags = styleTags,
                 sleeveStyle = sleeveStyle,
                 stitchingCharge = stitchingCharge,
-                isCustomStitchable = true,
-//                isActive = true
+                isCustomStitchable = true
             )
 
             val result = settingsRepository.updateGarmentStyle(id, request)
@@ -557,17 +765,150 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    private val _measurementFields = MutableStateFlow<List<MeasurementFieldItem>>(emptyList())
-    val measurementFields: StateFlow<List<MeasurementFieldItem>> = _measurementFields.asStateFlow()
+    fun changeGarmentCategoryStatus(
+        categoryId: String,
+        currentStatus: String,
+        segmentId: String? = null,
+        garmentId: String? = null,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        val nextStatus = when (currentStatus.lowercase()) {
+            "active" -> "Inactive"
+            "draft", "inactive" -> "Active"
+            else -> "Active"
+        }
 
-    private val _isLoadingMeasurementFields = MutableStateFlow(false)
-    val isLoadingMeasurementFields: StateFlow<Boolean> = _isLoadingMeasurementFields.asStateFlow()
+        viewModelScope.launch {
+            _isLoadingStyles.value = true
+            val result = settingsRepository.changeGarmentCategoryStatus(categoryId, nextStatus)
+            _isLoadingStyles.value = false
+
+            result.fold(
+                onSuccess = {
+                    _garmentStyles.value = _garmentStyles.value.map {
+                        if (it.id == categoryId) it.copy(status = nextStatus) else it
+                    }
+                    val msg = "Status successfully updated to $nextStatus"
+                    showSuccess(msg)
+                    onSuccess(msg)
+                },
+                onFailure = { error ->
+                    val clean = extractErrorMessage(error.localizedMessage)
+                    _errorMessage.value = clean
+                    showError(clean)
+                    onError(clean)
+                }
+            )
+        }
+    }
+
+    fun activateGarmentStyleConfiguration(
+        style: GarmentStyleItem,
+        measurements: List<GarmentMeasurement>,
+        onSuccess: (GarmentStyleItem) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        launchBusy {
+            _isLoadingStyles.value = true
+            _errorMessage.value = null
+
+            val segmentIdStr = style.segment?.id?.takeIf { it.isNotBlank() }
+                ?: _selectedSegmentIdForStyle.value?.takeIf { it.isNotBlank() }
+            val garmentIdStr = style.garment?.id?.takeIf { it.isNotBlank() }
+                ?: _selectedGarmentIdForStyle.value?.takeIf { it.isNotBlank() }
+
+            val measurementEntries = measurements.mapIndexed { index, m ->
+                StyleMeasurementFieldEntryRequest(
+                    fieldId = m.id,
+                    isRequired = m.isRequired,
+                    displayOrder = index + 1
+                )
+            }
+
+            val request = CreateGarmentStyleRequest(
+                name = style.name,
+                displayName = style.displayName ?: style.name,
+                sku = style.sku,
+                description = style.description,
+                measurementFields = measurementEntries,
+                styleTags = style.styleTags,
+                sleeveStyle = style.sleeveStyle,
+                stitchingCharge = style.stitchingCharge,
+                isCustomStitchable = style.isCustomStitchable
+            )
+
+            val result = settingsRepository.updateGarmentStyle(style.id, request)
+            _isLoadingStyles.value = false
+
+            result.onSuccess { updatedStyle ->
+                fetchGarmentStyles(segmentIdStr, garmentIdStr)
+                onSuccess(updatedStyle)
+            }.onFailure { error ->
+                val cleanMsg = extractErrorMessage(error.message)
+                _errorMessage.value = cleanMsg
+                onError(cleanMsg)
+            }
+        }
+    }
+
+    fun saveGarmentProfileMeasurements(
+        style: GarmentStyleItem,
+        measurements: List<GarmentMeasurement>,
+        onSuccess: (GarmentStyleItem) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        launchBusy {
+            _isLoadingStyles.value = true
+            _errorMessage.value = null
+
+            val segmentIdStr = style.segment?.id?.takeIf { it.isNotBlank() }
+                ?: _selectedSegmentIdForStyle.value?.takeIf { it.isNotBlank() }
+            val garmentIdStr = style.garment?.id?.takeIf { it.isNotBlank() }
+                ?: _selectedGarmentIdForStyle.value?.takeIf { it.isNotBlank() }
+
+            val measurementEntries = measurements.mapIndexed { index, m ->
+                StyleMeasurementFieldEntryRequest(
+                    fieldId = m.id,
+                    isRequired = m.isRequired,
+                    displayOrder = index + 1
+                )
+            }
+
+            val request = UpdateGarmentStyleRequest(
+                name = style.name,
+                displayName = style.displayName ?: style.name,
+                sku = style.sku,
+                description = style.description,
+                measurementFields = measurementEntries,
+                styleTags = style.styleTags,
+                sleeveStyle = style.sleeveStyle,
+                stitchingCharge = style.stitchingCharge,
+                isCustomStitchable = style.isCustomStitchable
+            )
+
+            val result = settingsRepository.updateMeasurementField(style.id, request)
+            _isLoadingStyles.value = false
+
+            result.onSuccess { updatedStyle ->
+                fetchGarmentStyles(segmentIdStr, garmentIdStr)
+                onSuccess(updatedStyle)
+            }.onFailure { error ->
+                val cleanMsg = extractErrorMessage(error.message)
+                _errorMessage.value = cleanMsg
+                onError(cleanMsg)
+            }
+        }
+    }
+
+    // ===========================================================
+    // 13. MEASUREMENT FIELD ACTIONS
+    // ===========================================================
 
     fun fetchMeasurementFields() {
         launchBusy {
             _isLoadingMeasurementFields.value = true
             _errorMessage.value = null
-
             val result = settingsRepository.getMeasurementFields()
             _isLoadingMeasurementFields.value = false
 
@@ -607,8 +948,7 @@ class SettingsViewModel @Inject constructor(
                 unit = unit,
                 minValue = minValue,
                 maxValue = maxValue,
-                options = options,
-//                isActive = true
+                options = options
             )
 
             val result = settingsRepository.createMeasurementField(request)
@@ -624,127 +964,31 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun saveGarmentProfileMeasurements(
-        style: GarmentStyleItem,
-        measurements: List<GarmentMeasurement>,
-        onSuccess: (GarmentStyleItem) -> Unit,
-        onError: (String) -> Unit
+    fun changeMeasurementFieldStatus(
+        fieldId: String,
+        nextStatus: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
     ) {
-        launchBusy {
-            _isLoadingStyles.value = true
-            _errorMessage.value = null
+        viewModelScope.launch {
+            _isLoadingMeasurementFields.value = true
+            val result = settingsRepository.changeMeasurementFieldStatus(fieldId, nextStatus)
+            _isLoadingMeasurementFields.value = false
 
-            val segmentIdStr = style.segment?.id?.takeIf { it.isNotBlank() }
-                ?: _selectedSegmentIdForStyle.value?.takeIf { it.isNotBlank() }
-            val garmentIdStr = style.garment?.id?.takeIf { it.isNotBlank() }
-                ?: _selectedGarmentIdForStyle.value?.takeIf { it.isNotBlank() }
-
-            val measurementEntries = measurements.mapIndexed { index, m ->
-                StyleMeasurementFieldEntryRequest(
-                    fieldId = m.id,
-                    isRequired = m.isRequired,
-                    displayOrder = index + 1
-                )
-            }
-
-            val request = UpdateGarmentStyleRequest(
-                name = style.name,
-                displayName = style.displayName ?: style.name,
-                sku = style.sku,
-                description = style.description,
-//                segmentId = segmentIdStr,
-//                garmentId = garmentIdStr,
-                measurementFields = measurementEntries,
-                styleTags = style.styleTags,
-                sleeveStyle = style.sleeveStyle,
-                stitchingCharge = style.stitchingCharge,
-                isCustomStitchable = style.isCustomStitchable
+            result.fold(
+                onSuccess = { message ->
+                    _measurementFields.value = _measurementFields.value.map { item ->
+                        if (item.id == fieldId) item.copy(status = nextStatus) else item
+                    }
+                    showSuccess(message)
+                    onSuccess(message)
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
             )
-
-            val result = settingsRepository.updateMeasurementField(style.id, request)
-            _isLoadingStyles.value = false
-
-            result.onSuccess { updatedStyle ->
-                fetchGarmentStyles(segmentIdStr, garmentIdStr)
-                onSuccess(updatedStyle)
-            }.onFailure { error ->
-                val cleanMsg = extractErrorMessage(error.message)
-                _errorMessage.value = cleanMsg
-                onError(cleanMsg)
-            }
-        }
-    }
-
-    fun activateGarmentStyleConfiguration(
-        style: GarmentStyleItem,
-        measurements: List<GarmentMeasurement>,
-        onSuccess: (GarmentStyleItem) -> Unit,
-        onError: (String) -> Unit
-    ) {
-        launchBusy {
-            _isLoadingStyles.value = true
-            _errorMessage.value = null
-
-            val segmentIdStr = style.segment?.id?.takeIf { it.isNotBlank() }
-                ?: _selectedSegmentIdForStyle.value?.takeIf { it.isNotBlank() }
-            val garmentIdStr = style.garment?.id?.takeIf { it.isNotBlank() }
-                ?: _selectedGarmentIdForStyle.value?.takeIf { it.isNotBlank() }
-
-            val measurementEntries = measurements.mapIndexed { index, m ->
-                StyleMeasurementFieldEntryRequest(
-                    fieldId = m.id,
-                    isRequired = m.isRequired,
-                    displayOrder = index + 1
-                )
-            }
-
-            val request = CreateGarmentStyleRequest(
-                name = style.name,
-                displayName = style.displayName ?: style.name,
-                sku = style.sku,
-                description = style.description,
-//                segmentId = segmentIdStr,
-//                garmentId = garmentIdStr,
-                measurementFields = measurementEntries,
-                styleTags = style.styleTags,
-                sleeveStyle = style.sleeveStyle,
-                stitchingCharge = style.stitchingCharge,
-                isCustomStitchable = style.isCustomStitchable
-            )
-
-            val result = settingsRepository.updateGarmentStyle(style.id, request)
-            _isLoadingStyles.value = false
-
-            result.onSuccess { updatedStyle ->
-                fetchGarmentStyles(segmentIdStr, garmentIdStr)
-                onSuccess(updatedStyle)
-            }.onFailure { error ->
-                val cleanMsg = extractErrorMessage(error.message)
-                _errorMessage.value = cleanMsg
-                onError(cleanMsg)
-            }
-        }
-    }
-
-    private val _selectedStyleDetail = MutableStateFlow<GarmentStyleItem?>(null)
-    val selectedStyleDetail: StateFlow<GarmentStyleItem?> = _selectedStyleDetail.asStateFlow()
-
-    private val _isLoadingStyleDetail = MutableStateFlow(false)
-    val isLoadingStyleDetail: StateFlow<Boolean> = _isLoadingStyleDetail.asStateFlow()
-
-    fun fetchGarmentCategoryById(id: String) {
-        launchBusy {
-            _isLoadingStyleDetail.value = true
-            _errorMessage.value = null
-
-            val result = settingsRepository.getGarmentCategoryById(id)
-            _isLoadingStyleDetail.value = false
-
-            result.onSuccess { item ->
-                _selectedStyleDetail.value = item
-            }.onFailure { error ->
-                _errorMessage.value = error.message ?: "Failed to fetch garment category"
-            }
         }
     }
 
@@ -755,26 +999,225 @@ class SettingsViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             settingsRepository.deactivateMeasurementField(fieldId)
-                .onSuccess { response ->
-                    onSuccess(response.message)
-                }
-                .onFailure { exception ->
-                    onError(exception.localizedMessage ?: "Failed to deactivate field")
-                }
+                .onSuccess { response -> onSuccess(response.message) }
+                .onFailure { exception -> onError(exception.localizedMessage ?: "Failed to deactivate field") }
         }
     }
 
-    // ========================================================
-    // ── Location Structure ViewModel Implementation Calls ──
-    // ========================================================
+    // ===========================================================
+    // 14. LOCAL ROOM DB ACTIONS
+    // ===========================================================
 
-    fun fetchFloors(warehouseId: String? = null) {
-        launchBusy {
-            _isLoadingLocationStructure.value = true
-            val result = settingsRepository.getFloors(warehouseId)
+    fun loadLocalMeasurements(categoryId: String) {
+        viewModelScope.launch {
+            settingsRepository.getLocalMeasurements(categoryId).collect { garment ->
+                _localMeasurements.value = garment?.measurements ?: emptyList()
+            }
+        }
+    }
+
+    fun saveSelectedFieldsToLocal(
+        categoryId: String,
+        categoryName: String,
+        selectedFields: List<MeasurementFieldItem>,
+        onComplete: () -> Unit
+    ) {
+        viewModelScope.launch {
+            val current = _localMeasurements.value.toMutableList()
+            val existingIds = current.map { it.id }.toSet()
+
+            selectedFields.forEach { item ->
+                if (!existingIds.contains(item.id)) {
+                    current.add(
+                        GarmentMeasurement(
+                            id = item.id,
+                            label = item.displayName ?: item.name,
+                            unit = item.unit ?: "inch",
+                            inputType = item.inputType,
+                            isRequired = false,
+                            displayOrder = current.size + 1
+                        )
+                    )
+                }
+            }
+
+            settingsRepository.saveSelectedFieldsToRoom(categoryId, categoryName, current)
+            _localMeasurements.value = current
+            onComplete()
+        }
+    }
+
+    fun removeLocalMeasurementField(categoryId: String, fieldId: String) {
+        viewModelScope.launch {
+            val updated = _localMeasurements.value.filter { it.id != fieldId }
+            settingsRepository.deleteLocalMeasurementField(categoryId, fieldId, _localMeasurements.value)
+            _localMeasurements.value = updated
+        }
+    }
+
+    // ===========================================================
+    // 15. WORK PRICING ACTIONS
+    // ===========================================================
+
+    fun fetchWorkPricing(segmentId: String? = null, status: String? = "Active") {
+        viewModelScope.launch {
+            _isLoadingWorkPricing.value = true
+            settingsRepository.fetchWorkPricing(segmentId, status)
+                .onSuccess { list -> _workPricingList.value = list }
+                .onFailure { exception ->
+                    val clean = extractErrorMessage(exception.message)
+                    showError(clean)
+                }
+            _isLoadingWorkPricing.value = false
+        }
+    }
+
+    fun fetchWorkPricingDetail(id: String) {
+        viewModelScope.launch {
+            _isFetchingWorkDetail.value = true
+            settingsRepository.getWorkPricingViewOne(id).onSuccess {
+                _selectedWorkDetail.value = it
+            }.onFailure {
+                val clean = "Unable to load pricing details"
+                _errorMessage.value = clean
+                showError(clean)
+            }
+            _isFetchingWorkDetail.value = false
+        }
+    }
+
+    fun clearWorkPricingDetail() {
+        _selectedWorkDetail.value = null
+        _errorMessage.value = null
+    }
+
+    fun createWorkPricing(
+        request: WorkPricingRequest,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSaving.value = true
+            _errorMessage.value = null
+
+            val result = settingsRepository.createWorkPricing(request)
+
+            result.onSuccess { response ->
+                fetchWorkPricing(request.segmentId)
+                val msg = response.message ?: "Work pricing created successfully"
+                showSuccess(msg)
+                onSuccess(msg)
+            }.onFailure { exception ->
+                val cleanError = extractErrorMessage(exception.message)
+                _errorMessage.value = cleanError
+                showError(cleanError)
+                onError(cleanError)
+            }
+            _isSaving.value = false
+        }
+    }
+
+    fun updateWorkPricing(
+        id: String,
+        request: WorkPricingRequest,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSaving.value = true
+            settingsRepository.updateWorkPricing(id, request)
+                .onSuccess { response ->
+                    fetchWorkPricing(request.segmentId)
+                    val msg = response.message ?: "Update successful"
+                    showSuccess(msg)
+                    onSuccess(msg)
+                }
+                .onFailure { error ->
+                    val clean = extractErrorMessage(error.message)
+                    showError(clean)
+                    onError(clean)
+                }
+            _isSaving.value = false
+        }
+    }
+
+    fun changeWorkPricingStatus(item: WorkPricingItem) {
+        val newStatus = if (item.status.equals("Active", ignoreCase = true)) "Inactive" else "Active"
+
+        viewModelScope.launch {
+            settingsRepository.changeWorkPricingStatus(item.id, newStatus).onSuccess { updatedItem ->
+                val updatedList = _workPricingList.value.map {
+                    if (it.id == updatedItem.id) updatedItem else it
+                }
+                _workPricingList.value = updatedList
+                showSuccess("Status changed to $newStatus")
+            }.onFailure { error ->
+                val clean = extractErrorMessage(error.message)
+                showError(clean)
+            }
+        }
+    }
+
+    // ===========================================================
+    // 16. INVENTORY PRODUCT CATEGORY ACTIONS
+    // ===========================================================
+
+    fun fetchProductCategories() {
+        viewModelScope.launch {
+            settingsRepository.getProductCategories()
+                .onSuccess { list -> _productCategories.value = list }
+                .onFailure { error -> showError(extractErrorMessage(error.message)) }
+        }
+    }
+
+    // ===========================================================
+    // 17. INVENTORY FLOOR ACTIONS
+    // ===========================================================
+
+    fun setSelectedFloorForEdit(floor: FloorItemSettings?) {
+        _selectedFloorForEdit.value = floor
+    }
+
+    fun clearSelectedFloorForEdit() {
+        _selectedFloorForEdit.value = null
+    }
+
+    fun fetchFloors(warehouseId: String? = null, isRefresh: Boolean = false) {
+        if (isRefresh) {
+            floorCurrentPage = 1
+            isFloorEndReached = false
+        }
+        if (_isLoadingLocationStructure.value || _isPaginatingFloors.value || isFloorEndReached) return
+
+        viewModelScope.launch {
+            if (floorCurrentPage == 1) {
+                _isLoadingLocationStructure.value = true
+            } else {
+                _isPaginatingFloors.value = true
+            }
+            _floorErrorMessage.value = null
+
+            settingsRepository.getFloors(warehouseId = warehouseId, page = floorCurrentPage, limit = 20)
+                .onSuccess { floorList ->
+                    if (floorList.isEmpty()) {
+                        isFloorEndReached = true
+                    } else {
+                        if (floorCurrentPage == 1) {
+                            _floors.value = floorList
+                        } else {
+                            _floors.value = (_floors.value + floorList).distinctBy { it.id }
+                        }
+                        floorCurrentPage++
+                    }
+                }
+                .onFailure { exception ->
+                    val clean = extractErrorMessage(exception.message)
+                    _floorErrorMessage.value = clean
+                    showError(clean)
+                }
+
             _isLoadingLocationStructure.value = false
-            result.onSuccess { list -> _floors.value = list }
-                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
+            _isPaginatingFloors.value = false
         }
     }
 
@@ -807,23 +1250,134 @@ class SettingsViewModel @Inject constructor(
             val res = settingsRepository.createFloor(req)
             _isLoadingLocationStructure.value = false
             res.onSuccess {
-                fetchFloors(warehouseId)
+                fetchFloors(warehouseId, isRefresh = true)
+                showSuccess("Floor created successfully")
                 onSuccess(it)
             }.onFailure {
                 val clean = extractErrorMessage(it.message)
                 _errorMessage.value = clean
+                showError(clean)
                 onError(clean)
             }
         }
     }
 
-    fun fetchSections(warehouseId: String? = null, floorId: String? = null) {
-        launchBusy {
+    fun updateFloor(
+        floorId: String,
+        warehouseId: String,
+        name: String,
+        code: String,
+        sequenceOrder: Int,
+        description: String,
+        temperatureZone: String,
+        floorAreaSqft: Double,
+        maxWeightCapacityKg: Double,
+        status: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val request = CreateFloorRequest(
+                warehouseId = warehouseId,
+                name = name,
+                code = code,
+                sequenceOrder = sequenceOrder,
+                description = description.ifBlank { null },
+                temperatureZone = temperatureZone,
+                floorAreaSqft = floorAreaSqft,
+                maxWeightCapacityKg = maxWeightCapacityKg,
+                status = status
+            )
+
+            settingsRepository.updateFloor(floorId, request)
+                .onSuccess {
+                    fetchFloors(warehouseId, isRefresh = true)
+                    showSuccess("Floor updated successfully")
+                    onSuccess()
+                }
+                .onFailure { exception ->
+                    val clean = extractErrorMessage(exception.message)
+                    showError(clean)
+                    onError(clean)
+                }
+        }
+    }
+
+    fun deleteFloor(
+        floorId: String,
+        warehouseId: String? = null,
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
             _isLoadingLocationStructure.value = true
-            val result = settingsRepository.getSections(warehouseId, floorId)
+            _floorErrorMessage.value = null
+
+            settingsRepository.deleteFloor(floorId)
+                .onSuccess { message ->
+                    _floors.value = _floors.value.filter { it.id != floorId }
+                    showSuccess(message)
+                    onSuccess()
+                }
+                .onFailure { exception ->
+                    val clean = extractErrorMessage(exception.message)
+                    showError(clean)
+                }
+
             _isLoadingLocationStructure.value = false
-            result.onSuccess { list -> _sections.value = list }
-                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
+        }
+    }
+
+    // ===========================================================
+    // 18. INVENTORY SECTION ACTIONS
+    // ===========================================================
+
+    fun setSelectedSectionForEdit(section: SectionItem?) {
+        _selectedSectionForEdit.value = section
+    }
+
+    fun clearSelectedSectionForEdit() {
+        _selectedSectionForEdit.value = null
+    }
+
+    fun fetchSections(warehouseId: String? = null, floorId: String? = null, isRefresh: Boolean = false) {
+        if (isRefresh) {
+            sectionCurrentPage = 1
+            isSectionEndReached = false
+        }
+        if (_isLoadingLocationStructure.value || _isPaginatingSections.value || isSectionEndReached) return
+
+        viewModelScope.launch {
+            if (sectionCurrentPage == 1) {
+                _isLoadingLocationStructure.value = true
+            } else {
+                _isPaginatingSections.value = true
+            }
+
+            val result = settingsRepository.getSections(
+                warehouseId = warehouseId,
+                floorId = floorId,
+                page = sectionCurrentPage,
+                limit = 20
+            )
+            _isLoadingLocationStructure.value = false
+            _isPaginatingSections.value = false
+
+            result.onSuccess { list ->
+                if (list.isEmpty()) {
+                    isSectionEndReached = true
+                } else {
+                    if (sectionCurrentPage == 1) {
+                        _sections.value = list
+                    } else {
+                        _sections.value = (_sections.value + list).distinctBy { it.id }
+                    }
+                    sectionCurrentPage++
+                }
+            }.onFailure {
+                val clean = extractErrorMessage(it.message)
+                _errorMessage.value = clean
+                showError(clean)
+            }
         }
     }
 
@@ -858,23 +1412,140 @@ class SettingsViewModel @Inject constructor(
             val res = settingsRepository.createSection(req)
             _isLoadingLocationStructure.value = false
             res.onSuccess {
-                fetchSections(warehouseId, floorId)
+                fetchSections(warehouseId, floorId, isRefresh = true)
+                showSuccess("Section created successfully")
                 onSuccess(it)
             }.onFailure {
                 val clean = extractErrorMessage(it.message)
                 _errorMessage.value = clean
+                showError(clean)
                 onError(clean)
             }
         }
     }
 
-    fun fetchRacks(warehouseId: String? = null, floorId: String? = null, sectionId: String? = null) {
-        launchBusy {
+    fun updateSection(
+        sectionId: String,
+        warehouseId: String,
+        floorId: String,
+        name: String,
+        code: String,
+        sequenceOrder: Int,
+        description: String?,
+        allowedProductCategories: List<String>,
+        storageType: String,
+        climateControl: String,
+        status: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val request = CreateSectionRequest(
+                warehouseId = warehouseId,
+                floorId = floorId,
+                name = name.trim(),
+                code = code.trim().uppercase(),
+                sequenceOrder = sequenceOrder,
+                description = description?.takeIf { it.isNotBlank() },
+                allowedProductCategories = allowedProductCategories,
+                storageType = storageType,
+                climateControl = climateControl,
+                status = status
+            )
+
+            settingsRepository.updateSection(sectionId, request)
+                .onSuccess {
+                    fetchSections(warehouseId, floorId, isRefresh = true)
+                    showSuccess("Section updated successfully")
+                    onSuccess()
+                }
+                .onFailure { exception ->
+                    val clean = extractErrorMessage(exception.message)
+                    showError(clean)
+                    onError(clean)
+                }
+        }
+    }
+
+    fun deleteSection(
+        sectionId: String,
+        warehouseId: String? = null,
+        floorId: String? = null,
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
             _isLoadingLocationStructure.value = true
-            val result = settingsRepository.getRacks(warehouseId, floorId, sectionId)
+            settingsRepository.deleteSection(sectionId)
+                .onSuccess { message ->
+                    _sections.value = _sections.value.filter { it.id != sectionId }
+                    showSuccess(message)
+                    onSuccess()
+                }
+                .onFailure { exception ->
+                    val clean = extractErrorMessage(exception.message)
+                    showError(clean)
+                }
             _isLoadingLocationStructure.value = false
-            result.onSuccess { list -> _racks.value = list }
-                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
+        }
+    }
+
+    // ===========================================================
+    // 19. INVENTORY RACK ACTIONS
+    // ===========================================================
+
+    fun setSelectedRackForEdit(rack: RackItem?) {
+        _selectedRackForEdit.value = rack
+    }
+
+    fun clearSelectedRackForEdit() {
+        _selectedRackForEdit.value = null
+    }
+
+    fun fetchRacks(
+        warehouseId: String? = null,
+        floorId: String? = null,
+        sectionId: String? = null,
+        isRefresh: Boolean = false
+    ) {
+        if (isRefresh) {
+            rackCurrentPage = 1
+            isRackEndReached = false
+        }
+        if (_isLoadingLocationStructure.value || _isPaginatingRacks.value || isRackEndReached) return
+
+        viewModelScope.launch {
+            if (rackCurrentPage == 1) {
+                _isLoadingLocationStructure.value = true
+            } else {
+                _isPaginatingRacks.value = true
+            }
+
+            val result = settingsRepository.getRacks(
+                warehouseId = warehouseId,
+                floorId = floorId,
+                sectionId = sectionId,
+                page = rackCurrentPage,
+                limit = 20
+            )
+            _isLoadingLocationStructure.value = false
+            _isPaginatingRacks.value = false
+
+            result.onSuccess { list ->
+                if (list.isEmpty()) {
+                    isRackEndReached = true
+                } else {
+                    if (rackCurrentPage == 1) {
+                        _racks.value = list
+                    } else {
+                        _racks.value = (_racks.value + list).distinctBy { it.id }
+                    }
+                    rackCurrentPage++
+                }
+            }.onFailure {
+                val clean = extractErrorMessage(it.message)
+                _errorMessage.value = clean
+                showError(clean)
+            }
         }
     }
 
@@ -911,23 +1582,143 @@ class SettingsViewModel @Inject constructor(
             val res = settingsRepository.createRack(req)
             _isLoadingLocationStructure.value = false
             res.onSuccess {
-                fetchRacks(warehouseId, floorId, sectionId)
+                fetchRacks(warehouseId, floorId, sectionId, isRefresh = true)
+                showSuccess("Rack created successfully")
                 onSuccess(it)
             }.onFailure {
                 val clean = extractErrorMessage(it.message)
                 _errorMessage.value = clean
+                showError(clean)
                 onError(clean)
             }
         }
     }
 
-    fun fetchBins(warehouseId: String? = null, rackId: String? = null) {
-        launchBusy {
+    fun updateRack(
+        rackId: String,
+        warehouseId: String,
+        floorId: String,
+        sectionId: String,
+        name: String,
+        code: String,
+        sequenceOrder: Int,
+        description: String?,
+        rackType: String,
+        maxQuantityCapacity: Int,
+        maxWeightCapacityKg: Double,
+        status: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val request = CreateRackRequest(
+                warehouseId = warehouseId,
+                floorId = floorId,
+                sectionId = sectionId,
+                name = name.trim(),
+                code = code.trim().uppercase(),
+                sequenceOrder = sequenceOrder,
+                description = description?.takeIf { it.isNotBlank() },
+                rackType = rackType,
+                maxQuantityCapacity = maxQuantityCapacity,
+                maxWeightCapacityKg = maxWeightCapacityKg,
+                status = status
+            )
+
+            settingsRepository.updateRack(rackId, request)
+                .onSuccess {
+                    fetchRacks(warehouseId, floorId, sectionId, isRefresh = true)
+                    showSuccess("Rack updated successfully")
+                    onSuccess()
+                }
+                .onFailure { exception ->
+                    val clean = extractErrorMessage(exception.message)
+                    showError(clean)
+                    onError(clean)
+                }
+        }
+    }
+
+    fun deleteRack(
+        rackId: String,
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
             _isLoadingLocationStructure.value = true
-            val result = settingsRepository.getBins(warehouseId, rackId)
+            settingsRepository.deleteRack(rackId)
+                .onSuccess { message ->
+                    _racks.value = _racks.value.filter { it.id != rackId }
+                    showSuccess(message)
+                    onSuccess()
+                }
+                .onFailure { exception ->
+                    val clean = extractErrorMessage(exception.message)
+                    showError(clean)
+                }
             _isLoadingLocationStructure.value = false
-            result.onSuccess { list -> _bins.value = list }
-                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
+        }
+    }
+
+    // ===========================================================
+    // 20. INVENTORY BIN ACTIONS
+    // ===========================================================
+
+    fun setSelectedBinForEdit(bin: BinItem?) {
+        _selectedBinForEdit.value = bin
+    }
+
+    fun clearSelectedBinForEdit() {
+        _selectedBinForEdit.value = null
+    }
+
+    fun fetchBins(
+        warehouseId: String? = null,
+        rackId: String? = null,
+        isRefresh: Boolean = false
+    ) {
+        if (isRefresh) {
+            binCurrentPage = 1
+            isBinEndReached = false
+        }
+        if (_isLoadingLocationStructure.value || _isPaginatingBins.value || isBinEndReached) return
+
+        viewModelScope.launch {
+            if (binCurrentPage == 1) {
+                _isLoadingLocationStructure.value = true
+            } else {
+                _isPaginatingBins.value = true
+            }
+
+            val pageSize = 10
+            val result = settingsRepository.getBins(
+                warehouseId = warehouseId,
+                rackId = rackId,
+                page = binCurrentPage,
+                limit = pageSize
+            )
+            _isLoadingLocationStructure.value = false
+            _isPaginatingBins.value = false
+
+            result.onSuccess { list ->
+                if (list.isEmpty()) {
+                    isBinEndReached = true
+                } else {
+                    if (binCurrentPage == 1) {
+                        _bins.value = list
+                    } else {
+                        _bins.value = (_bins.value + list).distinctBy { it.id }
+                    }
+                    if (list.size < pageSize) {
+                        isBinEndReached = true
+                    } else {
+                        binCurrentPage++
+                    }
+                }
+            }.onFailure {
+                val clean = extractErrorMessage(it.message)
+                _errorMessage.value = clean
+                showError(clean)
+            }
         }
     }
 
@@ -966,293 +1757,84 @@ class SettingsViewModel @Inject constructor(
             val res = settingsRepository.createBin(req)
             _isLoadingLocationStructure.value = false
             res.onSuccess {
-                fetchBins(warehouseId, rackId)
+                fetchBins(warehouseId, rackId, isRefresh = true)
+                showSuccess("Bin created successfully")
                 onSuccess(it)
             }.onFailure {
                 val clean = extractErrorMessage(it.message)
                 _errorMessage.value = clean
+                showError(clean)
                 onError(clean)
             }
         }
     }
 
-    //change status
-    fun changeSegmentStatus(
-        id: String,
+    fun updateBin(
+        binId: String,
+        warehouseId: String,
+        floorId: String,
+        sectionId: String,
+        rackId: String,
+        name: String,
+        code: String,
+        sequenceOrder: Int,
+        binType: String,
+        maxQuantity: Int,
+        maxWeightKg: Double,
+        defaultUOM: String,
         status: String,
-        onSuccess: (String) -> Unit,
-        onError: (String) -> Unit
-    ) {
-        launchBusy {
-            _isChangingSegmentStatus.value = true
-            _segmentError.value = null
-
-            val request = ChangeSegmentStatusRequest(status = status)
-            val result = settingsRepository.changeSegmentStatus(id, request)
-            _isChangingSegmentStatus.value = false
-
-            if (result.isSuccess) {
-                val response = result.getOrNull()
-                fetchSegments()
-                onSuccess(response?.message ?: "Segment status updated successfully")
-            } else {
-                val error = extractErrorMessage(result.exceptionOrNull()?.message)
-                _segmentError.value = error
-                onError(error)
-            }
-        }
-    }
-
-    fun changeGarmentStatus(
-        id: String,
-        status: String,
-        onSuccess: (String) -> Unit,
-        onError: (String) -> Unit
-    ) {
-        launchBusy {
-            _isChangingGarmentStatus.value = true
-            _garmentError.value = null
-
-            val request = ChangeGarmentStatusRequest(status = status)
-            val result = settingsRepository.changeGarmentStatus(id, request)
-            _isChangingGarmentStatus.value = false
-
-            if (result.isSuccess) {
-                val response = result.getOrNull()
-                fetchGarments()
-                onSuccess(response?.message ?: "Garment status updated successfully")
-            } else {
-                val error = extractErrorMessage(result.exceptionOrNull()?.message)
-                _garmentError.value = error
-                onError(error)
-            }
-        }
-    }
-
-    fun changeGarmentCategoryStatus(
-        categoryId: String,
-        currentStatus: String,
-        segmentId: String? = null,
-        garmentId: String? = null,
-        onSuccess: (String) -> Unit = {},
-        onError: (String) -> Unit = {}
-    ) {
-        val nextStatus = when (currentStatus.lowercase()) {
-            "active" -> "Inactive"
-            "draft", "inactive" -> "Active"
-            else -> "Active"
-        }
-
-        viewModelScope.launch {
-            _isLoadingStyles.value = true
-            val result = settingsRepository.changeGarmentCategoryStatus(categoryId, nextStatus)
-            _isLoadingStyles.value = false
-
-            result.fold(
-                onSuccess = { updatedItem ->
-                    _garmentStyles.value = _garmentStyles.value.map {
-                        if (it.id == categoryId) it.copy(status = nextStatus) else it
-                    }
-                    onSuccess("Status successfully updated to $nextStatus")
-                },
-                onFailure = { error ->
-                    _errorMessage.value = error.localizedMessage ?: "Failed to update status"
-                    onError(error.localizedMessage ?: "Failed to update status")
-                }
-            )
-        }
-    }
-
-    private val _workPricingList = MutableStateFlow<List<WorkPricingItem>>(emptyList())
-    val workPricingList = _workPricingList.asStateFlow()
-
-    private val _isLoadingWorkPricing = MutableStateFlow(false)
-    val isLoadingWorkPricing = _isLoadingWorkPricing.asStateFlow()
-
-    fun fetchWorkPricing(segmentId: String? = null, status: String? = "Active") {
-        viewModelScope.launch {
-            _isLoadingWorkPricing.value = true
-            settingsRepository.fetchWorkPricing(segmentId, status )
-                .onSuccess { list -> _workPricingList.value = list }
-                .onFailure { /* Handle error */ }
-            _isLoadingWorkPricing.value = false
-        }
-    }
-
-    // Holds the detail of the garment selected for editing
-    private val _selectedGarment = MutableStateFlow<GarmentDetail?>(null)
-    val selectedGarment = _selectedGarment.asStateFlow()
-
-    // Loading state for the detail API
-    private val _isFetchingDetail = MutableStateFlow(false)
-    val isFetchingDetail = _isFetchingDetail.asStateFlow()
-
-    /**
-     * Fetches garment data and updates the state flow
-     */
-    fun fetchGarmentDetail(id: String) {
-        viewModelScope.launch {
-            _isFetchingDetail.value = true
-            settingsRepository.getGarmentDetail(id).onSuccess { detail ->
-                _selectedGarment.value = detail
-            }.onFailure {
-                // Error handling can be added here
-            }
-            _isFetchingDetail.value = false
-        }
-    }
-
-    private val _isUpdatingPrice = MutableStateFlow(false)
-    val isUpdatingPrice = _isUpdatingPrice.asStateFlow()
-
-    /**
-     * Calls the repository to update garment pricing and refreshes the list on success
-     */
-    fun updateGarmentBasicPrice(
-        id: String,
-        price: Double,
-        isActive: Boolean,
-        onSuccess: (String) -> Unit,
+        onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
         viewModelScope.launch {
-            _isUpdatingPrice.value = true
-            val request = UpdateGarmentBasicPriceRequest(
-                baseStitchingCharge = price,
-                isActive = isActive
+            val request = CreateBinRequest(
+                warehouseId = warehouseId,
+                floorId = floorId,
+                sectionId = sectionId,
+                rackId = rackId,
+                name = name.trim(),
+                code = code.trim().uppercase(),
+                sequenceOrder = sequenceOrder,
+                binType = binType,
+                maxQuantity = maxQuantity,
+                maxWeightKg = maxWeightKg,
+                defaultUOM = defaultUOM,
+                status = status
             )
 
-            settingsRepository.updateGarmentBasicPrice(id, request)
-                .onSuccess { response ->
-                    fetchGarments() // Refresh the list
-                    onSuccess(response.message ?: "Pricing updated successfully")
+            settingsRepository.updateBin(binId, request)
+                .onSuccess {
+                    fetchBins(warehouseId, rackId, isRefresh = true)
+                    showSuccess("Bin updated successfully")
+                    onSuccess()
                 }
-                .onFailure { error ->
-                    onError(error.message ?: "Failed to update pricing")
+                .onFailure { exception ->
+                    val clean = extractErrorMessage(exception.message)
+                    showError(clean)
+                    onError(clean)
                 }
-            _isUpdatingPrice.value = false
         }
     }
 
-    // Add to SettingsViewModel
-    private val _selectedWorkDetail = MutableStateFlow<WorkPricingDetail?>(null)
-    val selectedWorkDetail = _selectedWorkDetail.asStateFlow()
-
-    private val _isFetchingWorkDetail = MutableStateFlow(false)
-    val isFetchingWorkDetail = _isFetchingWorkDetail.asStateFlow()
-
-    /**
-     * Fetches specific work pricing details by ID for editing purposes
-     */
-    fun fetchWorkPricingDetail(id: String) {
-        viewModelScope.launch {
-            _isFetchingWorkDetail.value = true
-            settingsRepository.getWorkPricingViewOne(id).onSuccess {
-                _selectedWorkDetail.value = it
-            }.onFailure {
-                _errorMessage.value = "Unable to load pricing details"
-            }
-            _isFetchingWorkDetail.value = false
-        }
-    }
-
-    /**
-     * Submits a request to create a new work pricing entry.
-     */
-    fun createWorkPricing(
-        request: WorkPricingRequest,
-        onSuccess: (String) -> Unit,
-        onError: (String) -> Unit
+    fun deleteBin(
+        binId: String,
+        warehouseId: String? = null,
+        rackId: String? = null,
+        onSuccess: () -> Unit = {}
     ) {
         viewModelScope.launch {
-            _isSaving.value = true
-            _errorMessage.value = null
-
-            val result = settingsRepository.createWorkPricing(request)
-
-            result.onSuccess { response ->
-                fetchWorkPricing(request.segmentId) // Refresh list
-                onSuccess(response.message ?: "Work pricing created successfully")
-            }.onFailure { exception ->
-                val cleanError = extractErrorMessage(exception.message)
-                _errorMessage.value = cleanError
-                onError(cleanError)
-            }
-            _isSaving.value = false
-        }
-    }
-
-    // In SettingsViewModel
-
-    fun updateWorkPricing(
-        id: String,
-        request: WorkPricingRequest,
-        onSuccess: (String) -> Unit,
-        onError: (String) -> Unit
-    ) {
-        viewModelScope.launch {
-            _isSaving.value = true
-            settingsRepository.updateWorkPricing(id, request)
-                .onSuccess { response ->
-                    fetchWorkPricing(request.segmentId) // Optional: Refresh the list
-                    onSuccess(response.message ?: "Update successful")
+            _isLoadingLocationStructure.value = true
+            settingsRepository.deleteBin(binId)
+                .onSuccess { message ->
+                    _bins.value = _bins.value.filter { it.id != binId }
+                    showSuccess(message)
+                    onSuccess()
                 }
-                .onFailure { error ->
-                    onError(extractErrorMessage(error.message))
+                .onFailure { exception ->
+                    val clean = extractErrorMessage(exception.message)
+                    showError(clean)
                 }
-            _isSaving.value = false
+            _isLoadingLocationStructure.value = false
         }
-    }
-
-    // SettingsViewModel.kt - Add these
-    fun changeWorkPricingStatus(item: WorkPricingItem) {
-        val newStatus = if (item.status.equals("Active", ignoreCase = true)) "Inactive" else "Active"
-
-        viewModelScope.launch {
-            settingsRepository.changeWorkPricingStatus(item.id, newStatus).onSuccess { updatedItem ->
-                // Update the local list to reflect changes immediately
-                val updatedList = _workPricingList.value.map {
-                    if (it.id == updatedItem.id) updatedItem else it
-                }
-                _workPricingList.value = updatedList
-            }.onFailure {
-                // Handle error (Show toast or snackbar)
-            }
-        }
-    }
-
-    /**
-     * Resets the selected work detail state
-     */
-    fun clearWorkPricingDetail() {
-        _selectedWorkDetail.value = null
-        _errorMessage.value = null
-    }
-
-    /**
-     * Clears the selected garment state when exiting the form
-     */
-    fun clearSelectedGarment() {
-        _selectedGarment.value = null
-    }
-
-    fun clearSelectedStyleDetail() {
-        _selectedStyleDetail.value = null
-    }
-
-    fun logout(onComplete: () -> Unit) {
-        launchBusy {
-            sessionManager.logout()
-            clearOrganization()
-            onComplete()
-        }
-    }
-
-    fun clearSelectedSegmentDetail() {
-        _selectedSegmentDetail.value = null
-    }
-
-    fun clearErrorMessage() {
-        _errorMessage.value = null
     }
 }

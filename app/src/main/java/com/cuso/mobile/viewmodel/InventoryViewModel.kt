@@ -4,67 +4,154 @@
     "GrazieInspection",
     "AssignedValueIsNeverRead",
     "unused_variable",
-    "unused_parameter"
+    "unused_parameter",
+    "unused",
+    "RedundantSuppression"
 )
+
 package com.cuso.mobile.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.cuso.mobile.model.inventory.CreateInventoryItemResponse
+import com.cuso.mobile.model.inventory.CreateItemGroupRequest
 import com.cuso.mobile.model.inventory.CreatePoItemRequest
 import com.cuso.mobile.model.inventory.CreatePurchaseOrderRequest
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.InventoryItemviewone
 import com.cuso.mobile.model.inventory.InventoryPagination
+import com.cuso.mobile.model.inventory.ItemGroupDto
 import com.cuso.mobile.model.inventory.LowStockItemDto
+import com.cuso.mobile.model.inventory.PhysicalAttributes
 import com.cuso.mobile.model.inventory.PurchaseOrderData
+import com.cuso.mobile.model.inventory.VariantSelection
 import com.cuso.mobile.repository.InventoryRepository
 import com.cuso.mobile.utils.launchBusy
+import com.google.gson.Gson
 import com.google.gson.JsonParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
+
+// =============================================================================
+// UI STATE & ENUM DEFINITIONS
+// =============================================================================
 
 sealed class CreateItemUiState {
     object Idle : CreateItemUiState()
     object Loading : CreateItemUiState()
-    data class Success(val item: InventoryItem) : CreateItemUiState()
+    data class Success(val response: CreateInventoryItemResponse) : CreateItemUiState()
     data class Error(val message: String) : CreateItemUiState()
 }
 
 enum class ItemSection {
-    ITEM_IDENTITY, PRODUCT_IMAGES, PHYSICAL_ATTRIBUTES, TAX_INFO, SALES_INFO, PURCHASE_INFO
+    ITEM_IDENTITY,
+    PRODUCT_IMAGES,
+    PHYSICAL_ATTRIBUTES,
+    TAX_INFO,
+    SALES_INFO,
+    PURCHASE_INFO
 }
+
+data class CreateItemFormState(
+    val itemId: String? = null,
+    val name: String = "",
+    val sku: String = "",
+    val barcode: String = "890123456999",
+    val parentGroupId: String? = null,
+    val category: String = "",
+    val unit: String = "pcs",
+    val itemType: String = "goods",
+    val autoGenerateSku: Boolean = true,
+    val returnable: Boolean = false,
+    val status: String = "active",
+    val costPrice: String = "",
+    val sellingPrice: String = "",
+    val salesAccount: String = "",
+    val purchaseAccount: String = "",
+    val salesDescription: String = "",
+    val purchaseDescription: String = "",
+    val preferredVendor: String = "",
+    val length: String = "",
+    val width: String = "",
+    val height: String = "",
+    val weight: String = "0.25",
+    val manufacturer: String = "",
+    val brand: String = "",
+    val hsnCode: String = "",
+    val taxPercentage: String = "",
+    val taxInclusive: Boolean = false,
+    val taxCategory: String = "GST 5%",
+    val trackInventory: Boolean = true,
+    val isSerialTracked: Boolean = false,
+    val reorderLevel: String = "15",
+    val safetyStock: String = "8",
+    val inventoryAccount: String = "",
+    val openingStock: String = "",
+    val imageUri: Uri? = null,
+    val existingImageUrl: String? = null,
+    val variantSelections: List<VariantSelection> = listOf(
+        VariantSelection(name = "Size", value = "S"),
+        VariantSelection(name = "Color", value = "Blue")
+    )
+)
+
+data class ItemGroupUiState(
+    val isLoading: Boolean = false,
+    val itemGroups: List<ItemGroupDto> = emptyList(),
+    val filteredList: List<ItemGroupDto> = emptyList(),
+    val errorMessage: String? = null,
+    val searchQuery: String = ""
+)
+
+// =============================================================================
+// VIEW MODEL
+// =============================================================================
 
 @HiltViewModel
 class InventoryViewModel @Inject constructor(
     private val inventoryRepository: InventoryRepository
 ) : ViewModel() {
 
-    // ── Helper to extract clean message string from JSON error response ──
-    private fun extractErrorMessage(raw: String?): String {
-        if (raw.isNullOrBlank()) return "An unexpected error occurred"
-        val trimmed = raw.trim()
-        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-            try {
-                val json = JsonParser.parseString(trimmed)
-                if (json.isJsonObject) {
-                    val obj = json.asJsonObject
-                    if (obj.has("message") && !obj.get("message").isJsonNull) {
-                        return obj.get("message").asString
-                    }
-                    if (obj.has("error") && !obj.get("error").isJsonNull) {
-                        return obj.get("error").asString
-                    }
-                }
-            } catch (_: Exception) { }
-        }
-        return trimmed
-    }
+    private val gson = Gson()
 
-    // ── Inventory Items: List & Pagination State ──
+    // -------------------------------------------------------------------------
+    // 1. Item Groups State
+    // -------------------------------------------------------------------------
+    private val _uiState = MutableStateFlow(ItemGroupUiState())
+    val uiState: StateFlow<ItemGroupUiState> = _uiState.asStateFlow()
+
+    private var searchJob: Job? = null
+
+    // ── Item Group Creation State ──
+    private val _isCreatingItemGroup = MutableStateFlow(false)
+    val isCreatingItemGroup: StateFlow<Boolean> = _isCreatingItemGroup.asStateFlow()
+
+    private val _createItemGroupError = MutableStateFlow<String?>(null)
+    val createItemGroupError: StateFlow<String?> = _createItemGroupError.asStateFlow()
+
+    private val _createItemGroupSuccess = MutableStateFlow<String?>(null)
+    val createItemGroupSuccess: StateFlow<String?> = _createItemGroupSuccess.asStateFlow()
+
+    // ── Delete State ──
+    private val _deleteItemGroupSuccess = MutableStateFlow<String?>(null)
+    val deleteItemGroupSuccess: StateFlow<String?> = _deleteItemGroupSuccess.asStateFlow()
+
+    // -------------------------------------------------------------------------
+    // 2. Inventory Items: List & Pagination State
+    // -------------------------------------------------------------------------
     private val _inventoryItems = MutableStateFlow<List<InventoryItem>>(emptyList())
     val inventoryItems: StateFlow<List<InventoryItem>> = _inventoryItems.asStateFlow()
 
@@ -89,6 +176,228 @@ class InventoryViewModel @Inject constructor(
     private var activeInventorySearch: String? = null
     private var activeInventoryStatus: String? = null
     private var fetchInventoryJob: Job? = null
+
+    // -------------------------------------------------------------------------
+    // 3. Inventory Item: View One State
+    // -------------------------------------------------------------------------
+    private val _viewOneItem = MutableStateFlow<InventoryItemviewone?>(null)
+    val viewOneItem: StateFlow<InventoryItemviewone?> = _viewOneItem.asStateFlow()
+
+    private val _isLoadingViewOne = MutableStateFlow(false)
+    val isLoadingViewOne: StateFlow<Boolean> = _isLoadingViewOne.asStateFlow()
+
+    private val _viewOneError = MutableStateFlow<String?>(null)
+    val viewOneError: StateFlow<String?> = _viewOneError.asStateFlow()
+
+    private val _showViewOneSheet = MutableStateFlow(false)
+    val showViewOneSheet: StateFlow<Boolean> = _showViewOneSheet.asStateFlow()
+
+    // -------------------------------------------------------------------------
+    // 4. Inventory Item: Detail State
+    // -------------------------------------------------------------------------
+    private val _selectedItem = MutableStateFlow<InventoryItem?>(null)
+    val selectedItem: StateFlow<InventoryItem?> = _selectedItem.asStateFlow()
+
+    private val _isLoadingItemDetail = MutableStateFlow(false)
+    val isLoadingItemDetail: StateFlow<Boolean> = _isLoadingItemDetail.asStateFlow()
+
+    private val _itemDetailError = MutableStateFlow<String?>(null)
+    val itemDetailError: StateFlow<String?> = _itemDetailError.asStateFlow()
+
+    private val _showItemDetailSheet = MutableStateFlow(false)
+    val showItemDetailSheet: StateFlow<Boolean> = _showItemDetailSheet.asStateFlow()
+
+    // -------------------------------------------------------------------------
+    // 5. Recent Items State
+    // -------------------------------------------------------------------------
+    private val _recentItems = MutableStateFlow<List<InventoryItem>>(emptyList())
+    val recentItems: StateFlow<List<InventoryItem>> = _recentItems.asStateFlow()
+
+    private val _isLoadingRecentItems = MutableStateFlow(false)
+    val isLoadingRecentItems: StateFlow<Boolean> = _isLoadingRecentItems.asStateFlow()
+
+    private val _recentItemsError = MutableStateFlow<String?>(null)
+    val recentItemsError: StateFlow<String?> = _recentItemsError.asStateFlow()
+
+    // -------------------------------------------------------------------------
+    // 6. Stock Adjustment State
+    // -------------------------------------------------------------------------
+    private val _isAdjustingStock = MutableStateFlow(false)
+    val isAdjustingStock: StateFlow<Boolean> = _isAdjustingStock.asStateFlow()
+
+    private val _adjustStockError = MutableStateFlow<String?>(null)
+    val adjustStockError: StateFlow<String?> = _adjustStockError.asStateFlow()
+
+    private val _adjustStockSuccess = MutableStateFlow(false)
+    val adjustStockSuccess: StateFlow<Boolean> = _adjustStockSuccess.asStateFlow()
+
+    // -------------------------------------------------------------------------
+    // 7. Low Stock Alerts & Purchase Order State
+    // -------------------------------------------------------------------------
+    private val _lowStockItems = MutableStateFlow<List<LowStockItemDto>>(emptyList())
+    val lowStockItems: StateFlow<List<LowStockItemDto>> = _lowStockItems.asStateFlow()
+
+    private val _isLoadingLowStock = MutableStateFlow(false)
+    val isLoadingLowStock: StateFlow<Boolean> = _isLoadingLowStock.asStateFlow()
+
+    private val _lowStockError = MutableStateFlow<String?>(null)
+    val lowStockError: StateFlow<String?> = _lowStockError.asStateFlow()
+
+    private val _isCreatingPO = MutableStateFlow(false)
+    val isCreatingPO: StateFlow<Boolean> = _isCreatingPO.asStateFlow()
+
+    private val _createPOError = MutableStateFlow<String?>(null)
+    val createPOError: StateFlow<String?> = _createPOError.asStateFlow()
+
+    private val _reorderItemDetail = MutableStateFlow<LowStockItemDto?>(null)
+    val reorderItemDetail: StateFlow<LowStockItemDto?> = _reorderItemDetail.asStateFlow()
+
+    private val _isLoadingReorderDetail = MutableStateFlow(false)
+    val isLoadingReorderDetail: StateFlow<Boolean> = _isLoadingReorderDetail.asStateFlow()
+
+    private val _reorderDetailError = MutableStateFlow<String?>(null)
+    val reorderDetailError: StateFlow<String?> = _reorderDetailError.asStateFlow()
+
+    // -------------------------------------------------------------------------
+    // 8. Create Item Form State
+    // -------------------------------------------------------------------------
+    private val _expandedSection = MutableStateFlow(ItemSection.ITEM_IDENTITY)
+    val expandedSection: StateFlow<ItemSection> = _expandedSection.asStateFlow()
+
+    private val _createItemForm = MutableStateFlow(CreateItemFormState())
+    val createItemForm: StateFlow<CreateItemFormState> = _createItemForm.asStateFlow()
+
+    private val _createItemUiState = MutableStateFlow<CreateItemUiState>(CreateItemUiState.Idle)
+    val createItemUiState: StateFlow<CreateItemUiState> = _createItemUiState.asStateFlow()
+
+    // =========================================================================
+    // INIT
+    // =========================================================================
+    init {
+        loadItemGroups()
+    }
+
+    // =========================================================================
+    // ITEM GROUP ACTIONS
+    // =========================================================================
+
+    /**
+     * Fetch all item groups from repository
+     */
+    fun loadItemGroups(query: String? = null) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            val result = inventoryRepository.getInventoryItemGroup(search = query)
+            result.onSuccess { response ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        itemGroups = response.groups,
+                        filteredList = response.groups,
+                        errorMessage = null
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = extractErrorMessage(error.message)
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle local and server-side debounced search for item groups
+     */
+    fun onSearchQueryChanged(newQuery: String) {
+        _uiState.update { state ->
+            val filtered = if (newQuery.isBlank()) {
+                state.itemGroups
+            } else {
+                state.itemGroups.filter { group ->
+                    group.name.contains(newQuery, ignoreCase = true) ||
+                            (group.groupCode?.contains(newQuery, ignoreCase = true) == true) ||
+                            group.variantAttributes.any { attr -> attr.name.contains(newQuery, ignoreCase = true) }
+                }
+            }
+            state.copy(searchQuery = newQuery, filteredList = filtered)
+        }
+
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(400)
+            if (newQuery.isNotBlank()) {
+                loadItemGroups(query = newQuery)
+            }
+        }
+    }
+
+    /**
+     * Create a new item group and refresh list on success.
+     */
+    fun createItemGroup(
+        request: CreateItemGroupRequest,
+        onSuccessCallback: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isCreatingItemGroup.value = true
+            _createItemGroupError.value = null
+            _createItemGroupSuccess.value = null
+
+            val result = inventoryRepository.createItemGroup(request)
+            _isCreatingItemGroup.value = false
+
+            result.onSuccess {
+                _createItemGroupSuccess.value = "Item Group created successfully!"
+                loadItemGroups() // Refresh groups list
+                onSuccessCallback()
+            }.onFailure { error ->
+                _createItemGroupError.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    /**
+     * Delete item group and refresh list on success.
+     */
+    fun deleteItemGroup(id: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            val result = inventoryRepository.deleteItemGroup(id = id)
+
+            result.onSuccess { message ->
+                _deleteItemGroupSuccess.value = message
+                loadItemGroups(query = _uiState.value.searchQuery.takeIf { it.isNotBlank() })
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = extractErrorMessage(error.message)
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearDeleteSuccessMessage() {
+        _deleteItemGroupSuccess.value = null
+    }
+
+    fun clearItemGroupAlerts() {
+        _createItemGroupError.value = null
+        _createItemGroupSuccess.value = null
+    }
+
+
+    fun refreshItemGroups() {
+        loadItemGroups(query = _uiState.value.searchQuery.takeIf { it.isNotBlank() })
+    }
+
+    // =========================================================================
+    // INVENTORY ITEMS ACTIONS
+    // =========================================================================
 
     fun fetchInventoryItems(
         page: Int = 1,
@@ -172,35 +481,43 @@ class InventoryViewModel @Inject constructor(
         _inventoryError.value = null
     }
 
-    // ── Inventory Item: View One ──
-    private val _viewOneItem = MutableStateFlow<InventoryItemviewone?>(null)
-    val viewOneItem: StateFlow<InventoryItemviewone?> = _viewOneItem.asStateFlow()
+    // =========================================================================
+    // INVENTORY VIEW ONE ACTIONS
+    // =========================================================================
 
-    private val _isLoadingViewOne = MutableStateFlow(false)
-    val isLoadingViewOne: StateFlow<Boolean> = _isLoadingViewOne.asStateFlow()
-
-    private val _viewOneError = MutableStateFlow<String?>(null)
-    val viewOneError: StateFlow<String?> = _viewOneError.asStateFlow()
-
-    private val _showViewOneSheet = MutableStateFlow(false)
-    val showViewOneSheet: StateFlow<Boolean> = _showViewOneSheet.asStateFlow()
-
-    fun onImageSelected(uri: android.net.Uri?) {
-        updateCreateItemForm { it.copy(imageUri = uri) }
+    fun onViewOneClicked(itemId: String) {
+        _showViewOneSheet.value = true
+        fetchInventoryViewOne(itemId)
     }
 
-    // ── Inventory Item Detail ──
-    private val _selectedItem = MutableStateFlow<InventoryItem?>(null)
-    val selectedItem: StateFlow<InventoryItem?> = _selectedItem.asStateFlow()
+    fun fetchInventoryViewOne(id: String) {
+        launchBusy {
+            _isLoadingViewOne.value = true
+            _viewOneError.value = null
 
-    private val _isLoadingItemDetail = MutableStateFlow(false)
-    val isLoadingItemDetail: StateFlow<Boolean> = _isLoadingItemDetail.asStateFlow()
+            val result = inventoryRepository.getInventoryViewOne(id)
+            result.fold(
+                onSuccess = { item -> _viewOneItem.value = item },
+                onFailure = { e -> _viewOneError.value = e.message ?: "Failed to fetch item details" }
+            )
+            _isLoadingViewOne.value = false
+        }
+    }
 
-    private val _itemDetailError = MutableStateFlow<String?>(null)
-    val itemDetailError: StateFlow<String?> = _itemDetailError.asStateFlow()
+    fun dismissViewOneSheet() {
+        _showViewOneSheet.value = false
+        _viewOneItem.value = null
+        _viewOneError.value = null
+    }
 
-    private val _showItemDetailSheet = MutableStateFlow(false)
-    val showItemDetailSheet: StateFlow<Boolean> = _showItemDetailSheet.asStateFlow()
+    fun clearViewOneItem() {
+        _viewOneItem.value = null
+        _viewOneError.value = null
+    }
+
+    // =========================================================================
+    // INVENTORY ITEM DETAIL ACTIONS
+    // =========================================================================
 
     fun onViewItemClicked(itemId: String) {
         _showItemDetailSheet.value = true
@@ -227,15 +544,9 @@ class InventoryViewModel @Inject constructor(
         _itemDetailError.value = null
     }
 
-    // ── Recent Items ──
-    private val _recentItems = MutableStateFlow<List<InventoryItem>>(emptyList())
-    val recentItems: StateFlow<List<InventoryItem>> = _recentItems.asStateFlow()
-
-    private val _isLoadingRecentItems = MutableStateFlow(false)
-    val isLoadingRecentItems: StateFlow<Boolean> = _isLoadingRecentItems.asStateFlow()
-
-    private val _recentItemsError = MutableStateFlow<String?>(null)
-    val recentItemsError: StateFlow<String?> = _recentItemsError.asStateFlow()
+    // =========================================================================
+    // RECENT ITEMS ACTIONS
+    // =========================================================================
 
     fun fetchRecentInventoryItems(limit: Int = 10) {
         launchBusy {
@@ -251,15 +562,9 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    // ── Adjust Stock ──
-    private val _isAdjustingStock = MutableStateFlow(false)
-    val isAdjustingStock: StateFlow<Boolean> = _isAdjustingStock.asStateFlow()
-
-    private val _adjustStockError = MutableStateFlow<String?>(null)
-    val adjustStockError: StateFlow<String?> = _adjustStockError.asStateFlow()
-
-    private val _adjustStockSuccess = MutableStateFlow(false)
-    val adjustStockSuccess: StateFlow<Boolean> = _adjustStockSuccess.asStateFlow()
+    // =========================================================================
+    // STOCK ADJUSTMENT ACTIONS
+    // =========================================================================
 
     fun adjustStock(
         itemId: String,
@@ -285,98 +590,13 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    private val _createItemForm = MutableStateFlow(com.cuso.mobile.model.inventory.CreateItemFormState())
-    val createItemForm: StateFlow<com.cuso.mobile.model.inventory.CreateItemFormState> = _createItemForm.asStateFlow()
-
-    private val _expandedSection = MutableStateFlow(ItemSection.ITEM_IDENTITY)
-    val expandedSection: StateFlow<ItemSection> = _expandedSection.asStateFlow()
-
-    private val _createItemUiState = MutableStateFlow<CreateItemUiState>(CreateItemUiState.Idle)
-    val createItemUiState: StateFlow<CreateItemUiState> = _createItemUiState.asStateFlow()
-
-    fun toggleSection(section: ItemSection) {
-        _expandedSection.value = section
+    fun clearAdjustStockSuccess() {
+        _adjustStockSuccess.value = false
     }
 
-    fun updateCreateItemForm(update: (com.cuso.mobile.model.inventory.CreateItemFormState) -> com.cuso.mobile.model.inventory.CreateItemFormState) {
-        _createItemForm.value = update(_createItemForm.value)
-    }
-
-    fun resetCreateItemForm() {
-        _createItemForm.value = com.cuso.mobile.model.inventory.CreateItemFormState()
-        _createItemUiState.value = CreateItemUiState.Idle
-        _expandedSection.value = ItemSection.ITEM_IDENTITY
-    }
-
-    fun populateFormForEdit(item: InventoryItemviewone) {
-        _createItemForm.value = com.cuso.mobile.model.inventory.CreateItemFormState(
-            itemId = item._id,
-            existingImageUrl = item.images.firstOrNull()?.fileUrl,
-            itemType = item.type,
-            name = item.name,
-            sku = item.sku,
-            category = "",
-            status = item.status,
-            unit = item.unit,
-            autoGenerateSku = false,
-            returnable = false,
-            hsnCode = "",
-            taxPercentage = "",
-            taxInclusive = false,
-            length = "",
-            width = "",
-            height = "",
-            weight = "",
-            manufacturer = "",
-            brand = "",
-            barcode = "",
-            sellingPrice = item.sellingPrice.toString(),
-            salesAccount = "",
-            salesDescription = "",
-            costPrice = item.costPrice.toString(),
-            purchaseAccount = "",
-            preferredVendor = "",
-            purchaseDescription = "",
-            trackInventory = item.trackInventory,
-            isSerialTracked = item.isSerialTracked,
-            inventoryAccount = "",
-            openingStock = item.openingStock?.toString() ?: "",
-            imageUri = null
-        )
-        _expandedSection.value = ItemSection.ITEM_IDENTITY
-        _createItemUiState.value = CreateItemUiState.Idle
-    }
-
-    fun createInventoryItem(context: android.content.Context) {
-        val form = _createItemForm.value
-        val validationError = form.validate()
-        if (validationError != null) {
-            _createItemUiState.value = CreateItemUiState.Error(validationError)
-            return
-        }
-
-        launchBusy {
-            _createItemUiState.value = CreateItemUiState.Loading
-            val result = inventoryRepository.createInventoryItem(context, form)
-            _createItemUiState.value = result.fold(
-                onSuccess = { item ->
-                    _inventoryItems.value = listOf(item) + _inventoryItems.value
-                    CreateItemUiState.Success(item)
-                },
-                onFailure = { e -> CreateItemUiState.Error(e.message ?: "Failed to create item") }
-            )
-        }
-    }
-
-    // ── Low Stock Alerts State ──
-    private val _lowStockItems = MutableStateFlow<List<LowStockItemDto>>(emptyList())
-    val lowStockItems: StateFlow<List<LowStockItemDto>> = _lowStockItems.asStateFlow()
-
-    private val _isLoadingLowStock = MutableStateFlow(false)
-    val isLoadingLowStock: StateFlow<Boolean> = _isLoadingLowStock.asStateFlow()
-
-    private val _lowStockError = MutableStateFlow<String?>(null)
-    val lowStockError: StateFlow<String?> = _lowStockError.asStateFlow()
+    // =========================================================================
+    // LOW STOCK ALERTS & PURCHASE ORDER ACTIONS
+    // =========================================================================
 
     fun fetchLowStockAlerts(warehouseId: String? = null) {
         launchBusy {
@@ -391,12 +611,6 @@ class InventoryViewModel @Inject constructor(
             }
         }
     }
-
-    private val _isCreatingPO = MutableStateFlow(false)
-    val isCreatingPO: StateFlow<Boolean> = _isCreatingPO.asStateFlow()
-
-    private val _createPOError = MutableStateFlow<String?>(null)
-    val createPOError: StateFlow<String?> = _createPOError.asStateFlow()
 
     fun createPurchaseOrder(
         supplierId: String,
@@ -441,16 +655,6 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    // ── Single Low Stock Item Detail for PO Creation ──
-    private val _reorderItemDetail = MutableStateFlow<LowStockItemDto?>(null)
-    val reorderItemDetail: StateFlow<LowStockItemDto?> = _reorderItemDetail.asStateFlow()
-
-    private val _isLoadingReorderDetail = MutableStateFlow(false)
-    val isLoadingReorderDetail: StateFlow<Boolean> = _isLoadingReorderDetail.asStateFlow()
-
-    private val _reorderDetailError = MutableStateFlow<String?>(null)
-    val reorderDetailError: StateFlow<String?> = _reorderDetailError.asStateFlow()
-
     fun fetchLowStockItemDetail(itemId: String, warehouseId: String) {
         launchBusy {
             _isLoadingReorderDetail.value = true
@@ -475,6 +679,194 @@ class InventoryViewModel @Inject constructor(
         _reorderDetailError.value = null
     }
 
+    // =========================================================================
+    // CREATE / EDIT ITEM FORM ACTIONS
+    // =========================================================================
+
+    fun toggleSection(section: ItemSection) {
+        _expandedSection.value = section
+    }
+
+    fun updateCreateItemForm(transform: (CreateItemFormState) -> CreateItemFormState) {
+        _createItemForm.update(transform)
+    }
+
+    fun onImageSelected(uri: Uri) {
+        _createItemForm.update { it.copy(imageUri = uri) }
+    }
+
+    fun resetCreateItemForm() {
+        _createItemForm.value = CreateItemFormState()
+        _createItemUiState.value = CreateItemUiState.Idle
+        _expandedSection.value = ItemSection.ITEM_IDENTITY
+    }
+
+    fun onAutoGenerateSkuToggle(enabled: Boolean) {
+        _createItemForm.update { current ->
+            current.copy(
+                autoGenerateSku = enabled,
+                sku = if (enabled) generateSku(current.name) else current.sku
+            )
+        }
+    }
+
+    fun populateFormForEdit(item: InventoryItemviewone) {
+        _createItemForm.value = CreateItemFormState(
+            itemId = item._id,
+            existingImageUrl = item.images.firstOrNull()?.fileUrl,
+            itemType = item.type,
+            name = item.name,
+            sku = item.sku,
+            category = item.categoryId ?: "",
+            status = item.status,
+            unit = item.unit,
+            autoGenerateSku = false,
+            returnable = item.returnable,
+            hsnCode = item.hsnCode ?: "",
+            taxCategory = item.taxCategory ?: "GST 5%",
+            taxPercentage = "",
+            taxInclusive = false,
+            length = item.physicalAttributes?.length?.takeIf { it > 0 }?.toString() ?: "",
+            width = item.physicalAttributes?.width?.takeIf { it > 0 }?.toString() ?: "",
+            height = item.physicalAttributes?.height?.takeIf { it > 0 }?.toString() ?: "",
+            weight = item.physicalAttributes?.weight?.takeIf { it > 0 }?.toString() ?: "0.25",
+            manufacturer = item.manufacturer ?: "",
+            brand = item.brand ?: "",
+            barcode = item.barcode ?: "",
+            sellingPrice = if (item.sellingPrice > 0) item.sellingPrice.toString() else "",
+            costPrice = if (item.costPrice > 0) item.costPrice.toString() else "",
+            trackInventory = item.trackInventory,
+            isSerialTracked = item.isSerialTracked,
+            reorderLevel = item.reorderLevel.toString(),
+            safetyStock = item.safetyStock.toString(),
+            imageUri = null
+        )
+        _expandedSection.value = ItemSection.ITEM_IDENTITY
+        _createItemUiState.value = CreateItemUiState.Idle
+    }
+
+    fun createInventoryItem(context: Context) {
+        val form = _createItemForm.value
+
+        viewModelScope.launch {
+            _createItemUiState.value = CreateItemUiState.Loading
+
+            val textMedia = "text/plain".toMediaTypeOrNull()
+
+            val physicalAttributesJson = gson.toJson(
+                PhysicalAttributes(
+                    weight = form.weight.toDoubleOrNull() ?: 0.25,
+                    weightUnit = "kg",
+                    dimensionUnit = "cm"
+                )
+            )
+
+            val variantSelectionsJson = gson.toJson(form.variantSelections)
+
+            val params = mutableMapOf<String, RequestBody>(
+                "name" to form.name.toRequestBody(textMedia),
+                "sku" to form.sku.toRequestBody(textMedia),
+                "barcode" to form.barcode.toRequestBody(textMedia),
+                "costPrice" to form.costPrice.toRequestBody(textMedia),
+                "sellingPrice" to form.sellingPrice.toRequestBody(textMedia),
+                "taxCategory" to form.taxCategory.toRequestBody(textMedia),
+                "trackInventory" to form.trackInventory.toString().toRequestBody(textMedia),
+                "reorderLevel" to form.reorderLevel.toRequestBody(textMedia),
+                "safetyStock" to form.safetyStock.toRequestBody(textMedia),
+                "physicalAttributes" to physicalAttributesJson.toRequestBody(textMedia),
+                "variantSelections" to variantSelectionsJson.toRequestBody(textMedia)
+            )
+
+            form.parentGroupId?.takeIf { it.isNotBlank() }?.let {
+                params["parentGroupId"] = it.toRequestBody(textMedia)
+            }
+
+            form.category.takeIf { it.isNotBlank() }?.let {
+                params["categoryId"] = it.toRequestBody(textMedia)
+            }
+
+            val imagePart = inventoryRepository.prepareImagePart(context, form.imageUri)
+            val result = inventoryRepository.createItem(params, imagePart)
+
+            result.fold(
+                onSuccess = { response ->
+                    _createItemUiState.value = CreateItemUiState.Success(response)
+                },
+                onFailure = { error ->
+                    _createItemUiState.value = CreateItemUiState.Error(error.localizedMessage ?: "Failed to create item")
+                }
+            )
+        }
+    }
+
+    /**
+     * Update an existing inventory item on the server.
+     */
+    fun updateInventoryItem(context: Context) {
+        val form = _createItemForm.value
+        val itemId = form.itemId ?: return
+
+        viewModelScope.launch {
+            _createItemUiState.value = CreateItemUiState.Loading
+            val textMedia = "text/plain".toMediaTypeOrNull()
+
+            val physicalAttributesJson = gson.toJson(
+                PhysicalAttributes(
+                    length = form.length.toDoubleOrNull() ?: 0.0,
+                    width = form.width.toDoubleOrNull() ?: 0.0,
+                    height = form.height.toDoubleOrNull() ?: 0.0,
+                    weight = form.weight.toDoubleOrNull() ?: 0.25,
+                    weightUnit = "kg",
+                    dimensionUnit = "cm"
+                )
+            )
+
+            val params = mutableMapOf<String, RequestBody>(
+                "name" to form.name.toRequestBody(textMedia),
+                "sku" to form.sku.toRequestBody(textMedia),
+                "barcode" to form.barcode.toRequestBody(textMedia),
+                "costPrice" to form.costPrice.toRequestBody(textMedia),
+                "sellingPrice" to form.sellingPrice.toRequestBody(textMedia),
+                "unit" to form.unit.toRequestBody(textMedia),
+                "status" to form.status.toRequestBody(textMedia),
+                "brand" to form.brand.toRequestBody(textMedia),
+                "manufacturer" to form.manufacturer.toRequestBody(textMedia),
+                "hsnCode" to form.hsnCode.toRequestBody(textMedia),
+                "taxCategory" to form.taxCategory.toRequestBody(textMedia),
+                "returnable" to form.returnable.toString().toRequestBody(textMedia),
+                "trackInventory" to form.trackInventory.toString().toRequestBody(textMedia),
+                "reorderLevel" to form.reorderLevel.toRequestBody(textMedia),
+                "safetyStock" to form.safetyStock.toRequestBody(textMedia),
+                "physicalAttributes" to physicalAttributesJson.toRequestBody(textMedia)
+            )
+
+            form.category.takeIf { it.isNotBlank() }?.let {
+                params["categoryId"] = it.toRequestBody(textMedia)
+            }
+
+            val imagePart = inventoryRepository.prepareImagePart(context, form.imageUri)
+            val result = inventoryRepository.updateItem(itemId, params, imagePart)
+
+            result.fold(
+                onSuccess = { response ->
+                    _createItemUiState.value = CreateItemUiState.Success(
+                        CreateInventoryItemResponse(success = response.success, data = response.data)
+                    )
+                    refreshInventoryItems()
+                },
+                onFailure = { error ->
+                    _createItemUiState.value = CreateItemUiState.Error(
+                        error.localizedMessage ?: "Failed to update item"
+                    )
+                }
+            )
+        }
+    }
+
+    // =========================================================================
+    // PRIVATE HELPER FUNCTIONS
+    // =========================================================================
+
     private fun generateSku(itemName: String): String {
         val prefix = itemName
             .filter { it.isLetter() }
@@ -485,46 +877,23 @@ class InventoryViewModel @Inject constructor(
         return "$prefix-$randomDigits"
     }
 
-    fun onAutoGenerateSkuToggle(enabled: Boolean) {
-        updateCreateItemForm { current ->
-            current.copy(
-                autoGenerateSku = enabled,
-                sku = if (enabled) generateSku(current.name) else current.sku
-            )
+    private fun extractErrorMessage(raw: String?): String {
+        if (raw.isNullOrBlank()) return "An unexpected error occurred"
+        val trimmed = raw.trim()
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            try {
+                val json = JsonParser.parseString(trimmed)
+                if (json.isJsonObject) {
+                    val obj = json.asJsonObject
+                    if (obj.has("message") && !obj.get("message").isJsonNull) {
+                        return obj.get("message").asString
+                    }
+                    if (obj.has("error") && !obj.get("error").isJsonNull) {
+                        return obj.get("error").asString
+                    }
+                }
+            } catch (_: Exception) { }
         }
-    }
-
-    fun onViewOneClicked(itemId: String) {
-        _showViewOneSheet.value = true
-        fetchInventoryViewOne(itemId)
-    }
-
-    fun fetchInventoryViewOne(id: String) {
-        launchBusy {
-            _isLoadingViewOne.value = true
-            _viewOneError.value = null
-
-            val result = inventoryRepository.getInventoryViewOne(id)
-            result.fold(
-                onSuccess = { item -> _viewOneItem.value = item },
-                onFailure = { e -> _viewOneError.value = e.message ?: "Failed to fetch item details" }
-            )
-            _isLoadingViewOne.value = false
-        }
-    }
-
-    fun dismissViewOneSheet() {
-        _showViewOneSheet.value = false
-        _viewOneItem.value = null
-        _viewOneError.value = null
-    }
-
-    fun clearViewOneItem() {
-        _viewOneItem.value = null
-        _viewOneError.value = null
-    }
-
-    fun clearAdjustStockSuccess() {
-        _adjustStockSuccess.value = false
+        return trimmed
     }
 }

@@ -41,8 +41,13 @@ android {
     }
 
     buildTypes {
+
+        debug {
+            buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:5000/\"")
+        }
         release {
             isMinifyEnabled = false
+            buildConfigField("String", "BASE_URL", "\"https://cuso-tailor-production.onrender.com/\"")
         }
     }
 
@@ -59,6 +64,15 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    tasks.matching { it.name == "preBuild" }.configureEach {
+        doFirst {
+            try {
+                Runtime.getRuntime().exec("adb reverse tcp:5000 tcp:5000")
+            } catch (_: Exception) { }
+        }
     }
 }
 

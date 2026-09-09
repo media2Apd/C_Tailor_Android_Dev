@@ -1,7 +1,17 @@
+@file:Suppress(
+    "UNUSED_PARAMETER",
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "VariableNeverRead",
+    "unused",
+    "RedundantSuppression"
+)
+
 package com.cuso.mobile.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.sales.CustomerItem
 import com.cuso.mobile.model.sales.CustomerViewAddress
 import com.cuso.mobile.model.sales.CustomerViewData
@@ -13,9 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import javax.inject.Inject
-@Suppress("UNUSED_PARAMETER")
+
 @HiltViewModel
 class CustomerViewModel @Inject constructor(
     private val repository: SalesRepository
@@ -27,6 +36,7 @@ class CustomerViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<CustomerUiState>(CustomerUiState.Loading)
     val uiState: StateFlow<CustomerUiState> = _uiState.asStateFlow()
+
     // Infinite Scroll States
     private val _isLoadingMore = MutableStateFlow(false)
     val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
@@ -34,8 +44,6 @@ class CustomerViewModel @Inject constructor(
     private val _canLoadMore = MutableStateFlow(true)
     val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
 
-
-    //
     private var currentPage = 1
     private var currentLimit = 10
     private var currentSearch: String? = null
@@ -47,14 +55,16 @@ class CustomerViewModel @Inject constructor(
 
     private val _pageSizeFlow = MutableStateFlow(10)
     val pageSizeFlow: StateFlow<Int> = _pageSizeFlow.asStateFlow()
+
     private val _createState = MutableStateFlow<CustomerCreateState>(CustomerCreateState.Idle)
     val createState: StateFlow<CustomerCreateState> = _createState.asStateFlow()
+
     private val _deleteState = MutableStateFlow<CustomerDeleteState>(CustomerDeleteState.Idle)
     val deleteState: StateFlow<CustomerDeleteState> = _deleteState.asStateFlow()
+
     init {
         loadCustomers()
     }
-
 
     fun loadCustomers(
         isRefresh: Boolean = false,
@@ -83,7 +93,11 @@ class CustomerViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { response ->
-                    totalPages = response.totalPages
+                    val customerData = response.data
+                    val customerList = customerData?.customers ?: emptyList()
+                    val pagination = customerData?.pagination
+
+                    totalPages = pagination?.totalPages ?: 1
 
                     val currentList = if (isRefresh) {
                         emptyList()
@@ -91,18 +105,18 @@ class CustomerViewModel @Inject constructor(
                         (uiState.value as? CustomerUiState.Success)?.customers ?: emptyList()
                     }
 
-                    val updatedList = currentList + response.data
+                    val updatedList = currentList + customerList
 
                     _uiState.update {
                         CustomerUiState.Success(
                             customers = updatedList,
-                            total = response.total,
-                            totalPages = response.totalPages
+                            total = pagination?.total ?: updatedList.size,
+                            totalPages = totalPages
                         )
                     }
 
                     currentPage++
-                    _canLoadMore.value = currentPage <= totalPages
+                    _canLoadMore.value = pagination?.hasNextPage ?: (currentPage <= totalPages)
                     _isLoadingMore.value = false
                     _currentPageFlow.value = currentPage
                 },
@@ -115,6 +129,7 @@ class CustomerViewModel @Inject constructor(
             )
         }
     }
+
     fun loadMoreCustomers() {
         loadCustomers(isRefresh = false)
     }
@@ -146,14 +161,10 @@ class CustomerViewModel @Inject constructor(
     private val _updateState = MutableStateFlow<CustomerUpdateState>(CustomerUpdateState.Idle)
     val updateState: StateFlow<CustomerUpdateState> = _updateState.asStateFlow()
 
-    // Keep the original response so we can re-send fields the form doesn't edit
-    // (organizationId, createdAt, referralCount, totalSpend, pendingPayment, __v, etc.)
     private var originalCustomer: CustomerViewData? = null
 
     /**
-     * Called when View or Edit is tapped on the list screen.
-     * Fetches the "view-one" style response and populates the editable form
-     * (Personal Information step) with it. Other wizard steps stay static.
+     * Fetches the customer detail safely without throwing NullPointerExceptions.
      */
     fun loadCustomerDetail(id: String) {
         launchBusy {
@@ -165,19 +176,23 @@ class CustomerViewModel @Inject constructor(
             result.fold(
                 onSuccess = { data ->
                     originalCustomer = data
+                    val addr = data.effectiveAddress
+                    val line = addr?.addressLine?.takeIf { it.isNotBlank() }
+                        ?: listOfNotNull(addr?.flatNo, addr?.street).filter { it.isNotBlank() }.joinToString(", ")
+
                     _formState.update {
                         CustomerFormState(
-                            type = data.type,
+                            type = data.type.ifBlank { "individual" },
                             name = data.name,
                             mobile = data.mobile,
-                            email = data.email ?: "",
-                            gender = data.gender ?: "",
-                            dob = data.dob ?: "",
-                            status = data.status,
-                            addressLine = data.address?.addressLine ?: "",
-                            city = data.address?.city ?: "",
-                            area = data.address?.area ?: "",
-                            pincode = data.address?.pincode ?: ""
+                            email = data.email.orEmpty(),
+                            gender = data.gender.orEmpty(),
+                            dob = data.dob,
+                            status = data.status ?: "Active",
+                            addressLine = line,
+                            city = addr?.city.orEmpty(),
+                            area = addr?.areaZone ?: addr?.area.orEmpty(),
+                            pincode = addr?.pincode.orEmpty()
                         )
                     }
                     _detailState.update { CustomerDetailUiState.Success(data) }
@@ -191,8 +206,7 @@ class CustomerViewModel @Inject constructor(
         }
     }
 
-    // ── Form field updates (bind these to your TextFields in Step 1) ──
-
+    // ── Form field updates ──
     fun onTypeChange(value: String) = _formState.update { it.copy(type = value) }
     fun onNameChange(value: String) = _formState.update { it.copy(name = value) }
     fun onEmailChange(value: String) = _formState.update { it.copy(email = value) }
@@ -206,9 +220,7 @@ class CustomerViewModel @Inject constructor(
     fun onPincodeChange(value: String) = _formState.update { it.copy(pincode = value) }
 
     /**
-     * Called when Update button (Step 5) is tapped.
-     * Builds the payload from the current form state + original untouched
-     * fields, sends it to the update API, and emits success/error.
+     * Builds update payload safely and updates the customer details.
      */
     fun updateCustomer(id: String) {
         val original = originalCustomer
@@ -231,14 +243,15 @@ class CustomerViewModel @Inject constructor(
                 addressLine = form.addressLine,
                 city = form.city,
                 area = form.area,
+                areaZone = form.area,
                 pincode = form.pincode
             ),
-            preferences = original.preferences,                   //    — re-send untouched preferences
+            preferences = original.preferences,
             referralCount = original.referralCount ?: 0,
             totalSpend = original.totalSpend ?: 0,
             pendingPayment = original.pendingPayment ?: 0,
             id = original.id,
-            organizationId = original.organizationId,
+            organizationId = original.organizationId.orEmpty(),
             createdAt = original.createdAt,
             updatedAt = original.updatedAt,
             v = original.v
@@ -273,7 +286,7 @@ class CustomerViewModel @Inject constructor(
             result.fold(
                 onSuccess = { message ->
                     _deleteState.update { CustomerDeleteState.Success(message = message) }
-                    refresh()   // reload the list so the deleted row disappears
+                    refresh()
                 },
                 onFailure = { error ->
                     _deleteState.update {
@@ -287,9 +300,11 @@ class CustomerViewModel @Inject constructor(
     fun resetUpdateState() {
         _updateState.update { CustomerUpdateState.Idle }
     }
+
     fun resetDeleteState() {
         _deleteState.update { CustomerDeleteState.Idle }
     }
+
     fun resetCreateState() {
         _createState.update { CustomerCreateState.Idle }
     }
@@ -308,7 +323,6 @@ sealed class CustomerUiState {
     ) : CustomerUiState()
     data class Error(val message: String) : CustomerUiState()
 }
-
 
 sealed class CustomerDetailUiState {
     data object Loading : CustomerDetailUiState()

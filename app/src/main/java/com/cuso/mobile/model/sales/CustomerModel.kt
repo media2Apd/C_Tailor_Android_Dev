@@ -31,46 +31,107 @@ data class CustomerPreferences(
 // Customer API Response Models (v1)
 // ─────────────────────────────────────────────────────────────
 
+
 data class CustomerListResponse(
     val success: Boolean,
-    val data: List<CustomerItem>,
-    val total: Int,
-    val totalPages: Int,
-    val page: Int,
-    val limit: Int
+    val message: String? = null,
+    val data: CustomerListData? = null
+)
+
+data class CustomerListData(
+    val customers: List<CustomerItem> = emptyList(),
+    val pagination: CustomerPagination? = null
+)
+data class CustomerPagination(
+    val total: Int = 0,
+    val page: Int = 1,
+    val limit: Int = 10,
+    val totalPages: Int = 1,
+    val hasNextPage: Boolean = false,
+    val hasPreviousPage: Boolean = false
 )
 
 data class CustomerItem(
     @SerializedName("_id")
-    val id: String,
+    val id: String = "",
     val organizationId: String? = null,
-    val type: String? = null,
-    val name: String,
+
+    @SerializedName("fullName")
+    val fullName: String? = null,
+    @SerializedName("name")
+    val custName: String? = null,
+
+    @SerializedName("customerType")
+    val customerType: String? = null,
+    @SerializedName("type")
+    val custType: String? = null,
+
+    @SerializedName("mobileNumber")
+    val mobileNumber: String? = null,
+    @SerializedName("mobile")
+    val custMobile: String? = null,
+
     val email: String? = null,
-    val mobile: String? = null,
+    val customerCode: String? = null,
     val gender: String? = null,
-    @SerializedName("dob")
     val dateOfBirth: String? = null,
-    val address: CustomerAddress1? = null,
-    val preferences: CustomerPreferences? = null,
+    val dob: String? = null,
+    val customerLevel: String? = null,
+
+    val billingAddress: CustomerAddressDetails? = null,
+    val shippingAddress: CustomerAddressDetails? = null,
+    val address: CustomerAddressDetails? = null,
+
+    val profilePicture: ProfilePictureDto? = null,
     val status: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null
 ) {
+    val name: String
+        get() = fullName?.takeIf { it.isNotBlank() }
+            ?: custName?.takeIf { it.isNotBlank() }
+            ?: "Unknown Customer"
+
+    val mobile: String?
+        get() = mobileNumber?.takeIf { it.isNotBlank() } ?: custMobile
+
+    val type: String?
+        get() = customerType?.takeIf { it.isNotBlank() } ?: custType
+
     val location: String
-        get() = address?.city?.takeIf { it.isNotBlank() }
-            ?: address?.area?.takeIf { it.isNotBlank() }
-            ?: address?.addressLine?.takeIf { it.isNotBlank() }
-            ?: "—"
+        get() {
+            val addr = billingAddress ?: shippingAddress ?: address
+            return addr?.let {
+                listOfNotNull(it.areaZone ?: it.area, it.city, it.state)
+                    .filter { text -> text.isNotBlank() }
+                    .joinToString(", ")
+            }?.takeIf { it.isNotBlank() } ?: "—"
+        }
 
     val displayType: String
         get() = when (type?.lowercase()) {
             "business" -> "Business"
             "individual" -> "Individual"
             "regular" -> "Regular"
-            else -> "—"
+            else -> type ?: "—"
         }
 }
+
+data class CustomerAddressDetails(
+    val flatNo: String? = null,
+    val street: String? = null,
+    val areaZone: String? = null,
+    val area: String? = null,
+    val city: String? = null,
+    val state: String? = null,
+    val pincode: String? = null,
+    val addressLine: String? = null
+)
+
+data class ProfilePictureDto(
+    val url: String? = null,
+    val publicId: String? = null
+)
 
 // ─────────────────────────────────────────────────────────────
 // View & Update API Models (v1)
@@ -83,16 +144,42 @@ data class GetCustomerViewResponse(
 
 data class CustomerViewData(
     @SerializedName("_id")
-    val id: String,
-    val organizationId: String,
-    val type: String,
-    val name: String,
-    val mobile: String,
+    val id: String = "",
+    val organizationId: String? = null,
+
+    @SerializedName("type")
+    private val _type: String? = null,
+    @SerializedName("customerType")
+    private val _customerType: String? = null,
+
+    @SerializedName("name")
+    private val _name: String? = null,
+    @SerializedName("fullName")
+    private val _fullName: String? = null,
+
+    @SerializedName("mobile")
+    private val _mobile: String? = null,
+    @SerializedName("mobileNumber")
+    private val _mobileNumber: String? = null,
+
     val email: String? = null,
     val gender: String? = null,
-    val dob: String? = null,
-    val status: String,
+
+    @SerializedName("dob")
+    private val _dob: String? = null,
+    @SerializedName("dateOfBirth")
+    private val _dateOfBirth: String? = null,
+
+    val status: String? = "Active",
+
+    @SerializedName("address")
     val address: CustomerViewAddress? = null,
+    @SerializedName("billingAddress")
+    val billingAddress: CustomerViewAddress? = null,
+    @SerializedName("shippingAddress")
+    val shippingAddress: CustomerViewAddress? = null,
+
+    val profilePicture: ProfilePictureDto? = null,
     val preferences: CustomerPreferences? = null,
     val customFields: Map<String, @JvmSuppressWildcards Any>? = null,
     val referralCount: Int? = 0,
@@ -102,15 +189,33 @@ data class CustomerViewData(
     val updatedAt: String? = null,
     @SerializedName("__v")
     val v: Int? = null
-)
+) {
+    val type: String
+        get() = _type?.ifBlank { null } ?: _customerType?.ifBlank { null } ?: "individual"
+
+    val name: String
+        get() = _name?.ifBlank { null } ?: _fullName?.ifBlank { null } ?: ""
+
+    val mobile: String
+        get() = _mobile?.ifBlank { null } ?: _mobileNumber?.ifBlank { null } ?: ""
+
+    val dob: String
+        get() = _dob?.ifBlank { null } ?: _dateOfBirth?.ifBlank { null } ?: ""
+
+    val effectiveAddress: CustomerViewAddress?
+        get() = billingAddress ?: address ?: shippingAddress
+}
 
 data class CustomerViewAddress(
     val addressLine: String? = null,
-    val city: String? = null,
+    val flatNo: String? = null,
+    val street: String? = null,
+    val areaZone: String? = null,
     val area: String? = null,
+    val city: String? = null,
+    val state: String? = null,
     val pincode: String? = null
 )
-
 data class UpdateCustomerRequest(
     val type: String,
     val name: String,
@@ -172,6 +277,9 @@ data class CustomerAddressV2(
 data class CustomerItemV2(
     @SerializedName("_id")
     val _id: String = "",
+
+    @SerializedName("profilePicture")
+    val profilePicture: ProfilePictureDto? = null,
 
     @SerializedName("organizationId")
     val organizationId: String? = null,
@@ -240,18 +348,20 @@ fun CustomerItemV2.toCustomerItem(): CustomerItem {
     return CustomerItem(
         id = this._id,
         organizationId = this.organizationId,
-        type = this.type,
-        name = this.name,
+        custType = this.type,
+        custName = this.name,
         email = this.email,
-        mobile = this.mobile,
+        custMobile = this.mobile,
+        profilePicture = this.profilePicture,
         gender = null,
         dateOfBirth = null,
         address = this.address?.let {
-            CustomerAddress1(
+            CustomerAddressDetails(
                 addressLine = it.addressLine ?: "",
                 city = it.city ?: "",
                 area = it.area ?: "",
-                pincode = it.pincode ?: ""
+                pincode = it.pincode ?: "",
+                state = it.state ?: ""
             )
         },
         status = this.status,

@@ -564,9 +564,8 @@ private fun PersonalInformationStep(
                     onHeaderClick = { expandedSection = if (expandedSection == "identity") "" else "identity" }
                 ) {
                     Spacer(Modifier.height(16.dp))
-
+                    FormLabel("Customer Type ", isRequired = true)
                     FormDropdown(
-                        label = "Customer Type",
                         value = formState.type.replaceFirstChar { it.uppercase() }.ifEmpty { "Select an option" },
                         expanded = typeExpanded,
                         onExpandChange = { typeExpanded = it },
@@ -586,9 +585,8 @@ private fun PersonalInformationStep(
                         errorMessage = if (errorField == "name") "Please Check the name " else null
                     )
                     Spacer(Modifier.height(12.dp))
-
+                    FormLabel("Gender")
                     FormDropdown(
-                        label = "Gender",
                         value = formState.gender.ifEmpty { "Select an option" },
                         expanded = genderExpanded,
                         onExpandChange = { genderExpanded = it },
@@ -636,9 +634,8 @@ private fun PersonalInformationStep(
                         errorMessage = if (errorField == "email") "Please Check the email " else null
                     )
                     Spacer(Modifier.height(12.dp))
-
+                    FormLabel("Status")
                     FormDropdown(
-                        label = "Status",
                         value = formState.status.ifEmpty { "Select an option" },
                         expanded = statusExpanded,
                         onExpandChange = { statusExpanded = it },
@@ -647,15 +644,15 @@ private fun PersonalInformationStep(
                         enabled = isEditMode
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text("Preferred Language", color = Color(0xFF9CA3AF), fontSize = tokens.bodySmall)
+                    FormLabel("Prefereed Language")
                     OrganizationDropdown(
                         items = OrgOptions.languages,
                         selected = language,
                         enabled = isEditMode
                     ) { language = it }
                     Spacer(Modifier.height(12.dp))
+                    FormLabel("Preferred Contact")
                     FormDropdown(
-                        label = "Preferred Contact",
                         value = preferredContact.ifEmpty { "Select an option" },
                         expanded = contactExpanded,
                         onExpandChange = { contactExpanded = it },

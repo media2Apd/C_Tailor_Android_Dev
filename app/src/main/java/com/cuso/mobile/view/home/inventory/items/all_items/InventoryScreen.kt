@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -47,6 +46,7 @@ import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.ThreeDotLoading
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
@@ -90,7 +90,7 @@ fun InventoryScreen(
     val viewOneItem by inventoryViewModel.viewOneItem.collectAsStateWithLifecycle()
 
     //  Guaranteed non-null list fallback
-    val items: List<InventoryItem> = rawItems.orEmpty()
+    val items: List<InventoryItem> = rawItems
 
     var searchQuery by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -256,28 +256,28 @@ fun InventoryScreen(
                         itemsIndexed(
                             items = items,
                             key = { index, item ->
-                                val id = item._id.orEmpty()
+                                val id = item._id
                                 if (id.isNotBlank()) id else "item_$index"
                             }
                         ) { _, item ->
                             // Safe handling of nullable model properties
                             val (badgeFg, badgeBg) = inventoryStatusColors(item.stockStatus)
-                            val isTracking = item.trackInventory ?: false
-                            val stockCount = item.currentStock ?: 0.0
+                            val isTracking = item.trackInventory
+                            val stockCount = item.currentStock
                             val stockText = if (!isTracking) "—" else stockCount.toInt().toString()
 
                             val itemType = item.type.orEmpty().replaceFirstChar {
                                 if (it.isLowerCase()) it.titlecase() else it.toString()
                             }.ifBlank { "N/A" }
                             val price = item.sellingPrice ?: 0.0
-                            val skuText = item.sku?.ifBlank { "—" } ?: "—"
+                            val skuText = item.sku.ifBlank { "—" } ?: "—"
                             val nameText = item.name.orEmpty().ifBlank { "Unnamed Item" }
                             val itemId = item._id.orEmpty()
 
                             DataCard(
                                 item = item,
                                 modifier = Modifier.animateItem(),
-                                title = "$skuText • SKU",
+                                smalltitle = "$skuText • SKU",
                                 subtitle = nameText,
                                 topBadgeText = item.stockStatus.orEmpty(),
                                 topBadgeTextColor = badgeFg,
@@ -327,18 +327,7 @@ fun InventoryScreen(
                                     enter = fadeIn() + slideInVertically { it / 2 },
                                     exit = fadeOut() + slideOutVertically { it / 2 }
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            color = BluePrimary,
-                                            strokeWidth = 2.5.dp
-                                        )
-                                    }
+                                    ThreeDotLoading()
                                 }
                             }
                         }

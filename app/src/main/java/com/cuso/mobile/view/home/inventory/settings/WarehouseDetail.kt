@@ -12,7 +12,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.whiteBg
 
 @Composable
@@ -71,11 +72,12 @@ fun WarehouseDetailCard(
     showFourGridBoxes: Boolean = false,
     capacityMetrics: List<Pair<String, String>>,
     onEditClick: () -> Unit = {},
-    onMenuClick: () -> Unit = {}
+    onDeleteClick: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
+    var menuExpanded by remember { mutableStateOf(false) }
 
-    // ── Outer Card matching Image 1 ──
+    // ── Outer Card ──
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -97,18 +99,18 @@ fun WarehouseDetailCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // ── Rounded Soft-Lilac Background Box for Hanger Icon ──
+                    // ── Rounded Soft-Lilac Background Box for Icon ──
                     Box(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFEFF2FE)), // Exact soft tint from design
+                            .background(Color(0xFFEFF2FE)),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
                             painter = painterResource(icon),
                             contentDescription = null,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(30.dp)
                         )
                     }
 
@@ -170,13 +172,40 @@ fun WarehouseDetailCard(
                             color = Color(0xFF475569)
                         )
                     }
-                    IconButton(onClick = onMenuClick, modifier = Modifier.size(28.dp)) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = null,
-                            tint = Color(0xFF94A3B8),
-                            modifier = Modifier.size(18.dp)
-                        )
+
+                    // ── 3-Dot Menu with Dropdown ──
+                    Box {
+                        IconButton(
+                            onClick = { menuExpanded = true },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                            containerColor = whiteBg
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Delete",
+                                        color = redText,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onDeleteClick()
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -186,7 +215,7 @@ fun WarehouseDetailCard(
             Spacer(Modifier.height(12.dp))
 
             if (showFourGridBoxes) {
-                // 4-Box Grid layout (Location Structure Screen)
+                // 4-Box Grid layout
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         MetricBox(
@@ -214,7 +243,7 @@ fun WarehouseDetailCard(
                     }
                 }
             } else {
-                // Key-Value List layout (Floor, Section, Rack, Bin Screens)
+                // Key-Value List layout
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (locationName != null) {
                         MetricRow(locationLabel, locationName)
@@ -293,7 +322,7 @@ private fun MetricBox(title: String, value: String, modifier: Modifier = Modifie
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFFF8FAFC)) // Soft background for count boxes
+            .background(Color(0xFFF8FAFC))
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

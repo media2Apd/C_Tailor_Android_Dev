@@ -48,6 +48,7 @@ import coil.compose.AsyncImage
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.light_grey
+import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 
 // --- String Utilities ---
@@ -120,7 +121,7 @@ fun StatusBadge(
         modifier = modifier
             .clip(RoundedCornerShape(cornerRadius))
             .background(bgColor)
-            .padding(horizontal = 10.dp, vertical = 2.dp),
+            .padding(horizontal = 10.dp, vertical = 0.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (showDot) {
@@ -346,6 +347,8 @@ fun <T> DataCard(
             ) {
                 if (image != null) {
                     val avatarSize = if (tokens.isTablet) image.size * 1.2f else image.size
+                    val context = androidx.compose.ui.platform.LocalContext.current
+
                     Box(
                         modifier = Modifier
                             .size(avatarSize)
@@ -354,15 +357,58 @@ fun <T> DataCard(
                         contentAlignment = Alignment.Center
                     ) {
                         when {
-                            image.url != null -> AsyncImage(image.url, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                            image.painter != null -> Image(image.painter, null, contentScale = ContentScale.Crop, colorFilter = image.tint?.let { ColorFilter.tint(it) }, modifier = Modifier.fillMaxSize())
-                            image.vector != null -> Icon(image.vector, null, tint = image.tint ?: Color(0xFF9CA3AF), modifier = Modifier.size(avatarSize * 0.7f))
+                            !image.url.isNullOrBlank() -> {
+                                AsyncImage(
+                                    model = coil.request.ImageRequest.Builder(context)
+                                        .data(image.url)
+                                        .crossfade(true)
+                                        .listener(
+                                            onError = { _, result ->
+                                                android.util.Log.e("COIL_DEBUG", "Error loading image: ${image.url}", result.throwable)
+                                            },
+                                            onSuccess = { _, _ ->
+                                                android.util.Log.d("COIL_DEBUG", "Success loading image: ${image.url}")
+                                            }
+                                        )
+                                        .build(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            image.painter != null -> {
+                                Image(
+                                    painter = image.painter,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    colorFilter = image.tint?.let { ColorFilter.tint(it) },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            image.vector != null -> {
+                                Icon(
+                                    imageVector = image.vector,
+                                    contentDescription = null,
+                                    tint = image.tint ?: Color(0xFF9CA3AF),
+                                    modifier = Modifier.size(avatarSize * 0.7f)
+                                )
+                            }
                         }
                     }
                     Spacer(Modifier.width(12.dp))
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
+                    if (!smalltitle.isNullOrBlank()) {
+                        Text(
+                            text = smalltitle,
+                            fontSize = 15.sp,
+                            color = title_color,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(Modifier.height(2.dp))
+                    }
                     if (formattedTitle != null) {
                         Text(
                             text = formattedTitle,

@@ -51,3 +51,13 @@ data class UserAuditReference(
     @SerializedName("lastName") val lastName: String?,
     @SerializedName("memberId") val memberId: String?
 )
+
+data class ChangeMeasurementFieldStatusRequest(
+    @SerializedName("status") val status: String
+)
+
+data class ChangeMeasurementFieldStatusResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("data") val data: MeasurementFieldItem? = null
+)

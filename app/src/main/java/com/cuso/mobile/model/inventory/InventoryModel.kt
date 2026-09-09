@@ -103,14 +103,16 @@ data class AdjustStockRequest(
 )
 
 object ItemType {
-    const val IN_HOUSE = "goods"
-    const val CLIENT = "service"
+//    const val IN_HOUSE = "goods"
+    const val GOODS = "goods"
+    const val SERVICE = "service"
+//    const val CLIENT = "service"
 }
 
 data class CreateItemFormState(
     val itemId: String? = null,
     val existingImageUrl: String? = null,
-    val itemType: String = ItemType.IN_HOUSE,
+    val itemType: String = "",
     val name: String = "",
     val sku: String = "",
     val category: String = "",
@@ -158,29 +160,44 @@ data class InventoryViewOneResponse(
 
 data class InventoryItemviewone(
     @SerializedName("_id") val _id: String = "",
-    val organizationId: String = "",
-    val name: String = "",
-    val sku: String = "",
-    val parentGroupId: String? = null,
-    val attributes: Map<String, @JvmSuppressWildcards Any?>? = emptyMap(),
-    val warehouseId: String? = null,
-    val type: String = "goods",
-    val unit: String = "",
-    val costPrice: Double = 0.0,
-    val sellingPrice: Double = 0.0,
-    val trackInventory: Boolean = false,
-    val isSerialTracked: Boolean = false,
-    val openingStock: Double? = 0.0,
-    val currentStock: Double = 0.0,
-    val reservedStock: Double = 0.0,
-    val incomingStock: Double = 0.0,
-    val wipStock: Double = 0.0,
-    val reorderPoint: Double = 0.0,
-    val status: String = "active",
-    val images: List<InventoryItemImage> = emptyList(),
-    val createdAt: String = "",
-    val updatedAt: String = "",
-    val stockStatus: String = "In Stock"
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("organizationId") val organizationId: String = "",
+    @SerializedName("name") val name: String = "",
+    @SerializedName("sku") val sku: String = "",
+    @SerializedName("barcode") val barcode: String? = null,
+    @SerializedName("parentGroupId") val parentGroupId: String? = null,
+    @SerializedName("categoryId") val categoryId: String? = null,
+    @SerializedName("type") val type: String = "goods",
+    @SerializedName("unit") val unit: String = "",
+    @SerializedName("fabric") val fabric: Boolean = false,
+    @SerializedName("fabricType") val fabricType: String? = null,
+    @SerializedName("brand") val brand: String? = null,
+    @SerializedName("manufacturer") val manufacturer: String? = null,
+    @SerializedName("variantSelections") val variantSelections: List<VariantSelection> = emptyList(),
+    @SerializedName("variantLabel") val variantLabel: String? = null,
+    @SerializedName("physicalAttributes") val physicalAttributes: PhysicalAttributes? = null,
+    @SerializedName("returnable") val returnable: Boolean = false,
+    @SerializedName("costPrice") val costPrice: Double = 0.0,
+    @SerializedName("sellingPrice") val sellingPrice: Double = 0.0,
+    @SerializedName("taxCategory") val taxCategory: String? = null,
+    @SerializedName("hsnCode") val hsnCode: String? = null,
+    @SerializedName("trackInventory") val trackInventory: Boolean = false,
+    @SerializedName("isSerialTracked") val isSerialTracked: Boolean = false,
+    @SerializedName("reorderLevel") val reorderLevel: Int = 0,
+    @SerializedName("safetyStock") val safetyStock: Int = 0,
+    @SerializedName("openingStock") val openingStock: Double? = 0.0,
+    @SerializedName("currentStock") val currentStock: Double = 0.0,
+    @SerializedName("reservedStock") val reservedStock: Double = 0.0,
+    @SerializedName("incomingStock") val incomingStock: Double = 0.0,
+    @SerializedName("wipStock") val wipStock: Double = 0.0,
+    @SerializedName("reorderPoint") val reorderPoint: Double = 0.0,
+    @SerializedName("marginPercent") val marginPercent: Double? = null,
+    @SerializedName("status") val status: String = "active",
+    @SerializedName("images") val images: List<InventoryItemImage> = emptyList(),
+    @SerializedName("tags") val tags: List<String> = emptyList(),
+    @SerializedName("createdAt") val createdAt: String = "",
+    @SerializedName("updatedAt") val updatedAt: String = "",
+    @SerializedName("stockStatus") val stockStatus: String = "In Stock"
 )
 
 data class InventoryItemImage(
@@ -296,5 +313,64 @@ data class PurchaseOrderData(
 data class CreatePurchaseOrderResponse(
     @SerializedName("success") val success: Boolean = false,
     @SerializedName("data") val data: PurchaseOrderData? = null,
+    @SerializedName("message") val message: String? = null
+)
+
+data class CreateInventoryItemResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("data") val data: CreatedItemData? = null
+)
+
+data class CreatedItemData(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("organizationId") val organizationId: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("sku") val sku: String? = null,
+    @SerializedName("barcode") val barcode: String? = null,
+    @SerializedName("parentGroupId") val parentGroupId: String? = null,
+    @SerializedName("categoryId") val categoryId: String? = null,
+    @SerializedName("type") val type: String? = null,
+    @SerializedName("unit") val unit: String? = null,
+    @SerializedName("fabric") val fabric: Boolean = false,
+    @SerializedName("variantSelections") val variantSelections: List<VariantSelection> = emptyList(),
+    @SerializedName("physicalAttributes") val physicalAttributes: PhysicalAttributes? = null,
+    @SerializedName("manufacturer") val manufacturer: String? = null,
+    @SerializedName("brand") val brand: String? = null,
+    @SerializedName("returnable") val returnable: Boolean = false,
+    @SerializedName("costPrice") val costPrice: Double? = 0.0,
+    @SerializedName("sellingPrice") val sellingPrice: Double? = 0.0,
+    @SerializedName("taxCategory") val taxCategory: String? = null,
+    @SerializedName("trackInventory") val trackInventory: Boolean = true,
+    @SerializedName("reorderLevel") val reorderLevel: Int? = 0,
+    @SerializedName("safetyStock") val safetyStock: Int? = 0,
+    @SerializedName("images") val images: List<ItemImage> = emptyList(),
+    @SerializedName("status") val status: String? = "active",
+    @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("updatedAt") val updatedAt: String? = null
+)
+
+data class VariantSelection(
+    @SerializedName("name") val name: String,
+    @SerializedName("value") val value: String
+)
+
+data class PhysicalAttributes(
+    @SerializedName("length") val length: Double? = 0.0,
+    @SerializedName("width") val width: Double? = 0.0,
+    @SerializedName("height") val height: Double? = 0.0,
+    @SerializedName("dimensionUnit") val dimensionUnit: String? = "cm",
+    @SerializedName("weight") val weight: Double? = 0.0,
+    @SerializedName("weightUnit") val weightUnit: String? = "kg"
+)
+
+data class ItemImage(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("fileUrl") val fileUrl: String? = null,
+    @SerializedName("publicId") val publicId: String? = null
+)
+
+data class UpdateInventoryItemResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("data") val data: CreatedItemData? = null,
     @SerializedName("message") val message: String? = null
 )

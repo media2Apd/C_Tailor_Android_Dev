@@ -26,6 +26,8 @@ val modelBg = Color(0xfff8f9ff)
 val modelGray = Color(0xFFF1F5F9)
 val quickaccessBg = Color(0xFFDCE9FF)
 val cardBgLight = Color(0xFFFCFDFF)
+
+val badgeGrey = Color(0xFFF8FAFC)
 val transactionSheetBg = Color(0xFFE2EDFF)
 
 
@@ -57,7 +59,6 @@ val title_font = 24.sp
 val BorderGray = Color(0xFFebeaf1)
 val light_blue_border = Color(0xFFDBEAFE)
 val modelBorder = Color(0xffe8eaf4)
-val dividerColor = Color(0xFFF1F5F9)
 val sectionBorder = Color(0xFFE2E8F0)
 val light_grey = Color(0xFFF3F4F6)
 
@@ -115,5 +116,7 @@ val Pink80 = Color(0xFFEFB8C8)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
-val grey_border = Color(0xFFF3F4F6)
+val grey_border = Color(0xFFEBEDF1)
+val dividerColor = grey_border
+
 val title_border = Color(0xFFF0F0F0)

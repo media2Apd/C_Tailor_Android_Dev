@@ -39,6 +39,7 @@ fun AddWorkPricingScreen(
 ) {
     val tokens = LocalAppTokens.current
     val scope = rememberCoroutineScope()
+    val isEditMode = workId != null
 
     // --- State Observables ---
     val segments by viewModel.segments.collectAsStateWithLifecycle()
@@ -123,7 +124,8 @@ fun AddWorkPricingScreen(
                     FormTextField(
                         value = workType,
                         onValueChange = { workType = it },
-                        placeholder = "Enter Work Type"
+                        placeholder = "Enter Work Type",
+                        enabled = !isEditMode
                     )
 
                     Spacer(Modifier.height(24.dp))
@@ -138,7 +140,8 @@ fun AddWorkPricingScreen(
                         onOptionSelected = {
                             selectedSegment = it
                             selectedVariant = ""
-                        }
+                        },
+                        enabled = !isEditMode
                     )
 
                     Spacer(Modifier.height(14.dp))
@@ -151,7 +154,8 @@ fun AddWorkPricingScreen(
                         onOptionSelected = {
                             selectedGarment = it
                             selectedVariant = ""
-                        }
+                        },
+                        enabled = !isEditMode
                     )
 
                     Spacer(Modifier.height(14.dp))
@@ -161,7 +165,8 @@ fun AddWorkPricingScreen(
                         expanded = variantExpanded,
                         onExpandChange = { variantExpanded = it },
                         options = garmentStyles.map { it.displayName ?: it.name },
-                        onOptionSelected = { selectedVariant = it }
+                        onOptionSelected = { selectedVariant = it },
+                        enabled = !isEditMode
                     )
 
                     Spacer(Modifier.height(24.dp))
@@ -178,7 +183,11 @@ fun AddWorkPricingScreen(
                     Spacer(Modifier.height(18.dp))
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                         Text(text = "Status", fontSize = 13.sp, color = title_color)
-                        MiniSwitch(checked = isStatusActive, onCheckedChange = { isStatusActive = it })
+                        MiniSwitch(
+                            checked = isStatusActive,
+                            onCheckedChange = { isStatusActive = it },
+                            enabled = !isEditMode
+                        )
                     }
                 }
             }
@@ -205,7 +214,7 @@ fun AddWorkPricingScreen(
                         garmentId = garmentId,
                         garmentCategoryId = variantId,
                         basePrice = baseWorkPrice.toDoubleOrNull() ?: 0.0,
-                        status = if (isStatusActive) "Active" else "Inactive",
+//                        status = if (isStatusActive) "Active" else "Inactive",
                         isTaxable = false
                     )
 

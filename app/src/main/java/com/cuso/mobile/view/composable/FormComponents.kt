@@ -104,8 +104,7 @@ fun FormDropdown(
     }
 
     Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        modifier = modifier.fillMaxWidth()
     ) {
         if (!label.isNullOrEmpty()) {
             FormLabel(text = label, isRequired = isRequired)

@@ -15,12 +15,28 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,71 +46,81 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.inventory.ItemType
+import com.cuso.mobile.ui.theme.TextPrimary
+import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.FormDropdown
+import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextArea
+import com.cuso.mobile.view.composable.FormTextField
+import com.cuso.mobile.view.composable.ImageUploadSection
+import com.cuso.mobile.view.composable.SettingsTabs
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TabItem
+import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.view.home.sales.lead.MiniSwitch
 import com.cuso.mobile.viewmodel.CreateItemUiState
 import com.cuso.mobile.viewmodel.InventoryViewModel
 import com.cuso.mobile.viewmodel.ItemSection
-import com.cuso.mobile.view.composable.FormLabel
-import com.cuso.mobile.view.composable.FormTextField
-import com.cuso.mobile.view.composable.FormDropdown
-import com.cuso.mobile.view.composable.StepNavigationFab
-import com.cuso.mobile.view.composable.TrailingFabAction
-import com.cuso.mobile.view.home.sales.lead.MiniSwitch
-import com.cuso.mobile.viewmodel.ProfileViewModel
-import com.cuso.mobile.view.composable.AccordionSection
-import com.cuso.mobile.view.composable.SettingsTabs
-import com.cuso.mobile.view.composable.TabItem
-import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.ProfileUiState
-import com.cuso.mobile.R
-import com.cuso.mobile.view.composable.FormTextArea
-import com.cuso.mobile.view.composable.ImageUploadSection
-
-// ── Design tokens ──
-private val AccentColor = Color(0xFF4F39F6)
-private val BorderColor = Color(0xFFE3E4E8)
-private val LabelColor = Color(0xFF6B7280)
-private val TitleColor = Color(0xFF111827)
-private val PlaceholderColor = Color(0xFF9CA3AF)
+import com.cuso.mobile.viewmodel.ProfileViewModel
+import com.cuso.mobile.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateItemScreen(
     onDismiss: () -> Unit,
     onItemCreated: () -> Unit,
-    isViewOnly: Boolean = false, // Set to true for View Mode
+    isViewOnly: Boolean = false,
     viewModel: InventoryViewModel = hiltViewModel(),
-    profileViewModel: ProfileViewModel = hiltViewModel()
+    profileViewModel: ProfileViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
+    // ── Adaptive Design Tokens ──
     val tokens = LocalAppTokens.current
-    val FieldShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
-
+    val fieldShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
     val isEditable = !isViewOnly
+    val context = LocalContext.current
 
+    // ── Subscription Plan State ──
     val profileState by profileViewModel.uiState.collectAsState()
     val planName = (profileState as? ProfileUiState.Success)
         ?.data?.organization?.plan?.name.orEmpty()
     val isStarterOrLight = planName.equals("Starter", ignoreCase = true) ||
             planName.equals("Light", ignoreCase = true) || planName.equals("Plan not found", ignoreCase = true)
 
-    val context = LocalContext.current
+    // ── ViewModel Form State Observers ──
     val formState by viewModel.createItemForm.collectAsState()
     val expandedSection by viewModel.expandedSection.collectAsState()
     val uiState by viewModel.createItemUiState.collectAsState()
 
+    // ── Categories State ──
+    val productCategories by settingsViewModel.productCategories.collectAsState()
+    val categoryOptions = remember(productCategories) {
+        productCategories.mapNotNull { it.name.takeIf { name -> name.isNotBlank() } }
+    }
+
+    val selectedCategoryDisplayName = remember(formState.category, productCategories) {
+        productCategories.find { it.id == formState.category }?.name
+            ?: formState.category.ifBlank { "Select Category" }
+    }
+
+    // ── Dropdown Expansion States ──
     var unitExpanded by remember { mutableStateOf(false) }
+    var categoryExpanded by remember { mutableStateOf(false) }
     var statusExpanded by remember { mutableStateOf(false) }
     var salesAccountExpanded by remember { mutableStateOf(false) }
     var purchaseAccountExpanded by remember { mutableStateOf(false) }
 
+    // ── Validation Errors ──
     var currentErrorField by remember { mutableStateOf<String?>(null) }
     var currentError by remember { mutableStateOf<String?>(null) }
 
-    fun customError(message: String) {
-        currentError = message
-    }
     val isEditMode = formState.itemId != null
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -103,12 +129,20 @@ fun CreateItemScreen(
         uri?.let { viewModel.onImageSelected(it) }
     }
 
+    // Fetch product categories on screen launch
+    LaunchedEffect(Unit) {
+        settingsViewModel.fetchProductCategories()
+    }
+
+    // React to success state from ViewModel
     LaunchedEffect(uiState) {
         if (uiState is CreateItemUiState.Success) {
+            viewModel.resetCreateItemForm()
             onItemCreated()
         }
     }
 
+    // ── Form Validation ──
     fun validateForm(): Boolean {
         if (isViewOnly) return true
 
@@ -117,9 +151,7 @@ fun CreateItemScreen(
             formState.unit.isBlank() -> "unit" to "Unit of measure is required"
             formState.category.isBlank() -> "category" to "Category is required"
             formState.sellingPrice.isBlank() -> "sellingPrice" to "Selling price is required"
-            formState.salesAccount.isBlank() -> "salesAccount" to "Sales account is required"
             formState.costPrice.isBlank() -> "costPrice" to "Cost price is required"
-            formState.purchaseAccount.isBlank() -> "purchaseAccount" to "Purchase account is required"
             else -> null
         }
 
@@ -128,10 +160,10 @@ fun CreateItemScreen(
         if (missingField != null) {
             when (missingField.first) {
                 "itemName", "unit", "category" -> viewModel.toggleSection(ItemSection.ITEM_IDENTITY)
-                "sellingPrice", "salesAccount" -> viewModel.toggleSection(ItemSection.SALES_INFO)
-                "costPrice", "purchaseAccount" -> viewModel.toggleSection(ItemSection.PURCHASE_INFO)
+                "sellingPrice" -> viewModel.toggleSection(ItemSection.SALES_INFO)
+                "costPrice" -> viewModel.toggleSection(ItemSection.PURCHASE_INFO)
             }
-            customError(missingField.second)
+            currentError = missingField.second
             return false
         }
         return true
@@ -143,22 +175,37 @@ fun CreateItemScreen(
         else -> "Create Item"
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Transparent)
-        ) {
-            // ── Header ──
-            TitleBar(screenTitle, onClose = onDismiss)
+    // Helper to safely close and clean up state
+    val handleDismiss = {
+        if (uiState !is CreateItemUiState.Loading) {
+            viewModel.resetCreateItemForm()
+            onDismiss()
+        }
+    }
 
+    // =========================================================================
+    // ROOT UI
+    // =========================================================================
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Transparent)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header Bar
+            TitleBar(
+                title = screenTitle,
+                onClose = { handleDismiss() }
+            )
+
+            // Scrollable Form Content
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(bottom = tokens.buttonHeight * 2f)
+                    .padding(bottom = tokens.buttonHeight * 2.2f)
             ) {
-                // ── Item Identity ──
+                // ── 1. Item Identity ──
                 AccordionSection(
                     iconPainter = painterResource(R.drawable.box),
                     title = "Item Identity",
@@ -174,18 +221,18 @@ fun CreateItemScreen(
                     }
                     SettingsTabs(
                         tabs = itemTypeTabs,
-                        selectedIndex = if (formState.itemType == ItemType.IN_HOUSE) 0 else 1,
+                        selectedIndex = if (formState.itemType == ItemType.GOODS) 0 else 1,
                         onTabSelected = { index ->
                             if (isEditable) {
                                 viewModel.updateCreateItemForm {
-                                    it.copy(itemType = if (index == 0) ItemType.IN_HOUSE else ItemType.CLIENT)
+                                    it.copy(itemType = if (index == 0) ItemType.GOODS else ItemType.SERVICE)
                                 }
                             }
                         }
                     )
 
-                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
-                    FormLabel("Item Name")
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Item Name", isRequired = true)
                     FormTextField(
                         value = formState.name,
                         onValueChange = { newValue ->
@@ -197,7 +244,7 @@ fun CreateItemScreen(
                         errorMessage = if (currentErrorField == "itemName") "Item name is required" else null
                     )
 
-                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                    Spacer(Modifier.height(tokens.extraPadding))
                     FormLabel("SKU")
                     FormTextField(
                         value = formState.sku,
@@ -217,9 +264,9 @@ fun CreateItemScreen(
                         )
                     }
 
-                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Unit of Measure", isRequired = true)
                     FormDropdown(
-                        label = "Unit of Measure",
                         value = formState.unit.ifBlank { "Select Unit" },
                         expanded = if (isEditable) unitExpanded else false,
                         onExpandChange = { if (isEditable) unitExpanded = it },
@@ -231,7 +278,7 @@ fun CreateItemScreen(
                         errorMessage = if (currentErrorField == "unit") "Unit is required" else null
                     )
 
-                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                    Spacer(Modifier.height(tokens.extraPadding))
                     ToggleRow(
                         title = "Returnable Item",
                         subtitle = "Customer can request return/refund",
@@ -243,20 +290,30 @@ fun CreateItemScreen(
                         titleFirst = true
                     )
 
-                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
-                    FormLabel("Category")
-                    FormTextField(
-                        value = formState.category,
-                        onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(category = v) } },
-                        placeholder = "category",
-                        enabled = isEditable,
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Category", isRequired = true)
+                    FormDropdown(
+                        value = selectedCategoryDisplayName,
+                        expanded = if (isEditable) categoryExpanded else false,
+                        onExpandChange = { if (isEditable) categoryExpanded = it },
+                        options = categoryOptions.ifEmpty { listOf("No Categories Available") },
+                        onOptionSelected = { selectedCategoryName ->
+                            if (selectedCategoryName != "No Categories Available") {
+                                val selectedCategoryId = productCategories
+                                    .find { it.name.equals(selectedCategoryName, ignoreCase = true) }
+                                    ?.id
+                                    .orEmpty()
+                                viewModel.updateCreateItemForm { it.copy(category = selectedCategoryId) }
+                            }
+                        },
+                        isRequired = true,
                         isError = currentErrorField == "category",
                         errorMessage = if (currentErrorField == "category") "Category is required" else null
                     )
 
-                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Status")
                     FormDropdown(
-                        label = "Status",
                         value = formState.status.ifBlank { "Select Status" },
                         expanded = if (isEditable) statusExpanded else false,
                         onExpandChange = { if (isEditable) statusExpanded = it },
@@ -267,16 +324,14 @@ fun CreateItemScreen(
                     )
                 }
 
-                // ── Product Images ──
+                // ── 2. Product Images ──
                 if (!isStarterOrLight) {
-                    // ── Product Images ──
                     AccordionSection(
                         iconPainter = painterResource(R.drawable.box),
                         title = "Product Images",
                         expanded = expandedSection == ItemSection.PRODUCT_IMAGES,
                         onHeaderClick = { viewModel.toggleSection(ItemSection.PRODUCT_IMAGES) }
                     ) {
-                        // Collect current image selection (Uri or remote URL string) into a list for ImageUploadSection
                         val selectedImagesList: List<Any> = remember(formState.imageUri, formState.existingImageUrl) {
                             listOfNotNull(formState.imageUri ?: formState.existingImageUrl)
                         }
@@ -288,22 +343,23 @@ fun CreateItemScreen(
                             onBrowseClick = {
                                 if (isEditable) {
                                     imagePickerLauncher.launch("image/*")
-                                } },
+                                }
+                            },
                             onRemoveImage = {
                                 if (isEditable) {
                                     viewModel.updateCreateItemForm {
                                         it.copy(imageUri = null, existingImageUrl = null)
                                     }
-                                } },
+                                }
+                            },
                             uploadBoxHeight = if (isEditable) 90.dp else 0.dp,
                             imagePreviewSize = 90.dp,
                             previewHeaderTitle = "ATTACHED IMAGE"
                         )
                     }
-
                 }
 
-                // ── Physical Attributes ──
+                // ── 3. Physical Attributes ──
                 if (!isStarterOrLight) {
                     AccordionSection(
                         iconPainter = painterResource(R.drawable.box),
@@ -341,7 +397,7 @@ fun CreateItemScreen(
                                 )
                             }
                         }
-                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                        Spacer(Modifier.height(tokens.extraPadding))
                         FormLabel("Weight (kg)")
                         FormTextField(
                             value = formState.weight,
@@ -350,7 +406,7 @@ fun CreateItemScreen(
                             enabled = isEditable,
                             keyboardType = KeyboardType.Number
                         )
-                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                        Spacer(Modifier.height(tokens.extraPadding))
                         FormLabel("Manufacturer")
                         FormTextField(
                             value = formState.manufacturer,
@@ -358,7 +414,7 @@ fun CreateItemScreen(
                             placeholder = "Brand Name",
                             enabled = isEditable
                         )
-                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                        Spacer(Modifier.height(tokens.extraPadding))
                         FormLabel("Brand")
                         FormTextField(
                             value = formState.brand,
@@ -369,7 +425,7 @@ fun CreateItemScreen(
                     }
                 }
 
-                // ── Tax Information ──
+                // ── 4. Tax Information ──
                 if (!isStarterOrLight) {
                     AccordionSection(
                         iconPainter = painterResource(R.drawable.ic_transaction_sheet),
@@ -377,15 +433,16 @@ fun CreateItemScreen(
                         expanded = expandedSection == ItemSection.TAX_INFO,
                         onHeaderClick = { viewModel.toggleSection(ItemSection.TAX_INFO) }
                     ) {
-                        FormLabel("HSN Code")
+                        val isGoods = formState.itemType == ItemType.GOODS
+                        FormLabel(if (isGoods) "HSN Code" else "SAC Code")
                         FormTextField(
                             value = formState.hsnCode,
                             onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(hsnCode = v) } },
-                            placeholder = "HSN",
+                            placeholder = if (isGoods) "HSN" else "SAC",
                             enabled = isEditable,
                             keyboardType = KeyboardType.Number
                         )
-                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                        Spacer(Modifier.height(tokens.extraPadding))
                         FormLabel("Tax Percentage (%)")
                         FormTextField(
                             value = formState.taxPercentage,
@@ -394,7 +451,7 @@ fun CreateItemScreen(
                             enabled = isEditable,
                             keyboardType = KeyboardType.Number
                         )
-                        Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                        Spacer(Modifier.height(tokens.extraPadding))
                         ToggleRow(
                             title = "Price is Tax Inclusive",
                             checked = formState.taxInclusive,
@@ -405,14 +462,14 @@ fun CreateItemScreen(
                     }
                 }
 
-                // ── Sales Information ──
+                // ── 5. Sales Information ──
                 AccordionSection(
                     iconPainter = painterResource(R.drawable.ic_tag),
                     title = "Sales Information",
                     expanded = expandedSection == ItemSection.SALES_INFO,
                     onHeaderClick = { viewModel.toggleSection(ItemSection.SALES_INFO) }
                 ) {
-                    FormLabel("Selling Price")
+                    FormLabel("Selling Price", isRequired = true)
                     FormTextField(
                         value = formState.sellingPrice,
                         onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(sellingPrice = v) } },
@@ -422,18 +479,16 @@ fun CreateItemScreen(
                         isError = currentErrorField == "sellingPrice",
                         errorMessage = if (currentErrorField == "sellingPrice") "Selling price is required" else null
                     )
-                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Sales Account")
                     FormDropdown(
-                        label = "Sales Account",
                         value = formState.salesAccount.ifBlank { "Select Sales Account" },
                         expanded = if (isEditable) salesAccountExpanded else false,
                         onExpandChange = { if (isEditable) salesAccountExpanded = it },
                         options = listOf("General Revenue"),
-                        onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(salesAccount = v) } },
-                        isError = currentErrorField == "salesAccount",
-                        errorMessage = if (currentErrorField == "salesAccount") "Sales account is required" else null
+                        onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(salesAccount = v) } }
                     )
-                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                    Spacer(Modifier.height(tokens.extraPadding))
                     FormLabel("Sales Description")
                     FormTextArea(
                         value = formState.salesDescription,
@@ -442,14 +497,14 @@ fun CreateItemScreen(
                     )
                 }
 
-                // ── Purchase Information ──
+                // ── 6. Purchase Information ──
                 AccordionSection(
                     iconPainter = painterResource(R.drawable.cart),
                     title = "Purchase Information",
                     expanded = expandedSection == ItemSection.PURCHASE_INFO,
                     onHeaderClick = { viewModel.toggleSection(ItemSection.PURCHASE_INFO) }
                 ) {
-                    FormLabel("Cost Price")
+                    FormLabel("Cost Price", isRequired = true)
                     FormTextField(
                         value = formState.costPrice,
                         onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(costPrice = v) } },
@@ -459,26 +514,24 @@ fun CreateItemScreen(
                         isError = currentErrorField == "costPrice",
                         errorMessage = if (currentErrorField == "costPrice") "Cost price is required" else null
                     )
-                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Purchase Account")
                     FormDropdown(
-                        label = "Purchase Account",
                         value = formState.purchaseAccount.ifBlank { "Select Purchase Account" },
                         expanded = if (isEditable) purchaseAccountExpanded else false,
                         onExpandChange = { if (isEditable) purchaseAccountExpanded = it },
                         options = listOf("Cost of Goods Sold"),
-                        onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(purchaseAccount = v) } },
-                        isError = currentErrorField == "purchaseAccount",
-                        errorMessage = if (currentErrorField == "purchaseAccount") "Purchase account is required" else null
+                        onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(purchaseAccount = v) } }
                     )
-                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                    Spacer(Modifier.height(tokens.extraPadding))
                     FormLabel("Preferred Vendor")
                     FormTextField(
                         value = formState.preferredVendor,
                         onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(preferredVendor = v) } },
-                        placeholder = "0.00",
+                        placeholder = "Enter Preferred Vendor",
                         enabled = isEditable
                     )
-                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                    Spacer(Modifier.height(tokens.extraPadding))
                     FormLabel("Purchase Description")
                     FormTextArea(
                         value = formState.purchaseDescription,
@@ -489,19 +542,17 @@ fun CreateItemScreen(
             }
         }
 
+        // ── Dynamic Island Error Overlay ──
         DynamicIslandError(
             modifier = Modifier.align(Alignment.TopCenter),
             message = currentError,
             onDismiss = { currentError = null }
         )
 
-        // ── Floating Footer ──
+        // ── Floating Action Buttons (Cancel / Save / Update) ──
         StepNavigationFab(
             showBack = true,
-            onBack = {
-                viewModel.resetCreateItemForm()
-                onDismiss()
-            },
+            onBack = { handleDismiss() },
             showBackArrow = false,
             backLabel = if (isViewOnly) "Close" else "Cancel",
             trailingAction = if (isViewOnly) {
@@ -512,8 +563,12 @@ fun CreateItemScreen(
                     label = if (isEditMode) "Update Item" else "Save Item",
                     enabled = uiState !is CreateItemUiState.Loading,
                     onClick = {
-                        if (validateForm()) {
-                            viewModel.createInventoryItem(context)
+                        if (validateForm() && uiState !is CreateItemUiState.Loading) {
+                            if (isEditMode) {
+                                viewModel.updateInventoryItem(context)
+                            } else {
+                                viewModel.createInventoryItem(context)
+                            }
                         }
                     }
                 )
@@ -522,7 +577,9 @@ fun CreateItemScreen(
     }
 }
 
-
+// =============================================================================
+// TOGGLE ROW HELPER
+// =============================================================================
 
 @Composable
 private fun ToggleRow(
@@ -541,8 +598,19 @@ private fun ToggleRow(
     ) {
         if (titleFirst) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = if (enabled) TitleColor else TitleColor.copy(alpha = 0.6f))
-                subtitle?.let { Text(it, fontSize = tokens.caption, color = LabelColor) }
+                Text(
+                    text = title,
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = if (enabled) TextPrimary else TextPrimary.copy(alpha = 0.6f)
+                )
+                subtitle?.let {
+                    Text(
+                        text = it,
+                        fontSize = tokens.caption,
+                        color = TextSecondary
+                    )
+                }
             }
             MiniSwitch(
                 checked = checked,
@@ -554,7 +622,11 @@ private fun ToggleRow(
                 onCheckedChange = { if (enabled) onCheckedChange(it) }
             )
             Spacer(Modifier.width(10.dp))
-            Text(title, fontSize = tokens.bodySmall, color = if (enabled) LabelColor else LabelColor.copy(alpha = 0.6f))
+            Text(
+                text = title,
+                fontSize = tokens.bodySmall,
+                color = if (enabled) TextSecondary else TextSecondary.copy(alpha = 0.6f)
+            )
         }
     }
 }

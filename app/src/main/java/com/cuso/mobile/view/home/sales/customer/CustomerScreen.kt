@@ -19,17 +19,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHostState
@@ -45,12 +44,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.cuso.mobile.R
 import com.cuso.mobile.model.sales.CustomerItem
@@ -60,7 +57,6 @@ import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.view.composable.AppErrorState
-import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.DataCardImage
@@ -71,6 +67,7 @@ import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.ThreeDotLoading
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.CustomerCreateState
 import com.cuso.mobile.viewmodel.CustomerDeleteState
@@ -224,7 +221,6 @@ fun CustomerScreen(
                 }
 
                 Column(modifier = Modifier.fillMaxWidth()) {
-
                     SearchFilterBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
@@ -275,28 +271,53 @@ fun CustomerScreen(
                                         val (badgeText, badgeColor) = when (customer.type?.lowercase()) {
                                             "business" -> "Business" to Color(0xFFD97706)
                                             "regular" -> "Regular" to Color(0xFF16A34A)
-                                            else -> "Individual" to Color(0xFF3B3BF9)
+                                            else -> (customer.displayType) to Color(0xFF3B3BF9)
                                         }
+
+                                        val imageUrl = customer.profilePicture?.url
+                                        val hasProfilePic = !imageUrl.isNullOrBlank()
 
                                         DataCard(
                                             item = customer,
-                                            image = DataCardImage(
-                                                painter = painterResource(R.drawable.ic_person),
-                                                size = 30.dp,
-                                                tint = blackTitle,
-                                                backgroundColor = Color.Transparent
-                                            ),
+                                            image = if (hasProfilePic) {
+                                                DataCardImage(
+                                                    url = imageUrl,
+                                                    size = 40.dp,
+                                                    shape = CircleShape,
+                                                    backgroundColor = Color.Transparent
+                                                )
+                                            } else {
+                                                DataCardImage(
+                                                    painter = painterResource(R.drawable.ic_person),
+                                                    size = 40.dp,
+                                                    shape = CircleShape,
+                                                    tint = blackTitle,
+                                                    backgroundColor = Color(0xFFF3F4F6)
+                                                )
+                                            },
                                             topBadgeText = badgeText,
                                             topBadgeTextColor = badgeColor,
                                             topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
                                             topBadgeInline = true,
                                             title = customer.name,
-                                            subtitle = "Order ID : not found",
+                                            subtitle = customer.customerCode?.takeIf { it.isNotBlank() } ?: "—",
                                             footerAsRows = true,
                                             footerFields = listOf(
-                                                DataCardField(label = "Email", text = customer.email?.ifBlank { "—" } ?: "—", asRow = true),
-                                                DataCardField(label = "Mobile", text = customer.mobile?.ifBlank { "—" } ?: "—", asRow = true),
-                                                DataCardField(label = "Gender", text = customer.gender?.ifBlank { "—" } ?: "—", asRow = true),
+                                                DataCardField(
+                                                    label = "Email",
+                                                    text = customer.email?.takeIf { it.isNotBlank() } ?: "—",
+                                                    asRow = true
+                                                ),
+                                                DataCardField(
+                                                    label = "Mobile",
+                                                    text = customer.mobile?.takeIf { it.isNotBlank() } ?: "—",
+                                                    asRow = true
+                                                ),
+                                                DataCardField(
+                                                    label = "Gender",
+                                                    text = customer.gender?.takeIf { it.isNotBlank() } ?: "—",
+                                                    asRow = true
+                                                ),
                                                 DataCardField(
                                                     label = "Location",
                                                     text = customer.location.ifBlank { "—" }.let { loc ->
@@ -317,14 +338,7 @@ fun CustomerScreen(
 
                                     if (isLoadingMore) {
                                         item {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(16.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                CirculerProgressIndicatorSmall()
-                                            }
+                                            ThreeDotLoading()
                                         }
                                     }
                                 }

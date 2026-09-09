@@ -1383,55 +1383,55 @@ fun CreateMeasurementFieldScreen(
                     onOptionSelected = { selectedCondition = it }
                 )
 
-                Spacer(Modifier.height(24.dp))
-
-                SectionHeader("Section 4 — Assignment")
-                Spacer(Modifier.height(14.dp))
-
-                FormLabel(text = "Available for Garments", isRequired = false)
-                Spacer(Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    selectedGarments.forEach { garment ->
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFFEEF2FF)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = garment,
-                                    fontSize = 13.sp,
-                                    color = Primary,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_close_circle),
-                                    contentDescription = "Remove",
-                                    tint = Primary,
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable { selectedGarments.remove(garment) }
-                                )
-                            }
-                        }
-                    }
-
-                    Text(
-                        text = "+ Add more",
-                        color = Primary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clickable {}
-                    )
-                }
+//                Spacer(Modifier.height(24.dp))
+//
+//                SectionHeader("Section 4 — Assignment")
+//                Spacer(Modifier.height(14.dp))
+//
+//                FormLabel(text = "Available for Garments", isRequired = false)
+//                Spacer(Modifier.height(8.dp))
+//
+//                Row(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    verticalAlignment = Alignment.CenterVertically,
+//                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+//                ) {
+//                    selectedGarments.forEach { garment ->
+//                        Surface(
+//                            shape = RoundedCornerShape(20.dp),
+//                            color = Color(0xFFEEF2FF)
+//                        ) {
+//                            Row(
+//                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+//                                verticalAlignment = Alignment.CenterVertically,
+//                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+//                            ) {
+//                                Text(
+//                                    text = garment,
+//                                    fontSize = 13.sp,
+//                                    color = Primary,
+//                                    fontWeight = FontWeight.Medium
+//                                )
+//                                Icon(
+//                                    painter = painterResource(R.drawable.ic_close_circle),
+//                                    contentDescription = "Remove",
+//                                    tint = Primary,
+//                                    modifier = Modifier
+//                                        .size(16.dp)
+//                                        .clickable { selectedGarments.remove(garment) }
+//                                )
+//                            }
+//                        }
+//                    }
+//
+//                    Text(
+//                        text = "+ Add more",
+//                        color = Primary,
+//                        fontSize = 13.sp,
+//                        fontWeight = FontWeight.SemiBold,
+//                        modifier = Modifier.clickable {}
+//                    )
+//                }
 
                 Spacer(Modifier.height(28.dp))
             }

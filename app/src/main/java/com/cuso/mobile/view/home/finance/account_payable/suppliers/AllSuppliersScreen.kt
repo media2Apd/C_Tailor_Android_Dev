@@ -12,7 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.cuso.mobile.ui.theme.lightGray
+import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.view.composable.TitleBar
@@ -76,7 +76,7 @@ private val dummySuppliers = List(6) {
             onQueryChange = {searchQuery = it},
             query = searchQuery
         )
-        HorizontalDivider(Modifier.background(lightGray))
+        HorizontalDivider(color = grey_border)
 
         // ── List, using shared DataCard ──
         LazyColumn(modifier = Modifier.fillMaxSize()) {

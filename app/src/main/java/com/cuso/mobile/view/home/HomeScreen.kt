@@ -410,6 +410,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "payment_detail_screen",
             "finance_payments_mode",
             "payment_mode_detail",
+            "finance_add_gst",
+            "finance_gst_settings",
 
             // ── Inventory ──
             "inventory_items",
@@ -420,7 +422,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_item_groups",
             "inventory_create_item_group",
             "inventory_allocation_rules",
-
             "inventory_create_allocation",
             "inventory_pdf_templates",
             "inventory_location_structure",
@@ -1390,7 +1391,7 @@ private fun mapOperationsToCustomers(ops: List<OperationItem>): List<RecentCusto
             word.lowercase().replaceFirstChar { it.uppercase() }
         }
         RecentCustomer(
-            id = op.customerId,
+            id = op.customerId?:"",
             name = prettyName.ifBlank { op.customer },
             role = op.type,
             initials = initials,

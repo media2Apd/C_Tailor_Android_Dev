@@ -69,6 +69,7 @@ fun ModuleSettingsScreen(
     onNavigatePdfTemplates: () -> Unit = { onNavigateToModule("inventory_pdf_templates") },
     onNavigateLocationStructure: () -> Unit = { onNavigateToModule("inventory_location_structure") },
     onNavigateFloorOverview: () -> Unit = { onNavigateToModule("inventory_floor_overview") },
+    onNavigateGstSettings: () -> Unit = { onNavigateToModule("finance_gst_settings") },
     onNavigateSectionOverview: () -> Unit = { onNavigateToModule("inventory_section_overview") },
     onNavigateRackOverview: () -> Unit = { onNavigateToModule("inventory_rack_overview") },
     onNavigateBinOverview: () -> Unit = { onNavigateToModule("inventory_bin_overview") },
@@ -145,6 +146,10 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.finance,
                 tags = listOf("Billing", "Payments", "Accounting"),
                 isConfigured = true,
+                subItems = listOf(
+                    ModuleSubItem(title = "GST Settings", onClick = onNavigateGstSettings),
+                    ModuleSubItem(title = "Tax Rates & Rules", onClick = onConfigureFinance)
+                ),
                 onConfigure = onConfigureFinance
             ),
             ModuleSettingItem(

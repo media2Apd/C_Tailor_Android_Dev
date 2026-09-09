@@ -3,6 +3,8 @@ package com.cuso.mobile.network.sales.settings
 import com.cuso.mobile.model.settings.ChangeGarmentCategoryStatusResponse
 import com.cuso.mobile.model.settings.ChangeGarmentStatusRequest
 import com.cuso.mobile.model.settings.ChangeGarmentStatusResponse
+import com.cuso.mobile.model.settings.ChangeMeasurementFieldStatusRequest
+import com.cuso.mobile.model.settings.ChangeMeasurementFieldStatusResponse
 import com.cuso.mobile.model.settings.ChangeSegmentStatusRequest
 import com.cuso.mobile.model.settings.ChangeSegmentStatusResponse
 import com.cuso.mobile.model.settings.CreateGarmentRequest
@@ -20,7 +22,6 @@ import com.cuso.mobile.model.settings.GarmentStyleDetailResponse
 import com.cuso.mobile.model.settings.GarmentStyleListResponse
 import com.cuso.mobile.model.settings.MeasurementFieldDetailResponse
 import com.cuso.mobile.model.settings.MeasurementFieldListResponse
-import com.cuso.mobile.model.settings.MeasurementResponse
 import com.cuso.mobile.model.settings.SegmentDetailResponse
 import com.cuso.mobile.model.settings.SegmentListResponse
 import com.cuso.mobile.model.settings.UpdateGarmentBasicPriceRequest
@@ -160,6 +161,14 @@ interface SalesSettingsApiService {
         @Path("id") id: String,
         @Body request: UpdateGarmentStyleRequest
     ): Response<GarmentStyleDetailResponse>
+
+    @PATCH("/api/sales/settings/measurement-fields/change-status/{id}")
+    suspend fun changeMeasurementFieldStatus(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: ChangeMeasurementFieldStatusRequest
+    ): Response<ChangeMeasurementFieldStatusResponse>
 
     // ── Garment Categories View One ──
     @GET("/api/sales/settings/garment-categories/view-one/{id}")

@@ -730,7 +730,9 @@ class SalesRepository @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(Exception(response.message() ?: "Failed to fetch customers"))
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: response.message() ?: "Failed to fetch customers")
+                )
             }
         } catch (e: Exception) {
             Result.failure(e)

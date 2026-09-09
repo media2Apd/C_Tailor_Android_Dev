@@ -29,7 +29,7 @@ data class WorkPricingRequest(
     @SerializedName("workType") val workType: String,
     @SerializedName("segmentId") val segmentId: String,
     @SerializedName("basePrice") val basePrice: Double,
-    @SerializedName("status") val status: String,
+    @SerializedName("status") val status: String? = null,
     @SerializedName("isTaxable") val isTaxable: Boolean = false,
     @SerializedName("garmentId") val garmentId: String? = null,
     @SerializedName("garmentCategoryId") val garmentCategoryId: String? = null,

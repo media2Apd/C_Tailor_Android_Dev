@@ -363,6 +363,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "sales_add_fabric_pricing",
             "sales_add_work_pricing",
             "sales_measurement_list",
+            "manage_subscription",
 
             // ── Sales ──
             "sales_lead",
@@ -412,6 +413,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "payment_mode_detail",
             "finance_add_gst",
             "finance_gst_settings",
+            "finance_tax_rates",
+            "finance_add_tax_group",
 
             // ── Inventory ──
             "inventory_items",

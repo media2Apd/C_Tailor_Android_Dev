@@ -20,6 +20,12 @@ data class UpdateSegmentRequest(
     val status: String = "Active"
 )
 
+data class DeleteGarmentResponse(
+    @SerializedName("success")
+    val success: Boolean,
+    @SerializedName("message")
+    val message: String? = null
+)
 data class GarmentListResponse(
     @SerializedName("success")
     val success: Boolean,

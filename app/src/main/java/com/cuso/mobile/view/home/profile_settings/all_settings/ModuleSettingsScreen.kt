@@ -70,6 +70,7 @@ fun ModuleSettingsScreen(
     onNavigateLocationStructure: () -> Unit = { onNavigateToModule("inventory_location_structure") },
     onNavigateFloorOverview: () -> Unit = { onNavigateToModule("inventory_floor_overview") },
     onNavigateGstSettings: () -> Unit = { onNavigateToModule("finance_gst_settings") },
+    onNavigateTaxRates: () -> Unit = { onNavigateToModule("finance_tax_rates") },
     onNavigateSectionOverview: () -> Unit = { onNavigateToModule("inventory_section_overview") },
     onNavigateRackOverview: () -> Unit = { onNavigateToModule("inventory_rack_overview") },
     onNavigateBinOverview: () -> Unit = { onNavigateToModule("inventory_bin_overview") },
@@ -93,6 +94,8 @@ fun ModuleSettingsScreen(
         onConfigureInventory,
         onNavigateAllocationRules,
         onNavigatePdfTemplates,
+        onNavigateTaxRates,
+        onNavigateGstSettings,
         onNavigateLocationStructure,
         onNavigateFloorOverview,
         onNavigateSectionOverview,
@@ -148,7 +151,7 @@ fun ModuleSettingsScreen(
                 isConfigured = true,
                 subItems = listOf(
                     ModuleSubItem(title = "GST Settings", onClick = onNavigateGstSettings),
-                    ModuleSubItem(title = "Tax Rates & Rules", onClick = onConfigureFinance)
+                    ModuleSubItem(title = "Tax Rates & Rules", onClick = onNavigateTaxRates) // <-- UPDATE THIS
                 ),
                 onConfigure = onConfigureFinance
             ),

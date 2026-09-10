@@ -43,7 +43,11 @@ android {
     buildTypes {
 
         debug {
-            buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:5000/\"")
+            buildConfigField(
+                "String",
+                "BASE_URL",
+                "\"http://192.168.88.6:5000/\""
+            )
         }
         release {
             isMinifyEnabled = false
@@ -67,13 +71,13 @@ android {
         buildConfig = true
     }
 
-    tasks.matching { it.name == "preBuild" }.configureEach {
-        doFirst {
-            try {
-                Runtime.getRuntime().exec("adb reverse tcp:5000 tcp:5000")
-            } catch (_: Exception) { }
-        }
-    }
+//    tasks.matching { it.name == "preBuild" }.configureEach {
+//        doFirst {
+//            try {
+//                Runtime.getRuntime().exec("adb reverse tcp:5000 tcp:5000")
+//            } catch (_: Exception) { }
+//        }
+//    }
 }
 
 dependencies {
@@ -95,6 +99,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.ui.unit)
 
     // Core
     implementation(libs.androidx.core.ktx)

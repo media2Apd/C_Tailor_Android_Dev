@@ -34,7 +34,7 @@ data class MeasurementFieldItem(
     @SerializedName("options") val options: List<String> = emptyList(),
     @SerializedName("isSystemDefined") val isSystemDefined: Boolean = false,
     @SerializedName("status") val status: String? = null,
-    @SerializedName("isActive") val isActive: Boolean,
+    @SerializedName("isActive") val isActive: Boolean? = false,
     @SerializedName("createdAt") val createdAt: String? = null,
     @SerializedName("updatedAt") val updatedAt: String? = null
 )

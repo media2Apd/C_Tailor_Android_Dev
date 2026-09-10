@@ -31,6 +31,11 @@ data class CreateItemGroupResponse(
     @SerializedName("data") val data: ItemGroupDto
 )
 
+data class UpdateItemGroupResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("data") val data: ItemGroupDto
+)
+
 data class ItemGroupListResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("groups") val groups: List<ItemGroupDto> = emptyList(),
@@ -40,14 +45,19 @@ data class ItemGroupListResponse(
     @SerializedName("totalPages") val totalPages: Int = 1
 )
 
+data class DeleteItemGroupResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null
+)
+
 // =============================================================================
 // 3. CORE ITEM GROUP DTO
 // =============================================================================
 
 data class ItemGroupDto(
-    @SerializedName("_id") val id: String,
+    @SerializedName("_id") val id: String = "",
     @SerializedName("organizationId") val organizationId: String? = null,
-    @SerializedName("name") val name: String,
+    @SerializedName("name") val name: String = "",
     @SerializedName("groupCode") val groupCode: String? = null,
     @SerializedName("unit") val unit: String? = null,
     @SerializedName("productType") val productType: String? = null,
@@ -132,13 +142,8 @@ data class ChannelDto(
     @SerializedName("visibility") val visibility: String? = null
 )
 
-data class DeleteItemGroupResponse(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("message") val message: String? = null
-)
-
 // =============================================================================
-// ITEM GROUP VIEW ONE MODELS
+// 5. ITEM GROUP VIEW ONE MODELS
 // =============================================================================
 
 data class ItemGroupViewOneResponse(

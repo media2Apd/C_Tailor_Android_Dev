@@ -153,7 +153,6 @@ fun MeasurementDataCard(
         field.status?.equals("Active", ignoreCase = true) == true -> "Active"
         field.status?.equals("Draft", ignoreCase = true) == true -> "Draft"
         field.status?.equals("Inactive", ignoreCase = true) == true -> "Inactive"
-        field.isActive -> "Active"
         else -> "Inactive"
     }
 

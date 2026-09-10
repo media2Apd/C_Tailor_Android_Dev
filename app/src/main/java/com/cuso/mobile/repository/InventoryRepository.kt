@@ -8,6 +8,7 @@ import com.cuso.mobile.model.inventory.AdjustStockRequest
 import com.cuso.mobile.model.inventory.CreateInventoryItemResponse
 import com.cuso.mobile.model.inventory.CreateItemGroupRequest
 import com.cuso.mobile.model.inventory.CreatePurchaseOrderRequest
+import com.cuso.mobile.model.inventory.CreateWarehouseRequest
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.InventoryItemListResponse
 import com.cuso.mobile.model.inventory.InventoryItemviewone
@@ -21,6 +22,9 @@ import com.cuso.mobile.model.inventory.StockAdjustmentData
 import com.cuso.mobile.model.inventory.StockAdjustmentListResponse
 import com.cuso.mobile.model.inventory.TransferStockRequest
 import com.cuso.mobile.model.inventory.UpdateInventoryItemResponse
+import com.cuso.mobile.model.inventory.UpdateWarehouseRequest
+import com.cuso.mobile.model.inventory.WarehouseDropdownItem
+import com.cuso.mobile.model.inventory.WarehouseItem
 import com.cuso.mobile.network.inventory.InventoryApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -62,6 +66,12 @@ class InventoryRepository @Inject constructor(
         private const val ERROR_FETCH_ITEM_GROUPS = "Failed to fetch item groups"
         private const val ERROR_LOW_STOCK_ALERTS = "Failed to fetch low stock alerts"
         private const val ERROR_CREATE_PURCHASE_ORDER = "Failed to create purchase order"
+        private const val ERROR_FETCH_WAREHOUSES = "Failed to fetch warehouses"
+        private const val ERROR_FETCH_DROPDOWN = "Failed to fetch warehouse dropdown list"
+        private const val ERROR_CREATE_WAREHOUSE = "Failed to create warehouse"
+        private const val ERROR_UPDATE_WAREHOUSE = "Failed to update warehouse"
+        private const val ERROR_DELETE_WAREHOUSE = "Failed to delete warehouse"
+        private const val ERROR_RESTORE_WAREHOUSE = "Failed to restore warehouse"
     }
 
     // =========================================================================
@@ -325,6 +335,31 @@ class InventoryRepository @Inject constructor(
                 Result.failure(e)
             }
         }
+
+    /**
+     * Update an existing item group by ID.
+     */
+    suspend fun updateItemGroup(
+        id: String,
+        request: CreateItemGroupRequest
+    ): Result<ItemGroupDto> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.updateItemGroup(accessToken, csrfToken, id, request)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.data)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to update item group"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
     /**
      * Fetch single item group details with its variants.
      */
@@ -631,6 +666,136 @@ class InventoryRepository @Inject constructor(
                 Result.success(body.data)
             } else {
                 Result.failure(Exception(extractErrorMessage(response, "Failed to fetch adjustment details")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // =========================================================================
+    // WAREHOUSE OPERATIONS
+    // =========================================================================
+
+    /**
+     * Fetch all active warehouses.
+     */
+    suspend fun getAllWarehouses(): Result<List<WarehouseItem>> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getAllWarehouses(accessToken, csrfToken)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, ERROR_FETCH_WAREHOUSES)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Fetch dropdown lookup list of warehouses.
+     */
+    suspend fun getWarehouseDropdown(): Result<List<WarehouseDropdownItem>> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getWarehouseDropdown(accessToken, csrfToken)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, ERROR_FETCH_DROPDOWN)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Fetch single warehouse detail by ID.
+     */
+    suspend fun getWarehouseById(id: String): Result<WarehouseItem> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getWarehouseById(accessToken, csrfToken, id)
+
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, ERROR_FETCH_DETAILS)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Create a new warehouse.
+     */
+    suspend fun createWarehouse(request: CreateWarehouseRequest): Result<WarehouseItem> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.createWarehouse(accessToken, csrfToken, request)
+
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, ERROR_CREATE_WAREHOUSE)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Update an existing warehouse.
+     */
+    suspend fun updateWarehouse(id: String, request: UpdateWarehouseRequest): Result<WarehouseItem> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.updateWarehouse(accessToken, csrfToken, id, request)
+
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, ERROR_UPDATE_WAREHOUSE)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Delete warehouse by ID.
+     */
+    suspend fun deleteWarehouse(id: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.deleteWarehouse(accessToken, csrfToken, id)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.message)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, ERROR_DELETE_WAREHOUSE)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Restore a deleted warehouse by ID.
+     */
+    suspend fun restoreWarehouse(id: String): Result<WarehouseItem> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.restoreWarehouse(accessToken, csrfToken, id)
+
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, ERROR_RESTORE_WAREHOUSE)))
             }
         } catch (e: Exception) {
             Result.failure(e)

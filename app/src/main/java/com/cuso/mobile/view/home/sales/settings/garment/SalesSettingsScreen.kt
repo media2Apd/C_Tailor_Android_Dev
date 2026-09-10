@@ -38,6 +38,7 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.settings.GarmentItem
 import com.cuso.mobile.model.settings.SegmentItem
 import com.cuso.mobile.ui.theme.*
+import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.ErrorMapper
@@ -104,6 +105,13 @@ fun GarmentTypeContent(
     var segmentToDelete by remember { mutableStateOf<SegmentItem?>(null) }
     var garmentToDelete by remember { mutableStateOf<GarmentItem?>(null) }
 
+    // ── Edit & Add Garment States ──
+    var garmentToEdit by remember { mutableStateOf<GarmentItem?>(null) }
+    var isAddGarmentOpen by remember { mutableStateOf(false) }
+
+    // ── Common Measurements Navigation State ──
+    var garmentForCommonMeasurements by remember { mutableStateOf<GarmentItem?>(null) }
+
     var segmentToToggleStatus by remember { mutableStateOf<SegmentItem?>(null) }
     var garmentToToggleStatus by remember { mutableStateOf<GarmentItem?>(null) }
 
@@ -145,12 +153,47 @@ fun GarmentTypeContent(
         }
     }
 
+    // ── Show Common Measurements Screen when selected ──
+    if (garmentForCommonMeasurements != null) {
+        CommonMeasurementsScreen(
+            garmentItem = garmentForCommonMeasurements,
+            onClose = {
+                garmentForCommonMeasurements = null
+                viewModel.fetchGarments()
+            },
+            viewModel = viewModel
+        )
+        return
+    }
+
+    // ── Show AddNewGarmentScreen in Add or Edit Mode ──
+    if (isAddGarmentOpen || garmentToEdit != null) {
+        AddNewGarmentScreen(
+            garmentToEdit = garmentToEdit,
+            onClose = {
+                isAddGarmentOpen = false
+                garmentToEdit = null
+            },
+            onGarmentCreated = {
+                isAddGarmentOpen = false
+                garmentToEdit = null
+                viewModel.fetchGarments() // Refresh garments list
+            },
+            viewModel = viewModel
+        )
+        return
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         FabScaffold(
             fab = FabConfig(
                 label = "Add Garment",
                 icon = Icons.Default.Add,
-                onClick = onAddGarmentClick,
+                onClick = {
+                    garmentToEdit = null
+                    isAddGarmentOpen = true
+                    onAddGarmentClick()
+                },
                 bottomPadding = 40.dp
             ),
             modifier = Modifier.fillMaxSize()
@@ -377,9 +420,12 @@ fun GarmentTypeContent(
                                     onConfigureGarmentClick(segId, garmId, title)
                                 },
                                 onCommonMeasurementsClick = {
+                                    // ── Open Common Measurements Screen ──
+                                    garmentForCommonMeasurements = item
                                     onCommonMeasurementsClick(item)
                                 },
                                 onEditGarmentClick = {
+                                    garmentToEdit = item
                                     onEditGarmentClick(item)
                                 },
                                 onRemoveGarmentClick = {
@@ -395,102 +441,47 @@ fun GarmentTypeContent(
             }
         }
 
-        // Delete Garment Confirmation Dialog
+        // ── Reusable Delete Model for Garment Deletion ──
         garmentToDelete?.let { garment ->
-            AlertDialog(
-                onDismissRequest = { garmentToDelete = null },
-                containerColor = whiteBg,
-                title = {
-                    Text(
-                        text = "Remove Garment",
-                        fontSize = tokens.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = title_color
-                    )
-                },
-                text = {
-                    Text(
-                        text = "Are you sure you want to remove \"${garment.displayName ?: garment.name}\"?",
-                        fontSize = tokens.bodyMedium,
-                        color = TextSecondary
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            garmentToDelete = null
-                            successMessage = "Garment removed successfully"
+            DeleteModel(
+                title = "You are about to delete a garment",
+                message = "This will delete \"${garment.displayName ?: garment.name}\" from garments catalog.\nAre you sure?",
+                onDismiss = { garmentToDelete = null },
+                onDelete = {
+                    val idToDelete = garment.id
+                    garmentToDelete = null
+                    viewModel.deleteGarment(
+                        id = idToDelete,
+                        onSuccess = { msg ->
+                            successMessage = msg
+                        },
+                        onError = { err ->
+                            errorMessage = ErrorMapper.map(err)
                         }
-                    ) {
-                        Text(
-                            text = "Remove",
-                            color = redText,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { garmentToDelete = null }) {
-                        Text(
-                            text = "Cancel",
-                            color = TextSecondary
-                        )
-                    }
+                    )
                 }
             )
         }
 
-        // Delete Segment Confirmation Dialog
+        // ── Delete Segment Confirmation Dialog ──
         segmentToDelete?.let { segment ->
-            AlertDialog(
-                onDismissRequest = { segmentToDelete = null },
-                containerColor = whiteBg,
-                title = {
-                    Text(
-                        text = "Delete Segment",
-                        fontSize = tokens.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = title_color
-                    )
-                },
-                text = {
-                    Text(
-                        text = "Are you sure you want to delete the \"${segment.name}\" segment?",
-                        fontSize = tokens.bodyMedium,
-                        color = TextSecondary
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val idToDelete = segment.id
-                            segmentToDelete = null
-                            viewModel.deleteSegment(
-                                id = idToDelete,
-                                onSuccess = { msg ->
-                                    selectedSegmentIndex = 0
-                                    successMessage = msg
-                                },
-                                onError = { err ->
-                                    errorMessage = ErrorMapper.map(err)
-                                }
-                            )
+            DeleteModel(
+                title = "You are about to delete a segment",
+                message = "This will delete \"${segment.name}\" segment.\nAre you sure?",
+                onDismiss = { segmentToDelete = null },
+                onDelete = {
+                    val idToDelete = segment.id
+                    segmentToDelete = null
+                    viewModel.deleteSegment(
+                        id = idToDelete,
+                        onSuccess = { msg ->
+                            selectedSegmentIndex = 0
+                            successMessage = msg
+                        },
+                        onError = { err ->
+                            errorMessage = ErrorMapper.map(err)
                         }
-                    ) {
-                        Text(
-                            text = "Delete",
-                            color = redText,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { segmentToDelete = null }) {
-                        Text(
-                            text = "Cancel",
-                            color = TextSecondary
-                        )
-                    }
+                    )
                 }
             )
         }
@@ -569,8 +560,7 @@ fun ToggleSegmentStatusDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    // UI Configuration based on status
-    val mainColor = if (isActivating) Color(0xFF3B32D1) else Color(0xFFD97706) // Blue vs Amber
+    val mainColor = if (isActivating) Color(0xFF3B32D1) else Color(0xFFD97706)
     val iconBg = if (isActivating) Color(0xFFF0F2FF) else Color(0xFFFEF3C7)
     val iconRes = if (isActivating) R.drawable.ic_tick_2 else R.drawable.ic_amber
 
@@ -604,7 +594,6 @@ fun ToggleSegmentStatusDialog(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Top Circular Icon
                 Box(
                     modifier = Modifier
                         .size(80.dp)
@@ -621,7 +610,6 @@ fun ToggleSegmentStatusDialog(
 
                 Spacer(Modifier.height(24.dp))
 
-                // Title
                 Text(
                     text = dialogTitle,
                     fontSize = 22.sp,
@@ -632,7 +620,6 @@ fun ToggleSegmentStatusDialog(
 
                 Spacer(Modifier.height(12.dp))
 
-                // Main Description
                 Text(
                     text = dialogMessage,
                     fontSize = 14.sp,
@@ -643,7 +630,6 @@ fun ToggleSegmentStatusDialog(
 
                 Spacer(Modifier.height(24.dp))
 
-                // Yellow Warning Box
                 Surface(
                     color = Color(0xFFFFFBEB),
                     shape = RoundedCornerShape(12.dp),
@@ -672,7 +658,6 @@ fun ToggleSegmentStatusDialog(
 
                 Spacer(Modifier.height(24.dp))
 
-                // Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -709,7 +694,6 @@ fun ToggleSegmentStatusDialog(
         }
     }
 }
-
 
 // ─────────────────────────────────────────────────────────────
 //  GarmentCategoryCard
@@ -750,7 +734,6 @@ fun GarmentCategoryCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon Box
                 Box(
                     modifier = Modifier
                         .size(tokens.fieldHeight)
@@ -767,7 +750,6 @@ fun GarmentCategoryCard(
 
                 Spacer(Modifier.width(12.dp))
 
-                // Title and Subtitle
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
@@ -884,7 +866,6 @@ fun GarmentCategoryCard(
 
             Spacer(Modifier.height(10.dp))
 
-            // Configure Link
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))

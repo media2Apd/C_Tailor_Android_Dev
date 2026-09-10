@@ -1,53 +1,21 @@
 package com.cuso.mobile.repository
 
+import android.content.Context
+import android.net.Uri
 import com.cuso.mobile.database.dao.SelectedGarmentDao
 import com.cuso.mobile.database.dao.TokensDao
 import com.cuso.mobile.database.entities.GarmentMeasurement
 import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.model.inventory.ProductCategoryItem
-import com.cuso.mobile.model.settings.BaseInventoryResponse
-import com.cuso.mobile.model.settings.BinItem
-import com.cuso.mobile.model.settings.ChangeGarmentStatusRequest
-import com.cuso.mobile.model.settings.ChangeGarmentStatusResponse
-import com.cuso.mobile.model.settings.ChangeMeasurementFieldStatusRequest
-import com.cuso.mobile.model.settings.ChangeSegmentStatusRequest
-import com.cuso.mobile.model.settings.ChangeSegmentStatusResponse
-import com.cuso.mobile.model.settings.CreateBinRequest
-import com.cuso.mobile.model.settings.CreateFloorRequest
-import com.cuso.mobile.model.settings.CreateGarmentRequest
-import com.cuso.mobile.model.settings.CreateGarmentResponse
-import com.cuso.mobile.model.settings.CreateGarmentStyleRequest
-import com.cuso.mobile.model.settings.CreateMeasurementFieldRequest
-import com.cuso.mobile.model.settings.CreateRackRequest
-import com.cuso.mobile.model.settings.CreateSectionRequest
-import com.cuso.mobile.model.settings.CreateSegmentRequest
-import com.cuso.mobile.model.settings.CreateSegmentResponse
-import com.cuso.mobile.model.settings.DeactivateMeasurementFieldResponse
-import com.cuso.mobile.model.settings.DeleteSegmentResponse
-import com.cuso.mobile.model.settings.FloorItem
-import com.cuso.mobile.model.settings.FloorItemSettings
-import com.cuso.mobile.model.settings.GarmentDetail
-import com.cuso.mobile.model.settings.GarmentItem
-import com.cuso.mobile.model.settings.GarmentStyleItem
-import com.cuso.mobile.model.settings.GetBinsResponse
-import com.cuso.mobile.model.settings.GetFloorsResponse
-import com.cuso.mobile.model.settings.GetRacksResponse
-import com.cuso.mobile.model.settings.GetSectionsResponse
-import com.cuso.mobile.model.settings.MeasurementFieldItem
-import com.cuso.mobile.model.settings.RackItem
-import com.cuso.mobile.model.settings.SectionItem
-import com.cuso.mobile.model.settings.SegmentItem
-import com.cuso.mobile.model.settings.UpdateGarmentBasicPriceRequest
-import com.cuso.mobile.model.settings.UpdateGarmentBasicPriceResponse
-import com.cuso.mobile.model.settings.UpdateGarmentStyleRequest
-import com.cuso.mobile.model.settings.WorkPricingDetail
-import com.cuso.mobile.model.settings.WorkPricingItem
-import com.cuso.mobile.model.settings.WorkPricingRequest
-import com.cuso.mobile.model.settings.WorkPricingResponse
+import com.cuso.mobile.model.settings.*
 import com.cuso.mobile.network.inventory.settings.InventorySettingsApiService
 import com.cuso.mobile.network.sales.settings.SalesSettingsApiService
+import com.cuso.mobile.utils.createPartFromString
+import com.cuso.mobile.utils.uriToMultipartPart
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -198,14 +166,89 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    suspend fun createGarment(request: CreateGarmentRequest): Result<CreateGarmentResponse> {
+    suspend fun createGarment(
+        context: Context,
+        name: String,
+        code: String,
+        description: String?,
+        applicableSegmentIds: List<String>,
+        imageUri: Uri?
+    ): Result<CreateGarmentResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = salesSettingsApi.createGarment(accessToken, csrfToken, request)
-            if (response.isSuccessful && response.body()?.success == true) {
+
+            val namePart = createPartFromString(name)
+            val displayNamePart = createPartFromString(name)
+            val codePart = createPartFromString(code)
+            val descPart = description?.let { createPartFromString(it) }
+            val stitchablePart = createPartFromString("true")
+
+            val segmentParts = applicableSegmentIds.map { id ->
+                MultipartBody.Part.createFormData("applicableSegments[]", id)
+            }
+
+            val imagePart = imageUri?.let { uriToMultipartPart(context, it, "image") }
+
+            val response = salesSettingsApi.createGarment(
+                token = accessToken,
+                csrfToken = csrfToken,
+                name = namePart,
+                displayName = displayNamePart,
+                code = codePart,
+                description = descPart,
+                isCustomStitchable = stitchablePart,
+                applicableSegments = segmentParts,
+                image = imagePart
+            )
+
+            if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed to create garment"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateGarment(
+        context: Context,
+        id: String,
+        name: String,
+        description: String?,
+        applicableSegmentIds: List<String>,
+        imageUri: Uri?
+    ): Result<CreateGarmentResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+
+            val namePart = createPartFromString(name)
+            val displayNamePart = createPartFromString(name)
+            val descPart = description?.takeIf { it.isNotBlank() }?.let { createPartFromString(it) }
+            val stitchablePart = createPartFromString("true")
+
+            val segmentParts = applicableSegmentIds.map { segmentId ->
+                MultipartBody.Part.createFormData("applicableSegments[]", segmentId)
+            }
+
+            val imagePart = imageUri?.let { uriToMultipartPart(context, it, "image") }
+
+            val response = salesSettingsApi.updateGarment(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id,
+                name = namePart,
+                displayName = displayNamePart,
+                description = descPart,
+                isCustomStitchable = stitchablePart,
+                applicableSegments = segmentParts,
+                image = imagePart
+            )
+
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to update garment"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -223,6 +266,25 @@ class SettingsRepository @Inject constructor(
                 Result.success(response.body()!!)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed to change garment status"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteGarment(id: String): Result<DeleteGarmentResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.deleteGarment(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id
+            )
+
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to delete garment"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -932,6 +994,190 @@ class SettingsRepository @Inject constructor(
             } else {
                 val errorMsg = response.errorBody()?.string() ?: response.message() ?: body?.message ?: "Failed to delete bin"
                 Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ===========================================================
+    // 12. DESIGNS (SALES)
+    // ===========================================================
+
+    suspend fun getDesigns(
+        page: Int = 1,
+        limit: Int = 20,
+        designType: String? = null,
+        status: String? = null,
+        search: String? = null
+    ): Result<List<DesignItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.getDesigns(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                designType = designType,
+                status = status,
+                search = search
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch designs"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getDesignById(id: String): Result<DesignItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.getDesignById(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id
+            )
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch design detail"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createDesign(
+        context: Context,
+        name: String,
+        designType: String,
+        code: String,
+        description: String?,
+        status: String = "Active",
+        segmentIds: List<String>,
+        imageUri: Uri?
+    ): Result<DesignItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+
+            val params = mutableMapOf<String, RequestBody>(
+                "name" to createPartFromString(name),
+                "designType" to createPartFromString(designType),
+                "code" to createPartFromString(code),
+                "status" to createPartFromString(status)
+            )
+            description?.takeIf { it.isNotBlank() }?.let {
+                params["description"] = createPartFromString(it)
+            }
+
+            val garmentParts = segmentIds.map { id ->
+                MultipartBody.Part.createFormData("applicableGarments[][segmentId]", id)
+            }
+            val imagePart = imageUri?.let { uriToMultipartPart(context, it, "image") }
+
+            val response = salesSettingsApi.createDesign(
+                token = accessToken,
+                csrfToken = csrfToken,
+                params = params,
+                applicableGarments = garmentParts,
+                image = imagePart
+            )
+
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to create design"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateDesign(
+        context: Context,
+        id: String,
+        name: String,
+        designType: String,
+        code: String,
+        description: String?,
+        status: String,
+        segmentIds: List<String>,
+        imageUri: Uri?
+    ): Result<DesignItem> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+
+            val params = mutableMapOf<String, RequestBody>(
+                "name" to createPartFromString(name),
+                "designType" to createPartFromString(designType),
+                "code" to createPartFromString(code),
+                "status" to createPartFromString(status)
+            )
+            description?.takeIf { it.isNotBlank() }?.let {
+                params["description"] = createPartFromString(it)
+            }
+
+            val garmentParts = segmentIds.map { segmentId ->
+                MultipartBody.Part.createFormData("applicableGarments[][segmentId]", segmentId)
+            }
+            val imagePart = imageUri?.let { uriToMultipartPart(context, it, "image") }
+
+            val response = salesSettingsApi.updateDesign(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id,
+                params = params,
+                applicableGarments = garmentParts,
+                image = imagePart
+            )
+
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to update design"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun changeDesignStatus(id: String, nextStatus: String): Result<String> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val request = ChangeDesignStatusRequest(status = nextStatus)
+            val response = salesSettingsApi.changeDesignStatus(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id,
+                request = request
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.message ?: "Status updated successfully")
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to update design status"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteDesign(id: String): Result<String> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.deleteDesign(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.message ?: "Design deleted successfully")
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to delete design"))
             }
         } catch (e: Exception) {
             Result.failure(e)

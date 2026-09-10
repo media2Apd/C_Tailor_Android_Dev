@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.close_color
@@ -29,7 +30,7 @@ fun TitleBar(
     title: String,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    // Optional Slot: You can pass any custom composable here (Text, Badge, Button, RadioButton, etc.)
+    // Optional Slot: Custom composable content (Badges, Buttons, Actions, etc.)
     trailingContent: (@Composable RowScope.() -> Unit)? = null
 ) {
     val tokens = LocalAppTokens.current
@@ -42,12 +43,14 @@ fun TitleBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Title text
+        // Single-line Title with Ellipsis on overflow
         Text(
             text = title,
             fontSize = tokens.h1,
             fontWeight = FontWeight.Bold,
             color = title_color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false)
         )
 

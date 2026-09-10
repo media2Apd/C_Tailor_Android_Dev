@@ -11,7 +11,6 @@
 
 package com.cuso.mobile.view.home.inventory.items.item_groups
 
-import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -61,8 +60,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
@@ -89,7 +86,6 @@ import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.background_light_purple
 import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.mutedText
-import com.cuso.mobile.ui.theme.primary_light
 import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
@@ -171,7 +167,7 @@ fun CreateItemGroupScreen(
 
     var costPrice by remember { mutableStateOf("") }
     var sellingPrice by remember { mutableStateOf("") }
-    var matrixMode by remember { mutableStateOf("") }
+    var matrixMode by remember { mutableStateOf("Manual") }
     val selectedMatrixValues = remember { mutableStateMapOf<String, MutableList<String>>() }
 
     var trackInventory by remember { mutableStateOf(true) }
@@ -258,34 +254,47 @@ fun CreateItemGroupScreen(
         var combinations = listOf<List<String>>()
         activeAttributes.forEach { attribute ->
             val values = selectedMatrixValues[attribute.attributeType] ?: emptyList()
-            combinations = if (combinations.isEmpty()) {
-                values.map { listOf(it) }
-            } else {
-                combinations.flatMap { combo ->
-                    values.map { value -> combo + value }
+            if (values.isNotEmpty()) {
+                combinations = if (combinations.isEmpty()) {
+                    values.map { listOf(it) }
+                } else {
+                    combinations.flatMap { combo ->
+                        values.map { value -> combo + value }
+                    }
                 }
             }
         }
 
-        variants.clear()
+        val existingVariantsMap = variants.associateBy { it.label }
+        val newVariants = mutableListOf<VariantEntry>()
+
         combinations.forEach { combo ->
             val label = combo.joinToString(" / ")
-            val skuPrefix = itemGroupName.filter { it.isLetter() }.take(3).uppercase().ifBlank { "GRP" }
-            val skuSuffix = combo.joinToString("-") { it.take(3).uppercase() }
-            val sku = "$skuPrefix-$skuSuffix"
+            val existing = existingVariantsMap[label]
 
-            variants.add(
-                VariantEntry(
-                    label = label,
-                    sku = sku,
-                    cost = costPrice.ifBlank { "0" },
-                    price = sellingPrice.ifBlank { "0" },
-                    reOrderPoint = "0",
-                    isActive = true,
-                    isExpanded = false
+            if (existing != null) {
+                newVariants.add(existing)
+            } else {
+                val skuPrefix = itemGroupName.filter { it.isLetter() }.take(3).uppercase().ifBlank { "GRP" }
+                val skuSuffix = combo.joinToString("-") { it.take(3).uppercase() }
+                val sku = "$skuPrefix-$skuSuffix"
+
+                newVariants.add(
+                    VariantEntry(
+                        label = label,
+                        sku = sku,
+                        cost = costPrice.ifBlank { "0" },
+                        price = sellingPrice.ifBlank { "0" },
+                        reOrderPoint = "0",
+                        isActive = true,
+                        isExpanded = false
+                    )
                 )
-            )
+            }
         }
+
+        variants.clear()
+        variants.addAll(newVariants)
     }
 
     val onConfirmAttributes = {
@@ -299,13 +308,18 @@ fun CreateItemGroupScreen(
             confirmedAttributes.clear()
             confirmedAttributes.addAll(validEntries)
 
-            selectedMatrixValues.clear()
             validEntries.forEach { entry ->
-                selectedMatrixValues[entry.attributeType] = entry.values.toMutableList()
+                val current = selectedMatrixValues[entry.attributeType] ?: mutableListOf()
+                val mergedValues = (current + entry.values).distinct().toMutableList()
+                selectedMatrixValues[entry.attributeType] = mergedValues
             }
 
+            // Remove unconfirmed attributes from matrix
+            val validTypes = validEntries.map { it.attributeType }.toSet()
+            selectedMatrixValues.keys.retainAll(validTypes)
+
             recalculateVariants()
-            confirmationSuccessMessage = "Attributes confirmed! Matrix and variants updated."
+            confirmationSuccessMessage = "Attributes confirmed! Variant Matrix & Generated list updated."
             expandedSection = "Variant Matrix"
         }
     }
@@ -340,14 +354,14 @@ fun CreateItemGroupScreen(
             )
 
             if (isEditMode && editDetail != null) {
-//                inventoryViewModel.updateItemGroup(
-//                    id = editDetail!!.id,
-//                    request = request,
-//                    onSuccessCallback = {
-//                        inventoryViewModel.clearSelectedItemGroupDetail()
-//                        onSaveSuccess()
-//                    }
-//                )
+                inventoryViewModel.updateItemGroup(
+                    id = editDetail!!.id,
+                    request = request,
+                    onSuccessCallback = {
+                        inventoryViewModel.clearSelectedItemGroupDetail()
+                        onSaveSuccess()
+                    }
+                )
             } else {
                 inventoryViewModel.createItemGroup(
                     request = request,
@@ -502,8 +516,7 @@ fun CreateItemGroupScreen(
                     }
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .background(whiteBg),
+                        modifier = Modifier.fillMaxWidth().background(whiteBg),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -535,10 +548,7 @@ fun CreateItemGroupScreen(
 
                     attributesList.forEachIndexed { index, entry ->
                         Spacer(Modifier.height(tokens.extraPadding))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
+                        Box(modifier = Modifier.fillMaxWidth()) {
                             Column {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -564,7 +574,9 @@ fun CreateItemGroupScreen(
                                 Spacer(Modifier.height(6.dp))
                                 AttributeValuesInput(
                                     values = entry.values,
-                                    onValuesChange = { attributesList[index] = entry.copy(values = it) },
+                                    onValuesChange = { newValues ->
+                                        attributesList[index] = entry.copy(values = newValues)
+                                    },
                                     tokens = tokens
                                 )
                             }
@@ -780,6 +792,7 @@ fun CreateItemGroupScreen(
                         }
 
                         filteredVariants.forEachIndexed { index, variant ->
+                            val actualIndex = variants.indexOf(variant)
                             Spacer(Modifier.height(14.dp))
                             Column(
                                 modifier = Modifier
@@ -789,7 +802,11 @@ fun CreateItemGroupScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { variants[index] = variant.copy(isExpanded = !variant.isExpanded) }
+                                        .clickable {
+                                            if (actualIndex != -1) {
+                                                variants[actualIndex] = variant.copy(isExpanded = !variant.isExpanded)
+                                            }
+                                        }
                                         .padding(tokens.cardPadding * 0.5f),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
@@ -807,14 +824,18 @@ fun CreateItemGroupScreen(
                                         FormLabel("SKU")
                                         FormTextField(
                                             value = variant.sku,
-                                            onValueChange = { variants[index] = variant.copy(sku = it) },
+                                            onValueChange = {
+                                                if (actualIndex != -1) variants[actualIndex] = variant.copy(sku = it)
+                                            },
                                             placeholder = "SKU"
                                         )
                                         Spacer(Modifier.height(14.dp))
                                         FormLabel("Cost")
                                         FormTextField(
                                             value = variant.cost,
-                                            onValueChange = { variants[index] = variant.copy(cost = it) },
+                                            onValueChange = {
+                                                if (actualIndex != -1) variants[actualIndex] = variant.copy(cost = it)
+                                            },
                                             placeholder = "₹0",
                                             keyboardType = KeyboardType.Number
                                         )
@@ -822,7 +843,9 @@ fun CreateItemGroupScreen(
                                         FormLabel("Price")
                                         FormTextField(
                                             value = variant.price,
-                                            onValueChange = { variants[index] = variant.copy(price = it) },
+                                            onValueChange = {
+                                                if (actualIndex != -1) variants[actualIndex] = variant.copy(price = it)
+                                            },
                                             placeholder = "₹0",
                                             keyboardType = KeyboardType.Number
                                         )
@@ -830,7 +853,9 @@ fun CreateItemGroupScreen(
                                         FormLabel("Re-Order Point")
                                         FormTextField(
                                             value = variant.reOrderPoint,
-                                            onValueChange = { variants[index] = variant.copy(reOrderPoint = it) },
+                                            onValueChange = {
+                                                if (actualIndex != -1) variants[actualIndex] = variant.copy(reOrderPoint = it)
+                                            },
                                             placeholder = "0",
                                             keyboardType = KeyboardType.Number
                                         )
@@ -843,7 +868,9 @@ fun CreateItemGroupScreen(
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 MiniSwitch(
                                                     checked = variant.isActive,
-                                                    onCheckedChange = { variants[index] = variant.copy(isActive = it) }
+                                                    onCheckedChange = {
+                                                        if (actualIndex != -1) variants[actualIndex] = variant.copy(isActive = it)
+                                                    }
                                                 )
                                                 Spacer(Modifier.width(6.dp))
                                                 Text(
@@ -855,7 +882,9 @@ fun CreateItemGroupScreen(
                                             }
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.clickable { variants.removeAt(index) }
+                                                modifier = Modifier.clickable {
+                                                    if (actualIndex != -1) variants.removeAt(actualIndex)
+                                                }
                                             ) {
                                                 Icon(Icons.Filled.Delete, contentDescription = null, tint = redText, modifier = Modifier.size(tokens.iconSize * 0.8f))
                                                 Spacer(Modifier.width(4.dp))
@@ -967,7 +996,6 @@ private fun AttributeValuesInput(
             horizontalSpacing = 6.dp,
             verticalSpacing = 6.dp
         ) {
-            // Chips only wrap text content tightly
             values.forEach { value ->
                 Box(
                     modifier = Modifier
@@ -1006,7 +1034,6 @@ private fun AttributeValuesInput(
                 }
             }
 
-            // Compact Inline "Add.." Input
             Box(
                 modifier = Modifier
                     .height(28.dp)
@@ -1038,7 +1065,10 @@ private fun AttributeValuesInput(
                     keyboardActions = KeyboardActions(
                         onDone = {
                             if (inputText.isNotBlank()) {
-                                onValuesChange(values + inputText.trim())
+                                val trimmed = inputText.trim()
+                                if (!values.contains(trimmed)) {
+                                    onValuesChange(values + trimmed)
+                                }
                                 inputText = ""
                             }
                         }
@@ -1050,7 +1080,7 @@ private fun AttributeValuesInput(
 }
 
 // =============================================================================
-// FLOW ROW HELPER (WITH minWidth = 0 TO PREVENT FULL-WIDTH STRETCH)
+// FLOW ROW HELPER
 // =============================================================================
 
 @Composable
@@ -1067,7 +1097,6 @@ fun FlowRow(
         val hSpacing = horizontalSpacing.roundToPx()
         val vSpacing = verticalSpacing.roundToPx()
 
-        //  Crucial: Reset minWidth to 0 so child chips wrap content
         val childConstraints = constraints.copy(minWidth = 0, minHeight = 0)
         val placeables = measurables.map { it.measure(childConstraints) }
 

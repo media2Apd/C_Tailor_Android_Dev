@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -41,6 +42,7 @@ fun AddNewGarmentScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
+    val context = LocalContext.current
     val isEditMode = garmentToEdit != null
 
     // Observe available segments from ViewModel
@@ -199,19 +201,42 @@ fun AddNewGarmentScreen(
                         garmentName.trim().uppercase().replace("\\s+".toRegex(), "_")
                     }
 
-                    viewModel.createGarment(
-                        name = garmentName,
-                        code = finalCode,
-                        description = description,
-                        applicableSegmentIds = selectedSegmentIds,
-                        onSuccess = { _ ->
-                            successMessage = if (isEditMode) "Garment updated successfully" else "Garment created successfully"
-                            onGarmentCreated()
-                        },
-                        onError = { error ->
-                            errorMessage = ErrorMapper.map(error)
-                        }
-                    )
+                    if (isEditMode && garmentToEdit != null) {
+                        // ── 1. UPDATE EXISTING GARMENT ──
+                        viewModel.updateGarment(
+                            context = context,
+                            id = garmentToEdit.id,
+                            name = garmentName,
+//                            code = finalCode,
+                            description = description,
+                            applicableSegmentIds = selectedSegmentIds,
+                            imageUri = selectedImagesList.firstOrNull(),
+                            onSuccess = { _ ->
+                                successMessage = "Garment updated successfully"
+                                onGarmentCreated()
+                            },
+                            onError = { error ->
+                                errorMessage = ErrorMapper.map(error)
+                            }
+                        )
+                    } else {
+                        // ── 2. CREATE NEW GARMENT ──
+                        viewModel.createGarment(
+                            context = context,
+                            name = garmentName,
+                            code = finalCode,
+                            description = description,
+                            applicableSegmentIds = selectedSegmentIds,
+                            imageUri = selectedImagesList.firstOrNull(),
+                            onSuccess = { _ ->
+                                successMessage = "Garment created successfully"
+                                onGarmentCreated()
+                            },
+                            onError = { error ->
+                                errorMessage = ErrorMapper.map(error)
+                            }
+                        )
+                    }
                 }
             )
         )

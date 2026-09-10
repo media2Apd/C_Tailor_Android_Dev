@@ -39,7 +39,9 @@ import com.cuso.mobile.view.home.finance.finance_core.journal_entry.ManualJourna
 import com.cuso.mobile.view.home.finance.finance_core.trial_balance.LedgerScreen
 import com.cuso.mobile.view.home.finance.finance_core.trial_balance.TrialBalanceScreen
 import com.cuso.mobile.view.home.finance.settings.AddGstSettingsScreen
+import com.cuso.mobile.view.home.finance.settings.AddTaxGroupScreen
 import com.cuso.mobile.view.home.finance.settings.GstSettingsOverviewScreen
+import com.cuso.mobile.view.home.finance.settings.TaxRatesScreen
 import com.cuso.mobile.view.home.hr.attendance.AttendanceDetailScreen
 import com.cuso.mobile.view.home.hr.attendance.AttendanceScreen
 import com.cuso.mobile.view.home.hr.employees.AllEmployeesScreen
@@ -124,6 +126,7 @@ import com.cuso.mobile.view.home.services.service_status.status.ServiceStatusDet
 import com.cuso.mobile.view.home.services.service_status.status.ServiceStatusScreen
 import com.cuso.mobile.view.home.services.settings.CreateServiceTemplateWizardScreen
 import com.cuso.mobile.view.home.services.settings.ServiceTemplateListScreen
+import com.cuso.mobile.view.home.subscriptions.ManageSubscriptionFlowScreen
 import com.cuso.mobile.view.home.warehouse.WarehouseSettingsScreen
 import com.cuso.mobile.viewmodel.*
 
@@ -278,7 +281,11 @@ fun HomeScreenRouter(
         "settings_overview" -> SettingsOverviewScreen(
             onClose = onGoBack,
             onNavigateToOrganizationSettings = { onSafeNavigate("home_organization_profile") },
-            onNavigateToModuleSettings = { onSafeNavigate("module_settings") }
+            onNavigateToModuleSettings = { onSafeNavigate("module_settings") },
+            onNavigateToSubscriptionSettings = { onSafeNavigate("manage_subscription") }
+        )
+        "manage_subscription" -> ManageSubscriptionFlowScreen(
+            onClose = onGoBack
         )
         "module_settings" -> ModuleSettingsScreen(
             onClose = onGoBack,
@@ -1159,6 +1166,29 @@ fun HomeScreenRouter(
         "finance_add_gst" -> AddGstSettingsScreen(
             onClose = onGoBack,
             onSave = onGoBack
+        )
+        // ── Finance Tax Rates & Rules ──
+        "finance_tax_rates" -> TaxRatesScreen(
+            taxRates = emptyList(),
+            stats = emptyList(),
+            onClose = onGoBack,
+            onAddTaxRate = { onNavigate("finance_add_gst") },
+            onAddTaxGroup = { onNavigate("finance_add_tax_group") },
+            onEditRate = { taxRateItem ->
+                // Handle edit rate
+            },
+            onDeleteRate = { taxRateItem ->
+                // Handle delete rate
+            }
+        )
+
+        // ── Add Tax Group Route ──
+        "finance_add_tax_group" -> AddTaxGroupScreen(
+            onClose = onGoBack,
+            onCreateGroup = { formState ->
+                // Handle tax group creation and navigate back
+                onGoBack()
+            }
         )
 
 

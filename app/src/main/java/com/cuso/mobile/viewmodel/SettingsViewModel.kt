@@ -1,6 +1,8 @@
 @file:Suppress("unused")
 package com.cuso.mobile.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.database.entities.GarmentMeasurement
@@ -219,6 +221,25 @@ class SettingsViewModel @Inject constructor(
     private val _selectedBinForEdit = MutableStateFlow<BinItem?>(null)
     val selectedBinForEdit: StateFlow<BinItem?> = _selectedBinForEdit.asStateFlow()
 
+    // ===========================================================
+    // 8. DESIGNS STATE
+    // ===========================================================
+
+    private val _designs = MutableStateFlow<List<DesignItem>>(emptyList())
+    val designs: StateFlow<List<DesignItem>> = _designs.asStateFlow()
+
+    private val _selectedDesign = MutableStateFlow<DesignItem?>(null)
+    val selectedDesign: StateFlow<DesignItem?> = _selectedDesign.asStateFlow()
+
+    private val _isLoadingDesigns = MutableStateFlow(false)
+    val isLoadingDesigns: StateFlow<Boolean> = _isLoadingDesigns.asStateFlow()
+
+    private val _isSubmittingDesign = MutableStateFlow(false)
+    val isSubmittingDesign: StateFlow<Boolean> = _isSubmittingDesign.asStateFlow()
+
+    private val _designError = MutableStateFlow<String?>(null)
+    val designError: StateFlow<String?> = _designError.asStateFlow()
+
     // Generic Action & Dynamic Message States
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
@@ -233,7 +254,7 @@ class SettingsViewModel @Inject constructor(
     val dynamicErrorMessage: StateFlow<String?> = _dynamicErrorMessage.asStateFlow()
 
     // ===========================================================
-    // 8. UTILITY & MESSAGE METHODS
+    // 9. UTILITY & MESSAGE METHODS
     // ===========================================================
 
     fun showSuccess(msg: String) {
@@ -285,7 +306,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     // ===========================================================
-    // 9. ORGANIZATION ACTIONS
+    // 10. ORGANIZATION ACTIONS
     // ===========================================================
 
     fun fetchMyOrganization(token: String) {
@@ -313,7 +334,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     // ===========================================================
-    // 10. SEGMENT ACTIONS
+    // 11. SEGMENT ACTIONS
     // ===========================================================
 
     fun fetchSegments() {
@@ -468,7 +489,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     // ===========================================================
-    // 11. GARMENT ACTIONS
+    // 12. GARMENT ACTIONS
     // ===========================================================
 
     fun fetchGarments() {
@@ -503,10 +524,12 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun createGarment(
+        context: Context,
         name: String,
         code: String,
         description: String?,
         applicableSegmentIds: List<String>,
+        imageUri: Uri?,
         onSuccess: (CreateGarmentResponse) -> Unit,
         onError: (String) -> Unit
     ) {
@@ -514,22 +537,57 @@ class SettingsViewModel @Inject constructor(
             _isCreatingGarment.value = true
             _garmentError.value = null
 
-            val request = CreateGarmentRequest(
+            val result = settingsRepository.createGarment(
+                context = context,
                 name = name.trim(),
-                displayName = name.trim(),
                 code = code.trim().uppercase(),
                 description = description?.takeIf { it.isNotBlank() },
-                applicableSegments = applicableSegmentIds,
-                isCustomStitchable = true
+                applicableSegmentIds = applicableSegmentIds,
+                imageUri = imageUri
             )
-
-            val result = settingsRepository.createGarment(request)
             _isCreatingGarment.value = false
 
             if (result.isSuccess) {
                 result.getOrNull()?.let { response -> onSuccess(response) }
             } else {
                 val error = result.exceptionOrNull()?.message ?: "Failed to create garment"
+                _garmentError.value = error
+                onError(error)
+            }
+        }
+    }
+
+    fun updateGarment(
+        context: Context,
+        id: String,
+        name: String,
+        description: String?,
+        applicableSegmentIds: List<String>,
+        imageUri: Uri?,
+        onSuccess: (CreateGarmentResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        launchBusy {
+            _isCreatingGarment.value = true
+            _garmentError.value = null
+
+            val result = settingsRepository.updateGarment(
+                context = context,
+                id = id,
+                name = name.trim(),
+                description = description?.takeIf { it.isNotBlank() },
+                applicableSegmentIds = applicableSegmentIds,
+                imageUri = imageUri
+            )
+            _isCreatingGarment.value = false
+
+            if (result.isSuccess) {
+                result.getOrNull()?.let { response ->
+                    fetchGarments()
+                    onSuccess(response)
+                }
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Failed to update garment"
                 _garmentError.value = error
                 onError(error)
             }
@@ -595,8 +653,28 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun deleteGarment(
+        id: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        launchBusy {
+            val result = settingsRepository.deleteGarment(id)
+            if (result.isSuccess) {
+                val message = result.getOrNull()?.message ?: "Garment deleted successfully"
+                fetchGarments()
+                showSuccess(message)
+                onSuccess(message)
+            } else {
+                val error = extractErrorMessage(result.exceptionOrNull()?.message)
+                showError(error)
+                onError(error)
+            }
+        }
+    }
+
     // ===========================================================
-    // 12. GARMENT STYLES / CATEGORIES ACTIONS
+    // 13. GARMENT STYLES / CATEGORIES ACTIONS
     // ===========================================================
 
     fun setSelectedGarmentForDetail(segmentId: String?, garmentId: String?, title: String) {
@@ -902,7 +980,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     // ===========================================================
-    // 13. MEASUREMENT FIELD ACTIONS
+    // 14. MEASUREMENT FIELD ACTIONS
     // ===========================================================
 
     fun fetchMeasurementFields() {
@@ -1005,7 +1083,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     // ===========================================================
-    // 14. LOCAL ROOM DB ACTIONS
+    // 15. LOCAL ROOM DB ACTIONS
     // ===========================================================
 
     fun loadLocalMeasurements(categoryId: String) {
@@ -1056,7 +1134,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     // ===========================================================
-    // 15. WORK PRICING ACTIONS
+    // 16. WORK PRICING ACTIONS
     // ===========================================================
 
     fun fetchWorkPricing(segmentId: String? = null, status: String? = "Active") {
@@ -1159,7 +1237,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     // ===========================================================
-    // 16. INVENTORY PRODUCT CATEGORY ACTIONS
+    // 17. INVENTORY PRODUCT CATEGORY ACTIONS
     // ===========================================================
 
     fun fetchProductCategories() {
@@ -1171,7 +1249,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     // ===========================================================
-    // 17. INVENTORY FLOOR ACTIONS
+    // 18. INVENTORY FLOOR ACTIONS
     // ===========================================================
 
     fun setSelectedFloorForEdit(floor: FloorItemSettings?) {
@@ -1328,7 +1406,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     // ===========================================================
-    // 18. INVENTORY SECTION ACTIONS
+    // 19. INVENTORY SECTION ACTIONS
     // ===========================================================
 
     fun setSelectedSectionForEdit(section: SectionItem?) {
@@ -1490,7 +1568,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     // ===========================================================
-    // 19. INVENTORY RACK ACTIONS
+    // 20. INVENTORY RACK ACTIONS
     // ===========================================================
 
     fun setSelectedRackForEdit(rack: RackItem?) {
@@ -1660,7 +1738,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     // ===========================================================
-    // 20. INVENTORY BIN ACTIONS
+    // 21. INVENTORY BIN ACTIONS
     // ===========================================================
 
     fun setSelectedBinForEdit(bin: BinItem?) {
@@ -1835,6 +1913,195 @@ class SettingsViewModel @Inject constructor(
                     showError(clean)
                 }
             _isLoadingLocationStructure.value = false
+        }
+    }
+
+    // ===========================================================
+    // 22. DESIGN ACTIONS
+    // ===========================================================
+
+    fun fetchDesigns(
+        page: Int = 1,
+        designType: String? = null,
+        status: String? = null,
+        search: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingDesigns.value = true
+            _designError.value = null
+
+            val result = settingsRepository.getDesigns(page, 20, designType, status, search)
+            _isLoadingDesigns.value = false
+
+            result.onSuccess { list ->
+                _designs.value = list
+            }.onFailure { error ->
+                val clean = extractErrorMessage(error.message)
+                _designError.value = clean
+                showError(clean)
+            }
+        }
+    }
+
+    fun fetchDesignById(id: String) {
+        viewModelScope.launch {
+            _isLoadingDesigns.value = true
+            _designError.value = null
+
+            val result = settingsRepository.getDesignById(id)
+            _isLoadingDesigns.value = false
+
+            result.onSuccess { design ->
+                _selectedDesign.value = design
+            }.onFailure { error ->
+                val clean = extractErrorMessage(error.message)
+                _designError.value = clean
+                showError(clean)
+            }
+        }
+    }
+
+    fun clearSelectedDesign() {
+        _selectedDesign.value = null
+        _designError.value = null
+    }
+
+    fun createDesign(
+        context: Context,
+        name: String,
+        designType: String,
+        code: String,
+        description: String?,
+        status: String = "Active",
+        segmentIds: List<String>,
+        imageUri: Uri?,
+        onSuccess: (DesignItem) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        launchBusy {
+            _isSubmittingDesign.value = true
+            _designError.value = null
+
+            val result = settingsRepository.createDesign(
+                context = context,
+                name = name.trim(),
+                designType = designType.trim(),
+                code = code.trim().uppercase(),
+                description = description?.takeIf { it.isNotBlank() },
+                status = status,
+                segmentIds = segmentIds,
+                imageUri = imageUri
+            )
+            _isSubmittingDesign.value = false
+
+            result.onSuccess { createdDesign ->
+                fetchDesigns()
+                showSuccess("Design created successfully")
+                onSuccess(createdDesign)
+            }.onFailure { error ->
+                val clean = extractErrorMessage(error.message)
+                _designError.value = clean
+                showError(clean)
+                onError(clean)
+            }
+        }
+    }
+
+    fun updateDesign(
+        context: Context,
+        id: String,
+        name: String,
+        designType: String,
+        code: String,
+        description: String?,
+        status: String,
+        segmentIds: List<String>,
+        imageUri: Uri?,
+        onSuccess: (DesignItem) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        launchBusy {
+            _isSubmittingDesign.value = true
+            _designError.value = null
+
+            val result = settingsRepository.updateDesign(
+                context = context,
+                id = id,
+                name = name.trim(),
+                designType = designType.trim(),
+                code = code.trim().uppercase(),
+                description = description?.takeIf { it.isNotBlank() },
+                status = status,
+                segmentIds = segmentIds,
+                imageUri = imageUri
+            )
+            _isSubmittingDesign.value = false
+
+            result.onSuccess { updatedDesign ->
+                fetchDesigns()
+                showSuccess("Design updated successfully")
+                onSuccess(updatedDesign)
+            }.onFailure { error ->
+                val clean = extractErrorMessage(error.message)
+                _designError.value = clean
+                showError(clean)
+                onError(clean)
+            }
+        }
+    }
+
+    fun changeDesignStatus(
+        id: String,
+        currentStatus: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        val nextStatus = if (currentStatus.equals("Active", ignoreCase = true)) "Inactive" else "Active"
+
+        viewModelScope.launch {
+            _isLoadingDesigns.value = true
+            _designError.value = null
+
+            val result = settingsRepository.changeDesignStatus(id, nextStatus)
+            _isLoadingDesigns.value = false
+
+            result.onSuccess { message ->
+                _designs.value = _designs.value.map {
+                    if (it.id == id) it.copy(status = nextStatus) else it
+                }
+                showSuccess(message)
+                onSuccess(message)
+            }.onFailure { error ->
+                val clean = extractErrorMessage(error.message)
+                _designError.value = clean
+                showError(clean)
+                onError(clean)
+            }
+        }
+    }
+
+    fun deleteDesign(
+        id: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isLoadingDesigns.value = true
+            _designError.value = null
+
+            val result = settingsRepository.deleteDesign(id)
+            _isLoadingDesigns.value = false
+
+            result.onSuccess { message ->
+                _designs.value = _designs.value.filter { it.id != id }
+                showSuccess(message)
+                onSuccess(message)
+            }.onFailure { error ->
+                val clean = extractErrorMessage(error.message)
+                _designError.value = clean
+                showError(clean)
+                onError(clean)
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ import com.cuso.mobile.model.inventory.CreateItemGroupRequest
 import com.cuso.mobile.model.inventory.CreateItemGroupResponse
 import com.cuso.mobile.model.inventory.CreatePurchaseOrderRequest
 import com.cuso.mobile.model.inventory.CreatePurchaseOrderResponse
+import com.cuso.mobile.model.inventory.CreateWarehouseRequest
 import com.cuso.mobile.model.inventory.DeleteItemGroupResponse
 import com.cuso.mobile.model.inventory.InventoryItemDetailResponse
 import com.cuso.mobile.model.inventory.InventoryItemListResponse
@@ -20,6 +21,12 @@ import com.cuso.mobile.model.inventory.StockAdjustmentDetailResponse
 import com.cuso.mobile.model.inventory.StockAdjustmentListResponse
 import com.cuso.mobile.model.inventory.TransferStockRequest
 import com.cuso.mobile.model.inventory.UpdateInventoryItemResponse
+import com.cuso.mobile.model.inventory.UpdateItemGroupResponse
+import com.cuso.mobile.model.inventory.UpdateWarehouseRequest
+import com.cuso.mobile.model.inventory.WarehouseDropdownResponse
+import com.cuso.mobile.model.inventory.WarehouseListResponse
+import com.cuso.mobile.model.inventory.WarehouseMessageResponse
+import com.cuso.mobile.model.inventory.WarehouseResponse
 import com.cuso.mobile.model.settings.BinItem
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -29,6 +36,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Multipart
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
@@ -157,6 +165,17 @@ interface InventoryApiService {
     ): Response<CreateItemGroupResponse>
 
     /**
+     * Update an existing item group.
+     */
+    @PUT("/api/inventory/item-group/update-one/{id}")
+    suspend fun updateItemGroup(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: CreateItemGroupRequest
+    ): Response<UpdateItemGroupResponse>
+
+    /**
      * Get paginated item groups delete.
      */
     @DELETE("/api/inventory/item-group/delete-one/{id}")
@@ -256,5 +275,78 @@ interface InventoryApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<StockAdjustmentDetailResponse>
+
+    // =========================================================================
+    // 5. WAREHOUSE
+    // =========================================================================
+
+    /**
+     * Get all active warehouses.
+     */
+    @GET("/api/inventory/settings/warehouse/view-all")
+    suspend fun getAllWarehouses(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<WarehouseListResponse>
+
+    /**
+     * Get warehouse options formatted for dropdowns.
+     */
+    @GET("/api/inventory/settings/warehouse/dropdown")
+    suspend fun getWarehouseDropdown(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<WarehouseDropdownResponse>
+
+    /**
+     * Get single warehouse details by ID.
+     */
+    @GET("/api/inventory/settings/warehouse/view-one/{id}")
+    suspend fun getWarehouseById(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<WarehouseResponse>
+
+    /**
+     * Create a new warehouse.
+     */
+    @POST("/api/inventory/settings/warehouse/create")
+    suspend fun createWarehouse(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: CreateWarehouseRequest
+    ): Response<WarehouseResponse>
+
+    /**
+     * Update an existing warehouse.
+     */
+    @PUT("/api/inventory/settings/warehouse/update-one/{id}")
+    suspend fun updateWarehouse(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: UpdateWarehouseRequest
+    ): Response<WarehouseResponse>
+
+    /**
+     * Soft-delete warehouse by ID.
+     */
+    @DELETE("/api/inventory/settings/warehouse/delete-one/{id}")
+    suspend fun deleteWarehouse(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<WarehouseMessageResponse>
+
+    /**
+     * Restore a deleted warehouse by ID.
+     */
+    @PATCH("/api/inventory/settings/warehouse/restore/{id}")
+    suspend fun restoreWarehouse(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<WarehouseResponse>
 
 }

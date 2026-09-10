@@ -49,7 +49,8 @@ composeMaterial = "1.6.2"
 material3Lint = "1.4.0"
 crashlytics = "3.0.7"
 uiText = "1.11.4"
-volley = "1.2.1"   # check latest version below
+volley = "1.2.1"
+uiUnit = "1.12.0"   # check latest version below
 
 
 [libraries]
@@ -113,6 +114,7 @@ androidx-compose-material = { group = "androidx.wear.compose", name = "compose-m
 androidx-compose-material3-lint = { group = "androidx.compose.material3", name = "material3-lint", version.ref = "material3Lint" }
 androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
 volley = { group = "com.android.volley", name = "volley", version.ref = "volley" }
+androidx-compose-ui-unit = { group = "androidx.compose.ui", name = "ui-unit", version.ref = "uiUnit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

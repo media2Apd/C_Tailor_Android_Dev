@@ -3,11 +3,23 @@ package com.cuso.mobile.view.home.profile_settings.all_settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,14 +45,14 @@ private val CardBorderColor = Color(0xFFE5E7EB)
 fun SettingsOverviewScreen(
     onClose: () -> Unit,
     onNavigateToOrganizationSettings: () -> Unit,
-    onNavigateToModuleSettings: () -> Unit
+    onNavigateToModuleSettings: () -> Unit,
+    onNavigateToSubscriptionSettings: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Transparent)
     ) {
-        // --- Title Bar ---
         TitleBar(title = "Settings", onClose = onClose)
         HorizontalDivider(color = grey_border)
 
@@ -50,7 +62,6 @@ fun SettingsOverviewScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 20.dp)
         ) {
-            // --- Header Badge (System Administration) ---
             StatusBadge(
                 text = "System Administration",
                 variant = StatusBadgeVariant.PRIMARY,
@@ -62,7 +73,6 @@ fun SettingsOverviewScreen(
 
             Spacer(Modifier.height(10.dp))
 
-            // --- Header Text ---
             Text(
                 text = "Settings Overview",
                 fontSize = 18.sp,
@@ -78,7 +88,7 @@ fun SettingsOverviewScreen(
 
             Spacer(Modifier.height(20.dp))
 
-            // --- Card 1: Organization Settings ---
+            // Card 1: Organization Settings
             SettingsOverviewCard(
                 icon = R.drawable.home,
                 iconBg = Color(0xFFEDE9FE),
@@ -92,7 +102,7 @@ fun SettingsOverviewScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // --- Card 2: Module Settings ---
+            // Card 2: Module Settings
             SettingsOverviewCard(
                 icon = R.drawable.box,
                 iconBg = Color(0xFFEDE9FE),
@@ -102,6 +112,20 @@ fun SettingsOverviewScreen(
                 tags = listOf("Sales", "Finance", "Inventory", "+ More"),
                 actionText = "Explore Module Settings →",
                 onClick = onNavigateToModuleSettings
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            // Card 3: Subscription & Billing Settings
+            SettingsOverviewCard(
+                icon = R.drawable.box,
+                iconBg = Color(0xFFEDE9FE),
+                iconTint = Color(0xFF4F46E5),
+                title = "Subscription & Billing",
+                description = "Manage your CUSO Tailor subscription, plans, active limits, invoices, add-ons and payment methods.",
+                tags = listOf("Manage Plan", "Usage Snapshot", "+ More"),
+                actionText = "Manage Subscription →",
+                onClick = onNavigateToSubscriptionSettings
             )
         }
     }
@@ -127,7 +151,6 @@ private fun SettingsOverviewCard(
             .clickable { onClick() }
             .padding(18.dp)
     ) {
-        // Icon and Title
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
@@ -154,7 +177,6 @@ private fun SettingsOverviewCard(
 
         Spacer(Modifier.height(12.dp))
 
-        // Description
         Text(
             text = description,
             fontSize = 13.sp,
@@ -164,7 +186,6 @@ private fun SettingsOverviewCard(
 
         Spacer(Modifier.height(14.dp))
 
-        // Tags List using StatusBadge
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -179,7 +200,6 @@ private fun SettingsOverviewCard(
 
         Spacer(Modifier.height(16.dp))
 
-        // Action Link
         Text(
             text = actionText,
             fontSize = 15.sp,

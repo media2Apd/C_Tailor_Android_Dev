@@ -42,6 +42,7 @@ import com.cuso.mobile.model.settings.StyleMeasurementFieldEntry
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
+import com.cuso.mobile.view.home.sales.settings.garment.ToggleSegmentStatusDialog
 import com.cuso.mobile.viewmodel.SettingsViewModel
 
 enum class GarmentConfigStep {
@@ -280,8 +281,9 @@ fun GarmentCategoryDetailScreen(
         onDismiss = { viewModel.clearErrorMessage() }
     )
 }
+
 @Composable
- fun GarmentCategoryListView(
+fun GarmentCategoryListView(
     categoryTitle: String,
     styles: List<GarmentStyleItem>,
     isLoading: Boolean,
@@ -294,198 +296,232 @@ fun GarmentCategoryDetailScreen(
     val viewModel: SettingsViewModel = hiltViewModel()
     val tokens = LocalAppTokens.current
     var expandedCardMenuId by remember { mutableStateOf<String?>(null) }
+    var categoryToToggleStatus by remember { mutableStateOf<GarmentStyleItem?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { TitleBar(title = "$categoryTitle Category", onClose = onClose) }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            Row(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = { TitleBar(title = "$categoryTitle Category", onClose = onClose) }
+        ) { padding ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = tokens.screenPadding, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .padding(padding)
             ) {
-                Text(
-                    text = "${styles.size} Styles / Categories",
-                    fontSize = tokens.bodyMedium,
-                    color = TextPrimary
-                )
-                AddActionOutlinedButton(
-                    text = "Add Garment Category",
-                    onClick = onAddGarmentCategoryClick
-                )
-            }
-
-            if (isLoading) {
-                ListSkeleton()
-            } else if (styles.isEmpty()) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(tokens.screenPadding),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(horizontal = tokens.screenPadding, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "No styles or categories found for this garment.",
+                        text = "${styles.size} Styles / Categories",
                         fontSize = tokens.bodyMedium,
-                        color = TextSecondary
+                        color = TextPrimary
+                    )
+                    AddActionOutlinedButton(
+                        text = "Add Garment Category",
+                        onClick = onAddGarmentCategoryClick
                     )
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = tokens.screenPadding),
-                    contentPadding = PaddingValues(bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(styles, key = { it.id }) { item ->
-                        val isActive = item.status.equals("ACTIVE", ignoreCase = true)
-                        val statusText = if (isActive) "ACTIVE" else "DRAFT"
-                        val statusBg = if (isActive) greenBg else yellowBg
-                        val statusTextColor = if (isActive) darkGreenBg else yellowText
-                        val fieldsCount = item.measurementFields.size
-                        val requiredCount = item.measurementFields.count { it.isRequired }
-                        val charge = item.stitchingCharge.toInt()
-                        val metaInfoText = "$fieldsCount Fields · $requiredCount Required · Stitching Charge: ₹$charge"
 
-                        Card(
-                            shape = RoundedCornerShape(tokens.cardCornerRadius),
-                            colors = CardDefaults.cardColors(containerColor = whiteBg),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius))
-                        ) {
-                            Column(modifier = Modifier.padding(tokens.screenPadding)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = item.displayName ?: item.name,
-                                            fontSize = tokens.bodyLarge,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = TextPrimary
-                                        )
-                                        if (!item.sku.isNullOrBlank()) {
-                                            Text(
-                                                text = "SKU: ${item.sku}",
-                                                fontSize = 11.sp,
-                                                color = iconMuted
-                                            )
-                                        }
-                                    }
+                if (isLoading) {
+                    ListSkeleton()
+                } else if (styles.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(tokens.screenPadding),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No styles or categories found for this garment.",
+                            fontSize = tokens.bodyMedium,
+                            color = TextSecondary
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = tokens.screenPadding),
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(styles, key = { it.id }) { item ->
+                            val isActive = item.status.equals("ACTIVE", ignoreCase = true)
+                            val statusText = if (isActive) "ACTIVE" else "DRAFT"
+                            val statusBg = if (isActive) greenBg else yellowBg
+                            val statusTextColor = if (isActive) darkGreenBg else yellowText
+                            val fieldsCount = item.measurementFields.size
+                            val requiredCount = item.measurementFields.count { it.isRequired }
+                            val charge = item.stitchingCharge.toInt()
+                            val metaInfoText = "$fieldsCount Fields · $requiredCount Required · Stitching Charge: ₹$charge"
 
+                            Card(
+                                shape = RoundedCornerShape(tokens.cardCornerRadius),
+                                colors = CardDefaults.cardColors(containerColor = whiteBg),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius))
+                            ) {
+                                Column(modifier = Modifier.padding(tokens.screenPadding)) {
                                     Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        // Status Badge
-                                        Box(
-                                            modifier = Modifier
-                                                .background(statusBg, RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                                        ) {
+                                        Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = statusText,
-                                                color = statusTextColor,
-                                                fontSize = tokens.label,
-                                                fontWeight = FontWeight.Bold
+                                                text = item.displayName ?: item.name,
+                                                fontSize = tokens.bodyLarge,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = TextPrimary
                                             )
+                                            if (!item.sku.isNullOrBlank()) {
+                                                Text(
+                                                    text = "SKU: ${item.sku}",
+                                                    fontSize = 11.sp,
+                                                    color = iconMuted
+                                                )
+                                            }
                                         }
 
-                                        // 3-Dot More Menu
-                                        Box {
-                                            IconButton(
-                                                onClick = { expandedCardMenuId = item.id },
-                                                modifier = Modifier.size(28.dp)
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            // Status Badge
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(statusBg, RoundedCornerShape(6.dp))
+                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
                                             ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.MoreVert,
-                                                    contentDescription = "Options",
-                                                    tint = iconMuted,
-                                                    modifier = Modifier.size(18.dp)
+                                                Text(
+                                                    text = statusText,
+                                                    color = statusTextColor,
+                                                    fontSize = tokens.label,
+                                                    fontWeight = FontWeight.Bold
                                                 )
                                             }
 
-                                            DropdownMenu(
-                                                expanded = expandedCardMenuId == item.id,
-                                                onDismissRequest = { expandedCardMenuId = null },
-                                                containerColor = whiteBg
-                                            ) {
-                                                val isCurrentActive = item.status.equals("ACTIVE", ignoreCase = true)
-                                                val actionLabel = when {
-                                                    isCurrentActive -> "Deactivate"
-                                                    item.status.equals("DRAFT", ignoreCase = true) -> "Make Active"
-                                                    else -> "Activate"
+                                            // 3-Dot More Menu
+                                            Box {
+                                                IconButton(
+                                                    onClick = { expandedCardMenuId = item.id },
+                                                    modifier = Modifier.size(28.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.MoreVert,
+                                                        contentDescription = "Options",
+                                                        tint = iconMuted,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
                                                 }
 
-                                                DropdownMenuItem(
-                                                    text = {
-                                                        Text(
-                                                            text = actionLabel,
-                                                            fontSize = 13.sp,
-                                                            fontWeight = FontWeight.Medium,
-                                                            color = if (isCurrentActive) redText else darkGreenBg
-                                                        )
-                                                    },
-                                                    onClick = {
-                                                        expandedCardMenuId = null
-                                                        viewModel.changeGarmentCategoryStatus(
-                                                            categoryId = item.id,
-                                                            currentStatus = item.status,
-                                                            segmentId = segmentId,
-                                                            garmentId = garmentId
-                                                        )
-                                                    }
-                                                )
+                                                DropdownMenu(
+                                                    expanded = expandedCardMenuId == item.id,
+                                                    onDismissRequest = { expandedCardMenuId = null },
+                                                    containerColor = whiteBg
+                                                ) {
+                                                    val isCurrentActive = item.status.equals("ACTIVE", ignoreCase = true)
+                                                    val actionLabel = if (isCurrentActive) "Inactive" else "Active"
+
+                                                    DropdownMenuItem(
+                                                        text = {
+                                                            Text(
+                                                                text = actionLabel,
+                                                                fontSize = 13.sp,
+                                                                fontWeight = FontWeight.Medium,
+                                                                color = if (isCurrentActive) redText else darkGreenBg
+                                                            )
+                                                        },
+                                                        onClick = {
+                                                            expandedCardMenuId = null
+                                                            categoryToToggleStatus = item
+                                                        }
+                                                    )
+                                                }
                                             }
                                         }
                                     }
-                                }
 
-                                if (!item.description.isNullOrBlank()) {
-                                    Spacer(Modifier.height(4.dp))
+                                    if (!item.description.isNullOrBlank()) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = item.description,
+                                            fontSize = tokens.bodySmall,
+                                            color = TextSecondary
+                                        )
+                                    }
+
+                                    Spacer(Modifier.height(10.dp))
+                                    HorizontalDivider(color = title_border, thickness = 1.dp)
+                                    Spacer(Modifier.height(10.dp))
+
                                     Text(
-                                        text = item.description,
-                                        fontSize = tokens.bodySmall,
-                                        color = TextSecondary
+                                        text = metaInfoText,
+                                        fontSize = tokens.caption,
+                                        color = mutedText
+                                    )
+                                    Spacer(Modifier.height(12.dp))
+
+                                    Text(
+                                        text = "Configure →",
+                                        color = Primary,
+                                        fontSize = tokens.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.clickable { onConfigureGarmentClick(item) }
                                     )
                                 }
-
-                                Spacer(Modifier.height(10.dp))
-                                HorizontalDivider(color = title_border, thickness = 1.dp)
-                                Spacer(Modifier.height(10.dp))
-
-                                Text(
-                                    text = metaInfoText,
-                                    fontSize = tokens.caption,
-                                    color = mutedText
-                                )
-                                Spacer(Modifier.height(12.dp))
-
-                                Text(
-                                    text = "Configure →",
-                                    color = Primary,
-                                    fontSize = tokens.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.clickable { onConfigureGarmentClick(item) }
-                                )
                             }
                         }
                     }
                 }
             }
         }
+
+        // Toggle Status Confirmation Dialog for Garment Category
+        categoryToToggleStatus?.let { categoryItem ->
+            val isCurrentlyActive = categoryItem.status.equals("active", ignoreCase = true)
+            val newStatus = if (isCurrentlyActive) "Inactive" else "Active"
+
+            ToggleSegmentStatusDialog(
+                isActivating = !isCurrentlyActive,
+                segmentName = categoryItem.displayName ?: categoryItem.name,
+                entityLabel = "Category",
+                onDismiss = { categoryToToggleStatus = null },
+                onConfirm = {
+                    categoryToToggleStatus = null
+                    viewModel.changeGarmentCategoryStatus(
+                        categoryId = categoryItem.id,
+                        currentStatus = categoryItem.status,
+                        segmentId = segmentId,
+                        garmentId = garmentId,
+                        onSuccess = { msg ->
+                            successMessage = msg
+                        },
+                        onError = { err ->
+                            errorMessage = err
+                        }
+                    )
+                }
+            )
+        }
+
+        DynamicIslandSuccess(
+            message = successMessage,
+            onDismiss = { successMessage = null }
+        )
+
+        DynamicIslandError(
+            message = errorMessage,
+            onDismiss = { errorMessage = null }
+        )
     }
 }
 
@@ -557,9 +593,26 @@ fun GarmentProfileConfigScreen(
 
     var selectedGroupIndex by remember { mutableIntStateOf(0) }
     var fieldToDelete by remember { mutableStateOf<StyleMeasurementFieldEntry?>(null) }
+    var fieldToToggleStatus by remember { mutableStateOf<StyleMeasurementFieldEntry?>(null) }
     var expandedMenuFieldId by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Map to hold live status for measurement fields: fieldId -> "Active" / "Inactive"
+    val fieldStatusMap = remember { mutableStateMapOf<String, String>() }
+
+    // Filter fields according to selected group safely
+    val selectedGroup = groupsList.getOrNull(selectedGroupIndex)
+    val displayedFields = remember(activeFields.toList(), selectedGroupIndex) {
+        if (selectedGroupIndex == 0 || selectedGroup == null) {
+            activeFields
+        } else {
+            activeFields.filter { entry ->
+                val name = entry.fieldDetail?.displayName ?: entry.fieldDetail?.name ?: ""
+                name.contains(selectedGroup.name, ignoreCase = true)
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -608,7 +661,7 @@ fun GarmentProfileConfigScreen(
                         .fillMaxSize()
                         .padding(padding)
                 ) {
-                    // Measurement Groups Row
+                    // Measurement Groups Row with Dynamic Count Chips
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -618,7 +671,16 @@ fun GarmentProfileConfigScreen(
                     ) {
                         groupsList.forEachIndexed { index, group ->
                             val isSelected = selectedGroupIndex == index
-                            val count = if (index == 0) activeFields.size else 0
+
+                            // Calculate dynamic count for each group chip
+                            val count = if (index == 0) {
+                                activeFields.size
+                            } else {
+                                activeFields.count { entry ->
+                                    val name = entry.fieldDetail?.displayName ?: entry.fieldDetail?.name ?: ""
+                                    name.contains(group.name, ignoreCase = true)
+                                }
+                            }
 
                             Surface(
                                 shape = RoundedCornerShape(20.dp),
@@ -679,7 +741,7 @@ fun GarmentProfileConfigScreen(
 
                     Spacer(Modifier.height(12.dp))
 
-                    if (activeFields.isEmpty()) {
+                    if (displayedFields.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -698,13 +760,22 @@ fun GarmentProfileConfigScreen(
                             contentPadding = PaddingValues(bottom = 90.dp)
                         ) {
                             itemsIndexed(
-                                items = activeFields,
+                                items = displayedFields,
                                 key = { index, item -> item.id ?: item.fieldDetail?.id ?: index.toString() }
                             ) { _, fieldEntry ->
                                 val fieldDetail = fieldEntry.fieldDetail
                                 val fieldName = fieldDetail?.displayName ?: fieldDetail?.name ?: "Field ${fieldEntry.displayOrder}"
                                 val inputType = fieldDetail?.inputType ?: "Number"
                                 val unitText = if (!fieldDetail?.unit.isNullOrBlank()) " · ${fieldDetail.unit}" else ""
+
+                                // Safe Status logic from fieldStatusMap
+                                val fieldId = fieldDetail?.id ?: fieldEntry.id ?: ""
+                                val currentStatus = fieldStatusMap[fieldId] ?: "Active"
+                                val isFieldActive = currentStatus.equals("active", ignoreCase = true)
+                                val badgeBg = if (isFieldActive) Color(0xFFE6F7ED) else Color(0xFFFEF3C7)
+                                val badgeText = if (isFieldActive) "ACTIVE" else "INACTIVE"
+                                val badgeTextColor = if (isFieldActive) Color(0xFF10B981) else Color(0xFFD97706)
+                                val dynamicMenuAction = if (isFieldActive) "Inactive" else "Active"
 
                                 Column {
                                     Row(
@@ -764,12 +835,18 @@ fun GarmentProfileConfigScreen(
                                             )
                                         }
 
+                                        // Dynamic Status Badge
                                         Box(
                                             modifier = Modifier
-                                                .background(Color(0xFFE6F7ED), RoundedCornerShape(4.dp))
+                                                .background(badgeBg, RoundedCornerShape(4.dp))
                                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                                         ) {
-                                            Text("ACTIVE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                                            Text(
+                                                text = badgeText,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = badgeTextColor
+                                            )
                                         }
 
                                         Box {
@@ -781,8 +858,23 @@ fun GarmentProfileConfigScreen(
                                                 onDismissRequest = { expandedMenuFieldId = null },
                                                 containerColor = whiteBg
                                             ) {
+                                                // Dynamic Action Label ("Inactive" when Active, and "Active" when Inactive)
                                                 DropdownMenuItem(
-                                                    text = { Text("Delete", color = title_color) },
+                                                    text = {
+                                                        Text(
+                                                            text = dynamicMenuAction,
+                                                            fontSize = 13.sp,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = if (isFieldActive) redText else darkGreenBg
+                                                        )
+                                                    },
+                                                    onClick = {
+                                                        expandedMenuFieldId = null
+                                                        fieldToToggleStatus = fieldEntry
+                                                    }
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text("Delete", color = redText) },
                                                     onClick = {
                                                         expandedMenuFieldId = null
                                                         fieldToDelete = fieldEntry
@@ -839,6 +931,37 @@ fun GarmentProfileConfigScreen(
                 }
             )
         )
+
+        // Toggle Status Dialog for Measurement Field
+        fieldToToggleStatus?.let { entry ->
+            val fieldId = entry.fieldDetail?.id ?: entry.id ?: ""
+            val fieldName = entry.fieldDetail?.displayName ?: entry.fieldDetail?.name ?: "Measurement Field"
+            val currentStatus = fieldStatusMap[fieldId] ?: "Active"
+            val isCurrentlyActive = currentStatus.equals("active", ignoreCase = true)
+            val nextStatus = if (isCurrentlyActive) "Inactive" else "Active"
+
+            ToggleSegmentStatusDialog(
+                isActivating = !isCurrentlyActive,
+                segmentName = fieldName,
+                entityLabel = "Measurement Field",
+                onDismiss = { fieldToToggleStatus = null },
+                onConfirm = {
+                    fieldToToggleStatus = null
+                    viewModel.changeMeasurementFieldStatus(
+                        fieldId = fieldId,
+                        nextStatus = nextStatus, // Sends "Active" or "Inactive"
+                        onSuccess = { msg ->
+                            successMessage = msg
+                            // Instantly update live status in map to trigger UI recomposition
+                            fieldStatusMap[fieldId] = nextStatus
+                        },
+                        onError = { err ->
+                            errorMessage = err
+                        }
+                    )
+                }
+            )
+        }
 
         DynamicIslandSuccess(
             message = successMessage,
@@ -1183,8 +1306,6 @@ fun CreateMeasurementFieldScreen(
     var selectedCondition by remember { mutableStateOf("") }
     val conditionOptions = listOf("Equals", "Not Equals", "Contains", "Is Greater Than")
 
-    val selectedGarments = remember { mutableStateListOf("Shirt", "Formal Shirt") }
-
     fun onFieldNameChange(name: String) {
         fieldName = name
         displayLabel = name
@@ -1382,56 +1503,6 @@ fun CreateMeasurementFieldScreen(
                     options = conditionOptions,
                     onOptionSelected = { selectedCondition = it }
                 )
-
-//                Spacer(Modifier.height(24.dp))
-//
-//                SectionHeader("Section 4 — Assignment")
-//                Spacer(Modifier.height(14.dp))
-//
-//                FormLabel(text = "Available for Garments", isRequired = false)
-//                Spacer(Modifier.height(8.dp))
-//
-//                Row(
-//                    modifier = Modifier.fillMaxWidth(),
-//                    verticalAlignment = Alignment.CenterVertically,
-//                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-//                ) {
-//                    selectedGarments.forEach { garment ->
-//                        Surface(
-//                            shape = RoundedCornerShape(20.dp),
-//                            color = Color(0xFFEEF2FF)
-//                        ) {
-//                            Row(
-//                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-//                                verticalAlignment = Alignment.CenterVertically,
-//                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-//                            ) {
-//                                Text(
-//                                    text = garment,
-//                                    fontSize = 13.sp,
-//                                    color = Primary,
-//                                    fontWeight = FontWeight.Medium
-//                                )
-//                                Icon(
-//                                    painter = painterResource(R.drawable.ic_close_circle),
-//                                    contentDescription = "Remove",
-//                                    tint = Primary,
-//                                    modifier = Modifier
-//                                        .size(16.dp)
-//                                        .clickable { selectedGarments.remove(garment) }
-//                                )
-//                            }
-//                        }
-//                    }
-//
-//                    Text(
-//                        text = "+ Add more",
-//                        color = Primary,
-//                        fontSize = 13.sp,
-//                        fontWeight = FontWeight.SemiBold,
-//                        modifier = Modifier.clickable {}
-//                    )
-//                }
 
                 Spacer(Modifier.height(28.dp))
             }

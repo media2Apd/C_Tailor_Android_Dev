@@ -16,10 +16,12 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.mobile.model.inventory.AdjustStockQuantityRequest
+import com.cuso.mobile.model.inventory.CapacitySummary
 import com.cuso.mobile.model.inventory.CreateInventoryItemResponse
 import com.cuso.mobile.model.inventory.CreateItemGroupRequest
 import com.cuso.mobile.model.inventory.CreatePoItemRequest
 import com.cuso.mobile.model.inventory.CreatePurchaseOrderRequest
+import com.cuso.mobile.model.inventory.CreateWarehouseRequest
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.InventoryItemviewone
 import com.cuso.mobile.model.inventory.InventoryPagination
@@ -30,7 +32,11 @@ import com.cuso.mobile.model.inventory.PhysicalAttributes
 import com.cuso.mobile.model.inventory.PurchaseOrderData
 import com.cuso.mobile.model.inventory.StockAdjustmentData
 import com.cuso.mobile.model.inventory.TransferStockRequest
+import com.cuso.mobile.model.inventory.UpdateWarehouseRequest
 import com.cuso.mobile.model.inventory.VariantSelection
+import com.cuso.mobile.model.inventory.WarehouseAddress
+import com.cuso.mobile.model.inventory.WarehouseDropdownItem
+import com.cuso.mobile.model.inventory.WarehouseItem
 import com.cuso.mobile.repository.InventoryRepository
 import com.cuso.mobile.utils.launchBusy
 import com.google.gson.Gson
@@ -120,13 +126,41 @@ data class ItemGroupUiState(
     val searchQuery: String = ""
 )
 
+data class WarehouseUiState(
+    val isLoading: Boolean = false,
+    val warehouses: List<WarehouseItem> = emptyList(),
+    val filteredWarehouses: List<WarehouseItem> = emptyList(),
+    val searchQuery: String = "",
+    val errorMessage: String? = null
+)
+
+data class WarehouseFormState(
+    val id: String? = null,
+    val name: String = "",
+    val code: String = "",
+    val type: String = "main",
+    val description: String = "",
+    val contactPerson: String = "",
+    val contactPhone: String = "",
+    val isDefault: Boolean = false,
+    val status: String = "active",
+    val branchId: String? = null,
+    val address: String = "",
+    val city: String = "",
+    val state: String = "",
+    val country: String = "India",
+    val pincode: String = "",
+    val totalFloorAreaSqft: String = "0",
+    val defaultTemperatureZone: String = "normal"
+)
+
 // =============================================================================
 // VIEW MODEL
 // =============================================================================
 
 @HiltViewModel
 class InventoryViewModel @Inject constructor(
-    private val inventoryRepository: InventoryRepository
+    private val inventoryRepository: InventoryRepository,
 ) : ViewModel() {
 
     private val gson = Gson()
@@ -305,11 +339,45 @@ class InventoryViewModel @Inject constructor(
     private val _adjustmentErrorMessage = MutableStateFlow<String?>(null)
     val adjustmentErrorMessage: StateFlow<String?> = _adjustmentErrorMessage.asStateFlow()
 
+    // -------------------------------------------------------------------------
+    // 10. Warehouse Management State
+    // -------------------------------------------------------------------------
+    private val _warehouseUiState = MutableStateFlow(WarehouseUiState())
+    val warehouseUiState: StateFlow<WarehouseUiState> = _warehouseUiState.asStateFlow()
+
+    private var warehouseSearchJob: Job? = null
+
+    private val _warehouseDropdown = MutableStateFlow<List<WarehouseDropdownItem>>(emptyList())
+    val warehouseDropdown: StateFlow<List<WarehouseDropdownItem>> = _warehouseDropdown.asStateFlow()
+
+    private val _selectedWarehouse = MutableStateFlow<WarehouseItem?>(null)
+    val selectedWarehouse: StateFlow<WarehouseItem?> = _selectedWarehouse.asStateFlow()
+
+    private val _isLoadingWarehouseDetail = MutableStateFlow(false)
+    val isLoadingWarehouseDetail: StateFlow<Boolean> = _isLoadingWarehouseDetail.asStateFlow()
+
+    private val _warehouseDetailError = MutableStateFlow<String?>(null)
+    val warehouseDetailError: StateFlow<String?> = _warehouseDetailError.asStateFlow()
+
+    private val _warehouseForm = MutableStateFlow(WarehouseFormState())
+    val warehouseForm: StateFlow<WarehouseFormState> = _warehouseForm.asStateFlow()
+
+    private val _isSubmittingWarehouse = MutableStateFlow(false)
+    val isSubmittingWarehouse: StateFlow<Boolean> = _isSubmittingWarehouse.asStateFlow()
+
+    private val _warehouseActionSuccessMessage = MutableStateFlow<String?>(null)
+    val warehouseActionSuccessMessage: StateFlow<String?> = _warehouseActionSuccessMessage.asStateFlow()
+
+    private val _warehouseActionErrorMessage = MutableStateFlow<String?>(null)
+    val warehouseActionErrorMessage: StateFlow<String?> = _warehouseActionErrorMessage.asStateFlow()
+
     // =========================================================================
     // INIT
     // =========================================================================
     init {
         loadItemGroups()
+        loadWarehouses()
+        loadWarehouseDropdown()
     }
 
     // =========================================================================
@@ -386,7 +454,33 @@ class InventoryViewModel @Inject constructor(
 
             result.onSuccess {
                 _createItemGroupSuccess.value = "Item Group created successfully!"
-                loadItemGroups() // Refresh groups list
+                loadItemGroups()
+                onSuccessCallback()
+            }.onFailure { error ->
+                _createItemGroupError.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    /**
+     * Update an existing item group and refresh list on success.
+     */
+    fun updateItemGroup(
+        id: String,
+        request: CreateItemGroupRequest,
+        onSuccessCallback: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isCreatingItemGroup.value = true
+            _createItemGroupError.value = null
+            _createItemGroupSuccess.value = null
+
+            val result = inventoryRepository.updateItemGroup(id, request)
+            _isCreatingItemGroup.value = false
+
+            result.onSuccess {
+                _createItemGroupSuccess.value = "Item Group updated successfully!"
+                loadItemGroups()
                 onSuccessCallback()
             }.onFailure { error ->
                 _createItemGroupError.value = extractErrorMessage(error.message)
@@ -434,32 +528,6 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Update an existing item group.
-     */
-//    fun updateItemGroup(
-//        id: String,
-//        request: CreateItemGroupRequest,
-//        onSuccessCallback: () -> Unit
-//    ) {
-//        viewModelScope.launch {
-//            _isCreatingItemGroup.value = true
-//            _createItemGroupError.value = null
-//            _createItemGroupSuccess.value = null
-//
-//            val result = inventoryRepository.updateItemGroup(id, request)
-//            _isCreatingItemGroup.value = false
-//
-//            result.onSuccess {
-//                _createItemGroupSuccess.value = "Item Group updated successfully!"
-//                loadItemGroups()
-//                onSuccessCallback()
-//            }.onFailure { error ->
-//                _createItemGroupError.value = extractErrorMessage(error.message)
-//            }
-//        }
-//    }
-
     fun clearSelectedItemGroupDetail() {
         _selectedItemGroupDetail.value = null
     }
@@ -472,7 +540,6 @@ class InventoryViewModel @Inject constructor(
         _createItemGroupError.value = null
         _createItemGroupSuccess.value = null
     }
-
 
     fun refreshItemGroups() {
         loadItemGroups(query = _uiState.value.searchQuery.takeIf { it.isNotBlank() })
@@ -1083,6 +1150,276 @@ class InventoryViewModel @Inject constructor(
     fun clearAdjustmentAlerts() {
         _adjustmentSuccessMessage.value = null
         _adjustmentErrorMessage.value = null
+    }
+
+    // =========================================================================
+    // 10. WAREHOUSE MANAGEMENT ACTIONS
+    // =========================================================================
+
+    /**
+     * Fetch all active warehouses.
+     */
+    fun loadWarehouses() {
+        launchBusy {
+            _warehouseUiState.update { it.copy(isLoading = true, errorMessage = null) }
+            val result = inventoryRepository.getAllWarehouses()
+
+            result.onSuccess { list ->
+                _warehouseUiState.update {
+                    it.copy(
+                        isLoading = false,
+                        warehouses = list,
+                        filteredWarehouses = if (it.searchQuery.isBlank()) list else filterWarehouses(list, it.searchQuery),
+                        errorMessage = null
+                    )
+                }
+            }.onFailure { error ->
+                _warehouseUiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = extractErrorMessage(error.message)
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Fetch dropdown list for warehouse selection.
+     */
+    fun loadWarehouseDropdown() {
+        launchBusy {
+            inventoryRepository.getWarehouseDropdown().onSuccess { dropdownItems ->
+                _warehouseDropdown.value = dropdownItems
+            }
+        }
+    }
+
+    /**
+     * Search warehouses locally with debounce.
+     */
+    fun onWarehouseSearchQueryChanged(newQuery: String) {
+        _warehouseUiState.update { state ->
+            val filtered = filterWarehouses(state.warehouses, newQuery)
+            state.copy(searchQuery = newQuery, filteredWarehouses = filtered)
+        }
+
+        warehouseSearchJob?.cancel()
+        warehouseSearchJob = viewModelScope.launch {
+            delay(350)
+        }
+    }
+
+    private fun filterWarehouses(list: List<WarehouseItem>, query: String): List<WarehouseItem> {
+        if (query.isBlank()) return list
+        return list.filter {
+            it.name.contains(query, ignoreCase = true) ||
+                    it.code.contains(query, ignoreCase = true) ||
+                    it.contactPerson.contains(query, ignoreCase = true) ||
+                    it.address.city.contains(query, ignoreCase = true)
+        }
+    }
+
+    /**
+     * Fetch single warehouse details by ID.
+     */
+    fun fetchWarehouseById(id: String, onLoaded: (WarehouseItem) -> Unit = {}) {
+        launchBusy {
+            _isLoadingWarehouseDetail.value = true
+            _warehouseDetailError.value = null
+
+            val result = inventoryRepository.getWarehouseById(id)
+            _isLoadingWarehouseDetail.value = false
+
+            result.onSuccess { item ->
+                _selectedWarehouse.value = item
+                onLoaded(item)
+            }.onFailure { error ->
+                _warehouseDetailError.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    fun clearSelectedWarehouse() {
+        _selectedWarehouse.value = null
+        _warehouseDetailError.value = null
+    }
+
+    fun updateWarehouseForm(transform: (WarehouseFormState) -> WarehouseFormState) {
+        _warehouseForm.update(transform)
+    }
+
+    fun resetWarehouseForm() {
+        _warehouseForm.value = WarehouseFormState()
+        _warehouseActionErrorMessage.value = null
+        _warehouseActionSuccessMessage.value = null
+    }
+
+    fun populateWarehouseFormForEdit(warehouse: WarehouseItem) {
+        _warehouseForm.value = WarehouseFormState(
+            id = warehouse.id,
+            name = warehouse.name,
+            code = warehouse.code,
+            type = warehouse.type,
+            description = warehouse.description ?: "",
+            contactPerson = warehouse.contactPerson,
+            contactPhone = warehouse.contactPhone,
+            isDefault = warehouse.isDefault,
+            status = warehouse.status,
+            branchId = warehouse.branchId,
+            address = warehouse.address.address,
+            city = warehouse.address.city,
+            state = warehouse.address.state,
+            country = warehouse.address.country,
+            pincode = warehouse.address.pincode,
+            totalFloorAreaSqft = warehouse.capacitySummary.totalFloorAreaSqft.toString(),
+            defaultTemperatureZone = warehouse.capacitySummary.defaultTemperatureZone
+        )
+    }
+
+    /**
+     * Create a new warehouse.
+     */
+    fun createWarehouse(onSuccess: () -> Unit = {}) {
+        val form = _warehouseForm.value
+        launchBusy {
+            _isSubmittingWarehouse.value = true
+            _warehouseActionErrorMessage.value = null
+            _warehouseActionSuccessMessage.value = null
+
+            val request = CreateWarehouseRequest(
+                branchId = form.branchId?.takeIf { it.isNotBlank() },
+                name = form.name,
+                code = form.code,
+                type = form.type,
+                description = form.description.takeIf { it.isNotBlank() },
+                contactPerson = form.contactPerson,
+                contactPhone = form.contactPhone,
+                isDefault = form.isDefault,
+                address = WarehouseAddress(
+                    address = form.address,
+                    city = form.city,
+                    state = form.state,
+                    country = form.country,
+                    pincode = form.pincode
+                ),
+                capacitySummary = CapacitySummary(
+                    totalFloorAreaSqft = form.totalFloorAreaSqft.toDoubleOrNull() ?: 0.0,
+                    defaultTemperatureZone = form.defaultTemperatureZone
+                )
+            )
+
+            val result = inventoryRepository.createWarehouse(request)
+            _isSubmittingWarehouse.value = false
+
+            result.onSuccess {
+                _warehouseActionSuccessMessage.value = "Warehouse created successfully"
+                loadWarehouses()
+                loadWarehouseDropdown()
+                resetWarehouseForm()
+                onSuccess()
+            }.onFailure { error ->
+                _warehouseActionErrorMessage.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    /**
+     * Update an existing warehouse.
+     */
+    fun updateWarehouse(onSuccess: () -> Unit = {}) {
+        val form = _warehouseForm.value
+        val id = form.id ?: return
+
+        launchBusy {
+            _isSubmittingWarehouse.value = true
+            _warehouseActionErrorMessage.value = null
+            _warehouseActionSuccessMessage.value = null
+
+            val request = UpdateWarehouseRequest(
+                branchId = form.branchId?.takeIf { it.isNotBlank() },
+                name = form.name,
+                code = form.code,
+                type = form.type,
+                description = form.description.takeIf { it.isNotBlank() },
+                contactPerson = form.contactPerson,
+                contactPhone = form.contactPhone,
+                isDefault = form.isDefault,
+                status = form.status,
+                address = WarehouseAddress(
+                    address = form.address,
+                    city = form.city,
+                    state = form.state,
+                    country = form.country,
+                    pincode = form.pincode
+                ),
+                capacitySummary = CapacitySummary(
+                    totalFloorAreaSqft = form.totalFloorAreaSqft.toDoubleOrNull() ?: 0.0,
+                    defaultTemperatureZone = form.defaultTemperatureZone
+                )
+            )
+
+            val result = inventoryRepository.updateWarehouse(id, request)
+            _isSubmittingWarehouse.value = false
+
+            result.onSuccess {
+                _warehouseActionSuccessMessage.value = "Warehouse updated successfully"
+                loadWarehouses()
+                loadWarehouseDropdown()
+                onSuccess()
+            }.onFailure { error ->
+                _warehouseActionErrorMessage.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    /**
+     * Delete a warehouse by ID.
+     */
+    fun deleteWarehouse(id: String, onSuccess: () -> Unit = {}) {
+        launchBusy {
+            _isSubmittingWarehouse.value = true
+            _warehouseActionErrorMessage.value = null
+
+            val result = inventoryRepository.deleteWarehouse(id)
+            _isSubmittingWarehouse.value = false
+
+            result.onSuccess { message ->
+                _warehouseActionSuccessMessage.value = message
+                loadWarehouses()
+                loadWarehouseDropdown()
+                onSuccess()
+            }.onFailure { error ->
+                _warehouseActionErrorMessage.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    /**
+     * Restore a deleted warehouse by ID.
+     */
+    fun restoreWarehouse(id: String, onSuccess: () -> Unit = {}) {
+        launchBusy {
+            _isSubmittingWarehouse.value = true
+            _warehouseActionErrorMessage.value = null
+
+            val result = inventoryRepository.restoreWarehouse(id)
+            _isSubmittingWarehouse.value = false
+
+            result.onSuccess {
+                _warehouseActionSuccessMessage.value = "Warehouse restored successfully"
+                loadWarehouses()
+                loadWarehouseDropdown()
+                onSuccess()
+            }.onFailure { error ->
+                _warehouseActionErrorMessage.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    fun clearWarehouseActionAlerts() {
+        _warehouseActionSuccessMessage.value = null
+        _warehouseActionErrorMessage.value = null
     }
 
     // =========================================================================

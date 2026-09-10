@@ -194,7 +194,7 @@ fun GstSettingsOverviewScreen(
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 text = "Manage your GST registrations and GST groups across states and union territories.",
-                                fontSize = tokens.bodySmall,
+                                fontSize = tokens.caption,
                                 color = close_color,
                                 lineHeight = tokens.bodySmall.times(1.3f)
                             )
@@ -325,7 +325,6 @@ fun GstRegistrationCard(
                     Text(
                         text = item.title,
                         fontSize = tokens.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
                         color = title_color
                     )
                     Text(
@@ -386,10 +385,10 @@ fun GstRegistrationCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = "Type:", fontSize = tokens.caption, color = close_color)
-                Text(text = item.type, fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                Text(text = item.type, fontSize = tokens.caption,  color = TextPrimary)
                 Text(text = "•", fontSize = tokens.caption, color = close_color)
                 Text(text = "State:", fontSize = tokens.caption, color = close_color)
-                Text(text = item.state, fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                Text(text = item.state, fontSize = tokens.caption, color = TextPrimary)
             }
             HorizontalDivider(color = dividerColor, thickness = 2.dp)
             // Bottom Badges Line

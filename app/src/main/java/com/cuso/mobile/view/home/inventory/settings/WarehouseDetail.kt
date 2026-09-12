@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.badgeGrey
 import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.whiteBg
 
@@ -322,7 +323,7 @@ private fun MetricBox(title: String, value: String, modifier: Modifier = Modifie
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFFF8FAFC))
+            .background(badgeGrey)
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

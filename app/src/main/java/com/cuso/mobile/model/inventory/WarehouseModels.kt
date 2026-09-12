@@ -79,7 +79,7 @@ data class HierarchyCounts(
 data class WarehouseDropdownItem(
     @SerializedName("value") val value: String = "",
     @SerializedName("label") val label: String = "",
-    @SerializedName("isDefault") val isDefault: Boolean = false
+    @SerializedName("binId") val binId: String? = null
 )
 
 // =============================================================================

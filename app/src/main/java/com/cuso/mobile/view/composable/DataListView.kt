@@ -216,6 +216,7 @@ fun <T> DataCard(
     image: DataCardImage? = null,
     dateText: String? = null,
     dateIcon: ImageVector = Icons.Default.CalendarMonth,
+    headerContent: (@Composable () -> Unit)? = null, // Custom Header Slot added
     topBadgeText: String? = null,
     topBadgeTextColor: Color = Color(0xFF10B981),
     topBadgeBgColor: Color = Color(0xFFDCFCE7),
@@ -272,7 +273,7 @@ fun <T> DataCard(
         }
     }
 
-    val showHeaderRow = (eyebrowText != null || dateText != null || (topBadgeText != null && !topBadgeInline) || (showActionsInHeader && actions.isNotEmpty()))
+    val showHeaderRow = (headerContent != null || eyebrowText != null || dateText != null || (topBadgeText != null && !topBadgeInline) || (showActionsInHeader && actions.isNotEmpty()))
 
     Surface(
         modifier = modifier
@@ -292,48 +293,52 @@ fun <T> DataCard(
                 .let { m -> if (containerBrush != null) m.background(containerBrush) else m }
                 .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
         ) {
-            // Header Row: Displayed when eyebrow, date, or header action icons are defined
+            // Header Row: Custom Header takes priority if provided, else falls back to default layout
             if (showHeaderRow) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (eyebrowText != null) {
-                        Text(
-                            text = eyebrowText,
-                            fontSize = tokens.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = eyebrowColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    } else if (dateText != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (showDateIcon) {
-                                Icon(dateIcon, null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(14.dp))
-                                Spacer(Modifier.width(4.dp))
-                            }
-                            Text(dateText, fontSize = tokens.caption, color = Color(0xFF6B7280))
-                        }
-                    } else {
-                        Spacer(Modifier.width(1.dp))
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (topBadgeText != null && !topBadgeInline) {
-                            StatusBadge(
-                                text = topBadgeText,
-                                dotColor = topBadgeDotColor,
-                                bgColor = topBadgeBgColor,
-                                textColor = topBadgeTextColor,
-                                cornerRadius = topBadgeCornerRadius,
-                                showDot = topBadgeShowDot
+                if (headerContent != null) {
+                    headerContent()
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (eyebrowText != null) {
+                            Text(
+                                text = eyebrowText,
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = eyebrowColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
+                        } else if (dateText != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (showDateIcon) {
+                                    Icon(dateIcon, null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(14.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                }
+                                Text(dateText, fontSize = tokens.caption, color = Color(0xFF6B7280))
+                            }
+                        } else {
+                            Spacer(Modifier.width(1.dp))
                         }
-                        if (showActionsInHeader && actions.isNotEmpty()) {
-                            Spacer(Modifier.width(6.dp))
-                            ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = actions)
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (topBadgeText != null && !topBadgeInline) {
+                                StatusBadge(
+                                    text = topBadgeText,
+                                    dotColor = topBadgeDotColor,
+                                    bgColor = topBadgeBgColor,
+                                    textColor = topBadgeTextColor,
+                                    cornerRadius = topBadgeCornerRadius,
+                                    showDot = topBadgeShowDot
+                                )
+                            }
+                            if (showActionsInHeader && actions.isNotEmpty()) {
+                                Spacer(Modifier.width(6.dp))
+                                ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = actions)
+                            }
                         }
                     }
                 }

@@ -11,27 +11,8 @@ import com.cuso.mobile.database.entities.SalesSummaryEntity
 import com.cuso.mobile.database.entities.toEntity
 import com.cuso.mobile.model.login_forgotPassword_resetPassword.AddGarmentRequest
 import com.cuso.mobile.model.login_forgotPassword_resetPassword.AddOrgGarmentResponse
-import com.cuso.mobile.model.settings.BranchItem
-import com.cuso.mobile.model.settings.BranchListResponse
-import com.cuso.mobile.model.settings.CreateBranchRequest
-import com.cuso.mobile.model.settings.CreateBranchResponse
-import com.cuso.mobile.model.settings.DepartmentCreateRequest
-import com.cuso.mobile.model.settings.DepartmentCreateResponse
-import com.cuso.mobile.model.settings.DepartmentResponse
-import com.cuso.mobile.model.settings.DepartmentUpdateRequest
-import com.cuso.mobile.model.settings.DepartmentUpdateResponse
-import com.cuso.mobile.model.settings.DesignationCreateRequest
-import com.cuso.mobile.model.settings.DesignationCreateResponse
-import com.cuso.mobile.model.settings.DesignationDeleteResponse
-import com.cuso.mobile.model.settings.DesignationItem
-import com.cuso.mobile.model.settings.DesignationUpdateRequest
-import com.cuso.mobile.model.settings.DesignationUpdateResponse
 import com.cuso.mobile.model.login_forgotPassword_resetPassword.OrgGarmentCategory
 import com.cuso.mobile.model.login_forgotPassword_resetPassword.RemoveOrgGarmentResponse
-import com.cuso.mobile.model.settings.UpdateBranchRequest
-import com.cuso.mobile.model.settings.UpdateOrganizationRequest
-import com.cuso.mobile.model.settings.UpdateOrganizationResponse
-import com.cuso.mobile.model.settings.UploadOrganizationPictureResponse
 import com.cuso.mobile.model.sales.AppointmentRequest
 import com.cuso.mobile.model.sales.AssignStageResponse
 import com.cuso.mobile.model.sales.BudgetRangeRequest
@@ -78,6 +59,25 @@ import com.cuso.mobile.model.sales.UpdateStageRequest
 import com.cuso.mobile.model.sales.ViewOneLeadData
 import com.cuso.mobile.model.sales.toEntity
 import com.cuso.mobile.model.sales.toOrderItem
+import com.cuso.mobile.model.settings.BranchItem
+import com.cuso.mobile.model.settings.BranchListResponse
+import com.cuso.mobile.model.settings.CreateBranchRequest
+import com.cuso.mobile.model.settings.CreateBranchResponse
+import com.cuso.mobile.model.settings.DepartmentCreateRequest
+import com.cuso.mobile.model.settings.DepartmentCreateResponse
+import com.cuso.mobile.model.settings.DepartmentResponse
+import com.cuso.mobile.model.settings.DepartmentUpdateRequest
+import com.cuso.mobile.model.settings.DepartmentUpdateResponse
+import com.cuso.mobile.model.settings.DesignationCreateRequest
+import com.cuso.mobile.model.settings.DesignationCreateResponse
+import com.cuso.mobile.model.settings.DesignationDeleteResponse
+import com.cuso.mobile.model.settings.DesignationItem
+import com.cuso.mobile.model.settings.DesignationUpdateRequest
+import com.cuso.mobile.model.settings.DesignationUpdateResponse
+import com.cuso.mobile.model.settings.UpdateBranchRequest
+import com.cuso.mobile.model.settings.UpdateOrganizationRequest
+import com.cuso.mobile.model.settings.UpdateOrganizationResponse
+import com.cuso.mobile.model.settings.UploadOrganizationPictureResponse
 import com.cuso.mobile.network.hr.HrApiService
 import com.cuso.mobile.network.organization.OrganizationApiService
 import com.cuso.mobile.network.sales.SalesCustomerApiService
@@ -88,13 +88,19 @@ import com.cuso.mobile.network.sales.SalesPricingApiService
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Response
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Repository responsible for orchestrating Sales, Orders, Customers,
+ * Measurements, Quotations, Pricing, and Organization Settings operations.
+ */
 @Singleton
 @Suppress("unused")
 class SalesRepository @Inject constructor(
@@ -112,18 +118,38 @@ class SalesRepository @Inject constructor(
     private val organizationDao: OrganizationDao
 ) {
 
+    // =============================================================
+    // Helper Methods
+    // =============================================================
+
+    /**
+     * Retrieves stored access token and CSRF token from Room database.
+     * Throws an exception if tokens are missing.
+     */
     private suspend fun getAuthHeaders(): Pair<String, String> {
         val tokens = tokensDao.getTokens()
             ?: throw Exception("No tokens found, please login again")
         return Pair("Bearer ${tokens.accessToken}", tokens.csrfToken)
     }
 
-    // -------------------------------------------------------------
-    // Sales Statuses (Local & Remote)
-    // -------------------------------------------------------------
+    /**
+     * Extension helper to convert a plain string into an OkHttp RequestBody.
+     */
+    private fun String.asTextBody(): RequestBody =
+        this.toRequestBody("text/plain".toMediaTypeOrNull())
 
+    // =============================================================
+    // 1. Sales Statuses (Local & Remote)
+    // =============================================================
+
+    /**
+     * Returns a local Flow of cached sales statuses.
+     */
     fun getSalesStatuses(): Flow<List<SalesStatusEntity>> = salesStatusDao.getAll()
 
+    /**
+     * Fetches the latest sales statuses from the API and updates local storage.
+     */
     suspend fun fetchAndSaveSalesStatuses() {
         val (accessToken, csrfToken) = getAuthHeaders()
         val response = salesLeadApi.getSalesData(accessToken, csrfToken)
@@ -132,16 +158,22 @@ class SalesRepository @Inject constructor(
             salesStatusDao.clearAll()
             salesStatusDao.upsertAll(entities)
         } else {
-            throw Exception("Failed: ${response.code()}")
+            throw Exception("Failed to fetch sales statuses: ${response.code()}")
         }
     }
 
-    // -------------------------------------------------------------
-    // Sales Summary (Local & Remote)
-    // -------------------------------------------------------------
+    // =============================================================
+    // 2. Sales Summary (Local & Remote)
+    // =============================================================
 
+    /**
+     * Returns a local Flow of cached sales summary.
+     */
     fun getSalesSummary(): Flow<SalesSummaryEntity?> = salesSummaryDao.getSummary()
 
+    /**
+     * Fetches summary statistics from API and updates local Room table.
+     */
     suspend fun fetchAndSaveSummary() {
         val (accessToken, csrfToken) = getAuthHeaders()
         val response = salesLeadApi.getSalesLeads(accessToken, csrfToken)
@@ -157,14 +189,17 @@ class SalesRepository @Inject constructor(
                 )
             )
         } else {
-            throw Exception("Failed: ${response.code()}")
+            throw Exception("Failed to fetch summary: ${response.code()}")
         }
     }
 
-    // -------------------------------------------------------------
-    // Garment Categories
-    // -------------------------------------------------------------
+    // =============================================================
+    // 3. Garment Categories
+    // =============================================================
 
+    /**
+     * Fetches the list of organization garment categories.
+     */
     suspend fun fetchGarmentCategories(): Result<List<CategoryItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -172,19 +207,22 @@ class SalesRepository @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!.data.categories)
             } else {
-                Result.failure(Exception("Failed: ${response.code()}"))
+                Result.failure(Exception("Failed to fetch garment categories: ${response.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    // -------------------------------------------------------------
-    // Table Leads
-    // -------------------------------------------------------------
+    // =============================================================
+    // 4. Sales Leads & Pipeline Operations
+    // =============================================================
 
     data class TableLeadsResult(val leads: List<LeadTableItem>, val total: Int)
 
+    /**
+     * Fetches paginated lead table data.
+     */
     suspend fun fetchTableData(page: Int = 1, limit: Int = 10): Result<TableLeadsResult> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -200,10 +238,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // -------------------------------------------------------------
-    // Lead Details & CRUD Operations
-    // -------------------------------------------------------------
-
+    /**
+     * Fetches full details for a single lead by ID.
+     */
     suspend fun fetchFullLeadDetails(leadId: String): Result<ViewOneLeadData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -218,13 +255,18 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Creates a new lead and saves it to local Room database on success.
+     */
     suspend fun createLead(request: CreateLeadFormRequest): Result<CreateLeadFormResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = salesLeadApi.createLead(accessToken, csrfToken, request)
             if (response.isSuccessful && response.body() != null) {
                 val body = response.body()!!
-                if (body.data != null) leadDao.upsert(body.toEntity(request))
+                if (body.data != null) {
+                    leadDao.upsert(body.toEntity(request))
+                }
                 Result.success(body)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed to create lead"))
@@ -234,6 +276,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Updates an existing lead by mapping create request fields.
+     */
     suspend fun updateLead(id: String, request: CreateLeadFormRequest): Response<UpdateLeadResponse> {
         val (accessToken, csrfToken) = getAuthHeaders()
 
@@ -248,7 +293,7 @@ class SalesRepository @Inject constructor(
             ?: emptyList()
 
         val updateRequest = UpdateLeadRequest(
-            customerType = request.customerType,
+            customerType = if (request.customerType.equals("Corporate", ignoreCase = true)) "Corporate" else "Individual",
             enquiryType = request.enquiryType,
             estimatedQuantity = request.estimatedQuantity,
             budgetRange = BudgetRangeRequest(
@@ -257,7 +302,8 @@ class SalesRepository @Inject constructor(
             ),
             enquiryDate = request.enquiryDate,
             requiredDate = request.requiredDate,
-            status = request.status,
+            status = "Active",
+            leadStatus = request.statusName.ifBlank { request.status },
             source = request.source,
             person = PersonRequest(
                 name = request.person.name,
@@ -292,6 +338,9 @@ class SalesRepository @Inject constructor(
         )
     }
 
+    /**
+     * Deletes a lead remotely and removes it from local Room storage.
+     */
     suspend fun deleteLead(id: String): Result<Unit> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -314,6 +363,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Converts an existing lead into a confirmed order.
+     */
     suspend fun convertLeadToOrder(leadId: String): Result<ConvertToOrderData> {
         return try {
             val (authHeader, csrfToken) = getAuthHeaders()
@@ -334,12 +386,18 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Returns a Flow of cached local leads.
+     */
     fun getLeads(): Flow<List<LeadEntity>> = leadDao.getAll()
 
-    // -------------------------------------------------------------
-    // Sales Orders Operations
-    // -------------------------------------------------------------
+    // =============================================================
+    // 5. Sales Orders Operations
+    // =============================================================
 
+    /**
+     * Fetches paginated orders with optional search and status filters.
+     */
     suspend fun getOrders(
         page: Int = 1,
         limit: Int = 10,
@@ -366,6 +424,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches details of a single order by ID.
+     */
     suspend fun getOrderById(orderId: String): Result<OrderItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -386,6 +447,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Updates an order's status (e.g., Pending, In Progress, Completed).
+     */
     suspend fun updateOrderStatus(
         orderId: String,
         status: String
@@ -410,17 +474,18 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Creates a new order with multipart support (images & voice notes).
+     */
     suspend fun createOrder(
         request: CreateOrderRequest,
-        imageParts: List<okhttp3.MultipartBody.Part> = emptyList(),
-        voiceNotePart: okhttp3.MultipartBody.Part? = null
+        imageParts: List<MultipartBody.Part> = emptyList(),
+        voiceNotePart: MultipartBody.Part? = null
     ): Result<OrderItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val gson = Gson()
 
-            fun String.asTextBody(): RequestBody =
-                this.toRequestBody("text/plain".toMediaTypeOrNull())
             val leadIdBody = request.leadId?.asTextBody()
 
             val response = salesOrderApi.createOrder(
@@ -446,8 +511,7 @@ class SalesRepository @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 val apiResponse = response.body()?.data
                     ?: return Result.failure(Exception("Order data is null"))
-                val orderItem = apiResponse.toOrderItem()
-                Result.success(orderItem)
+                Result.success(apiResponse.toOrderItem())
             } else {
                 val errorMsg = response.errorBody()?.string()
                     ?: response.message()
@@ -459,19 +523,19 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Updates an existing order with multipart attachments.
+     */
     suspend fun updateOrder(
         orderId: String,
         request: CreateOrderRequest,
         existingImages: List<String> = emptyList(),
-        imageParts: List<okhttp3.MultipartBody.Part> = emptyList(),
-        voiceNotePart: okhttp3.MultipartBody.Part? = null
+        imageParts: List<MultipartBody.Part> = emptyList(),
+        voiceNotePart: MultipartBody.Part? = null
     ): Result<OrderItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val gson = Gson()
-
-            fun String.asTextBody(): RequestBody =
-                this.toRequestBody("text/plain".toMediaTypeOrNull())
 
             val response = salesOrderApi.updateOrder(
                 token = accessToken,
@@ -508,6 +572,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches the sales overview metrics for an order.
+     */
     suspend fun getSalesOverview(orderId: String): Result<OrderOverviewData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -524,6 +591,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches detailed view data for an order.
+     */
     suspend fun getOrdersView(orderId: String): Result<OrderViewData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -542,6 +612,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches paginated order management list.
+     */
     suspend fun getOrderManagement(
         page: Int = 1,
         limit: Int = 10,
@@ -570,6 +643,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Records a payment received for an order.
+     */
     suspend fun receivePayment(
         orderId: String,
         amount: Double,
@@ -611,6 +687,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Converts a sales order into an official invoice.
+     */
     suspend fun convertToInvoice(salesOrderId: String, dueDate: String? = null): Result<ConvertToInvoiceData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -630,10 +709,13 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // -------------------------------------------------------------
-    // Production Stage Assignments & Tracking
-    // -------------------------------------------------------------
+    // =============================================================
+    // 6. Production Stage Assignments & Tracking
+    // =============================================================
 
+    /**
+     * Assigns staff to the Cutting stage of a garment item.
+     */
     suspend fun assignCutting(
         orderId: String,
         garmentItemId: String,
@@ -644,6 +726,9 @@ class SalesRepository @Inject constructor(
         salesOrderApi.assignCutting(token, csrfToken, orderId, garmentItemId, StageAssignRequest(listOf(staffId), quantity))
     }
 
+    /**
+     * Assigns staff to the Stitching stage of a garment item.
+     */
     suspend fun assignStitching(
         orderId: String,
         garmentItemId: String,
@@ -654,6 +739,9 @@ class SalesRepository @Inject constructor(
         salesOrderApi.assignStitching(token, csrfToken, orderId, garmentItemId, StageAssignRequest(listOf(staffId), quantity))
     }
 
+    /**
+     * Assigns staff to the Quality Check (QC) stage of a garment item.
+     */
     suspend fun assignQc(
         orderId: String,
         garmentItemId: String,
@@ -664,6 +752,9 @@ class SalesRepository @Inject constructor(
         salesOrderApi.assignQc(token, csrfToken, orderId, garmentItemId, StageAssignRequest(listOf(staffId), quantity))
     }
 
+    /**
+     * Helper to wrap stage assignment API calls and handle errors cleanly.
+     */
     private suspend fun safeAssignCall(call: suspend () -> Response<AssignStageResponse>): Result<AssignStageResponse> {
         return try {
             val response = call()
@@ -677,6 +768,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Updates the progress status of a specific garment production stage.
+     */
     suspend fun updateStage(
         orderId: String,
         garmentItemId: String,
@@ -707,10 +801,13 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // -------------------------------------------------------------
-    // Customer API Operations
-    // -------------------------------------------------------------
+    // =============================================================
+    // 7. Customer Management Operations
+    // =============================================================
 
+    /**
+     * Fetches paginated customer list (V1 API).
+     */
     suspend fun getCustomers(
         page: Int = 1,
         limit: Int = 10,
@@ -739,6 +836,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches paginated customer list (V2 API).
+     */
     suspend fun getCustomersV2(
         page: Int = 1,
         limit: Int = 10,
@@ -767,6 +867,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches detailed customer profile (V2 API).
+     */
     suspend fun getCustomerDetailV2(id: String): Result<CustomerDetailV2> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -783,6 +886,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches comprehensive customer view data.
+     */
     suspend fun getCustomerView(id: String): Result<CustomerViewData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -799,6 +905,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Updates customer information.
+     */
     suspend fun updateCustomer(id: String, request: UpdateCustomerRequest): Result<CustomerViewData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -815,6 +924,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Deletes a customer profile.
+     */
     suspend fun deleteCustomer(id: String): Result<String?> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -831,6 +943,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Searches customer by mobile/phone number.
+     */
     suspend fun searchCustomerByMobile(mobile: String): Result<CustomerSearchResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -845,10 +960,13 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // -------------------------------------------------------------
-    // Measurements Operations
-    // -------------------------------------------------------------
+    // =============================================================
+    // 8. Measurements Operations
+    // =============================================================
 
+    /**
+     * Fetches paginated body measurements.
+     */
     suspend fun getMeasurements(
         page: Int = 1,
         limit: Int = 10
@@ -873,10 +991,13 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // -------------------------------------------------------------
-    // Garment Pricing & Quotations Operations
-    // -------------------------------------------------------------
+    // =============================================================
+    // 9. Garment Pricing & Quotations Operations
+    // =============================================================
 
+    /**
+     * Saves garment pricing calculation / quotation draft.
+     */
     suspend fun savePricingQuotation(
         request: PricingQuotationSaveRequest
     ): Result<PricingQuotationSaveResponse> {
@@ -899,6 +1020,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches garment pricing list items.
+     */
     suspend fun getGarmentPricingList(): Result<List<GarmentPricingListItemDto>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -913,6 +1037,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches pricing details for a specific garment ID.
+     */
     suspend fun getGarmentPricingDetail(id: String): Result<GarmentPricingDetailDto> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -927,6 +1054,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Updates an existing pricing quotation by ID.
+     */
     suspend fun updatePricingQuotation(
         id: String,
         request: PricingQuotationSaveRequest
@@ -951,6 +1081,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches paginated quotations list.
+     */
     suspend fun getQuotations(
         page: Int = 1,
         limit: Int = 10,
@@ -979,6 +1112,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches garment pricing master list.
+     */
     suspend fun getGarmentPricing(): Result<List<GarmentPricingItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -995,6 +1131,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Creates a new quotation.
+     */
     suspend fun createQuotation(
         request: CreateQuotationRequest
     ): Result<CreateQuotationResponse> {
@@ -1017,6 +1156,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Deletes a quotation by ID.
+     */
     suspend fun deleteQuotation(id: String): Result<Boolean> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1033,6 +1175,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches quotation details by ID.
+     */
     suspend fun getQuotationById(id: String): Result<QuotationItemDto> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1051,10 +1196,13 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // -------------------------------------------------------------
-    // Staff & HR Operations
-    // -------------------------------------------------------------
+    // =============================================================
+    // 10. Staff & HR Operations
+    // =============================================================
 
+    /**
+     * Fetches staff/members dropdown filter data.
+     */
     suspend fun getStaff(): Result<List<StaffDto>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1069,10 +1217,13 @@ class SalesRepository @Inject constructor(
         }
     }
 
-    // -------------------------------------------------------------
-    // Organization & Branch Operations
-    // -------------------------------------------------------------
+    // =============================================================
+    // 11. Organization & Branch Settings Operations
+    // =============================================================
 
+    /**
+     * Fetches active and common organization garment categories.
+     */
     suspend fun fetchOrgGarmentCategories(): Result<List<OrgGarmentCategory>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1087,6 +1238,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches IDs of all active organization garments.
+     */
     suspend fun fetchActiveOrgGarmentIds(): Result<List<String>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1105,6 +1259,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Adds a garment category to the organization.
+     */
     suspend fun addOrgGarmentCategory(categoryId: String): Result<AddOrgGarmentResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1120,6 +1277,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Removes a garment category from the organization.
+     */
     suspend fun removeOrgGarmentCategory(categoryId: String): Result<RemoveOrgGarmentResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1134,6 +1294,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches organization branches.
+     */
     suspend fun getBranches(): Result<BranchListResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1144,6 +1307,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Updates organization branch information.
+     */
     suspend fun updateBranch(id: String, request: UpdateBranchRequest): Result<Pair<BranchItem, String?>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1161,6 +1327,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Creates a new organization branch.
+     */
     suspend fun createBranch(request: CreateBranchRequest): Result<CreateBranchResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1175,6 +1344,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches list of departments.
+     */
     suspend fun getDepartments(): Result<DepartmentResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1189,6 +1361,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Creates a new department.
+     */
     suspend fun createDepartment(request: DepartmentCreateRequest): Result<DepartmentCreateResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1203,6 +1378,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Updates an existing department.
+     */
     suspend fun updateDepartment(
         id: String,
         request: DepartmentUpdateRequest
@@ -1220,6 +1398,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches employee designations.
+     */
     suspend fun getDesignations(): Result<List<DesignationItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1234,6 +1415,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Creates a new employee designation.
+     */
     suspend fun createDesignation(request: DesignationCreateRequest): Result<DesignationCreateResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1248,6 +1432,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Updates an existing designation.
+     */
     suspend fun updateDesignation(
         id: String,
         request: DesignationUpdateRequest
@@ -1267,6 +1454,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Deletes a designation by ID.
+     */
     suspend fun deleteDesignation(id: String): Result<DesignationDeleteResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
@@ -1283,6 +1473,9 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Updates core organization profile details.
+     */
     suspend fun updateOrganization(
         token: String,
         request: UpdateOrganizationRequest
@@ -1306,15 +1499,18 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Uploads organization logo/profile picture and updates local Room cache.
+     */
     suspend fun uploadOrganizationPicture(
         token: String,
-        pictureFile: java.io.File
+        pictureFile: File
     ): Result<UploadOrganizationPictureResponse> {
         return try {
             val (_, csrfToken) = getAuthHeaders()
 
             val requestBody = pictureFile.asRequestBody("image/*".toMediaTypeOrNull())
-            val picturePart = okhttp3.MultipartBody.Part.createFormData(
+            val picturePart = MultipartBody.Part.createFormData(
                 "picture", pictureFile.name, requestBody
             )
 
@@ -1341,6 +1537,9 @@ class SalesRepository @Inject constructor(
     }
 }
 
+/**
+ * Generic wrapper for handling API results across UI layers.
+ */
 sealed class ApiResult<out T> {
     data class Success<T>(val data: T) : ApiResult<T>()
     data class Error(val message: String) : ApiResult<Nothing>()

@@ -1867,7 +1867,7 @@ fun ServiceTemplateDetailViewScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFF8FAFC))
+                    .background(badgeGrey)
                     .padding(horizontal = tokens.screenPadding, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {

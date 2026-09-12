@@ -204,6 +204,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedInvoiceId by remember { mutableStateOf<String?>(null) }
     var selectedPurchaseInvoice by remember { mutableStateOf<PurchaseInvoiceItem?>(null) }
     var selectedSupplier by remember { mutableStateOf<SupplierRow?>(null) }
+    var selectedSupplierId by remember { mutableStateOf<String?>(null) }
 
     // Inventory State
     var selectedInventoryItemId by remember { mutableStateOf<String?>(null) }
@@ -365,6 +366,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "sales_measurement_list",
             "manage_subscription",
 
+            "organization_settings",
+
             // ── Sales ──
             "sales_lead",
             "create_lead",
@@ -436,6 +439,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_add_rack",
             "inventory_bin_overview",
             "inventory_add_bin",
+            "inventory_adjustment",
+            "inventory_adjustments",
+            "finance_suppliers", "inventory_suppliers",
+            "finance_supplier_detail", "inventory_supplier_detail",
+            "inventory_transfer_stock", "inventory_items_transfer_stock",
 
             // ── HR ──
             "hr_all_employees",
@@ -788,8 +796,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 selectedLedgerAccountId = id
                                 selectedLedgerAccountName = name
                             },
-                            selectedSupplier = selectedSupplier,
-                            onSupplierSelected = { selectedSupplier = it },
+
+                            selectedSupplierId = selectedSupplierId,
+                            onSupplierSelected = { selectedSupplierId = it },
+
                             selectedPaymentModeId = selectedPaymentModeId,
                             onPaymentModeSelected = { selectedPaymentModeId = it },
                             selectedInvoiceId = selectedInvoiceId,

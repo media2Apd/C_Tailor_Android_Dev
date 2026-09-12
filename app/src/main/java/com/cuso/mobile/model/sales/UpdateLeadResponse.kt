@@ -1,106 +1,109 @@
 package com.cuso.mobile.model.sales
 
 import com.google.gson.annotations.SerializedName
+
 data class UpdateLeadResponse(
-    val success: Boolean,
-    val data: UpdatedLeadData
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("data") val data: UpdatedLeadData? = null
 )
 
 data class UpdatedLeadData(
-    val _id: String,
-    val organizationId: String,
-    val customerType: String,
-    val person: PersonData?,
-    val enquiryType: String,
-    val garmentCategory: List<String>?,
-    val estimatedQuantity: Int?,
-    val source: String,
-    val occasion: String?,
-    val enquiryDate: String,
-    val requiredDate: String?,
-    val status: String,               // ⚠️ plain string id here (not object)
-    val leadOwner: String?,           // ⚠️ plain string id here
-    val budgetRange: BudgetRangeData?,
-    val appointment: UpdatedAppointmentData?,
-    val followUpCount: Int?,
-    val notes: List<NoteData>?,
-    val customFields: Map<String, Any>?,
-    val attachments: List<Any>?,
-    val convertedCustomerId: String?,
-    val convertedOrderId: String?,
-    val isDeleted: Boolean,
-    val createdAt: String,
-    val updatedAt: String,
-    val updatedBy: String?,
-    val convertedAt: String?,
-    val followUpDate: String?,
-    val stage: String?,
-    val __v: Int
-)
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("organizationId") val organizationId: String? = null,
+    @SerializedName("customerType") val customerType: String = "Individual",
+    @SerializedName("enquiryType") val enquiryType: String? = null,
+    @SerializedName("enquiryDate") val enquiryDate: String = "",
+    @SerializedName("requiredDate") val requiredDate: String? = null,
+    @SerializedName("leadSource") val leadSource: String? = null,
+    @SerializedName("source") val source: String? = null,
+    @SerializedName("leadStatus") val leadStatus: String? = null,
+    @SerializedName("status") val status: Any? = null,
+    @SerializedName("leadOwner") val leadOwner: StaffRef? = null,
 
-data class UpdatedAppointmentData(
-    val isRequired: Boolean,
-    val date: String?,
-    val time: String?,
-    val assignedStaff: String?,       // ⚠️ plain string id here
-    val priority: String?,
-    val followUpDate: String?
-)
+    // Customer Details
+    @SerializedName("fullName") val fullName: String? = null,
+    @SerializedName("mobileNumber") val mobileNumber: String? = null,
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("gender") val gender: String? = null,
+    @SerializedName("dateOfBirth") val dateOfBirth: String? = null,
+    @SerializedName("address") val address: Any? = null,
+    @SerializedName("preferredContactMethod") val preferredContactMethod: String? = null,
 
-data class UpdatedPerson(val name: String, val phone: String, val email: String)
-data class UpdatedBudgetRange(val min: Int, val max: Int)
-data class UpdatedAppointment(val isRequired: Boolean)
-data class UpdatedNote(
-    @SerializedName("_id") val id: String,
-    val message: String,
-    val type: String,
-    val addedAt: String
-)
+    // Budget
+    @SerializedName("budgetMin") val budgetMin: Int? = null,
+    @SerializedName("budgetMax") val budgetMax: Int? = null,
 
+    // Garment & Specs
+    @SerializedName("garmentSpecifications") val garmentSpecifications: List<GarmentSpecDetail>? = null,
+    @SerializedName("isFabricProvided") val isFabricProvided: Boolean? = null,
+    @SerializedName("fabricSource") val fabricSource: String? = null,
+    @SerializedName("fabricNotes") val fabricNotes: String? = null,
+
+    // Appointment
+    @SerializedName("isAppointmentRequired") val isAppointmentRequired: Boolean? = null,
+    @SerializedName("appointmentDate") val appointmentDate: String? = null,
+    @SerializedName("appointmentTime") val appointmentTime: String? = null,
+    @SerializedName("assignedStaffId") val assignedStaffId: StaffRef? = null,
+    @SerializedName("appointmentStatus") val appointmentStatus: String? = null,
+    @SerializedName("followUpDate") val followUpDate: String? = null,
+    @SerializedName("priorityLevel") val priorityLevel: String? = null,
+
+    // Notes
+    @SerializedName("internalNotes") val internalNotes: String? = null,
+    @SerializedName("customerNotes") val customerNotes: String? = null,
+
+    @SerializedName("createdAt") val createdAt: String = "",
+    @SerializedName("updatedAt") val updatedAt: String = ""
+)
 
 data class UpdateLeadRequest(
-    val customerType: String,
-    val enquiryType: String,
-    val estimatedQuantity: Int,
-    val budgetRange: BudgetRangeRequest,
-    val enquiryDate: String,
-    val requiredDate: String?,
-    val status: String,
-    val source: String,
-    val person: PersonRequest,
-    val appointment: AppointmentRequest,
-    val notes: List<NoteRequest>,
-    val contact: ContactRequest,
-    val garmentCategory: List<String>
+    @SerializedName("customerType") val customerType: String,
+    @SerializedName("enquiryType") val enquiryType: String,
+    @SerializedName("estimatedQuantity") val estimatedQuantity: Int,
+    @SerializedName("budgetRange") val budgetRange: BudgetRangeRequest,
+    @SerializedName("enquiryDate") val enquiryDate: String,
+    @SerializedName("requiredDate") val requiredDate: String?,
+    @SerializedName("status") val status: String = "Active",
+    @SerializedName("leadStatus") val leadStatus: String? = null,
+    @SerializedName("source") val source: String,
+    @SerializedName("person") val person: PersonRequest,
+    @SerializedName("appointment") val appointment: AppointmentRequest,
+    @SerializedName("notes") val notes: List<NoteRequest>,
+    @SerializedName("contact") val contact: ContactRequest,
+    @SerializedName("garmentCategory") val garmentCategory: List<String>
 )
 
-data class BudgetRangeRequest(val min: Int, val max: Int)
+data class BudgetRangeRequest(
+    @SerializedName("min") val min: Int,
+    @SerializedName("max") val max: Int
+)
 
 data class PersonRequest(
-    val name: String,
-    val phone: String,
-    val email: String,
-    val gender: String,
-    val dob: String
+    @SerializedName("name") val name: String,
+    @SerializedName("phone") val phone: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("gender") val gender: String,
+    @SerializedName("dob") val dob: String
 )
 
 data class AppointmentRequest(
-    val isRequired: Boolean,
-    val date: String? = null,
-    val time: String? = null,
-    val assignedStaff: String? = null,
-    val priority: String? = null,
-    val followUpDate: String? = null
+    @SerializedName("isRequired") val isRequired: Boolean,
+    @SerializedName("date") val date: String? = null,
+    @SerializedName("time") val time: String? = null,
+    @SerializedName("assignedStaff") val assignedStaff: String? = null,
+    @SerializedName("priority") val priority: String? = null,
+    @SerializedName("followUpDate") val followUpDate: String? = null
 )
 
 data class NoteRequest(
-    val message: String,
-    val type: String
+    @SerializedName("message") val message: String,
+    @SerializedName("type") val type: String
 )
 
 data class ContactRequest(
-    val address: String,
-    val area: String,
-    val city: String,
-    val preferredContactMethod: String
+    @SerializedName("address") val address: String,
+    @SerializedName("area") val area: String,
+    @SerializedName("city") val city: String,
+    @SerializedName("preferredContactMethod") val preferredContactMethod: String
 )

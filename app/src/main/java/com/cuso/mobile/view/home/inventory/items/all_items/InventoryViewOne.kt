@@ -53,7 +53,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -91,15 +90,10 @@ import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.SettingsTabs
 import com.cuso.mobile.view.composable.TabItem
 import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.composable.blurScrim
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
-
-// =============================================================================
-// MAIN INVENTORY VIEW ONE COMPOSABLE
-// =============================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,20 +103,14 @@ fun InventoryViewOne(
     errorMessage: String?,
     onDismiss: () -> Unit,
     onAdjustStock: (InventoryItem) -> Unit = {},
-    onAdjustStockSubmit: (AdjustmentType, Double, String, String) -> Unit = { _, _, _, _ -> },
     onWarehouseTransfer: (InventoryItem) -> Unit = {},
     onReorderStock: (InventoryItem) -> Unit = {},
     onMarkInactive: (InventoryItem) -> Unit = {},
     onEdit: (InventoryItem) -> Unit = {},
     onShare: (InventoryItem) -> Unit = {}
 ) {
-    // ── Adaptive Design Tokens ──
     val tokens = LocalAppTokens.current
-
-    // ── UI State Holders ──
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Overview, 1 = Transactions
-    var showAdjustStockSheet by remember { mutableStateOf(false) }
-    var sheetBlur by remember { mutableStateOf(0.dp) }
+    var selectedTab by remember { mutableIntStateOf(0) }
 
     val inventoryTabs = remember {
         listOf(
@@ -151,153 +139,122 @@ fun InventoryViewOne(
                 .padding(paddingValues)
                 .background(Primary_background)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Primary_background)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .blurScrim(sheetBlur)
-                ) {
-                    when {
-                        isLoading -> {
-                            ListSkeleton()
+            when {
+                isLoading -> {
+                    ListSkeleton()
+                }
+
+                errorMessage != null -> {
+                    AppErrorState(
+                        title = "Failed to load inventory",
+                        message = errorMessage,
+                        onRetry = { /* Retry callback */ }
+                    )
+                }
+
+                item != null -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = tokens.screenPadding)
+                    ) {
+                        // ── Item Header ──
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = item.name,
+                                fontSize = tokens.h2,
+                                fontWeight = FontWeight.SemiBold,
+                                color = title_color
+                            )
+                            Spacer(Modifier.width(tokens.extraPadding - 2.dp))
+                            StatusBadge(
+                                active = item.status.equals("active", ignoreCase = true),
+                                tokens = tokens
+                            )
+                            Spacer(Modifier.weight(1f))
+
+                            IconButton(
+                                onClick = { onEdit(item) },
+                                modifier = Modifier.size(tokens.iconSize + 14.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Edit,
+                                    contentDescription = "Edit",
+                                    tint = mutedText,
+                                    modifier = Modifier.size(tokens.iconSize)
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { onShare(item) },
+                                modifier = Modifier.size(tokens.iconSize + 14.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Share,
+                                    contentDescription = "Share",
+                                    tint = mutedText,
+                                    modifier = Modifier.size(tokens.iconSize)
+                                )
+                            }
                         }
 
-                        errorMessage != null -> {
-                            AppErrorState(
-                                title = "Failed to load inventory",
-                                message = errorMessage,
-                                onRetry = { /* Retry callback */ }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "SKU: ${item.sku} | Created on ${formatDate(item.createdAt)}",
+                            fontSize = tokens.caption,
+                            color = mutedText
+                        )
+
+                        Spacer(Modifier.height(tokens.extraPadding + 6.dp))
+
+                        // ── Primary Action Button (Adjust Stock) ──
+                        Button(
+                            onClick = { onAdjustStock(item) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(tokens.buttonHeight),
+                            shape = RoundedCornerShape(tokens.cardCornerRadius),
+                            colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                        ) {
+                            Text(
+                                text = "Adjust Stock",
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = whiteBg
                             )
                         }
 
-                        item != null -> {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                                    .padding(horizontal = tokens.screenPadding)
-                            ) {
-                                // ── Item Header (Name, Badge, Actions) ──
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = item.name,
-                                        fontSize = tokens.h2,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = title_color
-                                    )
-                                    Spacer(Modifier.width(tokens.extraPadding - 2.dp))
-                                    StatusBadge(
-                                        active = item.status.equals("active", ignoreCase = true),
-                                        tokens = tokens
-                                    )
-                                    Spacer(Modifier.weight(1f))
+                        Spacer(Modifier.height(tokens.extraPadding + 6.dp))
 
-                                    IconButton(
-                                        onClick = { onEdit(item) },
-                                        modifier = Modifier.size(tokens.iconSize + 14.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Edit,
-                                            contentDescription = "Edit",
-                                            tint = mutedText,
-                                            modifier = Modifier.size(tokens.iconSize)
-                                        )
-                                    }
+                        // ── Tabs Navigation ──
+                        SettingsTabs(
+                            tabs = inventoryTabs,
+                            selectedIndex = selectedTab,
+                            onTabSelected = { selectedTab = it }
+                        )
 
-                                    IconButton(
-                                        onClick = { onShare(item) },
-                                        modifier = Modifier.size(tokens.iconSize + 14.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Share,
-                                            contentDescription = "Share",
-                                            tint = mutedText,
-                                            modifier = Modifier.size(tokens.iconSize)
-                                        )
-                                    }
-                                }
+                        Spacer(Modifier.height(tokens.extraPadding * 2))
 
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = "SKU: ${item.sku} | Created on ${formatDate(item.createdAt)}",
-                                    fontSize = tokens.caption,
-                                    color = mutedText
-                                )
-
-                                Spacer(Modifier.height(tokens.extraPadding + 6.dp))
-
-                                // ── Primary Action Button (Adjust Stock) ──
-                                Button(
-                                    onClick = { showAdjustStockSheet = true },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(tokens.buttonHeight),
-                                    shape = RoundedCornerShape(tokens.cardCornerRadius),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                                ) {
-                                    Text(
-                                        text = "Adjust Stock",
-                                        fontSize = tokens.bodyMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        color = whiteBg
-                                    )
-                                }
-
-                                Spacer(Modifier.height(tokens.extraPadding + 6.dp))
-
-                                // ── Tabs Navigation ──
-                                SettingsTabs(
-                                    tabs = inventoryTabs,
-                                    selectedIndex = selectedTab,
-                                    onTabSelected = { selectedTab = it }
-                                )
-
-                                Spacer(Modifier.height(tokens.extraPadding * 2))
-
-                                // ── Tab Content ──
-                                if (selectedTab == 0) {
-                                    OverviewContent(
-                                        item = item,
-                                        tokens = tokens,
-                                        onAdjustStockClick = { showAdjustStockSheet = true },
-                                        onWarehouseTransfer = onWarehouseTransfer,
-                                        onReorderStock = onReorderStock,
-                                        onMarkInactive = onMarkInactive
-                                    )
-                                } else {
-                                    TransactionsPlaceholder(tokens = tokens)
-                                }
-
-                                Spacer(Modifier.height(tokens.extraPadding * 2 + 4.dp))
-                            }
+                        // ── Tab Content ──
+                        if (selectedTab == 0) {
+                            OverviewContent(
+                                item = item,
+                                tokens = tokens,
+                                onAdjustStockClick = { onAdjustStock(item) },
+                                onWarehouseTransfer = onWarehouseTransfer,
+                                onReorderStock = onReorderStock,
+                                onMarkInactive = onMarkInactive
+                            )
+                        } else {
+                            TransactionsPlaceholder(tokens = tokens)
                         }
+
+                        Spacer(Modifier.height(tokens.extraPadding * 2 + 4.dp))
                     }
-                }
-
-                // ── Adjust Stock Bottom Sheet ──
-                if (showAdjustStockSheet && item != null) {
-                    AdjustStockSheet(
-                        item = item,
-                        onDismiss = {
-                            showAdjustStockSheet = false
-                            sheetBlur = 0.dp
-                        },
-                        onBlurScrimChange = { radius, _ ->
-                            sheetBlur = radius
-                        },
-                        onSubmit = { type, quantity, reason, notes ->
-                            showAdjustStockSheet = false
-                            sheetBlur = 0.dp
-                            onAdjustStockSubmit(type, quantity, reason, notes)
-                        }
-                    )
                 }
             }
         }
@@ -435,7 +392,6 @@ private fun OverviewContent(
 
     Spacer(Modifier.height(tokens.extraPadding * 2))
 
-    // ── Quick Insights Card ──
     QuickInsightCard(item = item, tokens = tokens)
 }
 

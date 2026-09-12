@@ -1122,8 +1122,6 @@ fun BinOverviewScreen(
 
     LaunchedEffect(warehouseId, rackId) {
         viewModel.fetchBins(
-            warehouseId = warehouseId,
-            rackId = rackId,
             isRefresh = true
         )
     }

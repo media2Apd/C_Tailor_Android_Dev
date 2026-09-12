@@ -37,13 +37,18 @@ data class UpdateItemGroupResponse(
 )
 
 data class ItemGroupListResponse(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("groups") val groups: List<ItemGroupDto> = emptyList(),
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("data") private val _data: List<ItemGroupDto>? = null,       // Backend returns "data"
+    @SerializedName("groups") private val _groups: List<ItemGroupDto>? = null,   // Fallback for "groups"
     @SerializedName("total") val total: Int = 0,
     @SerializedName("page") val page: Int = 1,
     @SerializedName("pageSize") val pageSize: Int = 20,
     @SerializedName("totalPages") val totalPages: Int = 1
-)
+) {
+    // Guaranteed non-null accessor reading from backend "data" field
+    val groups: List<ItemGroupDto>
+        get() = _data ?: _groups ?: emptyList()
+}
 
 data class DeleteItemGroupResponse(
     @SerializedName("success") val success: Boolean,

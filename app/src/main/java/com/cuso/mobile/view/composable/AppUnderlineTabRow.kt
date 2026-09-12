@@ -58,7 +58,9 @@ fun AppUnderlineTabRow(
                             text = title,
                             fontSize = tokens.bodySmall,
                             fontWeight = if (selectedIndex == index) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (selectedIndex == index) Primary else close_color
+                            color = if (selectedIndex == index) Primary else close_color,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 )

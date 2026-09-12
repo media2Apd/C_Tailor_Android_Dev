@@ -32,7 +32,7 @@ android {
     defaultConfig {
         applicationId = "com.cuso.mobile"
         minSdk = 25
-        //noinspection OldTargetApi
+        //no inspection OldTargetApi
         targetSdk = 36
 
         //VERSION
@@ -46,7 +46,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.6:5000/\""
+                "\"http://10.103.73.196:5000/\""
             )
         }
         release {

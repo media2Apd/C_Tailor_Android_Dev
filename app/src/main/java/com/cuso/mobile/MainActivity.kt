@@ -43,6 +43,7 @@ import com.cuso.mobile.ui.theme.CusoTailorTheme
 import com.cuso.mobile.ui.theme.NoRippleProvider
 import com.cuso.mobile.utils.AppLoadingManager
 import com.cuso.mobile.utils.LocalIsAppBusy
+import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.forgot_password.ForgotUserPassword
 import com.cuso.mobile.view.forgot_password.ResetPassword
 import com.cuso.mobile.view.forgot_password.VerifyForgotPassword
@@ -62,7 +63,6 @@ import com.cuso.mobile.view.others.TermsConditions
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -85,20 +85,10 @@ class MainActivity : ComponentActivity() {
             enableEdgeToEdge()
 
             setContent {
-                // 1. Calculate the current WindowSizeClass (Compact, Medium, or Expanded)
                 val windowSizeClass = calculateWindowSizeClass(this@MainActivity)
-
-                // 2. Generate the adaptive design tokens based on screen width
                 val tokens = getAdaptiveTokens(windowSizeClass.widthSizeClass)
-
-                // Global "is any API call in flight" flag. Read by every
-                // reusable input (AppTextField, AppDropdown, AppButton, etc.)
-                // via LocalIsAppBusy so fields auto-disable app-wide without
-                // each screen having to wire up its own loading state.
                 val isAppBusy by AppLoadingManager.busyState.collectAsState()
 
-                // 3. Provide the tokens to the entire UI tree using CompositionLocalProvider
-                // This prevents the IllegalStateException in child components like DynamicIsland
                 CompositionLocalProvider(
                     LocalAppTokens provides tokens,
                     LocalIsAppBusy provides isAppBusy
@@ -115,15 +105,19 @@ class MainActivity : ComponentActivity() {
                                         })
                                     }
                             ) {
-
                                 Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
                                     AppNav(
                                         activity = this@MainActivity,
                                         startLoggedIn = isLoggedIn == true,
                                         widthSizeClass = windowSizeClass.widthSizeClass
                                     )
-
                                 }
+
+                                // 🛡 Global Dynamic Island Error Layer
+                                DynamicIslandError(
+                                    message = MyApplication.dynamicIslandMessage,
+                                    onDismiss = { MyApplication.dynamicIslandMessage = null }
+                                )
                             }
                         }
                     }
@@ -140,8 +134,6 @@ fun AppNav(
     widthSizeClass: WindowWidthSizeClass
 ) {
     val navController = rememberNavController()
-
-    // Determine entry point based on login session
     val startDestination = if (startLoggedIn) "home" else "login?message={message}"
 
     NavHost(
@@ -149,9 +141,6 @@ fun AppNav(
         startDestination = startDestination,
         modifier = Modifier.fillMaxSize()
     ) {
-
-        // ── Authentication Flow ──────────────────────────────────
-
         composable("login?message={message}",
             arguments = listOf(navArgument("message") {
                 type = NavType.StringType; defaultValue = ""
@@ -227,8 +216,6 @@ fun AppNav(
             ResetPassword(resetToken = resetToken, navController = navController)
         }
 
-        // ── Core Application Screens ───────────────────────────
-
         composable("home") {
             HomeScreen(navController, widthSizeClass)
         }
@@ -237,8 +224,6 @@ fun AppNav(
             OrderFlowNavigator(
                 onFinish = { savedOrderId ->
                     if (savedOrderId != null) {
-                        // Pass the saved order id to the "home" screen's back stack entry
-                        // so HomeScreen can pick it up and navigate to Order Overview.
                         navController.getBackStackEntry("home")
                             .savedStateHandle["pendingOrderId"] = savedOrderId
                     }
@@ -256,11 +241,8 @@ fun AppNav(
         }
 
         composable("sales_lead") {
-            // Updated to ensure LeadScreen is called with width class for adaptiveness
             LeadScreenContent()
         }
-
-        // ── Settings & Profile ────────────────────────────────
 
         composable("home_organization_profile") {
             OrganizationProfile(
@@ -308,9 +290,7 @@ fun AppNav(
             OrganizationNotFoundScreen(navController)
         }
 
-        // ── Legal & Static ───────────────────────────────────
-
-        composable("terms")   { TermsConditions(navController) }
+        composable("terms") { TermsConditions(navController) }
         composable("privacy") { PrivacyPolicy(navController) }
     }
 }

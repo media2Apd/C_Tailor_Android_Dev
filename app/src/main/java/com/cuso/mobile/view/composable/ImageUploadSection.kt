@@ -69,6 +69,7 @@ import coil.compose.rememberAsyncImagePainter
 import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.badgeGrey
 import com.cuso.mobile.ui.theme.redText
 
 @Composable
@@ -228,7 +229,7 @@ fun <T> ImageUploadSection(
                         modifier = Modifier
                             .size(imagePreviewSize)
                             .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                            .background(Color(0xFFF8FAFC))
+                            .background(badgeGrey)
                             .border(
                                 width = 1.dp,
                                 color = Color(0xFFE2E8F0),
@@ -450,7 +451,7 @@ fun <T> VoiceUploadSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                            .background(Color(0xFFF8FAFC))
+                            .background(badgeGrey)
                             .border(
                                 width = 1.dp,
                                 color = if (isItemPlaying) Primary else Color(0xFFE2E8F0),

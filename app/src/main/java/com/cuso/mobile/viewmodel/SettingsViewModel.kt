@@ -253,6 +253,9 @@ class SettingsViewModel @Inject constructor(
     private val _dynamicErrorMessage = MutableStateFlow<String?>(null)
     val dynamicErrorMessage: StateFlow<String?> = _dynamicErrorMessage.asStateFlow()
 
+    private val _isLoadingBins = MutableStateFlow(false)
+    val isLoadingBins: StateFlow<Boolean> = _isLoadingBins.asStateFlow()
+
     // ===========================================================
     // 9. UTILITY & MESSAGE METHODS
     // ===========================================================
@@ -1758,28 +1761,31 @@ class SettingsViewModel @Inject constructor(
             binCurrentPage = 1
             isBinEndReached = false
         }
-        if (_isLoadingLocationStructure.value || _isPaginatingBins.value || isBinEndReached) return
+        if (_isLoadingBins.value || _isPaginatingBins.value || isBinEndReached) return
 
         viewModelScope.launch {
             if (binCurrentPage == 1) {
+                _isLoadingBins.value = true
                 _isLoadingLocationStructure.value = true
             } else {
                 _isPaginatingBins.value = true
             }
 
-            val pageSize = 10
+            val pageSize = 20
             val result = settingsRepository.getBins(
-                warehouseId = warehouseId,
-                rackId = rackId,
                 page = binCurrentPage,
                 limit = pageSize
             )
+            _isLoadingBins.value = false
             _isLoadingLocationStructure.value = false
             _isPaginatingBins.value = false
 
             result.onSuccess { list ->
                 if (list.isEmpty()) {
                     isBinEndReached = true
+                    if (binCurrentPage == 1) {
+                        _bins.value = emptyList()
+                    }
                 } else {
                     if (binCurrentPage == 1) {
                         _bins.value = list

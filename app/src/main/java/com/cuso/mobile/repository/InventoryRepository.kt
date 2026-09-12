@@ -8,7 +8,10 @@ import com.cuso.mobile.model.inventory.AdjustStockRequest
 import com.cuso.mobile.model.inventory.CreateInventoryItemResponse
 import com.cuso.mobile.model.inventory.CreateItemGroupRequest
 import com.cuso.mobile.model.inventory.CreatePurchaseOrderRequest
+import com.cuso.mobile.model.inventory.CreateSupplierRequest
 import com.cuso.mobile.model.inventory.CreateWarehouseRequest
+import com.cuso.mobile.model.inventory.DecreaseStockRequest
+import com.cuso.mobile.model.inventory.IncreaseStockRequest
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.InventoryItemListResponse
 import com.cuso.mobile.model.inventory.InventoryItemviewone
@@ -20,6 +23,10 @@ import com.cuso.mobile.model.inventory.PurchaseOrderData
 import com.cuso.mobile.model.inventory.ReverseAdjustmentRequest
 import com.cuso.mobile.model.inventory.StockAdjustmentData
 import com.cuso.mobile.model.inventory.StockAdjustmentListResponse
+import com.cuso.mobile.model.inventory.StockSummaryListResponse
+import com.cuso.mobile.model.inventory.SupplierDropdownItem
+import com.cuso.mobile.model.inventory.SupplierDto
+import com.cuso.mobile.model.inventory.SupplierLedgerContainer
 import com.cuso.mobile.model.inventory.TransferStockRequest
 import com.cuso.mobile.model.inventory.UpdateInventoryItemResponse
 import com.cuso.mobile.model.inventory.UpdateWarehouseRequest
@@ -564,27 +571,67 @@ class InventoryRepository @Inject constructor(
         }
     }
 
+//    /**
+//     * Adjust stock quantity (Increase or Decrease).
+//     */
+//    suspend fun adjustStockQuantity(
+//        request: AdjustStockQuantityRequest
+//    ): Result<StockAdjustmentData> = withContext(Dispatchers.IO) {
+//        try {
+//            val (accessToken, csrfToken) = getAuthHeaders()
+//            val response = inventoryApi.adjustStockQuantity(accessToken, csrfToken, request)
+//            val body = response.body()
+//
+//            if (response.isSuccessful && body?.success == true && body.data != null) {
+//                Result.success(body.data)
+//            } else {
+//                Result.failure(Exception(extractErrorMessage(response, "Failed to adjust stock")))
+//            }
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
     /**
-     * Adjust stock quantity (Increase or Decrease).
+     * 1. Increase Stock API Call
      */
-    suspend fun adjustStockQuantity(
-        request: AdjustStockQuantityRequest
+    suspend fun increaseStock(
+        request: IncreaseStockRequest
     ): Result<StockAdjustmentData> = withContext(Dispatchers.IO) {
         try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = inventoryApi.adjustStockQuantity(accessToken, csrfToken, request)
+            val response = inventoryApi.increaseStock(accessToken, csrfToken, request)
             val body = response.body()
 
             if (response.isSuccessful && body?.success == true && body.data != null) {
                 Result.success(body.data)
             } else {
-                Result.failure(Exception(extractErrorMessage(response, "Failed to adjust stock")))
+                Result.failure(Exception(extractErrorMessage(response, "Failed to increase stock")))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    /**
+     * 2. Decrease Stock API Call
+     */
+    suspend fun decreaseStock(
+        request: DecreaseStockRequest
+    ): Result<StockAdjustmentData> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.decreaseStock(accessToken, csrfToken, request)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to decrease stock")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     /**
      * Transfer stock between warehouses / bins.
      */
@@ -631,22 +678,27 @@ class InventoryRepository @Inject constructor(
     }
 
     /**
-     * Get paginated history of stock adjustments.
+     * Fetch stock summary list with error-safe handling.
      */
-    suspend fun getStockAdjustmentsList(
+    suspend fun getStockSummaryList(
         page: Int = 1,
         limit: Int = 20,
-        itemId: String? = null,
-        warehouseId: String? = null
-    ): Result<StockAdjustmentListResponse> = withContext(Dispatchers.IO) {
+        search: String? = null
+    ): Result<StockSummaryListResponse> = withContext(Dispatchers.IO) {
         try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = inventoryApi.getStockAdjustmentsList(accessToken, csrfToken, page, limit, itemId, warehouseId)
+            val response = inventoryApi.getStockSummaryList(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search
+            )
 
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(Exception(extractErrorMessage(response, "Failed to fetch adjustment history")))
+                Result.failure(Exception(extractErrorMessage(response, "Failed to load stock summary")))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -809,5 +861,126 @@ class InventoryRepository @Inject constructor(
         return response.errorBody()?.string()
             ?: response.message().takeIf { it.isNotBlank() }
             ?: "$fallbackMessage (Code: ${response.code()})"
+    }
+
+    // =========================================================================
+    // SUPPLIER
+    // =========================================================================
+    suspend fun getAllSuppliers(page: Int = 1, limit: Int = 50, search: String? = null, status: String? = null): Result<List<SupplierDto>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getAllSuppliers(accessToken, csrfToken, page, limit, search, status)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.data ?: emptyList())
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch suppliers"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSupplierDropdown(): Result<List<SupplierDropdownItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getSupplierDropdown(accessToken, csrfToken)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.data ?: emptyList())
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch supplier dropdown"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSupplierById(id: String): Result<SupplierDto> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getSupplierById(accessToken, csrfToken, id)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch supplier details"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createSupplier(request: CreateSupplierRequest): Result<SupplierDto> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.createSupplier(accessToken, csrfToken, request)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: body?.message ?: "Failed to create supplier"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateSupplier(id: String, request: CreateSupplierRequest): Result<SupplierDto> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.updateSupplier(accessToken, csrfToken, id, request)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: body?.message ?: "Failed to update supplier"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteSupplier(id: String): Result<String> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.deleteSupplier(accessToken, csrfToken, id)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.message ?: "Supplier deleted successfully")
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: body?.message ?: "Failed to delete supplier"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun restoreSupplier(id: String): Result<SupplierDto> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.restoreSupplier(accessToken, csrfToken, id)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: body?.message ?: "Failed to restore supplier"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSupplierLedger(id: String): Result<SupplierLedgerContainer> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getSupplierLedger(accessToken, csrfToken, id)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to load supplier ledger"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

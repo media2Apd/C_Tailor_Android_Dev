@@ -152,10 +152,8 @@ interface InventorySettingsApiService {
     suspend fun getBins(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
-        @Query("warehouseId") warehouseId: String? = null,
-        @Query("rackId") rackId: String? = null,
         @Query("page") page: Int = 1,
-        @Query("limit") limit: Int = 10
+        @Query("limit") limit: Int = 50
     ): Response<GetBinsResponse>
 
     @POST("/api/inventory/settings/bin/create")

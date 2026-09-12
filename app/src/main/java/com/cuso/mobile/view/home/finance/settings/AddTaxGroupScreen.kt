@@ -85,7 +85,7 @@ fun AddTaxGroupScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(whiteBg)
+            .background(Color.Transparent)
     ) {
         // ── Top Title Bar (Solid background + High zIndex to prevent scrim overlap) ──
         Surface(

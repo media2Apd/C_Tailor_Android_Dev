@@ -575,7 +575,7 @@ private fun MeasurementPillsGrid(measurements: List<Pair<String, String>>) {
                             .weight(1f)
                             .height(38.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFF8FAFC))
+                            .background(badgeGrey)
                             .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center
                     ) {

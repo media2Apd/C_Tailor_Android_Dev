@@ -911,19 +911,19 @@ class SettingsRepository @Inject constructor(
     // 11. BINS (INVENTORY)
     // ===========================================================
 
+    // ===========================================================
+    // 11. BINS (INVENTORY)
+    // ===========================================================
+
     suspend fun getBins(
-        warehouseId: String? = null,
-        rackId: String? = null,
         page: Int = 1,
-        limit: Int = 10
+        limit: Int = 50
     ): Result<List<BinItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response: Response<GetBinsResponse> = inventoryApi.getBins(
                 token = accessToken,
                 csrfToken = csrfToken,
-                warehouseId = warehouseId?.takeIf { it.isNotBlank() },
-                rackId = rackId?.takeIf { it.isNotBlank() },
                 page = page,
                 limit = limit
             )

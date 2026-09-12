@@ -24,9 +24,6 @@ import com.cuso.mobile.view.home.finance.account_payable.payment_mode.PaymentDet
 import com.cuso.mobile.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceDetailScreen
 import com.cuso.mobile.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceItem
 import com.cuso.mobile.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceScreen
-import com.cuso.mobile.view.home.finance.account_payable.suppliers.AllSuppliersScreen
-import com.cuso.mobile.view.home.finance.account_payable.suppliers.SupplierDetailScreen
-import com.cuso.mobile.view.home.finance.account_payable.suppliers.SupplierRow
 import com.cuso.mobile.view.home.finance.account_receivable.customers.CustomerDetailViewScreen
 import com.cuso.mobile.view.home.finance.account_receivable.customers.FinanceCustomerScreen
 import com.cuso.mobile.view.home.finance.account_receivable.payment_received.AllPaymentScreen
@@ -47,27 +44,19 @@ import com.cuso.mobile.view.home.hr.attendance.AttendanceScreen
 import com.cuso.mobile.view.home.hr.employees.AllEmployeesScreen
 import com.cuso.mobile.view.home.hr.employees.EmployeeOnboardingScreen
 import com.cuso.mobile.view.home.hr.employees.ScreenMode
+import com.cuso.mobile.view.home.inventory.items.adjustment.AllOrdersStockListScreen
 import com.cuso.mobile.view.home.inventory.items.item_groups.AllItemGroupScreen
 import com.cuso.mobile.view.home.inventory.items.item_groups.CreateItemGroupScreen
-import com.cuso.mobile.view.home.inventory.items.all_items.AdjustmentType
 import com.cuso.mobile.view.home.inventory.items.all_items.CreateItemScreen
 import com.cuso.mobile.view.home.inventory.items.all_items.InventoryScreen
 import com.cuso.mobile.view.home.inventory.items.all_items.InventoryViewOne
 import com.cuso.mobile.view.home.inventory.items.item_groups.ItemGroupDetailScreen
+import com.cuso.mobile.view.home.inventory.items.transferorder.TransferOrdersStockListScreen
 import com.cuso.mobile.view.home.inventory.procurement.orders.CreatePurchaseOrderScreen
 import com.cuso.mobile.view.home.inventory.procurement.orders.LowStockAlertsScreen
-import com.cuso.mobile.view.home.inventory.settings.AddBinScreen
-import com.cuso.mobile.view.home.inventory.settings.AddFloorScreen
-import com.cuso.mobile.view.home.inventory.settings.AddRackScreen
-import com.cuso.mobile.view.home.inventory.settings.AddSectionScreen
-import com.cuso.mobile.view.home.inventory.settings.AllocationRulesScreen
-import com.cuso.mobile.view.home.inventory.settings.BinOverviewScreen
-import com.cuso.mobile.view.home.inventory.settings.CreateAllocationScreen
-import com.cuso.mobile.view.home.inventory.settings.FloorOverviewScreen
-import com.cuso.mobile.view.home.inventory.settings.LocationStructureScreen
-import com.cuso.mobile.view.home.inventory.settings.PdfTemplatesScreen
-import com.cuso.mobile.view.home.inventory.settings.RackOverviewScreen
-import com.cuso.mobile.view.home.inventory.settings.SectionOverviewScreen
+import com.cuso.mobile.view.home.inventory.procurement.suppliers.AllSuppliersScreen
+import com.cuso.mobile.view.home.inventory.procurement.suppliers.SupplierDetailScreen
+import com.cuso.mobile.view.home.inventory.settings.*
 import com.cuso.mobile.view.home.logistics.delivery.DeliveryDetailScreen
 import com.cuso.mobile.view.home.logistics.delivery.DeliveryManagementScreen
 import com.cuso.mobile.view.home.logistics.order_tracking.OrderTrackingScreen
@@ -76,22 +65,16 @@ import com.cuso.mobile.view.home.opening_balance.OpeningBalancesScreen
 import com.cuso.mobile.view.home.profile_settings.ProfileSettingsScreen
 import com.cuso.mobile.view.home.profile_settings.setup_pages.SettingsScreen
 import com.cuso.mobile.view.home.profile_settings.all_settings.ModuleSettingsScreen
+import com.cuso.mobile.view.home.profile_settings.all_settings.OrganizationSettingsScreen
 import com.cuso.mobile.view.home.profile_settings.all_settings.SettingsOverviewScreen
+import com.cuso.mobile.view.home.profile_settings.setup_pages.BusinessSetupScreen
 import com.cuso.mobile.view.home.reports.finance.FinanceReportPage
 import com.cuso.mobile.view.home.reports.finance.ProfitAndLossReportScreen
-import com.cuso.mobile.view.home.reports.inventory.DeadStockReportScreen
-import com.cuso.mobile.view.home.reports.inventory.InventoryReportPage
-import com.cuso.mobile.view.home.reports.inventory.LowStockScreen
-import com.cuso.mobile.view.home.reports.inventory.PurchaseReportScreen
-import com.cuso.mobile.view.home.reports.inventory.StockSummaryScreen
-import com.cuso.mobile.view.home.reports.inventory.WarehouseReportScreen
+import com.cuso.mobile.view.home.reports.inventory.*
 import com.cuso.mobile.view.home.reports.sales.SalesOrderReportsScreen
 import com.cuso.mobile.view.home.role.RoleSettingsScreen
-import com.cuso.mobile.view.home.sales.settings.garment.AddNewGarmentScreen
-import com.cuso.mobile.view.home.sales.settings.garment.AddSegmentScreen
-import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.GarmentCategoryDetailScreen
-import com.cuso.mobile.view.home.sales.settings.garment.GarmentTypeContent
-import com.cuso.mobile.view.home.sales.settings.garment.SalesSettingsScreen
+import com.cuso.mobile.view.home.sales.settings.garment.*
+import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.*
 import com.cuso.mobile.view.home.sales.customer.*
 import com.cuso.mobile.view.home.sales.lead.*
 import com.cuso.mobile.view.home.sales.measurements.MeasurementsScreen
@@ -99,16 +82,8 @@ import com.cuso.mobile.view.home.sales.payment_listing.*
 import com.cuso.mobile.view.home.sales.pricing.*
 import com.cuso.mobile.view.home.sales.quotation.*
 import com.cuso.mobile.view.home.sales.sales_order.*
-import com.cuso.mobile.view.home.sales.settings.garment.AddNewGarmentCategoryScreen
-import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.AddExistingFieldScreen
-import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.ConfigurationPreviewScreen
-import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.CreateMeasurementFieldScreen
-import com.cuso.mobile.view.home.sales.settings.garment.garment_category_detail.GarmentProfileConfigScreen
 import com.cuso.mobile.view.home.sales.settings.measurement_list.MeasurementListScreen
-import com.cuso.mobile.view.home.sales.settings.pricing_setup.AddFabricPriceScreen
-import com.cuso.mobile.view.home.sales.settings.pricing_setup.AddNewGarmentPricingScreen
-import com.cuso.mobile.view.home.sales.settings.pricing_setup.AddWorkPricingScreen
-import com.cuso.mobile.view.home.sales.settings.pricing_setup.PricingSetupScreen
+import com.cuso.mobile.view.home.sales.settings.pricing_setup.*
 import com.cuso.mobile.view.home.services.alteration_management.AlterationManagementScreen
 import com.cuso.mobile.view.home.services.alteration_management.CreateAlterationManagementScreen
 import com.cuso.mobile.view.home.services.feedback.CustomerFeedbackScreen
@@ -126,7 +101,7 @@ import com.cuso.mobile.view.home.services.service_status.status.ServiceStatusDet
 import com.cuso.mobile.view.home.services.service_status.status.ServiceStatusScreen
 import com.cuso.mobile.view.home.services.settings.CreateServiceTemplateWizardScreen
 import com.cuso.mobile.view.home.services.settings.ServiceTemplateListScreen
-import com.cuso.mobile.view.home.subscriptions.ManageSubscriptionFlowScreen
+import com.cuso.mobile.view.home.subscriptions.SubscriptionFlowContainer
 import com.cuso.mobile.view.home.warehouse.WarehouseSettingsScreen
 import com.cuso.mobile.viewmodel.*
 
@@ -158,8 +133,8 @@ fun HomeScreenRouter(
     selectedLedgerAccountId: String?,
     selectedLedgerAccountName: String,
     onLedgerAccountSelected: (id: String?, name: String) -> Unit,
-    selectedSupplier: SupplierRow?,
-    onSupplierSelected: (SupplierRow?) -> Unit,
+    selectedSupplierId: String?,
+    onSupplierSelected: (String?) -> Unit,
     selectedPaymentModeId: String?,
     onPaymentModeSelected: (String?) -> Unit,
     selectedInvoiceId: String?,
@@ -280,12 +255,13 @@ fun HomeScreenRouter(
         )
         "settings_overview" -> SettingsOverviewScreen(
             onClose = onGoBack,
-            onNavigateToOrganizationSettings = { onSafeNavigate("home_organization_profile") },
+            onNavigateToOrganizationSettings = { onSafeNavigate("organization_settings") },
             onNavigateToModuleSettings = { onSafeNavigate("module_settings") },
             onNavigateToSubscriptionSettings = { onSafeNavigate("manage_subscription") }
         )
-        "manage_subscription" -> ManageSubscriptionFlowScreen(
-            onClose = onGoBack
+        "manage_subscription" -> SubscriptionFlowContainer(
+            onClose = onGoBack,
+            onStartUpgrade = {}
         )
         "module_settings" -> ModuleSettingsScreen(
             onClose = onGoBack,
@@ -313,8 +289,33 @@ fun HomeScreenRouter(
             onConfigureReports = { onSafeNavigate("reports_sales") }
         )
 
+        "organization_settings" -> OrganizationSettingsScreen(
+            onClose = onGoBack,
+            onNavigate = { routeKey ->
+                when (routeKey) {
+                    "organization_profile" -> onNavigate("home_organization_profile")
+                    "business_setup" -> onNavigate("home_business_setup")
+                    "tax_rates" -> onNavigate("finance_tax_rates")
+                    "gst_settings" -> onNavigate("finance_gst_settings")
+                    "branch_management" -> onNavigate("home_branch_management")
+                    "department_teams" -> onNavigate("home_department_teams")
+                    "designation" -> onNavigate("home_designation")
+                    "role" -> onNavigate("home_role_management")
+                    "opening_balance" -> onNavigate("home_opening_balance")
+                    "warehouse" -> onNavigate("home_warehouse_management")
+                    "manage_subcription", "overview", "current_plan" -> onNavigate("manage_subscription")
+                    else -> onNavigate(routeKey)
+                }
+            }
+        )
+
+        "home_business_setup" -> BusinessSetupScreen(
+            onClose = onGoBack,
+            onSaveAndContinue = { onGoBack() }
+        )
+
         // ─────────────────────────────────────────────────────────────
-        // 2. INVENTORY SETTINGS & STRUCTURE MODULE
+        // 2. INVENTORY STRUCTURE MODULE
         // ─────────────────────────────────────────────────────────────
         "inventory_allocation_rules" -> AllocationRulesScreen(
             onClose = onGoBack,
@@ -707,9 +708,6 @@ fun HomeScreenRouter(
         )
         "payment_detail" -> PaymentInformationScreen(onClose = onGoBack)
 
-        // ─────────────────────────────────────────────────────────────
-        //  SALES SETTINGS
-        // ─────────────────────────────────────────────────────────────
         "sales_settings" -> SalesSettingsScreen(
             navController = navController,
             onClose = onGoBack,
@@ -741,9 +739,7 @@ fun HomeScreenRouter(
                 segmentId = segmentId,
                 garmentId = garmentId,
                 onClose = onGoBack,
-                onAddGarmentCategoryClick = {
-                    onNavigate("sales_add_garment_category")
-                },
+                onAddGarmentCategoryClick = { onNavigate("sales_add_garment_category") },
                 viewModel = settingsViewModel
             )
         }
@@ -826,15 +822,14 @@ fun HomeScreenRouter(
         "sales_garment_pricing_setup" -> PricingSetupScreen(
             onClose = onGoBack,
             onAddGarmentPricing = {
-                onEditingPricingIdChange(null) // Ensure Add mode
+                onEditingPricingIdChange(null)
                 onNavigate("sales_add_garment_pricing")
             },
             onAddFabricPricing = { onNavigate("sales_add_fabric_pricing") },
             onAddWorkPricing = {
-                onEditingPricingIdChange(null) // Ensure Add mode
+                onEditingPricingIdChange(null)
                 onNavigate("sales_add_work_pricing")
             },
-            // Pass the ID to the router state when editing
             onEditGarmentPricing = { id ->
                 onEditingPricingIdChange(id)
                 onNavigate("sales_add_garment_pricing")
@@ -845,13 +840,13 @@ fun HomeScreenRouter(
             }
         )
         "sales_add_garment_pricing" -> AddNewGarmentPricingScreen(
-            garmentId = editingPricingId, // Use the shared state ID
+            garmentId = editingPricingId,
             onClose = {
-                onEditingPricingIdChange(null) // Clear ID on close
+                onEditingPricingIdChange(null)
                 onGoBack()
             },
             onSaveSuccess = {
-                onEditingPricingIdChange(null) // Clear ID on success
+                onEditingPricingIdChange(null)
                 onGoBack()
             }
         )
@@ -860,19 +855,16 @@ fun HomeScreenRouter(
             onSaveSuccess = onGoBack
         )
         "sales_add_work_pricing" -> AddWorkPricingScreen(
-            workId = editingPricingId, // Use the shared state ID
+            workId = editingPricingId,
             onClose = {
-                onEditingPricingIdChange(null) // Clear ID on close
+                onEditingPricingIdChange(null)
                 onGoBack()
             },
             onSaveSuccess = {
-                onEditingPricingIdChange(null) // Clear ID on success
+                onEditingPricingIdChange(null)
                 onGoBack()
             }
         )
-
-        // Add this inside HomeScreenRouter when(screen) block:
-
         "sales_measurement_list" -> {
             MeasurementListScreen(
                 onClose = onGoBack,
@@ -880,7 +872,6 @@ fun HomeScreenRouter(
                 viewModel = settingsViewModel
             )
         }
-
 
         // ─────────────────────────────────────────────────────────────
         // 4. FINANCE MODULE
@@ -944,26 +935,30 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
-        "finance_suppliers" -> AllSuppliersScreen(
+
+        // ── Suppliers View All & View One ──
+        "finance_suppliers", "inventory_suppliers" -> AllSuppliersScreen(
             onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Finance") },
             onSupplierClick = { supplier ->
-                onSupplierSelected(supplier)
+                onSupplierSelected(supplier.id)
                 onNavigate("finance_supplier_detail")
-            }
+            },
+            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
         )
-        "finance_supplier_detail" -> {
-            selectedSupplier?.let { supplier ->
+        "finance_supplier_detail", "inventory_supplier_detail" -> {
+            selectedSupplierId?.let { id ->
                 SupplierDetailScreen(
-                    supplier = supplier,
+                    supplierId = id,
                     onClose = {
                         onSupplierSelected(null)
                         onGoBack()
                     },
+                    onEditSupplier = { },
                     onBreadcrumbClick = { onOpenModulesPanel("Finance") }
                 )
             } ?: run { onGoBack() }
         }
+
         "finance_expenses" -> ExpensesScreen(
             onClose = onGoBack,
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
@@ -1012,6 +1007,28 @@ fun HomeScreenRouter(
                 onGoBack()
             }
         )
+        "finance_gst_settings" -> GstSettingsOverviewScreen(
+            onClose = onGoBack,
+            onAddGst = { onNavigate("finance_add_gst") },
+            onEditGst = { onNavigate("finance_add_gst") }
+        )
+        "finance_add_gst" -> AddGstSettingsScreen(
+            onClose = onGoBack,
+            onSave = onGoBack
+        )
+        "finance_tax_rates" -> TaxRatesScreen(
+            taxRates = emptyList(),
+            stats = emptyList(),
+            onClose = onGoBack,
+            onAddTaxRate = { onNavigate("finance_add_gst") },
+            onAddTaxGroup = { onNavigate("finance_add_tax_group") },
+            onEditRate = { },
+            onDeleteRate = { }
+        )
+        "finance_add_tax_group" -> AddTaxGroupScreen(
+            onClose = onGoBack,
+            onCreateGroup = { onGoBack() }
+        )
 
         // ─────────────────────────────────────────────────────────────
         // 5. INVENTORY MODULE
@@ -1049,22 +1066,14 @@ fun HomeScreenRouter(
                         onInventoryItemIdSelected(null)
                         onGoBack()
                     },
-                    onAdjustStock = { },
-                    onAdjustStockSubmit = { type, quantity, reason, notes ->
-                        val apiType = when (type) {
-                            AdjustmentType.INCREASE -> "increase"
-                            AdjustmentType.DECREASE -> "decrease"
-                            AdjustmentType.SET_EXACT -> "set"
-                        }
-                        itemDetailViewModel.adjustStock(
-                            itemId = id,
-                            adjustmentType = apiType,
-                            quantity = quantity,
-                            reason = reason,
-                            notes = notes
-                        )
+                    onAdjustStock = { item ->
+                        onInventoryItemIdSelected(item._id)
+                        onNavigate("inventory_adjustments")
                     },
-                    onWarehouseTransfer = { },
+                    onWarehouseTransfer = { item ->
+                        onInventoryItemIdSelected(item._id)
+                        onNavigate("inventory_adjustments")
+                    },
                     onReorderStock = { },
                     onMarkInactive = { },
                     onEdit = { },
@@ -1078,7 +1087,6 @@ fun HomeScreenRouter(
                 onClose = onGoBack,
                 onReorderClick = { item ->
                     onLowStockItemSelected(item)
-                    // Trigger API call for specific itemId + warehouseId
                     if (item.warehouseId != null) {
                         inventoryViewModel.fetchLowStockItemDetail(item.itemId, item.warehouseId)
                     } else {
@@ -1086,7 +1094,7 @@ fun HomeScreenRouter(
                     }
                     onNavigate("inventory_create_purchase_order")
                 },
-                onCreateNewItem = { onNavigate("inventory_create_item") },
+                onCreateNewItem = { onNavigate("inventory_create_purchase_order") },
                 onBreadcrumbClick = { onOpenModulesPanel("Inventory") }
             )
         }
@@ -1135,11 +1143,19 @@ fun HomeScreenRouter(
                         onItemGroupIdSelected(groupId)
                         onNavigate("inventory_create_item_group")
                     },
-                    onAdjustStock = { /* Handle Adjust Stock action */ },
-                    onExportPdf = { /* Handle PDF export */ }
+                    onAdjustStock = { },
+                    onExportPdf = { }
                 )
             } ?: run { onGoBack() }
         }
+
+        "inventory_adjustment", "inventory_adjustments" -> AllOrdersStockListScreen(
+            preselectedItemId = selectedInventoryItemId,
+            onClose = {
+                onInventoryItemIdSelected(null)
+                onGoBack()
+            }
+        )
 
         "inventory_create_item_group" -> CreateItemGroupScreen(
             onDismiss = {
@@ -1151,46 +1167,16 @@ fun HomeScreenRouter(
                 onGoBack()
             }
         )
-        // ─────────────────────────────────────────────────────────────
-        // Finance Settings
-        // ─────────────────────────────────────────────────────────────
-        // ── Finance GST Settings Routes ──
-        "finance_gst_settings" -> GstSettingsOverviewScreen(
-            onClose = onGoBack,
-            onAddGst = { onNavigate("finance_add_gst") },
-            onEditGst = { gstItem ->
-                onNavigate("finance_add_gst")
-            }
-        )
 
-        "finance_add_gst" -> AddGstSettingsScreen(
-            onClose = onGoBack,
-            onSave = onGoBack
-        )
-        // ── Finance Tax Rates & Rules ──
-        "finance_tax_rates" -> TaxRatesScreen(
-            taxRates = emptyList(),
-            stats = emptyList(),
-            onClose = onGoBack,
-            onAddTaxRate = { onNavigate("finance_add_gst") },
-            onAddTaxGroup = { onNavigate("finance_add_tax_group") },
-            onEditRate = { taxRateItem ->
-                // Handle edit rate
-            },
-            onDeleteRate = { taxRateItem ->
-                // Handle delete rate
-            }
-        )
 
-        // ── Add Tax Group Route ──
-        "finance_add_tax_group" -> AddTaxGroupScreen(
-            onClose = onGoBack,
-            onCreateGroup = { formState ->
-                // Handle tax group creation and navigate back
+        "inventory_transfer_stock", "inventory_items_transfer_stock"->
+            TransferOrdersStockListScreen(
+            preselectedItemId = selectedInventoryItemId,
+            onClose = {
+                onInventoryItemIdSelected(null)
                 onGoBack()
             }
         )
-
 
         // ─────────────────────────────────────────────────────────────
         // 6. HR MODULE

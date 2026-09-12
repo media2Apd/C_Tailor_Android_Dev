@@ -180,7 +180,7 @@ object SidebarConfig {
                 isPanel = true,
                 categories = listOf("Items", "Procurement", "Payables"),
                 subItems = mapOf(
-                    "Items"       to listOf("All Items", "Item Groups"),
+                    "Items"       to listOf("All Items", "Item Groups", "Adjustment", "Transfer Stock"),
                     "Procurement" to listOf("Suppliers", "Requisitions", "Orders", "Goods Receipt"),
                     "Payables"    to listOf("Invoices", "Payments", "Credits")
                 )

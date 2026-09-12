@@ -161,6 +161,7 @@ data class InventoryViewOneResponse(
 data class InventoryItemviewone(
     @SerializedName("_id") val _id: String = "",
     @SerializedName("id") val id: String? = null,
+    @SerializedName("binId") val binId: String? = null,
     @SerializedName("organizationId") val organizationId: String = "",
     @SerializedName("name") val name: String = "",
     @SerializedName("sku") val sku: String = "",

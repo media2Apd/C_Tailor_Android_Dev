@@ -144,7 +144,7 @@ fun ProfileSettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF7F7FB))
+            .background(Color.Transparent)
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
             TitleBar("Profile Settings", onClose)

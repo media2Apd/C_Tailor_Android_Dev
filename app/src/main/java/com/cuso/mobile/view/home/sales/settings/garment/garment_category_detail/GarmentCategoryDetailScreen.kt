@@ -1149,7 +1149,7 @@ fun AddExistingFieldScreen(
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
                                 color = when {
-                                    isAlreadyAdded -> Color(0xFFF8FAFC)
+                                    isAlreadyAdded -> badgeGrey
                                     isChecked -> primary_light
                                     else -> whiteBg
                                 },

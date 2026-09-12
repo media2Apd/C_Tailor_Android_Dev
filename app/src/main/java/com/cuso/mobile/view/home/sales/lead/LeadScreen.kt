@@ -64,6 +64,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -81,9 +82,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.cuso.mobile.R
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.database.entities.SelectedGarment
 import com.cuso.mobile.model.sales.BudgetRange
@@ -110,48 +111,46 @@ import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorReuse
-import com.cuso.mobile.view.composable.SettingsTabs
-import com.cuso.mobile.view.composable.TabItem
 import com.cuso.mobile.view.composable.CirculerProgressIndicatorSmall
+import com.cuso.mobile.view.composable.DataCard
+import com.cuso.mobile.view.composable.DataCardField
 import com.cuso.mobile.view.composable.DatePickerField
+import com.cuso.mobile.view.composable.DeleteModel
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
+import com.cuso.mobile.view.composable.FabConfig
+import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.FieldValidator
-import com.cuso.mobile.view.composable.PhoneInputField
-import com.cuso.mobile.view.composable.TitleBar
-import com.cuso.mobile.view.composable.ValidationField
+import com.cuso.mobile.view.composable.FilterDrawer
+import com.cuso.mobile.view.composable.FilterSection
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
+import com.cuso.mobile.view.composable.FormTextArea
 import com.cuso.mobile.view.composable.FormTextField
+import com.cuso.mobile.view.composable.ListSkeleton
+import com.cuso.mobile.view.composable.MenuAction
+import com.cuso.mobile.view.composable.PhoneInputField
+import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.SettingsTabs
+import com.cuso.mobile.view.composable.StepNavigationFab
+import com.cuso.mobile.view.composable.TabItem
+import com.cuso.mobile.view.composable.TimePickerField
+import com.cuso.mobile.view.composable.TitleBar
+import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.view.composable.ValidationField
+import com.cuso.mobile.view.composable.rememberFilterDrawerState
 import com.cuso.mobile.view.home.LeadPrimary
 import com.cuso.mobile.view.home.LeadPrimarySoft
 import com.cuso.mobile.view.home.LeadmutedText
 import com.cuso.mobile.view.home.buildFilterSections
 import com.cuso.mobile.view.home.formatIndianNumber
 import com.cuso.mobile.view.home.formatLeadDate
-import com.cuso.mobile.view.composable.DataCard
-import com.cuso.mobile.view.composable.DataCardField
-import com.cuso.mobile.view.composable.DeleteModel
-import com.cuso.mobile.view.composable.FabConfig
-import com.cuso.mobile.view.composable.FabScaffold
-import com.cuso.mobile.view.composable.FilterDrawer
-import com.cuso.mobile.view.composable.FilterSection
-import com.cuso.mobile.view.composable.FormTextArea
-import com.cuso.mobile.view.composable.ListSkeleton
-import com.cuso.mobile.view.composable.MenuAction
-import com.cuso.mobile.view.composable.SearchFilterBar
-import com.cuso.mobile.view.composable.StepNavigationFab
-import com.cuso.mobile.view.composable.TimePickerField
-import com.cuso.mobile.view.composable.TrailingFabAction
-import com.cuso.mobile.view.composable.rememberFilterDrawerState
-import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
+import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.viewmodel.SaleState
 import com.cuso.mobile.viewmodel.SalesViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlin.collections.get
-import kotlin.text.ifEmpty
 
 enum class LeadFormMode {
     CREATE, VIEW, EDIT
@@ -454,20 +453,10 @@ fun LeadFormScreen(
     val salesStatuses by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
 
-    val initialGarmentNames = remember(l?.garments, garmentCategories) {
-        if (!l?.garments.isNullOrBlank() && garmentCategories.isNotEmpty()) {
-            val ids = l.garments.split(",").filter { it.isNotBlank() }
-            ids.mapNotNull { id -> garmentCategories.find { it.id == id }?.categoryId?.categoryName }
-        } else {
-            emptyList()
-        }
-    }
-
     LaunchedEffect(Unit) {
         if (staffList.isEmpty()) salesViewModel.fetchStaff()
         if (garmentCategories.isEmpty()) salesViewModel.fetchGarmentCategories()
-        if (isCreate && salesStatuses.isEmpty()) salesViewModel.fetchSalesData()
-        if (!isCreate && salesStatuses.isEmpty()) salesViewModel.fetchSalesData()
+        if (salesStatuses.isEmpty()) salesViewModel.fetchSalesData()
     }
 
     if (!isCreate && l == null && !isLoadingLead && leadDetailsError == null) {
@@ -569,8 +558,8 @@ fun LeadFormScreen(
             "appointment" to listOf("appointmentDate", "appointmentTime", "assignedStaff", "followUpDate", "priority")
         )
     }
-    val leadSourceOptions       = listOf("Walk-in", "Instagram", "Facebook Ads", "Website")
-    val genderOptions           = listOf("Male", "Female", "Other")
+    val leadSourceOptions = listOf("Walk-in", "Instagram", "Facebook Ads", "Website", "WhatsApp")
+    val genderOptions = listOf("Male", "Female", "Other")
     val customerTypeTabs = remember {
         listOf(
             TabItem(label = "Individual", icon = Icons.Default.Person),
@@ -578,20 +567,19 @@ fun LeadFormScreen(
         )
     }
     val preferredContactOptions = listOf("WhatsApp", "Call")
-    val enquiryTypeOptions      = listOf("New Order", "Bulk Order")
-    val priorityOptions         = listOf("Low", "Medium", "High")
+    val enquiryTypeOptions = listOf("New_Order", "Bulk_Order", "Alteration")
+    val priorityOptions = listOf("LOW", "MEDIUM", "HIGH")
 
-    val staffDisplayList   = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
-    val staffIdMap         = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
-    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == (if (isEdit) assignedStaff else leadOwner) }?.key
-        ?: ""
-    val leadOwnerLabel     = staffIdMap.entries.firstOrNull { it.value == leadOwner }?.key ?: ""
+    val staffDisplayList = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
+    val staffIdMap = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
+    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == (if (isEdit) assignedStaff else leadOwner) }?.key ?: ""
+    val leadOwnerLabel = staffIdMap.entries.firstOrNull { it.value == leadOwner }?.key ?: ""
     val assignedStaffLabel = staffIdMap.entries.firstOrNull { it.value == assignedStaff }?.key ?: ""
 
-    val statusOptions      = salesStatuses.map { it.name }
-    val statusIdMap        = salesStatuses.associate { it.name to it.id }
-    val garmentIdMap       = garmentCategories.associate { it.categoryId.categoryName to it.id }
-    val garmentOptions     = garmentCategories.map { it.categoryId.categoryName }
+    val statusOptions = salesStatuses.map { it.name }
+    val statusIdMap = salesStatuses.associate { it.name to it.id }
+    val garmentIdMap = garmentCategories.associate { it.categoryId.categoryName to it.id }
+    val garmentOptions = garmentCategories.map { it.categoryId.categoryName }
 
     LaunchedEffect(l?.garments, garmentCategories) {
         if (!isCreate && garmentCategories.isNotEmpty() && !l?.garments.isNullOrBlank()) {
@@ -599,16 +587,6 @@ fun LeadFormScreen(
             val names = ids.mapNotNull { id -> garmentCategories.find { it.id == id }?.categoryId?.categoryName }
             if (names.isNotEmpty()) selectedGarmentCategories = names
         }
-    }
-    val isFormDirty = remember(
-        l, leadSource, enquiryDate, leadOwner, leadStatus, customerType,
-        fullName, email, gender, dob, address, areaZone, city, preferredContact,
-        enquiryType, estimatedQuantity, budgetRange, requiredDate, occasion,
-        appointmentRequired, appointmentDate, appointmentTime, assignedStaff,
-        followUpDate, priority, internalNotes, customerNotes, phone,
-        selectedGarmentCategories, initialGarmentNames
-    ) {
-        l != null
     }
 
     fun clearAllFields() {
@@ -626,13 +604,11 @@ fun LeadFormScreen(
             return if (dateStr.isNotBlank()) {
                 val converted = dateStr.toIsoDate()
                 converted.ifBlank { dateStr }
-            } else {
-                ""
-            }
+            } else ""
         }
 
         return CreateLeadFormRequest(
-            customerType = customerType.lowercase(),
+            customerType = if (customerType.equals("Corporate", ignoreCase = true)) "Corporate" else "Individual",
             enquiryType = enquiryType,
             estimatedQuantity = estimatedQuantity.toIntOrNull() ?: 0,
             budgetRange = BudgetRange(min = budgetRange.toInt(), max = 250000),
@@ -662,7 +638,7 @@ fun LeadFormScreen(
                 priority = if (appointmentRequired) priority.takeIf { it.isNotBlank() } else null,
                 followUpDate = if (appointmentRequired) safeIsoDate(followUpDate) else null
             ),
-            status = statusIdMap[leadStatus] ?: "",
+            status = "Active",
             statusName = leadStatus,
             notes = buildList {
                 if (internalNotes.isNotBlank()) add(LeadNote(internalNotes, "internal"))
@@ -761,14 +737,9 @@ fun LeadFormScreen(
             is SaleState.Success<*> -> {
                 successMessage = "Lead updated successfully"
                 salesViewModel.fetchTableLeads()
-
-                delay(1200)
+                delay(1000)
                 salesViewModel.resetUpdateState()
-
-                l?.id?.let { leadId ->
-                    salesViewModel.fetchLeadDetails(leadId) { }
-                }
-
+                l?.id?.let { leadId -> salesViewModel.fetchLeadDetails(leadId) {} }
                 onBack()
             }
             is SaleState.Error -> {
@@ -1478,8 +1449,9 @@ fun LeadScreenContent(
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(salesStatuses, garmentCategories, staffList, leads) {
-        val dynamicSources = leads.map { it.source }.filter { it.isNotBlank() }.distinct().sorted()
+    // Avoid infinite loops by updating filters only when input dependencies genuinely change
+    LaunchedEffect(salesStatuses.size, garmentCategories.size, staffList.size, leads.size) {
+        val dynamicSources = leads.map { it.effectiveSource }.filter { it.isNotBlank() && it != "—" }.distinct().sorted()
         filterSections = buildFilterSections(filterSections, salesStatuses, garmentCategories, staffList, dynamicSources)
     }
 
@@ -1539,80 +1511,40 @@ fun LeadScreenContent(
         }
     }
 
-    fun applyFilters(sections: List<FilterSection>) {
-        filterSections = sections
-    }
+    val filteredLeads by remember(leads, searchQuery, filterSections) {
+        derivedStateOf {
+            leads.filter { lead ->
+                val personName = lead.name
+                val enquiryType = lead.enquiryType ?: ""
+                val matchesSearch = searchQuery.isBlank() ||
+                        personName.contains(searchQuery, ignoreCase = true) ||
+                        enquiryType.contains(searchQuery, ignoreCase = true)
 
-    fun getGarmentName(lead: LeadTableItem): String {
-        val garment = lead.garmentCategory?.firstOrNull()
-        return if (garment == null) "—"
-        else when (garment) {
-            is Map<*, *> -> {
-                val categoryId = garment["categoryId"] as? Map<*, *>
-                categoryId?.get("categoryName") as? String ?: "—"
-            }
-            is String -> lead.occasion?.takeIf { it.isNotBlank() } ?: "—"
-            else -> "—"
-        }
-    }
+                val statusName = lead.effectiveStatus
+                val selectedStatusLabels = filterSections.find { it.title == "Status" }
+                    ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
+                val matchesStatus = selectedStatusLabels.isEmpty() ||
+                        selectedStatusLabels.any { it.equals(statusName, ignoreCase = true) }
 
-    val filteredLeads = leads.filter { lead ->
-        val personName = lead.person.name
-        val enquiryType = lead.enquiryType
-        val matchesSearch = searchQuery.isBlank() ||
-                personName.contains(searchQuery, ignoreCase = true) ||
-                enquiryType.contains(searchQuery, ignoreCase = true)
+                val selectedSourceLabels = filterSections.find { it.title == "Source" }
+                    ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
+                val matchesSource = selectedSourceLabels.isEmpty() ||
+                        selectedSourceLabels.any { it.equals(lead.effectiveSource, ignoreCase = true) }
 
-        val statusName = when (val status = lead.status) {
-            is String -> status
-            is Map<*, *> -> (status["name"] as? String) ?: ""
-            else -> ""
-        }
-        val selectedStatusLabels = filterSections.find { it.title == "Status" }
-            ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
-        val matchesStatus = selectedStatusLabels.isEmpty() ||
-                selectedStatusLabels.any { it.equals(statusName, ignoreCase = true) }
+                val garmentName = lead.garmentName
+                val selectedGarmentLabels = filterSections.find { it.title == "Garments" }
+                    ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
+                val matchesGarments = selectedGarmentLabels.isEmpty() ||
+                        selectedGarmentLabels.any { it.equals(garmentName, ignoreCase = true) }
 
-        val selectedSourceLabels = filterSections.find { it.title == "Source" }
-            ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
-        val matchesSource = selectedSourceLabels.isEmpty() ||
-                selectedSourceLabels.any { it.equals(lead.source, ignoreCase = true) }
+                val minAmountFilter = filterSections.find { it.title == "Amount Range" }?.minAmount?.toIntOrNull()
+                val maxAmountFilter = filterSections.find { it.title == "Amount Range" }?.maxAmount?.toIntOrNull()
+                val matchesAmount = (minAmountFilter == null || lead.maxBudget >= minAmountFilter) &&
+                        (maxAmountFilter == null || lead.minBudget <= maxAmountFilter)
 
-        val garmentName = getGarmentName(lead)
-        val selectedGarmentLabels = filterSections.find { it.title == "Garments" }
-            ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
-        val matchesGarments = selectedGarmentLabels.isEmpty() ||
-                selectedGarmentLabels.any { it.equals(garmentName, ignoreCase = true) }
-
-        val minAmountFilter = filterSections.find { it.title == "Amount Range" }?.minAmount?.toIntOrNull()
-        val maxAmountFilter = filterSections.find { it.title == "Amount Range" }?.maxAmount?.toIntOrNull()
-        val leadMinBudget = lead.budgetRange.min
-        val leadMaxBudget = lead.budgetRange.max
-        val matchesAmount = (minAmountFilter == null || leadMaxBudget >= minAmountFilter) &&
-                (maxAmountFilter == null || leadMinBudget <= maxAmountFilter)
-
-        val selectedPriority = filterSections.find { it.title == "Priority" }
-            ?.options
-            ?.find { it.isSelected }
-            ?.id
-
-        val matchesPriority = selectedPriority == null || run {
-            val priority = lead.appointment?.priority?.lowercase() ?: ""
-            when (selectedPriority.lowercase()) {
-                "high" -> priority.contains("high")
-                "medium" -> priority.contains("medium")
-                "low" -> priority.contains("low")
-                else -> true
+                matchesSearch && matchesStatus && matchesSource && matchesGarments && matchesAmount
             }
         }
-
-        val selectedStaffIds = filterSections.find { it.title == "Sales Person" }
-            ?.options?.filter { it.isSelected }?.map { it.id } ?: emptyList()
-        val assignedStaffId = lead.appointment?.assignedStaff
-        val matchesSalesPerson = selectedStaffIds.isEmpty() ||
-                (assignedStaffId != null && selectedStaffIds.contains(assignedStaffId))
-
-        matchesSearch && matchesStatus && matchesSource && matchesGarments && matchesPriority && matchesAmount && matchesSalesPerson
     }
 
     val listState = rememberLazyListState()
@@ -1624,34 +1556,31 @@ fun LeadScreenContent(
             val info = listState.layoutInfo
             val total = info.totalItemsCount
             val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
-            total > 0 && lastVisible >= total - 3
+            total > 0 && lastVisible >= total - 2
         }
             .distinctUntilChanged()
             .collect { nearEnd ->
-                if (nearEnd && canLoadMore && !isLoadingMore) {
+                if (nearEnd && canLoadMore && !isLoadingMore && !isLoading) {
                     salesViewModel.loadMoreLeads()
                 }
             }
     }
 
-    fun resolveStatusBadge(lead: LeadTableItem): Pair<String, Color> {
-        val statusName = when (lead.status) {
-            is String -> lead.status
-            is Map<*, *> -> (lead.status["name"] as? String) ?: ""
-            else -> ""
-        }
+    fun resolveStatusBadge(statusName: String): Pair<String, Color> {
         return when {
-            statusName.contains("Convert", ignoreCase = true) || statusName.equals("CONVERTED", ignoreCase = true) || statusName.equals("converted_to_order", ignoreCase = true) ->
+            statusName.contains("Convert", ignoreCase = true) || statusName.equals("CONVERTED", ignoreCase = true) ->
                 "Converted to Order" to Color(0xFF34C759)
-            statusName.contains("New", ignoreCase = true) || statusName.equals("NEW", ignoreCase = true) || statusName.equals("new_enquiry", ignoreCase = true) ->
+            statusName.contains("New", ignoreCase = true) || statusName.equals("NEW", ignoreCase = true) ->
                 "New Enquiry" to Color(0xFF3B3BF9)
             statusName.contains("Quot", ignoreCase = true) || statusName.equals("QUOTED", ignoreCase = true) ->
                 "Quoted" to Color(0xFFF59E0B)
-            statusName.contains("Follow", ignoreCase = true) || statusName.equals("FOLLOW_UP", ignoreCase = true) || statusName.contains("Pending", ignoreCase = true) ->
+            statusName.contains("Follow", ignoreCase = true) || statusName.contains("Pending", ignoreCase = true) ->
                 "Follow-up" to redText
             statusName.contains("Lost", ignoreCase = true) ->
                 "Lost" to Color(0xFF6B7280)
-            else -> statusName to Color(0xFF9CA3AF)
+            statusName.contains("Qualified", ignoreCase = true) ->
+                "Qualified" to Color(0xFF10B981)
+            else -> (if (statusName.isBlank()) "—" else statusName) to Color(0xFF9CA3AF)
         }
     }
 
@@ -1713,10 +1642,10 @@ fun LeadScreenContent(
 
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when {
-                        isLoading -> {
+                        isLoading && leads.isEmpty() -> {
                             ListSkeleton()
                         }
-                        tableError != null -> {
+                        tableError != null && leads.isEmpty() -> {
                             AppErrorState(
                                 title = "Failed to load Leads",
                                 message = "Something went wrong. Please check your connection and try again.",
@@ -1764,23 +1693,23 @@ fun LeadScreenContent(
                                     modifier = Modifier.weight(1f).fillMaxWidth()
                                 ) {
                                     items(filteredLeads, key = { it.id }) { lead ->
-                                        val (badgeText, badgeColor) = resolveStatusBadge(lead)
+                                        val (badgeText, badgeColor) = resolveStatusBadge(lead.effectiveStatus)
                                         DataCard(
                                             item = lead,
-                                            dateText = "Order ID: order id not found",
+                                            dateText = "Order ID: ${lead.id.takeLast(6).uppercase()}",
                                             showDateIcon = false,
                                             topBadgeText = badgeText,
                                             topBadgeTextColor = badgeColor,
                                             topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
-                                            title = lead.person.name.ifEmpty { "—" },
-                                            subtitle = "${formatLeadDate(lead.requiredDate?.ifEmpty { "—" })} • ${getGarmentName(lead)} • Qty ${if (lead.estimatedQuantity == 0) "—" else lead.estimatedQuantity.toString()}",
+                                            title = lead.name,
+                                            subtitle = "${formatLeadDate(lead.requiredDate?.ifEmpty { "—" })} • ${lead.garmentName} • Qty ${lead.effectiveQuantity}",
                                             footerFields = listOf(
                                                 DataCardField(
                                                     icon = Icons.Default.AttachMoney,
                                                     iconTint = Color(0xFF6366F1),
                                                     iconBackgroundColor = primary_light,
                                                     iconCircleSize = 24.dp,
-                                                    text = "₹${formatIndianNumber(lead.budgetRange.min)} - ₹${formatIndianNumber(lead.budgetRange.max)}",
+                                                    text = "₹${formatIndianNumber(lead.minBudget)} - ₹${formatIndianNumber(lead.maxBudget)}",
                                                     textColor = Color(0xFF374151)
                                                 )
                                             ),
@@ -1836,7 +1765,7 @@ fun LeadScreenContent(
         state = filterDrawerState,
         title = "Filters",
         sections = filterSections,
-        onApply = { updatedSections -> applyFilters(updatedSections) },
+        onApply = { updatedSections -> filterSections = updatedSections },
         onClearAll = {
             filterSections = filterSections.map { section ->
                 section.copy(options = section.options.map { option -> option.copy(isSelected = false) })

@@ -275,7 +275,7 @@ private fun OrderOverviewContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFF8FAFC))
+                    .background(badgeGrey)
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -541,7 +541,7 @@ private fun DividerSection() {
         modifier = Modifier
             .fillMaxWidth()
             .height(8.dp)
-            .background(Color(0xFFF8FAFC))
+            .background(badgeGrey)
     )
 }
 

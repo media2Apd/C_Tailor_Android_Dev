@@ -279,7 +279,7 @@ fun CreateAllocationScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(tokens.fieldHeight)
-                            .background(Color(0xFFF8FAFC), RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                            .background(badgeGrey, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                             .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                             .padding(4.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)

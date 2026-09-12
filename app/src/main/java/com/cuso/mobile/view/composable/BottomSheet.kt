@@ -1,12 +1,8 @@
-//REFERENCES
-// SmoothBottomSheet.kt - Updated version
-
 package com.cuso.mobile.view.composable
 
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
-import com.cuso.mobile.ui.theme.blackTitle
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -16,10 +12,13 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,11 +26,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,15 +46,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.cuso.mobile.ui.theme.TextPrimary
+import com.cuso.mobile.ui.theme.blackTitle
+import com.cuso.mobile.ui.theme.mutedText
 import com.cuso.mobile.ui.theme.whiteBg
 import kotlinx.coroutines.launch
 
 enum class SheetValue { Hidden, Collapsed, Expanded }
 
-//   BLUR is applied ONLY to the background scrim
-// The sheet itself remains crystal clear
 fun Modifier.blurScrim(radius: Dp): Modifier = this.then(
     if (radius.value > 0f) {
         Modifier.graphicsLayer {
@@ -73,6 +76,9 @@ fun SmoothBottomSheet(
     state: SheetValue,
     onStateChange: (SheetValue) -> Unit,
     modifier: Modifier = Modifier,
+    title: String? = null,
+    subtitle: String? = null,
+    headerContent: (@Composable () -> Unit)? = null,
     peekHeight: Dp = 280.dp,
     topInset: Dp = 0.dp,
     collapsedFraction: Float? = null,
@@ -110,7 +116,6 @@ fun SmoothBottomSheet(
         }
 
         var blurRadiusDp by remember { mutableFloatStateOf(0f) }
-
         var scrimAlpha by remember { mutableFloatStateOf(0f) }
 
         LaunchedEffect(offsetY.value) {
@@ -143,11 +148,11 @@ fun SmoothBottomSheet(
         val sheetHeightPx = (containerHeightPx - offsetY.value).coerceAtLeast(0f)
         val sheetHeightDp = with(density) { sheetHeightPx.toDp() }
 
-        // ── Scrim with blur ONLY on the background ──
+        // Background Scrim
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .blurScrim(blurRadiusDp.dp)  //   BLUR applied only to scrim
+                .blurScrim(blurRadiusDp.dp)
                 .background(blackTitle.copy(alpha = scrimAlpha))
                 .then(
                     if (scrimAlpha > 0.01f) {
@@ -164,7 +169,7 @@ fun SmoothBottomSheet(
                 )
         )
 
-        // ── Sheet itself — NO BLUR, crystal clear ──
+        // Sheet Content Container
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -172,16 +177,16 @@ fun SmoothBottomSheet(
                 .align(Alignment.BottomStart)
                 .clip(RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius))
                 .background(sheetBackgroundColor)
-                //   No blur here - sheet stays clear
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
-                ) { /* consumes clicks */ }
+                ) { /* Consume click events */ }
         ) {
-            Box(
+            // Drag Handle & Header Top Area
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(whiteBg)
+                    .background(sheetBackgroundColor)
                     .draggable(
                         orientation = Orientation.Vertical,
                         state = rememberDraggableState { delta ->
@@ -218,68 +223,94 @@ fun SmoothBottomSheet(
                             }
                         }
                     )
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) {
-                        scope.launch {
-                            val target = if (expandFraction > 0.6f) collapsedY
-                            else if (offsetY.value <= (collapsedY + expandedY) / 2f) collapsedY
-                            else expandedY
-                            offsetY.animateTo(target, tween(350, easing = FastOutSlowInEasing))
-                            onStateChange(if (target == expandedY) SheetValue.Expanded else SheetValue.Collapsed)
-                        }
-                    }
-                    .padding(vertical = 12.dp, horizontal = 16.dp),
-                contentAlignment = Alignment.Center
             ) {
-                // Dashed handle
+                // Centered Dashed Drag Handle (Fades out when fully expanded)
                 Box(
                     modifier = Modifier
-                        .align(Alignment.Center)
-                        .graphicsLayer {
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier.graphicsLayer {
                             alpha = 1f - expandFraction
                             val s = 1f - expandFraction * 0.6f
                             scaleX = s
                             scaleY = s
                         }
-                ) {
-                    DashedHandle()
+                    ) {
+                        DashedHandle()
+                    }
                 }
 
-                // Close "X"
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = Color(0xFF111827),
+                // Header Row (Title, Subtitle / Custom Content + Close Icon)
+                Row(
                     modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(22.dp)
-                        .graphicsLayer {
-                            alpha = expandFraction
-                            val s = 0.4f + expandFraction * 0.6f
-                            scaleX = s
-                            scaleY = s
-                            rotationZ = (1f - expandFraction) * 90f
-                        }
-                        .clickable(
-                            enabled = expandFraction > 0.5f,
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) {
-                            scope.launch {
-                                offsetY.animateTo(hiddenY, tween(300, easing = FastOutSlowInEasing))
-                                onStateChange(SheetValue.Hidden)
-                                onDismissRequest()
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (headerContent != null) {
+                            headerContent()
+                        } else if (!title.isNullOrBlank() || !subtitle.isNullOrBlank()) {
+                            Column {
+                                if (!title.isNullOrBlank()) {
+                                    Text(
+                                        text = title,
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                }
+                                if (!subtitle.isNullOrBlank()) {
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = subtitle,
+                                        fontSize = 13.sp,
+                                        color = mutedText
+                                    )
+                                }
                             }
                         }
-                )
+                    }
+
+                    // Close "X" Button
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color(0xFF6B7280),
+                        modifier = Modifier
+                            .size(24.dp)
+                            .graphicsLayer {
+                                alpha = expandFraction
+                                val s = 0.4f + expandFraction * 0.6f
+                                scaleX = s
+                                scaleY = s
+                                rotationZ = (1f - expandFraction) * 90f
+                            }
+                            .clickable(
+                                enabled = expandFraction > 0.5f,
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) {
+                                scope.launch {
+                                    offsetY.animateTo(hiddenY, tween(300, easing = FastOutSlowInEasing))
+                                    onStateChange(SheetValue.Hidden)
+                                    onDismissRequest()
+                                }
+                            }
+                    )
+                }
             }
 
-            // ── Scrollable content ──
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)) {
+            // Scrollable Content
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
                 if (scrollableContent) {
                     Column(
                         modifier = Modifier
@@ -319,7 +350,6 @@ private fun resolveDragTarget(
             val progress = 1f - (currentY - expandedY) / range
             if (progress > 0.2f) expandedY else collapsedY
         }
-
         else -> {
             if (!dragCloseEnabled) return collapsedY
             val range = hiddenY - collapsedY

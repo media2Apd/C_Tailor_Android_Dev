@@ -564,7 +564,7 @@ fun ProfileTab(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Primary_background),
+                        .background(Color.Transparent),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     // Reserve space at the bottom so the last item is not hidden behind
@@ -841,7 +841,7 @@ fun LocalizationTab(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Primary_background),
+                .background(Color.Transparent),
             horizontalAlignment = Alignment.CenterHorizontally,
             // Reserve space at the bottom so the last item is not hidden behind
             // the floating footer when it is visible.

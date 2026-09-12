@@ -21,7 +21,10 @@ import com.cuso.mobile.model.inventory.CreateInventoryItemResponse
 import com.cuso.mobile.model.inventory.CreateItemGroupRequest
 import com.cuso.mobile.model.inventory.CreatePoItemRequest
 import com.cuso.mobile.model.inventory.CreatePurchaseOrderRequest
+import com.cuso.mobile.model.inventory.CreateSupplierRequest
 import com.cuso.mobile.model.inventory.CreateWarehouseRequest
+import com.cuso.mobile.model.inventory.DecreaseStockRequest
+import com.cuso.mobile.model.inventory.IncreaseStockRequest
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.InventoryItemviewone
 import com.cuso.mobile.model.inventory.InventoryPagination
@@ -31,6 +34,10 @@ import com.cuso.mobile.model.inventory.LowStockItemDto
 import com.cuso.mobile.model.inventory.PhysicalAttributes
 import com.cuso.mobile.model.inventory.PurchaseOrderData
 import com.cuso.mobile.model.inventory.StockAdjustmentData
+import com.cuso.mobile.model.inventory.StockSummaryItemDto
+import com.cuso.mobile.model.inventory.SupplierDropdownItem
+import com.cuso.mobile.model.inventory.SupplierDto
+import com.cuso.mobile.model.inventory.SupplierLedgerContainer
 import com.cuso.mobile.model.inventory.TransferStockRequest
 import com.cuso.mobile.model.inventory.UpdateWarehouseRequest
 import com.cuso.mobile.model.inventory.VariantSelection
@@ -276,6 +283,16 @@ class InventoryViewModel @Inject constructor(
     private val _adjustStockSuccess = MutableStateFlow(false)
     val adjustStockSuccess: StateFlow<Boolean> = _adjustStockSuccess.asStateFlow()
 
+    // ── Stock Summary (Stock Levels per Warehouse) State ──
+    private val _stockSummaryList = MutableStateFlow<List<StockSummaryItemDto>>(emptyList())
+    val stockSummaryList: StateFlow<List<StockSummaryItemDto>> = _stockSummaryList.asStateFlow()
+
+    private val _isLoadingStockSummary = MutableStateFlow(false)
+    val isLoadingStockSummary: StateFlow<Boolean> = _isLoadingStockSummary.asStateFlow()
+
+    private val _stockSummaryError = MutableStateFlow<String?>(null)
+    val stockSummaryError: StateFlow<String?> = _stockSummaryError.asStateFlow()
+
     // -------------------------------------------------------------------------
     // 7. Low Stock Alerts & Purchase Order State
     // -------------------------------------------------------------------------
@@ -371,6 +388,49 @@ class InventoryViewModel @Inject constructor(
     private val _warehouseActionErrorMessage = MutableStateFlow<String?>(null)
     val warehouseActionErrorMessage: StateFlow<String?> = _warehouseActionErrorMessage.asStateFlow()
 
+    // ── Supplier List State ──
+    private val _suppliers = MutableStateFlow<List<SupplierDto>>(emptyList())
+    val suppliers: StateFlow<List<SupplierDto>> = _suppliers.asStateFlow()
+
+    private val _isLoadingSuppliers = MutableStateFlow(false)
+    val isLoadingSuppliers: StateFlow<Boolean> = _isLoadingSuppliers.asStateFlow()
+
+    private val _suppliersError = MutableStateFlow<String?>(null)
+    val suppliersError: StateFlow<String?> = _suppliersError.asStateFlow()
+
+    // ── Supplier Dropdown State ──
+    private val _supplierDropdown = MutableStateFlow<List<SupplierDropdownItem>>(emptyList())
+    val supplierDropdown: StateFlow<List<SupplierDropdownItem>> = _supplierDropdown.asStateFlow()
+
+    // ── View One Detail State ──
+    private val _selectedSupplier = MutableStateFlow<SupplierDto?>(null)
+    val selectedSupplier: StateFlow<SupplierDto?> = _selectedSupplier.asStateFlow()
+
+    private val _isLoadingDetail = MutableStateFlow(false)
+    val isLoadingDetail: StateFlow<Boolean> = _isLoadingDetail.asStateFlow()
+
+    // ── Supplier Ledger State ──
+    private val _supplierLedger = MutableStateFlow<SupplierLedgerContainer?>(null)
+    val supplierLedger: StateFlow<SupplierLedgerContainer?> = _supplierLedger.asStateFlow()
+
+    private val _isLoadingLedger = MutableStateFlow(false)
+    val isLoadingLedger: StateFlow<Boolean> = _isLoadingLedger.asStateFlow()
+
+    // ── Mutation Loading & Alert States ──
+    private val _isSubmitting = MutableStateFlow(false)
+    val isSubmitting: StateFlow<Boolean> = _isSubmitting.asStateFlow()
+
+    private val _successMessage = MutableStateFlow<String?>(null)
+    val successMessage: StateFlow<String?> = _successMessage.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    init {
+        fetchSuppliers()
+        fetchSupplierDropdown()
+    }
+
     // =========================================================================
     // INIT
     // =========================================================================
@@ -392,11 +452,13 @@ class InventoryViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             val result = inventoryRepository.getInventoryItemGroup(search = query)
             result.onSuccess { response ->
+                val safeList = response.groups // Reads the parsed list from backend "data"
+
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        itemGroups = response.groups,
-                        filteredList = response.groups,
+                        itemGroups = safeList,
+                        filteredList = safeList,
                         errorMessage = null
                     )
                 }
@@ -905,6 +967,9 @@ class InventoryViewModel @Inject constructor(
 
             val physicalAttributesJson = gson.toJson(
                 PhysicalAttributes(
+                    length = form.length.toDoubleOrNull() ?: 0.0,
+                    width = form.width.toDoubleOrNull() ?: 0.0,
+                    height = form.height.toDoubleOrNull() ?: 0.0,
                     weight = form.weight.toDoubleOrNull() ?: 0.25,
                     weightUnit = "kg",
                     dimensionUnit = "cm"
@@ -919,6 +984,12 @@ class InventoryViewModel @Inject constructor(
                 "barcode" to form.barcode.toRequestBody(textMedia),
                 "costPrice" to form.costPrice.toRequestBody(textMedia),
                 "sellingPrice" to form.sellingPrice.toRequestBody(textMedia),
+                "unit" to form.unit.toRequestBody(textMedia),
+                "status" to form.status.toRequestBody(textMedia),
+                "brand" to form.brand.toRequestBody(textMedia),
+                "manufacturer" to form.manufacturer.toRequestBody(textMedia),
+                "hsnCode" to form.hsnCode.toRequestBody(textMedia),
+                "returnable" to form.returnable.toString().toRequestBody(textMedia),
                 "taxCategory" to form.taxCategory.toRequestBody(textMedia),
                 "trackInventory" to form.trackInventory.toString().toRequestBody(textMedia),
                 "reorderLevel" to form.reorderLevel.toRequestBody(textMedia),
@@ -1028,11 +1099,34 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Submit Increase or Decrease Stock Adjustment.
-     */
-    fun submitStockAdjustment(
-        request: AdjustStockQuantityRequest,
+//    /**
+//     * Submit Increase or Decrease Stock Adjustment.
+//     */
+//    fun submitStockAdjustment(
+//        request: AdjustStockQuantityRequest,
+//        onSuccess: (StockAdjustmentData) -> Unit = {}
+//    ) {
+//        viewModelScope.launch {
+//            _isSubmittingAdjustment.value = true
+//            _adjustmentErrorMessage.value = null
+//            _adjustmentSuccessMessage.value = null
+//
+//            val result = inventoryRepository.adjustStockQuantity(request)
+//            _isSubmittingAdjustment.value = false
+//
+//            result.onSuccess { data ->
+//                _adjustmentSuccessMessage.value = "Stock adjusted successfully (${data.adjustmentCode})"
+//                refreshInventoryItems()
+//                onSuccess(data)
+//            }.onFailure { error ->
+//                _adjustmentErrorMessage.value = extractErrorMessage(error.message)
+//            }
+//        }
+//    }
+
+    // ── 1. Submit Increase Stock ──
+    fun submitIncreaseStock(
+        request: IncreaseStockRequest,
         onSuccess: (StockAdjustmentData) -> Unit = {}
     ) {
         viewModelScope.launch {
@@ -1040,12 +1134,35 @@ class InventoryViewModel @Inject constructor(
             _adjustmentErrorMessage.value = null
             _adjustmentSuccessMessage.value = null
 
-            val result = inventoryRepository.adjustStockQuantity(request)
+            val result = inventoryRepository.increaseStock(request)
             _isSubmittingAdjustment.value = false
 
             result.onSuccess { data ->
-                _adjustmentSuccessMessage.value = "Stock adjusted successfully (${data.adjustmentCode})"
-                refreshInventoryItems()
+                _adjustmentSuccessMessage.value = "Stock increased successfully (+${data.quantity} ${data.unit ?: ""})"
+                fetchInventoryItems() // Refresh list immediately
+                onSuccess(data)
+            }.onFailure { error ->
+                _adjustmentErrorMessage.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    // ── 2. Submit Decrease Stock ──
+    fun submitDecreaseStock(
+        request: DecreaseStockRequest,
+        onSuccess: (StockAdjustmentData) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingAdjustment.value = true
+            _adjustmentErrorMessage.value = null
+            _adjustmentSuccessMessage.value = null
+
+            val result = inventoryRepository.decreaseStock(request)
+            _isSubmittingAdjustment.value = false
+
+            result.onSuccess { data ->
+                _adjustmentSuccessMessage.value = "Stock decreased successfully (-${data.quantity} ${data.unit ?: ""})"
+                fetchInventoryItems() // Refresh list immediately
                 onSuccess(data)
             }.onFailure { error ->
                 _adjustmentErrorMessage.value = extractErrorMessage(error.message)
@@ -1056,6 +1173,7 @@ class InventoryViewModel @Inject constructor(
     /**
      * Submit Stock Transfer between Warehouses/Bins.
      */
+    // ── 3. Submit Transfer Stock ──
     fun submitStockTransfer(
         request: TransferStockRequest,
         onSuccess: (StockAdjustmentData) -> Unit = {}
@@ -1070,7 +1188,7 @@ class InventoryViewModel @Inject constructor(
 
             result.onSuccess { data ->
                 _adjustmentSuccessMessage.value = "Stock transferred successfully (${data.adjustmentCode})"
-                refreshInventoryItems()
+                fetchInventoryItems() // Refresh list immediately
                 onSuccess(data)
             }.onFailure { error ->
                 _adjustmentErrorMessage.value = extractErrorMessage(error.message)
@@ -1097,7 +1215,7 @@ class InventoryViewModel @Inject constructor(
 
             result.onSuccess {
                 _adjustmentSuccessMessage.value = "Adjustment reversed successfully"
-                fetchStockAdjustmentsList()
+                fetchStockSummaryList()
                 refreshInventoryItems()
                 onSuccess()
             }.onFailure { error ->
@@ -1107,27 +1225,26 @@ class InventoryViewModel @Inject constructor(
     }
 
     /**
-     * Fetch the list of past adjustments.
+     * Fetch stock summary list from backend.
      */
-    fun fetchStockAdjustmentsList(
-        page: Int = 1,
-        limit: Int = 20,
-        itemId: String? = null,
-        warehouseId: String? = null
-    ) {
+    fun fetchStockSummaryList(page: Int = 1, limit: Int = 20, search: String? = null) {
         viewModelScope.launch {
-            _isLoadingAdjustments.value = true
-            _adjustmentErrorMessage.value = null
+            _isLoadingStockSummary.value = true
+            _stockSummaryError.value = null
 
-            val result = inventoryRepository.getStockAdjustmentsList(page, limit, itemId, warehouseId)
-            _isLoadingAdjustments.value = false
+            val result = inventoryRepository.getStockSummaryList(page, limit, search)
+            _isLoadingStockSummary.value = false
 
             result.onSuccess { response ->
-                _stockAdjustmentsList.value = response.data
+                _stockSummaryList.value = response.data
             }.onFailure { error ->
-                _adjustmentErrorMessage.value = extractErrorMessage(error.message)
+                _stockSummaryError.value = extractErrorMessage(error.message)
             }
         }
+    }
+
+    fun clearStockSummaryAlerts() {
+        _stockSummaryError.value = null
     }
 
     /**
@@ -1455,4 +1572,121 @@ class InventoryViewModel @Inject constructor(
         }
         return trimmed
     }
+
+    // =========================================================================
+    // SUPPLIER
+    // =========================================================================
+    fun fetchSuppliers(page: Int = 1, limit: Int = 50, search: String? = null) {
+        viewModelScope.launch {
+            _isLoadingSuppliers.value = true
+            _suppliersError.value = null
+            inventoryRepository.getAllSuppliers(page, limit, search)
+                .onSuccess { list -> _suppliers.value = list }
+                .onFailure { error -> _suppliersError.value = extractErrorMessage(error.message) }
+            _isLoadingSuppliers.value = false
+        }
+    }
+
+    fun fetchSupplierDropdown() {
+        viewModelScope.launch {
+            inventoryRepository.getSupplierDropdown().onSuccess { items ->
+                _supplierDropdown.value = items
+            }
+        }
+    }
+
+    fun fetchSupplierDetail(id: String) {
+        viewModelScope.launch {
+            _isLoadingDetail.value = true
+            _errorMessage.value = null
+            inventoryRepository.getSupplierById(id)
+                .onSuccess { supplier -> _selectedSupplier.value = supplier }
+                .onFailure { error -> _errorMessage.value = extractErrorMessage(error.message) }
+            _isLoadingDetail.value = false
+        }
+    }
+
+    fun fetchSupplierLedger(id: String) {
+        viewModelScope.launch {
+            _isLoadingLedger.value = true
+            inventoryRepository.getSupplierLedger(id)
+                .onSuccess { ledgerData -> _supplierLedger.value = ledgerData }
+                .onFailure { error -> _errorMessage.value = extractErrorMessage(error.message) }
+            _isLoadingLedger.value = false
+        }
+    }
+
+    fun createSupplier(request: CreateSupplierRequest, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            _errorMessage.value = null
+            inventoryRepository.createSupplier(request)
+                .onSuccess {
+                    _successMessage.value = "Supplier created successfully"
+                    fetchSuppliers()
+                    fetchSupplierDropdown()
+                    onSuccess()
+                }
+                .onFailure { error -> _errorMessage.value = extractErrorMessage(error.message) }
+            _isSubmitting.value = false
+        }
+    }
+
+    fun updateSupplier(id: String, request: CreateSupplierRequest, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            _errorMessage.value = null
+            inventoryRepository.updateSupplier(id, request)
+                .onSuccess {
+                    _successMessage.value = "Supplier updated successfully"
+                    fetchSuppliers()
+                    fetchSupplierDetail(id)
+                    onSuccess()
+                }
+                .onFailure { error -> _errorMessage.value = extractErrorMessage(error.message) }
+            _isSubmitting.value = false
+        }
+    }
+
+    fun deleteSupplier(id: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            _errorMessage.value = null
+            inventoryRepository.deleteSupplier(id)
+                .onSuccess { msg ->
+                    _successMessage.value = msg
+                    fetchSuppliers()
+                    onSuccess()
+                }
+                .onFailure { error -> _errorMessage.value = extractErrorMessage(error.message) }
+            _isSubmitting.value = false
+        }
+    }
+
+    fun restoreSupplier(id: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            _errorMessage.value = null
+            inventoryRepository.restoreSupplier(id)
+                .onSuccess {
+                    _successMessage.value = "Supplier restored successfully"
+                    fetchSuppliers()
+                    onSuccess()
+                }
+                .onFailure { error -> _errorMessage.value = extractErrorMessage(error.message) }
+            _isSubmitting.value = false
+        }
+    }
+
+    fun clearAlerts() {
+        _successMessage.value = null
+        _errorMessage.value = null
+        _suppliersError.value = null
+    }
+
+    fun clearSelectedSupplier() {
+        _selectedSupplier.value = null
+        _supplierLedger.value = null
+    }
+    
 }

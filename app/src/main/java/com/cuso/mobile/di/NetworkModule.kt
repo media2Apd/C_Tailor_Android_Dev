@@ -12,6 +12,7 @@ import com.cuso.mobile.model.settings.WorkPricingSegment
 import com.cuso.mobile.model.settings.WorkPricingSegmentDeserializer
 import com.cuso.mobile.model.settings.WorkPricingTaxGroup
 import com.cuso.mobile.model.settings.WorkPricingTaxGroupDeserializer
+import com.cuso.mobile.network.SafeListTypeAdapterFactory
 import com.cuso.mobile.network.auth.AuthApiService
 import com.cuso.mobile.network.finance.FinanceApiService
 import com.cuso.mobile.network.hr.HrApiService
@@ -69,6 +70,7 @@ object NetworkModule {
     @Singleton
     fun provideGson(): Gson {
         return GsonBuilder()
+            .registerTypeAdapterFactory(SafeListTypeAdapterFactory())
             .registerTypeAdapter(WorkPricingSegment::class.java, WorkPricingSegmentDeserializer())
             .registerTypeAdapter(WorkPricingGarment::class.java, WorkPricingGarmentDeserializer())
             .registerTypeAdapter(WorkPricingCategory::class.java, WorkPricingCategoryDeserializer())

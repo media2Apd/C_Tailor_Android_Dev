@@ -1,18 +1,27 @@
 package com.cuso.mobile.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.mobile.database.dao.SelectedGarmentDao
 import com.cuso.mobile.database.entities.LeadEntity
 import com.cuso.mobile.database.entities.SalesStatusEntity
 import com.cuso.mobile.database.entities.SalesSummaryEntity
+import com.cuso.mobile.database.entities.SelectedGarment
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.AddOrgGarmentResponse
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.OrgGarmentCategory
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.RemoveOrgGarmentResponse
 import com.cuso.mobile.model.sales.CategoryItem
+import com.cuso.mobile.model.sales.ConvertToOrderData
 import com.cuso.mobile.model.sales.CreateLeadFormRequest
 import com.cuso.mobile.model.sales.CustomerSearchResponse
 import com.cuso.mobile.model.sales.LeadData
 import com.cuso.mobile.model.sales.LeadTableItem
+import com.cuso.mobile.model.sales.OrderItem
 import com.cuso.mobile.model.sales.StaffDto
 import com.cuso.mobile.model.sales.ViewOneLeadData
 import com.cuso.mobile.repository.SalesRepository
+import com.cuso.mobile.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -22,22 +31,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import android.util.Log
-import com.cuso.mobile.database.dao.SelectedGarmentDao
-import com.cuso.mobile.database.entities.SelectedGarment
-import com.cuso.mobile.model.login_forgotPassword_resetPassword.AddOrgGarmentResponse
-import com.cuso.mobile.model.login_forgotPassword_resetPassword.OrgGarmentCategory
-import com.cuso.mobile.model.login_forgotPassword_resetPassword.RemoveOrgGarmentResponse
-import com.cuso.mobile.model.sales.ConvertToOrderData
-import com.cuso.mobile.model.sales.GarmentCategory
-import com.cuso.mobile.model.sales.OrderItem
-import com.cuso.mobile.model.sales.StatusData
-import com.cuso.mobile.utils.launchBusy
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "SalesViewModel"
 
+/**
+ * ViewModel managing Sales, Leads pipeline, Customer searches,
+ * Production/Garment categories, and Session-based garment configurations.
+ */
 @HiltViewModel
 @Suppress("unused")
 class SalesViewModel @Inject constructor(
@@ -45,7 +47,10 @@ class SalesViewModel @Inject constructor(
     private val selectedGarmentDao: SelectedGarmentDao
 ) : ViewModel() {
 
-    // ── Common Categories ─────────────────────────────────────────
+    // =============================================================
+    // 1. Organization Garment Categories State
+    // =============================================================
+
     private val _orgGarmentCategories = MutableStateFlow<List<OrgGarmentCategory>>(emptyList())
     val orgGarmentCategories: StateFlow<List<OrgGarmentCategory>> = _orgGarmentCategories.asStateFlow()
 
@@ -55,36 +60,31 @@ class SalesViewModel @Inject constructor(
     private val _orgGarmentError = MutableStateFlow<String?>(null)
     val orgGarmentError: StateFlow<String?> = _orgGarmentError.asStateFlow()
 
-    // ── Active Org Garment IDs ────────────────────────────────────
     private val _activeOrgCategoryIds = MutableStateFlow<List<String>>(emptyList())
     val activeOrgCategoryIds: StateFlow<List<String>> = _activeOrgCategoryIds.asStateFlow()
 
-    // ── Add Garment State ─────────────────────────────────────────
+    // Add / Remove Category States
     private val _addGarmentState = MutableStateFlow<SaleState<AddOrgGarmentResponse>>(SaleState.Idle)
     val addGarmentState: StateFlow<SaleState<AddOrgGarmentResponse>> = _addGarmentState.asStateFlow()
 
     private val _isAddingGarment = MutableStateFlow(false)
     val isAddingGarment: StateFlow<Boolean> = _isAddingGarment.asStateFlow()
 
-    // ── Remove Garment State ──────────────────────────────────────
     private val _removeGarmentState = MutableStateFlow<SaleState<RemoveOrgGarmentResponse>>(SaleState.Idle)
     val removeGarmentState: StateFlow<SaleState<RemoveOrgGarmentResponse>> = _removeGarmentState.asStateFlow()
 
     private val _isRemovingGarment = MutableStateFlow(false)
     val isRemovingGarment: StateFlow<Boolean> = _isRemovingGarment.asStateFlow()
 
-    // ── Other States ──────────────────────────────────────────────
+    private val _garmentCategories = MutableStateFlow<List<CategoryItem>>(emptyList())
+    val garmentCategories: StateFlow<List<CategoryItem>> = _garmentCategories.asStateFlow()
+
+    // =============================================================
+    // 2. Sales Summary & Status Pipeline
+    // =============================================================
+
     private val _fetchState = MutableStateFlow<SaleState<Unit>>(SaleState.Idle)
     val fetchState: StateFlow<SaleState<Unit>> = _fetchState.asStateFlow()
-
-    private val _leadState = MutableStateFlow<SaleState<LeadData>>(SaleState.Idle)
-    val leadState: StateFlow<SaleState<LeadData>> = _leadState.asStateFlow()
-
-    private val _updateState = MutableStateFlow<SaleState<Unit>>(SaleState.Idle)
-    val updateState: StateFlow<SaleState<Unit>> = _updateState.asStateFlow()
-
-    private val _deleteState = MutableStateFlow<SaleState<Unit>>(SaleState.Idle)
-    val deleteState: StateFlow<SaleState<Unit>> = _deleteState.asStateFlow()
 
     val salesStatuses: StateFlow<List<SalesStatusEntity>> =
         repository.getSalesStatuses()
@@ -93,6 +93,10 @@ class SalesViewModel @Inject constructor(
     val salesSummary: StateFlow<SalesSummaryEntity?> =
         repository.getSalesSummary()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    // =============================================================
+    // 3. Staff & Assignments State
+    // =============================================================
 
     private val _staffList = MutableStateFlow<List<StaffDto>>(emptyList())
     val staffList: StateFlow<List<StaffDto>> = _staffList.asStateFlow()
@@ -106,6 +110,10 @@ class SalesViewModel @Inject constructor(
     private val _staffError = MutableStateFlow<String?>(null)
     val staffError: StateFlow<String?> = _staffError.asStateFlow()
 
+    // =============================================================
+    // 4. Lead Details & Selection State
+    // =============================================================
+
     private val _selectedLead = MutableStateFlow<LeadEntity?>(null)
     val selectedLead: StateFlow<LeadEntity?> = _selectedLead.asStateFlow()
 
@@ -115,9 +123,25 @@ class SalesViewModel @Inject constructor(
     private val _leadDetailsError = MutableStateFlow<String?>(null)
     val leadDetailsError: StateFlow<String?> = _leadDetailsError.asStateFlow()
 
+    private var isFetchingLeadDetails = false
+
     val leads: StateFlow<List<LeadEntity>> =
         repository.getLeads()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Lead CRUD Action States
+    private val _leadState = MutableStateFlow<SaleState<LeadData>>(SaleState.Idle)
+    val leadState: StateFlow<SaleState<LeadData>> = _leadState.asStateFlow()
+
+    private val _updateState = MutableStateFlow<SaleState<Unit>>(SaleState.Idle)
+    val updateState: StateFlow<SaleState<Unit>> = _updateState.asStateFlow()
+
+    private val _deleteState = MutableStateFlow<SaleState<Unit>>(SaleState.Idle)
+    val deleteState: StateFlow<SaleState<Unit>> = _deleteState.asStateFlow()
+
+    // =============================================================
+    // 5. Table Leads & Pagination State
+    // =============================================================
 
     private val _tableLeads = MutableStateFlow<List<LeadTableItem>>(emptyList())
     val tableLeads: StateFlow<List<LeadTableItem>> = _tableLeads.asStateFlow()
@@ -128,12 +152,25 @@ class SalesViewModel @Inject constructor(
     private val _tableError = MutableStateFlow<String?>(null)
     val tableError: StateFlow<String?> = _tableError.asStateFlow()
 
-    private val _garmentCategories = MutableStateFlow<List<CategoryItem>>(emptyList())
-    val garmentCategories: StateFlow<List<CategoryItem>> = _garmentCategories.asStateFlow()
+    private val _currentPage = MutableStateFlow(1)
+    val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
 
-    private var isFetchingLeadDetails = false
+    private val _pageSize = MutableStateFlow(10)
+    val pageSize: StateFlow<Int> = _pageSize.asStateFlow()
 
-    // ── Dropdown Options ─────────────────────────────────────────
+    private val _totalLeads = MutableStateFlow(0)
+    val totalLeads: StateFlow<Int> = _totalLeads.asStateFlow()
+
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    private val _canLoadMore = MutableStateFlow(true)
+    val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
+
+    // =============================================================
+    // 6. Dropdown Options State
+    // =============================================================
+
     private val _leadSources = MutableStateFlow<List<String>>(emptyList())
     val leadSources: StateFlow<List<String>> = _leadSources.asStateFlow()
 
@@ -152,7 +189,10 @@ class SalesViewModel @Inject constructor(
     private val _priorityOptions = MutableStateFlow<List<String>>(emptyList())
     val priorityOptions: StateFlow<List<String>> = _priorityOptions.asStateFlow()
 
-    // ── Selected Garments (Room DB) ──────────────────────────────
+    // =============================================================
+    // 7. Session-based Garment Drafts (Room DB)
+    // =============================================================
+
     private val _selectedGarments = MutableStateFlow<List<SelectedGarment>>(emptyList())
     val selectedGarments: StateFlow<List<SelectedGarment>> = _selectedGarments.asStateFlow()
 
@@ -162,7 +202,10 @@ class SalesViewModel @Inject constructor(
         currentGarmentSessionId = "draft_order_$userId"
     }
 
-    // ── Customer Search ───────────────────────────────────────────
+    // =============================================================
+    // 8. Customer Search & Order Conversion State
+    // =============================================================
+
     private val _customerSearchResult = MutableStateFlow<CustomerSearchResponse?>(null)
     val customerSearchResult: StateFlow<CustomerSearchResponse?> = _customerSearchResult.asStateFlow()
 
@@ -171,46 +214,40 @@ class SalesViewModel @Inject constructor(
 
     private var searchJob: Job? = null
 
-    // ── Update Order (Edit flow) ──
     private val _updateOrderState = MutableStateFlow<SaleState<OrderItem>>(SaleState.Idle)
     val updateOrderState: StateFlow<SaleState<OrderItem>> = _updateOrderState.asStateFlow()
 
-    //convert to order
     private val _convertOrderState = MutableStateFlow<ConvertOrderState>(ConvertOrderState.Idle)
     val convertOrderState: StateFlow<ConvertOrderState> = _convertOrderState.asStateFlow()
 
-    // ── Infinite scroll state ─────────────────────────────
-    private val _isLoadingMore = MutableStateFlow(false)
-    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+    // =============================================================
+    // Customer Search Implementation
+    // =============================================================
 
-    private val _canLoadMore = MutableStateFlow(true)
-    val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
-
-
+    /**
+     * Debounces and searches for customer details using their phone number.
+     */
     fun searchCustomerByMobile(mobile: String, countryCode: String) {
         searchJob?.cancel()
         if (mobile.length < 4) {
             _customerSearchResult.value = null
-            _isSearchingCustomer.value = false   //   clear stale spinner
+            _isSearchingCustomer.value = false
             return
         }
-        searchJob =  viewModelScope.launch {
+
+        searchJob = viewModelScope.launch {
             delay(400.milliseconds)
             _isSearchingCustomer.value = true
 
             val callStart = System.currentTimeMillis()
+            val fullNumber = countryCode.replace("+", "").plus(mobile.trim())
 
-            val fullNumber = countryCode
-                .replace("+", "")
-                .plus(mobile.trim())
-
-            Log.d(TAG, "🔍 Searching customer: $fullNumber")   //   — debug log
+            Log.d(TAG, "Searching customer: $fullNumber")
 
             val result = repository.searchCustomerByMobile(fullNumber)
-
             result
                 .onSuccess {
-                    Log.d(TAG, "  Customer search success: ${it.customer?.name}")
+                    Log.d(TAG, "Customer search success: ${it.customer?.name}")
                     _customerSearchResult.value = it
                 }
                 .onFailure {
@@ -218,21 +255,27 @@ class SalesViewModel @Inject constructor(
                     _customerSearchResult.value = null
                 }
 
-            //   ensures spinner is visible for at least 400ms — forces a real
-            // suspension point so Compose can't collapse true→false into one frame
+            // Ensures spinner is visible for smooth UI transition
             val elapsed = System.currentTimeMillis() - callStart
             if (elapsed < 400) delay(400 - elapsed)
 
             _isSearchingCustomer.value = false
         }
     }
+
     fun clearCustomerSearch() {
         searchJob?.cancel()
         _customerSearchResult.value = null
         _isSearchingCustomer.value = false
     }
 
-    // ── Staff ─────────────────────────────────────────────────────
+    // =============================================================
+    // Staff Functions
+    // =============================================================
+
+    /**
+     * Fetches staff list from HR endpoint and auto-selects the first staff if empty.
+     */
     fun fetchStaff() {
         viewModelScope.launch {
             _isLoadingStaff.value = true
@@ -247,10 +290,19 @@ class SalesViewModel @Inject constructor(
         }
     }
 
-    fun selectStaff(staffId: String) { _selectedStaffId.value = staffId }
+    fun selectStaff(staffId: String) {
+        _selectedStaffId.value = staffId
+    }
+
     fun getSelectedStaffId(): String = _selectedStaffId.value
 
-    // ── Sales Data ────────────────────────────────────────────────
+    // =============================================================
+    // Sales Data & Dropdown Options
+    // =============================================================
+
+    /**
+     * Refreshes summary data, sales status counts, and dropdown options.
+     */
     fun fetchSalesData() {
         viewModelScope.launch {
             _fetchState.value = SaleState.Loading
@@ -269,19 +321,18 @@ class SalesViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoadingSources.value = true
             try {
-                Log.d(TAG, "  All dropdown options fetched successfully")
+                Log.d(TAG, "Dropdown options initialized successfully")
             } catch (e: Exception) {
-                Log.e(TAG, " Error fetching dropdown options: ${e.message}")
+                Log.e(TAG, "Error initializing dropdown options: ${e.message}")
             } finally {
                 _isLoadingSources.value = false
             }
         }
     }
-    private val _currentPage = MutableStateFlow(1)
-    val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
 
-    private val _pageSize = MutableStateFlow(10)
-    val pageSize: StateFlow<Int> = _pageSize.asStateFlow()
+    // =============================================================
+    // Pagination Controls
+    // =============================================================
 
     fun setPageSize(size: Int) {
         _pageSize.value = size
@@ -293,13 +344,7 @@ class SalesViewModel @Inject constructor(
         _currentPage.value = page
         fetchTableLeads()
     }
-    //    — pagination state
 
-
-    private val _totalLeads = MutableStateFlow(0)
-    val totalLeads: StateFlow<Int> = _totalLeads.asStateFlow()
-
-    //    — pagination actions
     fun onPageChange(newPage: Int) {
         _currentPage.value = newPage
         fetchTableLeads()
@@ -311,9 +356,11 @@ class SalesViewModel @Inject constructor(
         fetchTableLeads()
     }
 
-
+    /**
+     * Fetches lead list with support for first-page reset or infinite scroll appending.
+     */
     fun fetchTableLeads(reset: Boolean = true) {
-        if (_isLoadingTableLeads.value || _isLoadingMore.value) return   // duplicate call guard
+        if (_isLoadingTableLeads.value || _isLoadingMore.value) return
 
         viewModelScope.launch {
             if (reset) {
@@ -351,11 +398,22 @@ class SalesViewModel @Inject constructor(
         fetchTableLeads(reset = false)
     }
 
-    // ── Lead Details ──────────────────────────────────────────────
-    fun selectLead(lead: LeadEntity) { _selectedLead.value = lead }
-    fun clearSelectedLead() { _selectedLead.value = null }
+    // =============================================================
+    // Lead Details & Conversion Operations
+    // =============================================================
 
-    fun fetchLeadDetails(leadId: String, onComplete: (Boolean) -> Unit) {
+    fun selectLead(lead: LeadEntity) {
+        _selectedLead.value = lead
+    }
+
+    fun clearSelectedLead() {
+        _selectedLead.value = null
+    }
+
+    /**
+     * Loads complete details for a single lead.
+     */
+    fun fetchLeadDetails(leadId: String, onComplete: (Boolean) -> Unit = {}) {
         if (isFetchingLeadDetails) return
         viewModelScope.launch {
             isFetchingLeadDetails = true
@@ -381,45 +439,56 @@ class SalesViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Converts a Remote ViewOneLeadData DTO into a local Room LeadEntity.
+     */
     private fun convertToLeadEntity(data: ViewOneLeadData): LeadEntity {
-        fun extractGarmentIds(garments: List<GarmentCategory>?) =
-            garments?.mapNotNull { it._id }?.joinToString(",") ?: ""
-        fun extractStatusName(status: StatusData) = status.name
+        val internalNotes = data.internalNotesText
+            ?: data.notesList?.find { it.type == "internal" }?.message
+            ?: ""
+
+        val customerNotes = data.customerNotesText
+            ?: data.notesList?.find { it.type == "customer" }?.message
+            ?: ""
 
         return LeadEntity(
             id = data._id,
             customerType = data.customerType,
-            status = extractStatusName(data.status),
+            status = data.effectiveStatus,
             createdAt = data.createdAt,
-            fullName = data.person?.name ?: "",
-            phone = data.person?.phone ?: "",
-            email = data.person?.email ?: "",
-            gender = data.person?.gender ?: "",
-            dob = data.person?.dob ?: "",
-            address = data.contact?.address ?: "",
-            area = data.contact?.area ?: "",
-            city = data.contact?.city ?: "",
-            preferredContactMethod = data.contact?.preferredContactMethod ?: "",
-            enquiryType = data.enquiryType,
-            estimatedQuantity = data.estimatedQuantity ?: 0,
-            budgetMin = data.budgetRange?.min ?: 0,
-            budgetMax = data.budgetRange?.max ?: 0,
-            occasion = data.occasion ?: "",
-            garments = extractGarmentIds(data.garmentCategory),
+            fullName = data.effectiveName,
+            phone = data.effectivePhone,
+            email = data.effectiveEmail,
+            gender = data.gender.orEmpty(),
+            dob = data.dateOfBirth.orEmpty(),
+            address = data.streetAddress,
+            area = data.areaName,
+            city = data.cityName,
+            preferredContactMethod = data.preferredContactMethod.orEmpty(),
+            enquiryType = data.enquiryType.orEmpty(),
+            estimatedQuantity = data.totalQuantity,
+            budgetMin = data.minBudgetVal,
+            budgetMax = data.maxBudgetVal,
+            occasion = data.occasion.orEmpty(),
+            garments = data.effectiveGarmentIds,
             enquiryDate = data.enquiryDate,
-            requiredDate = data.requiredDate ?: "",
-            source = data.source,
-            leadOwner = data.leadOwner?._id ?: "",
-            appointmentRequired = data.appointment?.isRequired ?: false,
-            appointmentDate = data.appointment?.date ?: "",
-            appointmentTime = data.appointment?.time ?: "",
-            assignedStaff = data.appointment?.assignedStaff?._id,
-            priority = data.appointment?.priority ?: "",
-            followUpDate = data.appointment?.followUpDate ?: "",
-            internalNotes = data.notes?.find { it.type == "internal" }?.message ?: "",
-            customerNotes = data.notes?.find { it.type == "customer" }?.message ?: ""
+            requiredDate = data.requiredDate.orEmpty(),
+            source = data.effectiveSource,
+            leadOwner = data.leadOwner?._id.orEmpty(),
+            appointmentRequired = data.isAppointmentRequired ?: false,
+            appointmentDate = data.appointmentDate.orEmpty(),
+            appointmentTime = data.appointmentTime.orEmpty(),
+            assignedStaff = data.assignedStaffId?._id.orEmpty(),
+            priority = data.priorityLevel.orEmpty(),
+            followUpDate = data.followUpDate.orEmpty(),
+            internalNotes = internalNotes,
+            customerNotes = customerNotes
         )
     }
+
+    /**
+     * Refreshes lead details silently in the background without modifying UI loading spinners.
+     */
     fun silentRefreshLead(leadId: String) {
         viewModelScope.launch {
             try {
@@ -432,6 +501,9 @@ class SalesViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Converts a qualified lead directly into an active Order.
+     */
     fun convertLeadToOrder(leadId: String) {
         launchBusy {
             _convertOrderState.value = ConvertOrderState.Loading
@@ -452,8 +524,10 @@ class SalesViewModel @Inject constructor(
         }
     }
 
+    // =============================================================
+    // Lead CRUD Operations
+    // =============================================================
 
-    // ── Lead CRUD ─────────────────────────────────────────────────
     fun createLead(request: CreateLeadFormRequest) {
         launchBusy {
             _leadState.value = SaleState.Loading
@@ -501,7 +575,10 @@ class SalesViewModel @Inject constructor(
         }
     }
 
-    // ── Org Garment Categories ────────────────────────────────────
+    // =============================================================
+    // Organization Garment Categories Operations
+    // =============================================================
+
     fun fetchOrgGarmentCategories() {
         viewModelScope.launch {
             _isLoadingOrgGarments.value = true
@@ -520,7 +597,7 @@ class SalesViewModel @Inject constructor(
         viewModelScope.launch {
             repository.fetchActiveOrgGarmentIds()
                 .onSuccess { _activeOrgCategoryIds.value = it }
-                .onFailure { Log.e(TAG, " fetchActiveOrgGarments error: ${it.message}") }
+                .onFailure { Log.e(TAG, "fetchActiveOrgGarments error: ${it.message}") }
         }
     }
 
@@ -559,8 +636,15 @@ class SalesViewModel @Inject constructor(
         }
     }
 
-    fun resetAddGarmentState() { _addGarmentState.value = SaleState.Idle; _isAddingGarment.value = false }
-    fun resetRemoveGarmentState() { _removeGarmentState.value = SaleState.Idle; _isRemovingGarment.value = false }
+    fun resetAddGarmentState() {
+        _addGarmentState.value = SaleState.Idle
+        _isAddingGarment.value = false
+    }
+
+    fun resetRemoveGarmentState() {
+        _removeGarmentState.value = SaleState.Idle
+        _isRemovingGarment.value = false
+    }
 
     fun fetchGarmentCategories() {
         viewModelScope.launch {
@@ -570,7 +654,10 @@ class SalesViewModel @Inject constructor(
         }
     }
 
-    // ── Selected Garments (Room DB) ──────────────────────────────
+    // =============================================================
+    // Selected Garments Session Operations (Room DB)
+    // =============================================================
+
     fun loadSelectedGarments() {
         viewModelScope.launch {
             selectedGarmentDao.getGarmentsForSession(currentGarmentSessionId)
@@ -583,54 +670,72 @@ class SalesViewModel @Inject constructor(
             try {
                 selectedGarmentDao.insertGarment(garment.copy(orderSessionId = currentGarmentSessionId))
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Failed to save garment: ${e.message}")
+                Log.e(TAG, "Failed to save garment: ${e.message}")
             }
         }
     }
 
     fun deleteSelectedGarment(garmentId: String) {
         launchBusy {
-            try { selectedGarmentDao.deleteGarmentById(garmentId) }
-            catch (e: Exception) { Log.e(TAG, "❌ Failed to delete: ${e.message}") }
+            try {
+                selectedGarmentDao.deleteGarmentById(garmentId)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to delete garment: ${e.message}")
+            }
         }
     }
 
     fun clearAllSelectedGarments() {
         launchBusy {
-            try { selectedGarmentDao.clearSession(currentGarmentSessionId) }
-            catch (e: Exception) { Log.e(TAG, "❌ Failed to clear: ${e.message}") }
+            try {
+                selectedGarmentDao.clearSession(currentGarmentSessionId)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to clear garments session: ${e.message}")
+            }
         }
     }
 
-    // ── Reset States ──────────────────────────────────────────────
-    fun resetLeadState() { _leadState.value = SaleState.Idle }
-    fun resetDeleteState() { _deleteState.value = SaleState.Idle }
-    fun resetUpdateState() { _updateState.value = SaleState.Idle }
+    // =============================================================
+    // State Reset Functions
+    // =============================================================
+
+    fun resetLeadState() {
+        _leadState.value = SaleState.Idle
+    }
+
+    fun resetDeleteState() {
+        _deleteState.value = SaleState.Idle
+    }
+
+    fun resetUpdateState() {
+        _updateState.value = SaleState.Idle
+    }
+
     fun resetLeadDetailsState() {
         _isLoadingLeadDetails.value = false
         _leadDetailsError.value = null
         isFetchingLeadDetails = false
     }
 
-
     fun resetConvertOrderState() {
         _convertOrderState.value = ConvertOrderState.Idle
     }
-
-
-
 }
 
+// =============================================================
+// UI State Sealed Classes
+// =============================================================
+
 sealed class SaleState<out T> {
-    object Idle : SaleState<Nothing>()
-    object Loading : SaleState<Nothing>()
+    data object Idle : SaleState<Nothing>()
+    data object Loading : SaleState<Nothing>()
     data class Success<T>(val data: T) : SaleState<T>()
     data class Error(val message: String) : SaleState<Nothing>()
 }
 
 sealed class ConvertOrderState {
-    object Idle : ConvertOrderState()
-    object Loading : ConvertOrderState()
+    data object Idle : ConvertOrderState()
+    data object Loading : ConvertOrderState()
     data class Success(val data: ConvertToOrderData) : ConvertOrderState()
     data class Error(val message: String) : ConvertOrderState()
 }

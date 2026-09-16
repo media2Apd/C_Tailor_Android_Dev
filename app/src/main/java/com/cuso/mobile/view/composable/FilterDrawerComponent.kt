@@ -737,12 +737,15 @@ private val DefaultTextSecondary = Color(0xFF9A9AA8)
  * Reusable Search + Filter bar.
  * Use anywhere: pass searchQuery + onQueryChange, optionally show filter icon.
  *
+ * @param isSearchBarAlone When true, shows ONLY the search input field without the filter button or trailing spacer.
+ * @param showFilterIcon Controls whether the filter button is visible (ignored if isSearchBarAlone is true).
+ *
  * Example:
  * SearchFilterBar(
  *     query = searchQuery,
  *     onQueryChange = { searchQuery = it },
  *     placeholder = "Search Customers...",
- *     onFilterClick = { /* open filter drawer */ }
+ *     isSearchBarAlone = true
  * )
  */
 @Composable
@@ -750,6 +753,7 @@ fun SearchFilterBar(
     query: String,
     onQueryChange: (String) -> Unit,
     placeholder: String = "Search...",
+    isSearchBarAlone: Boolean = false,
     showFilterIcon: Boolean = true,
     onFilterClick: (() -> Unit)? = null,
     accentColor: Color = MaterialTheme.colorScheme.primary,
@@ -758,16 +762,19 @@ fun SearchFilterBar(
     height: Dp = 44.dp
 ) {
     val tokens = LocalAppTokens.current
+    val shouldShowFilter = !isSearchBarAlone && showFilterIcon
+
     Row(
-        Modifier.fillMaxWidth()
+        Modifier
+            .fillMaxWidth()
             .padding(horizontal = tokens.screenPadding)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
                 .padding(bottom = 10.dp, top = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-
             BasicTextField(
                 value = query,
                 onValueChange = onQueryChange,
@@ -780,7 +787,6 @@ fun SearchFilterBar(
                     .weight(1f)
                     .height(height),
                 decorationBox = { innerTextField ->
-
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
@@ -796,7 +802,6 @@ fun SearchFilterBar(
                             .padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-
                         Icon(
                             Icons.Default.Search,
                             contentDescription = null,
@@ -810,7 +815,6 @@ fun SearchFilterBar(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.CenterStart
                         ) {
-
                             if (query.isEmpty()) {
                                 Text(
                                     text = placeholder,
@@ -818,12 +822,10 @@ fun SearchFilterBar(
                                     color = textSecondaryColor
                                 )
                             }
-
                             innerTextField()
                         }
 
                         if (query.isNotEmpty()) {
-
                             Spacer(modifier = Modifier.width(8.dp))
 
                             Icon(
@@ -840,9 +842,9 @@ fun SearchFilterBar(
                     }
                 }
             )
-            Spacer(Modifier.width(10.dp))
 
-            if (showFilterIcon) {
+            if (shouldShowFilter) {
+                Spacer(Modifier.width(10.dp))
 
                 Box(
                     modifier = Modifier
@@ -859,7 +861,6 @@ fun SearchFilterBar(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-
                     Icon(
                         Icons.Default.FilterList,
                         contentDescription = "Filter",

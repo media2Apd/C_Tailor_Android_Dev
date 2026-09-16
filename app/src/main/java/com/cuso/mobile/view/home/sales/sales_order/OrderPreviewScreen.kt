@@ -263,7 +263,7 @@ fun OrderPreviewScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.CreditCard, contentDescription = null, tint = Color(0xFF334155), modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Cash Payment", fontSize = 13.sp, color = Color(0xFF1E293B), fontWeight = FontWeight.Medium)
+                            Text("Cash Payment", fontSize = 13.sp, color = title_color, fontWeight = FontWeight.Medium)
                         }
                     }
 

@@ -75,6 +75,7 @@ import com.cuso.mobile.viewmodel.SettingsViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
 import com.cuso.mobile.R
+import com.cuso.mobile.ui.theme.title_color
 
 @Composable
 fun ItemGroupDetailScreen(
@@ -159,7 +160,7 @@ fun ItemGroupDetailScreen(
                             text = detail?.name?.ifBlank { "Cotton Twil" } ?: "Cotton Twil",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF1E293B)
+                            color = title_color
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(
@@ -521,7 +522,7 @@ private fun DetailSectionCard(
                 text = title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1E293B)
+                color = title_color
             )
         }
 
@@ -540,7 +541,7 @@ private fun DetailSectionCard(
 private fun DetailRowItem(
     label: String,
     value: String,
-    valueColor: Color = Color(0xFF1E293B),
+    valueColor: Color = title_color,
     showDivider: Boolean = true
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {

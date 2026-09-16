@@ -41,6 +41,7 @@ import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.light_grey
 import com.cuso.mobile.ui.theme.redText
+import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.TitleBar
@@ -56,7 +57,7 @@ import com.cuso.mobile.view.home.sales.customer.OrderStatusStepper
 private val AccentColor = Color(0xFF4F39F6)
 private val BorderColor = Color(0xFFE3E4E8)
 private val LabelColor = Color(0xFF111827)
-private val TitleColor = Color(0xFF1E293B)
+private val TitleColor = title_color
 private val MutedColor = Color(0xFF374151)
 private val InTransitBg = Color(0xFFEDE9FE)
 private val InTransitText = Color(0xFF6D28D9)

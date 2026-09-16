@@ -6,13 +6,36 @@ import com.google.gson.annotations.SerializedName
 // =============================================================================
 // 1. REASON & BASE RESPONSE MODELS
 // =============================================================================
+
 data class StockAdjustmentListResponse(
     @SerializedName("success") val success: Boolean = false,
     @SerializedName("data") val data: List<StockAdjustmentData> = emptyList(),
-    @SerializedName("total") val total: Int? = null,
-    @SerializedName("page") val page: Int? = null,
-    @SerializedName("limit") val limit: Int? = null
+    @SerializedName("pagination") val pagination: AdjustmentPaginationDto? = null,
+    // Fallbacks if backend sends them directly at root
+    @SerializedName("total") val totalDirect: Int? = null,
+    @SerializedName("page") val pageDirect: Int? = null,
+    @SerializedName("limit") val limitDirect: Int? = null
+) {
+    val totalCount: Int
+        get() = pagination?.total ?: totalDirect ?: data.size
+
+    val currentPage: Int
+        get() = pagination?.page ?: pageDirect ?: 1
+
+    val pageSize: Int
+        get() = pagination?.limit ?: limitDirect ?: 20
+
+    val totalPagesCount: Int
+        get() = pagination?.totalPages ?: 1
+}
+
+data class AdjustmentPaginationDto(
+    @SerializedName("page") val page: Int = 1,
+    @SerializedName("limit") val limit: Int = 20,
+    @SerializedName("total") val total: Int = 0,
+    @SerializedName("totalPages") val totalPages: Int = 1
 )
+
 data class StockAdjustmentDetailResponse(
     @SerializedName("success") val success: Boolean = false,
     @SerializedName("data") val data: StockAdjustmentData? = null,
@@ -35,7 +58,6 @@ data class StockSummaryListResponse(
     @SerializedName("pageSize") val pageSize: Int = 20,
     @SerializedName("totalPages") val totalPages: Int = 1
 ) {
-    // Guaranteed non-null accessor to prevent NPEs
     val data: List<StockSummaryItemDto>
         get() = _data ?: emptyList()
 }
@@ -63,7 +85,6 @@ data class StockSummaryItemDto(
         get() = extractJsonId(rawWarehouseId)
 }
 
-
 // =============================================================================
 // 2. CRASH-PROOF STOCK ADJUSTMENT DATA MODEL
 // =============================================================================
@@ -73,7 +94,7 @@ data class StockAdjustmentData(
     @SerializedName("organizationId") val organizationId: String? = null,
     @SerializedName("adjustmentCode") val adjustmentCode: String? = null,
 
-    //  Handles String ID or Populated Object { _id, name, sku, ... }
+    // Handles String ID or Populated Object { _id, name, sku, variantLabel, ... }
     @SerializedName("itemId") val rawItem: JsonElement? = null,
 
     @SerializedName("adjustmentType") val adjustmentType: String? = "increase",
@@ -84,16 +105,16 @@ data class StockAdjustmentData(
     @SerializedName("reason") val reason: String? = null,
     @SerializedName("referenceNumber") val referenceNumber: String? = null,
 
-    //  Handles String or Populated User Objects
+    // Handles String or Populated User Objects
     @SerializedName("handledBy") val rawHandledBy: JsonElement? = null,
     @SerializedName("createdBy") val rawCreatedBy: JsonElement? = null,
 
     @SerializedName("status") val status: String? = "completed",
 
-    //  Handles String or Populated Reversal Object
+    // Handles String or Populated Reversal Object
     @SerializedName("reversalOfId") val rawReversalOfId: JsonElement? = null,
 
-    //  Handles Array of Strings or Array of Objects
+    // Handles Array of Strings or Array of Objects
     @SerializedName("stockLedgerIds") val rawStockLedgerIds: JsonElement? = null,
 
     @SerializedName("createdAt") val createdAt: String? = null,
@@ -101,19 +122,39 @@ data class StockAdjustmentData(
 ) {
     val _id: String get() = id
     val type: String get() = adjustmentType ?: "increase"
-
-    // Safe getters
+    val handledByName: String
+        get() {
+            if (rawHandledBy == null || rawHandledBy.isJsonNull) return "—"
+            if (rawHandledBy.isJsonObject) {
+                val obj = rawHandledBy.asJsonObject
+                val first = obj.get("firstName")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+                val last = obj.get("lastName")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+                val full = "$first $last".trim()
+                return if (full.isNotBlank()) full else obj.get("name")?.takeIf { !it.isJsonNull }?.asString ?: "—"
+            }
+            if (rawHandledBy.isJsonPrimitive) return rawHandledBy.asString
+            return "—"
+        }
+    // Safe getters for UI
     val itemId: String get() = extractJsonId(rawItem)
     val itemName: String get() = extractJsonName(rawItem)
     val itemSku: String get() = extractJsonSku(rawItem)
+    val itemVariant: String get() = extractJsonVariant(rawItem)
     val reversalOfId: String? get() = extractJsonId(rawReversalOfId).takeIf { it.isNotBlank() }
+    val isReversed: Boolean get() = status.equals("reversed", ignoreCase = true)
+
+    // Origin/Destination Helpers
+    val originWarehouseName: String get() = origin?.warehouseName ?: "—"
+    val originWarehouseCode: String get() = origin?.warehouseCode ?: "—"
+    val destinationWarehouseName: String get() = destination?.warehouseName ?: "—"
+    val destinationWarehouseCode: String get() = destination?.warehouseCode ?: "—"
 }
 
 data class AdjustmentLocationData(
-    //  Handles String warehouseId OR Object warehouseId { _id, name, code }
+    // Handles String warehouseId OR Object warehouseId { _id, name, code }
     @SerializedName("warehouseId") val rawWarehouseId: JsonElement? = null,
 
-    //  Handles String binId OR Object binId { _id, name, code }
+    // Handles String binId OR Object binId { _id, name, code }
     @SerializedName("binId") val rawBinId: JsonElement? = null,
 
     @SerializedName("before") val before: Double? = 0.0,
@@ -121,6 +162,7 @@ data class AdjustmentLocationData(
 ) {
     val warehouseId: String? get() = extractJsonId(rawWarehouseId).takeIf { it.isNotBlank() }
     val warehouseName: String? get() = extractJsonName(rawWarehouseId).takeIf { it.isNotBlank() }
+    val warehouseCode: String? get() = extractJsonCode(rawWarehouseId).takeIf { it.isNotBlank() }
     val binId: String? get() = extractJsonId(rawBinId).takeIf { it.isNotBlank() }
 }
 
@@ -156,6 +198,26 @@ private fun extractJsonSku(element: JsonElement?): String {
     if (element.isJsonObject) {
         val obj = element.asJsonObject
         return obj.get("sku")?.takeIf { !it.isJsonNull }?.asString ?: ""
+    }
+    return ""
+}
+
+private fun extractJsonVariant(element: JsonElement?): String {
+    if (element == null || element.isJsonNull) return ""
+    if (element.isJsonObject) {
+        val obj = element.asJsonObject
+        return obj.get("variantLabel")?.takeIf { !it.isJsonNull }?.asString
+            ?: obj.get("variant")?.takeIf { !it.isJsonNull }?.asString
+            ?: ""
+    }
+    return ""
+}
+
+private fun extractJsonCode(element: JsonElement?): String {
+    if (element == null || element.isJsonNull) return ""
+    if (element.isJsonObject) {
+        val obj = element.asJsonObject
+        return obj.get("code")?.takeIf { !it.isJsonNull }?.asString ?: ""
     }
     return ""
 }
@@ -201,24 +263,11 @@ data class DecreaseStockRequest(
 )
 
 data class TransferStockRequest(
-    @SerializedName("itemId")
-    val itemId: String,
-
-    @SerializedName("fromWarehouseId")
-    val fromWarehouseId: String,
-
-    @SerializedName("fromBinId")
-    val fromBinId: String? = null,
-
-    @SerializedName("toWarehouseId")
-    val toWarehouseId: String,
-
-    @SerializedName("toBinId")
-    val toBinId: String? = null,
-
-    @SerializedName("quantity")
-    val quantity: Double,
-
-    @SerializedName("reason")
-    val reason: String? = null
+    @SerializedName("itemId") val itemId: String,
+    @SerializedName("fromWarehouseId") val fromWarehouseId: String,
+    @SerializedName("fromBinId") val fromBinId: String? = null,
+    @SerializedName("toWarehouseId") val toWarehouseId: String,
+    @SerializedName("toBinId") val toBinId: String? = null,
+    @SerializedName("quantity") val quantity: Double,
+    @SerializedName("reason") val reason: String? = null
 )

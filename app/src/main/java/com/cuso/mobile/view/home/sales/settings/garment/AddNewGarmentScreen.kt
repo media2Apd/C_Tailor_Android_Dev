@@ -29,6 +29,7 @@ import com.cuso.mobile.view.composable.ImageUploadSection
 import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.TrailingFabAction
+import com.cuso.mobile.viewmodel.FinanceViewModel
 import com.cuso.mobile.viewmodel.SettingsViewModel
 
 // ─────────────────────────────────────────────────────────────
@@ -261,7 +262,8 @@ fun AddNewGarmentScreen(
 fun AddNewGarmentCategoryScreen(
     onClose: () -> Unit = {},
     onGarmentCategoryCreated: () -> Unit = onClose,
-    viewModel: SettingsViewModel = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel(),
+    financeViewModel: FinanceViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
 
@@ -273,6 +275,18 @@ fun AddNewGarmentCategoryScreen(
     var displayName by remember { mutableStateOf("") }
     var stitchingCharge by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+
+    // State for Income Account dropdown
+    var incomeAccountExpanded by remember { mutableStateOf(false) }
+    var selectedIncomeAccountId by remember { mutableStateOf<String?>(null) }
+    var selectedIncomeAccountName by remember { mutableStateOf("") }
+
+    // Fetch accounts with context = "sales_line"
+    LaunchedEffect(Unit) {
+        financeViewModel.fetchChartOfAccountsDropdown(context = "sales_line")
+    }
+    val accountDropdownList by financeViewModel.accountDropdownList.collectAsState()
+    val isLoadingAccounts by financeViewModel.isLoadingAccountDropdown.collectAsState()
 
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -336,6 +350,24 @@ fun AddNewGarmentCategoryScreen(
                     )
                 }
 
+                // Income Account Dropdown Field
+                Column {
+                    FormLabel(text = "Income Account", isRequired = true)
+                    FormDropdown(
+                        value = selectedIncomeAccountName.ifEmpty {
+                            if (isLoadingAccounts) "Loading accounts..." else "Select Income Account"
+                        },
+                        expanded = incomeAccountExpanded,
+                        onExpandChange = { incomeAccountExpanded = it },
+                        options = accountDropdownList.map { it.displayName },
+                        onOptionSelected = { selectedDisplayName ->
+                            selectedIncomeAccountName = selectedDisplayName
+                            val matched = accountDropdownList.find { it.displayName == selectedDisplayName }
+                            selectedIncomeAccountId = matched?.id
+                        }
+                    )
+                }
+
                 // Description Field
                 Column {
                     FormLabel(text = "Description", isRequired = false)
@@ -372,10 +404,16 @@ fun AddNewGarmentCategoryScreen(
                         errorMessage = "Please enter a display name"
                         return@Next
                     }
+                    // Validate Income Account selection
+                    if (selectedIncomeAccountId.isNullOrBlank()) {
+                        errorMessage = "Please select an Income Account"
+                        return@Next
+                    }
                     if (currentSegmentId.isNullOrBlank() || currentGarmentId.isNullOrBlank()) {
                         errorMessage = "Invalid Segment or Garment reference. Please go back and select again."
                         return@Next
                     }
+
 
                     viewModel.createGarmentStyle(
                         name = categoryName,
@@ -384,6 +422,7 @@ fun AddNewGarmentCategoryScreen(
                         segmentId = currentSegmentId!!,
                         garmentId = currentGarmentId!!,
                         stitchingCharge = stitchingCharge.toDoubleOrNull() ?: 0.0,
+                        incomeAccount = selectedIncomeAccountId,
                         onSuccess = {
                             successMessage = "Garment category created successfully"
                             onGarmentCategoryCreated()

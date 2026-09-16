@@ -53,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -75,6 +76,7 @@ import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.background_light_purple
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.complete_button_bg
+import com.cuso.mobile.ui.theme.disabled
 import com.cuso.mobile.ui.theme.greenBg
 import com.cuso.mobile.ui.theme.greentext
 import com.cuso.mobile.ui.theme.mutedText
@@ -111,6 +113,23 @@ fun InventoryViewOne(
 ) {
     val tokens = LocalAppTokens.current
     var selectedTab by remember { mutableIntStateOf(0) }
+    var showStockNotAssignedAlert by remember { mutableStateOf(false) }
+
+    // ── Direct API checks ──
+    val rawStatus = item?.rawStockStatus
+    val isTrackingDisabled = item?.trackInventory == false
+
+    // If raw status is null/blank or inventory is NOT tracked, DISABLE Adjust Stock & Warehouse Transfer
+    val isStockStatusNull = rawStatus.isNullOrBlank() || rawStatus.equals("null", ignoreCase = true) || isTrackingDisabled
+    val isStockNotAssigned = !isStockStatusNull && rawStatus?.contains("Stock Not Assigned", ignoreCase = true) == true
+    val isActionButtonsEnabled = !isStockStatusNull
+
+    // Show Dialog if stock is not assigned when user attempts to adjust or transfer
+    if (showStockNotAssignedAlert) {
+        StockNotAssignedDialog(
+            onDismiss = { showStockNotAssignedAlert = false }
+        )
+    }
 
     val inventoryTabs = remember {
         listOf(
@@ -213,18 +232,29 @@ fun InventoryViewOne(
 
                         // ── Primary Action Button (Adjust Stock) ──
                         Button(
-                            onClick = { onAdjustStock(item) },
+                            onClick = {
+                                if (isStockNotAssigned) {
+                                    showStockNotAssignedAlert = true
+                                } else {
+                                    onAdjustStock(item)
+                                }
+                            },
+                            enabled = isActionButtonsEnabled,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(tokens.buttonHeight),
                             shape = RoundedCornerShape(tokens.cardCornerRadius),
-                            colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Primary,
+                                disabledContainerColor = disabled,
+                                contentColor = whiteBg,
+                                disabledContentColor = whiteBg.copy(alpha = 0.6f)
+                            )
                         ) {
                             Text(
                                 text = "Adjust Stock",
                                 fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = whiteBg
+                                fontWeight = FontWeight.Medium
                             )
                         }
 
@@ -244,8 +274,21 @@ fun InventoryViewOne(
                             OverviewContent(
                                 item = item,
                                 tokens = tokens,
-                                onAdjustStockClick = { onAdjustStock(item) },
-                                onWarehouseTransfer = onWarehouseTransfer,
+                                isActionButtonsEnabled = isActionButtonsEnabled,
+                                onAdjustStockClick = {
+                                    if (isStockNotAssigned) {
+                                        showStockNotAssignedAlert = true
+                                    } else {
+                                        onAdjustStock(item)
+                                    }
+                                },
+                                onWarehouseTransfer = {
+                                    if (isStockNotAssigned) {
+                                        showStockNotAssignedAlert = true
+                                    } else {
+                                        onWarehouseTransfer(item)
+                                    }
+                                },
                                 onReorderStock = onReorderStock,
                                 onMarkInactive = onMarkInactive
                             )
@@ -269,6 +312,7 @@ fun InventoryViewOne(
 private fun OverviewContent(
     item: InventoryItem,
     tokens: AppDesignTokens,
+    isActionButtonsEnabled: Boolean = true,
     onAdjustStockClick: () -> Unit,
     onWarehouseTransfer: (InventoryItem) -> Unit,
     onReorderStock: (InventoryItem) -> Unit,
@@ -321,7 +365,7 @@ private fun OverviewContent(
     // ── Inventory Health Card ──
     InventoryHealthCard(
         isTracked = health.isTracked,
-        statusLabel = item.stockStatus,
+        statusLabel = item.stockStatus.uppercase(),
         totalStockValue = health.totalStockValue,
         available = health.available,
         reserved = health.reserved,
@@ -343,24 +387,29 @@ private fun OverviewContent(
 
     Button(
         onClick = onAdjustStockClick,
+        enabled = isActionButtonsEnabled,
         modifier = Modifier
             .fillMaxWidth()
             .height(tokens.buttonHeight),
         shape = RoundedCornerShape(tokens.cardCornerRadius),
-        colors = ButtonDefaults.buttonColors(containerColor = Primary)
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Primary,
+            disabledContainerColor = disabled,
+            contentColor = whiteBg,
+            disabledContentColor = whiteBg.copy(alpha = 0.6f)
+        )
     ) {
         Icon(
             imageVector = Icons.Filled.Add,
             contentDescription = null,
             modifier = Modifier.size(tokens.iconSize),
-            tint = whiteBg
+            tint = if (isActionButtonsEnabled) whiteBg else whiteBg.copy(alpha = 0.6f)
         )
         Spacer(Modifier.width(tokens.extraPadding - 4.dp))
         Text(
             text = "Adjust Stock",
             fontSize = tokens.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = whiteBg
+            fontWeight = FontWeight.Medium
         )
     }
 
@@ -368,6 +417,7 @@ private fun OverviewContent(
     OutlinedActionButton(
         label = "Warehouse Transfer",
         icon = Icons.Outlined.SwapHoriz,
+        enabled = isActionButtonsEnabled,
         onClick = { onWarehouseTransfer(item) },
         tokens = tokens
     )
@@ -376,6 +426,7 @@ private fun OverviewContent(
     OutlinedActionButton(
         label = "Reorder Stock",
         icon = Icons.Outlined.Refresh,
+        enabled = true,
         onClick = { onReorderStock(item) },
         tokens = tokens
     )
@@ -384,6 +435,7 @@ private fun OverviewContent(
     OutlinedActionButton(
         label = "Mark Inactive",
         icon = Icons.Outlined.Block,
+        enabled = true,
         onClick = { onMarkInactive(item) },
         contentColor = redText,
         borderColor = redText,
@@ -487,7 +539,7 @@ private fun InventoryHealthCard(
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = statusLabel.uppercase(),
+                        text = statusLabel,
                         color = whiteBg,
                         fontSize = tokens.h2,
                         fontWeight = FontWeight.Bold
@@ -567,24 +619,29 @@ private fun OutlinedActionButton(
     label: String,
     icon: ImageVector,
     onClick: () -> Unit,
+    enabled: Boolean = true,
     contentColor: Color = TextLog,
     borderColor: Color = BorderGray,
     tokens: AppDesignTokens
 ) {
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
             .height(tokens.buttonHeight),
         shape = RoundedCornerShape(tokens.cardCornerRadius),
-        border = BorderStroke(1.dp, borderColor),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = contentColor)
+        border = BorderStroke(1.dp, if (enabled) borderColor else BorderGray.copy(alpha = 0.5f)),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = contentColor,
+            disabledContentColor = contentColor.copy(alpha = 0.4f)
+        )
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(tokens.iconSize),
-            tint = contentColor
+            tint = if (enabled) contentColor else contentColor.copy(alpha = 0.4f)
         )
         Spacer(Modifier.width(tokens.extraPadding - 4.dp))
         Text(

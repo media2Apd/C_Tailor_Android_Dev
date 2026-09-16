@@ -749,6 +749,7 @@ class SettingsViewModel @Inject constructor(
         stitchingCharge: Double = 0.0,
         isCustomStitchable: Boolean = true,
         onSuccess: (GarmentStyleItem) -> Unit,
+        incomeAccount: String? = null,
         onError: (String) -> Unit
     ) {
         launchBusy {
@@ -768,7 +769,8 @@ class SettingsViewModel @Inject constructor(
                 styleTags = styleTags,
                 sleeveStyle = sleeveStyle,
                 stitchingCharge = stitchingCharge,
-                isCustomStitchable = isCustomStitchable
+                isCustomStitchable = isCustomStitchable,
+                incomeAccount = incomeAccount
             )
 
             val result = settingsRepository.createGarmentStyle(request)

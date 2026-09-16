@@ -210,6 +210,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedInventoryItemId by remember { mutableStateOf<String?>(null) }
     var selectedLowStockItem by remember { mutableStateOf<LowStockItemDto?>(null) }
     var selectedItemGroupId by remember { mutableStateOf<String?>(null) }
+    var selectedBulkItemId by remember { mutableStateOf<String?>(null) }
+    var selectedRequisitionIdForDetail by remember { mutableStateOf<String?>(null) }
 
     // HR State
     var employeeScreenMode by remember { mutableStateOf(ScreenMode.CREATE) }
@@ -351,22 +353,16 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "profile-settings",
             "settings_overview",
             "module_settings",
+            "organization_settings",
             "home_organization_profile",
+            "home_business_setup",
             "home_branch_management",
             "home_department_teams",
             "home_designation",
             "home_role_management",
             "home_warehouse_management",
             "home_opening_balance",
-            "sales_garment_type",
-            "sales_garment_pricing_setup",
-            "sales_add_garment_pricing",
-            "sales_add_fabric_pricing",
-            "sales_add_work_pricing",
-            "sales_measurement_list",
             "manage_subscription",
-
-            "organization_settings",
 
             // ── Sales ──
             "sales_lead",
@@ -396,6 +392,20 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "payment_detail",
             "sales_settings",
             "sales_garment_type",
+            "sales_add_segment",
+            "sales_category_detail",
+            "sales_garment_category_detail",
+            "sales_garment_profile",
+            "sales_configuration_preview",
+            "sales_add_existing_field",
+            "sales_create_measurement_field",
+            "sales_add_garment",
+            "sales_add_garment_category",
+            "sales_garment_pricing_setup",
+            "sales_add_garment_pricing",
+            "sales_add_fabric_pricing",
+            "sales_add_work_pricing",
+            "sales_measurement_list",
 
             // ── Finance ──
             "finance_sales_invoices",
@@ -403,6 +413,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "finance_purchase_invoices",
             "finance_purchase_invoice_detail",
             "finance_customers",
+            "finance_customer_detail",
             "finance_suppliers",
             "finance_supplier_detail",
             "finance_expenses",
@@ -419,7 +430,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "finance_tax_rates",
             "finance_add_tax_group",
 
-            // ── Inventory ──
+            // ── Inventory Structure & Items ──
             "inventory_items",
             "inventory_create_item",
             "inventory_item_detail",
@@ -427,6 +438,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_create_purchase_order",
             "inventory_item_groups",
             "inventory_create_item_group",
+            "inventory_item_group_detail",
             "inventory_allocation_rules",
             "inventory_create_allocation",
             "inventory_pdf_templates",
@@ -441,9 +453,62 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_add_bin",
             "inventory_adjustment",
             "inventory_adjustments",
-            "finance_suppliers", "inventory_suppliers",
-            "finance_supplier_detail", "inventory_supplier_detail",
-            "inventory_transfer_stock", "inventory_items_transfer_stock",
+            "inventory_suppliers",
+            "inventory_supplier_detail",
+            "inventory_transfer_stock",
+            "inventory_items_transfer_stock",
+            "inventory_bulk",
+            "inventory_all_bulk",
+            "inventory_add_bulk",
+            "inventory_bulk_detail",
+            "sales_all_pricing",
+            "inventory_pricing_list",
+            "sales_create_price_list",
+
+            // ── Inventory Procurement ──
+            "inventory_returns",
+            "inventory_procurement_returns",
+            "logistics_returns",
+            "inventory_credits",
+            "inventory_procurement_credits",
+            "inventory_payables_credits",
+            "inventory_requisitions",
+            "inventory_procurement_requisitions",
+            "inventory_requisition_detail",
+            "inventory_create_requisition",
+            "inventory_barcode",
+            "inventory_procurement_barcode",
+            "inventory_all_barcodes",
+            "inventory_create_barcode",
+            "inventory_barcode_generator",
+            "inventory_stock_location",
+            "inventory_location_management",
+            "inventory_procurement_location_management",
+            "inventory_stock_location_details",
+            "inventory_stock_location_form",
+
+            // ── Inventory: Purchase Receive Flow ──
+            "inventory_purchase_receive",
+            "inventory_purchase_detail",
+            "inventory_purchase_new_bill",
+            "inventory_purchase_preview_pdf",
+
+            // ── Inventory: Payables & Invoices ──
+            "inventory_payable_invoices",
+            "inventory_payables_invoices",
+            "inventory_invoices",
+            "inventory_bills_list",
+            "inventory_procurement_bills_list",
+            "inventory_payable_purchase_detail",
+            "inventory_payable_preview_pdf",
+            "inventory_payable_invoice_preview",
+
+            // ── Inventory: Purchase Orders Flow ──
+            "inventory_purchase_orders",
+            "inventory_procurement_purchase_orders",
+            "inventory_procurement_orders",
+            "inventory_purchase_order_detail_flow",
+            "inventory_create_purchase_order_flow",
 
             // ── HR ──
             "hr_all_employees",
@@ -767,6 +832,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             screen = screen,
                             navController = navController,
                             widthSizeClass = widthSizeClass,
+                            selectedRequisitionIdForDetail = selectedRequisitionIdForDetail,
+                            onRequisitionIdForDetailSelected = { selectedRequisitionIdForDetail = it },
+                            selectedBulkItemId = selectedBulkItemId,
+                            onBulkItemIdSelected = { selectedBulkItemId = it },
                             token = token,
                             hrViewModel = hrViewModel,
                             customerViewModel = customerViewModel,

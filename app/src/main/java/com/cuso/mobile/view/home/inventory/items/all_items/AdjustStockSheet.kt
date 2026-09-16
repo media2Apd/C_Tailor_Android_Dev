@@ -26,21 +26,26 @@ import androidx.compose.ui.unit.dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.PrimaryTextColor
 import com.cuso.mobile.ui.theme.Primary_background
+import com.cuso.mobile.ui.theme.TextPrimary
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.background_light_purple
 import com.cuso.mobile.ui.theme.blackTitle
 import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.light_grey
+import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.sectionBorder
 import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
 
 private val PurplePrimary = Primary
-private val PurpleLight = Color(0xFFF3F1FE)
+private val PurpleLight = background_light_purple
 private val BorderGray = grey_border
-private val TextGray = Color(0xFF8A93A6)
-private val TextDark = Color(0xFF111827)
+private val TextGray = PrimaryTextColor
+private val TextDark = TextPrimary
 
 enum class AdjustmentType(val label: String) {
     INCREASE("Increase Stock"),
@@ -141,7 +146,7 @@ fun AdjustStockSheet(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     if (quantityText.isEmpty()) {
-                        Text("0", color = Color(0xFF9CA3AF), fontSize = tokens.bodyMedium)
+                        Text("0", color = mutedText, fontSize = tokens.bodyMedium)
                     }
                     BasicTextField(
                         value = quantityText,
@@ -153,7 +158,7 @@ fun AdjustStockSheet(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         textStyle = TextStyle(
                             fontSize = tokens.bodyMedium,
-                            color = Color(0xFF111827)
+                            color = TextDark
                         )
                     )
                 }
@@ -203,7 +208,7 @@ fun AdjustStockSheet(
                 value = notes,
                 onValueChange = { notes = it },
                 placeholder = {
-                    Text("Enter optional notes for audit trail...", color = Color(0xFF9CA3AF), fontSize = tokens.bodySmall)
+                    Text("Enter optional notes for audit trail...", color = mutedText, fontSize = tokens.bodySmall)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -264,7 +269,7 @@ private fun AdjustmentTypeOption(label: String, selected: Boolean, onClick: () -
             modifier = Modifier
                 .size(tokens.iconSize)
                 .clip(CircleShape)
-                .border(1.5.dp, if (selected) PurplePrimary else Color(0xFFD1D5DB), CircleShape),
+                .border(1.5.dp, if (selected) PurplePrimary else sectionBorder, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             if (selected) {

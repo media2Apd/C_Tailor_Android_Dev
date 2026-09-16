@@ -214,7 +214,6 @@ data class CreateMemberRequest(
 data class UpdateMemberRequest(
     val firstName: String,
     val lastName: String,
-    val personalEmail: String,
     val personalMobile: String,
     val workMobile: String,
     val dob: String,

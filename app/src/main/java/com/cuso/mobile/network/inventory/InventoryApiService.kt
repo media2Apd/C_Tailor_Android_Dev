@@ -1,17 +1,31 @@
 package com.cuso.mobile.network.inventory
 
+//import com.cuso.mobile.model.inventory.AddCommentRequest
+import com.cuso.mobile.model.inventory.AdjustBulkStockRequest
 import com.cuso.mobile.model.inventory.AdjustStockQuantityRequest
 import com.cuso.mobile.model.inventory.AdjustStockRequest
 import com.cuso.mobile.model.inventory.AdjustmentReasonsResponse
+import com.cuso.mobile.model.inventory.AllReceivesResponse
+import com.cuso.mobile.model.inventory.BarcodeDetailResponse
+import com.cuso.mobile.model.inventory.BarcodeListResponse
+import com.cuso.mobile.model.inventory.BaseBulkResponse
+import com.cuso.mobile.model.inventory.BuildBulkItemRequest
+import com.cuso.mobile.model.inventory.BulkItemDetailResponse
+import com.cuso.mobile.model.inventory.BulkItemListResponse
+import com.cuso.mobile.model.inventory.ConvertToBillResponse
 import com.cuso.mobile.model.inventory.CreateInventoryItemResponse
 import com.cuso.mobile.model.inventory.CreateItemGroupRequest
 import com.cuso.mobile.model.inventory.CreateItemGroupResponse
 import com.cuso.mobile.model.inventory.CreatePurchaseOrderRequest
 import com.cuso.mobile.model.inventory.CreatePurchaseOrderResponse
+import com.cuso.mobile.model.inventory.CreateRequisitionRequest
 import com.cuso.mobile.model.inventory.CreateSupplierRequest
 import com.cuso.mobile.model.inventory.CreateWarehouseRequest
 import com.cuso.mobile.model.inventory.DecreaseStockRequest
+import com.cuso.mobile.model.inventory.DeleteBarcodeResponse
+import com.cuso.mobile.model.inventory.DeleteInventoryItemResponse
 import com.cuso.mobile.model.inventory.DeleteItemGroupResponse
+import com.cuso.mobile.model.inventory.GenerateBarcodeRequest
 import com.cuso.mobile.model.inventory.IncreaseStockRequest
 import com.cuso.mobile.model.inventory.InventoryItemDetailResponse
 import com.cuso.mobile.model.inventory.InventoryItemListResponse
@@ -19,7 +33,18 @@ import com.cuso.mobile.model.inventory.InventoryViewOneResponse
 import com.cuso.mobile.model.inventory.ItemGroupListResponse
 import com.cuso.mobile.model.inventory.ItemGroupViewOneResponse
 import com.cuso.mobile.model.inventory.LowStockResponse
+import com.cuso.mobile.model.inventory.POBillConvertResponse
+import com.cuso.mobile.model.inventory.PurchaseOrder
+import com.cuso.mobile.model.inventory.PurchaseOrderListResponse
+import com.cuso.mobile.model.inventory.PurchaseOrderSingleResponse
+import com.cuso.mobile.model.inventory.PurchaseReceiveResponse
+import com.cuso.mobile.model.inventory.ReceiveHistoryByPoResponse
+import com.cuso.mobile.model.inventory.ReceivePurchaseOrderRequest
+import com.cuso.mobile.model.inventory.RequisitionApprovalActionRequest
+import com.cuso.mobile.model.inventory.RequisitionListResponse
+import com.cuso.mobile.model.inventory.RequisitionSingleResponse
 import com.cuso.mobile.model.inventory.ReverseAdjustmentRequest
+import com.cuso.mobile.model.inventory.SingleReceiveResponse
 import com.cuso.mobile.model.inventory.StockAdjustmentDetailResponse
 import com.cuso.mobile.model.inventory.StockAdjustmentListResponse
 import com.cuso.mobile.model.inventory.StockSummaryListResponse
@@ -137,8 +162,15 @@ interface InventoryApiService {
         @Body request: AdjustStockRequest
     ): Response<InventoryItemDetailResponse>
 
+    @DELETE("/api/inventory/item/delete-one/{id}")
+    suspend fun deleteInventoryItem(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") itemId: String
+    ): Response<DeleteInventoryItemResponse>
+
     // =========================================================================
-    // 2. ITEM GROUPS
+    // 2. ITEM GROUPS (WITH MULTIPART IMAGES)
     // =========================================================================
 
     /**
@@ -154,7 +186,7 @@ interface InventoryApiService {
     ): Response<ItemGroupListResponse>
 
     /**
-     * Get paginated item groups view one.
+     * Get single item group by ID.
      */
     @GET("/api/inventory/item-group/view-one/{id}")
     suspend fun getInventoryItemGroupViewOne(
@@ -164,28 +196,32 @@ interface InventoryApiService {
     ): Response<ItemGroupViewOneResponse>
 
     /**
-     * Get paginated item groups create.
+     * Create a new item group with multipart images and form fields.
      */
+    @Multipart
     @POST("/api/inventory/item-group/create")
     suspend fun createItemGroup(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
-        @Body request: CreateItemGroupRequest
+        @PartMap params: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part images: List<MultipartBody.Part>?
     ): Response<CreateItemGroupResponse>
 
     /**
-     * Update an existing item group.
+     * Update an existing item group with multipart images and form fields.
      */
+    @Multipart
     @PUT("/api/inventory/item-group/update-one/{id}")
     suspend fun updateItemGroup(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String,
-        @Body request: CreateItemGroupRequest
+        @PartMap params: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part images: List<MultipartBody.Part>?
     ): Response<UpdateItemGroupResponse>
 
     /**
-     * Get paginated item groups delete.
+     * Delete an item group.
      */
     @DELETE("/api/inventory/item-group/delete-one/{id}")
     suspend fun deleteItemGroup(
@@ -288,13 +324,14 @@ interface InventoryApiService {
      * Fetch list of adjustment transaction logs.
      */
     @GET("/api/inventory/stock-adjustment/view-all")
-    suspend fun getStockAdjustmentList(
+    suspend fun getStockAdjustments(
         @Header("Authorization") token: String,
-        @Header("X-CSRF-Token") csrfToken: String,
+        @Header("x-csrf-token") csrfToken: String,
         @Query("page") page: Int = 1,
-        @Query("limit") limit: Int = 20,
+        @Query("limit") limit: Int = 10,
+        @Query("adjustmentType") adjustmentType: String? = null,
         @Query("search") search: String? = null
-    ): Response<StockAdjustmentListResponse> // Returns StockAdjustmentListResponse
+    ): Response<StockAdjustmentListResponse>
 
     // --- 4.6 Fetch Current Stock Summary (For Adjustment Screen) ---
     /**
@@ -454,4 +491,253 @@ interface InventoryApiService {
         @Path("id") id: String
     ): Response<SupplierLedgerResponse>
 
+    // =========================================================================
+    // 7. BULK ITEM
+    // =========================================================================
+    @GET("/api/inventory/bulk-item/view-all")
+    suspend fun getBulkItems(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<BulkItemListResponse>
+
+    @GET("/api/inventory/bulk-item/view-one/{id}")
+    suspend fun getBulkItemById(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<BulkItemDetailResponse>
+
+    @Multipart
+    @POST("/api/inventory/bulk-item/create")
+    suspend fun createBulkItem(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @PartMap params: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part components: List<MultipartBody.Part>,
+        @Part image: MultipartBody.Part? = null
+    ): Response<BulkItemDetailResponse>
+
+    @Multipart
+    @PUT("/api/inventory/bulk-item/update-one/{id}")
+    suspend fun updateBulkItem(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @PartMap params: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part components: List<MultipartBody.Part>,
+        @Part image: MultipartBody.Part? = null
+    ): Response<BulkItemDetailResponse>
+
+    @POST("/api/inventory/bulk-item/{id}/recalculate-cost")
+    suspend fun recalculateCost(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<BulkItemDetailResponse>
+
+    @POST("/api/inventory/bulk-item/{id}/build")
+    suspend fun buildBulkItem(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: BuildBulkItemRequest
+    ): Response<BulkItemDetailResponse>
+
+    @POST("/api/inventory/bulk-item/{id}/adjust-stock")
+    suspend fun adjustBulkItemStock(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: AdjustBulkStockRequest
+    ): Response<BulkItemDetailResponse>
+
+    @DELETE("/api/inventory/bulk-item/delete-one/{id}")
+    suspend fun deleteBulkItem(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<BaseBulkResponse>
+
+    @POST("/api/inventory/bulk-item/restore/{id}")
+    suspend fun restoreBulkItem(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<BulkItemDetailResponse>
+
+    // -------------------------------------------------------------------------
+    // PURCHASE ORDERS MANAGEMENT
+    // -------------------------------------------------------------------------
+
+    @POST("/api/inventory/purchase-order/create")
+    suspend fun createPurchaseOrderDirect(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Body request: PurchaseOrder
+    ): Response<PurchaseOrderSingleResponse>
+
+    @PUT("/api/inventory/purchase-order/update-one/{id}")
+    suspend fun updatePurchaseOrder(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: PurchaseOrder
+    ): Response<PurchaseOrderSingleResponse>
+
+    @GET("/api/inventory/purchase-order/view-all")
+    suspend fun getAllPurchaseOrdersList(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Query("page") page: Int? = null,
+        @Query("limit") limit: Int? = null,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<PurchaseOrderListResponse>
+
+    @POST("/api/inventory/purchase-order/receive/")
+    suspend fun receivePurchaseOrder(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Body request: ReceivePurchaseOrderRequest
+    ): Response<PurchaseReceiveResponse>
+
+    @GET("/api/inventory/purchase-order/get-for-bill-convert/{id}")
+    suspend fun getPOForBillConvert(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") poId: String
+    ): Response<POBillConvertResponse>
+
+    // =========================================================================
+    // 8. PURCHASE REQUISITIONS
+    // =========================================================================
+
+    /**
+     * Fetch all requisitions with optional filters.
+     */
+    @GET("/api/inventory/requisition/view-all")
+    suspend fun getAllRequisitions(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Query("page") page: Int? = null,
+        @Query("limit") limit: Int? = null,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<RequisitionListResponse>
+
+    /**
+     * Fetch single requisition details by ID.
+     */
+    @GET("/api/inventory/requisition/view-one/{id}")
+    suspend fun getRequisitionById(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<RequisitionSingleResponse>
+
+    /**
+     * ADD COMMENT API
+     */
+//    @POST("requisitions/{id}/comments")
+//    suspend fun addComment(
+//        @Header("Authorization") token: String,
+//        @Header("x-csrf-token") csrfToken: String,
+//        @Path("id") requisitionId: String,
+//        @Body payload: AddCommentRequest
+//    ): Response<RequisitionSingleResponse>
+
+    /**
+     * Create a new purchase requisition.
+     */
+    @POST("/api/inventory/requisition/create")
+    suspend fun createRequisition(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Body request: CreateRequisitionRequest
+    ): Response<RequisitionSingleResponse>
+
+    /**
+     * Action requisition approval (Approve / Reject).
+     */
+    @POST("/api/inventory/requisition/approval-action/{id}")
+    suspend fun actionRequisitionApproval(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: RequisitionApprovalActionRequest
+    ): Response<RequisitionSingleResponse>
+
+    // =============================================================================
+    // BARCODE ENDPOINTS
+    // =============================================================================
+
+    @POST("/api/inventory/barcode/generate")
+    suspend fun generateBarcode(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Body request: GenerateBarcodeRequest
+    ): Response<BarcodeDetailResponse>
+
+    @GET("/api/inventory/barcode/view-all")
+    suspend fun getAllBarcodes(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<BarcodeListResponse>
+
+    @GET("/api/inventory/barcode/view-one/{id}")
+    suspend fun getBarcodeViewOne(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<BarcodeDetailResponse>
+
+    @PATCH("/api/inventory/barcode/{id}/toggle-status")
+    suspend fun toggleBarcodeStatus(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<BarcodeDetailResponse>
+
+    @DELETE("/api/inventory/barcode/delete-one/{id}")
+    suspend fun deleteBarcode(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<DeleteBarcodeResponse>
+
+    // =============================================================================
+    // PURCHASE RECEIVE
+    // =============================================================================
+
+    @GET("/api/inventory/purchase-receive/view-all")
+    suspend fun getAllReceives(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+        @Query("search") search: String? = null
+    ): Response<AllReceivesResponse>
+
+    @GET("/api/inventory/purchase-receive/history/{poId}")
+    suspend fun getReceiveHistoryByPo(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("poId") poId: String
+    ): Response<ReceiveHistoryByPoResponse>
+
+    @GET("/api/inventory/purchase-receive/view-one/{id}")
+    suspend fun getSingleReceive(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<SingleReceiveResponse>
+
+    @POST("/api/inventory/purchase-receives/convert-to-bill")
+    suspend fun convertReceiveToBill(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") receiveId: String
+    ): Response<ConvertToBillResponse>
 }

@@ -565,33 +565,22 @@ fun EmployeeOnboardingScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = sectionGap, vertical = smallGap + tinyGap),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = when (mode) {
+                // ── Header (Replaced with TitleBar) ──
+                TitleBar(
+                    title = when (mode) {
                         ScreenMode.VIEW -> "View Employee"
                         ScreenMode.EDIT -> "Edit Employee"
                         ScreenMode.CREATE -> "Employee Onboarding"
                     },
-                    fontSize = tokens.h1,
-                    fontWeight = FontWeight.Bold,
-                    color = TitleColor
-                )
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "Close",
-                    tint = LabelColor,
-                    modifier = Modifier
-                        .size(tokens.iconSize)
-                        .clickable {
-                            hrViewModel.clearMemberDetail()
-                            onDismiss()
-                        }
+                    onClose = {
+                        hrViewModel.clearMemberDetail()
+                        hrViewModel.fetchMembers()
+                        onDismiss()
+                    }
                 )
             }
+
             HorizontalDivider(color = BorderColor)
 
             Column(
@@ -736,7 +725,7 @@ fun EmployeeOnboardingScreen(
                             value = gender,
                             expanded = genderExpanded && isEditable,
                             onExpandChange = { if (isEditable) genderExpanded = it },
-                            options = listOf("Male", "Female", "Other"),
+                            options = listOf("Male", "Female", "Others"),
                             onOptionSelected = {
                                 if (isEditable) {
                                     gender = it
@@ -1513,7 +1502,7 @@ fun EmployeeOnboardingScreen(
                             val updateRequest = UpdateMemberRequest(
                                 firstName = firstName,
                                 lastName = lastName,
-                                personalEmail = personalEmail,
+//                                personalEmail = personalEmail,
                                 personalMobile = personalPhone,
                                 workMobile = workPhone,
                                 dob = dob.toIsoDate(),

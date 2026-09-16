@@ -20,6 +20,11 @@ data class InventoryPagination(
     val totalPages: Int = 1
 )
 
+data class DeleteInventoryItemResponse(
+    val success: Boolean,
+    val message: String
+)
+
 data class InventoryItem(
     @SerializedName("_id") val _id: String = "",
     @SerializedName("id") val id: String? = null,
@@ -50,10 +55,10 @@ data class InventoryItem(
     @SerializedName("tags") val tags: List<String> = emptyList(),
     @SerializedName("createdAt") val createdAt: String = "",
     @SerializedName("updatedAt") val updatedAt: String = "",
-    @SerializedName("stockStatus") private val _stockStatus: String? = null
+    @SerializedName("stockStatus") val rawStockStatus: String? = null
 ) {
     val stockStatus: String
-        get() = _stockStatus ?: when {
+        get() = rawStockStatus ?: when {
             !trackInventory -> "Not Tracked"
             currentStock <= 0 -> "Out of Stock"
             currentStock <= (if (reorderPoint > 0) reorderPoint else reorderLevel) -> "Low Stock"

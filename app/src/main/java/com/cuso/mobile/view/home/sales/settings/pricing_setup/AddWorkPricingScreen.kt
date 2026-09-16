@@ -26,6 +26,7 @@ import com.cuso.mobile.view.composable.StepNavigationFab
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.view.composable.TrailingFabAction
 import com.cuso.mobile.view.home.sales.lead.MiniSwitch
+import com.cuso.mobile.viewmodel.FinanceViewModel
 import com.cuso.mobile.viewmodel.SettingsViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -34,6 +35,7 @@ import kotlinx.coroutines.launch
 fun AddWorkPricingScreen(
     workId: String? = null,
     viewModel: SettingsViewModel = hiltViewModel(),
+    financeViewModel: FinanceViewModel = hiltViewModel(),
     onClose: () -> Unit = {},
     onSaveSuccess: () -> Unit = onClose
 ) {
@@ -63,17 +65,26 @@ fun AddWorkPricingScreen(
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // --- Income Account State ---
+    var incomeAccountExpanded by remember { mutableStateOf(false) }
+    var selectedIncomeAccountId by remember { mutableStateOf<String?>(null) }
+    var selectedIncomeAccountName by remember { mutableStateOf("") }
+
+    val accountDropdownList by financeViewModel.accountDropdownList.collectAsStateWithLifecycle()
+    val isLoadingAccounts by financeViewModel.isLoadingAccountDropdown.collectAsStateWithLifecycle()
+
     // --- Initial Fetch ---
     LaunchedEffect(Unit) {
         viewModel.fetchSegments()
         viewModel.fetchGarments()
+        financeViewModel.fetchChartOfAccountsDropdown(context = "sales_line")
         if (workId != null) {
             viewModel.fetchWorkPricingDetail(workId)
         }
     }
 
     // Populate fields when editing
-    LaunchedEffect(workDetail) {
+    LaunchedEffect(workDetail, accountDropdownList) {
         workDetail?.let { detail ->
             workType = detail.workType
             selectedSegment = detail.segment?.name ?: ""
@@ -81,6 +92,16 @@ fun AddWorkPricingScreen(
             selectedVariant = detail.garmentCategory?.displayName ?: detail.garmentCategory?.name ?: ""
             baseWorkPrice = detail.basePrice.toString()
             isStatusActive = detail.status.equals("Active", ignoreCase = true)
+
+            // Pre-fill Income Account when editing
+            detail.incomeAccount?.let { acc ->
+                selectedIncomeAccountId = acc.id
+                selectedIncomeAccountName = if (acc.displayName.isNotBlank()) {
+                    acc.displayName
+                } else {
+                    accountDropdownList.find { it.id == acc.id }?.displayName ?: ""
+                }
+            }
         }
     }
 
@@ -180,6 +201,24 @@ fun AddWorkPricingScreen(
                         keyboardType = KeyboardType.Number
                     )
 
+                    Spacer(Modifier.height(14.dp))
+
+                    // Income Account Dropdown Field
+                    FormLabel(text = "Income Account", isRequired = true)
+                    FormDropdown(
+                        value = selectedIncomeAccountName.ifEmpty {
+                            if (isLoadingAccounts) "Loading accounts..." else "Select Income Account"
+                        },
+                        expanded = incomeAccountExpanded,
+                        onExpandChange = { incomeAccountExpanded = it },
+                        options = accountDropdownList.map { it.displayName },
+                        onOptionSelected = { selectedDisplayName ->
+                            selectedIncomeAccountName = selectedDisplayName
+                            val matched = accountDropdownList.find { it.displayName == selectedDisplayName }
+                            selectedIncomeAccountId = matched?.id
+                        }
+                    )
+
                     Spacer(Modifier.height(18.dp))
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                         Text(text = "Status", fontSize = 13.sp, color = title_color)
@@ -208,14 +247,20 @@ fun AddWorkPricingScreen(
                         return@Update
                     }
 
+                    // Validate Income Account before sending request
+                    if (selectedIncomeAccountId.isNullOrBlank()) {
+                        errorMessage = "Please select an Income Account"
+                        return@Update
+                    }
+
                     val request = WorkPricingRequest(
                         workType = workType,
                         segmentId = segmentId,
                         garmentId = garmentId,
                         garmentCategoryId = variantId,
                         basePrice = baseWorkPrice.toDoubleOrNull() ?: 0.0,
-//                        status = if (isStatusActive) "Active" else "Inactive",
-                        isTaxable = false
+                        isTaxable = false,
+                        incomeAccount = selectedIncomeAccountId
                     )
 
                     if (workId == null) {

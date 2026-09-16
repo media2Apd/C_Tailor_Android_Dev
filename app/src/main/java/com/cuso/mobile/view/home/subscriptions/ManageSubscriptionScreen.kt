@@ -1,4 +1,4 @@
-@file:Suppress("unused")
+@file:Suppress("unused","AssignedValueIsNeverRead")
 
 package com.cuso.mobile.view.home.subscriptions
 
@@ -87,7 +87,6 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextLog
 import com.cuso.mobile.ui.theme.TextPrimary
 import com.cuso.mobile.ui.theme.TextSecondary

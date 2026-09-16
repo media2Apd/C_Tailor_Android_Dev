@@ -71,6 +71,7 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.badgeGrey
 import com.cuso.mobile.ui.theme.redText
+import com.cuso.mobile.ui.theme.title_color
 
 @Composable
 fun <T> ImageUploadSection(
@@ -487,7 +488,7 @@ fun <T> VoiceUploadSection(
                                 text = if (fileName == "File" || fileName.isBlank()) "Voice Note ${index + 1}" else fileName,
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF1E293B),
+                                color = title_color,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )

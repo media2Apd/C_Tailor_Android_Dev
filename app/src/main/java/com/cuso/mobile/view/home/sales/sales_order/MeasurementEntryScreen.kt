@@ -420,7 +420,7 @@ fun MeasurementStepperField(
                     text = if (value % 1 == 0f) "%.1f".format(value) else "%.2f".format(value).trimEnd('0'),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1E293B)
+                    color = title_color
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
@@ -491,7 +491,7 @@ private fun SectionCategoryHeader(text: String) {
         text = text,
         fontSize = 11.sp,
         fontWeight = FontWeight.Bold,
-        color = Color(0xFF1E293B),
+        color = title_color,
         letterSpacing = 0.5.sp,
         modifier = Modifier.padding(top = 8.dp, bottom = 10.dp)
     )
@@ -526,7 +526,7 @@ private fun UnitSegmentButton(
             text = label,
             fontSize = 12.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSelected) Color(0xFF1E293B) else Color(0xFF64748B)
+            color = if (isSelected) title_color else Color(0xFF64748B)
         )
     }
 }

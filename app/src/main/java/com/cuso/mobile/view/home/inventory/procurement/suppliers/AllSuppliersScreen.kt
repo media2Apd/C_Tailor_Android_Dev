@@ -2,7 +2,6 @@
 
 package com.cuso.mobile.view.home.inventory.procurement.suppliers
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -323,7 +322,7 @@ private fun MiniDotBadge(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
             .background(bgColor)
-            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .padding(horizontal = 10.dp, vertical = 0.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(

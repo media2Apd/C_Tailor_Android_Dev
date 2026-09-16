@@ -42,6 +42,7 @@ import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.grey_border
 import com.cuso.mobile.ui.theme.light_grey
+import com.cuso.mobile.ui.theme.title_color
 
 // ─────────────────────────────────────────────
 // Shared colors used across all screens
@@ -59,7 +60,7 @@ private val PriorityRed = Color(0xFFE53935)
 private val StepGreen = Color(0xFF16A34A)
 private val StepGrayBg = grey_border
 private val StepGrayText = Color(0xFF9CA3AF)
-private val NavyFabric = Color(0xFF1E293B)
+private val NavyFabric = title_color
 private val NotesBg = Color(0xFFEDEDFB)
 private val WipBadgeBg = Color(0xFF3D3DFF)
 private val BeforeBadgeBg = Color(0xFF6B7280)

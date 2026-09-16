@@ -91,10 +91,12 @@ import com.cuso.mobile.model.sales.BudgetRange
 import com.cuso.mobile.model.sales.CreateLeadFormRequest
 import com.cuso.mobile.model.sales.LeadAppointment
 import com.cuso.mobile.model.sales.LeadContact
+import com.cuso.mobile.model.sales.LeadGarmentRequestItem
 import com.cuso.mobile.model.sales.LeadNote
 import com.cuso.mobile.model.sales.LeadPerson
 import com.cuso.mobile.model.sales.LeadTableItem
 import com.cuso.mobile.model.sales.toLeadEntity
+import com.cuso.mobile.model.settings.GarmentItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.Primary
@@ -149,6 +151,7 @@ import com.cuso.mobile.view.home.sales.sales_order.OrderReviewData
 import com.cuso.mobile.view.home.toIsoDate
 import com.cuso.mobile.viewmodel.SaleState
 import com.cuso.mobile.viewmodel.SalesViewModel
+import com.cuso.mobile.viewmodel.SettingsViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -435,6 +438,7 @@ fun LeadFormScreen(
 ) {
     val tokens = LocalAppTokens.current
     val salesViewModel: SalesViewModel = hiltViewModel()
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
 
     val isCreate = mode == LeadFormMode.CREATE
     val isView = mode == LeadFormMode.VIEW
@@ -451,12 +455,33 @@ fun LeadFormScreen(
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
     val isLoadingStaff by salesViewModel.isLoadingStaff.collectAsStateWithLifecycle()
     val salesStatuses by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
+
+    // 1. Fetch Garments from Settings
+    val allGarments by settingsViewModel.garments.collectAsStateWithLifecycle()
+    val isLoadingGarments by settingsViewModel.isLoadingGarments.collectAsStateWithLifecycle()
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         if (staffList.isEmpty()) salesViewModel.fetchStaff()
+        if (allGarments.isEmpty()) settingsViewModel.fetchGarments()
         if (garmentCategories.isEmpty()) salesViewModel.fetchGarmentCategories()
         if (salesStatuses.isEmpty()) salesViewModel.fetchSalesData()
+    }
+
+    // 2. Filter ONLY Active Garments
+    val activeGarments: List<GarmentItem> = remember(allGarments) {
+        allGarments.filter { it.status.equals("Active", ignoreCase = true) }
+    }
+
+    // Display Name to ID mappings
+    val garmentIdMap: Map<String, String> = remember(activeGarments) {
+        activeGarments.associate {
+            val displayName = it.displayName?.takeIf { name -> name.isNotBlank() } ?: it.name
+            displayName to it.id
+        }
+    }
+    val garmentOptions: List<String> = remember(activeGarments) {
+        activeGarments.map { it.displayName?.takeIf { name -> name.isNotBlank() } ?: it.name }
     }
 
     if (!isCreate && l == null && !isLoadingLead && leadDetailsError == null) {
@@ -572,19 +597,18 @@ fun LeadFormScreen(
 
     val staffDisplayList = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
     val staffIdMap = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
-    val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == (if (isEdit) assignedStaff else leadOwner) }?.key ?: ""
     val leadOwnerLabel = staffIdMap.entries.firstOrNull { it.value == leadOwner }?.key ?: ""
     val assignedStaffLabel = staffIdMap.entries.firstOrNull { it.value == assignedStaff }?.key ?: ""
 
     val statusOptions = salesStatuses.map { it.name }
     val statusIdMap = salesStatuses.associate { it.name to it.id }
-    val garmentIdMap = garmentCategories.associate { it.categoryId.categoryName to it.id }
-    val garmentOptions = garmentCategories.map { it.categoryId.categoryName }
 
-    LaunchedEffect(l?.garments, garmentCategories) {
-        if (!isCreate && garmentCategories.isNotEmpty() && !l?.garments.isNullOrBlank()) {
+    LaunchedEffect(l?.garments, activeGarments) {
+        if (!isCreate && activeGarments.isNotEmpty() && !l?.garments.isNullOrBlank()) {
             val ids = l.garments.split(",").filter { it.isNotBlank() }
-            val names = ids.mapNotNull { id -> garmentCategories.find { it.id == id }?.categoryId?.categoryName }
+            val names = ids.mapNotNull { id ->
+                activeGarments.find { it.id == id }?.let { it.displayName?.takeIf { name -> name.isNotBlank() } ?: it.name }
+            }
             if (names.isNotEmpty()) selectedGarmentCategories = names
         }
     }
@@ -599,6 +623,9 @@ fun LeadFormScreen(
         leadOwner = ""
     }
 
+    // -------------------------------------------------------------
+    // BUILD REQUEST WITH: [{"garmentId": "..", "garmentCategoryId": "..", "quantity": N}]
+    // -------------------------------------------------------------
     fun buildRequest(): CreateLeadFormRequest {
         fun safeIsoDate(dateStr: String): String {
             return if (dateStr.isNotBlank()) {
@@ -607,12 +634,32 @@ fun LeadFormScreen(
             } else ""
         }
 
+        val parsedQuantity = estimatedQuantity.toIntOrNull() ?: 1
+
+        val garmentsPayload: List<LeadGarmentRequestItem> = selectedGarmentCategories.mapNotNull { categoryName ->
+            val garmentObj = activeGarments.find {
+                (it.displayName?.takeIf { n -> n.isNotBlank() } ?: it.name) == categoryName
+            }
+            if (garmentObj != null) {
+                // Find matching category ID from garmentCategories if exists, otherwise fallback to garmentObj.id
+                val matchingCatId = garmentCategories.find {
+                    it.categoryId.categoryName.equals(categoryName, ignoreCase = true)
+                }?.id ?: garmentObj.id
+
+                LeadGarmentRequestItem(
+                    garmentId = garmentObj.id,
+                    garmentCategoryId = matchingCatId,
+                    quantity = parsedQuantity
+                )
+            } else null
+        }
+
         return CreateLeadFormRequest(
             customerType = if (customerType.equals("Corporate", ignoreCase = true)) "Corporate" else "Individual",
             enquiryType = enquiryType,
-            estimatedQuantity = estimatedQuantity.toIntOrNull() ?: 0,
+            estimatedQuantity = parsedQuantity,
             budgetRange = BudgetRange(min = budgetRange.toInt(), max = 250000),
-            garments = selectedGarmentCategories.mapNotNull { garmentIdMap[it] },
+            garments = garmentsPayload,
             enquiryDate = safeIsoDate(enquiryDate),
             requiredDate = safeIsoDate(requiredDate),
             source = leadSource,
@@ -1109,7 +1156,7 @@ fun LeadFormScreen(
                                         }
                                         Spacer(Modifier.height(6.dp))
 
-                                        if (garmentCategories.isEmpty()) {
+                                        if (isLoadingGarments && activeGarments.isEmpty()) {
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -1119,9 +1166,11 @@ fun LeadFormScreen(
                                             ) {
                                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                     CirculerProgressIndicatorSmall()
-                                                    Text("Loading categories...", fontSize = tokens.bodyMedium, color = Color(0xFF6B7280))
+                                                    Text("Loading active garments...", fontSize = tokens.bodyMedium, color = Color(0xFF6B7280))
                                                 }
                                             }
+                                        } else if (garmentOptions.isEmpty()) {
+                                            Text("No active garment categories available.", fontSize = tokens.bodySmall, color = Color.Gray)
                                         } else {
                                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                                 items(garmentOptions) { option ->

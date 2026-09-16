@@ -11,7 +11,6 @@ package com.cuso.mobile.view.home.sidebar
 
 import android.annotation.SuppressLint
 import android.content.Context
-import com.cuso.mobile.model.login_forgotPassword_resetPassword.User
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
@@ -29,6 +28,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,26 +46,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.cuso.mobile.R
-import kotlinx.coroutines.launch
-import androidx.compose.foundation.lazy.items
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.Dp
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.model.login_forgotPassword_resetPassword.User
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.blackTitle
@@ -75,8 +74,9 @@ import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
-import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.SheetValue
+import com.cuso.mobile.view.composable.SmoothBottomSheet
+import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────
 // Data Classes for Menu Configuration
@@ -106,16 +106,30 @@ fun buildNavigationKey(menu: String, subItem: String): String {
         }
     }
 
-    // Explicit routing for Services
+    if (menu == "Inventory") {
+        return when (subItem) {
+            "Purchase Orders", "Purchase Order", "Orders" -> "inventory_purchase_orders"
+            "Bulk", "All Bulk"                      -> "inventory_bulk"
+            "Pricing List"                          -> "inventory_pricing_list"
+            "Purchase Receive", "Purchase Receives", "Goods Receipt" -> "inventory_purchase_receive"
+            "Returns"                               -> "inventory_returns"
+            "Credits", "Credit"                     -> "inventory_credits"
+            "Barcode"                               -> "inventory_barcode"
+            "Location Management", "Stock Location" -> "inventory_stock_location"
+            "Invoices", "Bills", "Bills List"       -> "inventory_payable_invoices"
+            else -> "inventory_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
+        }
+    }
+
     if (menu == "Services") {
         return when (subItem) {
-            "Service Status"       -> "services_service_status"
-            "Delay and Rework"     -> "services_delay_rework"
-            "Service Delivery"     -> "services_service_delivery"
-            "Service Order"        -> "services_service_orders"
-            "Service Request"      -> "services_service_request"
+            "Service Status"        -> "services_service_status"
+            "Delay and Rework"      -> "services_delay_rework"
+            "Service Delivery"      -> "services_service_delivery"
+            "Service Order"         -> "services_service_orders"
+            "Service Request"       -> "services_service_request"
             "Alteration Management" -> "services_alteration_management"
-            "Customer Feedback"    -> "services_customer_feedback"
+            "Customer Feedback"     -> "services_customer_feedback"
             else -> "services_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
     }
@@ -178,10 +192,22 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.inventory, "Inventory",
                 isPanel = true,
-                categories = listOf("Items", "Procurement", "Payables"),
+                categories = listOf("Items", "Bulk", "Pricing List", "Procurement", "Payables"),
                 subItems = mapOf(
                     "Items"       to listOf("All Items", "Item Groups", "Adjustment", "Transfer Stock"),
-                    "Procurement" to listOf("Suppliers", "Requisitions", "Orders", "Goods Receipt"),
+                    "Procurement" to listOf(
+                        "Suppliers",
+                        "Requisitions",
+                        "Purchase Orders",
+                        "Orders",
+                        "Goods Receipt",
+                        "Returns",
+                        "Purchase Receive",
+                        "Credits",
+                        "Barcode",
+                        "Location Management",
+                        "Bills List"
+                    ),
                     "Payables"    to listOf("Invoices", "Payments", "Credits")
                 )
             ),
@@ -330,7 +356,6 @@ fun SalesSideBar(
 // Reusable Sidebar Content
 // ─────────────────────────────────────────────────────────────
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 private fun AppSidebarContent(
     isOpen: Boolean,
@@ -388,6 +413,8 @@ private fun AppSidebarContent(
                 expandedCategory = firstCategory
                 selectedSubItem  = "$firstCategory::$firstSubItem"
                 onMenuItemClick(buildNavigationKey(label, firstSubItem))
+            } else if (firstCategory != null) {
+                onMenuItemClick(buildNavigationKey(label, firstCategory))
             }
         } else {
             onMenuItemClick(label.lowercase())
@@ -1153,7 +1180,6 @@ fun ModulesPanelHeader(
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("SameParameterValue")
 @Composable
 private fun ModulesPanelContent(
     isOpen: Boolean,
@@ -1260,7 +1286,7 @@ private fun ModulesPanelContent(
                                     if (hasUsageHistory) "FREQUENTLY USED" else "EXPLORE",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1E293B)
+                                    color = title_color
                                 )
                                 if (!hasUsageHistory) {
                                     Spacer(Modifier.height(2.dp))
@@ -1335,7 +1361,7 @@ private fun ModulesPanelContent(
                                 "ALL MODULES",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1E293B)
+                                color = title_color
                             )
                             Spacer(Modifier.height(10.dp))
                         }

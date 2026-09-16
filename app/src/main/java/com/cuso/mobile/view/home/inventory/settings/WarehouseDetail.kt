@@ -25,6 +25,7 @@ import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.ui.theme.Primary
 import com.cuso.mobile.ui.theme.badgeGrey
 import com.cuso.mobile.ui.theme.redText
+import com.cuso.mobile.ui.theme.title_color
 import com.cuso.mobile.ui.theme.whiteBg
 
 @Composable
@@ -120,7 +121,7 @@ fun WarehouseDetailCard(
                             text = title,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B)
+                            color = title_color
                         )
                         if (subtitle != null) {
                             Text(
@@ -309,7 +310,7 @@ fun WarehouseDetailCard(
                             text = value,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF1E293B)
+                            color = title_color
                         )
                     }
                 }
@@ -337,7 +338,7 @@ private fun MetricBox(title: String, value: String, modifier: Modifier = Modifie
                 text = value,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E293B)
+                color = title_color
             )
         }
     }
@@ -359,7 +360,7 @@ private fun MetricRow(label: String, value: String) {
             text = value,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF1E293B)
+            color = title_color
         )
     }
 }

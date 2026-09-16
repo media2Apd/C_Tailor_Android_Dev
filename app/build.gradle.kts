@@ -46,7 +46,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://10.103.73.196:5000/\""
+                "\"http://192.168.88.12:5000/\""
             )
         }
         release {
@@ -103,6 +103,7 @@ dependencies {
 
     // Core
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.foundation)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
     // Navigation
@@ -197,6 +198,7 @@ dependencies {
 
     //UCrop for ProfileImageCrop
     implementation(libs.ucrop)
+    implementation(libs.androidx.transition)
 
     //window app size class
     implementation (libs.androidx.compose.material3.window.size.class1)

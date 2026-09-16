@@ -283,14 +283,7 @@ class SalesRepository @Inject constructor(
         val (accessToken, csrfToken) = getAuthHeaders()
 
         val validGarments: List<String> = request.garments
-            ?.mapNotNull { garment ->
-                when (garment) {
-                    is String -> garment.takeIf { it.isNotBlank() }
-                    is Map<*, *> -> (garment["_id"] as? String)?.takeIf { it.isNotBlank() }
-                    else -> null
-                }
-            }
-            ?: emptyList()
+            .mapNotNull { it.garmentId.takeIf { id -> id.isNotBlank() } }
 
         val updateRequest = UpdateLeadRequest(
             customerType = if (request.customerType.equals("Corporate", ignoreCase = true)) "Corporate" else "Individual",

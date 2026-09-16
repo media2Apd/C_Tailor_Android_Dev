@@ -3,6 +3,7 @@ package com.cuso.mobile.model.settings
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
 import java.lang.reflect.Type
 
@@ -13,7 +14,7 @@ data class WorkPricingResponseForChangeStatus(
 )
 
 /**
- *  Use this for the "Get All" list API
+ * Use this for the "Get All" list API
  */
 data class WorkPricingListResponse(
     @SerializedName("success") val success: Boolean,
@@ -33,8 +34,22 @@ data class WorkPricingRequest(
     @SerializedName("isTaxable") val isTaxable: Boolean = false,
     @SerializedName("garmentId") val garmentId: String? = null,
     @SerializedName("garmentCategoryId") val garmentCategoryId: String? = null,
-    @SerializedName("taxGroupId") val taxGroupId: String? = null
+    @SerializedName("taxGroupId") val taxGroupId: String? = null,
+    @SerializedName("incomeAccount") val incomeAccount: String? = null
 )
+
+/**
+ * Helper model for income account inside WorkPricingDetail
+ */
+@JsonAdapter(WorkPricingIncomeAccountDeserializer::class)
+data class WorkPricingIncomeAccount(
+    @SerializedName("_id", alternate = ["id"]) val id: String,
+    @SerializedName("accountName") val accountName: String? = null,
+    @SerializedName("accountCode") val accountCode: String? = null
+) {
+    val displayName: String
+        get() = if (!accountCode.isNullOrBlank()) "$accountCode - $accountName" else (accountName ?: "")
+}
 
 /**
  * Response model for Work Pricing operations.
@@ -44,12 +59,7 @@ data class WorkPricingResponse(
     @SerializedName("message") val message: String?,
     @SerializedName("data") val data: WorkPricingDetail?,
     @SerializedName("pagination") val pagination: PaginationMetadata?
-
 )
-//data class WorkPricingResponse(
-//    @SerializedName("success") val success: Boolean,
-//    @SerializedName("data") val data: List<WorkPricingItem>,
-//)
 
 data class PaginationMetadata(
     @SerializedName("total") val total: Int,
@@ -88,7 +98,7 @@ data class WorkPricingDetailResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("data") val data: WorkPricingDetail
 )
-// Updated WorkPricingDetail to match your JSON response
+
 data class WorkPricingDetail(
     @SerializedName("_id") val id: String,
     @SerializedName("workType") val workType: String,
@@ -104,9 +114,9 @@ data class WorkPricingDetail(
     @SerializedName("garmentCategoryId") val garmentCategory: WorkPricingCategory?,
 
     @SerializedName("taxGroupId") val taxGroup: WorkPricingTaxGroup?,
-    @SerializedName("organizationId") val organizationId: String? = null
+    @SerializedName("organizationId") val organizationId: String? = null,
+    @SerializedName("incomeAccount") val incomeAccount: WorkPricingIncomeAccount? = null
 )
-
 
 data class WorkPricingGarment(
     @SerializedName("_id") val id: String,
@@ -118,9 +128,6 @@ data class WorkPricingCategory(
     @SerializedName("name") val name: String,
     @SerializedName("displayName") val displayName: String?
 )
-
-
-
 
 data class WorkPricingCreatedData(
     @SerializedName("_id") val id: String,
@@ -192,3 +199,18 @@ class WorkPricingTaxGroupDeserializer : JsonDeserializer<WorkPricingTaxGroup?> {
     }
 }
 
+class WorkPricingIncomeAccountDeserializer : JsonDeserializer<WorkPricingIncomeAccount?> {
+    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): WorkPricingIncomeAccount? {
+        if (json == null || json.isJsonNull) return null
+        return if (json.isJsonPrimitive) {
+            WorkPricingIncomeAccount(id = json.asString, accountName = "", accountCode = "")
+        } else {
+            val obj = json.asJsonObject
+            WorkPricingIncomeAccount(
+                id = obj.get("_id")?.asString ?: obj.get("id")?.asString.orEmpty(),
+                accountName = obj.get("accountName")?.takeIf { !it.isJsonNull }?.asString,
+                accountCode = obj.get("accountCode")?.takeIf { !it.isJsonNull }?.asString
+            )
+        }
+    }
+}

@@ -34,13 +34,27 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.ui.theme.BluePrimary
 import com.cuso.mobile.ui.theme.BorderGray
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.TextPrimary
 import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.background_light_purple
+import com.cuso.mobile.ui.theme.darkGreenBg
+import com.cuso.mobile.ui.theme.greenBg
+import com.cuso.mobile.ui.theme.lightGray
 import com.cuso.mobile.ui.theme.light_grey
+import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.redBg
+import com.cuso.mobile.ui.theme.redText
 import com.cuso.mobile.ui.theme.title_border
 import com.cuso.mobile.ui.theme.whiteBg
+import com.cuso.mobile.ui.theme.yellowBg
+import com.cuso.mobile.ui.theme.yellowText
 import com.cuso.mobile.view.composable.AppErrorState
 import com.cuso.mobile.view.composable.DataCard
 import com.cuso.mobile.view.composable.DataCardField
+import com.cuso.mobile.view.composable.DeleteModel
+import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FabConfig
 import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
@@ -51,8 +65,6 @@ import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
 
-private val InventoryBg = Color(0xFFF5F5F5)
-
 /**
  * Returns badge foreground and background color based on stock status.
  */
@@ -60,16 +72,16 @@ private fun inventoryStatusColors(status: String?): Pair<Color, Color> {
     val safeStatus = status.orEmpty()
     return when {
         safeStatus.contains("In Stock", ignoreCase = true) && !safeStatus.contains("inactive", ignoreCase = true) ->
-            Pair(Color(0xFF16A34A), Color(0xFFDCFCE7))
+            Pair(darkGreenBg, greenBg)
 
-        safeStatus.contains("Out of Stock", ignoreCase = true) ->
-            Pair(Color(0xFFDC2626), Color(0xFFFEE2E2))
+        safeStatus.contains("Stock Not Assigned", ignoreCase = true) ->
+            Pair(redText, redBg)
 
         safeStatus.contains("draft", ignoreCase = true) ->
-            Pair(Color(0xFFD97706), Color(0xFFFEF3C7))
+            Pair(yellowText, yellowBg)
 
         else ->
-            Pair(Color(0xFF6B7280), light_grey)
+            Pair(TextSecondary, light_grey)
     }
 }
 
@@ -89,7 +101,12 @@ fun InventoryScreen(
     val errorMessage by inventoryViewModel.inventoryError.collectAsStateWithLifecycle()
     val viewOneItem by inventoryViewModel.viewOneItem.collectAsStateWithLifecycle()
 
-    //  Guaranteed non-null list fallback
+    // Dialog & Notification States
+    var itemToDelete by remember { mutableStateOf<InventoryItem?>(null) }
+    var successToastMessage by remember { mutableStateOf<String?>(null) }
+    var errorToastMessage by remember { mutableStateOf<String?>(null) }
+
+    // Guaranteed non-null list fallback
     val items: List<InventoryItem> = rawItems
 
     var searchQuery by remember { mutableStateOf("") }
@@ -100,13 +117,13 @@ fun InventoryScreen(
         inventoryViewModel.fetchInventoryItems()
     }
 
-    // Debounced search that resets pagination and calls backend API
+    // Debounced search
     LaunchedEffect(searchQuery) {
         delay(400)
         inventoryViewModel.fetchInventoryItems(search = searchQuery.trim().ifBlank { null })
     }
 
-    // Detect when the user scrolls near the end (2 items buffer)
+    // Load more detector
     val shouldLoadMore = remember {
         derivedStateOf {
             val layoutInfo = listState.layoutInfo
@@ -117,14 +134,13 @@ fun InventoryScreen(
         }
     }
 
-    // Trigger load more when reaching the end of list
     LaunchedEffect(shouldLoadMore.value) {
         if (shouldLoadMore.value && canLoadMore && !isLoadingMore && !isLoading) {
             inventoryViewModel.loadMoreInventoryItems()
         }
     }
 
-    // Handle view-one prefill for editing
+    // Prefill form for editing
     LaunchedEffect(viewOneItem) {
         viewOneItem?.let { item ->
             inventoryViewModel.populateFormForEdit(item)
@@ -133,209 +149,241 @@ fun InventoryScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-    ) {
-        // ── Header ──
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    // Delete Confirmation Dialog
+    itemToDelete?.let { item ->
+        val itemName = item.name.orEmpty().ifBlank { "this item" }
+        DeleteModel(
+            title = "Delete Product",
+            message = "Are you sure you want to delete \"$itemName\"? It can be restored within 7 days, after which it is permanently removed.",
+            onDismiss = { itemToDelete = null },
+            onDelete = {
+                val itemId = item._id.orEmpty()
+                if (itemId.isNotBlank()) {
+                    inventoryViewModel.deleteInventoryItem(
+                        itemId = itemId,
+                        onSuccess = {
+                            successToastMessage = "Item deleted. It can be restored within 7 days, after which it is permanently removed."
+                            itemToDelete = null
+                        }
+                    )
+                } else {
+                    itemToDelete = null
+                }
+            }
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Transparent)
         ) {
-            TitleBar("All Items", onClose = onClose)
-        }
-
-        Column(Modifier.fillMaxWidth()) {
-            // ── Search & Filter ──
-            SearchFilterBar(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                placeholder = "Search Items...",
-                accentColor = BluePrimary,
-                borderColor = BorderGray,
-                textSecondaryColor = TextSecondary,
-                onFilterClick = { }
-            )
-        }
-        HorizontalDivider(color = title_border)
-
-        when {
-            // Loading initial page skeleton
-            isLoading && items.isEmpty() -> {
-                ListSkeleton()
+            // ── Header ──
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TitleBar("All Items", onClose = onClose)
             }
 
-            // Error state
-            errorMessage != null && items.isEmpty() -> {
-                AppErrorState(
-                    title = "Failed to load inventory screen",
-                    message = "Something went wrong. Please check your connection and try again.",
-                    onRetry = { inventoryViewModel.fetchInventoryItems(search = searchQuery.trim().ifBlank { null }) }
+            Column(Modifier.fillMaxWidth()) {
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    placeholder = "Search Items...",
+                    accentColor = BluePrimary,
+                    borderColor = BorderGray,
+                    textSecondaryColor = TextSecondary,
+                    onFilterClick = { }
                 )
             }
+            HorizontalDivider(color = title_border)
 
-            // Empty state
-            items.isEmpty() -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(InventoryBg)
-                        .padding(top = 60.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(Color(0xFFE7E5FE)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Inventory2,
-                            contentDescription = null,
-                            tint = Color(0xFF9B96F5),
-                            modifier = Modifier.size(30.dp)
-                        )
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        "No Items Found",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF111827)
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "Start by adding your first inventory item",
-                        fontSize = 13.sp,
-                        color = Color(0xFF9CA3AF),
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(Modifier.height(20.dp))
-                    Button(
-                        onClick = onAddItem,
-                        colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = null,
-                            tint = whiteBg,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            "Add Item",
-                            color = whiteBg,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+            when {
+                isLoading && items.isEmpty() -> {
+                    ListSkeleton()
                 }
-            }
 
-            // Paginated items list
-            else -> {
-                FabScaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    fab = FabConfig(
-                        label = "Add Item",
-                        icon = Icons.Default.Add,
-                        onClick = onAddItem
+                errorMessage != null && items.isEmpty() -> {
+                    AppErrorState(
+                        title = "Failed to load inventory screen",
+                        message = "Something went wrong. Please check your connection and try again.",
+                        onRetry = { inventoryViewModel.fetchInventoryItems(search = searchQuery.trim().ifBlank { null }) }
                     )
-                ) {
-                    LazyColumn(
-                        state = listState,
+                }
+
+                items.isEmpty() -> {
+                    Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Transparent)
+                            .background(lightGray)
+                            .padding(top = 60.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        itemsIndexed(
-                            items = items,
-                            key = { index, item ->
-                                val id = item._id
-                                if (id.isNotBlank()) id else "item_$index"
-                            }
-                        ) { _, item ->
-                            // Safe handling of nullable model properties
-                            val (badgeFg, badgeBg) = inventoryStatusColors(item.stockStatus)
-                            val isTracking = item.trackInventory
-                            val stockCount = item.currentStock
-                            val stockText = if (!isTracking) "—" else stockCount.toInt().toString()
-
-                            val itemType = item.type.orEmpty().replaceFirstChar {
-                                if (it.isLowerCase()) it.titlecase() else it.toString()
-                            }.ifBlank { "N/A" }
-                            val price = item.sellingPrice ?: 0.0
-                            val skuText = item.sku.ifBlank { "—" } ?: "—"
-                            val nameText = item.name.orEmpty().ifBlank { "Unnamed Item" }
-                            val itemId = item._id.orEmpty()
-
-                            DataCard(
-                                item = item,
-                                modifier = Modifier.animateItem(),
-                                smalltitle = "$skuText • SKU",
-                                subtitle = nameText,
-                                topBadgeText = item.stockStatus.orEmpty(),
-                                topBadgeTextColor = badgeFg,
-                                topBadgeBgColor = badgeBg,
-                                topBadgeInline = true,
-                                footerAsRows = true,
-                                footerFields = listOf(
-                                    DataCardField(
-                                        label = "Type",
-                                        text = itemType
-                                    ),
-                                    DataCardField(label = "Stock", text = stockText),
-                                    DataCardField(
-                                        label = "Selling Price",
-                                        text = "₹${"%.2f".format(price)}"
-                                    )
-                                ),
-                                actions = listOf(
-                                    MenuAction(
-                                        label = "View",
-                                        icon = Icons.Default.Visibility,
-                                        onClick = { onViewItem(item) }
-                                    ),
-                                    MenuAction(
-                                        label = "Edit",
-                                        icon = Icons.Default.Edit,
-                                        onClick = {
-                                            if (itemId.isNotBlank()) {
-                                                inventoryViewModel.onViewOneClicked(itemId)
-                                            }
-                                        }
-                                    ),
-                                    MenuAction(
-                                        label = "Delete",
-                                        icon = Icons.Default.Delete,
-                                        onClick = { onViewItem(item) }
-                                    )
-                                )
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(background_light_purple),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Inventory2,
+                                contentDescription = null,
+                                tint = Primary,
+                                modifier = Modifier.size(30.dp)
                             )
                         }
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "No Items Found",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Start by adding your first inventory item",
+                            fontSize = 13.sp,
+                            color = mutedText,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(20.dp))
+                        Button(
+                            onClick = onAddItem,
+                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = null,
+                                tint = whiteBg,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "Add Item",
+                                color = whiteBg,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
 
-                        // Animated pagination loading spinner at the bottom
-                        item {
-                            Column(Modifier.fillMaxWidth()) {
-                                AnimatedVisibility(
-                                    visible = isLoadingMore,
-                                    enter = fadeIn() + slideInVertically { it / 2 },
-                                    exit = fadeOut() + slideOutVertically { it / 2 }
-                                ) {
-                                    ThreeDotLoading()
+                else -> {
+                    FabScaffold(
+                        modifier = Modifier.fillMaxSize(),
+                        fab = FabConfig(
+                            label = "Add Item",
+                            icon = Icons.Default.Add,
+                            onClick = onAddItem
+                        )
+                    ) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Transparent)
+                        ) {
+                            itemsIndexed(
+                                items = items,
+                                key = { index, item ->
+                                    val id = item._id
+                                    if (id.isNotBlank()) id else "item_$index"
+                                }
+                            ) { _, item ->
+                                val (badgeFg, badgeBg) = inventoryStatusColors(item.stockStatus)
+                                val isTracking = item.trackInventory
+                                val stockCount = item.currentStock
+                                val stockText = if (!isTracking) "—" else stockCount.toInt().toString()
+
+                                val itemType = item.type.orEmpty().replaceFirstChar {
+                                    if (it.isLowerCase()) it.titlecase() else it.toString()
+                                }.ifBlank { "N/A" }
+                                val price = item.sellingPrice ?: 0.0
+                                val skuText = item.sku.ifBlank { "—" } ?: "—"
+                                val nameText = item.name.orEmpty().ifBlank { "Unnamed Item" }
+                                val itemId = item._id.orEmpty()
+
+                                DataCard(
+                                    item = item,
+                                    modifier = Modifier.animateItem(),
+                                    smalltitle = "$skuText • SKU",
+                                    subtitle = nameText,
+                                    topBadgeText = item.stockStatus.orEmpty(),
+                                    topBadgeTextColor = badgeFg,
+                                    topBadgeBgColor = badgeBg,
+                                    topBadgeInline = true,
+                                    footerAsRows = true,
+                                    footerFields = listOf(
+                                        DataCardField(label = "Type", text = itemType),
+                                        DataCardField(label = "Stock", text = stockText),
+                                        DataCardField(
+                                            label = "Selling Price",
+                                            text = "₹${"%.2f".format(price)}"
+                                        )
+                                    ),
+                                    actions = listOf(
+                                        MenuAction(
+                                            label = "View",
+                                            icon = Icons.Default.Visibility,
+                                            onClick = { onViewItem(item) }
+                                        ),
+                                        MenuAction(
+                                            label = "Edit",
+                                            icon = Icons.Default.Edit,
+                                            onClick = {
+                                                if (itemId.isNotBlank()) {
+                                                    inventoryViewModel.onViewOneClicked(itemId)
+                                                }
+                                            }
+                                        ),
+                                        MenuAction(
+                                            label = "Delete",
+                                            icon = Icons.Default.Delete,
+                                            onClick = {
+                                                itemToDelete = item
+                                            }
+                                        )
+                                    )
+                                )
+                            }
+
+                            item {
+                                Column(Modifier.fillMaxWidth()) {
+                                    AnimatedVisibility(
+                                        visible = isLoadingMore,
+                                        enter = fadeIn() + slideInVertically { it / 2 },
+                                        exit = fadeOut() + slideOutVertically { it / 2 }
+                                    ) {
+                                        ThreeDotLoading()
+                                    }
                                 }
                             }
-                        }
 
-                        item { Spacer(Modifier.height(80.dp)) }
+                            item { Spacer(Modifier.height(80.dp)) }
+                        }
                     }
                 }
             }
         }
+
+        // ── Dynamic Island Notifications ──
+        DynamicIslandSuccess(
+            message = successToastMessage,
+            onDismiss = { successToastMessage = null }
+        )
+
+        DynamicIslandError(
+            message = errorToastMessage ?: errorMessage,
+            onDismiss = {
+                errorToastMessage = null
+                inventoryViewModel.clearInventoryError()
+            }
+        )
     }
 }

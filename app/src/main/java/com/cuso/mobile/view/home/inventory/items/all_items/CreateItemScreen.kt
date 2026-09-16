@@ -53,6 +53,7 @@ import com.cuso.mobile.ui.theme.TextPrimary
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.view.composable.AccordionSection
 import com.cuso.mobile.view.composable.DynamicIslandError
+import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.FormDropdown
 import com.cuso.mobile.view.composable.FormLabel
 import com.cuso.mobile.view.composable.FormTextArea
@@ -70,6 +71,7 @@ import com.cuso.mobile.viewmodel.ItemSection
 import com.cuso.mobile.viewmodel.ProfileUiState
 import com.cuso.mobile.viewmodel.ProfileViewModel
 import com.cuso.mobile.viewmodel.SettingsViewModel
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,25 +83,21 @@ fun CreateItemScreen(
     profileViewModel: ProfileViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
-    // ── Adaptive Design Tokens ──
     val tokens = LocalAppTokens.current
     val fieldShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
     val isEditable = !isViewOnly
     val context = LocalContext.current
 
-    // ── Subscription Plan State ──
     val profileState by profileViewModel.uiState.collectAsState()
     val planName = (profileState as? ProfileUiState.Success)
         ?.data?.organization?.plan?.name.orEmpty()
     val isStarterOrLight = planName.equals("Starter", ignoreCase = true) ||
             planName.equals("Light", ignoreCase = true) || planName.equals("Plan not found", ignoreCase = true)
 
-    // ── ViewModel Form State Observers ──
     val formState by viewModel.createItemForm.collectAsState()
     val expandedSection by viewModel.expandedSection.collectAsState()
     val uiState by viewModel.createItemUiState.collectAsState()
 
-    // ── Categories State ──
     val productCategories by settingsViewModel.productCategories.collectAsState()
     val categoryOptions = remember(productCategories) {
         productCategories.mapNotNull { it.name.takeIf { name -> name.isNotBlank() } }
@@ -110,16 +108,15 @@ fun CreateItemScreen(
             ?: formState.category.ifBlank { "Select Category" }
     }
 
-    // ── Dropdown Expansion States ──
     var unitExpanded by remember { mutableStateOf(false) }
     var categoryExpanded by remember { mutableStateOf(false) }
     var statusExpanded by remember { mutableStateOf(false) }
     var salesAccountExpanded by remember { mutableStateOf(false) }
     var purchaseAccountExpanded by remember { mutableStateOf(false) }
 
-    // ── Validation Errors ──
     var currentErrorField by remember { mutableStateOf<String?>(null) }
     var currentError by remember { mutableStateOf<String?>(null) }
+    var successToastMessage by remember { mutableStateOf<String?>(null) }
 
     val isEditMode = formState.itemId != null
 
@@ -129,20 +126,26 @@ fun CreateItemScreen(
         uri?.let { viewModel.onImageSelected(it) }
     }
 
-    // Fetch product categories on screen launch
     LaunchedEffect(Unit) {
         settingsViewModel.fetchProductCategories()
     }
 
-    // React to success state from ViewModel
+    // Handles success and error state from ViewModel
     LaunchedEffect(uiState) {
-        if (uiState is CreateItemUiState.Success) {
-            viewModel.resetCreateItemForm()
-            onItemCreated()
+        when (uiState) {
+            is CreateItemUiState.Success -> {
+                successToastMessage = if (isEditMode) "Item updated successfully" else "Item created successfully"
+                delay(1200)
+                viewModel.resetCreateItemForm()
+                onItemCreated()
+            }
+            is CreateItemUiState.Error -> {
+                currentError = (uiState as CreateItemUiState.Error).message
+            }
+            else -> Unit
         }
     }
 
-    // ── Form Validation ──
     fun validateForm(): Boolean {
         if (isViewOnly) return true
 
@@ -175,7 +178,6 @@ fun CreateItemScreen(
         else -> "Create Item"
     }
 
-    // Helper to safely close and clean up state
     val handleDismiss = {
         if (uiState !is CreateItemUiState.Loading) {
             viewModel.resetCreateItemForm()
@@ -183,22 +185,17 @@ fun CreateItemScreen(
         }
     }
 
-    // =========================================================================
-    // ROOT UI
-    // =========================================================================
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Transparent)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header Bar
             TitleBar(
                 title = screenTitle,
                 onClose = { handleDismiss() }
             )
 
-            // Scrollable Form Content
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -236,21 +233,25 @@ fun CreateItemScreen(
                     FormTextField(
                         value = formState.name,
                         onValueChange = { newValue ->
-                            viewModel.updateCreateItemForm { it.copy(name = newValue) }
+                            viewModel.onItemNameChanged(newValue)
                         },
-                        placeholder = "e.g. Premium Woolen Fabric",
+                        placeholder = "e.g. Rajasthani Silk Shirt - Gray / XL",
                         enabled = isEditable,
                         isError = currentErrorField == "itemName",
                         errorMessage = if (currentErrorField == "itemName") "Item name is required" else null
                     )
 
                     Spacer(Modifier.height(tokens.extraPadding))
-                    FormLabel("SKU")
+                    FormLabel("SKU", isRequired = !formState.autoGenerateSku)
                     FormTextField(
                         value = formState.sku,
-                        onValueChange = { /* read only */ },
-                        placeholder = "Auto-generated SKU",
-                        enabled = false
+                        onValueChange = { newSku ->
+                            if (!formState.autoGenerateSku && isEditable) {
+                                viewModel.updateCreateItemForm { it.copy(sku = newSku.uppercase()) }
+                            }
+                        },
+                        placeholder = if (formState.autoGenerateSku) "Auto-generated SKU" else "e.g. RAJ-GRAY-XL",
+                        enabled = isEditable && !formState.autoGenerateSku
                     )
 
                     if (!isEditMode && isEditable) {
@@ -259,7 +260,9 @@ fun CreateItemScreen(
                             title = "Auto-generate SKU",
                             checked = formState.autoGenerateSku,
                             enabled = isEditable,
-                            onCheckedChange = { checked -> viewModel.onAutoGenerateSkuToggle(checked) },
+                            onCheckedChange = { isChecked ->
+                                viewModel.onAutoGenerateSkuToggle(isChecked)
+                            },
                             titleFirst = false
                         )
                     }
@@ -542,14 +545,18 @@ fun CreateItemScreen(
             }
         }
 
-        // ── Dynamic Island Error Overlay ──
+        // ── Notifications ──
         DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
             message = currentError,
             onDismiss = { currentError = null }
         )
 
-        // ── Floating Action Buttons (Cancel / Save / Update) ──
+        DynamicIslandSuccess(
+            message = successToastMessage,
+            onDismiss = { successToastMessage = null }
+        )
+
+        // ── Floating Action Buttons ──
         StepNavigationFab(
             showBack = true,
             onBack = { handleDismiss() },

@@ -98,13 +98,13 @@ enum class AdjustmentType {
 @Composable
 fun AllOrdersStockListScreen(
     preselectedItemId: String? = null,
+    initialAdjustmentType: AdjustmentType = AdjustmentType.TransferStock,
     onClose: () -> Unit,
     viewModel: InventoryViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
 
-    // State flow collectors
     val stockSummaryList by viewModel.stockSummaryList.collectAsState()
     val isLoadingSummary by viewModel.isLoadingStockSummary.collectAsState()
     val warehouseDropdown by viewModel.warehouseDropdown.collectAsState()
@@ -118,8 +118,8 @@ fun AllOrdersStockListScreen(
     var searchQuery by remember { mutableStateOf("") }
     var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var selectedStockItem by remember { mutableStateOf<StockSummaryItemDto?>(null) }
+    var activeAdjustmentType by remember { mutableStateOf(initialAdjustmentType) }
 
-    // Initial lifecycle loading
     LaunchedEffect(Unit) {
         viewModel.clearAdjustmentAlerts()
         viewModel.clearStockSummaryAlerts()
@@ -129,18 +129,18 @@ fun AllOrdersStockListScreen(
         settingsViewModel.fetchBins(isRefresh = true)
     }
 
-    // Auto-open Bottom Sheet when preselectedItemId matches an item
-    LaunchedEffect(stockSummaryList, preselectedItemId) {
+    // Auto-open Bottom Sheet when preselectedItemId matches
+    LaunchedEffect(stockSummaryList, preselectedItemId, initialAdjustmentType) {
         if (!preselectedItemId.isNullOrBlank() && stockSummaryList.isNotEmpty()) {
             val matchedItem = stockSummaryList.find { it.itemId == preselectedItemId }
             if (matchedItem != null) {
                 selectedStockItem = matchedItem
+                activeAdjustmentType = initialAdjustmentType
                 sheetState = SheetValue.Expanded
             }
         }
     }
 
-    // Refresh data and hide modal on successful submission
     LaunchedEffect(adjustmentSuccessMessage) {
         if (!adjustmentSuccessMessage.isNullOrBlank()) {
             sheetState = SheetValue.Hidden
@@ -148,7 +148,6 @@ fun AllOrdersStockListScreen(
         }
     }
 
-    // Search and filtering computation
     val filteredList = remember(stockSummaryList, searchQuery) {
         if (searchQuery.isBlank()) stockSummaryList
         else {
@@ -215,6 +214,7 @@ fun AllOrdersStockListScreen(
                                 tokens = tokens,
                                 onAdjustClick = {
                                     selectedStockItem = item
+                                    activeAdjustmentType = AdjustmentType.TransferStock
                                     sheetState = SheetValue.Expanded
                                 }
                             )
@@ -244,6 +244,7 @@ fun AllOrdersStockListScreen(
             selectedStockItem?.let { item ->
                 AdjustStockModalContent(
                     stockItem = item,
+                    initialAdjustmentType = activeAdjustmentType,
                     warehouseList = warehouseDropdown,
                     reasonList = validReasons,
                     isSubmitting = isSubmittingAdjustment,
@@ -447,6 +448,7 @@ private fun StockAdjustmentCardItem(
 @Composable
 fun AdjustStockModalContent(
     stockItem: StockSummaryItemDto,
+    initialAdjustmentType: AdjustmentType = AdjustmentType.TransferStock,
     warehouseList: List<WarehouseDropdownItem>,
     reasonList: List<String>,
     isSubmitting: Boolean,
@@ -457,7 +459,7 @@ fun AdjustStockModalContent(
     onDecreaseStock: (DecreaseStockRequest) -> Unit,
     onTransferStock: (TransferStockRequest) -> Unit
 ) {
-    var selectedAdjustmentType by remember { mutableStateOf(AdjustmentType.TransferStock) }
+    var selectedAdjustmentType by remember(initialAdjustmentType) { mutableStateOf(initialAdjustmentType) }
 
     val defaultWarehouseId = stockItem.warehouseId.ifBlank { warehouseList.firstOrNull()?.value.orEmpty() }
     var originWarehouseId by remember(stockItem.warehouseId, warehouseList) { mutableStateOf(defaultWarehouseId) }
@@ -468,7 +470,6 @@ fun AdjustStockModalContent(
     var originWarehouseExpanded by remember { mutableStateOf(false) }
     var destWarehouseExpanded by remember { mutableStateOf(false) }
 
-    // ── Bins Selection State ──
     val allBins by settingsViewModel.bins.collectAsState()
 
     val originWarehouseBins = remember(allBins, originWarehouseId) {
@@ -486,7 +487,6 @@ fun AdjustStockModalContent(
     var fromBinExpanded by remember { mutableStateOf(false) }
     var toBinExpanded by remember { mutableStateOf(false) }
 
-    // Auto-select initial fromBinId
     LaunchedEffect(originWarehouseBins, originWarehouseId) {
         if (fromBinId.isBlank() || originWarehouseBins.none { it.id == fromBinId }) {
             fromBinId = originWarehouseBins.firstOrNull { it.status.equals("active", true) }?.id
@@ -494,7 +494,6 @@ fun AdjustStockModalContent(
         }
     }
 
-    // Auto-select initial toBinId
     LaunchedEffect(destWarehouseBins, destinationWarehouseId) {
         if (toBinId.isBlank() || destWarehouseBins.none { it.id == toBinId }) {
             toBinId = destWarehouseBins.firstOrNull { it.status.equals("active", true) }?.id

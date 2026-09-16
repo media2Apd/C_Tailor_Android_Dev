@@ -12,8 +12,9 @@ data class CreateLeadFormRequest(
     val enquiryType: String,
     val estimatedQuantity: Int,
     val budgetRange: BudgetRange,
+    @SerializedName("garments")
+    val garments: List<LeadGarmentRequestItem>,
     @SerializedName("garmentCategory")   //   backend expects "garmentCategory", not "garments"
-    val garments: List<Any>?,
     val enquiryDate: String,
     val requiredDate: String,
     val source: String,
@@ -27,7 +28,15 @@ data class CreateLeadFormRequest(
     val occasion: String = ""
 )
 // Add these data classes (e.g. in the same file as CreateLeadFormResponse, or a new GarmentCategory.kt)
-
+// New Data class for Garment item in Lead Request
+data class LeadGarmentRequestItem(
+    @SerializedName("garmentId")
+    val garmentId: String,
+    @SerializedName("garmentCategoryId")
+    val garmentCategoryId: String,
+    @SerializedName("quantity")
+    val quantity: Int = 1
+)
 
 
 data class CategoryId(

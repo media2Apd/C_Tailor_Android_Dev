@@ -18,21 +18,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,7 +64,7 @@ import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.inventory.DecreaseStockRequest
 import com.cuso.mobile.model.inventory.IncreaseStockRequest
-import com.cuso.mobile.model.inventory.StockSummaryItemDto
+import com.cuso.mobile.model.inventory.StockAdjustmentData
 import com.cuso.mobile.model.inventory.TransferStockRequest
 import com.cuso.mobile.model.inventory.WarehouseDropdownItem
 import com.cuso.mobile.ui.theme.Primary
@@ -101,54 +102,48 @@ fun TransferOrdersStockListScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val stockSummaryList by viewModel.stockSummaryList.collectAsState()
-    val isLoadingSummary by viewModel.isLoadingStockSummary.collectAsState()
+    // API States from InventoryViewModel
+    val adjustmentsList by viewModel.stockAdjustmentsList.collectAsState()
+    val isLoadingAdjustments by viewModel.isLoadingAdjustments.collectAsState()
     val warehouseDropdown by viewModel.warehouseDropdown.collectAsState()
     val validReasons by viewModel.validAdjustmentReasons.collectAsState()
 
     val isSubmittingAdjustment by viewModel.isSubmittingAdjustment.collectAsState()
     val adjustmentSuccessMessage by viewModel.adjustmentSuccessMessage.collectAsState()
     val adjustmentErrorMessage by viewModel.adjustmentErrorMessage.collectAsState()
-    val stockSummaryError by viewModel.stockSummaryError.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
-    var selectedStockItem by remember { mutableStateOf<StockSummaryItemDto?>(null) }
+    var selectedAdjustment by remember { mutableStateOf<StockAdjustmentData?>(null) }
 
+    // Fetch API Data on screen launch
     LaunchedEffect(Unit) {
         viewModel.clearAdjustmentAlerts()
-        viewModel.clearStockSummaryAlerts()
-        viewModel.fetchStockSummaryList()
+        // Calls: /api/inventory/stock-adjustment/view-all?page=1&limit=10&adjustmentType=transfer
+        viewModel.fetchStockAdjustments(reset = true, adjustmentType = "transfer")
         viewModel.loadWarehouseDropdown()
         viewModel.fetchValidAdjustmentReasons()
         settingsViewModel.fetchBins(isRefresh = true)
     }
 
-    LaunchedEffect(stockSummaryList, preselectedItemId) {
-        if (!preselectedItemId.isNullOrBlank() && stockSummaryList.isNotEmpty()) {
-            val matchedItem = stockSummaryList.find { it.itemId == preselectedItemId }
-            if (matchedItem != null) {
-                selectedStockItem = matchedItem
-                sheetState = SheetValue.Expanded
-            }
-        }
-    }
-
     LaunchedEffect(adjustmentSuccessMessage) {
         if (!adjustmentSuccessMessage.isNullOrBlank()) {
             sheetState = SheetValue.Hidden
-            viewModel.fetchStockSummaryList()
+            viewModel.fetchStockAdjustments(reset = true)
         }
     }
 
-    val filteredList = remember(stockSummaryList, searchQuery) {
-        if (searchQuery.isBlank()) stockSummaryList
+    // Client-side search filter
+    val filteredList = remember(adjustmentsList, searchQuery) {
+        if (searchQuery.isBlank()) adjustmentsList
         else {
-            stockSummaryList.filter { item ->
-                item.product.contains(searchQuery, ignoreCase = true) ||
-                        item.sku.contains(searchQuery, ignoreCase = true) ||
-                        item.warehouse.contains(searchQuery, ignoreCase = true) ||
-                        (item.variant?.contains(searchQuery, ignoreCase = true) == true)
+            adjustmentsList.filter { item ->
+                item.itemName.contains(searchQuery, ignoreCase = true) ||
+                        item.itemSku.contains(searchQuery, ignoreCase = true) ||
+                        item.adjustmentCode.orEmpty().contains(searchQuery, ignoreCase = true) ||
+                        item.originWarehouseName.contains(searchQuery, ignoreCase = true) ||
+                        item.destinationWarehouseName.contains(searchQuery, ignoreCase = true) ||
+                        (item.reason?.contains(searchQuery, ignoreCase = true) == true)
             }
         }
     }
@@ -158,14 +153,23 @@ fun TransferOrdersStockListScreen(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                // Header Bar matching Screen 1 & 2
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
-                    TitleBar("All Orders", onClose)
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    TitleBar("Transfer Stock", onClose)
                 }
             }
+//            floatingActionButton = {
+//                FloatingActionButton(
+//                    onClick = {
+//                        selectedAdjustment = null
+//                        sheetState = SheetValue.Expanded
+//                    },
+//                    containerColor = Primary,
+//                    contentColor = whiteBg,
+//                    shape = CircleShape
+//                ) {
+//                    Icon(Icons.Default.Add, contentDescription = "New Adjustment")
+//                }
+//            }
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -175,7 +179,7 @@ fun TransferOrdersStockListScreen(
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
-                    placeholder = "Search Customers...",
+                    placeholder = "Search SKU, Item, Warehouse, Code...",
                     showFilterIcon = true,
                     onFilterClick = { },
                     height = tokens.fieldHeight * 1.1f
@@ -183,7 +187,7 @@ fun TransferOrdersStockListScreen(
 
                 HorizontalDivider(color = grey_border)
 
-                if (isLoadingSummary && stockSummaryList.isEmpty()) {
+                if (isLoadingAdjustments && adjustmentsList.isEmpty()) {
                     ListSkeleton()
                 } else if (filteredList.isEmpty()) {
                     Box(
@@ -193,23 +197,23 @@ fun TransferOrdersStockListScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No stock items found",
+                            text = if (searchQuery.isBlank()) "No stock adjustments found" else "No matching adjustments found",
                             fontSize = tokens.bodyMedium,
                             color = mutedText
                         )
                     }
                 } else {
-                    Column(
+                    LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
+                            .weight(1f)
                     ) {
-                        filteredList.forEach { item ->
+                        items(filteredList, key = { it.id }) { adjustment ->
                             AllOrdersItemCard(
-                                stockItem = item,
+                                adjustment = adjustment,
                                 tokens = tokens,
                                 onClick = {
-                                    selectedStockItem = item
+                                    selectedAdjustment = adjustment
                                     sheetState = SheetValue.Expanded
                                 }
                             )
@@ -219,41 +223,38 @@ fun TransferOrdersStockListScreen(
             }
         }
 
-        SmoothBottomSheet(
-            state = sheetState,
-            onStateChange = { sheetState = it },
-            title = "Transfer Stock",
-            subtitle = "Adjustment ID: ADJ-${selectedStockItem?.itemId?.takeLast(5) ?: "99231"}",
-            expandedFraction = 0.95f,
-            collapsedFraction = 0.65f,
-            maxBlurRadius = 16.dp,
-            maxScrimAlpha = 0.45f,
-            scrollableContent = true,
-            collapsedCornerRadius = tokens.cardCornerRadius,
-            sheetBackgroundColor = whiteBg,
-            onDismissRequest = {
-                viewModel.clearAdjustmentAlerts()
-                sheetState = SheetValue.Hidden
-            }
-        ) {
-            selectedStockItem?.let { item ->
-                AdjustStockModalContent(
-                    stockItem = item,
-                    warehouseList = warehouseDropdown,
-                    reasonList = validReasons,
-                    isSubmitting = isSubmittingAdjustment,
-                    tokens = tokens,
-                    settingsViewModel = settingsViewModel,
-                    onDismiss = {
-                        viewModel.clearAdjustmentAlerts()
-                        sheetState = SheetValue.Hidden
-                    },
-                    onIncreaseStock = { req -> viewModel.submitIncreaseStock(req) },
-                    onDecreaseStock = { req -> viewModel.submitDecreaseStock(req) },
-                    onTransferStock = { req -> viewModel.submitStockTransfer(req) }
-                )
-            }
-        }
+//        SmoothBottomSheet(
+//            state = sheetState,
+//            onStateChange = { sheetState = it },
+//            title = if (selectedAdjustment != null) "Adjustment Details" else "New Stock Adjustment",
+//            subtitle = "Code: ${selectedAdjustment?.adjustmentCode ?: "NEW-ADJ"}",
+//            expandedFraction = 0.95f,
+//            collapsedFraction = 0.65f,
+//            maxBlurRadius = 16.dp,
+//            maxScrimAlpha = 0.45f,
+//            scrollableContent = true,
+//            collapsedCornerRadius = tokens.cardCornerRadius,
+//            sheetBackgroundColor = whiteBg,
+//            onDismissRequest = {
+//                viewModel.clearAdjustmentAlerts()
+//                sheetState = SheetValue.Hidden
+//            }
+//        ) {
+//            AdjustStockModalContent(
+//                selectedAdjustment = selectedAdjustment,
+//                warehouseList = warehouseDropdown,
+//                reasonList = validReasons,
+//                isSubmitting = isSubmittingAdjustment,
+//                tokens = tokens,
+//                onDismiss = {
+//                    viewModel.clearAdjustmentAlerts()
+//                    sheetState = SheetValue.Hidden
+//                },
+//                onIncreaseStock = { req -> viewModel.submitIncreaseStock(req) },
+//                onDecreaseStock = { req -> viewModel.submitDecreaseStock(req) },
+//                onTransferStock = { req -> viewModel.submitStockTransfer(req) }
+//            )
+//        }
 
         DynamicIslandSuccess(
             message = adjustmentSuccessMessage,
@@ -261,33 +262,31 @@ fun TransferOrdersStockListScreen(
         )
 
         DynamicIslandError(
-            message = (adjustmentErrorMessage ?: stockSummaryError)?.takeIf { it.isNotBlank() }?.let { ErrorMapper.map(it) },
-            onDismiss = {
-                viewModel.clearAdjustmentAlerts()
-                viewModel.clearStockSummaryAlerts()
-            }
+            message = adjustmentErrorMessage?.takeIf { it.isNotBlank() }?.let { ErrorMapper.map(it) },
+            onDismiss = { viewModel.clearAdjustmentAlerts() }
         )
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// ALL ORDERS LIST CARD (Image 1 & 2 design)
+// REAL DATA ITEM CARD
 // ─────────────────────────────────────────────────────────────
 
 @Composable
 private fun AllOrdersItemCard(
-    stockItem: StockSummaryItemDto,
+    adjustment: StockAdjustmentData,
     tokens: AppDesignTokens,
     onClick: () -> Unit
 ) {
-    val displayId = stockItem.itemId.takeLast(6).ifBlank { "123456" }
-    val displayProductName = stockItem.product.ifBlank { "Linen Shirt" }
-    val warehouseName = stockItem.warehouse.ifBlank { "North Hub" }
-    val quantity = stockItem.available.toInt().toString()
-    val formattedDate = remember(stockItem.lastUpdated) {
-        val rawDate = stockItem.lastUpdated?.take(10).orEmpty()
+    val displayCode = adjustment.adjustmentCode?.ifBlank { adjustment.id.takeLast(6).uppercase() } ?: adjustment.id.takeLast(6).uppercase()
+    val isTransfer = adjustment.type.equals("transfer", ignoreCase = true)
+    val isIncrease = adjustment.type.equals("increase", ignoreCase = true)
+    val isReversed = adjustment.isReversed
+
+    val formattedDate = remember(adjustment.createdAt) {
+        val rawDate = adjustment.createdAt?.take(10).orEmpty()
         val parts = rawDate.split("-")
-        if (parts.size == 3) "${parts[2]}/${parts[1]}/${parts[0]}" else "14/03/2026"
+        if (parts.size == 3) "${parts[2]}/${parts[1]}/${parts[0]}" else "—"
     }
 
     Box(
@@ -298,7 +297,7 @@ private fun AllOrdersItemCard(
             .padding(horizontal = tokens.screenPadding, vertical = 12.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Badges Row
+            // Top Badges Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -308,33 +307,50 @@ private fun AllOrdersItemCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // ID Badge
+                    // Code Badge
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFEEF2FF), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .background(Color(0xFFEEF2FF), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 0.dp)
                     ) {
                         Text(
-                            text = "ID: #$displayId",
+                            text = "#$displayCode",
                             color = Primary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
 
-                    // Completed Badge
+                    // Status Badge (Completed / Reversed)
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFDCFCE7), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .background(
+                                if (isReversed) Color(0xFFFEE2E2) else Color(0xFFDCFCE7),
+                                RoundedCornerShape(30.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 0.dp)
                     ) {
                         Text(
-                            text = "Completed",
-                            color = Color(0xFF16A34A),
+                            text = if (isReversed) "Reversed" else "Completed",
+                            color = if (isReversed) Color(0xFFDC2626) else Color(0xFF16A34A),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
+
+//                    // Adjustment Type Pill
+//                    Box(
+//                        modifier = Modifier
+//                            .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
+//                            .padding(horizontal = 8.dp, vertical = 4.dp)
+//                    ) {
+//                        Text(
+//                            text = adjustment.type.uppercase(),
+//                            color = title_color,
+//                            fontSize = 11.sp,
+//                            fontWeight = FontWeight.Bold
+//                        )
+//                    }
                 }
 
                 IconButton(
@@ -352,30 +368,39 @@ private fun AllOrdersItemCard(
 
             Spacer(Modifier.height(6.dp))
 
-            // Item Title
+            // Item Name + Variant
             Text(
-                text = displayProductName,
+                text = adjustment.itemName,
                 fontSize = tokens.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = title_color
             )
 
+//            if (adjustment.itemSku.isNotBlank()) {
+//                Spacer(Modifier.height(2.dp))
+//                Text(
+//                    text = "SKU: ${adjustment.itemSku} • ${adjustment.itemVariant}",
+//                    fontSize = 12.sp,
+//                    color = mutedText
+//                )
+//            }
+
             Spacer(Modifier.height(10.dp))
 
-            // Warehouse Route Pill
+            // Warehouse Movement Route
             Box(
                 modifier = Modifier
                     .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
                     .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .padding(horizontal = 5.dp, vertical = 4.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = warehouseName,
-                        fontSize = 12.sp,
+                        text = if (isIncrease) "Supplier / Stock In" else adjustment.originWarehouseName,
+                        fontSize = tokens.caption,
                         fontWeight = FontWeight.Medium,
                         color = title_color
                     )
@@ -386,51 +411,47 @@ private fun AllOrdersItemCard(
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "South Dist.",
-                        fontSize = 12.sp,
+                        text = if (isTransfer) adjustment.destinationWarehouseName else if (isIncrease) adjustment.originWarehouseName else "Stock Out",
+                        fontSize = tokens.caption,
                         fontWeight = FontWeight.Medium,
-                        color = title_color
+                        color = if (isTransfer) Primary else title_color
                     )
                 }
             }
 
             Spacer(Modifier.height(14.dp))
 
-            // 3 Columns: QUANTITY | DATE | HANDLED BY
+            // 3 Columns: QUANTITY | DATE | REASON
             Row(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "QUANTITY",
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
                         color = Color(0xFF9CA3AF),
                         letterSpacing = 0.5.sp
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = quantity,
-                        fontSize = tokens.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = title_color
+                        text = "${adjustment.quantity.toInt()}",
+                        fontSize = tokens.bodySmall,
+                        color = if (isIncrease) Color(0xFF16A34A) else if (isTransfer) Primary else Color(0xFFDC2626)
                     )
                 }
-                Column(modifier = Modifier.weight(1.2f)) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "DATE",
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
                         color = Color(0xFF9CA3AF),
                         letterSpacing = 0.5.sp
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = formattedDate,
-                        fontSize = tokens.bodyMedium,
-                        fontWeight = FontWeight.Medium,
+                        fontSize = tokens.bodySmall,
                         color = title_color
                     )
                 }
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1.2f)) {
                     Text(
                         text = "HANDLED BY",
                         fontSize = 10.sp,
@@ -440,10 +461,11 @@ private fun AllOrdersItemCard(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "Hameed",
+                        text = adjustment.handledByName,
                         fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.Medium,
-                        color = title_color
+                        color = title_color,
+                        maxLines = 1
                     )
                 }
             }
@@ -453,74 +475,57 @@ private fun AllOrdersItemCard(
 }
 
 // ─────────────────────────────────────────────────────────────
-// ADJUST / TRANSFER STOCK MODAL CONTENT (Images 3 & 4 Design)
+// ADJUST / TRANSFER STOCK MODAL CONTENT
 // ─────────────────────────────────────────────────────────────
 
 @Composable
 fun AdjustStockModalContent(
-    stockItem: StockSummaryItemDto,
+    selectedAdjustment: StockAdjustmentData?,
     warehouseList: List<WarehouseDropdownItem>,
     reasonList: List<String>,
     isSubmitting: Boolean,
     tokens: AppDesignTokens,
-    settingsViewModel: SettingsViewModel,
     onDismiss: () -> Unit,
     onIncreaseStock: (IncreaseStockRequest) -> Unit,
     onDecreaseStock: (DecreaseStockRequest) -> Unit,
     onTransferStock: (TransferStockRequest) -> Unit
 ) {
-    var selectedAdjustmentType by remember { mutableStateOf(AdjustmentType.TransferStock) }
+    var selectedAdjustmentType by remember(selectedAdjustment) {
+        mutableStateOf(
+            when (selectedAdjustment?.type?.lowercase()) {
+                "increase" -> AdjustmentType.Increase
+                "decrease" -> AdjustmentType.Decrease
+                else -> AdjustmentType.TransferStock
+            }
+        )
+    }
 
-    val defaultWarehouseId = stockItem.warehouseId.ifBlank { warehouseList.firstOrNull()?.value.orEmpty() }
-    var originWarehouseId by remember(stockItem.warehouseId, warehouseList) { mutableStateOf(defaultWarehouseId) }
-    var destinationWarehouseId by remember(warehouseList) {
-        mutableStateOf(warehouseList.firstOrNull { it.value != defaultWarehouseId }?.value ?: warehouseList.firstOrNull()?.value.orEmpty())
+    val defaultWarehouseId = selectedAdjustment?.origin?.warehouseId ?: warehouseList.firstOrNull()?.value.orEmpty()
+    var originWarehouseId by remember(selectedAdjustment, warehouseList) { mutableStateOf(defaultWarehouseId) }
+    var destinationWarehouseId by remember(selectedAdjustment, warehouseList) {
+        mutableStateOf(selectedAdjustment?.destination?.warehouseId ?: warehouseList.firstOrNull { it.value != defaultWarehouseId }?.value ?: "")
     }
 
     var originWarehouseExpanded by remember { mutableStateOf(false) }
     var destWarehouseExpanded by remember { mutableStateOf(false) }
 
-    val allBins by settingsViewModel.bins.collectAsState()
-
-    val originWarehouseBins = remember(allBins, originWarehouseId) {
-        allBins.filter { it.warehouseIdValue.isBlank() || it.warehouseIdValue == originWarehouseId }.ifEmpty { allBins }
+    var adjustmentQuantityText by remember(selectedAdjustment) {
+        mutableStateOf(selectedAdjustment?.quantity?.toInt()?.toString() ?: "15")
     }
-    val destWarehouseBins = remember(allBins, destinationWarehouseId) {
-        allBins.filter { it.warehouseIdValue.isBlank() || it.warehouseIdValue == destinationWarehouseId }.ifEmpty { allBins }
-    }
-
-    var fromBinId by remember { mutableStateOf("") }
-    var toBinId by remember { mutableStateOf("") }
-
-    LaunchedEffect(originWarehouseBins, originWarehouseId) {
-        if (fromBinId.isBlank() || originWarehouseBins.none { it.id == fromBinId }) {
-            fromBinId = originWarehouseBins.firstOrNull { it.status.equals("active", true) }?.id ?: originWarehouseBins.firstOrNull()?.id.orEmpty()
-        }
-    }
-
-    LaunchedEffect(destWarehouseBins, destinationWarehouseId) {
-        if (toBinId.isBlank() || destWarehouseBins.none { it.id == toBinId }) {
-            toBinId = destWarehouseBins.firstOrNull { it.status.equals("active", true) }?.id ?: destWarehouseBins.firstOrNull()?.id.orEmpty()
-        }
-    }
-
-    var adjustmentQuantityText by remember { mutableStateOf("900") }
-    var reason by remember(reasonList, selectedAdjustmentType) {
-        mutableStateOf("Stock Rebalancing")
+    var reason by remember(reasonList, selectedAdjustment) {
+        mutableStateOf(selectedAdjustment?.reason ?: "Stock Rebalancing")
     }
     var reasonExpanded by remember { mutableStateOf(false) }
-    var referenceNumber by remember { mutableStateOf("AUDIT-2026-03") }
-    var handledBy by remember { mutableStateOf("Warehouse Manager") }
+    var referenceNumber by remember(selectedAdjustment) {
+        mutableStateOf(selectedAdjustment?.referenceNumber ?: "REF-${System.currentTimeMillis().toString().takeLast(6)}")
+    }
 
     val parsedQuantity = adjustmentQuantityText.toDoubleOrNull() ?: 0.0
-    val originWarehouseName = warehouseList.find { it.value == originWarehouseId }?.label ?: stockItem.warehouse.ifBlank { "Factory Warehouse" }
-    val destWarehouseName = warehouseList.find { it.value == destinationWarehouseId }?.label ?: "Retail Store Chennai"
+    val originWarehouseName = warehouseList.find { it.value == originWarehouseId }?.label ?: selectedAdjustment?.originWarehouseName ?: "Main Warehouse"
+    val destWarehouseName = warehouseList.find { it.value == destinationWarehouseId }?.label ?: selectedAdjustment?.destinationWarehouseName ?: "Branch Warehouse"
 
-    val unit = stockItem.unit?.ifBlank { "M" } ?: "M"
-    val currentStock = if (stockItem.available > 0) stockItem.available else 950.0
-    val reservedStock = if (stockItem.reserved > 0) stockItem.reserved else 120.0
-    val availableStock = (currentStock - reservedStock).coerceAtLeast(0.0)
-    val isExceeded = parsedQuantity > availableStock && selectedAdjustmentType != AdjustmentType.Increase
+    val unit = selectedAdjustment?.unit ?: "pcs"
+    val warehouseOptionNames = warehouseList.map { it.label }.ifEmpty { listOf("Main Warehouse", "Branch Warehouse") }
 
     Column(
         modifier = Modifier
@@ -531,7 +536,7 @@ fun AdjustStockModalContent(
     ) {
         Spacer(Modifier.height(8.dp))
 
-        // Product Snapshot Card (Icon + Title + SKU + Variant + Location)
+        // Product Snapshot Card
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -559,19 +564,19 @@ fun AdjustStockModalContent(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stockItem.product.ifBlank { "Linen Shirt – Premium Blue" },
+                        text = selectedAdjustment?.itemName ?: "Select Item",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = title_color
                     )
 
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(6.dp))
 
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("SKU", fontSize = 11.sp, color = mutedText)
                             Text(
-                                text = stockItem.sku.ifBlank { "FAB-ITL-220" },
+                                text = selectedAdjustment?.itemSku ?: "—",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = title_color
@@ -580,78 +585,27 @@ fun AdjustStockModalContent(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Variant", fontSize = 11.sp, color = mutedText)
                             Text(
-                                text = stockItem.variant ?: "Sky Blue",
+                                text = selectedAdjustment?.itemVariant ?: "—",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = title_color
                             )
                         }
                     }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint = Primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = originWarehouseName,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Primary
-                        )
-                    }
                 }
             }
-        }
-
-        Spacer(Modifier.height(14.dp))
-
-        // Triple Stat Metrics Row (Current, Reserved, Available)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            StatMetricBox(
-                label = "Current",
-                value = currentStock.toInt().toString(),
-                unit = unit,
-                modifier = Modifier.weight(1f),
-                tokens = tokens,
-                isHighlighted = false
-            )
-            StatMetricBox(
-                label = "Reserved",
-                value = reservedStock.toInt().toString(),
-                unit = unit,
-                modifier = Modifier.weight(1f),
-                tokens = tokens,
-                isHighlighted = false
-            )
-            StatMetricBox(
-                label = "Available",
-                value = availableStock.toInt().toString(),
-                unit = unit,
-                modifier = Modifier.weight(1f),
-                tokens = tokens,
-                isHighlighted = true
-            )
         }
 
         Spacer(Modifier.height(20.dp))
 
         Text(
-            text = "Adjustment Details",
+            text = "Adjustment Type",
             fontSize = tokens.bodyLarge,
             fontWeight = FontWeight.Bold,
             color = title_color
         )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
         // Adjustment Type Segmented Tabs
         Row(
@@ -670,8 +624,6 @@ fun AdjustStockModalContent(
         }
 
         Spacer(Modifier.height(16.dp))
-
-        val warehouseOptionNames = warehouseList.map { it.label }.ifEmpty { listOf("Factory Warehouse", "Retail Store Chennai") }
 
         if (selectedAdjustmentType == AdjustmentType.TransferStock) {
             Row(
@@ -722,129 +674,49 @@ fun AdjustStockModalContent(
 
         Spacer(Modifier.height(14.dp))
 
-        // Quantity Input Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        // Quantity Input
+        Text(text = "Adjustment Quantity", fontSize = tokens.bodySmall, color = textSubdued, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(6.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(tokens.fieldHeight * 1.15f)
+                .background(Color(0xFFF9FAFB), RoundedCornerShape(10.dp))
+                .border(1.dp, sectionBorder, RoundedCornerShape(10.dp))
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.CenterStart
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Adjustment Quantity",
-                    fontSize = tokens.bodySmall,
-                    color = textSubdued,
-                    fontWeight = FontWeight.Medium
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BasicTextField(
+                    value = adjustmentQuantityText,
+                    onValueChange = { adjustmentQuantityText = it },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    textStyle = TextStyle(
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = title_color
+                    ),
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.height(6.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(tokens.fieldHeight * 1.15f)
-                        .background(Color(0xFFF9FAFB), RoundedCornerShape(10.dp))
-                        .border(1.dp, sectionBorder, RoundedCornerShape(10.dp))
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        BasicTextField(
-                            value = adjustmentQuantityText,
-                            onValueChange = { adjustmentQuantityText = it },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            textStyle = TextStyle(
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = title_color
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = if (unit == "M") "METERS" else unit.uppercase(),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textSubdued
-                        )
-                    }
-                }
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Handled By",
-                    fontSize = tokens.bodySmall,
-                    color = textSubdued,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(Modifier.height(6.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(tokens.fieldHeight * 1.15f)
-                        .background(Color(0xFFF9FAFB), RoundedCornerShape(10.dp))
-                        .border(1.dp, sectionBorder, RoundedCornerShape(10.dp))
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    BasicTextField(
-                        value = handledBy,
-                        onValueChange = { handledBy = it },
-                        singleLine = true,
-                        textStyle = TextStyle(
-                            fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = title_color
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        }
-
-        if (isExceeded) {
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.WarningAmber,
-                    contentDescription = null,
-                    tint = redText,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = "Exceeds available stock (${availableStock.toInt()} $unit)",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = redText
+                    text = unit.uppercase(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textSubdued
                 )
             }
         }
 
         Spacer(Modifier.height(16.dp))
 
-        // ── Visual Transfer Diagram Card (Screen 3 & 4) ──
-        if (selectedAdjustmentType == AdjustmentType.TransferStock) {
-            TransferVisualizerCard(
-                fromWarehouseName = originWarehouseName.take(12),
-                fromStock = "${currentStock.toInt()} $unit",
-                toWarehouseName = destWarehouseName.take(14),
-                toStock = "120 $unit",
-                transferAmount = "${if (parsedQuantity > 0) parsedQuantity.toInt() else 200} $unit",
-                fromBalance = "${(currentStock - (if (parsedQuantity > 0) parsedQuantity else 200.0)).toInt().coerceAtLeast(0)} $unit",
-                toBalance = "${(120 + (if (parsedQuantity > 0) parsedQuantity else 200.0)).toInt()} $unit"
-            )
-            Spacer(Modifier.height(16.dp))
-        }
-
-        // Reason for Adjustment Dropdown
+        // Reason Dropdown
         val reasonOptions = reasonList.ifEmpty {
-            when (selectedAdjustmentType) {
-                AdjustmentType.Increase -> listOf("Stock Count Correction", "Found Stock", "Supplier Return Reversed")
-                AdjustmentType.Decrease -> listOf("Damaged Goods", "Inventory Loss", "Expired Stock", "Count Discrepancy")
-                AdjustmentType.TransferStock -> listOf("Stock Rebalancing", "Branch Replenishment", "Inter-warehouse Transfer")
-            }
+            listOf("Stock Rebalancing", "Stock Count Correction", "Damaged Goods", "Inter-warehouse Transfer", "Other")
         }
 
         CustomFormDropdown(
@@ -873,28 +745,14 @@ fun AdjustStockModalContent(
             BasicTextField(
                 value = referenceNumber,
                 onValueChange = { referenceNumber = it },
-                textStyle = TextStyle(
-                    fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.Medium,
-                    color = title_color
-                ),
+                textStyle = TextStyle(fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color),
                 modifier = Modifier.fillMaxWidth()
             )
         }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(24.dp))
 
-        // ── Transfer Summary Dark Blue Card (Screenshot 4) ──
-        if (selectedAdjustmentType == AdjustmentType.TransferStock) {
-            TransferSummaryCard(
-                movementText = "${String.format("%.2f", if (parsedQuantity > 0) parsedQuantity else 200.0)} $unit",
-                originWarehouse = originWarehouseName,
-                targetWarehouse = destWarehouseName
-            )
-            Spacer(Modifier.height(20.dp))
-        }
-
-        // Action Buttons (Cancel & Adjust Another)
+        // Action Buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -910,249 +768,62 @@ fun AdjustStockModalContent(
                 Text("Cancel", color = title_color, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold)
             }
 
-            OutlinedButton(
+            Button(
                 onClick = {
-                    adjustmentQuantityText = "0"
-                    referenceNumber = "REF-${System.currentTimeMillis().toString().takeLast(6)}"
+                    val itemId = selectedAdjustment?.itemId ?: return@Button
+                    if (parsedQuantity <= 0) return@Button
+
+                    when (selectedAdjustmentType) {
+                        AdjustmentType.Increase -> {
+                            onIncreaseStock(
+                                IncreaseStockRequest(
+                                    itemId = itemId,
+                                    quantity = parsedQuantity,
+                                    reason = reason,
+                                    warehouseId = originWarehouseId.takeIf { it.isNotBlank() },
+                                    referenceNumber = referenceNumber
+                                )
+                            )
+                        }
+                        AdjustmentType.Decrease -> {
+                            onDecreaseStock(
+                                DecreaseStockRequest(
+                                    itemId = itemId,
+                                    quantity = parsedQuantity,
+                                    reason = reason,
+                                    warehouseId = originWarehouseId.takeIf { it.isNotBlank() },
+                                    referenceNumber = referenceNumber
+                                )
+                            )
+                        }
+                        AdjustmentType.TransferStock -> {
+                            onTransferStock(
+                                TransferStockRequest(
+                                    itemId = itemId,
+                                    fromWarehouseId = originWarehouseId,
+                                    toWarehouseId = destinationWarehouseId,
+                                    quantity = parsedQuantity,
+                                    reason = reason
+                                )
+                            )
+                        }
+                    }
                 },
+                enabled = !isSubmitting && parsedQuantity > 0 && selectedAdjustment?.itemId?.isNotBlank() == true,
                 shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, sectionBorder),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary, disabledContainerColor = disabled),
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(1.5f)
                     .height(tokens.buttonHeight * 1.05f)
             ) {
-                Text("Adjust Another", color = Primary, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold)
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // Save Adjustment Full-Width Button
-        Button(
-            onClick = {
-                if (parsedQuantity <= 0) return@Button
-
-                when (selectedAdjustmentType) {
-                    AdjustmentType.Increase -> {
-                        val increaseReq = IncreaseStockRequest(
-                            itemId = stockItem.itemId,
-                            quantity = parsedQuantity,
-                            reason = reason,
-                            warehouseId = originWarehouseId.takeIf { it.isNotBlank() },
-                            binId = fromBinId.takeIf { it.isNotBlank() },
-                            referenceNumber = referenceNumber
-                        )
-                        onIncreaseStock(increaseReq)
-                    }
-
-                    AdjustmentType.Decrease -> {
-                        val decreaseReq = DecreaseStockRequest(
-                            itemId = stockItem.itemId,
-                            quantity = parsedQuantity,
-                            reason = reason,
-                            warehouseId = originWarehouseId.takeIf { it.isNotBlank() },
-                            binId = fromBinId.takeIf { it.isNotBlank() },
-                            referenceNumber = referenceNumber
-                        )
-                        onDecreaseStock(decreaseReq)
-                    }
-
-                    AdjustmentType.TransferStock -> {
-                        val transferReq = TransferStockRequest(
-                            itemId = stockItem.itemId,
-                            fromWarehouseId = originWarehouseId,
-                            fromBinId = fromBinId.takeIf { it.isNotBlank() },
-                            toWarehouseId = destinationWarehouseId,
-                            toBinId = toBinId.takeIf { it.isNotBlank() },
-                            quantity = parsedQuantity,
-                            reason = reason
-                        )
-                        onTransferStock(transferReq)
-                    }
-                }
-            },
-            enabled = !isSubmitting && parsedQuantity > 0 && !isExceeded,
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Primary, disabledContainerColor = disabled),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(tokens.buttonHeight * 1.15f)
-        ) {
-            if (isSubmitting) {
-                CircularProgressIndicator(color = whiteBg, modifier = Modifier.size(tokens.iconSize))
-            } else {
-                Text(
-                    text = "Save Adjustment",
-                    color = whiteBg,
-                    fontSize = tokens.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// TRANSFER VISUALIZER CARD (Screen 3 & 4 diagram)
-// ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun TransferVisualizerCard(
-    fromWarehouseName: String,
-    fromStock: String,
-    toWarehouseName: String,
-    toStock: String,
-    transferAmount: String,
-    fromBalance: String,
-    toBalance: String
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFFF9FAFB), RoundedCornerShape(12.dp))
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
-            .padding(14.dp)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(fromWarehouseName, fontSize = 11.sp, color = mutedText)
-                    Spacer(Modifier.height(4.dp))
-                    Text(fromStock, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = title_color)
-                }
-
-                // Transfer Pill in center
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xFFEEF2FF), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text("Transfer $transferAmount", fontSize = 11.sp, color = Primary, fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(Modifier.height(2.dp))
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = Primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(toWarehouseName, fontSize = 11.sp, color = mutedText)
-                    Spacer(Modifier.height(4.dp))
-                    Text(toStock, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = title_color)
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-            HorizontalDivider(color = Color(0xFFE5E7EB))
-            Spacer(Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("After Transfer Balance", fontSize = 11.sp, color = mutedText)
-
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Factory ", fontSize = 11.sp, color = mutedText)
-                        Text(fromBalance, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = title_color)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Retail ", fontSize = 11.sp, color = mutedText)
-                        Text(toBalance, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Primary)
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// TRANSFER SUMMARY DARK BLUE CARD (Screen 4)
-// ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun TransferSummaryCard(
-    movementText: String,
-    originWarehouse: String,
-    targetWarehouse: String
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFF2E3BE8), RoundedCornerShape(16.dp))
-            .padding(18.dp)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = "Transfer Summary",
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Inventory Movement", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
-                Text(movementText, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Origin Warehouse", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
-                Text(originWarehouse, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Target Warehouse", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
-                Text(targetWarehouse, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            }
-
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
-            Spacer(Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Status", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
-                Box(
-                    modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
-                ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(color = whiteBg, modifier = Modifier.size(tokens.iconSize))
+                } else {
                     Text(
-                        text = "Ready to Transfer",
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
+                        text = "Save Adjustment",
+                        color = whiteBg,
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -1163,49 +834,6 @@ private fun TransferSummaryCard(
 // ─────────────────────────────────────────────────────────────
 // REUSABLE SUB-COMPONENTS
 // ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun StatMetricBox(
-    label: String,
-    value: String,
-    unit: String,
-    modifier: Modifier,
-    tokens: AppDesignTokens,
-    isHighlighted: Boolean
-) {
-    Box(
-        modifier = modifier
-            .background(if (isHighlighted) Color(0xFFEEF2FF) else Color(0xFFF9FAFB), RoundedCornerShape(12.dp))
-            .border(1.dp, if (isHighlighted) Color(0xFFC7D2FE) else sectionBorder, RoundedCornerShape(12.dp))
-            .padding(vertical = 12.dp, horizontal = 10.dp)
-    ) {
-        Column {
-            Text(
-                text = label,
-                fontSize = tokens.caption,
-                color = if (isHighlighted) Primary else textSubdued,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = value,
-                    fontSize = tokens.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isHighlighted) Primary else title_color
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = unit,
-                    fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isHighlighted) Primary.copy(alpha = 0.8f) else mutedText,
-                    modifier = Modifier.padding(bottom = 1.dp)
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun AdjustmentTypePill(

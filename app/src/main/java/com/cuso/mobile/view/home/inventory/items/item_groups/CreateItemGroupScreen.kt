@@ -132,6 +132,7 @@ fun CreateItemGroupScreen(
     onSaveSuccess: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(Unit) {
         settingsViewModel.fetchProductCategories()
@@ -355,8 +356,10 @@ fun CreateItemGroupScreen(
 
             if (isEditMode && editDetail != null) {
                 inventoryViewModel.updateItemGroup(
+                    context = context,
                     id = editDetail!!.id,
                     request = request,
+                    imagesUris = itemGroupImages,
                     onSuccessCallback = {
                         inventoryViewModel.clearSelectedItemGroupDetail()
                         onSaveSuccess()
@@ -364,7 +367,9 @@ fun CreateItemGroupScreen(
                 )
             } else {
                 inventoryViewModel.createItemGroup(
+                    context = context,
                     request = request,
+                    imagesUris = itemGroupImages,
                     onSuccessCallback = {
                         inventoryViewModel.clearSelectedItemGroupDetail()
                         onSaveSuccess()
@@ -382,7 +387,7 @@ fun CreateItemGroupScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Primary_background)
+            .background(Color.Transparent)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Header Bar

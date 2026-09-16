@@ -69,9 +69,9 @@ private data class PoReportStat(
     val valueColor: Color = TitleColor
 )
 
-private enum class PoBadgeType { HEALTHY, WARNING, CRITICAL }
+enum class PoBadgeType { HEALTHY, WARNING, CRITICAL }
 
-private data class PurchaseOrder(
+data class PurchaseOrder(
     val id: String,
     val poNumber: String,
     val paymentStatus: String,
